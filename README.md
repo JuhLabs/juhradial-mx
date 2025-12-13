@@ -5,6 +5,12 @@
   <p>A Logi Options+ inspired experience for KDE Plasma 6</p>
 
   <p>
+    <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
+      <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
+    </a>
+    <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/security.yml">
+      <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/security.yml/badge.svg?branch=master" alt="Security Scan">
+    </a>
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL-3.0">
     </a>
