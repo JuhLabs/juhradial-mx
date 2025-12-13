@@ -1,0 +1,25 @@
+
+╭─── Claude Code v2.0.67 ──────────────────────────────────────────────────────╮
+│                                                    │ Tips for getting        │
+│                Welcome back Julian!                │ started                 │
+│                                                    │ Run /init to create a … │
+│                     * ▐▛███▜▌ *                    │ ─────────────────────── │
+│                    * ▝▜█████▛▘ *                   │ Recent activity         │
+│                     *  ▘▘ ▝▝  *                    │ No recent activity      │
+│                                                    │                         │
+│    Opus 4.5 · Claude Max · jhermsta@gmail.com's    │                         │
+│    Organization                                    │                         │
+│           ~/Prosjekter/JuhRadialMX/daemon          │                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+══════════════════ Conversation compacted · ctrl+o for history ═════════════════
+  ⎿  Referenced file src/main.rs
+  ⎿  Referenced file src/evdev.rs
+  ⎿  Referenced file ../../../../../tmp/daemon-test.log
+  ⎿  Read ../../../../../tmp/claude/tasks/ba8bbb6.output (3 lines)
+  ⎿  Read ../../../../../tmp/overlay.log (3 lines)
+  ⎿  Limit reached · resets 5pm (Europe/Oslo) · /upgrade to Max 20x or turn on 
+     /extra-usage
+     /upgrade or /extra-usage to finish what you're working on.
+
+
+

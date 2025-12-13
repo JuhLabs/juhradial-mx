@@ -1,0 +1,31 @@
+{
+  "name": "vaporwave",
+  "displayName": "Vaporwave",
+  "version": "1.0",
+  "author": "JuhRadial Team",
+  "colors": {
+    "base": "#1a1a2e",
+    "surface": "#2d2d44",
+    "text": "#e0e0ff",
+    "textSecondary": "#b0b0d0",
+    "accent": "#ff6b9d",
+    "accentSecondary": "#00f5d4",
+    "border": "#4a4a6a",
+    "shadow": "#0d0d1a",
+    "success": "#00ff88",
+    "warning": "#ffcc00",
+    "error": "#ff4477"
+  },
+  "glassmorphism": {
+    "blurRadius": 20,
+    "backgroundOpacity": 0.70,
+    "saturation": 2.0,
+    "borderOpacity": 0.20,
+    "noiseOpacity": 0.06
+  },
+  "animation": {
+    "glowIntensity": 1.5,
+    "enableParticles": true,
+    "idleEffect": "none"
+  }
+}

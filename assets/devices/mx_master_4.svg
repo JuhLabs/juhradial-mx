@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="600" height="500" viewBox="0 0 600 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mouseBody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a4a5a"/>
+      <stop offset="50%" style="stop-color:#3a3a4a"/>
+      <stop offset="100%" style="stop-color:#2a2a3a"/>
+    </linearGradient>
+    <linearGradient id="highlight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#6a6a7a;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#3a3a4a;stop-opacity:0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="5" dy="10" stdDeviation="15" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Main mouse body -->
+  <ellipse cx="300" cy="280" rx="180" ry="200" fill="url(#mouseBody)" filter="url(#shadow)"/>
+
+  <!-- Top highlight -->
+  <ellipse cx="300" cy="240" rx="160" ry="160" fill="url(#highlight)"/>
+
+  <!-- Scroll wheel area -->
+  <rect x="270" y="100" width="60" height="80" rx="8" fill="#2a2a3a"/>
+  <rect x="285" y="110" width="30" height="60" rx="6" fill="#5a5a6a"/>
+
+  <!-- Scroll wheel grooves -->
+  <line x1="290" y1="120" x2="310" y2="120" stroke="#3a3a4a" stroke-width="2"/>
+  <line x1="290" y1="135" x2="310" y2="135" stroke="#3a3a4a" stroke-width="2"/>
+  <line x1="290" y1="150" x2="310" y2="150" stroke="#3a3a4a" stroke-width="2"/>
+  <line x1="290" y1="165" x2="310" y2="165" stroke="#3a3a4a" stroke-width="2"/>
+
+  <!-- Thumb rest area -->
+  <ellipse cx="160" cy="320" rx="60" ry="100" fill="#3a3a4a"/>
+
+  <!-- Thumb buttons -->
+  <rect x="180" y="250" width="50" height="25" rx="4" fill="#4a4a5a"/>
+  <rect x="180" y="285" width="50" height="25" rx="4" fill="#4a4a5a"/>
+
+  <!-- Gesture button -->
+  <ellipse cx="170" cy="360" rx="25" ry="30" fill="#4a4a5a"/>
+
+  <!-- Horizontal scroll wheel -->
+  <rect x="130" y="390" width="60" height="15" rx="4" fill="#5a5a6a"/>
+
+  <!-- Mode shift button -->
+  <circle cx="330" cy="185" r="12" fill="#4a4a5a"/>
+
+  <!-- Logo area -->
+  <text x="300" y="350" font-family="Arial, sans-serif" font-size="14" fill="#6a6a7a" text-anchor="middle">logi</text>
+
+  <!-- Subtle edge highlight -->
+  <ellipse cx="300" cy="280" rx="178" ry="198" fill="none" stroke="#5a5a6a" stroke-width="1" opacity="0.3"/>
+</svg>

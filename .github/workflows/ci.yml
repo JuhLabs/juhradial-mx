@@ -1,0 +1,66 @@
+# JuhRadial MX CI Pipeline
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libdbus-1-dev \
+            pkg-config \
+            libudev-dev \
+            libhidapi-dev \
+            libhidapi-hidraw0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: daemon -> target
+
+      - name: Build Rust daemon
+        working-directory: daemon
+        run: cargo build --release
+
+      - name: Run Rust tests
+        working-directory: daemon
+        run: cargo test --verbose
+        continue-on-error: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build KWin script
+        working-directory: kwin-script
+        run: npm install && npm run build
+        continue-on-error: true
+
+      - name: Validate structure
+        run: |
+          echo "Validating project structure..."
+          test -f widget/org.kde.juhradialmx/metadata.json
+          test -f daemon/src/main.rs
+          echo "✓ Structure valid"

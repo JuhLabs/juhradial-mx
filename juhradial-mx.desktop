@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=JuhRadial MX
+Comment=Radial menu for Logitech MX Master mice
+Exec=/home/juhlabs/Prosjekter/JuhRadialMX/juhradial-mx.sh
+Icon=/home/juhlabs/Prosjekter/JuhRadialMX/assets/juhradial-mx.svg
+Terminal=false
+Type=Application
+Categories=Utility;System;
+Keywords=mouse;logitech;radial;menu;gesture;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

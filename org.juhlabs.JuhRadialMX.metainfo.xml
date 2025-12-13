@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.juhlabs.JuhRadialMX</id>
+
+  <name>JuhRadial MX</name>
+  <summary>Beautiful radial menu for Logitech MX Master mice on Linux</summary>
+
+  <developer id="org.juhlabs">
+    <name>JuhLabs (Julian Hermstad)</name>
+  </developer>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <url type="homepage">https://github.com/JuhLabs/juhradial-mx</url>
+  <url type="bugtracker">https://github.com/JuhLabs/juhradial-mx/issues</url>
+  <url type="donation">https://paypal.me/LangbachHermstad</url>
+  <url type="vcs-browser">https://github.com/JuhLabs/juhradial-mx</url>
+
+  <description>
+    <p>
+      JuhRadial MX brings a Logi Options+ inspired radial menu experience to Linux.
+      Hold the gesture button on your MX Master mouse to open a beautiful glassmorphic
+      radial menu overlay, then move to select actions.
+    </p>
+    <p>Key features:</p>
+    <ul>
+      <li>Glassmorphic radial menu with smooth animations</li>
+      <li>Per-application profiles for context-aware actions</li>
+      <li>Real-time battery status monitoring via HID++ protocol</li>
+      <li>Visual DPI control with presets (400-8000 DPI)</li>
+      <li>SmartShift scroll wheel configuration</li>
+      <li>Haptic feedback for menu selections</li>
+      <li>Beautiful Catppuccin Mocha dark theme</li>
+      <li>Native KDE Plasma and Wayland integration</li>
+    </ul>
+    <p>
+      JuhRadial MX never modifies your mouse's onboard memory, ensuring 100%
+      compatibility with Logi Options+ on Windows and macOS.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">org.juhlabs.JuhRadialMX.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Glassmorphic radial menu overlay</caption>
+      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/radial-menu.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Settings dashboard with button configuration</caption>
+      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/settings-buttons.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>DPI and scroll wheel settings</caption>
+      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/settings-scroll.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Interactive mouse visualization</caption>
+      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/mouse-viz.png</image>
+    </screenshot>
+  </screenshots>
+
+  <branding>
+    <color type="primary" scheme_preference="dark">#1e1e2e</color>
+    <color type="primary" scheme_preference="light">#cdd6f4</color>
+  </branding>
+
+  <content_rating type="oars-1.1" />
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+
+  <recommends>
+    <control>pointing</control>
+  </recommends>
+
+  <supports>
+    <control>pointing</control>
+  </supports>
+
+  <categories>
+    <category>Utility</category>
+    <category>Settings</category>
+    <category>HardwareSettings</category>
+  </categories>
+
+  <keywords>
+    <keyword>logitech</keyword>
+    <keyword>mx master</keyword>
+    <keyword>radial menu</keyword>
+    <keyword>mouse</keyword>
+    <keyword>gesture</keyword>
+    <keyword>kde</keyword>
+    <keyword>wayland</keyword>
+  </keywords>
+
+  <releases>
+    <release version="1.0.0" date="2024-12-13">
+      <description>
+        <p>Initial release of JuhRadial MX</p>
+        <ul>
+          <li>Glassmorphic radial menu overlay</li>
+          <li>Battery status monitoring</li>
+          <li>Settings dashboard with mouse visualization</li>
+          <li>DPI and scroll wheel configuration</li>
+          <li>KDE Plasma 6 integration</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+</component>

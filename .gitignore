@@ -1,0 +1,81 @@
+# ===========================================
+# JuhRadial MX - .gitignore
+# ===========================================
+
+# Build artifacts - Rust
+daemon/target/
+
+# Build artifacts - Node.js
+kwin-script/node_modules/
+kwin-script/dist/
+kwin-script/*.js
+kwin-script/*.js.map
+
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+# Temp and log files
+*.log
+/tmp/
+*.tmp
+*.temp
+
+# Local development tools (not needed for distribution)
+.agentvibes/
+.bmad/
+.claude/
+bmad-custom-src/
+.mcp.json
+docs/sprint-artifacts/
+docs/bmm-workflow-status.yaml
+
+# Internal documentation (use GitHub wiki instead)
+# docs/  # Uncomment if you want to exclude docs
+
+# Flatpak build
+.flatpak-builder/
+flatpak-build/
+*.flatpak
+
+# Package builds
+*.rpm
+*.deb
+*.pkg.tar.*
+
+# Test and coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Secrets (never commit!)
+*.pem
+*.key
+.env
+.env.local
+credentials.json
