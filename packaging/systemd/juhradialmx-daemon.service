@@ -1,0 +1,54 @@
+# JuhRadial MX Daemon - systemd user service
+#
+# This service manages the JuhRadial MX daemon which handles:
+# - MX Master 4 gesture button detection via evdev
+# - D-Bus communication with KWin overlay
+# - Profile management and action execution
+#
+# Installation:
+#   sudo install -Dm644 juhradialmx-daemon.service /usr/lib/systemd/user/juhradialmx-daemon.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now juhradialmx-daemon.service
+#
+# Management:
+#   systemctl --user status juhradialmx-daemon   # Check status
+#   systemctl --user restart juhradialmx-daemon  # Restart service
+#   journalctl --user -u juhradialmx-daemon -f   # View logs
+
+[Unit]
+Description=JuhRadial MX Daemon - Radial menu for Logitech MX Master 4
+Documentation=https://github.com/juhhally/juhradial-mx
+After=graphical-session.target
+Wants=graphical-session.target
+PartOf=graphical-session.target
+
+# D-Bus session is required for communication with KWin
+Requires=dbus.socket
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/juhradiald
+Restart=on-failure
+RestartSec=5s
+
+# Limit restart attempts to prevent infinite restart loops
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Environment
+Environment=RUST_LOG=info
+Environment=RUST_BACKTRACE=1
+
+# Security hardening (user service, so limited options)
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.config/juhradial
+PrivateTmp=yes
+
+# Resource limits
+MemoryMax=100M
+CPUQuota=50%
+
+[Install]
+WantedBy=default.target

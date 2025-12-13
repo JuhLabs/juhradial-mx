@@ -1,0 +1,31 @@
+{
+  "name": "catppuccin-mocha",
+  "displayName": "Catppuccin Mocha",
+  "version": "1.0",
+  "author": "JuhRadial Team",
+  "colors": {
+    "base": "#1e1e2e",
+    "surface": "#313244",
+    "text": "#cdd6f4",
+    "textSecondary": "#bac2de",
+    "accent": "#b4befe",
+    "accentSecondary": "#89b4fa",
+    "border": "#585b70",
+    "shadow": "#11111b",
+    "success": "#a6e3a1",
+    "warning": "#fab387",
+    "error": "#f38ba8"
+  },
+  "glassmorphism": {
+    "blurRadius": 24,
+    "backgroundOpacity": 0.75,
+    "saturation": 1.8,
+    "borderOpacity": 0.15,
+    "noiseOpacity": 0.04
+  },
+  "animation": {
+    "glowIntensity": 1.0,
+    "enableParticles": false,
+    "idleEffect": "none"
+  }
+}

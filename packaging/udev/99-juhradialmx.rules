@@ -1,0 +1,46 @@
+# JuhRadial MX - udev rules for Logitech MX Master 4
+#
+# These rules allow non-root access to Logitech input devices,
+# enabling the JuhRadial MX daemon to read gesture button events
+# without requiring elevated privileges.
+#
+# Installation:
+#   sudo cp 99-juhradialmx.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger
+#   sudo usermod -aG input $USER
+#   # Log out and back in for group changes to take effect
+#
+# After installation, the daemon can access /dev/input/event* devices
+# for Logitech mice without sudo.
+
+# Logitech HID devices - general rule for input subsystem
+# Vendor ID 046d = Logitech
+SUBSYSTEM=="input", ATTRS{idVendor}=="046d", MODE="0660", GROUP="input"
+
+# Logitech USB devices - hidraw access for HID++ haptic commands
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", MODE="0660", GROUP="input"
+
+# Logitech USB receiver (Unifying/Bolt)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", MODE="0666"
+
+# MX Master 4 specific rules (USB receiver)
+# Product ID b034 - MX Master 4 via USB receiver
+SUBSYSTEM=="input", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="b034", MODE="0660", GROUP="input", TAG+="uaccess"
+
+# MX Master 4 specific rules (Bluetooth)
+# Product ID b035 - MX Master 4 via Bluetooth
+SUBSYSTEM=="input", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="b035", MODE="0660", GROUP="input", TAG+="uaccess"
+
+# MX Master 4 specific rules (Bolt receiver variant)
+SUBSYSTEM=="input", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="4082", MODE="0660", GROUP="input", TAG+="uaccess"
+
+# Logi Bolt Receiver
+# Product ID c548 - Logi Bolt USB Receiver
+SUBSYSTEM=="input", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c548", MODE="0660", GROUP="input", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c548", MODE="0660", GROUP="input", TAG+="uaccess"
+
+# Tag for systemd-logind automatic access (Fedora/modern systems)
+# This allows the currently logged-in user to access the device
+SUBSYSTEM=="input", ATTRS{idVendor}=="046d", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", TAG+="uaccess"

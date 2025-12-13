@@ -1,0 +1,61 @@
+[package]
+name = "juhradiald"
+version = "0.1.0"
+edition = "2021"
+description = "JuhRadial MX daemon - Radial menu for Logitech MX Master 4 on Linux"
+license = "GPL-3.0"
+authors = ["Julian Hermstad"]
+repository = "https://github.com/juhhally/juhradial-mx"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+
+# D-Bus IPC (pure Rust, async)
+zbus = "5"
+
+# Linux input events
+evdev = { version = "0.13", features = ["tokio"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# File watching for config hot-reload
+notify = "6"
+
+# Platform directories (config, data paths)
+dirs = "5"
+
+# Low-level libc bindings (for O_NONBLOCK)
+libc = "0.2"
+
+# HID++ for haptic feedback (optional - gracefully degrades if not available)
+hidapi = { version = "2", optional = true }
+
+[features]
+default = ["hidapi"]
+hidapi = ["dep:hidapi"]
+
+[dev-dependencies]
+# Performance benchmarks
+criterion = "0.5"
+# Temp directories for testing
+tempfile = "3"
+
+[[bench]]
+name = "latency"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

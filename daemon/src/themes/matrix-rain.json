@@ -1,0 +1,31 @@
+{
+  "name": "matrix-rain",
+  "displayName": "Matrix Rain",
+  "version": "1.0",
+  "author": "JuhRadial Team",
+  "colors": {
+    "base": "#0d0d0d",
+    "surface": "#1a1a1a",
+    "text": "#00ff00",
+    "textSecondary": "#009900",
+    "accent": "#00ff00",
+    "accentSecondary": "#33ff33",
+    "border": "#003300",
+    "shadow": "#000000",
+    "success": "#00ff00",
+    "warning": "#66ff00",
+    "error": "#ff0000"
+  },
+  "glassmorphism": {
+    "blurRadius": 16,
+    "backgroundOpacity": 0.85,
+    "saturation": 1.5,
+    "borderOpacity": 0.25,
+    "noiseOpacity": 0.08
+  },
+  "animation": {
+    "glowIntensity": 2.0,
+    "enableParticles": false,
+    "idleEffect": "matrix-rain"
+  }
+}

@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- MX Master 4 Mouse - JuhRadial MX Settings Dashboard -->
+<!-- Stylized representation with gesture button highlighted -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 320" width="200" height="320">
+  <defs>
+    <!-- Mouse body gradient -->
+    <linearGradient id="bodyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a4a4a"/>
+      <stop offset="50%" style="stop-color:#3a3a3a"/>
+      <stop offset="100%" style="stop-color:#2a2a2a"/>
+    </linearGradient>
+
+    <!-- Gesture button highlight gradient -->
+    <linearGradient id="gestureHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#89b4fa"/>
+      <stop offset="100%" style="stop-color:#74c7ec"/>
+    </linearGradient>
+
+    <!-- Button shadow -->
+    <filter id="buttonShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+    </filter>
+
+    <!-- Glow effect for gesture button -->
+    <filter id="gestureGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="0 0 0 0 0.537
+                0 0 0 0 0.706
+                0 0 0 0 0.980
+                0 0 0 0.7 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Mouse body outline -->
+  <path id="mouseBody" d="
+    M 40,50
+    C 20,50 10,80 10,120
+    L 10,250
+    C 10,290 35,310 100,310
+    C 165,310 190,290 190,250
+    L 190,120
+    C 190,80 180,50 160,50
+    C 140,50 120,30 100,30
+    C 80,30 60,50 40,50
+    Z"
+    fill="url(#bodyGradient)"
+    stroke="#1a1a1a"
+    stroke-width="2"/>
+
+  <!-- Left click button -->
+  <path d="
+    M 40,50
+    C 20,50 10,80 10,120
+    L 10,150
+    L 98,150
+    L 98,35
+    C 80,35 60,50 40,50
+    Z"
+    fill="#454545"
+    stroke="#2a2a2a"
+    stroke-width="1"
+    filter="url(#buttonShadow)"/>
+
+  <!-- Right click button -->
+  <path d="
+    M 160,50
+    C 180,50 190,80 190,120
+    L 190,150
+    L 102,150
+    L 102,35
+    C 120,35 140,50 160,50
+    Z"
+    fill="#454545"
+    stroke="#2a2a2a"
+    stroke-width="1"
+    filter="url(#buttonShadow)"/>
+
+  <!-- Scroll wheel well -->
+  <rect x="85" y="60" width="30" height="80" rx="15" ry="15"
+    fill="#1a1a1a"/>
+
+  <!-- Scroll wheel -->
+  <rect x="90" y="70" width="20" height="60" rx="10" ry="10"
+    fill="#555555"
+    stroke="#3a3a3a"
+    stroke-width="1"/>
+
+  <!-- Scroll wheel texture lines -->
+  <g stroke="#444444" stroke-width="1">
+    <line x1="92" y1="80" x2="108" y2="80"/>
+    <line x1="92" y1="90" x2="108" y2="90"/>
+    <line x1="92" y1="100" x2="108" y2="100"/>
+    <line x1="92" y1="110" x2="108" y2="110"/>
+    <line x1="92" y1="120" x2="108" y2="120"/>
+  </g>
+
+  <!-- Mode shift button (under scroll wheel) -->
+  <rect x="88" y="145" width="24" height="12" rx="3" ry="3"
+    fill="#505050"
+    stroke="#3a3a3a"
+    stroke-width="1"/>
+
+  <!-- GESTURE BUTTON (highlighted - this is the star of the show!) -->
+  <g id="gestureButton" filter="url(#gestureGlow)">
+    <!-- Button base -->
+    <ellipse cx="25" cy="180" rx="18" ry="25"
+      fill="url(#gestureHighlight)"
+      stroke="#cba6f7"
+      stroke-width="2"/>
+
+    <!-- Button inner detail -->
+    <ellipse cx="25" cy="180" rx="12" ry="18"
+      fill="none"
+      stroke="rgba(255,255,255,0.3)"
+      stroke-width="1"/>
+  </g>
+
+  <!-- Thumb rest area indicator -->
+  <path d="
+    M 10,200
+    Q 5,220 10,250
+    L 15,250
+    Q 12,220 15,200
+    Z"
+    fill="#353535"/>
+
+  <!-- Side scroll buttons (above gesture button) -->
+  <rect x="12" y="135" width="20" height="10" rx="2" ry="2"
+    fill="#484848"
+    stroke="#3a3a3a"
+    stroke-width="1"/>
+  <rect x="12" y="150" width="20" height="10" rx="2" ry="2"
+    fill="#484848"
+    stroke="#3a3a3a"
+    stroke-width="1"/>
+
+  <!-- DPI button indicator (top of mouse) -->
+  <circle cx="100" cy="25" r="4"
+    fill="#404040"
+    stroke="#2a2a2a"
+    stroke-width="1"/>
+
+  <!-- Logitech logo area (simplified) -->
+  <text x="100" y="270"
+    font-family="sans-serif"
+    font-size="14"
+    font-weight="bold"
+    fill="#555555"
+    text-anchor="middle">logi</text>
+
+  <!-- Subtle highlight on mouse body -->
+  <ellipse cx="100" cy="200" rx="70" ry="90"
+    fill="none"
+    stroke="rgba(255,255,255,0.05)"
+    stroke-width="40"/>
+</svg>

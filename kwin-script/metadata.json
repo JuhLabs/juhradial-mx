@@ -1,0 +1,25 @@
+{
+    "KPlugin": {
+        "Id": "juhradial-mx",
+        "Name": "JuhRadial MX",
+        "Description": "Glassmorphic radial menu overlay for Logitech MX Master 4",
+        "Icon": "input-mouse",
+        "Authors": [
+            {
+                "Name": "Julian Hermstad",
+                "Email": "julian@example.com"
+            }
+        ],
+        "License": "GPL-3.0",
+        "Version": "0.1.0",
+        "Website": "https://github.com/juhhally/juhradial-mx"
+    },
+    "KPackageStructure": "KWin/Script",
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "contents/code/main.js",
+    "X-KWin-Requires": ["dbus"],
+    "X-KDE-ServiceTypes": [
+        "KWin/Script"
+    ],
+    "X-KDE-PluginInfo-EnabledByDefault": true
+}

@@ -1,0 +1,11 @@
+# JuhRadial MX - ydotool uinput access rules
+# Allows non-root users to inject input events via ydotool
+#
+# Installation:
+#   1. Copy to udev rules: sudo cp 60-ydotool-uinput.rules /etc/udev/rules.d/
+#   2. Reload udev: sudo udevadm control --reload-rules && sudo udevadm trigger
+#   3. Reboot or re-login for group membership to take effect
+#
+# Note: This grants uinput access to all logged-in users via uaccess tag
+
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
