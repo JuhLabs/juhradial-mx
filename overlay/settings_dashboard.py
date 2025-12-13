@@ -1727,12 +1727,18 @@ class SettingsPage(Gtk.ScrolledWindow):
         if state:
             # Create autostart entry
             autostart_dir.mkdir(parents=True, exist_ok=True)
-            desktop_content = """[Desktop Entry]
+            # Get the script path dynamically
+            script_dir = Path(__file__).resolve().parent.parent
+            exec_path = script_dir / 'juhradial-mx.sh'
+            # Fallback to installed location if not found
+            if not exec_path.exists():
+                exec_path = Path('/usr/bin/juhradial-mx')
+            desktop_content = f"""[Desktop Entry]
 Type=Application
 Name=JuhRadial MX
 Comment=Radial menu for Logitech MX Master
-Exec=/home/juhlabs/Prosjekter/JuhRadialMX/juhradial-mx.sh
-Icon=input-mouse
+Exec={exec_path}
+Icon=org.juhlabs.JuhRadialMX
 Terminal=false
 Categories=Utility;
 X-GNOME-Autostart-enabled=true
