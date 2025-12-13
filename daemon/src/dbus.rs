@@ -17,6 +17,7 @@
 
 use zbus::{interface, object_server::SignalEmitter, fdo};
 use crate::battery::SharedBatteryState;
+use crate::config::{Config, SharedConfig};
 
 /// D-Bus interface name
 pub const DBUS_INTERFACE: &str = "org.kde.juhradialmx.Daemon";
@@ -33,22 +34,22 @@ pub const DBUS_NAME: &str = "org.kde.juhradialmx";
 pub struct JuhRadialService {
     /// Current profile name
     current_profile: String,
-    /// Haptics enabled flag
-    haptics_enabled: bool,
     /// Daemon version
     version: String,
     /// Shared battery state
     battery_state: SharedBatteryState,
+    /// Shared configuration for hot-reload
+    config: SharedConfig,
 }
 
 impl JuhRadialService {
-    /// Create a new D-Bus service instance with battery state
-    pub fn new(battery_state: SharedBatteryState) -> Self {
+    /// Create a new D-Bus service instance with battery state and config
+    pub fn new(battery_state: SharedBatteryState, config: SharedConfig) -> Self {
         Self {
             current_profile: "default".to_string(),
-            haptics_enabled: true,
             version: env!("CARGO_PKG_VERSION").to_string(),
             battery_state,
+            config,
         }
     }
 }
@@ -183,10 +184,37 @@ impl JuhRadialService {
     }
 
     /// Reload configuration from disk
+    ///
+    /// Reloads config.json and updates the shared configuration.
+    /// This allows settings changes to take effect without restarting the daemon.
     async fn reload_config(&self) -> fdo::Result<()> {
-        tracing::info!("ReloadConfig called");
-        // TODO: Reload and apply configuration
-        Ok(())
+        tracing::info!("ReloadConfig called - reloading configuration from disk");
+
+        match Config::load_default() {
+            Ok(new_config) => {
+                // Update the shared config
+                match self.config.write() {
+                    Ok(mut config) => {
+                        *config = new_config;
+                        tracing::info!(
+                            haptics_enabled = config.haptics.enabled,
+                            haptic_intensity = config.haptics.intensity,
+                            theme = %config.theme,
+                            "Configuration reloaded successfully"
+                        );
+                        Ok(())
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, "Failed to acquire config write lock");
+                        Err(fdo::Error::Failed(format!("Lock error: {}", e)))
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to reload configuration");
+                Err(fdo::Error::Failed(format!("Config reload failed: {}", e)))
+            }
+        }
     }
 
     /// Called by KWin script to report cursor position and show menu
@@ -233,7 +261,10 @@ impl JuhRadialService {
     /// Get haptics enabled status
     #[zbus(property)]
     async fn haptics_enabled(&self) -> bool {
-        self.haptics_enabled
+        self.config
+            .read()
+            .map(|c| c.haptics.enabled)
+            .unwrap_or(true)
     }
 
     /// Get daemon version
@@ -250,11 +281,15 @@ impl JuhRadialService {
 ///
 /// # Arguments
 /// * `battery_state` - Shared battery state for GetBatteryStatus method
+/// * `config` - Shared configuration for hot-reload support
 ///
 /// # Returns
 /// A `zbus::Connection` that should be kept alive for the service to run.
-pub async fn init_dbus_service(battery_state: SharedBatteryState) -> zbus::Result<zbus::Connection> {
-    let service = JuhRadialService::new(battery_state);
+pub async fn init_dbus_service(
+    battery_state: SharedBatteryState,
+    config: SharedConfig,
+) -> zbus::Result<zbus::Connection> {
+    let service = JuhRadialService::new(battery_state, config);
 
     let connection = zbus::connection::Builder::session()?
         .name(DBUS_NAME)?
@@ -275,6 +310,7 @@ pub async fn init_dbus_service(battery_state: SharedBatteryState) -> zbus::Resul
 mod tests {
     use super::*;
     use crate::battery::new_shared_state;
+    use crate::config::new_shared_config;
 
     #[test]
     fn test_dbus_constants() {
@@ -286,9 +322,12 @@ mod tests {
     #[test]
     fn test_service_creation() {
         let battery_state = new_shared_state();
-        let service = JuhRadialService::new(battery_state);
+        let config = new_shared_config();
+        let service = JuhRadialService::new(battery_state, config);
         assert_eq!(service.current_profile, "default");
-        assert!(service.haptics_enabled);
+        // Check haptics from config
+        let haptics = service.config.read().unwrap().haptics.enabled;
+        assert!(haptics);
         assert!(!service.version.is_empty());
     }
 }

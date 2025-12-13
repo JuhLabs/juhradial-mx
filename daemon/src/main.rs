@@ -11,6 +11,7 @@ use tracing_subscriber::FmtSubscriber;
 
 use juhradiald::{
     battery::{new_shared_state, start_battery_updater},
+    config::load_shared_config,
     cursor::{get_screen_bounds, ScreenBounds},
     dbus::{init_dbus_service, DBUS_PATH, DBUS_NAME},
     evdev::{EvdevHandler, EvdevError, GestureEvent, LogidHandler},
@@ -64,8 +65,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create shared battery state
     let battery_state = new_shared_state();
 
-    // Initialize D-Bus service with battery state
-    let dbus_connection = match init_dbus_service(battery_state.clone()).await {
+    // Load shared configuration (supports hot-reload via ReloadConfig D-Bus method)
+    let shared_config = match load_shared_config() {
+        Ok(config) => {
+            info!("Configuration loaded successfully");
+            config
+        }
+        Err(e) => {
+            warn!("Failed to load config, using defaults: {}", e);
+            juhradiald::config::new_shared_config()
+        }
+    };
+
+    // Initialize D-Bus service with battery state and config
+    let dbus_connection = match init_dbus_service(battery_state.clone(), shared_config.clone()).await {
         Ok(conn) => {
             info!("D-Bus service initialized successfully");
             conn
@@ -120,22 +133,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create channel for gesture events
     let (event_tx, mut event_rx) = mpsc::channel::<GestureEvent>(32);
 
+    // Check if logid is available - if so, use it exclusively to avoid duplicate events
+    let logid_available = LogidHandler::find_logid_device().is_ok();
+
+    if logid_available {
+        info!("LogiOps (logid) detected - using logid handler exclusively");
+    } else {
+        info!("LogiOps not detected - using evdev/hidraw handlers");
+    }
+
     // Spawn the HID++ hidraw handler (for diverted button events from Solaar)
-    let hidraw_tx = event_tx.clone();
-    let hidraw_handle = tokio::spawn(async move {
-        run_hidraw_loop(hidraw_tx).await
-    });
+    // Only if logid is NOT available
+    let hidraw_handle = if !logid_available {
+        let hidraw_tx = event_tx.clone();
+        Some(tokio::spawn(async move {
+            run_hidraw_loop(hidraw_tx).await
+        }))
+    } else {
+        None
+    };
 
     // Spawn the evdev handler as fallback (for non-diverted button events)
-    let evdev_tx = event_tx.clone();
-    let evdev_handle = tokio::spawn(async move {
-        run_evdev_loop(evdev_tx).await
-    });
+    // Only if logid is NOT available
+    let evdev_handle = if !logid_available {
+        let evdev_tx = event_tx.clone();
+        Some(tokio::spawn(async move {
+            run_evdev_loop(evdev_tx).await
+        }))
+    } else {
+        None
+    };
 
     // Spawn the logid handler (for F19/F20 keypresses from logid)
-    let logid_handle = tokio::spawn(async move {
-        run_logid_loop(event_tx).await
-    });
+    // Only if logid IS available
+    let logid_handle = if logid_available {
+        Some(tokio::spawn(async move {
+            run_logid_loop(event_tx).await
+        }))
+    } else {
+        None
+    };
 
     // Get screen bounds for edge clamping (query once at startup)
     let screen_bounds = get_screen_bounds();
@@ -152,21 +189,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("JuhRadial MX Daemon ready");
 
     // Wait for shutdown signal
+    // Use async block to handle Option handles properly
+    let wait_hidraw = async {
+        if let Some(handle) = hidraw_handle {
+            handle.await
+        } else {
+            std::future::pending().await
+        }
+    };
+    let wait_evdev = async {
+        if let Some(handle) = evdev_handle {
+            handle.await
+        } else {
+            std::future::pending().await
+        }
+    };
+    let wait_logid = async {
+        if let Some(handle) = logid_handle {
+            handle.await
+        } else {
+            std::future::pending().await
+        }
+    };
+
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             info!("Shutdown signal received, exiting...");
         }
-        result = hidraw_handle => {
+        result = wait_hidraw => {
             if let Err(e) = result {
                 error!("hidraw task panicked: {:?}", e);
             }
         }
-        result = evdev_handle => {
+        result = wait_evdev => {
             if let Err(e) = result {
                 error!("evdev task panicked: {:?}", e);
             }
         }
-        result = logid_handle => {
+        result = wait_logid => {
             if let Err(e) = result {
                 error!("logid task panicked: {:?}", e);
             }
@@ -380,6 +440,7 @@ async fn process_gesture_events(
                 info!(duration_ms, "Gesture button released");
 
                 // Emit HideMenu signal via D-Bus
+                // Overlay tracks duration internally for tap-to-toggle detection
                 if let Err(e) = emit_hide_menu(dbus_connection).await {
                     error!("Failed to emit HideMenu signal: {}", e);
                 }
@@ -425,22 +486,19 @@ async fn emit_menu_requested(
 
 /// Emit HideMenu signal via D-Bus (Story 2.7)
 ///
-/// Calls the HideMenu method on our D-Bus service to dismiss the overlay.
+/// Emits HideMenu signal to dismiss the overlay.
+/// Overlay tracks time internally for tap-to-toggle detection.
 async fn emit_hide_menu(
     connection: &zbus::Connection,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use zbus::proxy::Proxy;
-
-    let proxy = Proxy::new(
-        connection,
-        DBUS_NAME,
+    // Emit signal directly (no parameters)
+    connection.emit_signal(
+        None::<&str>,  // destination (None = broadcast)
         DBUS_PATH,
         "org.kde.juhradialmx.Daemon",
-    )
-    .await?;
-
-    // Call HideMenu to dismiss the overlay
-    proxy.call_method("HideMenu", &()).await?;
+        "HideMenu",
+        &(),
+    ).await?;
 
     info!("HideMenu signal emitted");
     Ok(())

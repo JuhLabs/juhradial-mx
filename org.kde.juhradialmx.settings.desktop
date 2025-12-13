@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=JuhRadial MX Settings
+Comment=Configure JuhRadial MX radial menu
+Exec=python3 /home/juhlabs/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py
+Icon=juhradial-mx
+Terminal=false
+Type=Application
+Categories=Settings;Utility;
+Keywords=mouse;logitech;radial;menu;settings;
+StartupNotify=true
+StartupWMClass=org.kde.juhradialmx.settings

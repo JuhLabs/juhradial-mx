@@ -279,6 +279,26 @@ impl Config {
 }
 
 // ============================================================================
+// Shared Config (for hot-reload)
+// ============================================================================
+
+use std::sync::{Arc, RwLock};
+
+/// Thread-safe shared configuration for hot-reload support
+pub type SharedConfig = Arc<RwLock<Config>>;
+
+/// Create a new shared config with defaults
+pub fn new_shared_config() -> SharedConfig {
+    Arc::new(RwLock::new(Config::default()))
+}
+
+/// Create a new shared config from file (or defaults if file doesn't exist)
+pub fn load_shared_config() -> Result<SharedConfig, ConfigError> {
+    let config = Config::load_default()?;
+    Ok(Arc::new(RwLock::new(config)))
+}
+
+// ============================================================================
 // Error Types
 // ============================================================================
 

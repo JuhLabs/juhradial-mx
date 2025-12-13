@@ -67,6 +67,16 @@ class ConfigManager:
 
     def __init__(self):
         self.config = self._load()
+        self._toast_callback = None
+
+    def set_toast_callback(self, callback):
+        """Set callback for showing toast notifications"""
+        self._toast_callback = callback
+
+    def _show_toast(self, message):
+        """Show toast if callback is set"""
+        if self._toast_callback:
+            self._toast_callback(message)
 
     def _load(self) -> dict:
         """Load config from file or return defaults"""
@@ -94,7 +104,7 @@ class ConfigManager:
             else:
                 base[key] = value
 
-    def save(self):
+    def save(self, show_toast=True):
         """Save config to file and notify daemon"""
         try:
             self.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -102,8 +112,11 @@ class ConfigManager:
                 json.dump(self.config, f, indent=2)
             # Notify daemon to reload config
             self._notify_daemon()
+            if show_toast:
+                self._show_toast("Settings saved")
         except Exception as e:
             print(f"Error saving config: {e}")
+            self._show_toast(f"Error saving settings: {e}")
 
     def _notify_daemon(self):
         """Notify daemon to reload config via D-Bus"""
@@ -1710,12 +1723,27 @@ class SettingsPage(Gtk.ScrolledWindow):
 
     def _on_theme_changed(self, dropdown, _):
         """Handle theme selection change"""
+        import subprocess
+
         theme_values = ['catppuccin-mocha', 'catppuccin-latte', 'nord', 'dracula', 'system']
         selected = dropdown.get_selected()
         if 0 <= selected < len(theme_values):
             theme = theme_values[selected]
             config.set('theme', theme)
             print(f"Theme changed to: {theme}")
+
+            # Restart the overlay to apply the new theme
+            try:
+                # Kill the old overlay
+                subprocess.run(['pkill', '-f', 'juhradial-overlay.py'],
+                             capture_output=True, timeout=2)
+                # Start new overlay with new theme
+                overlay_path = Path(__file__).parent / 'juhradial-overlay.py'
+                subprocess.Popen(['python3', str(overlay_path)],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                print("Overlay restarted with new theme")
+            except Exception as e:
+                print(f"Could not restart overlay: {e}")
 
     def _on_startup_changed(self, switch, state):
         """Handle start at login toggle"""
@@ -1871,52 +1899,120 @@ class AddApplicationDialog(Adw.Window):
         self.set_content(main_box)
 
     def _populate_running_apps(self):
-        """Get list of running applications"""
+        """Get list of running applications using D-Bus and process detection"""
         import subprocess
+        import re
+
+        apps = set()
 
         try:
-            # Get running window classes using wmctrl or qdbus
+            # Method 1: Get running KDE apps from D-Bus session bus
+            # Apps register as org.kde.<appname>-<pid> or similar patterns
             result = subprocess.run(
-                ['qdbus', 'org.kde.KWin', '/KWin', 'org.kde.KWin.queryWindowInfo'],
-                capture_output=True, text=True, timeout=2
+                ['qdbus-qt6'],
+                capture_output=True, text=True, timeout=5
             )
-
-            # Fallback: get from /proc
-            apps = set()
-            for proc_dir in Path('/proc').iterdir():
-                if proc_dir.is_dir() and proc_dir.name.isdigit():
-                    try:
-                        cmdline = (proc_dir / 'cmdline').read_text()
-                        if cmdline:
-                            app_name = cmdline.split('\x00')[0].split('/')[-1]
-                            if app_name and not app_name.startswith('-'):
-                                apps.add(app_name)
-                    except Exception:
-                        pass
-
-            # Add common apps
-            common_apps = ['firefox', 'chrome', 'code', 'gimp', 'blender', 'inkscape',
-                          'libreoffice', 'konsole', 'dolphin', 'okular', 'gwenview']
-            for app in common_apps:
-                apps.add(app)
-
-            # Populate list
-            for app in sorted(apps)[:30]:  # Limit to 30 apps
-                row = Adw.ActionRow()
-                row.set_title(app)
-                row.app_name = app
-
-                # Add checkmark suffix (hidden initially)
-                check = Gtk.Image.new_from_icon_name('object-select-symbolic')
-                check.set_visible(False)
-                row.add_suffix(check)
-                row.check_icon = check
-
-                self.app_list.append(row)
-
+            if result.returncode == 0:
+                for line in result.stdout.strip().split('\n'):
+                    line = line.strip()
+                    # Match patterns like org.kde.dolphin-12345
+                    match = re.match(r'org\.kde\.(\w+)-\d+', line)
+                    if match:
+                        app_name = match.group(1)
+                        if app_name not in ('KWin', 'plasmashell', 'kded', 'kglobalaccel'):
+                            apps.add(app_name)
+                    # Also match org.mozilla.firefox, org.chromium, etc.
+                    match = re.match(r'org\.(\w+)\.(\w+)', line)
+                    if match:
+                        org, app = match.group(1), match.group(2)
+                        if org in ('mozilla', 'chromium', 'gnome', 'gtk'):
+                            apps.add(app.lower())
         except Exception as e:
-            print(f"Failed to get running apps: {e}")
-            # Add placeholder
+            print(f"D-Bus app detection failed: {e}")
+
+        try:
+            # Method 2: Check for GUI processes with known .desktop files
+            # Look at running processes and match against installed apps
+            desktop_dirs = [
+                Path('/usr/share/applications'),
+                Path.home() / '.local/share/applications',
+                Path('/var/lib/flatpak/exports/share/applications'),
+                Path.home() / '.local/share/flatpak/exports/share/applications',
+            ]
+
+            # Get all installed app names from .desktop files
+            installed_apps = {}
+            for desktop_dir in desktop_dirs:
+                if desktop_dir.exists():
+                    for desktop_file in desktop_dir.glob('*.desktop'):
+                        try:
+                            content = desktop_file.read_text()
+                            # Extract Exec line to get binary name
+                            for line in content.split('\n'):
+                                if line.startswith('Exec='):
+                                    exec_cmd = line[5:].split()[0]  # Get first word after Exec=
+                                    binary = Path(exec_cmd).name
+                                    # Map binary to desktop file name (app name)
+                                    app_name = desktop_file.stem
+                                    # Use shorter name if it's a reverse-domain style
+                                    if '.' in app_name:
+                                        parts = app_name.split('.')
+                                        app_name = parts[-1] if len(parts) > 2 else app_name
+                                    installed_apps[binary] = app_name
+                                    break
+                        except Exception:
+                            pass
+
+            # Get running process names
+            result = subprocess.run(['ps', '-eo', 'comm', '--no-headers'],
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                running_procs = set(result.stdout.strip().split('\n'))
+                for proc in running_procs:
+                    proc = proc.strip()
+                    if proc in installed_apps:
+                        apps.add(installed_apps[proc])
+                    # Also check common GUI apps directly
+                    elif proc in ('firefox', 'chrome', 'chromium', 'code', 'konsole',
+                                 'dolphin', 'kate', 'okular', 'gwenview', 'spectacle',
+                                 'gimp', 'blender', 'inkscape', 'kwrite', 'vlc', 'mpv',
+                                 'obs', 'slack', 'discord', 'telegram-desktop', 'signal-desktop',
+                                 'spotify', 'thunderbird', 'evolution', 'nautilus', 'gedit'):
+                        apps.add(proc)
+        except Exception as e:
+            print(f"Process detection failed: {e}")
+
+        # Add some common apps that user might want (grayed out if not detected)
+        common_apps = ['firefox', 'chrome', 'code', 'gimp', 'blender', 'inkscape',
+                      'libreoffice', 'konsole', 'dolphin', 'okular', 'gwenview',
+                      'kate', 'kwrite', 'spectacle', 'vlc', 'obs']
+
+        # Combine detected apps with common apps (detected first)
+        all_apps = list(apps)
+        for app in common_apps:
+            if app not in apps:
+                all_apps.append(app)
+
+        # Populate list
+        for app in all_apps[:30]:  # Limit to 30 apps
+            row = Adw.ActionRow()
+            row.set_title(app)
+            row.app_name = app
+
+            # Mark as running if detected
+            if app in apps:
+                row.set_subtitle("Running")
+
+            # Add checkmark suffix (hidden initially)
+            check = Gtk.Image.new_from_icon_name('object-select-symbolic')
+            check.set_visible(False)
+            row.add_suffix(check)
+            row.check_icon = check
+
+            self.app_list.append(row)
+
+        if not all_apps:
+            # Add placeholder if nothing found
             row = Adw.ActionRow()
             row.set_title('(Enter app name manually below)')
             self.app_list.append(row)
@@ -2006,6 +2102,23 @@ class SettingsWindow(Adw.ApplicationWindow):
 
         self.set_default_size(WINDOW_WIDTH, WINDOW_HEIGHT)
 
+        # Set window icon for Wayland (fixes yellow default icon)
+        icon_path = Path(__file__).parent.parent / "assets" / "juhradial-mx.svg"
+        if icon_path.exists():
+            self.set_icon_name(None)  # Clear any default
+            # Load and set icon from file
+            try:
+                icon_file = Gio.File.new_for_path(str(icon_path))
+                icon = Gio.FileIcon.new(icon_file)
+                # For GTK4/Adwaita, we need to use the default icon theme
+                # Create a paintable from the SVG
+                display = Gdk.Display.get_default()
+                theme = Gtk.IconTheme.get_for_display(display)
+                # Add our assets directory to the icon search path
+                theme.add_search_path(str(icon_path.parent))
+            except Exception as e:
+                print(f"Could not set window icon: {e}")
+
         # D-Bus connection for daemon communication
         self.dbus_proxy = None
         self._init_dbus()
@@ -2072,7 +2185,14 @@ class SettingsWindow(Adw.ApplicationWindow):
         toolbar_view.add_top_bar(headerbar)
         toolbar_view.set_content(main_box)
 
-        self.set_content(toolbar_view)
+        # Wrap in ToastOverlay for notifications
+        self.toast_overlay = Adw.ToastOverlay()
+        self.toast_overlay.set_child(toolbar_view)
+
+        self.set_content(self.toast_overlay)
+
+        # Connect config to show toasts in this window
+        config.set_toast_callback(self.show_toast)
 
         # Select first nav item
         self._on_nav_clicked('buttons')
@@ -2081,6 +2201,12 @@ class SettingsWindow(Adw.ApplicationWindow):
         GLib.timeout_add_seconds(10, self._update_battery)
         # Initial battery update
         GLib.idle_add(self._update_battery)
+
+    def show_toast(self, message, timeout=2):
+        """Show a toast notification"""
+        toast = Adw.Toast(title=message)
+        toast.set_timeout(timeout)
+        self.toast_overlay.add_toast(toast)
 
     def _init_dbus(self):
         """Initialize D-Bus connection to daemon"""

@@ -34,27 +34,116 @@ ICON_ZONE_RADIUS = 100
 WINDOW_SIZE = (MENU_RADIUS + SHADOW_OFFSET) * 2
 
 # =============================================================================
-# CATPPUCCIN MOCHA PALETTE
+# THEME PALETTES
 # =============================================================================
-COLORS = {
-    'crust':    QColor(17, 17, 27),
-    'base':     QColor(30, 30, 46),
-    'surface0': QColor(49, 50, 68),
-    'surface1': QColor(69, 71, 90),
-    'surface2': QColor(88, 91, 112),
-    'text':     QColor(205, 214, 244),
-    'subtext1': QColor(186, 194, 222),
-    'lavender': QColor(180, 190, 254),
-    'blue':     QColor(137, 180, 250),
-    'sapphire': QColor(116, 199, 236),
-    'teal':     QColor(148, 226, 213),
-    'green':    QColor(166, 227, 161),
-    'yellow':   QColor(249, 226, 175),
-    'peach':    QColor(250, 179, 135),
-    'mauve':    QColor(203, 166, 247),
-    'pink':     QColor(245, 194, 231),
-    'red':      QColor(243, 139, 168),
+THEMES = {
+    'catppuccin-mocha': {
+        'crust':    QColor(17, 17, 27),
+        'base':     QColor(30, 30, 46),
+        'surface0': QColor(49, 50, 68),
+        'surface1': QColor(69, 71, 90),
+        'surface2': QColor(88, 91, 112),
+        'text':     QColor(205, 214, 244),
+        'subtext1': QColor(186, 194, 222),
+        'lavender': QColor(180, 190, 254),
+        'blue':     QColor(137, 180, 250),
+        'sapphire': QColor(116, 199, 236),
+        'teal':     QColor(148, 226, 213),
+        'green':    QColor(166, 227, 161),
+        'yellow':   QColor(249, 226, 175),
+        'peach':    QColor(250, 179, 135),
+        'mauve':    QColor(203, 166, 247),
+        'pink':     QColor(245, 194, 231),
+        'red':      QColor(243, 139, 168),
+    },
+    'catppuccin-latte': {
+        'crust':    QColor(220, 224, 232),
+        'base':     QColor(239, 241, 245),
+        'surface0': QColor(204, 208, 218),
+        'surface1': QColor(188, 192, 204),
+        'surface2': QColor(172, 176, 190),
+        'text':     QColor(76, 79, 105),
+        'subtext1': QColor(92, 95, 119),
+        'lavender': QColor(114, 135, 253),
+        'blue':     QColor(30, 102, 245),
+        'sapphire': QColor(32, 159, 181),
+        'teal':     QColor(23, 146, 153),
+        'green':    QColor(64, 160, 43),
+        'yellow':   QColor(223, 142, 29),
+        'peach':    QColor(254, 100, 11),
+        'mauve':    QColor(136, 57, 239),
+        'pink':     QColor(234, 118, 203),
+        'red':      QColor(210, 15, 57),
+    },
+    'nord': {
+        'crust':    QColor(46, 52, 64),
+        'base':     QColor(59, 66, 82),
+        'surface0': QColor(67, 76, 94),
+        'surface1': QColor(76, 86, 106),
+        'surface2': QColor(94, 105, 117),
+        'text':     QColor(236, 239, 244),
+        'subtext1': QColor(229, 233, 240),
+        'lavender': QColor(180, 142, 173),
+        'blue':     QColor(129, 161, 193),
+        'sapphire': QColor(136, 192, 208),
+        'teal':     QColor(143, 188, 187),
+        'green':    QColor(163, 190, 140),
+        'yellow':   QColor(235, 203, 139),
+        'peach':    QColor(208, 135, 112),
+        'mauve':    QColor(180, 142, 173),
+        'pink':     QColor(180, 142, 173),
+        'red':      QColor(191, 97, 106),
+    },
+    'dracula': {
+        'crust':    QColor(33, 34, 44),
+        'base':     QColor(40, 42, 54),
+        'surface0': QColor(52, 54, 68),
+        'surface1': QColor(65, 67, 83),
+        'surface2': QColor(78, 80, 98),
+        'text':     QColor(248, 248, 242),
+        'subtext1': QColor(226, 226, 216),
+        'lavender': QColor(189, 147, 249),
+        'blue':     QColor(139, 233, 253),
+        'sapphire': QColor(139, 233, 253),
+        'teal':     QColor(80, 250, 123),
+        'green':    QColor(80, 250, 123),
+        'yellow':   QColor(241, 250, 140),
+        'peach':    QColor(255, 184, 108),
+        'mauve':    QColor(189, 147, 249),
+        'pink':     QColor(255, 121, 198),
+        'red':      QColor(255, 85, 85),
+    },
 }
+
+def load_theme():
+    """Load theme from config file"""
+    import json
+    from pathlib import Path
+
+    config_path = Path.home() / ".config" / "juhradial" / "config.json"
+    theme_name = "catppuccin-mocha"  # Default
+
+    try:
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                theme_name = config.get('theme', 'catppuccin-mocha')
+    except Exception as e:
+        print(f"Could not load theme from config: {e}")
+
+    # Handle 'system' theme - default to mocha for now
+    if theme_name == 'system':
+        theme_name = 'catppuccin-mocha'
+
+    if theme_name not in THEMES:
+        print(f"Unknown theme '{theme_name}', using catppuccin-mocha")
+        theme_name = 'catppuccin-mocha'
+
+    print(f"Loaded theme: {theme_name}")
+    return THEMES[theme_name]
+
+# Load theme at startup
+COLORS = load_theme()
 
 # =============================================================================
 # ACTIONS - 8 slices clockwise from top
@@ -96,6 +185,9 @@ def open_settings():
 
 
 class RadialMenu(QWidget):
+    # Tap threshold in milliseconds - below this is considered a "tap" (toggle mode)
+    TAP_THRESHOLD_MS = 250
+
     def __init__(self):
         super().__init__()
         self.setWindowFlags(
@@ -111,10 +203,16 @@ class RadialMenu(QWidget):
         self.menu_center_x = 0
         self.menu_center_y = 0
 
+        # Toggle mode: True when menu was opened with a quick tap and stays open
+        self.toggle_mode = False
+        # Track when menu was shown (for tap detection)
+        self.show_time = None
+
         # D-Bus setup
         bus = QDBusConnection.sessionBus()
         bus.connect("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
                     "org.kde.juhradialmx.Daemon", "MenuRequested", "ii", self.on_show)
+        # Listen for HideMenu without parameters - we track duration ourselves
         bus.connect("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
                     "org.kde.juhradialmx.Daemon", "HideMenu", "", self.on_hide)
         bus.connect("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
@@ -125,7 +223,7 @@ class RadialMenu(QWidget):
         self.anim.setDuration(180)
         self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-        # Cursor polling timer (Wayland doesn't deliver mouse events while button held)
+        # Cursor polling timer for toggle mode (tracks cursor position when menu stays open)
         self.cursor_timer = QTimer(self)
         self.cursor_timer.timeout.connect(self._poll_cursor)
         self.cursor_timer.setInterval(16)  # ~60fps
@@ -133,7 +231,9 @@ class RadialMenu(QWidget):
         print("=" * 60, flush=True)
         print("  JuhRadial MX - PyQt6 Overlay", flush=True)
         print("=" * 60, flush=True)
-        print("\n  Waiting for MenuRequested signal from daemon...", flush=True)
+        print("\n  Modes:", flush=True)
+        print(f"    Hold + release: Execute action on release", flush=True)
+        print(f"    Quick tap (<{self.TAP_THRESHOLD_MS}ms): Menu stays open, click to select", flush=True)
         print("\n  Actions (clockwise from top):", flush=True)
         directions = ["Top", "Top-Right", "Right", "Bottom-Right",
                      "Bottom", "Bottom-Left", "Left", "Top-Left"]
@@ -143,12 +243,22 @@ class RadialMenu(QWidget):
 
     @pyqtSlot(int, int)
     def on_show(self, x, y):
+        import time
+
+        # If already in toggle mode and menu is visible, this is a second tap to close
+        if self.toggle_mode and self.isVisible():
+            print("OVERLAY: Second tap detected - closing menu")
+            self._close_menu(execute=False)
+            return
+
         # Use coordinates from D-Bus signal (daemon gets them via KWin scripting)
         # This works correctly on Plasma 6 Wayland with multiple monitors
         print(f"OVERLAY: MenuRequested at ({x}, {y})")
 
         self.menu_center_x = x
         self.menu_center_y = y
+        self.toggle_mode = False  # Reset toggle mode on new show
+        self.show_time = time.time()  # Track when menu was shown
 
         # Move window so menu is centered at x, y
         self.move(x - WINDOW_SIZE // 2, y - WINDOW_SIZE // 2)
@@ -160,7 +270,7 @@ class RadialMenu(QWidget):
 
         # Note: Cursor polling via QCursor.pos() doesn't work on Wayland while button is held
         # Instead, we use CursorMoved D-Bus signals from daemon which tracks evdev REL events
-        # self.cursor_timer.start()
+        # (cursor_timer is started in toggle mode after quick tap)
 
         self.anim.setStartValue(0.0)
         self.anim.setEndValue(1.0)
@@ -168,8 +278,27 @@ class RadialMenu(QWidget):
 
     @pyqtSlot()
     def on_hide(self):
-        print("OVERLAY: HideMenu received")
-        self._close_menu(execute=True)
+        """Handle HideMenu signal - determine tap vs hold based on time elapsed."""
+        import time
+
+        # Calculate how long the menu was shown
+        if self.show_time:
+            duration_ms = (time.time() - self.show_time) * 1000
+        else:
+            duration_ms = 1000  # Default to hold mode if no time recorded
+
+        print(f"OVERLAY: HideMenu received (duration={duration_ms:.0f}ms)")
+
+        if duration_ms < self.TAP_THRESHOLD_MS:
+            # Quick tap - enter toggle mode
+            print(f"OVERLAY: Quick tap detected - entering toggle mode")
+            self.toggle_mode = True
+            # Start cursor polling for hover detection in toggle mode
+            self.cursor_timer.start()
+            # Menu stays open - user will click to select or tap again to close
+        else:
+            # Normal hold-and-release - close and execute
+            self._close_menu(execute=True)
 
     @pyqtSlot(int, int)
     def on_cursor_moved(self, dx, dy):
@@ -192,6 +321,7 @@ class RadialMenu(QWidget):
 
     def _close_menu(self, execute=True):
         self.cursor_timer.stop()
+        self.toggle_mode = False  # Reset toggle mode
         if execute and self.highlighted_slice >= 0:
             self._execute_action(ACTIONS[self.highlighted_slice])
         self.hide()
@@ -258,8 +388,24 @@ class RadialMenu(QWidget):
             self.highlighted_slice = new_slice
             self.update()
 
+    def mousePressEvent(self, event):
+        """Handle mouse press - used in toggle mode for selection."""
+        if self.toggle_mode:
+            # In toggle mode, any click selects the current slice or closes
+            if event.button() == Qt.MouseButton.LeftButton:
+                print(f"OVERLAY: Left click in toggle mode - executing slice {self.highlighted_slice}")
+                self._close_menu(execute=True)
+            else:
+                # Right-click or other button - close without executing
+                print("OVERLAY: Non-left click in toggle mode - closing")
+                self._close_menu(execute=False)
+
     def mouseReleaseEvent(self, event):
-        self._close_menu(execute=True)
+        """Handle mouse release - only used in non-toggle mode."""
+        # In toggle mode, we handle clicks in mousePressEvent
+        # This is called for the initial gesture button release via Qt events
+        # but the actual logic is in on_hide_with_duration via D-Bus
+        pass
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:

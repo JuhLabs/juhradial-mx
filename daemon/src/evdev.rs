@@ -625,12 +625,99 @@ impl LogidHandler {
 
     async fn handle_press(&mut self) {
         self.press_time = Some(Instant::now());
+        tracing::info!("Logid: F19 press - triggering KWin cursor query");
 
-        // Get cursor position directly via xdotool
-        let pos = crate::cursor::get_cursor_position();
-        tracing::info!(x = pos.x, y = pos.y, "Logid: F19 press");
+        // Use KWin script to get accurate cursor position on Wayland multi-monitor
+        // This is the same approach used by EvdevHandler
+        if !Self::trigger_kwin_cursor_script() {
+            // Fallback to xdotool if KWin script fails
+            let pos = crate::cursor::get_cursor_position();
+            tracing::warn!(x = pos.x, y = pos.y, "KWin script failed, using fallback");
+            let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
+        }
+        // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus directly
+    }
 
-        let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
+    /// Trigger KWin script to get cursor position and call ShowMenuAtCursor
+    ///
+    /// This works correctly on Plasma 6 Wayland with multiple monitors.
+    fn trigger_kwin_cursor_script() -> bool {
+        use std::fs;
+        use std::process::Command;
+
+        let script_path = "/tmp/juhradial_show_menu.js";
+
+        // Create KWin script that calls ShowMenuAtCursor with true cursor position
+        let script = r#"
+var pos = workspace.cursorPos;
+callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
+         "org.kde.juhradialmx.Daemon", "ShowMenuAtCursor",
+         pos.x, pos.y);
+"#;
+
+        // Write script to temp file
+        if fs::write(script_path, script).is_err() {
+            tracing::warn!("Failed to write KWin script");
+            return false;
+        }
+
+        // Load script via D-Bus
+        let load_result = Command::new("dbus-send")
+            .args([
+                "--session",
+                "--print-reply",
+                "--dest=org.kde.KWin",
+                "/Scripting",
+                "org.kde.kwin.Scripting.loadScript",
+                &format!("string:{}", script_path),
+            ])
+            .output();
+
+        let load_output = match load_result {
+            Ok(output) if output.status.success() => output,
+            _ => {
+                tracing::warn!("Failed to load KWin script");
+                return false;
+            }
+        };
+
+        // Parse script ID from output (looks like "int32 5")
+        let stdout = String::from_utf8_lossy(&load_output.stdout);
+        let script_id: Option<i32> = stdout
+            .lines()
+            .find(|line| line.contains("int32"))
+            .and_then(|line| line.split_whitespace().last())
+            .and_then(|s| s.parse().ok());
+
+        let script_id = match script_id {
+            Some(id) => id,
+            None => {
+                tracing::warn!("Failed to parse KWin script ID");
+                return false;
+            }
+        };
+
+        // Run the script
+        let run_result = Command::new("dbus-send")
+            .args([
+                "--session",
+                "--print-reply",
+                "--dest=org.kde.KWin",
+                &format!("/Scripting/Script{}", script_id),
+                "org.kde.kwin.Script.run",
+            ])
+            .output();
+
+        match run_result {
+            Ok(output) if output.status.success() => {
+                tracing::debug!(script_id, "KWin cursor script triggered successfully");
+                true
+            }
+            _ => {
+                tracing::warn!("Failed to run KWin script");
+                false
+            }
+        }
     }
 
     async fn handle_release(&mut self) {

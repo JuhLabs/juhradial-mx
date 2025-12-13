@@ -23,7 +23,7 @@ pub use accessibility::{AccessibilitySettings, EffectiveAnimationTimings};
 pub use actions::{Action, ActionType};
 pub use battery::{BatteryState, SharedBatteryState, new_shared_state as new_battery_state, start_battery_updater};
 pub use bundled_themes::{get_bundled_theme, get_default_theme, list_bundled_themes, DEFAULT_THEME_NAME};
-pub use config::Config;
+pub use config::{Config, SharedConfig, new_shared_config, load_shared_config};
 pub use cursor::{get_cursor_position, get_screen_bounds, CursorPosition, ScreenBounds, EDGE_MARGIN, MENU_DIAMETER, MENU_RADIUS};
 pub use dbus::{init_dbus_service, JuhRadialService, DBUS_INTERFACE, DBUS_NAME, DBUS_PATH};
 pub use evdev::{DeviceInfo, EvdevError, EvdevHandler, GestureEvent, LogidHandler, LOGITECH_VENDOR_ID};
