@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PyQt6.QtCore import Qt, pyqtSlot, QPropertyAnimation, QEasingCurve, QPointF, QRectF, QTimer
 from PyQt6.QtGui import QCursor
 from PyQt6.QtGui import QPainter, QRadialGradient, QColor, QBrush, QPen, QFont, QPainterPath, QIcon, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtDBus import QDBusConnection
 
 # =============================================================================
@@ -31,7 +32,8 @@ MENU_RADIUS = 150
 SHADOW_OFFSET = 12
 CENTER_ZONE_RADIUS = 45
 ICON_ZONE_RADIUS = 100
-WINDOW_SIZE = (MENU_RADIUS + SHADOW_OFFSET) * 2
+SUBMENU_EXTEND = 80  # Extra space for submenu items beyond main menu
+WINDOW_SIZE = (MENU_RADIUS + SHADOW_OFFSET + SUBMENU_EXTEND) * 2
 
 # =============================================================================
 # THEME PALETTES
@@ -204,17 +206,55 @@ COLORS = load_theme()
 
 # =============================================================================
 # ACTIONS - 8 slices clockwise from top
+# Format: (label, type, command, color, icon, [submenu])
+# Submenu format: [(label, type, command, icon), ...]
 # =============================================================================
-ACTIONS = [
-    ("Play/Pause",   "exec",    "playerctl play-pause",  "green",    "play_pause"),
-    ("New Note",     "exec",    "kwrite",                "yellow",   "note"),
-    ("Lock",         "exec",    "loginctl lock-session", "red",      "lock"),
-    ("Settings",     "settings", "",                     "mauve",    "settings"),
-    ("Screenshot",   "exec",    "spectacle",             "blue",     "screenshot"),
-    ("Emoji",        "emoji",   "",                      "pink",     "emoji"),
-    ("Files",        "exec",    "dolphin",               "sapphire", "folder"),
-    ("AI",           "url",     "https://claude.ai",     "teal",     "ai"),
+AI_SUBMENU = [
+    ("Claude",     "url", "https://claude.ai",       "claude"),
+    ("ChatGPT",    "url", "https://chat.openai.com", "chatgpt"),
+    ("Gemini",     "url", "https://gemini.google.com", "gemini"),
+    ("Perplexity", "url", "https://perplexity.ai",   "perplexity"),
 ]
+
+ACTIONS = [
+    ("Play/Pause",   "exec",    "playerctl play-pause",  "green",    "play_pause", None),
+    ("New Note",     "exec",    "kwrite",                "yellow",   "note",       None),
+    ("Lock",         "exec",    "loginctl lock-session", "red",      "lock",       None),
+    ("Settings",     "settings", "",                     "mauve",    "settings",   None),
+    ("Screenshot",   "exec",    "spectacle",             "blue",     "screenshot", None),
+    ("Emoji",        "emoji",   "",                      "pink",     "emoji",      None),
+    ("Files",        "exec",    "dolphin",               "sapphire", "folder",     None),
+    ("AI",           "submenu", "",                      "teal",     "ai",         AI_SUBMENU),
+]
+
+# =============================================================================
+# AI SUBMENU ICONS (SVG)
+# =============================================================================
+AI_ICONS = {}
+
+def load_ai_icons():
+    """Load SVG icons for AI submenu items."""
+    global AI_ICONS
+    assets_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
+
+    icon_files = {
+        "claude": "ai-claude.svg",
+        "chatgpt": "ai-chatgpt.svg",
+        "gemini": "ai-gemini.svg",
+        "perplexity": "ai-perplexity.svg",
+    }
+
+    for name, filename in icon_files.items():
+        path = os.path.join(assets_dir, filename)
+        if os.path.exists(path):
+            renderer = QSvgRenderer(path)
+            if renderer.isValid():
+                AI_ICONS[name] = renderer
+                print(f"Loaded AI icon: {name}")
+            else:
+                print(f"Failed to load AI icon: {path}")
+        else:
+            print(f"AI icon not found: {path}")
 
 
 def open_settings():
@@ -259,6 +299,11 @@ class RadialMenu(QWidget):
         self.highlighted_slice = -1
         self.menu_center_x = 0
         self.menu_center_y = 0
+
+        # Sub-menu state
+        self.submenu_active = False  # True when showing a submenu
+        self.submenu_slice = -1      # Which main slice has active submenu
+        self.highlighted_subitem = -1  # Which sub-item is highlighted (-1 = none)
 
         # Toggle mode: True when menu was opened with a quick tap and stays open
         self.toggle_mode = False
@@ -316,6 +361,11 @@ class RadialMenu(QWidget):
         self.menu_center_y = y
         self.toggle_mode = False  # Reset toggle mode on new show
         self.show_time = time.time()  # Track when menu was shown
+
+        # Reset submenu state
+        self.submenu_active = False
+        self.submenu_slice = -1
+        self.highlighted_subitem = -1
 
         # Move window so menu is centered at x, y
         self.move(x - WINDOW_SIZE // 2, y - WINDOW_SIZE // 2)
@@ -379,8 +429,26 @@ class RadialMenu(QWidget):
     def _close_menu(self, execute=True):
         self.cursor_timer.stop()
         self.toggle_mode = False  # Reset toggle mode
-        if execute and self.highlighted_slice >= 0:
-            self._execute_action(ACTIONS[self.highlighted_slice])
+
+        if execute:
+            if self.submenu_active and self.highlighted_subitem >= 0:
+                # Execute submenu item
+                submenu = ACTIONS[self.submenu_slice][5]
+                if submenu and self.highlighted_subitem < len(submenu):
+                    subitem = submenu[self.highlighted_subitem]
+                    self._execute_subaction(subitem)
+            elif self.highlighted_slice >= 0:
+                action = ACTIONS[self.highlighted_slice]
+                if action[1] == "submenu":
+                    # Don't execute, show submenu instead (handled in toggle mode)
+                    pass
+                else:
+                    self._execute_action(action)
+
+        # Reset submenu state
+        self.submenu_active = False
+        self.submenu_slice = -1
+        self.highlighted_subitem = -1
         self.hide()
 
     def _execute_action(self, action):
@@ -397,8 +465,28 @@ class RadialMenu(QWidget):
             elif cmd_type == "settings":
                 # Launch settings (uses singleton check defined at module level)
                 open_settings()
+            elif cmd_type == "submenu":
+                # Submenu - activate it instead of executing
+                self.submenu_active = True
+                self.submenu_slice = self.highlighted_slice
+                self.highlighted_subitem = -1
+                self.update()
+                return  # Don't close menu
         except Exception as e:
             print(f"Error executing action: {e}")
+
+    def _execute_subaction(self, subitem):
+        """Execute a submenu item action."""
+        label, cmd_type, cmd = subitem[0], subitem[1], subitem[2]
+        print(f"Executing submenu: {label}")
+
+        try:
+            if cmd_type == "exec":
+                subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            elif cmd_type == "url":
+                subprocess.Popen(["xdg-open", cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            print(f"Error executing subaction: {e}")
 
     def _poll_cursor(self):
         """Poll cursor position for hover detection."""
@@ -412,7 +500,8 @@ class RadialMenu(QWidget):
         dy = pos.y() - cy
         distance = math.sqrt(dx * dx + dy * dy)
 
-        if distance < CENTER_ZONE_RADIUS or distance > MENU_RADIUS:
+        # Calculate which slice we're over
+        if distance < CENTER_ZONE_RADIUS or distance > MENU_RADIUS + 60:  # Extended range for submenu
             new_slice = -1
         else:
             angle = math.degrees(math.atan2(dx, -dy))
@@ -420,9 +509,73 @@ class RadialMenu(QWidget):
                 angle += 360
             new_slice = int((angle + 22.5) / 45) % 8
 
-        print(f"POLL: slice={new_slice} dist={distance:.0f}", flush=True)
-        self.highlighted_slice = new_slice
-        self.update()
+        # Check submenu items if submenu is active
+        if self.submenu_active:
+            subitem = self._get_subitem_at_position(dx, dy)
+            if subitem >= 0:
+                # Hovering a subitem
+                if subitem != self.highlighted_subitem:
+                    self.highlighted_subitem = subitem
+                    self.update()
+                return
+            # Not over a subitem - check if we're still near parent slice
+            if new_slice == self.submenu_slice or distance > MENU_RADIUS:
+                # Still in submenu area (over parent or in extended range)
+                self.highlighted_subitem = -1
+                self.update()
+                return
+            else:
+                # Moved to different slice - deactivate submenu
+                self.submenu_active = False
+                self.submenu_slice = -1
+                self.highlighted_subitem = -1
+
+        # Check if hovering over a slice with submenu - activate it
+        if new_slice >= 0 and new_slice != self.highlighted_slice:
+            action = ACTIONS[new_slice]
+            if action[1] == "submenu" and action[5]:
+                self.submenu_active = True
+                self.submenu_slice = new_slice
+                self.highlighted_subitem = -1
+
+        if new_slice != self.highlighted_slice:
+            self.highlighted_slice = new_slice
+            self.update()
+        elif self.submenu_active:
+            self.update()
+
+    def _get_subitem_at_position(self, dx, dy):
+        """Check if cursor is over a submenu item. Returns item index or -1."""
+        if not self.submenu_active or self.submenu_slice < 0:
+            return -1
+
+        submenu = ACTIONS[self.submenu_slice][5]
+        if not submenu:
+            return -1
+
+        # Calculate parent slice angle
+        parent_angle = self.submenu_slice * 45 - 90
+
+        # Submenu items are positioned in an arc beyond the main menu
+        SUBMENU_RADIUS = MENU_RADIUS + 45  # Distance from center to submenu items
+        SUBITEM_SIZE = 32  # Size of each subitem circle
+
+        num_items = len(submenu)
+        spread = 15  # Degrees between items
+
+        for i, item in enumerate(submenu):
+            # Calculate position of this subitem
+            offset = (i - (num_items - 1) / 2) * spread
+            item_angle = math.radians(parent_angle + offset)
+            item_x = SUBMENU_RADIUS * math.cos(item_angle)
+            item_y = SUBMENU_RADIUS * math.sin(item_angle)
+
+            # Check if cursor is within this item
+            dist_to_item = math.sqrt((dx - item_x) ** 2 + (dy - item_y) ** 2)
+            if dist_to_item < SUBITEM_SIZE:
+                return i
+
+        return -1
 
     def mouseMoveEvent(self, event):
         cx = WINDOW_SIZE / 2
@@ -432,7 +585,8 @@ class RadialMenu(QWidget):
         dy = pos.y() - cy
         distance = math.sqrt(dx * dx + dy * dy)
 
-        if distance < CENTER_ZONE_RADIUS or distance > MENU_RADIUS:
+        # Calculate which slice we're over
+        if distance < CENTER_ZONE_RADIUS or distance > MENU_RADIUS + 60:
             new_slice = -1
         else:
             angle = math.degrees(math.atan2(dx, -dy))
@@ -440,9 +594,37 @@ class RadialMenu(QWidget):
                 angle += 360
             new_slice = int((angle + 22.5) / 45) % 8
 
-        print(f"MOUSE: pos=({pos.x():.0f},{pos.y():.0f}) dist={distance:.0f} slice={new_slice}")
+        # Check submenu items if submenu is active
+        if self.submenu_active:
+            subitem = self._get_subitem_at_position(dx, dy)
+            if subitem >= 0:
+                if subitem != self.highlighted_subitem:
+                    self.highlighted_subitem = subitem
+                    self.update()
+                return
+            # Not over a subitem - check if we're still near parent slice
+            if new_slice == self.submenu_slice or distance > MENU_RADIUS:
+                self.highlighted_subitem = -1
+                self.update()
+                return
+            else:
+                # Moved to different slice - deactivate submenu
+                self.submenu_active = False
+                self.submenu_slice = -1
+                self.highlighted_subitem = -1
+
+        # Check if hovering over a slice with submenu - activate it
+        if new_slice >= 0 and new_slice != self.highlighted_slice:
+            action = ACTIONS[new_slice]
+            if action[1] == "submenu" and action[5]:
+                self.submenu_active = True
+                self.submenu_slice = new_slice
+                self.highlighted_subitem = -1
+
         if new_slice != self.highlighted_slice:
             self.highlighted_slice = new_slice
+            self.update()
+        elif self.submenu_active:
             self.update()
 
     def mousePressEvent(self, event):
@@ -497,6 +679,10 @@ class RadialMenu(QWidget):
         # Draw slices
         for i in range(8):
             self._draw_slice(p, cx, cy, i)
+
+        # Draw submenu if active
+        if self.submenu_active and self.submenu_slice >= 0:
+            self._draw_submenu(p, cx, cy)
 
         # Center zone
         self._draw_center(p, cx, cy)
@@ -689,20 +875,20 @@ class RadialMenu(QWidget):
             p.drawPath(path)
 
         elif icon_type == "ai":
-            # Sparkle
+            # Sparkle - larger size for better visibility
             p.setBrush(QBrush(color))
             p.setPen(Qt.PenStyle.NoPen)
-            s = size * 0.35
+            s = size * 0.55  # Increased from 0.35 for bigger icon
             path = QPainterPath()
             path.moveTo(cx, cy - s)
-            path.cubicTo(cx + s * 0.1, cy - s * 0.1, cx + s * 0.1, cy - s * 0.1, cx + s, cy)
-            path.cubicTo(cx + s * 0.1, cy + s * 0.1, cx + s * 0.1, cy + s * 0.1, cx, cy + s)
-            path.cubicTo(cx - s * 0.1, cy + s * 0.1, cx - s * 0.1, cy + s * 0.1, cx - s, cy)
-            path.cubicTo(cx - s * 0.1, cy - s * 0.1, cx - s * 0.1, cy - s * 0.1, cx, cy - s)
+            path.cubicTo(cx + s * 0.12, cy - s * 0.12, cx + s * 0.12, cy - s * 0.12, cx + s, cy)
+            path.cubicTo(cx + s * 0.12, cy + s * 0.12, cx + s * 0.12, cy + s * 0.12, cx, cy + s)
+            path.cubicTo(cx - s * 0.12, cy + s * 0.12, cx - s * 0.12, cy + s * 0.12, cx - s, cy)
+            path.cubicTo(cx - s * 0.12, cy - s * 0.12, cx - s * 0.12, cy - s * 0.12, cx, cy - s)
             p.drawPath(path)
-            # Small sparkle
-            s2 = size * 0.12
-            sx, sy = cx + size * 0.3, cy - size * 0.25
+            # Small sparkle - also slightly larger
+            s2 = size * 0.18  # Increased from 0.12
+            sx, sy = cx + size * 0.38, cy - size * 0.32  # Moved outward a bit
             path2 = QPainterPath()
             path2.moveTo(sx, sy - s2)
             path2.cubicTo(sx + s2 * 0.1, sy - s2 * 0.1, sx + s2 * 0.1, sy - s2 * 0.1, sx + s2, sy)
@@ -710,6 +896,118 @@ class RadialMenu(QWidget):
             path2.cubicTo(sx - s2 * 0.1, sy + s2 * 0.1, sx - s2 * 0.1, sy + s2 * 0.1, sx - s2, sy)
             path2.cubicTo(sx - s2 * 0.1, sy - s2 * 0.1, sx - s2 * 0.1, sy - s2 * 0.1, sx, sy - s2)
             p.drawPath(path2)
+
+        # Submenu item icons
+        elif icon_type == "claude":
+            # Claude sparkle/star icon
+            p.setBrush(QBrush(color))
+            p.setPen(Qt.PenStyle.NoPen)
+            s = size * 0.45
+            path = QPainterPath()
+            path.moveTo(cx, cy - s)
+            path.cubicTo(cx + s * 0.15, cy - s * 0.15, cx + s * 0.15, cy - s * 0.15, cx + s, cy)
+            path.cubicTo(cx + s * 0.15, cy + s * 0.15, cx + s * 0.15, cy + s * 0.15, cx, cy + s)
+            path.cubicTo(cx - s * 0.15, cy + s * 0.15, cx - s * 0.15, cy + s * 0.15, cx - s, cy)
+            path.cubicTo(cx - s * 0.15, cy - s * 0.15, cx - s * 0.15, cy - s * 0.15, cx, cy - s)
+            p.drawPath(path)
+
+        elif icon_type == "chatgpt":
+            # ChatGPT circular logo
+            p.setPen(QPen(color, 2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawEllipse(QPointF(cx, cy), size * 0.35, size * 0.35)
+            # Inner pattern
+            p.drawEllipse(QPointF(cx, cy), size * 0.15, size * 0.15)
+
+        elif icon_type == "gemini":
+            # Gemini twin stars
+            p.setBrush(QBrush(color))
+            p.setPen(Qt.PenStyle.NoPen)
+            for offset in [-size * 0.18, size * 0.18]:
+                s = size * 0.22
+                scx = cx + offset
+                path = QPainterPath()
+                path.moveTo(scx, cy - s)
+                path.lineTo(scx + s * 0.3, cy)
+                path.lineTo(scx, cy + s)
+                path.lineTo(scx - s * 0.3, cy)
+                path.closeSubpath()
+                p.drawPath(path)
+
+        elif icon_type == "perplexity":
+            # Perplexity search/question
+            p.setPen(QPen(color, 2.5))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            # Magnifying glass
+            p.drawEllipse(QPointF(cx - size * 0.08, cy - size * 0.08), size * 0.25, size * 0.25)
+            p.drawLine(QPointF(cx + size * 0.1, cy + size * 0.1),
+                      QPointF(cx + size * 0.3, cy + size * 0.3))
+
+    def _draw_submenu(self, p, cx, cy):
+        """Draw submenu items when active."""
+        submenu = ACTIONS[self.submenu_slice][5]
+        if not submenu:
+            return
+
+        # Calculate parent slice angle
+        parent_angle = self.submenu_slice * 45 - 90
+
+        # Submenu items positioned in an arc beyond the main menu
+        SUBMENU_RADIUS = MENU_RADIUS + 45
+        SUBITEM_RADIUS = 24  # Size of each subitem circle
+
+        num_items = len(submenu)
+        spread = 18  # Degrees between items
+
+        for i, item in enumerate(submenu):
+            is_highlighted = (i == self.highlighted_subitem)
+
+            # Calculate position
+            offset = (i - (num_items - 1) / 2) * spread
+            item_angle = math.radians(parent_angle + offset)
+            item_x = cx + SUBMENU_RADIUS * math.cos(item_angle)
+            item_y = cy + SUBMENU_RADIUS * math.sin(item_angle)
+
+            # Shadow for subitem
+            shadow = QColor(0, 0, 0, 80)
+            p.setBrush(QBrush(shadow))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawEllipse(QPointF(item_x + 2, item_y + 3), SUBITEM_RADIUS, SUBITEM_RADIUS)
+
+            # Background
+            if is_highlighted:
+                bg = COLORS['surface2']
+                bg.setAlpha(255)
+                # Glow ring
+                glow = QColor(255, 255, 255, 60)
+                p.setBrush(Qt.BrushStyle.NoBrush)
+                p.setPen(QPen(glow, 3))
+                p.drawEllipse(QPointF(item_x, item_y), SUBITEM_RADIUS + 3, SUBITEM_RADIUS + 3)
+            else:
+                bg = COLORS['surface1']
+                bg.setAlpha(240)
+
+            p.setBrush(QBrush(bg))
+            border = COLORS['surface2'] if not is_highlighted else QColor(255, 255, 255, 150)
+            p.setPen(QPen(border, 1.5))
+            p.drawEllipse(QPointF(item_x, item_y), SUBITEM_RADIUS, SUBITEM_RADIUS)
+
+            # Icon - use SVG if available, fallback to drawn icon
+            icon_name = item[3]  # e.g., "claude", "chatgpt", etc.
+            if icon_name in AI_ICONS:
+                # Render SVG icon
+                icon_size = SUBITEM_RADIUS * 1.4  # Size of icon
+                icon_rect = QRectF(
+                    item_x - icon_size / 2,
+                    item_y - icon_size / 2,
+                    icon_size,
+                    icon_size
+                )
+                AI_ICONS[icon_name].render(p, icon_rect)
+            else:
+                # Fallback to drawn icon
+                icon_color = COLORS['text'] if is_highlighted else COLORS['subtext1']
+                self._draw_icon(p, item_x, item_y, icon_name, SUBITEM_RADIUS * 0.7, icon_color)
 
     def _draw_center(self, p, cx, cy):
         # Center background
@@ -721,8 +1019,14 @@ class RadialMenu(QWidget):
         p.setPen(QPen(border, 2))
         p.drawEllipse(QPointF(cx, cy), CENTER_ZONE_RADIUS, CENTER_ZONE_RADIUS)
 
-        # Label text
-        text = ACTIONS[self.highlighted_slice][0] if self.highlighted_slice >= 0 else "Drag"
+        # Label text - show submenu item name if hovering one
+        if self.submenu_active and self.highlighted_subitem >= 0:
+            submenu = ACTIONS[self.submenu_slice][5]
+            text = submenu[self.highlighted_subitem][0] if submenu else "AI"
+        elif self.highlighted_slice >= 0:
+            text = ACTIONS[self.highlighted_slice][0]
+        else:
+            text = "Drag"
         font = QFont("Sans", 11)
         p.setFont(font)
         p.setPen(QPen(COLORS['subtext1']))
@@ -796,6 +1100,9 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("JuhRadial MX")
+
+    # Load AI submenu icons
+    load_ai_icons()
 
     w = RadialMenu()
     tray = create_tray_icon(app, w)

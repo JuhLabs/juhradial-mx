@@ -2,21 +2,11 @@
   <img src="assets/juhradial-mx.svg" width="128" alt="JuhRadial MX Logo">
   <h1>JuhRadial MX</h1>
   <p><strong>Beautiful radial menu for Logitech MX Master mice on Linux</strong></p>
-  <p>A Logi Options+ inspired experience for KDE Plasma</p>
+  <p>A Logi Options+ inspired experience for KDE Plasma 6</p>
 
-  <!-- Badges -->
   <p>
-    <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
-      <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
-    </a>
-    <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/security.yml">
-      <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/security.yml/badge.svg?branch=master" alt="Security Scan">
-    </a>
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL-3.0">
-    </a>
-    <a href="https://github.com/JuhLabs/juhradial-mx/releases/latest">
-      <img src="https://img.shields.io/github/v/release/JuhLabs/juhradial-mx?include_prereleases" alt="GitHub Release">
     </a>
   </p>
 </div>
@@ -26,223 +16,172 @@
 ## Screenshots
 
 <div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <img src="assets/screenshots/radial-menu-dark.png" width="400" alt="Radial Menu">
-        <br><em>Glassmorphic Radial Menu</em>
-      </td>
-      <td align="center">
-        <img src="assets/screenshots/settings-buttons.png" width="400" alt="Settings">
-        <br><em>Settings Dashboard</em>
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <img src="assets/screenshots/settings-scroll.png" width="400" alt="DPI Settings">
-        <br><em>DPI & Scroll Settings</em>
-      </td>
-      <td align="center">
-        <img src="assets/screenshots/mouse-config.png" width="400" alt="Mouse Visualization">
-        <br><em>Interactive Mouse Visualization</em>
-      </td>
-    </tr>
-  </table>
+  <img src="assets/screenshots/radial-menu-dark.png" width="400" alt="Radial Menu">
+  <p><em>Radial Menu with AI Submenu</em></p>
 </div>
 
 ## Features
 
-- **Glassmorphic Radial Menu** - Beautiful, modern overlay triggered by gesture button
-- **Per-App Profiles** - Customize actions for different applications
-- **Battery Monitoring** - Real-time battery status via HID++ protocol
-- **DPI Control** - Visual DPI slider with presets (400-8000 DPI)
-- **SmartShift Settings** - Configure scroll wheel ratchet/free-spin behavior
-- **Haptic Feedback** - Feel confirmation when selecting menu items
-- **Catppuccin Theme** - Dark, elegant Catppuccin Mocha color scheme
-- **Native KDE Integration** - Seamless Wayland support via KWin scripting
-
-## Critical Design Principle
-
-**No onboard memory writes.** JuhRadial MX never modifies your mouse's internal storage. Your MX Master remains 100% compatible with Logi Options+ on Windows/macOS.
+- **Radial Menu** - Beautiful overlay triggered by gesture button (hold or tap)
+- **AI Quick Access** - Submenu with Claude, ChatGPT, Gemini, and Perplexity
+- **Multiple Themes** - Catppuccin, Nord, Dracula, and light themes
+- **Settings Dashboard** - GTK4/Adwaita settings app
+- **Native Wayland** - Full KDE Plasma 6 Wayland support
 
 ## Supported Devices
 
 - Logitech MX Master 4
 - Logitech MX Master 3S
 - Logitech MX Master 3
-- Logitech MX Master 2S
 
 ## Requirements
 
-- **Linux** with KDE Plasma 6
-- **Wayland** display server (X11 partially supported)
-- **logiops** for button mapping
-- **ydotool** for cursor capture (optional)
+- **KDE Plasma 6** on Wayland
+- **logiops** (logid) for button mapping
+- **Rust** for building the daemon
+- **Python 3** with PyQt6
 
-## Installation
+---
 
-### Quick Install Script
+## Quick Install (Fedora)
 
 ```bash
+# 1. Install dependencies
+sudo dnf install rust cargo logiops python3-pyqt6 python3-pyqt6-svg
+
+# 2. Clone the repo
 git clone https://github.com/JuhLabs/juhradial-mx.git
 cd juhradial-mx
-./install.sh
+
+# 3. Build the daemon
+cd daemon && cargo build --release && cd ..
+
+# 4. Configure logiops (maps gesture button to F19)
+sudo cp packaging/logid.cfg /etc/logid.cfg
+sudo systemctl enable --now logid
+
+# 5. Run JuhRadial MX
+./juhradial-mx.sh
 ```
 
-### Flatpak (Build Locally)
-
-> **Note:** Flathub submission pending approval ([#7304](https://github.com/flathub/flathub/issues/7304)). For now, build locally:
+## Quick Install (Arch Linux)
 
 ```bash
-# Install flatpak-builder if needed
-sudo dnf install flatpak-builder
+# 1. Install dependencies
+sudo pacman -S rust logiops python-pyqt6
 
-# Clone and build
+# 2. Clone and build
 git clone https://github.com/JuhLabs/juhradial-mx.git
 cd juhradial-mx
-flatpak-builder --user --install --force-clean build-dir org.juhlabs.JuhRadialMX.yaml
+cd daemon && cargo build --release && cd ..
 
-# Run
-flatpak run org.juhlabs.JuhRadialMX
+# 3. Configure logiops
+sudo cp packaging/logid.cfg /etc/logid.cfg
+sudo systemctl enable --now logid
+
+# 4. Run
+./juhradial-mx.sh
 ```
 
-### Fedora (COPR) - Coming Soon
+---
+
+## Usage
+
+**Hold mode:** Press and hold gesture button → drag to select → release to execute
+
+**Tap mode:** Quick tap gesture button → menu stays open → click to select
+
+### Default Actions (clockwise from top)
+
+| Position | Action |
+|----------|--------|
+| Top | Play/Pause |
+| Top-Right | New Note |
+| Right | Lock Screen |
+| Bottom-Right | Settings |
+| Bottom | Screenshot |
+| Bottom-Left | Emoji Picker |
+| Left | Files |
+| Top-Left | AI (submenu with Claude, ChatGPT, Gemini, Perplexity) |
+
+---
+
+## Autostart
+
+To start JuhRadial MX automatically on login:
 
 ```bash
-# Not yet available
-# sudo dnf copr enable juhlabs/juhradial-mx
-# sudo dnf install juhradial-mx
+# Copy desktop file to autostart
+cp juhradial-mx.desktop ~/.config/autostart/
+
+# Edit to use full path
+sed -i "s|Exec=.*|Exec=$(pwd)/juhradial-mx.sh|" ~/.config/autostart/juhradial-mx.desktop
 ```
 
-### Arch Linux (AUR) - Coming Soon
-
-```bash
-# Not yet available
-# yay -S juhradial-mx
-```
-
-### From Source
-
-```bash
-# Install dependencies (Fedora)
-sudo dnf install rust cargo nodejs npm \
-  gtk4-layer-shell-devel python3-gobject python3-cairo \
-  dbus-devel systemd-devel logiops
-
-# Clone and build
-git clone https://github.com/JuhLabs/juhradial-mx
-cd juhradial-mx
-make build
-sudo make install
-
-# Enable and start
-systemctl --user enable --now juhradialmx-daemon
-```
-
-### Universal Installer
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash
-```
-
-## Quick Start
-
-1. **Install logiops** and configure the gesture button:
-   ```bash
-   sudo dnf install logiops  # Fedora
-   sudo systemctl enable --now logid
-   ```
-
-2. **Start JuhRadial MX**:
-   - From application menu, or
-   - Run `juhradial-mx` in terminal
-
-3. **Configure**:
-   - Right-click tray icon > Settings
-   - Customize radial menu actions
-   - Adjust DPI and scroll settings
-
-4. **Use**:
-   - Press and hold the gesture button (thumb button)
-   - Move mouse to select action
-   - Release to execute
+---
 
 ## Configuration
 
 Configuration is stored in `~/.config/juhradial/config.json`.
 
-### Key Bindings
+### Changing Theme
 
-| Button | Default Action |
-|--------|----------------|
-| Gesture Button (hold) | Open Radial Menu |
-| Forward | Browser Forward |
-| Back | Browser Back |
-| Middle Click | Middle Click |
-| Thumb Wheel | Horizontal Scroll |
+Open Settings (from radial menu or tray icon) and select a theme:
+- Catppuccin Mocha (default dark)
+- Catppuccin Latte
+- Nord
+- Dracula
+- Light
+- Solarized Light
+- GitHub Light
+
+---
+
+## Troubleshooting
+
+### Menu doesn't appear
+
+1. Check if logid is running: `sudo systemctl status logid`
+2. Verify button mapping: `sudo logid -v` (press gesture button, should see F19)
+3. Check daemon output: `./daemon/target/release/juhradiald`
+
+### Wrong cursor position
+
+Make sure you're running on Wayland (not X11). The daemon uses KWin scripting to get accurate cursor position.
+
+### logiops not detecting mouse
+
+Try reconnecting your mouse or restarting logid: `sudo systemctl restart logid`
+
+---
 
 ## Project Structure
 
 ```
 juhradial-mx/
-├── daemon/           # Rust daemon (input handling, D-Bus, battery)
-├── overlay/          # Python GTK4 overlay & settings
-├── kwin-script/      # TypeScript KWin integration
-├── widget/           # QML Plasma widget
-├── assets/           # Icons, images
-├── packaging/        # Distribution files
-└── scripts/          # Helper scripts
+├── daemon/              # Rust daemon (listens for F19, sends D-Bus signals)
+├── overlay/             # Python overlay (PyQt6 radial menu + GTK4 settings)
+├── assets/              # Icons and screenshots
+└── packaging/           # logid.cfg, systemd service, udev rules
 ```
 
-## Contributing
-
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) before submitting a Pull Request.
-
-### Development
-
-```bash
-# Build
-make build
-
-# Run tests
-make test
-
-# Lint
-make lint
-```
-
-## Support the Project
-
-If you find JuhRadial MX useful, consider supporting development:
-
-<a href="https://paypal.me/LangbachHermstad">
-  <img src="https://img.shields.io/badge/Donate-PayPal-blue.svg?style=for-the-badge&logo=paypal" alt="Donate via PayPal">
-</a>
+---
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](LICENSE) file for details.
+GNU General Public License v3.0 - see [LICENSE](LICENSE)
+
+---
 
 ## Acknowledgments
 
 - [logiops](https://github.com/PixlOne/logiops) - Logitech device configuration
 - [Catppuccin](https://github.com/catppuccin/catppuccin) - Beautiful color scheme
-- KDE Plasma team for excellent Wayland support
 
 ---
 
 <div align="center">
 
-**Made with love by [JuhLabs](https://github.com/JuhLabs) (Julian Hermstad)**
+**Made with love by [JuhLabs](https://github.com/JuhLabs)**
 
 </div>
-
----
-
-## Disclaimer
-
-> **This project is not affiliated with, endorsed by, or sponsored by Logitech International S.A.**
->
-> "Logitech", "MX Master", "Logi Options+", and related names and logos are trademarks or registered trademarks of Logitech International S.A. This is an independent, open-source project created by the community to provide Linux users with radial menu functionality.
->
-> JuhRadial MX does not modify your mouse's onboard memory or firmware. It operates purely at the software level, ensuring your device remains fully compatible with official Logitech software on other operating systems.
