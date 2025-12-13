@@ -778,8 +778,8 @@ mod tests {
     #[test]
     fn test_gesture_button_codes() {
         assert!(!GESTURE_BUTTON_CODES.is_empty());
-        // BTN_EXTRA
-        assert!(GESTURE_BUTTON_CODES.contains(&0x114));
+        // BTN_BACK - haptic/gesture button on MX Master 4
+        assert!(GESTURE_BUTTON_CODES.contains(&0x116));
     }
 
     #[test]
