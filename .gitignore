@@ -79,3 +79,6 @@ htmlcov/
 .env
 .env.local
 credentials.json
+
+# Internal development docs
+docs/
