@@ -1780,6 +1780,213 @@ class PlaceholderPage(Gtk.Box):
         self.append(label)
 
 
+class AddApplicationDialog(Adw.Window):
+    """Dialog for adding a per-application profile"""
+
+    def __init__(self, parent):
+        super().__init__()
+        self.set_transient_for(parent)
+        self.set_modal(True)
+        self.set_title('Add Application Profile')
+        self.set_default_size(500, 600)
+
+        # Main content
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+
+        # Header bar
+        header = Adw.HeaderBar()
+        header.set_show_end_title_buttons(True)
+        header.set_show_start_title_buttons(False)
+
+        cancel_btn = Gtk.Button(label='Cancel')
+        cancel_btn.connect('clicked', lambda _: self.close())
+        header.pack_start(cancel_btn)
+
+        main_box.append(header)
+
+        # Content
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.set_margin_top(20)
+        content.set_margin_bottom(20)
+        content.set_margin_start(20)
+        content.set_margin_end(20)
+
+        # Description
+        desc = Gtk.Label(label='Create a custom profile for a specific application.\nThe radial menu will use this profile when the application is active.')
+        desc.set_wrap(True)
+        desc.set_margin_bottom(16)
+        content.append(desc)
+
+        # Application selection
+        app_card = SettingsCard('Select Application')
+
+        # Running apps list
+        running_label = Gtk.Label(label='Running Applications:')
+        running_label.set_halign(Gtk.Align.START)
+        running_label.set_margin_top(8)
+        app_card.append(running_label)
+
+        # Scrollable app list
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled.set_min_content_height(200)
+
+        self.app_list = Gtk.ListBox()
+        self.app_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.app_list.add_css_class('boxed-list')
+
+        # Get running applications
+        self._populate_running_apps()
+
+        scrolled.set_child(self.app_list)
+        app_card.append(scrolled)
+
+        # Or enter manually
+        manual_label = Gtk.Label(label='Or enter application class manually:')
+        manual_label.set_halign(Gtk.Align.START)
+        manual_label.set_margin_top(16)
+        app_card.append(manual_label)
+
+        self.app_entry = Gtk.Entry()
+        self.app_entry.set_placeholder_text('e.g., firefox, code, gimp')
+        self.app_entry.set_margin_top(8)
+        app_card.append(self.app_entry)
+
+        content.append(app_card)
+
+        # Add button
+        add_btn = Gtk.Button(label='Add Profile')
+        add_btn.add_css_class('suggested-action')
+        add_btn.set_margin_top(16)
+        add_btn.connect('clicked', self._on_add_clicked)
+        content.append(add_btn)
+
+        main_box.append(content)
+        self.set_content(main_box)
+
+    def _populate_running_apps(self):
+        """Get list of running applications"""
+        import subprocess
+
+        try:
+            # Get running window classes using wmctrl or qdbus
+            result = subprocess.run(
+                ['qdbus', 'org.kde.KWin', '/KWin', 'org.kde.KWin.queryWindowInfo'],
+                capture_output=True, text=True, timeout=2
+            )
+
+            # Fallback: get from /proc
+            apps = set()
+            for proc_dir in Path('/proc').iterdir():
+                if proc_dir.is_dir() and proc_dir.name.isdigit():
+                    try:
+                        cmdline = (proc_dir / 'cmdline').read_text()
+                        if cmdline:
+                            app_name = cmdline.split('\x00')[0].split('/')[-1]
+                            if app_name and not app_name.startswith('-'):
+                                apps.add(app_name)
+                    except Exception:
+                        pass
+
+            # Add common apps
+            common_apps = ['firefox', 'chrome', 'code', 'gimp', 'blender', 'inkscape',
+                          'libreoffice', 'konsole', 'dolphin', 'okular', 'gwenview']
+            for app in common_apps:
+                apps.add(app)
+
+            # Populate list
+            for app in sorted(apps)[:30]:  # Limit to 30 apps
+                row = Adw.ActionRow()
+                row.set_title(app)
+                row.app_name = app
+
+                # Add checkmark suffix (hidden initially)
+                check = Gtk.Image.new_from_icon_name('object-select-symbolic')
+                check.set_visible(False)
+                row.add_suffix(check)
+                row.check_icon = check
+
+                self.app_list.append(row)
+
+        except Exception as e:
+            print(f"Failed to get running apps: {e}")
+            # Add placeholder
+            row = Adw.ActionRow()
+            row.set_title('(Enter app name manually below)')
+            self.app_list.append(row)
+
+        self.app_list.connect('row-selected', self._on_app_selected)
+
+    def _on_app_selected(self, list_box, row):
+        """Handle app selection"""
+        # Clear all checkmarks
+        child = list_box.get_first_child()
+        while child:
+            if hasattr(child, 'check_icon'):
+                child.check_icon.set_visible(False)
+            child = child.get_next_sibling()
+
+        # Show checkmark on selected
+        if row and hasattr(row, 'check_icon'):
+            row.check_icon.set_visible(True)
+            if hasattr(row, 'app_name'):
+                self.app_entry.set_text(row.app_name)
+
+    def _on_add_clicked(self, button):
+        """Add the application profile"""
+        app_name = self.app_entry.get_text().strip()
+
+        if not app_name:
+            dialog = Adw.AlertDialog(
+                heading="No Application Selected",
+                body="Please select or enter an application name."
+            )
+            dialog.add_response("ok", "OK")
+            dialog.present(self)
+            return
+
+        # Save profile
+        profile_path = Path.home() / '.config' / 'juhradial' / 'profiles.json'
+
+        try:
+            profiles = {}
+            if profile_path.exists():
+                with open(profile_path, 'r', encoding='utf-8') as f:
+                    profiles = json.load(f)
+
+            # Create app-specific profile (copy from default)
+            default_profile = profiles.get('default', {})
+            profiles[app_name] = {
+                'name': app_name,
+                'slices': default_profile.get('slices', []),
+                'app_class': app_name,
+            }
+
+            # Save
+            profile_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(profile_path, 'w', encoding='utf-8') as f:
+                json.dump(profiles, f, indent=2)
+
+            print(f"Created profile for: {app_name}")
+
+            # Show success and close
+            self.close()
+
+            # Show toast in parent (if supported)
+            toast = Adw.Toast(title=f"Profile created for {app_name}")
+            toast.set_timeout(2)
+            # Note: Would need ToastOverlay in parent for this to work
+
+        except Exception as e:
+            print(f"Failed to save profile: {e}")
+            dialog = Adw.AlertDialog(
+                heading="Error",
+                body=f"Failed to create profile: {e}"
+            )
+            dialog.add_response("ok", "OK")
+            dialog.present(self)
+
+
 class SettingsWindow(Adw.ApplicationWindow):
     """Main settings window"""
 
@@ -1814,12 +2021,14 @@ class SettingsWindow(Adw.ApplicationWindow):
         # Add application button to header bar
         add_app_btn = Gtk.Button(label='+ ADD APPLICATION')
         add_app_btn.add_css_class('add-app-btn')
+        add_app_btn.connect('clicked', self._on_add_application)
         headerbar.pack_end(add_app_btn)
 
         # Grid view toggle
         grid_btn = Gtk.Button()
         grid_btn.set_child(Gtk.Image.new_from_icon_name('view-grid-symbolic'))
         grid_btn.add_css_class('flat')
+        grid_btn.connect('clicked', self._on_grid_view_toggle)
         headerbar.pack_end(grid_btn)
 
         # Main content area
@@ -2042,6 +2251,21 @@ class SettingsWindow(Adw.ApplicationWindow):
         """Open PayPal donation link"""
         import subprocess
         subprocess.Popen(['xdg-open', 'https://paypal.me/LangbachHermstad'])
+
+    def _on_add_application(self, button):
+        """Open dialog to add per-application profile"""
+        dialog = AddApplicationDialog(self)
+        dialog.present()
+
+    def _on_grid_view_toggle(self, button):
+        """Toggle grid view for application profiles"""
+        # TODO: Implement grid view toggle
+        dialog = Adw.AlertDialog(
+            heading="Grid View",
+            body="Application profiles grid view coming soon!\n\nThis will show all your per-app profiles in a visual grid."
+        )
+        dialog.add_response("ok", "OK")
+        dialog.present(self)
 
     def _create_pages(self):
         # Buttons page with mouse visualization
