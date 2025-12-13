@@ -48,19 +48,10 @@ jobs:
         run: cargo test --verbose
         continue-on-error: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Build KWin script
-        working-directory: kwin-script
-        run: npm install && npm run build
-        continue-on-error: true
-
       - name: Validate structure
         run: |
           echo "Validating project structure..."
-          test -f widget/org.kde.juhradialmx/metadata.json
           test -f daemon/src/main.rs
+          test -f overlay/juhradial-overlay.py
+          test -f overlay/settings_dashboard.py
           echo "✓ Structure valid"
