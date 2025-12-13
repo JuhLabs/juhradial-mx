@@ -7,16 +7,16 @@
   <!-- Badges -->
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
-      <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg" alt="Build Status">
+      <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/security.yml">
-      <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/security.yml/badge.svg" alt="Security Scan">
+      <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/security.yml/badge.svg?branch=master" alt="Security Scan">
     </a>
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL-3.0">
     </a>
-    <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/github/v/release/JuhLabs/juhradial-mx" alt="GitHub Release">
+    <a href="https://github.com/JuhLabs/juhradial-mx/releases/latest">
+      <img src="https://img.shields.io/github/v/release/JuhLabs/juhradial-mx?include_prereleases" alt="GitHub Release">
     </a>
   </p>
 </div>
