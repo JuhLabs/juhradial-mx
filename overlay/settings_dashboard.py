@@ -1653,11 +1653,29 @@ class SettingsPage(Gtk.ScrolledWindow):
 
         theme_row = SettingRow('Theme', 'Choose the color theme for the radial menu')
         theme_dropdown = Gtk.DropDown()
-        theme_options = Gtk.StringList.new(['Catppuccin Mocha', 'Catppuccin Latte', 'Nord', 'Dracula', 'System'])
+        theme_options = Gtk.StringList.new([
+            'Catppuccin Mocha',   # Dark
+            'Catppuccin Latte',   # Light
+            'Nord',               # Dark
+            'Dracula',            # Dark
+            'Light',              # Clean white
+            'Solarized Light',    # Light
+            'GitHub Light',       # Light
+            'System'
+        ])
         theme_dropdown.set_model(theme_options)
         # Set current theme
         current_theme = config.get('theme', default='catppuccin-mocha')
-        theme_map = {'catppuccin-mocha': 0, 'catppuccin-latte': 1, 'nord': 2, 'dracula': 3, 'system': 4}
+        theme_map = {
+            'catppuccin-mocha': 0,
+            'catppuccin-latte': 1,
+            'nord': 2,
+            'dracula': 3,
+            'light': 4,
+            'solarized-light': 5,
+            'github-light': 6,
+            'system': 7
+        }
         theme_dropdown.set_selected(theme_map.get(current_theme, 0))
         theme_dropdown.connect('notify::selected', self._on_theme_changed)
         theme_row.set_control(theme_dropdown)
@@ -1725,7 +1743,16 @@ class SettingsPage(Gtk.ScrolledWindow):
         """Handle theme selection change"""
         import subprocess
 
-        theme_values = ['catppuccin-mocha', 'catppuccin-latte', 'nord', 'dracula', 'system']
+        theme_values = [
+            'catppuccin-mocha',
+            'catppuccin-latte',
+            'nord',
+            'dracula',
+            'light',
+            'solarized-light',
+            'github-light',
+            'system'
+        ]
         selected = dropdown.get_selected()
         if 0 <= selected < len(theme_values):
             theme = theme_values[selected]
