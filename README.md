@@ -81,25 +81,44 @@
 
 ## Installation
 
-### Flatpak (Recommended)
+### Quick Install Script
 
 ```bash
-flatpak install flathub org.juhlabs.JuhRadialMX
+git clone https://github.com/JuhLabs/juhradial-mx.git
+cd juhradial-mx
+./install.sh
 ```
 
-### Fedora (COPR)
+### Flatpak (Build Locally)
+
+> **Note:** Flathub submission pending approval ([#7304](https://github.com/flathub/flathub/issues/7304)). For now, build locally:
 
 ```bash
-sudo dnf copr enable juhlabs/juhradial-mx
-sudo dnf install juhradial-mx
+# Install flatpak-builder if needed
+sudo dnf install flatpak-builder
+
+# Clone and build
+git clone https://github.com/JuhLabs/juhradial-mx.git
+cd juhradial-mx
+flatpak-builder --user --install --force-clean build-dir org.juhlabs.JuhRadialMX.yaml
+
+# Run
+flatpak run org.juhlabs.JuhRadialMX
 ```
 
-### Arch Linux (AUR)
+### Fedora (COPR) - Coming Soon
 
 ```bash
-yay -S juhradial-mx
-# or
-paru -S juhradial-mx
+# Not yet available
+# sudo dnf copr enable juhlabs/juhradial-mx
+# sudo dnf install juhradial-mx
+```
+
+### Arch Linux (AUR) - Coming Soon
+
+```bash
+# Not yet available
+# yay -S juhradial-mx
 ```
 
 ### From Source
