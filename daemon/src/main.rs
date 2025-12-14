@@ -161,7 +161,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("LogiOps not detected - using evdev/hidraw handlers");
     }
 
-    // Spawn the HID++ hidraw handler (for diverted button events from Solaar)
+    // Spawn the HID++ hidraw handler (for diverted button events via HID++ protocol)
     // Only if logid is NOT available
     let hidraw_handle = if !logid_available {
         let hidraw_tx = event_tx.clone();
@@ -294,7 +294,7 @@ fn list_logitech_devices() {
 
 /// Run the HID++ hidraw event loop for diverted buttons
 ///
-/// When buttons are diverted in Solaar, they send HID++ notifications
+/// When buttons are diverted via HID++ configuration, they send HID++ notifications
 /// instead of evdev events. This handler reads from the hidraw device.
 async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>) {
     let mut handler = HidrawHandler::new(event_tx);

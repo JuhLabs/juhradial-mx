@@ -1,8 +1,8 @@
 //! HID++ protocol handler for reading diverted button events via hidraw
 //!
-//! When buttons are diverted in Solaar (set to "Omdirigert"), they send
-//! HID++ notifications instead of standard evdev events. This module
-//! reads those notifications from the hidraw device.
+//! When buttons are diverted via HID++ configuration (Logitech's proprietary
+//! protocol), they send HID++ notifications instead of standard evdev events.
+//! This module reads those notifications from the hidraw device.
 //!
 //! SPDX-License-Identifier: GPL-3.0
 
@@ -105,7 +105,7 @@ impl HidrawHandler {
             }
         }
 
-        // Prefer interface 2 (input2) which is typically used for HID++ by Solaar
+        // Prefer interface 2 (input2) which is typically used for HID++ communication
         for (dev_path, uevent) in &candidates {
             if uevent.contains("input2") {
                 tracing::info!(

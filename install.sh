@@ -102,29 +102,24 @@ install_deps_fedora() {
     log_info "Installing dependencies for Fedora/RHEL..."
     sudo dnf install -y \
         rust cargo \
-        nodejs npm \
         python3 python3-pip \
-        python3-gobject python3-cairo \
-        gtk4-devel gtk4-layer-shell-devel \
+        python3-pyqt6 python3-pyqt6-svg \
+        python3-gobject gtk4 libadwaita \
         dbus-devel systemd-devel \
-        libevdev-devel \
+        libevdev-devel hidapi-devel \
         logiops \
         git make
-
-    # Install Python packages
-    pip3 install --user pycairo PyGObject
 }
 
 install_deps_arch() {
     log_info "Installing dependencies for Arch Linux..."
     sudo pacman -S --noconfirm --needed \
         rust \
-        nodejs npm \
         python python-pip \
-        python-gobject python-cairo \
-        gtk4 gtk4-layer-shell \
+        python-pyqt6 python-pyqt6-svg \
+        python-gobject gtk4 libadwaita \
         dbus systemd-libs \
-        libevdev \
+        libevdev hidapi \
         git make base-devel
 
     # Install logiops from AUR if not present
@@ -145,12 +140,11 @@ install_deps_debian() {
     sudo apt-get update
     sudo apt-get install -y \
         rustc cargo \
-        nodejs npm \
         python3 python3-pip python3-venv \
-        python3-gi python3-cairo \
-        libgtk-4-dev libgtk4-layer-shell-dev \
+        python3-pyqt6 python3-pyqt6.qtsvg \
+        python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
         libdbus-1-dev libsystemd-dev \
-        libevdev-dev \
+        libevdev-dev libhidapi-dev \
         git make build-essential
 
     # logiops needs to be built from source on Debian
@@ -164,12 +158,11 @@ install_deps_opensuse() {
     log_info "Installing dependencies for openSUSE..."
     sudo zypper install -y \
         rust cargo \
-        nodejs npm \
         python3 python3-pip \
-        python3-gobject python3-gobject-cairo \
-        gtk4-devel gtk4-layer-shell-devel \
+        python3-qt6 python3-qt6-svg \
+        python3-gobject gtk4 libadwaita-devel \
         dbus-1-devel systemd-devel \
-        libevdev-devel \
+        libevdev-devel libhidapi-devel \
         git make
 }
 
@@ -222,15 +215,6 @@ build_project() {
     cargo build --release
     cd ..
 
-    # Build KWin script (if Node.js available)
-    if command -v npm &> /dev/null; then
-        log_info "Building KWin script..."
-        cd kwin-script
-        npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps
-        npm run build 2>/dev/null || true
-        cd ..
-    fi
-
     log_success "Build complete"
 }
 
@@ -243,7 +227,6 @@ install_files() {
     # Install overlay scripts
     sudo mkdir -p /usr/share/juhradial
     sudo cp -r overlay/*.py /usr/share/juhradial/
-    sudo cp -r overlay/*.sh /usr/share/juhradial/ 2>/dev/null || true
 
     # Install launcher script
     sudo install -Dm755 juhradial-mx.sh "$BIN_DIR/juhradial-mx"

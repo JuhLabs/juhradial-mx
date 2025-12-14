@@ -1579,7 +1579,18 @@ class ScrollPage(Gtk.ScrolledWindow):
                 None
             )
             # Call SetDpi with the DPI value
-            proxy.call_sync('SetDpi', GLib.Variant('(q)', (dpi,)), Gio.DBusCallFlags.NONE, 500, None)
+            proxy.call_sync('SetDpi', GLib.Variant('(q)', (dpi,)), Gio.DBusCallFlags.NONE, 2000, None)
+            # Update status to show DPI was applied
+            if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
+                self.status_icon.set_from_icon_name('emblem-ok-symbolic')
+                self.status_label.set_text(f'DPI set to {dpi}')
+                GLib.timeout_add(2000, self._reset_status)
+        except GLib.Error as e:
+            print(f"D-Bus error setting DPI: {e.message}")
+            if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
+                self.status_icon.set_from_icon_name('dialog-warning-symbolic')
+                self.status_label.set_text(f'DPI error: daemon not running?')
+                GLib.timeout_add(3000, self._reset_status)
         except Exception as e:
             print(f"Failed to set DPI via D-Bus: {e}")
 
