@@ -76,8 +76,6 @@ modules:
       - mkdir -p /app/share/juhradial
       - install -Dm755 overlay/juhradial-overlay.py /app/share/juhradial/
       - install -Dm755 overlay/settings_dashboard.py /app/share/juhradial/
-      - install -Dm755 overlay/cursor_grabber.py /app/share/juhradial/
-      - install -Dm755 overlay/radial_overlay.py /app/share/juhradial/
 
       # Install assets
       - mkdir -p /app/share/juhradial/assets

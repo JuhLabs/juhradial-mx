@@ -44,8 +44,8 @@
 
   <screenshots>
     <screenshot type="default">
-      <caption>Glassmorphic radial menu overlay</caption>
-      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/radial-menu.png</image>
+      <caption>Radial menu overlay with dark theme</caption>
+      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/radial-menu-dark.png</image>
     </screenshot>
     <screenshot>
       <caption>Settings dashboard with button configuration</caption>
@@ -56,8 +56,8 @@
       <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/settings-scroll.png</image>
     </screenshot>
     <screenshot>
-      <caption>Interactive mouse visualization</caption>
-      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/mouse-viz.png</image>
+      <caption>Mouse configuration interface</caption>
+      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/mouse-config.png</image>
     </screenshot>
   </screenshots>
 

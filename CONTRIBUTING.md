@@ -52,20 +52,46 @@ Feature requests are welcome! Please:
 ### Prerequisites
 
 - Rust (latest stable)
-- Node.js 18+
 - Python 3.10+
 - KDE Plasma 6 with Wayland
 
-### System Dependencies (Fedora)
+### System Dependencies
 
+**Fedora:**
 ```bash
 sudo dnf install \
   rust cargo \
-  nodejs npm \
-  gtk4-devel gtk4-layer-shell-devel \
-  python3-gobject python3-cairo \
+  python3-pyqt6 python3-pyqt6-svg \
+  python3-gobject gtk4 libadwaita \
   dbus-devel systemd-devel \
-  logiops
+  libevdev-devel hidapi-devel \
+  logiops \
+  git make
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S --needed \
+  rust \
+  python-pyqt6 python-pyqt6-svg \
+  python-gobject gtk4 libadwaita \
+  dbus systemd-libs \
+  libevdev hidapi \
+  git make base-devel
+
+# Install logiops from AUR
+yay -S logiops
+```
+
+**Debian/Ubuntu:**
+```bash
+sudo apt install \
+  rustc cargo \
+  python3-pyqt6 python3-pyqt6.qtsvg \
+  python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
+  libdbus-1-dev libsystemd-dev \
+  libevdev-dev libhidapi-dev \
+  git make build-essential
 ```
 
 ### Building
@@ -75,12 +101,11 @@ sudo dnf install \
 git clone https://github.com/YOUR_USERNAME/juhradial-mx
 cd juhradial-mx
 
-# Build everything
+# Build the daemon
 make build
 
-# Or build components separately
-make daemon      # Rust daemon
-make kwin-script # TypeScript KWin script
+# Or manually
+cd daemon && cargo build --release
 ```
 
 ### Running Locally
@@ -91,19 +116,19 @@ make kwin-script # TypeScript KWin script
 
 # In another terminal, run the overlay
 python3 overlay/juhradial-overlay.py
+
+# Or use the launcher script
+./juhradial-mx.sh
 ```
 
 ### Testing
 
 ```bash
-# Run all tests
-make test
-
-# Rust tests only
+# Run Rust tests
 cd daemon && cargo test
 
 # Lint checks
-make lint
+cd daemon && cargo clippy
 ```
 
 ## Code Style
@@ -120,12 +145,6 @@ make lint
 - Follow PEP 8 style guide
 - Use type hints where practical
 - Keep functions focused and well-named
-
-### TypeScript (KWin Script)
-
-- Use TypeScript strict mode
-- Prefer `const` over `let`
-- Document complex logic
 
 ## Commit Messages
 
@@ -159,28 +178,25 @@ docs: update installation instructions
 
 ```
 juhradial-mx/
-├── daemon/           # Rust daemon (input handling, D-Bus)
+├── daemon/           # Rust daemon (input handling, D-Bus, HID++)
 │   └── src/
-├── overlay/          # Python GTK4 overlay
-├── kwin-script/      # TypeScript KWin integration
-├── widget/           # QML Plasma widget
-├── assets/           # Icons, images
-├── packaging/        # Distribution files
-└── scripts/          # Helper scripts
+├── overlay/          # Python UI components
+│   ├── juhradial-overlay.py   # PyQt6 radial menu
+│   └── settings_dashboard.py  # GTK4/Adwaita settings app
+├── assets/           # Icons and screenshots
+└── packaging/        # Distribution files (systemd, udev, logid.cfg)
 ```
 
 ## Getting Help
 
 - **Questions**: Open a [Discussion](https://github.com/JuhLabs/juhradial-mx/discussions)
 - **Bugs**: Open an [Issue](https://github.com/JuhLabs/juhradial-mx/issues)
-- **Chat**: Join our community discussions
 
 ## Recognition
 
 Contributors will be recognized in:
 - The project README
 - Release notes
-- Our website's contributors page
 
 Thank you for helping make JuhRadial MX better!
 
