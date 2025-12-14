@@ -45,7 +45,9 @@
 - **KDE Plasma 6** on Wayland
 - **logiops** (logid) for button mapping
 - **Rust** for building the daemon
-- **Python 3** with PyQt6
+- **Python 3** with:
+  - PyQt6 (radial menu overlay)
+  - GTK4/Adwaita (settings dashboard)
 
 ---
 
@@ -53,7 +55,8 @@
 
 ```bash
 # 1. Install dependencies
-sudo dnf install rust cargo logiops python3-pyqt6 python3-pyqt6-svg
+sudo dnf install rust cargo logiops python3-pyqt6 python3-pyqt6-svg \
+    python3-gobject gtk4 libadwaita
 
 # 2. Clone the repo
 git clone https://github.com/JuhLabs/juhradial-mx.git
@@ -74,7 +77,8 @@ sudo systemctl enable --now logid
 
 ```bash
 # 1. Install dependencies
-sudo pacman -S rust logiops python-pyqt6
+sudo pacman -S rust logiops python-pyqt6 python-pyqt6-svg \
+    python-gobject gtk4 libadwaita
 
 # 2. Clone and build
 git clone https://github.com/JuhLabs/juhradial-mx.git
