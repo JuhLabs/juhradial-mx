@@ -38,12 +38,13 @@ dirs = "5"
 # Low-level libc bindings (for O_NONBLOCK)
 libc = "0.2"
 
-# HID++ for haptic feedback (optional - gracefully degrades if not available)
-hidapi = { version = "2", optional = true }
+# HID++ for haptic feedback (optional - now uses direct hidraw instead)
+# hidapi = { version = "2", optional = true }
 
 [features]
-default = ["hidapi"]
-hidapi = ["dep:hidapi"]
+default = []
+# Legacy hidapi support (not needed - we use direct hidraw access now)
+# hidapi = ["dep:hidapi"]
 
 [dev-dependencies]
 # Performance benchmarks

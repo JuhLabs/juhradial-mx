@@ -16,6 +16,7 @@ use juhradiald::{
     dbus::{init_dbus_service, DBUS_PATH, DBUS_NAME},
     evdev::{EvdevHandler, EvdevError, GestureEvent, LogidHandler},
     hidraw::{HidrawHandler, HidrawError},
+    new_shared_haptic_manager,
     profiles::ProfileManager,
     window_tracker::WindowTracker,
 };
@@ -77,8 +78,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // Initialize D-Bus service with battery state and config
-    let dbus_connection = match init_dbus_service(battery_state.clone(), shared_config.clone()).await {
+    // Initialize haptic manager for MX4 haptic feedback
+    let haptic_config = shared_config.read().unwrap().haptics.clone();
+    let haptic_manager = new_shared_haptic_manager(&haptic_config);
+
+    // Try to connect to MX Master 4 for haptic feedback
+    {
+        let mut manager = haptic_manager.lock().unwrap();
+        match manager.connect() {
+            Ok(true) => info!("Haptic feedback connected to MX Master 4"),
+            Ok(false) => info!("No MX Master 4 found for haptics (optional)"),
+            Err(e) => warn!("Haptic connection error (non-fatal): {}", e),
+        }
+    }
+
+    // Initialize D-Bus service with battery state, config, and haptic manager
+    let dbus_connection = match init_dbus_service(
+        battery_state.clone(),
+        shared_config.clone(),
+        haptic_manager,
+    ).await {
         Ok(conn) => {
             info!("D-Bus service initialized successfully");
             conn

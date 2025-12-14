@@ -36,12 +36,12 @@ class ConfigManager:
     DEFAULT_CONFIG = {
         "haptics": {
             "enabled": True,
-            "intensity": 50,
+            "default_pattern": "subtle_collision",
             "per_event": {
-                "menu_appear": 20,
-                "slice_change": 40,
-                "confirm": 80,
-                "invalid": 30
+                "menu_appear": "damp_state_change",
+                "slice_change": "subtle_collision",
+                "confirm": "sharp_state_change",
+                "invalid": "angry_alert"
             },
             "debounce_ms": 20,
             "slice_debounce_ms": 20,
@@ -1512,7 +1512,9 @@ class ScrollPage(Gtk.ScrolledWindow):
         speed = max(1, min(20, (dpi - 400) // 400 + 1))
         config.set('pointer', 'speed', speed)
         config.set('pointer', 'dpi', dpi)
-        # Apply immediately via gsettings
+        # Apply to hardware via D-Bus
+        self._apply_dpi_to_device(dpi)
+        # Also apply pointer speed via gsettings (software multiplier)
         self._apply_pointer_speed(dpi)
 
     def _on_accel_changed(self, combo):
@@ -1563,6 +1565,24 @@ class ScrollPage(Gtk.ScrolledWindow):
         except Exception:
             pass
 
+    def _apply_dpi_to_device(self, dpi):
+        """Apply DPI directly to the mouse via D-Bus"""
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+            # Call SetDpi with the DPI value
+            proxy.call_sync('SetDpi', GLib.Variant('(q)', (dpi,)), Gio.DBusCallFlags.NONE, 500, None)
+        except Exception as e:
+            print(f"Failed to set DPI via D-Bus: {e}")
+
     def _on_apply_clicked(self, button):
         """Apply all settings via logiops"""
         config.apply_to_device()
@@ -1578,7 +1598,27 @@ class ScrollPage(Gtk.ScrolledWindow):
 
 
 class HapticsPage(Gtk.ScrolledWindow):
-    """Haptic feedback settings page"""
+    """Haptic feedback settings page - MX Master 4 haptic patterns"""
+
+    # MX Master 4 haptic waveform patterns (from Logitech HID++ spec)
+    HAPTIC_PATTERNS = [
+        ('sharp_state_change', 'Sharp Click', 'Crisp, sharp feedback'),
+        ('damp_state_change', 'Soft Click', 'Softer, dampened feedback'),
+        ('sharp_collision', 'Sharp Bump', 'Strong collision feedback'),
+        ('damp_collision', 'Soft Bump', 'Gentle collision feedback'),
+        ('subtle_collision', 'Subtle', 'Very light, subtle feedback'),
+        ('whisper_collision', 'Whisper', 'Barely perceptible feedback'),
+        ('happy_alert', 'Happy', 'Positive notification feel'),
+        ('angry_alert', 'Alert', 'Warning/error feel'),
+        ('completed', 'Complete', 'Success/completion feel'),
+        ('square', 'Square Wave', 'Mechanical square pattern'),
+        ('wave', 'Wave', 'Smooth wave pattern'),
+        ('firework', 'Firework', 'Burst pattern'),
+        ('mad', 'Strong Alert', 'Strong error pattern'),
+        ('knock', 'Knock', 'Knocking pattern'),
+        ('jingle', 'Jingle', 'Musical jingle pattern'),
+        ('ringing', 'Ringing', 'Ring/vibrate pattern'),
+    ]
 
     def __init__(self):
         super().__init__()
@@ -1592,47 +1632,114 @@ class HapticsPage(Gtk.ScrolledWindow):
 
         card = SettingsCard('Haptic Feedback')
 
-        enable_row = SettingRow('Enable Haptic Feedback', 'Feel subtle vibrations when scrolling')
+        # Enable/disable switch
+        enable_row = SettingRow('Enable Haptic Feedback', 'Feel vibrations when using the radial menu')
         enable_switch = Gtk.Switch()
         enable_switch.set_active(config.get('haptics', 'enabled', default=True))
         enable_switch.connect('state-set', lambda s, state: config.set('haptics', 'enabled', state) or False)
         enable_row.set_control(enable_switch)
         card.append(enable_row)
 
-        intensity_row = SettingRow('Feedback Intensity')
-        intensity_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
-        intensity_scale.set_value(config.get('haptics', 'intensity', default=50))
-        intensity_scale.set_size_request(200, -1)
-        intensity_scale.set_draw_value(True)
-        intensity_scale.connect('value-changed', lambda s: config.set('haptics', 'intensity', int(s.get_value())))
-        intensity_row.set_control(intensity_scale)
-        card.append(intensity_row)
-
         content.append(card)
 
-        # Per-event haptics
-        events_card = SettingsCard('Per-Event Intensity')
+        # Per-event haptic patterns
+        events_card = SettingsCard('Haptic Patterns')
+
+        # Store dropdowns for "Apply to All" feature
+        self.event_dropdowns = {}
 
         event_settings = [
-            ('menu_appear', 'Menu Appear', 'Vibration when menu opens'),
-            ('slice_change', 'Slice Change', 'Vibration when hovering different slices'),
-            ('confirm', 'Confirm Selection', 'Vibration when selecting an action'),
-            ('invalid', 'Invalid Action', 'Vibration for invalid actions'),
+            ('menu_appear', 'Menu Appear', 'Pattern when radial menu opens'),
+            ('slice_change', 'Slice Hover', 'Pattern when hovering over different slices'),
+            ('confirm', 'Selection', 'Pattern when selecting an action'),
+            ('invalid', 'Invalid Action', 'Pattern for blocked/invalid actions'),
         ]
 
         for key, label, desc in event_settings:
             row = SettingRow(label, desc)
-            scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
-            scale.set_value(config.get('haptics', 'per_event', key, default=50))
-            scale.set_size_request(150, -1)
-            scale.set_draw_value(False)
-            scale.connect('value-changed', lambda s, k=key: config.set('haptics', 'per_event', k, int(s.get_value())))
-            row.set_control(scale)
+            current_pattern = config.get('haptics', 'per_event', key, default='subtle_collision')
+            dropdown = self._create_pattern_dropdown(
+                current_pattern,
+                lambda pattern, k=key: config.set('haptics', 'per_event', k, pattern)
+            )
+            self.event_dropdowns[key] = dropdown
+            row.set_control(dropdown)
             events_card.append(row)
+
+        # Add "Apply to All" row
+        apply_all_row = SettingRow('Apply to All', 'Set all events to the same pattern')
+        apply_all_dropdown = self._create_pattern_dropdown(
+            'subtle_collision',
+            self._apply_pattern_to_all
+        )
+        apply_all_row.set_control(apply_all_dropdown)
+        events_card.append(apply_all_row)
 
         content.append(events_card)
 
+        # Test button card
+        test_card = SettingsCard('Test Haptics')
+        test_row = SettingRow('Test Pattern', 'Feel the selected pattern')
+        test_button = Gtk.Button(label='Test')
+        test_button.add_css_class('suggested-action')
+        test_button.connect('clicked', self._on_test_clicked)
+        test_row.set_control(test_button)
+        test_card.append(test_row)
+
+        content.append(test_card)
+
         self.set_child(content)
+
+    def _create_pattern_dropdown(self, current_value, on_change_callback):
+        """Create a dropdown for selecting haptic patterns"""
+        dropdown = Gtk.ComboBoxText()
+
+        current_index = 0
+        for i, (pattern_id, display_name, _) in enumerate(self.HAPTIC_PATTERNS):
+            dropdown.append(pattern_id, display_name)
+            if pattern_id == current_value:
+                current_index = i
+
+        dropdown.set_active(current_index)
+        dropdown.connect('changed', lambda d: on_change_callback(d.get_active_id()) if d.get_active_id() else None)
+
+        return dropdown
+
+    def _apply_pattern_to_all(self, pattern):
+        """Apply the selected pattern to all event types"""
+        if not pattern:
+            return
+
+        # Update all per-event patterns in config
+        event_keys = ['menu_appear', 'slice_change', 'confirm', 'invalid']
+        for key in event_keys:
+            config.set('haptics', 'per_event', key, pattern)
+
+        # Update all dropdowns in the UI to match
+        # Find the index for this pattern
+        pattern_index = 0
+        for i, (pattern_id, _, _) in enumerate(self.HAPTIC_PATTERNS):
+            if pattern_id == pattern:
+                pattern_index = i
+                break
+
+        # Update each dropdown's visual selection
+        for key, dropdown in self.event_dropdowns.items():
+            dropdown.set_active(pattern_index)
+
+    def _on_test_clicked(self, button):
+        """Send a test haptic pulse via D-Bus"""
+        try:
+            import subprocess
+            # Trigger haptic via D-Bus - daemon will use the current default pattern
+            subprocess.run([
+                'dbus-send', '--session', '--type=method_call',
+                '--dest=org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon.TestHaptic'
+            ], check=False, capture_output=True)
+        except Exception as e:
+            print(f"Failed to send test haptic: {e}")
 
 
 class SettingsPage(Gtk.ScrolledWindow):
@@ -1709,14 +1816,40 @@ class SettingsPage(Gtk.ScrolledWindow):
 
         content.append(app_card)
 
-        # Device info
+        # Device info - fetch from daemon if available
         info_card = SettingsCard('Device Information')
 
+        # Try to get actual device info from daemon
+        device_name = 'MX Master 4'  # Default
+        connection_type = 'Not available'
+        battery_level = 'Not available'
+
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+            # Get battery status
+            result = proxy.call_sync('GetBatteryStatus', None, Gio.DBusCallFlags.NONE, 500, None)
+            if result:
+                percentage, charging = result.unpack()
+                if percentage > 0:
+                    status = 'Charging' if charging else 'Discharging'
+                    battery_level = f'{percentage}% ({status})'
+                    connection_type = 'Connected'
+        except Exception:
+            pass  # Daemon may not be running
+
         info_items = [
-            ('Device', 'MX Master 4'),
-            ('Serial', 'AB12-CD34-EF56'),
-            ('Firmware', '12.00.008'),
-            ('Connection', 'Bolt USB Receiver'),
+            ('Device', device_name),
+            ('Battery', battery_level),
+            ('Status', connection_type),
         ]
 
         for label, value in info_items:

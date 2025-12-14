@@ -18,6 +18,7 @@
 use zbus::{interface, object_server::SignalEmitter, fdo};
 use crate::battery::SharedBatteryState;
 use crate::config::{Config, SharedConfig};
+use crate::hidpp::{SharedHapticManager, HapticEvent};
 
 /// D-Bus interface name
 pub const DBUS_INTERFACE: &str = "org.kde.juhradialmx.Daemon";
@@ -40,16 +41,23 @@ pub struct JuhRadialService {
     battery_state: SharedBatteryState,
     /// Shared configuration for hot-reload
     config: SharedConfig,
+    /// Shared haptic manager for triggering haptic feedback
+    haptic_manager: SharedHapticManager,
 }
 
 impl JuhRadialService {
-    /// Create a new D-Bus service instance with battery state and config
-    pub fn new(battery_state: SharedBatteryState, config: SharedConfig) -> Self {
+    /// Create a new D-Bus service instance with battery state, config, and haptic manager
+    pub fn new(
+        battery_state: SharedBatteryState,
+        config: SharedConfig,
+        haptic_manager: SharedHapticManager,
+    ) -> Self {
         Self {
             current_profile: "default".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             battery_state,
             config,
+            haptic_manager,
         }
     }
 }
@@ -176,6 +184,42 @@ impl JuhRadialService {
         Ok(())
     }
 
+    /// Trigger haptic feedback for a specific event
+    ///
+    /// Called by the overlay when haptic feedback should be triggered:
+    /// - "menu_appear" - Menu is shown
+    /// - "slice_change" - Cursor moved to a different slice
+    /// - "confirm" - Selection confirmed
+    /// - "invalid" - Invalid action attempted
+    ///
+    /// # Arguments
+    /// * `event` - The haptic event type (menu_appear, slice_change, confirm, invalid)
+    async fn trigger_haptic(&self, event: &str) -> fdo::Result<()> {
+        let haptic_event = match event {
+            "menu_appear" => HapticEvent::MenuAppear,
+            "slice_change" => HapticEvent::SliceChange,
+            "confirm" => HapticEvent::SelectionConfirm,
+            "invalid" => HapticEvent::InvalidAction,
+            _ => {
+                tracing::warn!(event, "Unknown haptic event type");
+                return Ok(());
+            }
+        };
+
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                if let Err(e) = manager.emit(haptic_event) {
+                    tracing::debug!(error = %e, "Haptic emit failed (non-fatal)");
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager");
+            }
+        }
+
+        Ok(())
+    }
+
     /// Set the active profile
     async fn set_profile(&self, name: &str) -> fdo::Result<()> {
         tracing::info!(name, "SetProfile called");
@@ -192,23 +236,46 @@ impl JuhRadialService {
 
         match Config::load_default() {
             Ok(new_config) => {
+                // Clone haptic config for updating the haptic manager
+                let haptic_config = new_config.haptics.clone();
+
                 // Update the shared config
                 match self.config.write() {
                     Ok(mut config) => {
                         *config = new_config;
                         tracing::info!(
                             haptics_enabled = config.haptics.enabled,
-                            haptic_intensity = config.haptics.intensity,
+                            default_pattern = %config.haptics.default_pattern,
                             theme = %config.theme,
                             "Configuration reloaded successfully"
                         );
-                        Ok(())
                     }
                     Err(e) => {
                         tracing::error!(error = %e, "Failed to acquire config write lock");
-                        Err(fdo::Error::Failed(format!("Lock error: {}", e)))
+                        return Err(fdo::Error::Failed(format!("Lock error: {}", e)));
                     }
                 }
+
+                // Update the haptic manager with new settings
+                match self.haptic_manager.lock() {
+                    Ok(mut manager) => {
+                        manager.update_from_config(&haptic_config);
+                        tracing::info!(
+                            default_pattern = %haptic_config.default_pattern,
+                            menu_appear = %haptic_config.per_event.menu_appear,
+                            slice_change = %haptic_config.per_event.slice_change,
+                            confirm = %haptic_config.per_event.confirm,
+                            invalid = %haptic_config.per_event.invalid,
+                            "Haptic manager updated with new patterns"
+                        );
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, "Failed to lock haptic manager for update");
+                        return Err(fdo::Error::Failed(format!("Haptic manager lock error: {}", e)));
+                    }
+                }
+
+                Ok(())
             }
             Err(e) => {
                 tracing::error!(error = %e, "Failed to reload configuration");
@@ -249,6 +316,69 @@ impl JuhRadialService {
     }
 
     // =========================================================================
+    // DPI METHODS
+    // =========================================================================
+
+    /// Get current DPI value from the mouse
+    ///
+    /// # Returns
+    /// Current DPI value (typically 400-8000), or 0 if not supported
+    async fn get_dpi(&self) -> fdo::Result<u16> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                Ok(manager.get_dpi().unwrap_or(0))
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for get_dpi");
+                Ok(0)
+            }
+        }
+    }
+
+    /// Set DPI value on the mouse
+    ///
+    /// # Arguments
+    /// * `dpi` - DPI value to set (typically 400-8000)
+    ///
+    /// # Returns
+    /// Ok on success, error on failure
+    async fn set_dpi(&self, dpi: u16) -> fdo::Result<()> {
+        tracing::info!(dpi, "SetDpi called");
+
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                match manager.set_dpi(dpi) {
+                    Ok(()) => {
+                        tracing::info!(dpi, "DPI set successfully");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, dpi, "Failed to set DPI");
+                        Err(fdo::Error::Failed(format!("Failed to set DPI: {}", e)))
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for set_dpi");
+                Err(fdo::Error::Failed(format!("Lock error: {}", e)))
+            }
+        }
+    }
+
+    /// Check if DPI adjustment is supported on the connected device
+    async fn dpi_supported(&self) -> fdo::Result<bool> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                Ok(manager.dpi_supported())
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for dpi_supported");
+                Ok(false)
+            }
+        }
+    }
+
+    // =========================================================================
     // PROPERTIES
     // =========================================================================
 
@@ -282,14 +412,16 @@ impl JuhRadialService {
 /// # Arguments
 /// * `battery_state` - Shared battery state for GetBatteryStatus method
 /// * `config` - Shared configuration for hot-reload support
+/// * `haptic_manager` - Shared haptic manager for triggering haptic feedback
 ///
 /// # Returns
 /// A `zbus::Connection` that should be kept alive for the service to run.
 pub async fn init_dbus_service(
     battery_state: SharedBatteryState,
     config: SharedConfig,
+    haptic_manager: SharedHapticManager,
 ) -> zbus::Result<zbus::Connection> {
-    let service = JuhRadialService::new(battery_state, config);
+    let service = JuhRadialService::new(battery_state, config, haptic_manager);
 
     let connection = zbus::connection::Builder::session()?
         .name(DBUS_NAME)?
@@ -311,6 +443,7 @@ mod tests {
     use super::*;
     use crate::battery::new_shared_state;
     use crate::config::new_shared_config;
+    use crate::hidpp::new_shared_haptic_manager;
 
     #[test]
     fn test_dbus_constants() {
@@ -323,7 +456,9 @@ mod tests {
     fn test_service_creation() {
         let battery_state = new_shared_state();
         let config = new_shared_config();
-        let service = JuhRadialService::new(battery_state, config);
+        let haptic_config = config.read().unwrap().haptics.clone();
+        let haptic_manager = new_shared_haptic_manager(&haptic_config);
+        let service = JuhRadialService::new(battery_state, config, haptic_manager);
         assert_eq!(service.current_profile, "default");
         // Check haptics from config
         let haptics = service.config.read().unwrap().haptics.enabled;

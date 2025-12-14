@@ -17,56 +17,51 @@ const CONFIG_DIR: &str = "juhradial";
 /// Default config file name
 const CONFIG_FILE: &str = "config.json";
 
-/// Default haptic intensity (0-100)
-const DEFAULT_HAPTIC_INTENSITY: u8 = 50;
-
 // ============================================================================
 // Haptic Configuration
 // ============================================================================
 
-/// Per-event haptic intensity overrides
+/// Per-event haptic pattern overrides
+/// Pattern names match MX Master 4 waveform IDs from the HID++ spec
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HapticEventConfig {
-    /// Menu appearance haptic intensity (default: 20)
+    /// Pattern when menu appears (default: damp_state_change)
     #[serde(default = "default_menu_appear")]
-    pub menu_appear: u8,
+    pub menu_appear: String,
 
-    /// Slice change haptic intensity (default: 40)
+    /// Pattern when hovering over different slices (default: subtle_collision)
     #[serde(default = "default_slice_change")]
-    pub slice_change: u8,
+    pub slice_change: String,
 
-    /// Selection confirm haptic intensity (default: 80)
+    /// Pattern when selecting an action (default: sharp_state_change)
     #[serde(default = "default_confirm")]
-    pub confirm: u8,
+    pub confirm: String,
 
-    /// Invalid action haptic intensity (default: 30)
+    /// Pattern for invalid/blocked actions (default: angry_alert)
     #[serde(default = "default_invalid")]
-    pub invalid: u8,
+    pub invalid: String,
 }
 
-fn default_menu_appear() -> u8 { 20 }
-fn default_slice_change() -> u8 { 40 }
-fn default_confirm() -> u8 { 80 }
-fn default_invalid() -> u8 { 30 }
+fn default_menu_appear() -> String { "damp_state_change".to_string() }
+fn default_slice_change() -> String { "subtle_collision".to_string() }
+fn default_confirm() -> String { "sharp_state_change".to_string() }
+fn default_invalid() -> String { "angry_alert".to_string() }
 
 impl Default for HapticEventConfig {
     fn default() -> Self {
         Self {
-            menu_appear: 20,
-            slice_change: 40,
-            confirm: 80,
-            invalid: 30,
+            menu_appear: default_menu_appear(),
+            slice_change: default_slice_change(),
+            confirm: default_confirm(),
+            invalid: default_invalid(),
         }
     }
 }
 
 impl HapticEventConfig {
-    /// Validate and clamp all intensity values to 0-100
+    /// Validate pattern names (no-op for now, could check against valid patterns)
     pub fn validate(&mut self) {
-        self.menu_appear = self.menu_appear.min(100);
-        self.slice_change = self.slice_change.min(100);
-        self.confirm = self.confirm.min(100);
-        self.invalid = self.invalid.min(100);
+        // Pattern validation could be added here if needed
     }
 }
 
@@ -77,11 +72,11 @@ pub struct HapticConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
 
-    /// Global intensity multiplier (0-100)
-    #[serde(default = "default_intensity")]
-    pub intensity: u8,
+    /// Default haptic pattern (fallback when event-specific not set)
+    #[serde(default = "default_pattern")]
+    pub default_pattern: String,
 
-    /// Per-event intensity overrides
+    /// Per-event pattern overrides
     #[serde(default)]
     pub per_event: HapticEventConfig,
 
@@ -101,7 +96,7 @@ pub struct HapticConfig {
 }
 
 fn default_true() -> bool { true }
-fn default_intensity() -> u8 { DEFAULT_HAPTIC_INTENSITY }
+fn default_pattern() -> String { "subtle_collision".to_string() }
 fn default_debounce() -> u64 { 20 }
 fn default_slice_debounce() -> u64 { 20 }
 fn default_reentry_debounce() -> u64 { 50 }
@@ -110,7 +105,7 @@ impl Default for HapticConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            intensity: DEFAULT_HAPTIC_INTENSITY,
+            default_pattern: default_pattern(),
             per_event: HapticEventConfig::default(),
             debounce_ms: 20,
             slice_debounce_ms: 20,
@@ -120,15 +115,14 @@ impl Default for HapticConfig {
 }
 
 impl HapticConfig {
-    /// Validate and clamp all values
+    /// Validate all values
     pub fn validate(&mut self) {
-        self.intensity = self.intensity.min(100);
         self.per_event.validate();
     }
 
     /// Check if haptics are effectively disabled
     pub fn is_disabled(&self) -> bool {
-        !self.enabled || self.intensity == 0
+        !self.enabled
     }
 }
 
@@ -220,7 +214,7 @@ impl Config {
 
         tracing::info!(
             path = %path.display(),
-            haptic_intensity = config.haptics.intensity,
+            default_pattern = %config.haptics.default_pattern,
             haptics_enabled = config.haptics.enabled,
             theme = %config.theme,
             "Configuration loaded"
@@ -265,16 +259,14 @@ impl Config {
         Ok(config)
     }
 
-    // Legacy getters for backward compatibility
-
-    /// Get haptic intensity (0-100)
-    pub fn haptic_intensity(&self) -> u8 {
-        self.haptics.intensity
-    }
-
     /// Check if haptics are enabled
     pub fn haptics_enabled(&self) -> bool {
-        self.haptics.enabled && self.haptics.intensity > 0
+        self.haptics.enabled
+    }
+
+    /// Get default haptic pattern name
+    pub fn default_haptic_pattern(&self) -> &str {
+        &self.haptics.default_pattern
     }
 }
 
@@ -344,7 +336,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = Config::default();
-        assert_eq!(config.haptics.intensity, 50);
+        assert_eq!(config.haptics.default_pattern, "subtle_collision");
         assert!(config.haptics.enabled);
         assert_eq!(config.theme, "catppuccin-mocha");
     }
@@ -353,32 +345,11 @@ mod tests {
     fn test_haptic_config_defaults() {
         let haptic = HapticConfig::default();
         assert!(haptic.enabled);
-        assert_eq!(haptic.intensity, 50);
-        assert_eq!(haptic.per_event.menu_appear, 20);
-        assert_eq!(haptic.per_event.slice_change, 40);
-        assert_eq!(haptic.per_event.confirm, 80);
-        assert_eq!(haptic.per_event.invalid, 30);
-    }
-
-    #[test]
-    fn test_haptic_config_validation() {
-        let mut haptic = HapticConfig {
-            enabled: true,
-            intensity: 150, // Should be clamped
-            per_event: HapticEventConfig {
-                menu_appear: 200, // Should be clamped
-                slice_change: 40,
-                confirm: 80,
-                invalid: 30,
-            },
-            debounce_ms: 20,
-            slice_debounce_ms: 20,
-            reentry_debounce_ms: 50,
-        };
-
-        haptic.validate();
-        assert_eq!(haptic.intensity, 100);
-        assert_eq!(haptic.per_event.menu_appear, 100);
+        assert_eq!(haptic.default_pattern, "subtle_collision");
+        assert_eq!(haptic.per_event.menu_appear, "damp_state_change");
+        assert_eq!(haptic.per_event.slice_change, "subtle_collision");
+        assert_eq!(haptic.per_event.confirm, "sharp_state_change");
+        assert_eq!(haptic.per_event.invalid, "angry_alert");
     }
 
     #[test]
@@ -395,10 +366,6 @@ mod tests {
 
         config.enabled = false;
         assert!(config.is_disabled());
-
-        config.enabled = true;
-        config.intensity = 0;
-        assert!(config.is_disabled());
     }
 
     #[test]
@@ -406,21 +373,21 @@ mod tests {
         let json = r#"{
             "haptics": {
                 "enabled": true,
-                "intensity": 75,
+                "default_pattern": "sharp_collision",
                 "per_event": {
-                    "menu_appear": 15,
-                    "slice_change": 35
+                    "menu_appear": "happy_alert",
+                    "slice_change": "whisper_collision"
                 }
             },
             "theme": "vaporwave"
         }"#;
 
         let config: Config = serde_json::from_str(json).unwrap();
-        assert_eq!(config.haptics.intensity, 75);
-        assert_eq!(config.haptics.per_event.menu_appear, 15);
-        assert_eq!(config.haptics.per_event.slice_change, 35);
+        assert_eq!(config.haptics.default_pattern, "sharp_collision");
+        assert_eq!(config.haptics.per_event.menu_appear, "happy_alert");
+        assert_eq!(config.haptics.per_event.slice_change, "whisper_collision");
         // Defaults should fill in missing fields
-        assert_eq!(config.haptics.per_event.confirm, 80);
+        assert_eq!(config.haptics.per_event.confirm, "sharp_state_change");
         assert_eq!(config.theme, "vaporwave");
     }
 

@@ -23,7 +23,7 @@ from PyQt6.QtCore import Qt, pyqtSlot, QPropertyAnimation, QEasingCurve, QPointF
 from PyQt6.QtGui import QCursor
 from PyQt6.QtGui import QPainter, QRadialGradient, QColor, QBrush, QPen, QFont, QPainterPath, QIcon, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtDBus import QDBusConnection
+from PyQt6.QtDBus import QDBusConnection, QDBusInterface
 
 # =============================================================================
 # GEOMETRY
@@ -320,6 +320,14 @@ class RadialMenu(QWidget):
         bus.connect("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
                     "org.kde.juhradialmx.Daemon", "CursorMoved", "ii", self.on_cursor_moved)
 
+        # D-Bus interface for calling daemon methods (haptic feedback)
+        self.daemon_iface = QDBusInterface(
+            "org.kde.juhradialmx",
+            "/org/kde/juhradialmx/Daemon",
+            "org.kde.juhradialmx.Daemon",
+            bus
+        )
+
         # Fade animation
         self.anim = QPropertyAnimation(self, b"windowOpacity")
         self.anim.setDuration(180)
@@ -383,6 +391,18 @@ class RadialMenu(QWidget):
         self.anim.setEndValue(1.0)
         self.anim.start()
 
+        # Trigger haptic feedback for menu appearance
+        self._trigger_haptic("menu_appear")
+
+    def _trigger_haptic(self, event):
+        """Trigger haptic feedback via D-Bus call to daemon.
+
+        Args:
+            event: One of "menu_appear", "slice_change", "confirm", "invalid"
+        """
+        if self.daemon_iface.isValid():
+            self.daemon_iface.call("TriggerHaptic", event)
+
     @pyqtSlot()
     def on_hide(self):
         """Handle HideMenu signal - determine tap vs hold based on time elapsed."""
@@ -423,6 +443,9 @@ class RadialMenu(QWidget):
             new_slice = int((angle + 22.5) / 45) % 8
 
         if new_slice != self.highlighted_slice:
+            # Trigger haptic for slice change (only when entering a valid slice)
+            if new_slice >= 0:
+                self._trigger_haptic("slice_change")
             self.highlighted_slice = new_slice
             self.update()
 
@@ -436,6 +459,7 @@ class RadialMenu(QWidget):
                 submenu = ACTIONS[self.submenu_slice][5]
                 if submenu and self.highlighted_subitem < len(submenu):
                     subitem = submenu[self.highlighted_subitem]
+                    self._trigger_haptic("confirm")  # Haptic for selection confirm
                     self._execute_subaction(subitem)
             elif self.highlighted_slice >= 0:
                 action = ACTIONS[self.highlighted_slice]
@@ -443,6 +467,7 @@ class RadialMenu(QWidget):
                     # Don't execute, show submenu instead (handled in toggle mode)
                     pass
                 else:
+                    self._trigger_haptic("confirm")  # Haptic for selection confirm
                     self._execute_action(action)
 
         # Reset submenu state
@@ -539,6 +564,9 @@ class RadialMenu(QWidget):
                 self.highlighted_subitem = -1
 
         if new_slice != self.highlighted_slice:
+            # Trigger haptic for slice change (only when entering a valid slice)
+            if new_slice >= 0:
+                self._trigger_haptic("slice_change")
             self.highlighted_slice = new_slice
             self.update()
         elif self.submenu_active:
@@ -622,6 +650,9 @@ class RadialMenu(QWidget):
                 self.highlighted_subitem = -1
 
         if new_slice != self.highlighted_slice:
+            # Trigger haptic for slice change (only when entering a valid slice)
+            if new_slice >= 0:
+                self._trigger_haptic("slice_change")
             self.highlighted_slice = new_slice
             self.update()
         elif self.submenu_active:

@@ -8,9 +8,27 @@
 //! This module MUST NEVER write to the mouse's onboard memory.
 //! Only volatile/runtime HID++ commands are permitted. The mouse
 //! must remain 100% compatible with Windows/macOS after use.
+//!
+//! # HID++ Communication
+//!
+//! Uses direct hidraw device access (same approach as battery module).
+//! This is more reliable than hidapi library for Logitech devices.
 
 use std::fmt;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Shared haptic manager for thread-safe access from D-Bus handlers
+pub type SharedHapticManager = Arc<Mutex<HapticManager>>;
+
+/// Create a new shared haptic manager from config
+pub fn new_shared_haptic_manager(config: &crate::config::HapticConfig) -> SharedHapticManager {
+    Arc::new(Mutex::new(HapticManager::from_config(config)))
+}
 
 // ============================================================================
 // Constants
@@ -53,8 +71,19 @@ pub mod features {
     pub const BATTERY_STATUS: u16 = 0x1000;
     /// LED control - some devices include haptic here (RUNTIME-ONLY)
     pub const LED_CONTROL: u16 = 0x1300;
-    /// Force feedback / haptic (RUNTIME-ONLY - does NOT persist)
+    /// Force feedback for racing wheels like G920/G923 (RUNTIME-ONLY - does NOT persist)
     pub const FORCE_FEEDBACK: u16 = 0x8123;
+    /// MX Master 4 haptic motor (RUNTIME-ONLY - does NOT persist)
+    /// Uses waveform IDs (0x00-0x1B) for predefined haptic patterns.
+    pub const MX_MASTER_4_HAPTIC: u16 = 0x19B0;
+    /// Alternative haptic feature used by mx4notifications project
+    /// Some MX Master 4 devices may report this instead of 0x19B0
+    pub const MX4_HAPTIC_ALT: u16 = 0x0B4E;
+    /// Adjustable DPI - Mouse pointer speed/sensitivity (PERSISTS to device)
+    /// Note: DPI settings persist on the device but this is expected user behavior.
+    /// Users want their DPI setting to be remembered across reboots.
+    /// Functions: [0] getSensorCount, [1] getSensorDpiList, [2] getSensorDpi, [3] setSensorDpi
+    pub const ADJUSTABLE_DPI: u16 = 0x2201;
 }
 
 /// BLOCKLISTED HID++ feature IDs - NEVER use these!
@@ -120,6 +149,9 @@ pub mod allowed_features {
         features::BATTERY_STATUS,
         features::LED_CONTROL,
         features::FORCE_FEEDBACK,
+        features::MX_MASTER_4_HAPTIC,
+        features::MX4_HAPTIC_ALT,
+        features::ADJUSTABLE_DPI,
     ];
 
     /// Check if a feature ID is explicitly allowed
@@ -352,138 +384,374 @@ impl fmt::Display for ConnectionType {
 // HID++ Device
 // ============================================================================
 
+/// Software ID for HID++ message tracking
+const SOFTWARE_ID: u8 = 0x01;
+
 /// HID++ device wrapper for communication with MX Master 4
+///
+/// Uses direct hidraw device access for reliable HID++ communication.
+/// This approach matches the battery module and avoids hidapi enumeration issues.
 pub struct HidppDevice {
-    /// The underlying HID device handle
-    #[cfg(feature = "hidapi")]
-    device: hidapi::HidDevice,
+    /// The underlying hidraw file handle
+    device: File,
     /// Device index for HID++ messages (0xFF for direct, 0x01-0x06 for receiver)
     device_index: u8,
     /// Connection type
     connection_type: ConnectionType,
-    /// Software ID for message tracking (rotates 0x01-0x0F)
-    sw_id: u8,
     /// Cached feature table (feature_id -> feature_index)
     feature_table: std::collections::HashMap<u16, u8>,
-    /// Whether haptic feature is available
+    /// Whether haptic feature is available (legacy force feedback 0x8123)
     haptic_supported: bool,
-    /// Haptic feature index (if supported)
+    /// Haptic feature index for legacy force feedback (0x8123)
     haptic_feature_index: Option<u8>,
+    /// Whether MX Master 4 haptic feature is available (0x19B0)
+    mx4_haptic_supported: bool,
+    /// MX Master 4 haptic feature index (0x19B0)
+    mx4_haptic_feature_index: Option<u8>,
+    /// Whether adjustable DPI feature is available (0x2201)
+    dpi_supported: bool,
+    /// Adjustable DPI feature index (0x2201)
+    dpi_feature_index: Option<u8>,
 }
 
 impl HidppDevice {
-    /// Attempt to open and initialize an MX Master 4 device
+    /// Find a Logitech hidraw device suitable for HID++ communication
     ///
-    /// Returns None if no compatible device is found.
-    /// This is NOT an error - haptics are optional.
-    pub fn open() -> Option<Self> {
-        #[cfg(not(feature = "hidapi"))]
-        {
-            // hidapi feature not enabled, return None gracefully
-            tracing::debug!("hidapi feature not enabled, haptics unavailable");
+    /// Scans /sys/class/hidraw/ for Logitech devices and returns the path
+    /// to the best one for HID++ communication (prefers interface 2).
+    fn find_device() -> Option<(PathBuf, ConnectionType)> {
+        let hidraw_dir = PathBuf::from("/sys/class/hidraw");
+        if !hidraw_dir.exists() {
+            tracing::debug!("/sys/class/hidraw not found");
             return None;
         }
 
-        #[cfg(feature = "hidapi")]
-        {
-            let api = match hidapi::HidApi::new() {
-                Ok(api) => api,
-                Err(e) => {
-                    tracing::warn!(error = %e, "Failed to initialize hidapi");
-                    return None;
-                }
-            };
+        let mut candidates: Vec<(PathBuf, String, ConnectionType)> = Vec::new();
 
-            // Try to find MX Master 4 or a Logitech receiver
-            for device_info in api.device_list() {
-                if device_info.vendor_id() != LOGITECH_VENDOR_ID {
+        let entries = match std::fs::read_dir(&hidraw_dir) {
+            Ok(e) => e,
+            Err(e) => {
+                tracing::debug!(error = %e, "Failed to read /sys/class/hidraw");
+                return None;
+            }
+        };
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let uevent_path = path.join("device/uevent");
+
+            if let Ok(uevent) = std::fs::read_to_string(&uevent_path) {
+                // Check for Logitech vendor ID (046D)
+                if !uevent.contains("046D") && !uevent.contains("046d") {
                     continue;
                 }
 
-                let product_id = device_info.product_id();
-                let (connection_type, device_index) = match product_id {
-                    product_ids::MX_MASTER_4_USB => (ConnectionType::Usb, 0xFF),
-                    product_ids::BOLT_RECEIVER => (ConnectionType::Bolt, 0x01),
-                    product_ids::UNIFYING_RECEIVER => (ConnectionType::Unifying, 0x01),
-                    _ => {
-                        // Check if it's a Bluetooth HID device from Logitech
-                        if device_info.interface_number() == 2 {
-                            // Interface 2 is typically HID++ on BT devices
-                            (ConnectionType::Bluetooth, 0xFF)
-                        } else {
-                            continue;
-                        }
-                    }
-                };
-
-                // Try to open this device
-                let device = match device_info.open_device(&api) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        tracing::debug!(
-                            product_id = format!("{:04X}", product_id),
-                            error = %e,
-                            "Failed to open Logitech device"
-                        );
+                // Determine connection type from product ID
+                let connection_type = if uevent.contains("C548") || uevent.contains("c548") {
+                    // Bolt receiver
+                    ConnectionType::Bolt
+                } else if uevent.contains("C52B") || uevent.contains("c52b") {
+                    // Unifying receiver
+                    ConnectionType::Unifying
+                } else if uevent.contains("B034") || uevent.contains("b034") {
+                    // MX Master 4 direct USB
+                    ConnectionType::Usb
+                } else {
+                    // Other Logitech device - check if interface 2
+                    if uevent.contains("input2") {
+                        ConnectionType::Bluetooth
+                    } else {
                         continue;
                     }
                 };
 
-                // Set non-blocking mode for reads
-                if let Err(e) = device.set_blocking_mode(false) {
-                    tracing::debug!(error = %e, "Failed to set non-blocking mode");
+                if let Some(name) = path.file_name() {
+                    let dev_path = PathBuf::from("/dev").join(name);
+                    candidates.push((dev_path, uevent, connection_type));
                 }
-
-                let mut hidpp = Self {
-                    device,
-                    device_index,
-                    connection_type,
-                    sw_id: 0x01,
-                    feature_table: std::collections::HashMap::new(),
-                    haptic_supported: false,
-                    haptic_feature_index: None,
-                };
-
-                // Validate HID++ 2.0 support
-                if !hidpp.validate_hidpp20() {
-                    tracing::debug!(
-                        connection = %connection_type,
-                        "Device does not support HID++ 2.0"
-                    );
-                    continue;
-                }
-
-                // Enumerate features and check for haptic support
-                hidpp.enumerate_features();
-
-                tracing::info!(
-                    connection = %connection_type,
-                    haptic_supported = hidpp.haptic_supported,
-                    "Connected to MX Master 4"
-                );
-
-                return Some(hidpp);
             }
+        }
 
-            tracing::debug!("No MX Master 4 device found");
-            None
+        // Prefer interface 2 for HID++ (typically the control interface)
+        for (dev_path, uevent, conn_type) in &candidates {
+            if uevent.contains("input2") {
+                tracing::debug!(
+                    path = %dev_path.display(),
+                    connection = %conn_type,
+                    "Found Logitech HID++ device (interface 2)"
+                );
+                return Some((dev_path.clone(), *conn_type));
+            }
+        }
+
+        // Fallback to first candidate
+        candidates.into_iter().next().map(|(path, _, conn_type)| {
+            tracing::debug!(
+                path = %path.display(),
+                connection = %conn_type,
+                "Found Logitech HID++ device (fallback)"
+            );
+            (path, conn_type)
+        })
+    }
+
+    /// Attempt to open and initialize an MX Master 4 device
+    ///
+    /// Returns None if no compatible device is found.
+    /// This is NOT an error - haptics are optional.
+    ///
+    /// Uses direct hidraw access instead of hidapi for more reliable
+    /// device communication (same approach as the battery module).
+    pub fn open() -> Option<Self> {
+        let (device_path, connection_type) = Self::find_device()?;
+
+        // Determine device index based on connection type
+        let device_index = match connection_type {
+            ConnectionType::Usb => 0xFF,       // Direct USB uses 0xFF
+            ConnectionType::Bolt => 0x02,      // Bolt receiver device slot (0x02 is common for MX4)
+            ConnectionType::Unifying => 0x01,  // Unifying receiver typically 0x01
+            ConnectionType::Bluetooth => 0xFF, // Bluetooth direct uses 0xFF
+        };
+
+        // Open the device with read/write and non-blocking
+        let device = match OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(&device_path)
+        {
+            Ok(f) => f,
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::PermissionDenied {
+                    tracing::warn!(
+                        path = %device_path.display(),
+                        "Permission denied opening hidraw device. Check udev rules."
+                    );
+                } else {
+                    tracing::debug!(
+                        path = %device_path.display(),
+                        error = %e,
+                        "Failed to open hidraw device"
+                    );
+                }
+                return None;
+            }
+        };
+
+        let mut hidpp = Self {
+            device,
+            device_index,
+            connection_type,
+            feature_table: std::collections::HashMap::new(),
+            haptic_supported: false,
+            haptic_feature_index: None,
+            mx4_haptic_supported: false,
+            mx4_haptic_feature_index: None,
+            dpi_supported: false,
+            dpi_feature_index: None,
+        };
+
+        // Validate HID++ 2.0 support
+        if !hidpp.validate_hidpp20() {
+            tracing::debug!(
+                path = %device_path.display(),
+                connection = %connection_type,
+                "Device does not support HID++ 2.0"
+            );
+            return None;
+        }
+
+        // Enumerate features and check for haptic support
+        hidpp.enumerate_features();
+
+        tracing::info!(
+            path = %device_path.display(),
+            connection = %connection_type,
+            haptic_supported = hidpp.haptic_supported,
+            mx4_haptic_supported = hidpp.mx4_haptic_supported,
+            "Connected to MX Master 4 via hidraw"
+        );
+
+        Some(hidpp)
+    }
+
+    /// Drain any pending data from the device buffer
+    ///
+    /// This prevents reading stale responses from previous requests.
+    fn drain_buffer(&mut self) {
+        let mut drain_buf = [0u8; 64];
+        loop {
+            match self.device.read(&mut drain_buf) {
+                Ok(_) => continue, // Discard stale data
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(_) => break,
+            }
         }
     }
 
+    /// Send a HID++ request and wait for matching response
+    ///
+    /// Uses polling with timeout (same approach as battery module).
+    fn hidpp_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Option<Vec<u8>> {
+        // Drain any pending data first
+        self.drain_buffer();
+
+        // Build HID++ short report (7 bytes)
+        let mut request = [0u8; 7];
+        request[0] = report_type::SHORT;
+        request[1] = self.device_index;
+        request[2] = feature_index;
+        request[3] = (function << 4) | SOFTWARE_ID;
+
+        // Copy params (up to 3 bytes for short report)
+        let param_len = params.len().min(3);
+        request[4..4 + param_len].copy_from_slice(&params[..param_len]);
+
+        tracing::debug!(
+            feature_index,
+            function,
+            "Sending HID++ request: {:02X?}",
+            &request
+        );
+
+        // Send request
+        if let Err(e) = self.device.write_all(&request) {
+            tracing::debug!(error = %e, "Failed to write HID++ message");
+            return None;
+        }
+
+        // Read response with timeout (non-blocking, so we poll)
+        let mut response = [0u8; 20];
+        let mut attempts = 0;
+
+        loop {
+            match self.device.read(&mut response) {
+                Ok(len) if len >= 7 => {
+                    let resp_function = (response[3] >> 4) & 0x0F;
+                    let resp_sw_id = response[3] & 0x0F;
+
+                    tracing::debug!(
+                        "HID++ response: {:02X?} (feat={}, fn={}, sw={})",
+                        &response[..len],
+                        response[2],
+                        resp_function,
+                        resp_sw_id
+                    );
+
+                    // Check if this is a response to our request
+                    if response[0] == report_type::SHORT || response[0] == report_type::LONG {
+                        // Must match: device index, feature index, function, AND software ID
+                        if response[1] == self.device_index
+                            && response[2] == feature_index
+                            && resp_function == function
+                            && resp_sw_id == SOFTWARE_ID
+                        {
+                            tracing::debug!("HID++ request matched! Returning response");
+                            return Some(response[..len].to_vec());
+                        }
+                        // Check for error response (0xFF feature_index indicates error)
+                        // Format: [report_type, device_idx, 0xFF, orig_feature_idx, orig_fn_sw, error_code, ...]
+                        if response[2] == 0xFF {
+                            let error_code = response[5];
+                            let error_msg = match error_code {
+                                0x00 => "No error",
+                                0x01 => "Unknown function",
+                                0x02 => "Function not available",
+                                0x03 => "Invalid argument",
+                                0x04 => "Not supported",
+                                0x05 => "Invalid argument/Out of range",
+                                0x06 => "Device busy",
+                                0x07 => "Connection failed",
+                                0x08 => "Invalid address",
+                                _ => "Unknown error",
+                            };
+                            tracing::warn!(
+                                error_code,
+                                error_msg,
+                                feature_index = response[3],
+                                "HID++ error response: {:02X?}",
+                                &response[..len]
+                            );
+                            return None;
+                        }
+                        // Legacy error check (0x8F)
+                        if response[2] == 0x8F {
+                            tracing::debug!("HID++ legacy error response: {:02X?}", &response[..len]);
+                            return None;
+                        }
+                        // Log non-matching responses for debugging
+                        tracing::debug!(
+                            expected_dev = self.device_index,
+                            expected_feat = feature_index,
+                            expected_fn = function,
+                            expected_sw = SOFTWARE_ID,
+                            got_dev = response[1],
+                            got_feat = response[2],
+                            got_fn = resp_function,
+                            got_sw = resp_sw_id,
+                            "HID++ response didn't match expected values"
+                        );
+                    }
+                }
+                Ok(_) => {
+                    // Short read, continue
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    // No data yet
+                }
+                Err(e) => {
+                    tracing::debug!(error = %e, "Error reading HID++ response");
+                    return None;
+                }
+            }
+
+            attempts += 1;
+            if attempts > 100 {
+                tracing::debug!(feature_index, function, "HID++ request timeout after 100 attempts");
+                return None;
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+
+    /// Send a long HID++ message (20 bytes) - for haptic patterns
+    #[allow(dead_code)]
+    fn hidpp_send_long(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Result<(), std::io::Error> {
+        // Drain any pending data first
+        self.drain_buffer();
+
+        // Build HID++ long report (20 bytes)
+        let mut request = [0u8; 20];
+        request[0] = report_type::LONG;
+        request[1] = self.device_index;
+        request[2] = feature_index;
+        request[3] = (function << 4) | SOFTWARE_ID;
+
+        // Copy params (up to 16 bytes for long report)
+        let param_len = params.len().min(16);
+        request[4..4 + param_len].copy_from_slice(&params[..param_len]);
+
+        tracing::trace!(
+            feature_index,
+            function,
+            "Sending HID++ long message: {:02X?}",
+            &request
+        );
+
+        self.device.write_all(&request)
+    }
+
     /// Validate that the device supports HID++ 2.0 protocol
-    #[cfg(feature = "hidapi")]
     fn validate_hidpp20(&mut self) -> bool {
         // Send IRoot ping (feature 0x00, function 0x01)
         // Ping echoes back the data byte and returns protocol version
-        let msg = HidppShortMessage::new(self.device_index, 0x00, 0x01, self.next_sw_id())
-            .with_params([0x00, 0x00, 0xAA]); // 0xAA is ping data to echo
+        let params = [0x00, 0x00, 0xAA]; // 0xAA is ping data to echo
 
-        if let Some(response) = self.send_and_receive(&msg) {
+        if let Some(response) = self.hidpp_request(0x00, 0x01, &params) {
             // Check if ping data was echoed (byte 6 should be 0xAA)
-            if response[6] == 0xAA {
-                tracing::debug!(
-                    "HID++ 2.0 validated, ping echoed successfully"
-                );
+            if response.len() >= 7 && response[6] == 0xAA {
+                tracing::debug!("HID++ 2.0 validated, ping echoed successfully");
                 return true;
             }
         }
@@ -498,7 +766,6 @@ impl HidppDevice {
     /// This method only READS feature information - it does NOT use
     /// any blocklisted features. Blocklisted features are logged for
     /// audit purposes but never stored for use.
-    #[cfg(feature = "hidapi")]
     fn enumerate_features(&mut self) {
         // First, get the feature index for IFeatureSet (0x0001)
         let feature_set_index = match self.get_feature_index(features::I_FEATURE_SET) {
@@ -510,31 +777,20 @@ impl HidppDevice {
         };
 
         // Get feature count (function 0x00 of IFeatureSet)
-        let msg = HidppShortMessage::new(
-            self.device_index,
-            feature_set_index,
-            0x00,
-            self.next_sw_id(),
-        );
-
-        let feature_count = match self.send_and_receive(&msg) {
-            Some(resp) => resp[4],
-            None => return,
+        let feature_count = match self.hidpp_request(feature_set_index, 0x00, &[]) {
+            Some(resp) if resp.len() >= 5 => resp[4],
+            _ => return,
         };
 
         tracing::debug!(count = feature_count, "Enumerating device features");
 
         // Enumerate each feature (function 0x01 of IFeatureSet)
         for i in 0..feature_count {
-            let msg = HidppShortMessage::new(
-                self.device_index,
-                feature_set_index,
-                0x01,
-                self.next_sw_id(),
-            )
-            .with_params([i, 0, 0]);
+            if let Some(resp) = self.hidpp_request(feature_set_index, 0x01, &[i, 0, 0]) {
+                if resp.len() < 6 {
+                    continue;
+                }
 
-            if let Some(resp) = self.send_and_receive(&msg) {
                 let feature_id = ((resp[4] as u16) << 8) | (resp[5] as u16);
                 let feature_index = i + 1; // Feature indices are 1-based
 
@@ -553,77 +809,96 @@ impl HidppDevice {
 
                 self.feature_table.insert(feature_id, feature_index);
 
-                // Check for haptic/force feedback feature (SAFE - runtime only)
+                // Log all features for debugging
+                tracing::debug!(
+                    feature_id = format!("0x{:04X}", feature_id),
+                    feature_index = feature_index,
+                    "Found feature"
+                );
+
+                // Check for legacy force feedback feature (0x8123 - for racing wheels)
                 if feature_id == features::FORCE_FEEDBACK {
                     self.haptic_supported = true;
                     self.haptic_feature_index = Some(feature_index);
-                    tracing::info!(index = feature_index, "Haptic feature found (runtime-only, safe)");
+                    tracing::info!(
+                        index = feature_index,
+                        "Legacy haptic/force feedback feature found (0x8123)"
+                    );
+                }
+
+                // Check for MX Master 4 haptic feature (0x19B0)
+                if feature_id == features::MX_MASTER_4_HAPTIC {
+                    self.mx4_haptic_supported = true;
+                    self.mx4_haptic_feature_index = Some(feature_index);
+                    tracing::info!(
+                        index = feature_index,
+                        "MX Master 4 haptic feature found (0x19B0)"
+                    );
+                }
+
+                // Check for alternative haptic feature (0x0B4E from mx4notifications)
+                if feature_id == features::MX4_HAPTIC_ALT {
+                    self.mx4_haptic_supported = true;
+                    self.mx4_haptic_feature_index = Some(feature_index);
+                    tracing::info!(
+                        index = feature_index,
+                        "MX Master 4 haptic feature found (0x0B4E - mx4notifications)"
+                    );
+                }
+
+                // Check for adjustable DPI feature (0x2201)
+                if feature_id == features::ADJUSTABLE_DPI {
+                    self.dpi_supported = true;
+                    self.dpi_feature_index = Some(feature_index);
+                    tracing::info!(
+                        index = feature_index,
+                        "Adjustable DPI feature found (0x2201)"
+                    );
                 }
             }
         }
 
         tracing::debug!(
             feature_count = self.feature_table.len(),
-            haptic = self.haptic_supported,
+            legacy_haptic = self.haptic_supported,
+            mx4_haptic = self.mx4_haptic_supported,
+            dpi = self.dpi_supported,
             "Feature enumeration complete (blocklisted features excluded)"
         );
     }
 
     /// Get the feature index for a given feature ID using IRoot
-    #[cfg(feature = "hidapi")]
     fn get_feature_index(&mut self, feature_id: u16) -> Option<u8> {
         // IRoot function 0x00: getFeatureIndex
-        let msg = HidppShortMessage::new(self.device_index, 0x00, 0x00, self.next_sw_id())
-            .with_params([(feature_id >> 8) as u8, (feature_id & 0xFF) as u8, 0]);
+        let params = [(feature_id >> 8) as u8, (feature_id & 0xFF) as u8, 0];
 
-        self.send_and_receive(&msg).and_then(|resp| {
-            let index = resp[4];
-            if index == 0 {
-                None // Feature not supported
+        self.hidpp_request(0x00, 0x00, &params).and_then(|resp| {
+            if resp.len() >= 5 {
+                let index = resp[4];
+                if index == 0 {
+                    None // Feature not supported
+                } else {
+                    Some(index)
+                }
             } else {
-                Some(index)
+                None
             }
         })
     }
 
-    /// Send a short message and wait for response
-    #[cfg(feature = "hidapi")]
-    fn send_and_receive(&mut self, msg: &HidppShortMessage) -> Option<[u8; 7]> {
-        let bytes = msg.to_bytes();
 
-        // Send the message
-        if let Err(e) = self.device.write(&bytes) {
-            tracing::debug!(error = %e, "Failed to write HID++ message");
-            return None;
-        }
-
-        // Read response with timeout
-        let mut buf = [0u8; 20]; // Buffer large enough for long messages
-        let timeout_ms = 100;
-
-        match self.device.read_timeout(&mut buf, timeout_ms as i32) {
-            Ok(len) if len >= 7 => {
-                let mut response = [0u8; 7];
-                response.copy_from_slice(&buf[..7]);
-                Some(response)
-            }
-            Ok(_) => None,
-            Err(e) => {
-                tracing::debug!(error = %e, "Failed to read HID++ response");
-                None
-            }
-        }
-    }
-
-    /// Get next software ID (rotating 0x01-0x0F)
-    fn next_sw_id(&mut self) -> u8 {
-        let id = self.sw_id;
-        self.sw_id = if self.sw_id >= 0x0F { 0x01 } else { self.sw_id + 1 };
-        id
-    }
-
-    /// Check if haptic feedback is supported
+    /// Check if any haptic feedback is supported (MX4 or legacy)
     pub fn haptic_supported(&self) -> bool {
+        self.mx4_haptic_supported || self.haptic_supported
+    }
+
+    /// Check if MX Master 4 specific haptic is supported (feature 0x19B0)
+    pub fn mx4_haptic_supported(&self) -> bool {
+        self.mx4_haptic_supported
+    }
+
+    /// Check if legacy force feedback haptic is supported (feature 0x8123)
+    pub fn legacy_haptic_supported(&self) -> bool {
         self.haptic_supported
     }
 
@@ -632,58 +907,210 @@ impl HidppDevice {
         self.connection_type
     }
 
-    /// Send a haptic pulse command
+    /// Send an MX Master 4 haptic pattern
     ///
     /// # SAFETY
     ///
     /// This method ONLY sends volatile/runtime commands.
     /// It does NOT write to onboard memory.
-    #[cfg(feature = "hidapi")]
+    ///
+    /// # Arguments
+    ///
+    /// * `pattern` - The MX4 haptic pattern to play (0-14)
+    pub fn send_haptic_pattern(&mut self, pattern: Mx4HapticPattern) -> Result<(), HapticError> {
+        if !self.mx4_haptic_supported {
+            tracing::trace!("MX4 haptic not supported, skipping pattern");
+            return Ok(());
+        }
+
+        tracing::debug!(
+            pattern = %pattern,
+            waveform_id = pattern.to_id(),
+            "Sending MX4 haptic pattern"
+        );
+
+        // Use the exact packet format from mx4notifications that we verified works:
+        // Packet: [0x10, 0x02, 0x0B, 0x4E, waveform, 0x00, 0x00]
+        // - 0x10: SHORT report type
+        // - 0x02: device index (Bolt receiver)
+        // - 0x0B: feature index 11 (hardcoded, matches mx4notifications)
+        // - 0x4E: (function 0x04 << 4) | sw_id 0x0E
+        // - waveform: the haptic pattern ID
+
+        const MX4_HAPTIC_FEATURE_INDEX: u8 = 0x0B;  // Feature index 11
+        const MX4_HAPTIC_FUNCTION: u8 = 0x04;       // Function ID for haptic play
+        const MX4_HAPTIC_SW_ID: u8 = 0x0E;          // Software ID used by mx4notifications
+
+        self.drain_buffer();
+
+        let mut request = [0u8; 7];
+        request[0] = report_type::SHORT;
+        request[1] = self.device_index;
+        request[2] = MX4_HAPTIC_FEATURE_INDEX;
+        request[3] = (MX4_HAPTIC_FUNCTION << 4) | MX4_HAPTIC_SW_ID;
+        request[4] = pattern.to_id();
+        // request[5] and request[6] remain 0
+
+        tracing::debug!(
+            "Sending MX4 haptic packet: {:02X?}",
+            &request
+        );
+
+        self.device.write_all(&request).map_err(HapticError::IoError)?;
+
+        Ok(())
+    }
+
+    /// Send a haptic pulse command (legacy method for force feedback devices)
+    ///
+    /// # SAFETY
+    ///
+    /// This method ONLY sends volatile/runtime commands.
+    /// It does NOT write to onboard memory.
     pub fn send_haptic_pulse(&mut self, intensity: u8, duration_ms: u16) -> Result<(), HapticError> {
         let feature_index = match self.haptic_feature_index {
             Some(idx) => idx,
             None => {
-                // Haptics not supported, succeed silently
+                // Legacy haptics not supported, succeed silently
                 return Ok(());
             }
         };
 
-        // Construct haptic pulse command
-        // Note: The exact command structure depends on the device's haptic feature
-        // This is a placeholder that needs validation on real hardware
-        let msg = HidppShortMessage::new(self.device_index, feature_index, 0x00, self.next_sw_id())
-            .with_params([
-                intensity,
-                (duration_ms >> 8) as u8,
-                (duration_ms & 0xFF) as u8,
-            ]);
+        // Construct haptic pulse command for legacy force feedback
+        // Note: This is for racing wheels and similar devices with 0x8123 feature
+        let params = [
+            intensity,
+            (duration_ms >> 8) as u8,
+            (duration_ms & 0xFF) as u8,
+        ];
 
-        let bytes = msg.to_bytes();
-        self.device
-            .write(&bytes)
-            .map_err(|e| HapticError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        // Use hidpp_request for short messages (will drain buffer and send)
+        if self.hidpp_request(feature_index, 0x00, &params).is_none() {
+            tracing::debug!("Legacy haptic pulse - no response (may be expected)");
+        }
 
         Ok(())
     }
-}
 
-// Stub implementation when hidapi feature is not available
-#[cfg(not(feature = "hidapi"))]
-impl HidppDevice {
-    pub fn open() -> Option<Self> {
-        None
+    // =========================================================================
+    // DPI Methods (0x2201 - Adjustable DPI)
+    // =========================================================================
+
+    /// Check if DPI adjustment is supported
+    pub fn dpi_supported(&self) -> bool {
+        self.dpi_supported
     }
 
-    pub fn haptic_supported(&self) -> bool {
-        false
+    /// Get current sensor DPI
+    ///
+    /// # Returns
+    /// Current DPI value (typically 400-8000) or None if not supported
+    pub fn get_dpi(&mut self) -> Option<u16> {
+        let feature_index = self.dpi_feature_index?;
+
+        tracing::debug!(feature_index, "Getting DPI from device");
+
+        // Function [2] getSensorDpi(sensorIdx) -> sensorIdx, dpi, defaultDpi
+        // sensorIdx = 0 for the primary (and usually only) sensor
+        let params = [0x00, 0x00, 0x00]; // sensorIdx = 0
+
+        self.hidpp_request(feature_index, 0x02, &params).and_then(|resp| {
+            if resp.len() >= 7 {
+                // Response: [report_type, device_idx, feature_idx, fn_sw_id, sensor_idx, dpi_msb, dpi_lsb, ...]
+                let dpi = ((resp[5] as u16) << 8) | (resp[6] as u16);
+                tracing::debug!(dpi, "Got current DPI");
+                Some(dpi)
+            } else {
+                tracing::warn!("Invalid getSensorDpi response length: {}", resp.len());
+                None
+            }
+        })
     }
 
-    pub fn connection_type(&self) -> ConnectionType {
-        ConnectionType::Usb
+    /// Set sensor DPI
+    ///
+    /// # Arguments
+    /// * `dpi` - DPI value to set (typically 400-8000, device-dependent)
+    ///
+    /// # Returns
+    /// Ok(()) on success, error on failure
+    pub fn set_dpi(&mut self, dpi: u16) -> Result<(), HapticError> {
+        let feature_index = match self.dpi_feature_index {
+            Some(idx) => idx,
+            None => {
+                tracing::debug!("DPI adjustment not supported on this device");
+                return Err(HapticError::NotSupported);
+            }
+        };
+
+        tracing::info!(feature_index, dpi, "Setting DPI");
+
+        // Function [3] setSensorDpi(sensorIdx, dpi) -> sensorIdx, dpi
+        // sensorIdx = 0 for the primary sensor
+        let params = [
+            0x00,                    // sensorIdx = 0
+            (dpi >> 8) as u8,        // dpi MSB
+            (dpi & 0xFF) as u8,      // dpi LSB
+        ];
+
+        match self.hidpp_request(feature_index, 0x03, &params) {
+            Some(resp) => {
+                if resp.len() >= 7 {
+                    let confirmed_dpi = ((resp[5] as u16) << 8) | (resp[6] as u16);
+                    tracing::info!(requested_dpi = dpi, confirmed_dpi, "DPI set successfully");
+                    Ok(())
+                } else {
+                    tracing::warn!("Short setSensorDpi response, but command may have succeeded");
+                    Ok(())
+                }
+            }
+            None => {
+                tracing::error!("Failed to set DPI - no response from device");
+                Err(HapticError::CommunicationError)
+            }
+        }
     }
 
-    pub fn send_haptic_pulse(&mut self, _intensity: u8, _duration_ms: u16) -> Result<(), HapticError> {
-        Ok(())
+    /// Get the list of supported DPI values
+    ///
+    /// # Returns
+    /// Vec of supported DPI values, or None if not supported
+    pub fn get_dpi_list(&mut self) -> Option<Vec<u16>> {
+        let feature_index = self.dpi_feature_index?;
+
+        // Function [1] getSensorDpiList(sensorIdx) -> sensorIdx, dpiList
+        let params = [0x00, 0x00, 0x00]; // sensorIdx = 0
+
+        self.hidpp_request(feature_index, 0x01, &params).and_then(|resp| {
+            if resp.len() < 6 {
+                return None;
+            }
+
+            let mut dpi_list = Vec::new();
+            // Response starts at byte 5 (after report_type, device_idx, feature_idx, fn_sw_id, sensor_idx)
+            let data = &resp[5..];
+
+            // Parse pairs of bytes as DPI values
+            let mut i = 0;
+            while i + 1 < data.len() {
+                let dpi = ((data[i] as u16) << 8) | (data[i + 1] as u16);
+                if dpi == 0 {
+                    break; // End of list
+                }
+                // Check for hyphen value (0xE000+ range indicates step value)
+                if dpi >= 0xE000 {
+                    // This is a step indicator, skip it for now
+                    // In a range format: [low, -step, high, 0]
+                    i += 2;
+                    continue;
+                }
+                dpi_list.push(dpi);
+                i += 2;
+            }
+
+            tracing::debug!(dpi_list = ?dpi_list, "Got DPI list");
+            Some(dpi_list)
+        })
     }
 }
 
@@ -764,6 +1191,137 @@ impl HapticPattern {
     }
 }
 
+// ============================================================================
+// MX Master 4 Haptic Patterns (Story 10.1)
+// ============================================================================
+
+/// MX Master 4 haptic waveforms
+///
+/// The MX Master 4 uses predefined haptic waveforms. The actual haptic
+/// commands are sent via feature index 0x0B with function 0x04
+/// (based on mx4notifications project implementation).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Mx4HapticPattern {
+    /// Sharp state change - crisp feedback for state transitions (ID: 0x00)
+    SharpStateChange = 0x00,
+    /// Damp state change - softer feedback for state transitions (ID: 0x01)
+    DampStateChange = 0x01,
+    /// Sharp collision - strong feedback for collisions (ID: 0x02)
+    SharpCollision = 0x02,
+    /// Damp collision - soft feedback for collisions (ID: 0x03)
+    DampCollision = 0x03,
+    /// Subtle collision - very light feedback (ID: 0x04)
+    SubtleCollision = 0x04,
+    /// Happy alert - positive notification (ID: 0x05)
+    HappyAlert = 0x05,
+    /// Angry alert - error/warning notification (ID: 0x06)
+    AngryAlert = 0x06,
+    /// Completed - success/completion feedback (ID: 0x07)
+    Completed = 0x07,
+    /// Square wave pattern (ID: 0x08)
+    Square = 0x08,
+    /// Wave pattern (ID: 0x09)
+    Wave = 0x09,
+    /// Firework pattern (ID: 0x0A)
+    Firework = 0x0A,
+    /// Mad pattern - strong error (ID: 0x0B)
+    Mad = 0x0B,
+    /// Knock pattern (ID: 0x0C)
+    Knock = 0x0C,
+    /// Jingle pattern (ID: 0x0D)
+    Jingle = 0x0D,
+    /// Ringing pattern (ID: 0x0E)
+    Ringing = 0x0E,
+    /// Whisper collision - very subtle (ID: 0x1B)
+    WhisperCollision = 0x1B,
+}
+
+impl Mx4HapticPattern {
+    /// Convert pattern to raw ID for HID++ command
+    pub fn to_id(self) -> u8 {
+        self as u8
+    }
+
+    /// Create from raw waveform ID
+    pub fn from_id(id: u8) -> Option<Self> {
+        match id {
+            0x00 => Some(Self::SharpStateChange),
+            0x01 => Some(Self::DampStateChange),
+            0x02 => Some(Self::SharpCollision),
+            0x03 => Some(Self::DampCollision),
+            0x04 => Some(Self::SubtleCollision),
+            0x05 => Some(Self::HappyAlert),
+            0x06 => Some(Self::AngryAlert),
+            0x07 => Some(Self::Completed),
+            0x08 => Some(Self::Square),
+            0x09 => Some(Self::Wave),
+            0x0A => Some(Self::Firework),
+            0x0B => Some(Self::Mad),
+            0x0C => Some(Self::Knock),
+            0x0D => Some(Self::Jingle),
+            0x0E => Some(Self::Ringing),
+            0x1B => Some(Self::WhisperCollision),
+            _ => None,
+        }
+    }
+
+    /// Get human-readable name for the waveform
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::SharpStateChange => "Sharp State Change",
+            Self::DampStateChange => "Damp State Change",
+            Self::SharpCollision => "Sharp Collision",
+            Self::DampCollision => "Damp Collision",
+            Self::SubtleCollision => "Subtle Collision",
+            Self::HappyAlert => "Happy Alert",
+            Self::AngryAlert => "Angry Alert",
+            Self::Completed => "Completed",
+            Self::Square => "Square",
+            Self::Wave => "Wave",
+            Self::Firework => "Firework",
+            Self::Mad => "Mad",
+            Self::Knock => "Knock",
+            Self::Jingle => "Jingle",
+            Self::Ringing => "Ringing",
+            Self::WhisperCollision => "Whisper Collision",
+        }
+    }
+
+    /// Create from config name string (snake_case)
+    /// Returns SubtleCollision as default if name is not recognized
+    pub fn from_name(name: &str) -> Self {
+        match name {
+            "sharp_state_change" => Self::SharpStateChange,
+            "damp_state_change" => Self::DampStateChange,
+            "sharp_collision" => Self::SharpCollision,
+            "damp_collision" => Self::DampCollision,
+            "subtle_collision" => Self::SubtleCollision,
+            "whisper_collision" => Self::WhisperCollision,
+            "happy_alert" => Self::HappyAlert,
+            "angry_alert" => Self::AngryAlert,
+            "completed" => Self::Completed,
+            "square" => Self::Square,
+            "wave" => Self::Wave,
+            "firework" => Self::Firework,
+            "mad" => Self::Mad,
+            "knock" => Self::Knock,
+            "jingle" => Self::Jingle,
+            "ringing" => Self::Ringing,
+            _ => {
+                tracing::warn!(name, "Unknown haptic pattern name, using default");
+                Self::SubtleCollision
+            }
+        }
+    }
+}
+
+impl fmt::Display for Mx4HapticPattern {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.name(), self.to_id())
+    }
+}
+
 /// UX haptic events triggered during menu interaction
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HapticEvent {
@@ -807,6 +1365,24 @@ impl HapticEvent {
     pub fn duration_ms(&self) -> u16 {
         self.base_profile().duration_ms
     }
+
+    /// Get the MX Master 4 haptic waveform for this event
+    ///
+    /// Maps UX haptic events to appropriate MX4 waveform IDs.
+    /// Waveform selection is based on the feel that best matches
+    /// the intended UX feedback.
+    pub fn mx4_pattern(&self) -> Mx4HapticPattern {
+        match self {
+            // Menu appear: subtle feedback to indicate menu opened
+            HapticEvent::MenuAppear => Mx4HapticPattern::SubtleCollision,
+            // Slice change: distinct click for each slice transition
+            HapticEvent::SliceChange => Mx4HapticPattern::SharpStateChange,
+            // Selection confirm: success/completion feel
+            HapticEvent::SelectionConfirm => Mx4HapticPattern::Completed,
+            // Invalid action: error/warning feel
+            HapticEvent::InvalidAction => Mx4HapticPattern::AngryAlert,
+        }
+    }
 }
 
 impl fmt::Display for HapticEvent {
@@ -824,33 +1400,33 @@ impl fmt::Display for HapticEvent {
 // Haptic Manager
 // ============================================================================
 
-/// Per-event intensity overrides
+/// Per-event haptic pattern configuration
 #[derive(Debug, Clone, Copy)]
-pub struct PerEventIntensity {
-    /// Menu appearance intensity (default 20)
-    pub menu_appear: u8,
-    /// Slice change intensity (default 40)
-    pub slice_change: u8,
-    /// Selection confirm intensity (default 80)
-    pub confirm: u8,
-    /// Invalid action intensity (default 30)
-    pub invalid: u8,
+pub struct PerEventPattern {
+    /// Pattern for menu appearance
+    pub menu_appear: Mx4HapticPattern,
+    /// Pattern for slice change (hover)
+    pub slice_change: Mx4HapticPattern,
+    /// Pattern for selection confirmation
+    pub confirm: Mx4HapticPattern,
+    /// Pattern for invalid action
+    pub invalid: Mx4HapticPattern,
 }
 
-impl Default for PerEventIntensity {
+impl Default for PerEventPattern {
     fn default() -> Self {
         Self {
-            menu_appear: 20,
-            slice_change: 40,
-            confirm: 80,
-            invalid: 30,
+            menu_appear: Mx4HapticPattern::DampStateChange,
+            slice_change: Mx4HapticPattern::SubtleCollision,
+            confirm: Mx4HapticPattern::SharpStateChange,
+            invalid: Mx4HapticPattern::AngryAlert,
         }
     }
 }
 
-impl PerEventIntensity {
-    /// Get intensity for a specific event
-    pub fn get(&self, event: &HapticEvent) -> u8 {
+impl PerEventPattern {
+    /// Get pattern for a specific event
+    pub fn get(&self, event: &HapticEvent) -> Mx4HapticPattern {
         match event {
             HapticEvent::MenuAppear => self.menu_appear,
             HapticEvent::SliceChange => self.slice_change,
@@ -892,10 +1468,10 @@ const DEFAULT_REENTRY_DEBOUNCE_MS: u64 = 50;
 pub struct HapticManager {
     /// Optional HID++ device connection
     device: Option<HidppDevice>,
-    /// User-configured global intensity multiplier (0-100)
-    intensity_multiplier: u8,
-    /// Per-event intensity overrides
-    per_event: PerEventIntensity,
+    /// Default haptic pattern (fallback)
+    default_pattern: Mx4HapticPattern,
+    /// Per-event pattern configuration
+    per_event: PerEventPattern,
     /// Whether haptics are enabled
     enabled: bool,
     /// Last pulse timestamp for debouncing (milliseconds)
@@ -920,11 +1496,11 @@ pub struct HapticManager {
 
 impl HapticManager {
     /// Create a new haptic manager without device connection
-    pub fn new(intensity: u8, enabled: bool) -> Self {
+    pub fn new(enabled: bool) -> Self {
         Self {
             device: None,
-            intensity_multiplier: intensity.min(100),
-            per_event: PerEventIntensity::default(),
+            default_pattern: Mx4HapticPattern::SubtleCollision,
+            per_event: PerEventPattern::default(),
             enabled,
             last_pulse_ms: 0,
             connection_state: ConnectionState::NotConnected,
@@ -944,12 +1520,12 @@ impl HapticManager {
     pub fn from_config(config: &crate::config::HapticConfig) -> Self {
         Self {
             device: None,
-            intensity_multiplier: config.intensity.min(100),
-            per_event: PerEventIntensity {
-                menu_appear: config.per_event.menu_appear.min(100),
-                slice_change: config.per_event.slice_change.min(100),
-                confirm: config.per_event.confirm.min(100),
-                invalid: config.per_event.invalid.min(100),
+            default_pattern: Mx4HapticPattern::from_name(&config.default_pattern),
+            per_event: PerEventPattern {
+                menu_appear: Mx4HapticPattern::from_name(&config.per_event.menu_appear),
+                slice_change: Mx4HapticPattern::from_name(&config.per_event.slice_change),
+                confirm: Mx4HapticPattern::from_name(&config.per_event.confirm),
+                invalid: Mx4HapticPattern::from_name(&config.per_event.invalid),
             },
             enabled: config.enabled,
             last_pulse_ms: 0,
@@ -966,12 +1542,12 @@ impl HapticManager {
 
     /// Update settings from configuration (for hot-reload)
     pub fn update_from_config(&mut self, config: &crate::config::HapticConfig) {
-        self.intensity_multiplier = config.intensity.min(100);
-        self.per_event = PerEventIntensity {
-            menu_appear: config.per_event.menu_appear.min(100),
-            slice_change: config.per_event.slice_change.min(100),
-            confirm: config.per_event.confirm.min(100),
-            invalid: config.per_event.invalid.min(100),
+        self.default_pattern = Mx4HapticPattern::from_name(&config.default_pattern);
+        self.per_event = PerEventPattern {
+            menu_appear: Mx4HapticPattern::from_name(&config.per_event.menu_appear),
+            slice_change: Mx4HapticPattern::from_name(&config.per_event.slice_change),
+            confirm: Mx4HapticPattern::from_name(&config.per_event.confirm),
+            invalid: Mx4HapticPattern::from_name(&config.per_event.invalid),
         };
         self.enabled = config.enabled;
         self.debounce_ms = config.debounce_ms;
@@ -979,7 +1555,7 @@ impl HapticManager {
         self.reentry_debounce_ms = config.reentry_debounce_ms;
 
         tracing::debug!(
-            intensity = self.intensity_multiplier,
+            default_pattern = %self.default_pattern,
             enabled = self.enabled,
             debounce_ms = self.debounce_ms,
             slice_debounce_ms = self.slice_debounce_ms,
@@ -1112,7 +1688,7 @@ impl HapticManager {
     /// silently. Menu functionality is never blocked by haptic failures.
     pub fn pulse(&mut self, haptic: HapticPulse) -> Result<(), HapticError> {
         // Check if haptics are enabled
-        if !self.enabled || self.intensity_multiplier == 0 {
+        if !self.enabled {
             return Ok(());
         }
 
@@ -1135,18 +1711,14 @@ impl HapticManager {
             return Ok(());
         }
 
-        // Scale intensity by user preference
-        let scaled_intensity =
-            ((haptic.intensity as u16 * self.intensity_multiplier as u16) / 100) as u8;
-
         tracing::debug!(
-            intensity = scaled_intensity,
+            intensity = haptic.intensity,
             duration_ms = haptic.duration_ms,
-            "Sending haptic pulse"
+            "Sending haptic pulse (legacy)"
         );
 
         // Send the pulse - handle errors gracefully
-        match device.send_haptic_pulse(scaled_intensity, haptic.duration_ms) {
+        match device.send_haptic_pulse(haptic.intensity, haptic.duration_ms) {
             Ok(()) => {
                 self.last_pulse_ms = now;
                 Ok(())
@@ -1171,61 +1743,101 @@ impl HapticManager {
     /// It applies:
     /// 1. Global intensity multiplier
     /// 2. Per-event intensity override from config
-    /// 3. Appropriate pulse pattern (single/double/triple)
+    /// 3. Appropriate pulse pattern (single/double/triple) OR MX4 pattern
+    ///
+    /// For MX Master 4 devices with feature 0x19B0, uses predefined hardware waveforms.
+    /// For other devices, uses legacy intensity/duration-based pulses.
     ///
     /// CRITICAL: This method MUST NOT write to onboard mouse memory.
     pub fn emit(&mut self, event: HapticEvent) -> Result<(), HapticError> {
         // Check if haptics are enabled
-        if !self.enabled || self.intensity_multiplier == 0 {
+        if !self.enabled {
             return Ok(());
         }
 
-        // Get event-specific settings
-        let per_event_intensity = self.per_event.get(&event);
+        // Check if device is available
+        let device = match &mut self.device {
+            Some(d) if d.haptic_supported() => d,
+            _ => {
+                // No device or haptics not supported - succeed silently
+                return Ok(());
+            }
+        };
+
+        // Debounce: minimum time between pulses
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
+        if now.saturating_sub(self.last_pulse_ms) < self.debounce_ms {
+            return Ok(());
+        }
+
+        // Use MX Master 4 haptic patterns (configured per-event)
+        if device.mx4_haptic_supported() {
+            // Get the configured pattern for this event
+            let pattern = self.per_event.get(&event);
+            tracing::debug!(
+                event = %event,
+                pattern = %pattern,
+                "Emitting MX4 haptic pattern"
+            );
+
+            match device.send_haptic_pattern(pattern) {
+                Ok(()) => {
+                    self.last_pulse_ms = now;
+                    return Ok(());
+                }
+                Err(HapticError::IoError(_)) => {
+                    // Device disconnected - handle gracefully
+                    self.handle_disconnect();
+                    return Ok(());
+                }
+                Err(e) => {
+                    tracing::debug!(error = %e, "MX4 haptic pattern failed");
+                    return Ok(());
+                }
+            }
+        }
+
+        // Fallback to legacy intensity/duration-based pulses (non-MX4 devices)
+        // Use default intensity of 50 for legacy devices
         let base_profile = event.base_profile();
-        let pattern = event.pattern();
-
-        // Calculate final intensity: (global/100) * (per_event/100) * 100
-        // This effectively multiplies the two percentages
-        let scaled_intensity = ((self.intensity_multiplier as u32 * per_event_intensity as u32) / 100) as u8;
-
-        // If scaled intensity is 0, skip
-        if scaled_intensity == 0 {
-            return Ok(());
-        }
+        let pulse_pattern = event.pattern();
+        let legacy_intensity: u8 = 50;
 
         tracing::debug!(
             event = %event,
-            pattern = ?pattern,
-            base_intensity = per_event_intensity,
-            scaled_intensity = scaled_intensity,
+            pattern = ?pulse_pattern,
+            intensity = legacy_intensity,
             duration_ms = base_profile.duration_ms,
-            "Emitting haptic event"
+            "Emitting legacy haptic event"
         );
 
         let pulse = HapticPulse {
-            intensity: scaled_intensity,
+            intensity: legacy_intensity,
             duration_ms: base_profile.duration_ms,
         };
 
-        // Execute the pattern
-        match pattern {
+        // Execute the pattern using the internal pulse method logic
+        match pulse_pattern {
             HapticPattern::Single => {
                 self.pulse(pulse)?;
             }
             HapticPattern::Double => {
                 self.pulse(pulse)?;
                 // Wait for gap before second pulse
-                std::thread::sleep(std::time::Duration::from_millis(pattern.gap_ms()));
+                std::thread::sleep(std::time::Duration::from_millis(pulse_pattern.gap_ms()));
                 self.last_pulse_ms = 0; // Reset debounce for pattern continuation
                 self.pulse(pulse)?;
             }
             HapticPattern::Triple => {
                 self.pulse(pulse)?;
-                std::thread::sleep(std::time::Duration::from_millis(pattern.gap_ms()));
+                std::thread::sleep(std::time::Duration::from_millis(pulse_pattern.gap_ms()));
                 self.last_pulse_ms = 0;
                 self.pulse(pulse)?;
-                std::thread::sleep(std::time::Duration::from_millis(pattern.gap_ms()));
+                std::thread::sleep(std::time::Duration::from_millis(pulse_pattern.gap_ms()));
                 self.last_pulse_ms = 0;
                 self.pulse(pulse)?;
             }
@@ -1240,7 +1852,7 @@ impl HapticManager {
     /// to avoid blocking the caller during multi-pulse patterns.
     pub fn emit_async(&mut self, event: HapticEvent) {
         // Check early to avoid spawning thread if disabled
-        if !self.enabled || self.intensity_multiplier == 0 {
+        if !self.enabled {
             return;
         }
 
@@ -1276,7 +1888,7 @@ impl HapticManager {
     /// * `false` if debounced/suppressed
     pub fn emit_slice_change(&mut self, slice_index: u8) -> bool {
         // Check if haptics are enabled
-        if !self.enabled || self.intensity_multiplier == 0 {
+        if !self.enabled {
             return false;
         }
 
@@ -1364,30 +1976,71 @@ impl HapticManager {
         self.enabled = enabled;
     }
 
-    /// Set intensity multiplier (0-100)
-    pub fn set_intensity(&mut self, intensity: u8) {
-        self.intensity_multiplier = intensity.min(100);
-    }
-
     /// Set debounce time in milliseconds
     pub fn set_debounce_ms(&mut self, ms: u64) {
         self.debounce_ms = ms;
-    }
-
-    /// Get current intensity multiplier
-    pub fn intensity(&self) -> u8 {
-        self.intensity_multiplier
     }
 
     /// Check if haptics are enabled
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
+
+    /// Get the default haptic pattern
+    pub fn default_pattern(&self) -> Mx4HapticPattern {
+        self.default_pattern
+    }
+
+    // =========================================================================
+    // DPI Methods (delegated to HidppDevice)
+    // =========================================================================
+
+    /// Check if DPI adjustment is supported
+    pub fn dpi_supported(&mut self) -> bool {
+        // Try to connect if not connected
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_ref().map(|d| d.dpi_supported()).unwrap_or(false)
+    }
+
+    /// Get current DPI value
+    pub fn get_dpi(&mut self) -> Option<u16> {
+        // Try to connect if not connected
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_mut().and_then(|d| d.get_dpi())
+    }
+
+    /// Set DPI value
+    pub fn set_dpi(&mut self, dpi: u16) -> Result<(), HapticError> {
+        // Try to connect if not connected
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        match self.device.as_mut() {
+            Some(device) => device.set_dpi(dpi),
+            None => {
+                tracing::warn!("Cannot set DPI: device not connected");
+                Err(HapticError::DeviceNotFound)
+            }
+        }
+    }
+
+    /// Get list of supported DPI values
+    pub fn get_dpi_list(&mut self) -> Option<Vec<u16>> {
+        // Try to connect if not connected
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_mut().and_then(|d| d.get_dpi_list())
+    }
 }
 
 impl Default for HapticManager {
     fn default() -> Self {
-        Self::new(50, true)
+        Self::new(true)
     }
 }
 
@@ -1404,6 +2057,10 @@ pub enum HapticError {
     PermissionDenied,
     /// Device does not support haptics
     UnsupportedDevice,
+    /// Feature not supported on this device
+    NotSupported,
+    /// Communication error with device
+    CommunicationError,
     /// I/O error during communication
     IoError(std::io::Error),
     /// HID++ protocol error
@@ -1427,6 +2084,12 @@ impl fmt::Display for HapticError {
             }
             HapticError::UnsupportedDevice => {
                 write!(f, "Device does not support haptic feedback")
+            }
+            HapticError::NotSupported => {
+                write!(f, "Feature not supported on this device")
+            }
+            HapticError::CommunicationError => {
+                write!(f, "Communication error with device")
             }
             HapticError::IoError(e) => write!(f, "I/O error: {}", e),
             HapticError::ProtocolError(msg) => write!(f, "HID++ protocol error: {}", msg),

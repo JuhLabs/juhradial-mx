@@ -32,3 +32,4 @@ pub use profiles::{Profile, ProfileManager};
 pub use theme::{Theme, ThemeManager};
 pub use theme_watcher::{ThemeEvent, ThemeHotReloader, ThemeWatcher};
 pub use window_tracker::{WindowInfo, WindowTracker};
+pub use hidpp::{HapticManager, HapticEvent, SharedHapticManager, new_shared_haptic_manager};
