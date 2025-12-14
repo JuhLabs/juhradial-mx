@@ -792,7 +792,7 @@ impl HidppDevice {
                 }
 
                 let feature_id = ((resp[4] as u16) << 8) | (resp[5] as u16);
-                let feature_index = i + 1; // Feature indices are 1-based
+                let feature_index = i; // Feature indices are 0-based (slot = index)
 
                 // SAFETY CHECK: Log blocklisted features but DO NOT store them
                 if blocklisted_features::is_blocklisted(feature_id) {
