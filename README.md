@@ -25,12 +25,18 @@
   <table>
     <tr>
       <td align="center">
-        <img src="assets/screenshots/radial-menu-dark.png" width="300" alt="Radial Menu">
-        <br><em>Radial Menu with AI Submenu</em>
+        <img src="assets/screenshots/radial-menu.png" width="280" alt="Radial Menu">
+        <br><em>Radial Menu</em>
       </td>
       <td align="center">
-        <img src="assets/screenshots/settings-buttons.png" width="300" alt="Settings">
-        <br><em>Settings Dashboard</em>
+        <img src="assets/screenshots/settings-buttons.png" width="400" alt="Settings - Buttons">
+        <br><em>Settings - Button Configuration</em>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center">
+        <img src="assets/screenshots/settings-scroll.png" width="500" alt="Settings - Scroll">
+        <br><em>Settings - DPI & Scroll Configuration</em>
       </td>
     </tr>
   </table>
@@ -40,9 +46,9 @@
 
 - **Radial Menu** - Beautiful overlay triggered by gesture button (hold or tap)
 - **AI Quick Access** - Submenu with Claude, ChatGPT, Gemini, and Perplexity
-- **Multiple Themes** - Catppuccin, Nord, Dracula, and light themes
-- **Settings Dashboard** - Modern GTK4/Adwaita settings app
-- **Battery Monitoring** - Real-time battery status via HID++ protocol
+- **Multiple Themes** - JuhRadial MX, Catppuccin, Nord, Dracula, and light themes
+- **Settings Dashboard** - Modern GTK4/Adwaita settings app with Actions Ring configuration
+- **Battery Monitoring** - Real-time battery status with instant charging detection via HID++
 - **DPI Control** - Visual DPI adjustment (400-8000 DPI)
 - **Native Wayland** - Full KDE Plasma 6 Wayland support
 
@@ -153,12 +159,13 @@ Configuration is stored in `~/.config/juhradial/config.json`.
 ### Themes
 
 Open Settings and select a theme:
-- Catppuccin Mocha (default)
-- Catppuccin Latte
-- Nord
-- Dracula
-- Solarized Light
-- GitHub Light
+- **JuhRadial MX** (default) - Premium dark theme with vibrant cyan accents
+- Catppuccin Mocha - Soothing pastel theme with lavender accents
+- Catppuccin Latte - Light pastel theme
+- Nord - Arctic, north-bluish palette
+- Dracula - Dark theme with vibrant colors
+- Solarized Light - Precision colors for machines and people
+- GitHub Light - Clean light theme
 
 ---
 

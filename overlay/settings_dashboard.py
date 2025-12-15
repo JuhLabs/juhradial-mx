@@ -17,6 +17,7 @@ import os
 import signal
 import math
 import json
+import time
 from pathlib import Path
 
 gi.require_version('Gtk', '4.0')
@@ -62,6 +63,18 @@ class ConfigManager:
         "app": {
             "start_at_login": True,
             "show_tray_icon": True
+        },
+        "radial_menu": {
+            "slices": [
+                {"label": "Play/Pause", "type": "exec", "command": "playerctl play-pause", "color": "green", "icon": "media-playback-start-symbolic"},
+                {"label": "New Note", "type": "exec", "command": "kwrite", "color": "yellow", "icon": "document-new-symbolic"},
+                {"label": "Lock", "type": "exec", "command": "loginctl lock-session", "color": "red", "icon": "system-lock-screen-symbolic"},
+                {"label": "Settings", "type": "settings", "command": "", "color": "mauve", "icon": "emblem-system-symbolic"},
+                {"label": "Screenshot", "type": "exec", "command": "spectacle", "color": "blue", "icon": "camera-photo-symbolic"},
+                {"label": "Emoji", "type": "emoji", "command": "", "color": "pink", "icon": "face-smile-symbolic"},
+                {"label": "Files", "type": "exec", "command": "dolphin", "color": "sapphire", "icon": "folder-symbolic"},
+                {"label": "AI", "type": "submenu", "command": "", "color": "teal", "icon": "applications-science-symbolic"}
+            ]
         }
     }
 
@@ -173,34 +186,32 @@ class ConfigManager:
 config = ConfigManager()
 
 # =============================================================================
-# CATPPUCCIN MOCHA PALETTE
+# THEME SYSTEM - Load colors from shared theme module
 # =============================================================================
-COLORS = {
-    'crust':     '#11111b',
-    'mantle':    '#181825',
-    'base':      '#1e1e2e',
-    'surface0':  '#313244',
-    'surface1':  '#45475a',
-    'surface2':  '#585b70',
-    'overlay0':  '#6c7086',
-    'overlay1':  '#7f849c',
-    'text':      '#cdd6f4',
-    'subtext1':  '#bac2de',
-    'subtext0':  '#a6adc8',
-    'lavender':  '#b4befe',
-    'blue':      '#89b4fa',
-    'sapphire':  '#74c7ec',
-    'teal':      '#94e2d5',
-    'green':     '#a6e3a1',
-    'yellow':    '#f9e2af',
-    'peach':     '#fab387',
-    'maroon':    '#eba0ac',
-    'red':       '#f38ba8',
-    'mauve':     '#cba6f7',
-    'pink':      '#f5c2e7',
-    'flamingo':  '#f2cdcd',
-    'rosewater': '#f5e0dc',
-}
+from themes import get_colors, get_theme, load_theme_name, get_theme_list, is_dark_theme, THEMES, DEFAULT_THEME
+
+def load_colors():
+    """Load colors from the current theme with glow color computed"""
+    colors = get_colors().copy()
+    # Add computed glow color based on accent
+    accent = colors.get('accent', '#00d4ff')
+    # Parse hex to RGB for glow
+    r = int(accent[1:3], 16)
+    g = int(accent[3:5], 16)
+    b = int(accent[5:7], 16)
+    colors['accent_glow'] = f'rgba({r}, {g}, {b}, 0.4)'
+    colors['accent_glow_light'] = f'rgba({r}, {g}, {b}, 0.15)'
+    # Add missing legacy colors if needed
+    colors.setdefault('maroon', '#ff8a80')
+    colors.setdefault('flamingo', '#f8bbd9')
+    colors.setdefault('rosewater', '#fce4ec')
+    # Add is_dark flag for CSS generation
+    colors['is_dark'] = is_dark_theme()
+    return colors
+
+# Load initial colors
+COLORS = load_colors()
+IS_DARK_THEME = COLORS.get('is_dark', True)
 
 # =============================================================================
 # WINDOW CONFIGURATION
@@ -210,45 +221,54 @@ WINDOW_HEIGHT = 800
 
 # =============================================================================
 # MX MASTER 4 BUTTON DEFINITIONS
-# Positions adjusted for real mouse photo (3/4 angle view from left)
+# Positions for 3/4 angle view (front-top-left perspective)
 # Coordinates are normalized (0-1) relative to the drawing area
-# Dots should be placed directly ON the physical buttons
+# line_from: 'top' = line comes from above, 'left' = line comes from left
 # =============================================================================
 MOUSE_BUTTONS = {
     'middle': {
-        'name': 'Middle button',
+        'name': 'Middle Button',
         'action': 'Middle Click',
-        'pos': (0.30, 0.02),  # Scroll wheel - top center
+        'pos': (0.58, 0.19),  # Top of MagSpeed scroll wheel
+        'line_from': 'top',
     },
     'shift_wheel': {
-        'name': 'Shift wheel mode',
+        'name': 'Shift Wheel Mode',
         'action': 'SmartShift',
-        'pos': (0.38, 0.11),  # Mode shift button - behind scroll wheel
+        'pos': (0.58, 0.36),  # Square button below scroll wheel
+        'line_from': 'top',
     },
     'forward': {
         'name': 'Forward',
         'action': 'Forward',
-        'pos': (0.12, 0.30),  # Upper thumb button - left side
+        'pos': (0.23, 0.40),  # Upper thumb button
+        'line_from': 'left',
+    },
+    'horizontal_scroll': {
+        'name': 'Horizontal Scroll',
+        'action': 'Scroll Left/Right',
+        'pos': (0.24, 0.47),  # Grey thumb wheel
+        'line_from': 'left',
     },
     'back': {
         'name': 'Back',
         'action': 'Back',
-        'pos': (0.18, 0.48),  # Lower thumb button - below forward
-    },
-    'horizontal_scroll': {
-        'name': 'Horizontal scroll',
-        'action': 'Scroll Left/Right',
-        'pos': (0.14, 0.38),  # Thumb wheel
+        'pos': (0.27, 0.54),  # Lower thumb button
+        'line_from': 'left',
     },
     'gesture': {
         'name': 'Gestures',
         'action': 'Virtual desktops',
-        'pos': (0.20, 0.58),  # Gesture button - textured thumb rest area
+        'pos': (0.26, 0.36),  # Dot on upper thumb area
+        'line_from': 'l_up',
+        'label_y': 0.34,  # Label Y position (above Forward)
     },
     'thumb': {
         'name': 'Show Actions Ring',
         'action': 'Radial Menu',
-        'pos': (0.25, 0.70),  # Lower thumb rest - radial menu trigger
+        'pos': (0.28, 0.42),  # Dot on lower thumb area
+        'line_from': 'l_up',
+        'label_y': 0.26,  # Label Y position (above Gestures)
     },
 }
 
@@ -265,132 +285,265 @@ NAV_ITEMS = [
 ]
 
 # =============================================================================
-# CSS STYLESHEET - CATPPUCCIN MOCHA
+# CSS STYLESHEET - ADAPTIVE THEME SYSTEM
+# Supports both dark and light themes with proper color handling
 # =============================================================================
-CSS = f"""
-/* Main window */
-window.settings-window {{
-    background: {COLORS['crust']};
+def generate_css():
+    """Generate CSS with current theme colors - call when theme changes"""
+    is_dark = COLORS.get('is_dark', True)
+
+    # Parse accent colors to RGB for dynamic opacity values
+    accent = COLORS.get('accent', '#00d4ff')
+    accent2 = COLORS.get('accent2', '#0abdc6')
+    ar, ag, ab = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
+    a2r, a2g, a2b = int(accent2[1:3], 16), int(accent2[3:5], 16), int(accent2[5:7], 16)
+
+    # Dynamic accent opacity variants
+    accent_05 = f'rgba({ar}, {ag}, {ab}, 0.05)'
+    accent_08 = f'rgba({ar}, {ag}, {ab}, 0.08)'
+    accent_10 = f'rgba({ar}, {ag}, {ab}, 0.1)'
+    accent_12 = f'rgba({ar}, {ag}, {ab}, 0.12)'
+    accent_15 = f'rgba({ar}, {ag}, {ab}, 0.15)'
+    accent_20 = f'rgba({ar}, {ag}, {ab}, 0.2)'
+    accent_25 = f'rgba({ar}, {ag}, {ab}, 0.25)'
+    accent_30 = f'rgba({ar}, {ag}, {ab}, 0.3)'
+    accent_35 = f'rgba({ar}, {ag}, {ab}, 0.35)'
+    accent_40 = f'rgba({ar}, {ag}, {ab}, 0.4)'
+    accent_50 = f'rgba({ar}, {ag}, {ab}, 0.5)'
+
+    # Dynamic accent2 opacity variants
+    accent2_05 = f'rgba({a2r}, {a2g}, {a2b}, 0.05)'
+    accent2_08 = f'rgba({a2r}, {a2g}, {a2b}, 0.08)'
+    accent2_10 = f'rgba({a2r}, {a2g}, {a2b}, 0.1)'
+    accent2_15 = f'rgba({a2r}, {a2g}, {a2b}, 0.15)'
+
+    # Theme-aware color adjustments
+    if is_dark:
+        # Dark theme: use dark backgrounds with light accents
+        shadow_color = 'rgba(0, 0, 0, 0.4)'
+        shadow_color_strong = 'rgba(0, 0, 0, 0.5)'
+        hover_bg = f"linear-gradient(135deg, {COLORS['surface1']} 0%, {COLORS['surface0']} 100%)"
+        card_bg = f"linear-gradient(135deg, {COLORS['surface0']} 0%, {COLORS['base']} 100%)"
+        border_subtle = 'rgba(255, 255, 255, 0.1)'
+        border_very_subtle = 'rgba(255, 255, 255, 0.05)'
+        border_faint = 'rgba(255, 255, 255, 0.03)'
+        text_on_accent = COLORS['crust']
+        elevated_bg = f"linear-gradient(135deg, rgba(26, 29, 36, 0.95) 0%, rgba(18, 20, 24, 0.9) 100%)"
+        elevated_bg_hover = f"linear-gradient(135deg, rgba(36, 40, 50, 0.5) 0%, rgba(26, 29, 36, 0.3) 100%)"
+        tooltip_bg = 'linear-gradient(135deg, rgba(26, 29, 36, 0.98) 0%, rgba(18, 20, 24, 0.95) 100%)'
+    else:
+        # Light theme: use light backgrounds with darker accents
+        shadow_color = 'rgba(0, 0, 0, 0.1)'
+        shadow_color_strong = 'rgba(0, 0, 0, 0.15)'
+        hover_bg = f"linear-gradient(135deg, {COLORS['surface0']} 0%, {COLORS['surface1']} 100%)"
+        card_bg = f"linear-gradient(135deg, {COLORS['base']} 0%, {COLORS['mantle']} 100%)"
+        border_subtle = 'rgba(0, 0, 0, 0.1)'
+        border_very_subtle = 'rgba(0, 0, 0, 0.06)'
+        border_faint = 'rgba(0, 0, 0, 0.04)'
+        text_on_accent = '#ffffff'
+        elevated_bg = f"linear-gradient(135deg, {COLORS['base']} 0%, {COLORS['surface0']} 100%)"
+        elevated_bg_hover = f"linear-gradient(135deg, {COLORS['surface0']} 0%, {COLORS['surface1']} 100%)"
+        tooltip_bg = f"linear-gradient(135deg, {COLORS['surface0']} 0%, {COLORS['mantle']} 100%)"
+
+    return f"""
+/* ============================================
+   GLOBAL TRANSITIONS & ANIMATIONS
+   ============================================ */
+@keyframes pulse-glow {{
+    0%, 100% {{ box-shadow: 0 0 20px {COLORS['accent_glow']}; }}
+    50% {{ box-shadow: 0 0 35px {COLORS['accent_glow']}; }}
 }}
 
-/* Header bar */
+@keyframes subtle-pulse {{
+    0%, 100% {{ opacity: 1; }}
+    50% {{ opacity: 0.85; }}
+}}
+
+@keyframes slide-in {{
+    from {{ opacity: 0; transform: translateX(20px); }}
+    to {{ opacity: 1; transform: translateX(0); }}
+}}
+
+/* ============================================
+   MAIN WINDOW
+   ============================================ */
+window.settings-window {{
+    background: linear-gradient(180deg, {COLORS['crust']} 0%, {COLORS['mantle']} 100%);
+}}
+
+/* ============================================
+   HEADER BAR - Premium Glass Effect
+   ============================================ */
 .header-area {{
     background: {COLORS['mantle']};
-    padding: 16px 24px;
-    border-bottom: 1px solid {COLORS['surface0']};
+    padding: 18px 28px;
+    border-bottom: 1px solid {border_subtle};
+    box-shadow: 0 4px 24px {shadow_color};
 }}
 
 .device-title {{
-    font-size: 24px;
-    font-weight: bold;
+    font-size: 26px;
+    font-weight: 700;
     color: {COLORS['text']};
+    letter-spacing: 0.5px;
 }}
 
 .add-app-btn {{
-    background: transparent;
-    color: {COLORS['lavender']};
-    border: none;
-    padding: 8px 16px;
-    font-weight: 500;
+    background: {COLORS['surface0']};
+    color: {COLORS['accent']};
+    border: 1px solid {COLORS['accent']};
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }}
 
 .add-app-btn:hover {{
-    background: {COLORS['surface0']};
-    border-radius: 6px;
+    background: {COLORS['accent']};
+    color: {text_on_accent};
+    box-shadow: 0 4px 20px {COLORS['accent_glow']};
+    transform: translateY(-1px);
 }}
 
-/* Sidebar navigation */
+/* ============================================
+   SIDEBAR NAVIGATION - Sleek & Modern
+   ============================================ */
 .sidebar {{
     background: {COLORS['mantle']};
-    padding: 8px;
-    min-width: 220px;
+    padding: 12px 10px;
+    min-width: 230px;
+    border-right: 1px solid {border_subtle};
+    box-shadow: 4px 0 24px {shadow_color};
 }}
 
 .nav-item {{
-    padding: 14px 16px;
-    border-radius: 8px;
-    margin: 2px 0;
+    padding: 16px 18px;
+    border-radius: 12px;
+    margin: 4px 0;
     color: {COLORS['subtext0']};
     font-weight: 500;
     font-size: 13px;
+    letter-spacing: 0.3px;
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
 }}
 
 .nav-item:hover {{
-    background: {COLORS['surface0']};
+    background: {hover_bg};
     color: {COLORS['text']};
+    border-color: {COLORS['accent_glow_light']};
+    transform: translateX(4px);
+    box-shadow: 0 4px 16px {shadow_color};
 }}
 
 .nav-item.active {{
-    background: {COLORS['lavender']};
-    color: {COLORS['crust']};
+    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
+    color: {text_on_accent};
+    font-weight: 600;
+    box-shadow: 0 4px 20px {COLORS['accent_glow']};
+    border-color: transparent;
 }}
 
 .nav-item.active:hover {{
-    background: {COLORS['lavender']};
+    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
+    transform: translateX(4px);
+    box-shadow: 0 6px 28px {COLORS['accent_glow']};
 }}
 
-/* Main content area */
+/* ============================================
+   MAIN CONTENT AREA
+   ============================================ */
 .content-area {{
     background: {COLORS['base']};
 }}
 
-/* Mouse visualization area */
+/* ============================================
+   MOUSE VISUALIZATION AREA
+   ============================================ */
 .mouse-area {{
-    background: {COLORS['base']};
+    background: radial-gradient(ellipse at center, {COLORS['surface0']} 0%, {COLORS['base']} 70%);
     padding: 40px;
 }}
 
-/* Button labels on mouse */
+/* ============================================
+   BUTTON LABELS ON MOUSE - Premium Floating Tags
+   ============================================ */
 .button-label {{
-    background: {COLORS['text']};
-    color: {COLORS['crust']};
-    padding: 8px 14px;
-    border-radius: 6px;
+    background: {card_bg};
+    color: {COLORS['text']};
+    padding: 10px 16px;
+    border-radius: 10px;
     font-size: 13px;
-    font-weight: 500;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    font-weight: 600;
+    box-shadow: 0 4px 20px {shadow_color_strong};
+    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid {border_subtle};
+}}
+
+.button-label:hover {{
+    background: {COLORS['surface1']};
+    border-color: {COLORS['accent']};
+    box-shadow: 0 6px 28px {COLORS['accent_glow']};
+    color: {COLORS['accent']};
 }}
 
 .button-label.highlighted {{
-    background: {COLORS['green']};
-    color: {COLORS['crust']};
+    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
+    color: {text_on_accent};
+    box-shadow: 0 6px 28px {COLORS['accent_glow']};
+    border-color: transparent;
 }}
 
-/* Settings cards */
+/* ============================================
+   SETTINGS CARDS - Glassmorphism Effect
+   ============================================ */
 .settings-card {{
-    background: {COLORS['surface0']};
-    border-radius: 12px;
-    padding: 20px;
-    margin: 12px;
+    background: {card_bg};
+    border-radius: 16px;
+    padding: 24px;
+    margin: 14px;
+    border: 1px solid {border_subtle};
+    box-shadow: 0 8px 32px {shadow_color};
+    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}}
+
+.settings-card:hover {{
+    border-color: {COLORS['accent_glow_light']};
+    box-shadow: 0 12px 40px {shadow_color_strong};
+    transform: translateY(-2px);
 }}
 
 .card-title {{
-    font-size: 16px;
-    font-weight: bold;
+    font-size: 17px;
+    font-weight: 700;
     color: {COLORS['text']};
-    margin-bottom: 16px;
+    margin-bottom: 18px;
+    letter-spacing: 0.5px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid {border_subtle};
 }}
 
-/* Settings rows */
+/* ============================================
+   SETTINGS ROWS - Interactive List Items
+   ============================================ */
 .setting-row {{
-    padding: 12px 8px;
-    border-bottom: 1px solid {COLORS['surface1']};
-    border-radius: 8px;
-    margin: 2px 0;
-    transition: background-color 150ms ease;
+    padding: 14px 12px;
+    border-radius: 10px;
+    margin: 4px 0;
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
 }}
 
 .setting-row:hover {{
-    background-color: {COLORS['surface1']};
-}}
-
-.setting-row:last-child {{
-    border-bottom: none;
+    background: {hover_bg};
+    border-color: {border_subtle};
+    transform: translateX(4px);
 }}
 
 .setting-label {{
     color: {COLORS['text']};
     font-size: 14px;
+    font-weight: 500;
 }}
 
 .setting-value {{
@@ -398,103 +551,560 @@ window.settings-window {{
     font-size: 13px;
 }}
 
-/* Bottom status bar */
+/* ============================================
+   STATUS BAR - Premium Bottom Bar
+   ============================================ */
 .status-bar {{
-    background: {COLORS['mantle']};
-    padding: 12px 24px;
-    border-top: 1px solid {COLORS['surface0']};
+    background: {COLORS['crust']};
+    padding: 14px 28px;
+    border-top: 1px solid {border_subtle};
+    box-shadow: 0 -4px 24px {shadow_color};
+}}
+
+.battery-icon {{
+    color: {COLORS['green']};
+    opacity: 0.9;
 }}
 
 .battery-indicator {{
     color: {COLORS['green']};
-    font-weight: 500;
+    font-weight: 600;
+}}
+
+.connection-icon {{
+    color: {COLORS['accent']};
+    opacity: 0.8;
 }}
 
 .connection-status {{
-    color: {COLORS['subtext0']};
+    color: {COLORS['subtext1']};
     font-size: 13px;
+    font-weight: 500;
 }}
 
-/* Switches */
+/* ============================================
+   SWITCHES - Modern Toggle Design
+   ============================================ */
 switch {{
-    background: {COLORS['surface1']};
-    border-radius: 14px;
-    min-width: 48px;
-    min-height: 26px;
+    background: linear-gradient(135deg, {COLORS['surface1']} 0%, {COLORS['surface2']} 100%);
+    border-radius: 16px;
+    min-width: 52px;
+    min-height: 28px;
+    border: 1px solid {border_very_subtle};
+    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}}
+
+switch:hover {{
+    border-color: {accent_30};
 }}
 
 switch:checked {{
-    background: {COLORS['lavender']};
+    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
+    box-shadow: 0 2px 12px {accent_40};
+    border-color: transparent;
 }}
 
 switch slider {{
-    background: {COLORS['text']};
-    border-radius: 12px;
-    min-width: 22px;
-    min-height: 22px;
+    background: linear-gradient(135deg, {COLORS['text']} 0%, {COLORS['subtext1']} 100%);
+    border-radius: 14px;
+    min-width: 24px;
+    min-height: 24px;
     margin: 2px;
+    box-shadow: 0 2px 8px {shadow_color};
+    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }}
 
-/* Scales/Sliders */
+switch:checked slider {{
+    background: {COLORS['text']};
+    box-shadow: 0 2px 8px {shadow_color_strong};
+}}
+
+/* ============================================
+   SCALES/SLIDERS - Premium Slider Design
+   ============================================ */
 scale trough {{
-    background: {COLORS['surface1']};
-    border-radius: 4px;
-    min-height: 6px;
+    background: linear-gradient(90deg, {COLORS['surface1']} 0%, {COLORS['surface2']} 100%);
+    border-radius: 6px;
+    min-height: 8px;
+    border: 1px solid {border_faint};
 }}
 
 scale highlight {{
-    background: {COLORS['lavender']};
-    border-radius: 4px;
+    background: linear-gradient(90deg, {COLORS['accent2']} 0%, {COLORS['accent']} 100%);
+    border-radius: 6px;
+    box-shadow: 0 0 12px {accent_30};
 }}
 
 scale slider {{
-    background: {COLORS['text']};
+    background: linear-gradient(135deg, {COLORS['text']} 0%, {COLORS['subtext1']} 100%);
     border-radius: 50%;
-    min-width: 18px;
-    min-height: 18px;
+    min-width: 22px;
+    min-height: 22px;
+    box-shadow: 0 2px 8px {shadow_color_strong};
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
 }}
 
-/* Scrollbar */
+scale slider:hover {{
+    box-shadow: 0 4px 16px {accent_30}, 0 2px 8px {shadow_color_strong};
+    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
+}}
+
+/* ============================================
+   SCROLLBAR - Minimal Modern Design
+   ============================================ */
 scrollbar {{
     background: transparent;
 }}
 
 scrollbar slider {{
-    background: {COLORS['surface2']};
-    border-radius: 4px;
+    background: linear-gradient(180deg, {COLORS['surface2']} 0%, {COLORS['overlay0']} 100%);
+    border-radius: 6px;
     min-width: 8px;
+    transition: all 200ms ease;
+    border: 1px solid {border_faint};
 }}
 
 scrollbar slider:hover {{
-    background: {COLORS['overlay0']};
+    background: linear-gradient(180deg, {COLORS['overlay0']} 0%, {COLORS['overlay1']} 100%);
+    min-width: 10px;
 }}
 
-/* Button styling */
+/* ============================================
+   PRIMARY BUTTONS - Accent Gradient
+   ============================================ */
 .primary-btn {{
-    background: {COLORS['lavender']};
-    color: {COLORS['crust']};
+    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
+    color: {text_on_accent};
     border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-weight: 600;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 16px {accent_30};
+    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }}
 
 .primary-btn:hover {{
-    background: {COLORS['blue']};
+    background: linear-gradient(135deg, {COLORS['accent2']} 0%, {COLORS['accent']} 100%);
+    box-shadow: 0 6px 24px {accent_50};
+    transform: translateY(-2px);
 }}
 
+.primary-btn:active {{
+    transform: translateY(0);
+    box-shadow: 0 2px 8px {accent_30};
+}}
+
+/* ============================================
+   DANGER BUTTONS - Warning Style
+   ============================================ */
 .danger-btn {{
     background: transparent;
     color: {COLORS['red']};
-    border: 1px solid {COLORS['red']};
-    border-radius: 8px;
-    padding: 10px 20px;
+    border: 2px solid rgba(255, 82, 82, 0.5);
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-weight: 600;
+    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }}
 
 .danger-btn:hover {{
-    background: rgba(243, 139, 168, 0.1);
+    background: rgba(255, 82, 82, 0.15);
+    border-color: {COLORS['red']};
+    box-shadow: 0 4px 20px rgba(255, 82, 82, 0.25);
+    transform: translateY(-2px);
+}}
+
+/* ============================================
+   SECONDARY/GHOST BUTTONS
+   ============================================ */
+.secondary-btn {{
+    background: transparent;
+    color: {COLORS['accent']};
+    border: 1px solid {accent_30};
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}}
+
+.secondary-btn:hover {{
+    background: {accent_10};
+    border-color: {COLORS['accent']};
+    box-shadow: 0 4px 16px {accent_20};
+}}
+
+/* ============================================
+   DROPDOWN/COMBOBOX STYLING
+   ============================================ */
+dropdown {{
+    background: linear-gradient(135deg, {COLORS['surface0']} 0%, {COLORS['surface1']} 100%);
+    border: 1px solid {accent_15};
+    border-radius: 10px;
+    padding: 8px 16px;
+    color: {COLORS['text']};
+    transition: all 200ms ease;
+}}
+
+dropdown:hover {{
+    border-color: {accent_40};
+    box-shadow: 0 4px 16px {accent_15};
+}}
+
+dropdown popover {{
+    background: {COLORS['surface0']};
+    border: 1px solid {accent_20};
+    border-radius: 12px;
+    box-shadow: 0 8px 32px {shadow_color_strong};
+}}
+
+/* ============================================
+   ENTRY/INPUT FIELDS
+   ============================================ */
+entry {{
+    background: {COLORS['surface0']};
+    border: 1px solid {COLORS['surface1']};
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: {COLORS['text']};
+    transition: all 200ms ease;
+}}
+
+entry:focus {{
+    border-color: {COLORS['accent']};
+    box-shadow: 0 0 0 3px {accent_15}, 0 4px 16px {accent_10};
+}}
+
+/* ============================================
+   TOOLTIPS
+   ============================================ */
+tooltip {{
+    background: {tooltip_bg};
+    border: 1px solid {accent_20};
+    border-radius: 10px;
+    padding: 10px 14px;
+    box-shadow: 0 8px 32px {shadow_color_strong};
+    color: {COLORS['text']};
+}}
+
+/* ============================================
+   SPECIAL EFFECTS - Glow Classes
+   ============================================ */
+.glow-accent {{
+    box-shadow: 0 0 20px {COLORS['accent_glow']};
+}}
+
+.glow-pulse {{
+    animation: pulse-glow 2s ease-in-out infinite;
+}}
+
+.animate-slide-in {{
+    animation: slide-in 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}}
+
+/* ============================================
+   HAPTIC PATTERN LIST ITEMS
+   ============================================ */
+.haptic-pattern-item {{
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin: 4px 0;
+    background: transparent;
+    border: 1px solid transparent;
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}}
+
+.haptic-pattern-item:hover {{
+    background: {accent_08};
+    border-color: {accent_15};
+}}
+
+.haptic-pattern-item.selected {{
+    background: linear-gradient(135deg, {accent_15} 0%, {accent2_10} 100%);
+    border-color: {COLORS['accent']};
+    box-shadow: 0 4px 16px {accent_20};
+}}
+
+/* ============================================
+   SECTION DIVIDERS
+   ============================================ */
+.section-divider {{
+    background: linear-gradient(90deg, transparent 0%, {accent_30} 50%, transparent 100%);
+    min-height: 1px;
+    margin: 20px 0;
+}}
+
+/* ============================================
+   BUTTON ASSIGNMENT UI - Premium Design
+   ============================================ */
+.button-assignment-card {{
+    background: {elevated_bg};
+    border-radius: 16px;
+    padding: 20px;
+    margin: 12px 0;
+    border: 1px solid {accent_08};
+    box-shadow: 0 8px 32px {shadow_color_strong};
+}}
+
+.button-assignment-header {{
+    font-size: 15px;
+    font-weight: 700;
+    color: {COLORS['accent']};
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid {accent_15};
+}}
+
+.button-row {{
+    background: {elevated_bg_hover};
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 6px 0;
+    border: 1px solid {border_faint};
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}}
+
+.button-row:hover {{
+    background: linear-gradient(135deg, {accent_12} 0%, {accent2_08} 100%);
+    border-color: {accent_25};
+    transform: translateX(4px);
+    box-shadow: 0 4px 16px {accent_15};
+}}
+
+.button-icon-box {{
+    background: linear-gradient(135deg, {accent_20} 0%, {accent2_15} 100%);
+    border-radius: 10px;
+    padding: 10px;
+    min-width: 42px;
+    min-height: 42px;
+    border: 1px solid {accent_20};
+}}
+
+.button-icon {{
+    color: {COLORS['accent']};
+}}
+
+.button-name {{
+    font-size: 15px;
+    font-weight: 600;
+    color: {COLORS['text']};
+    letter-spacing: 0.3px;
+}}
+
+.button-action {{
+    font-size: 13px;
+    font-weight: 500;
+    color: {COLORS['accent']};
+    padding: 4px 10px;
+    background: {accent_10};
+    border-radius: 6px;
+    border: 1px solid {accent_20};
+}}
+
+.button-arrow {{
+    color: {COLORS['subtext0']};
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 200ms ease;
+}}
+
+.button-arrow:hover {{
+    background: {accent_15};
+    color: {COLORS['accent']};
+}}
+
+/* Radial Menu Card - Featured Style */
+.radial-menu-card {{
+    background: linear-gradient(135deg, {accent_08} 0%, {accent2_05} 100%);
+    border-radius: 16px;
+    padding: 24px;
+    margin: 20px 0 12px 0;
+    border: 1px solid {accent_20};
+    box-shadow: 0 8px 32px {accent_10}, 0 4px 16px {shadow_color};
+}}
+
+.radial-menu-card:hover {{
+    border-color: {accent_35};
+    box-shadow: 0 12px 40px {accent_15}, 0 6px 20px {shadow_color_strong};
+}}
+
+.radial-icon-large {{
+    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
+    border-radius: 14px;
+    padding: 16px;
+    min-width: 56px;
+    min-height: 56px;
+    box-shadow: 0 4px 16px {accent_35};
+}}
+
+.radial-icon-large image {{
+    color: {text_on_accent};
+}}
+
+.radial-title {{
+    font-size: 18px;
+    font-weight: 700;
+    color: {COLORS['text']};
+    letter-spacing: 0.5px;
+}}
+
+.radial-subtitle {{
+    font-size: 13px;
+    color: {COLORS['subtext1']};
+    margin-top: 4px;
+}}
+
+.configure-radial-btn {{
+    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
+    color: {text_on_accent};
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 16px {accent_35};
+    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}}
+
+.configure-radial-btn:hover {{
+    box-shadow: 0 6px 24px {accent_50};
+    transform: translateY(-2px);
+}}
+
+/* Slice Row Styling */
+.slice-row {{
+    background: {COLORS['surface0']};
+    border-radius: 8px;
+    padding: 10px 12px;
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+}}
+
+.slice-row:hover {{
+    background: {COLORS['surface1']};
+    border-color: {accent_20};
+}}
+
+.slice-icon {{
+    color: {COLORS['subtext1']};
+    opacity: 0.8;
+}}
+
+.slice-label {{
+    font-size: 13px;
+    font-weight: 500;
+    color: {COLORS['text']};
+}}
+
+.slice-edit-btn {{
+    opacity: 0.5;
+    transition: opacity 200ms;
+}}
+
+.slice-row:hover .slice-edit-btn {{
+    opacity: 1;
+}}
+
+/* Color Picker Buttons */
+.color-btn-green {{ background: #00e676; border-radius: 8px; border: 2px solid transparent; }}
+.color-btn-green:checked {{ border-color: white; box-shadow: 0 0 8px #00e676; }}
+.color-btn-yellow {{ background: #ffd54f; border-radius: 8px; border: 2px solid transparent; }}
+.color-btn-yellow:checked {{ border-color: white; box-shadow: 0 0 8px #ffd54f; }}
+.color-btn-red {{ background: #ff5252; border-radius: 8px; border: 2px solid transparent; }}
+.color-btn-red:checked {{ border-color: white; box-shadow: 0 0 8px #ff5252; }}
+.color-btn-mauve {{ background: #b388ff; border-radius: 8px; border: 2px solid transparent; }}
+.color-btn-mauve:checked {{ border-color: white; box-shadow: 0 0 8px #b388ff; }}
+.color-btn-blue {{ background: #4a9eff; border-radius: 8px; border: 2px solid transparent; }}
+.color-btn-blue:checked {{ border-color: white; box-shadow: 0 0 8px #4a9eff; }}
+.color-btn-pink {{ background: #ff80ab; border-radius: 8px; border: 2px solid transparent; }}
+.color-btn-pink:checked {{ border-color: white; box-shadow: 0 0 8px #ff80ab; }}
+.color-btn-sapphire {{ background: #00b4d8; border-radius: 8px; border: 2px solid transparent; }}
+.color-btn-sapphire:checked {{ border-color: white; box-shadow: 0 0 8px #00b4d8; }}
+.color-btn-teal {{ background: #0abdc6; border-radius: 8px; border: 2px solid transparent; }}
+.color-btn-teal:checked {{ border-color: white; box-shadow: 0 0 8px #0abdc6; }}
+
+/* Preset Action Buttons */
+.preset-btn {{
+    background: {COLORS['surface0']};
+    border: 1px solid {COLORS['surface2']};
+    border-radius: 8px;
+    padding: 8px 12px;
+    transition: all 200ms;
+}}
+
+.preset-btn:hover {{
+    background: {COLORS['surface1']};
+    border-color: {COLORS['accent']};
+}}
+
+/* Section Header */
+.section-header {{
+    font-size: 12px;
+    font-weight: 600;
+    color: {COLORS['subtext0']};
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    margin-top: 8px;
+}}
+
+/* ============================================
+   PREMIUM HEADER STYLING
+   ============================================ */
+.app-title {{
+    font-size: 22px;
+    font-weight: 800;
+    color: {COLORS['text']};
+    letter-spacing: 0.5px;
+}}
+
+.app-title-accent {{
+    color: {COLORS['accent']};
+}}
+
+.app-subtitle {{
+    font-size: 11px;
+    font-weight: 500;
+    color: {COLORS['subtext0']};
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 2px;
+}}
+
+.logo-container {{
+    background: linear-gradient(135deg, {accent_15} 0%, {accent2_10} 100%);
+    border-radius: 12px;
+    padding: 8px;
+    border: 1px solid {accent_20};
+    box-shadow: 0 4px 16px {accent_15};
+}}
+
+.device-badge {{
+    background: linear-gradient(135deg, rgba(0, 230, 118, 0.15) 0%, rgba(0, 200, 100, 0.1) 100%);
+    border: 1px solid rgba(0, 230, 118, 0.3);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: {COLORS['green']};
+    letter-spacing: 0.5px;
+}}
+
+.header-divider {{
+    background: linear-gradient(90deg, {accent_40} 0%, {accent_10} 100%);
+    min-width: 2px;
+    min-height: 36px;
+    border-radius: 1px;
+    margin: 0 16px;
 }}
 """
+
+# Generate CSS at module load time
+CSS = generate_css()
 
 
 class NavButton(Gtk.Button):
@@ -536,6 +1146,11 @@ class MouseVisualization(Gtk.DrawingArea):
         self.mouse_image = None
         # Store image rect for button positioning
         self.img_rect = (0, 0, 600, 500)  # (x_offset, y_offset, width, height)
+        # Cache for hit regions (computed when img_rect changes)
+        self._hit_cache = None
+        self._cached_img_rect = None
+        # Motion throttling
+        self._last_motion_time = 0
 
         self.set_content_width(600)
         self.set_content_height(500)
@@ -543,9 +1158,9 @@ class MouseVisualization(Gtk.DrawingArea):
 
         # Load mouse image
         image_paths = [
-            os.path.join(os.path.dirname(__file__), '../assets/devices/mx_master_4.png'),
-            os.path.join(os.path.dirname(__file__), 'assets/devices/mx_master_4.png'),
-            '/usr/share/juhradialmx/devices/mx_master_4.png',
+            os.path.join(os.path.dirname(__file__), '../assets/devices/logitechmouse.png'),
+            os.path.join(os.path.dirname(__file__), 'assets/devices/logitechmouse.png'),
+            '/usr/share/juhradialmx/devices/logitechmouse.png',
         ]
 
         for path in image_paths:
@@ -567,32 +1182,84 @@ class MouseVisualization(Gtk.DrawingArea):
         click.connect('released', self._on_click)
         self.add_controller(click)
 
-    def _on_motion(self, controller, x, y):
-        # Use image rect for button positioning
+    def _compute_hit_regions(self):
+        """Pre-compute hit regions for all buttons (called when img_rect changes)"""
         img_x, img_y, img_w, img_h = self.img_rect
+        hit_regions = {}
+
+        for btn_id, btn_info in MOUSE_BUTTONS.items():
+            btn_x = img_x + btn_info['pos'][0] * img_w
+            btn_y = img_y + btn_info['pos'][1] * img_h
+            line_from = btn_info.get('line_from', 'left')
+            custom_label_y = btn_info.get('label_y', None)
+
+            # Label box dimensions
+            label_width = 130
+            label_height = 28
+
+            # Calculate label position based on line direction
+            if line_from == 'top':
+                line_length = 60
+                lx = btn_x - label_width / 2
+                ly = btn_y - line_length - label_height
+            elif line_from == 'l_up':
+                line_length = 60
+                lx = btn_x - line_length - label_width
+                if custom_label_y is not None:
+                    ly = img_y + custom_label_y * img_h - label_height / 2
+                else:
+                    ly = btn_y - label_height / 2
+            elif line_from == 'left_short':
+                line_length = 25
+                lx = btn_x - line_length - label_width
+                ly = btn_y - label_height / 2
+            else:
+                line_length = 60
+                lx = btn_x - line_length - label_width
+                ly = btn_y - label_height / 2
+
+            hit_regions[btn_id] = {
+                'dot_x': btn_x,
+                'dot_y': btn_y,
+                'label_x': lx,
+                'label_y': ly,
+                'label_w': label_width,
+                'label_h': label_height,
+            }
+
+        return hit_regions
+
+    def _on_motion(self, controller, x, y):
+        # Throttle motion events to ~30fps (33ms between updates)
+        current_time = time.monotonic()
+        if current_time - self._last_motion_time < 0.033:
+            return
+        self._last_motion_time = current_time
+
+        # Rebuild hit cache if img_rect changed
+        if self._hit_cache is None or self._cached_img_rect != self.img_rect:
+            self._hit_cache = self._compute_hit_regions()
+            self._cached_img_rect = self.img_rect
 
         # Check if hovering over any button region
         old_hovered = self.hovered_button
         self.hovered_button = None
 
-        for btn_id, btn_info in MOUSE_BUTTONS.items():
-            btn_x = img_x + btn_info['pos'][0] * img_w
-            btn_y = img_y + btn_info['pos'][1] * img_h
+        # Use squared distance comparison (625 = 25^2) to avoid sqrt
+        hover_radius_sq = 625
 
-            # Check distance from button dot
-            dist = math.sqrt((x - btn_x)**2 + (y - btn_y)**2)
-            if dist < 30:  # Hover radius for dot
+        for btn_id, region in self._hit_cache.items():
+            # Check dot (squared distance - no sqrt needed)
+            dx = x - region['dot_x']
+            dy = y - region['dot_y']
+            if dx * dx + dy * dy < hover_radius_sq:
                 self.hovered_button = btn_id
                 break
 
-            # Also check if hovering over the label box (offset to the right)
-            label_x = btn_x + 20
-            label_y = btn_y - 20  # Approximate label center
-            label_width = 120  # Approximate label width
-            label_height = 30  # Approximate label height
-
-            if (label_x <= x <= label_x + label_width and
-                label_y <= y <= label_y + label_height):
+            # Check label box
+            lx, ly = region['label_x'], region['label_y']
+            lw, lh = region['label_w'], region['label_h']
+            if lx <= x <= lx + lw and ly <= y <= ly + lh:
                 self.hovered_button = btn_id
                 break
 
@@ -655,34 +1322,75 @@ class MouseVisualization(Gtk.DrawingArea):
         y = img_y + btn_info['pos'][1] * img_h
         label = btn_info['name']
         is_hovered = (btn_id == self.hovered_button)
+        line_from = btn_info.get('line_from', 'left')
 
         # Measure text
         cr.select_font_face("Sans", 0, 1 if is_hovered else 0)
-        cr.set_font_size(12)
+        cr.set_font_size(11)
         extents = cr.text_extents(label)
 
-        padding_x = 12
+        padding_x = 14
         padding_y = 8
         box_width = extents.width + padding_x * 2
         box_height = extents.height + padding_y * 2
 
-        # Draw connector dot
-        cr.set_source_rgba(0.8, 0.8, 0.9, 0.8)
-        cr.arc(x, y, 4, 0, 2 * math.pi)
+        # Calculate label position based on line direction
+        custom_label_y = btn_info.get('label_y', None)
+
+        if line_from == 'top':
+            # Line comes from above, label above the point
+            line_length = 60
+            label_x = x - box_width / 2
+            label_y = y - line_length - box_height
+            line_start_x, line_start_y = x, y - 6
+            line_end_x, line_end_y = x, label_y + box_height
+        elif line_from == 'l_up':
+            # L-shaped line: horizontal left, then vertical up to label
+            line_length = 60
+            label_x = x - line_length - box_width
+            # Use custom label_y if provided, otherwise calculate
+            if custom_label_y is not None:
+                label_y = img_y + custom_label_y * img_h - box_height / 2
+            else:
+                label_y = y - box_height / 2
+            line_start_x, line_start_y = x - 6, y
+            line_mid_x = label_x + box_width + 15  # horizontal end point
+            line_end_x, line_end_y = label_x + box_width, label_y + box_height / 2
+        elif line_from == 'left_short':
+            # Short horizontal line (about 25px)
+            line_length = 25
+            label_x = x - line_length - box_width
+            label_y = y - box_height / 2
+            line_start_x, line_start_y = x - 6, y
+            line_end_x, line_end_y = label_x + box_width, y
+        else:
+            # Line comes from left, label to the left of point
+            line_length = 60
+            label_x = x - line_length - box_width
+            label_y = y - box_height / 2
+            line_start_x, line_start_y = x - 6, y
+            line_end_x, line_end_y = label_x + box_width, y
+
+        # Draw shadow first (offset) - deeper shadow for premium feel
+        cr.set_source_rgba(0, 0, 0, 0.4)
+        radius = 10
+        shadow_offset = 4
+        cr.new_path()
+        cr.arc(label_x + radius + shadow_offset, label_y + radius + shadow_offset, radius, math.pi, 1.5 * math.pi)
+        cr.arc(label_x + box_width - radius + shadow_offset, label_y + radius + shadow_offset, radius, 1.5 * math.pi, 2 * math.pi)
+        cr.arc(label_x + box_width - radius + shadow_offset, label_y + box_height - radius + shadow_offset, radius, 0, 0.5 * math.pi)
+        cr.arc(label_x + radius + shadow_offset, label_y + box_height - radius + shadow_offset, radius, 0.5 * math.pi, math.pi)
+        cr.close_path()
         cr.fill()
 
-        # Offset label position
-        label_x = x + 20
-        label_y = y - box_height / 2
-
-        # Draw label background
+        # Premium glassmorphism background - dark with cyan glow
         if is_hovered:
-            cr.set_source_rgba(0.65, 0.89, 0.63, 1)  # Green
+            # Hover: vibrant cyan gradient
+            cr.set_source_rgba(0, 0.83, 1, 0.95)  # #00d4ff - Vibrant cyan
         else:
-            cr.set_source_rgba(0.95, 0.95, 0.97, 1)  # White
+            # Normal: dark glass with subtle cyan tint
+            cr.set_source_rgba(0.1, 0.11, 0.14, 0.92)  # Dark glass matching theme
 
-        # Rounded rectangle
-        radius = 6
         cr.new_path()
         cr.arc(label_x + radius, label_y + radius, radius, math.pi, 1.5 * math.pi)
         cr.arc(label_x + box_width - radius, label_y + radius, radius, 1.5 * math.pi, 2 * math.pi)
@@ -691,26 +1399,61 @@ class MouseVisualization(Gtk.DrawingArea):
         cr.close_path()
         cr.fill()
 
-        # Draw shadow
-        cr.set_source_rgba(0, 0, 0, 0.15)
+        # Glass border - cyan accent glow
+        if is_hovered:
+            cr.set_source_rgba(1, 1, 1, 0.5)  # White border on hover
+        else:
+            cr.set_source_rgba(0, 0.83, 1, 0.35)  # Cyan border glow
+        cr.set_line_width(1.5)
         cr.new_path()
-        cr.arc(label_x + radius + 2, label_y + radius + 2, radius, math.pi, 1.5 * math.pi)
-        cr.arc(label_x + box_width - radius + 2, label_y + radius + 2, radius, 1.5 * math.pi, 2 * math.pi)
-        cr.arc(label_x + box_width - radius + 2, label_y + box_height - radius + 2, radius, 0, 0.5 * math.pi)
-        cr.arc(label_x + radius + 2, label_y + box_height - radius + 2, radius, 0.5 * math.pi, math.pi)
+        cr.arc(label_x + radius, label_y + radius, radius, math.pi, 1.5 * math.pi)
+        cr.arc(label_x + box_width - radius, label_y + radius, radius, 1.5 * math.pi, 2 * math.pi)
+        cr.arc(label_x + box_width - radius, label_y + box_height - radius, radius, 0, 0.5 * math.pi)
+        cr.arc(label_x + radius, label_y + box_height - radius, radius, 0.5 * math.pi, math.pi)
         cr.close_path()
-        cr.fill()
+        cr.stroke()
 
         # Draw text
-        cr.set_source_rgba(0.07, 0.07, 0.1, 1)  # Dark text
+        if is_hovered:
+            cr.set_source_rgba(0.04, 0.05, 0.06, 1)  # Dark text on cyan bg
+        else:
+            cr.set_source_rgba(0.94, 0.96, 0.97, 1)  # Bright white text
         cr.move_to(label_x + padding_x, label_y + padding_y + extents.height)
         cr.show_text(label)
 
-        # Draw connector line
-        cr.set_source_rgba(0.8, 0.8, 0.9, 0.5)
-        cr.set_line_width(1)
-        cr.move_to(x + 4, y)
-        cr.line_to(label_x, y)
+        # Draw connector line - cyan accent
+        if is_hovered:
+            cr.set_source_rgba(0, 0.83, 1, 0.9)  # Bright cyan line
+        else:
+            cr.set_source_rgba(0, 0.83, 1, 0.5)  # Subtle cyan line
+        cr.set_line_width(2)
+        if line_from == 'l_up':
+            # L-shaped: horizontal then vertical up
+            cr.move_to(line_start_x, line_start_y)
+            cr.line_to(line_mid_x, line_start_y)  # horizontal segment
+            cr.line_to(line_mid_x, line_end_y)    # vertical segment up
+            cr.line_to(line_end_x, line_end_y)    # short horizontal to label
+        else:
+            cr.move_to(line_start_x, line_start_y)
+            cr.line_to(line_end_x, line_end_y)
+        cr.stroke()
+
+        # Draw connector dot on the button - cyan glowing dot
+        if is_hovered:
+            # Glowing dot on hover
+            cr.set_source_rgba(0, 0.83, 1, 0.4)  # Outer glow
+            cr.arc(x, y, 8, 0, 2 * math.pi)
+            cr.fill()
+            cr.set_source_rgba(0, 0.83, 1, 1)  # Bright cyan dot
+        else:
+            cr.set_source_rgba(0, 0.83, 1, 0.8)  # Cyan dot
+        cr.arc(x, y, 5, 0, 2 * math.pi)
+        cr.fill()
+
+        # Dot border - white highlight
+        cr.set_source_rgba(1, 1, 1, 0.6)
+        cr.set_line_width(1.5)
+        cr.arc(x, y, 5, 0, 2 * math.pi)
         cr.stroke()
 
     def _texture_to_pixbuf(self, texture):
@@ -777,6 +1520,17 @@ class SettingRow(Gtk.Box):
         self.control_box.append(widget)
 
 
+# Default actions for each button (used for restore)
+DEFAULT_BUTTON_ACTIONS = {
+    'middle': 'Middle Click',
+    'shift_wheel': 'SmartShift',
+    'forward': 'Forward',
+    'horizontal_scroll': 'Scroll Left/Right',
+    'back': 'Back',
+    'gesture': 'Virtual Desktops',
+    'thumb': 'Radial Menu',
+}
+
 # Available actions for button assignment
 BUTTON_ACTIONS = [
     ('middle_click', 'Middle Click'),
@@ -809,37 +1563,82 @@ class ButtonConfigDialog(Adw.Window):
         super().__init__()
         self.button_id = button_id
         self.button_info = button_info
+        self.selected_action = None
         self.set_transient_for(parent)
         self.set_modal(True)
         self.set_title(f'Configure {button_info["name"]}')
-        self.set_default_size(400, 500)
+        self.set_default_size(420, 550)
 
         # Main content
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        content.add_css_class('background')
 
         # Header bar
         header = Adw.HeaderBar()
-        header.set_show_end_title_buttons(True)
+        header.set_show_end_title_buttons(False)
         header.set_show_start_title_buttons(False)
 
         cancel_btn = Gtk.Button(label='Cancel')
+        cancel_btn.add_css_class('flat')
         cancel_btn.connect('clicked', lambda _: self.close())
         header.pack_start(cancel_btn)
 
+        save_btn = Gtk.Button(label='Save')
+        save_btn.add_css_class('suggested-action')
+        save_btn.connect('clicked', self._on_save)
+        header.pack_end(save_btn)
+
         content.append(header)
+
+        # Current button info
+        info_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        info_box.set_margin_start(24)
+        info_box.set_margin_end(24)
+        info_box.set_margin_top(16)
+        info_box.set_margin_bottom(8)
+
+        # Header with title and restore button
+        header_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+
+        button_label = Gtk.Label(label=button_info['name'])
+        button_label.add_css_class('title-2')
+        button_label.set_halign(Gtk.Align.START)
+        button_label.set_hexpand(True)
+        header_row.append(button_label)
+
+        # Restore default button
+        restore_btn = Gtk.Button(label='Restore Default')
+        restore_btn.add_css_class('flat')
+        restore_btn.add_css_class('dim-label')
+        restore_btn.connect('clicked', self._on_restore_default)
+        header_row.append(restore_btn)
+
+        info_box.append(header_row)
+
+        current_label = Gtk.Label(label=f"Current: {button_info.get('action', 'Not set')}")
+        current_label.add_css_class('dim-label')
+        current_label.set_halign(Gtk.Align.START)
+        info_box.append(current_label)
+
+        content.append(info_box)
+
+        # Separator
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        sep.set_margin_top(8)
+        content.append(sep)
 
         # Scrollable action list
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled.set_vexpand(True)
 
-        list_box = Gtk.ListBox()
-        list_box.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        list_box.add_css_class('boxed-list')
-        list_box.set_margin_start(20)
-        list_box.set_margin_end(20)
-        list_box.set_margin_top(20)
-        list_box.set_margin_bottom(20)
+        self.list_box = Gtk.ListBox()
+        self.list_box.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.list_box.add_css_class('boxed-list')
+        self.list_box.set_margin_start(16)
+        self.list_box.set_margin_end(16)
+        self.list_box.set_margin_top(16)
+        self.list_box.set_margin_bottom(16)
 
         # Find current action
         current_action = button_info.get('action', '')
@@ -847,27 +1646,58 @@ class ButtonConfigDialog(Adw.Window):
         for action_id, action_name in BUTTON_ACTIONS:
             row = Adw.ActionRow()
             row.set_title(action_name)
+            row.set_activatable(True)
             row.action_id = action_id
+            row.action_name = action_name
 
-            # Check mark for current selection
+            # Radio-style indicator
+            radio = Gtk.CheckButton()
+            radio.set_active(action_name == current_action)
+            radio.set_sensitive(False)  # Visual only
+            row.add_prefix(radio)
+            row.radio = radio
+
             if action_name == current_action:
-                check = Gtk.Image.new_from_icon_name('object-select-symbolic')
-                check.add_css_class('accent')
-                row.add_suffix(check)
-                list_box.select_row(row)
+                self.selected_action = (action_id, action_name)
+                self.list_box.select_row(row)
 
-            list_box.append(row)
+            self.list_box.append(row)
 
-        list_box.connect('row-activated', self._on_row_activated)
-        scrolled.set_child(list_box)
+        self.list_box.connect('row-selected', self._on_row_selected)
+        scrolled.set_child(self.list_box)
         content.append(scrolled)
 
         self.set_content(content)
 
-    def _on_row_activated(self, list_box, row):
+    def _on_row_selected(self, list_box, row):
+        if row is None:
+            return
+
+        # Update radio buttons visually
+        child = list_box.get_first_child()
+        while child:
+            if hasattr(child, 'radio'):
+                child.radio.set_active(child == row)
+            child = child.get_next_sibling()
+
         if hasattr(row, 'action_id'):
-            action_id = row.action_id
-            action_name = row.get_title()
+            self.selected_action = (row.action_id, row.action_name)
+
+    def _on_restore_default(self, button):
+        """Restore button to default action"""
+        default_action = DEFAULT_BUTTON_ACTIONS.get(self.button_id, 'Middle Click')
+
+        # Find and select the default action row
+        child = self.list_box.get_first_child()
+        while child:
+            if hasattr(child, 'action_name') and child.action_name == default_action:
+                self.list_box.select_row(child)
+                break
+            child = child.get_next_sibling()
+
+    def _on_save(self, button):
+        if self.selected_action:
+            action_id, action_name = self.selected_action
 
             # Update the MOUSE_BUTTONS dict
             if self.button_id in MOUSE_BUTTONS:
@@ -879,7 +1709,8 @@ class ButtonConfigDialog(Adw.Window):
             config.set('buttons', buttons_config)
 
             print(f'Button {self.button_id} configured to: {action_name}')
-            self.close()
+
+        self.close()
 
 
 # Radial menu slice actions
@@ -1068,57 +1899,177 @@ class RadialMenuConfigDialog(Adw.Window):
 
 
 class ButtonsPage(Gtk.ScrolledWindow):
-    """Buttons configuration page"""
+    """Buttons configuration page - Premium UI Design"""
 
-    def __init__(self, on_button_config=None, parent_window=None):
+    # Icon mapping for each button type
+    BUTTON_ICONS = {
+        'middle': 'input-mouse-symbolic',
+        'shift_wheel': 'media-playlist-shuffle-symbolic',
+        'forward': 'go-next-symbolic',
+        'horizontal_scroll': 'object-flip-horizontal-symbolic',
+        'back': 'go-previous-symbolic',
+        'gesture': 'input-touchpad-symbolic',
+        'thumb': 'view-app-grid-symbolic',
+    }
+
+    # Color hex values for slice indicators
+    SLICE_COLORS = {
+        'green': '#00e676',
+        'yellow': '#ffd54f',
+        'red': '#ff5252',
+        'mauve': '#b388ff',
+        'blue': '#4a9eff',
+        'pink': '#ff80ab',
+        'sapphire': '#00b4d8',
+        'teal': '#0abdc6',
+    }
+
+    def __init__(self, on_button_config=None, parent_window=None, config_manager=None):
         super().__init__()
         self.on_button_config = on_button_config
         self.parent_window = parent_window
+        self.config_manager = config_manager
+        self.slice_rows = {}  # Store slice row widgets for updating
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
 
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        content.set_margin_top(20)
-        content.set_margin_bottom(20)
-        content.set_margin_start(20)
-        content.set_margin_end(20)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.set_margin_top(24)
+        content.set_margin_bottom(24)
+        content.set_margin_start(24)
+        content.set_margin_end(24)
 
-        # Button assignments card
-        card = SettingsCard('Button Assignments')
-        self.button_rows = {}
+        # =============================================
+        # ACTIONS RING CARD - Shows all 8 slices
+        # =============================================
+        radial_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        radial_card.add_css_class('radial-menu-card')
 
-        for btn_id, btn_info in MOUSE_BUTTONS.items():
-            row = SettingRow(btn_info['name'], f"Currently: {btn_info['action']}")
+        # Header row
+        header_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        header_row.set_margin_bottom(12)
 
-            # Arrow button - connect to callback
-            arrow = Gtk.Button()
-            arrow.set_child(Gtk.Image.new_from_icon_name('go-next-symbolic'))
-            arrow.add_css_class('flat')
-            arrow.connect('clicked', lambda _, bid=btn_id: self._on_button_click(bid))
-            row.set_control(arrow)
+        # Large radial icon
+        radial_icon_box = Gtk.Box()
+        radial_icon_box.add_css_class('radial-icon-large')
+        radial_icon_box.set_valign(Gtk.Align.CENTER)
+        radial_icon = Gtk.Image.new_from_icon_name('view-app-grid-symbolic')
+        radial_icon.set_pixel_size(28)
+        radial_icon_box.append(radial_icon)
+        header_row.append(radial_icon_box)
 
-            # Make entire row clickable
-            row_click = Gtk.GestureClick()
-            row_click.connect('released', lambda g, n, x, y, bid=btn_id: self._on_button_click(bid))
-            row.add_controller(row_click)
+        # Text content
+        radial_text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        radial_text.set_hexpand(True)
+        radial_text.set_valign(Gtk.Align.CENTER)
 
-            self.button_rows[btn_id] = row
-            card.append(row)
+        radial_title = Gtk.Label(label='Actions Ring')
+        radial_title.set_halign(Gtk.Align.START)
+        radial_title.add_css_class('radial-title')
+        radial_text.append(radial_title)
 
-        content.append(card)
+        radial_subtitle = Gtk.Label(label='Click any action to customize')
+        radial_subtitle.set_halign(Gtk.Align.START)
+        radial_subtitle.add_css_class('radial-subtitle')
+        radial_text.append(radial_subtitle)
 
-        # Radial menu card
-        radial_card = SettingsCard('Radial Menu Configuration')
+        header_row.append(radial_text)
+        radial_card.append(header_row)
 
-        radial_row = SettingRow('Configure Actions Ring', 'Customize the 8 actions in your radial menu')
-        configure_btn = Gtk.Button(label='Configure')
-        configure_btn.add_css_class('primary-btn')
-        configure_btn.connect('clicked', lambda _: self._on_configure_radial())
-        radial_row.set_control(configure_btn)
-        radial_card.append(radial_row)
+        # Slices container - 2 columns of 4 slices
+        slices_grid = Gtk.Grid()
+        slices_grid.set_column_spacing(12)
+        slices_grid.set_row_spacing(8)
+        slices_grid.set_column_homogeneous(True)
 
+        # Load current slices from config
+        slices = self._get_current_slices()
+
+        # Position labels (clockwise from top)
+        position_labels = ['Top', 'Top Right', 'Right', 'Bottom Right', 'Bottom', 'Bottom Left', 'Left', 'Top Left']
+
+        for i, slice_data in enumerate(slices):
+            row = i % 4
+            col = i // 4
+            slice_widget = self._create_slice_row(i, slice_data, position_labels[i])
+            self.slice_rows[i] = slice_widget
+            slices_grid.attach(slice_widget, col, row, 1, 1)
+
+        radial_card.append(slices_grid)
         content.append(radial_card)
 
+        # =============================================
+        # BUTTON ASSIGNMENTS CARD
+        # =============================================
+        assignments_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        assignments_card.add_css_class('button-assignment-card')
+
+        # Card header
+        header = Gtk.Label(label='Button Assignments')
+        header.set_halign(Gtk.Align.START)
+        header.add_css_class('button-assignment-header')
+        assignments_card.append(header)
+
+        # Button rows container
+        self.button_rows = {}
+        self.action_labels = {}
+
+        for btn_id, btn_info in MOUSE_BUTTONS.items():
+            row = self._create_button_row(btn_id, btn_info)
+            self.button_rows[btn_id] = row
+            assignments_card.append(row)
+
+        content.append(assignments_card)
         self.set_child(content)
+
+    def _create_button_row(self, btn_id, btn_info):
+        """Create a premium styled button assignment row"""
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        row.add_css_class('button-row')
+
+        # Icon box
+        icon_box = Gtk.Box()
+        icon_box.add_css_class('button-icon-box')
+        icon_box.set_valign(Gtk.Align.CENTER)
+        icon = Gtk.Image.new_from_icon_name(self.BUTTON_ICONS.get(btn_id, 'input-mouse-symbolic'))
+        icon.set_pixel_size(20)
+        icon.add_css_class('button-icon')
+        icon_box.append(icon)
+        row.append(icon_box)
+
+        # Text content
+        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        text_box.set_hexpand(True)
+        text_box.set_valign(Gtk.Align.CENTER)
+
+        name_label = Gtk.Label(label=btn_info['name'])
+        name_label.set_halign(Gtk.Align.START)
+        name_label.add_css_class('button-name')
+        text_box.append(name_label)
+
+        # Action badge
+        action_label = Gtk.Label(label=btn_info['action'])
+        action_label.set_halign(Gtk.Align.START)
+        action_label.add_css_class('button-action')
+        text_box.append(action_label)
+        self.action_labels[btn_id] = action_label
+
+        row.append(text_box)
+
+        # Arrow button
+        arrow = Gtk.Button()
+        arrow.set_child(Gtk.Image.new_from_icon_name('go-next-symbolic'))
+        arrow.add_css_class('button-arrow')
+        arrow.add_css_class('flat')
+        arrow.set_valign(Gtk.Align.CENTER)
+        arrow.connect('clicked', lambda _, bid=btn_id: self._on_button_click(bid))
+        row.append(arrow)
+
+        # Make entire row clickable
+        row_click = Gtk.GestureClick()
+        row_click.connect('released', lambda g, n, x, y, bid=btn_id: self._on_button_click(bid))
+        row.add_controller(row_click)
+
+        return row
 
     def _on_button_click(self, button_id):
         """Handle button configuration click"""
@@ -1133,18 +2084,408 @@ class ButtonsPage(Gtk.ScrolledWindow):
 
     def refresh_button_labels(self):
         """Refresh the button action labels after config change"""
-        for btn_id, row in self.button_rows.items():
+        for btn_id, action_label in self.action_labels.items():
             if btn_id in MOUSE_BUTTONS:
-                # Find and update the description label
-                text_box = row.get_first_child()
-                if text_box:
-                    children = []
-                    child = text_box.get_first_child()
-                    while child:
-                        children.append(child)
-                        child = child.get_next_sibling()
-                    if len(children) > 1:
-                        children[1].set_text(f"Currently: {MOUSE_BUTTONS[btn_id]['action']}")
+                action_label.set_text(MOUSE_BUTTONS[btn_id]['action'])
+
+    def _get_current_slices(self):
+        """Get the current radial menu slices from config"""
+        if self.config_manager:
+            slices = self.config_manager.get('radial_menu.slices', default=[])
+            if slices:
+                return slices
+        # Return defaults if no config
+        return ConfigManager.DEFAULT_CONFIG['radial_menu']['slices']
+
+    def _create_slice_row(self, index, slice_data, position_label):
+        """Create a compact slice row widget"""
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        row.add_css_class('slice-row')
+
+        # Color indicator dot
+        color_name = slice_data.get('color', 'teal')
+        color_hex = self.SLICE_COLORS.get(color_name, '#0abdc6')
+
+        color_dot = Gtk.DrawingArea()
+        color_dot.set_size_request(10, 10)
+        color_dot.set_valign(Gtk.Align.CENTER)
+
+        def draw_dot(area, cr, width, height):
+            # Parse color
+            r = int(color_hex[1:3], 16) / 255.0
+            g = int(color_hex[3:5], 16) / 255.0
+            b = int(color_hex[5:7], 16) / 255.0
+            # Draw filled circle
+            cr.set_source_rgb(r, g, b)
+            cr.arc(width / 2, height / 2, 4, 0, 2 * 3.14159)
+            cr.fill()
+
+        color_dot.set_draw_func(draw_dot)
+        row.append(color_dot)
+
+        # Icon
+        icon_name = slice_data.get('icon', 'application-x-executable-symbolic')
+        icon = Gtk.Image.new_from_icon_name(icon_name)
+        icon.set_pixel_size(16)
+        icon.add_css_class('slice-icon')
+        row.append(icon)
+
+        # Label
+        label = Gtk.Label(label=slice_data.get('label', f'Slice {index + 1}'))
+        label.set_halign(Gtk.Align.START)
+        label.set_hexpand(True)
+        label.add_css_class('slice-label')
+        label.set_ellipsize(Pango.EllipsizeMode.END)
+        row.append(label)
+
+        # Edit button (arrow)
+        edit_btn = Gtk.Button()
+        edit_btn.set_child(Gtk.Image.new_from_icon_name('go-next-symbolic'))
+        edit_btn.add_css_class('slice-edit-btn')
+        edit_btn.add_css_class('flat')
+        edit_btn.set_valign(Gtk.Align.CENTER)
+        edit_btn.connect('clicked', lambda _, idx=index: self._on_edit_slice(idx))
+        row.append(edit_btn)
+
+        # Make entire row clickable
+        row_click = Gtk.GestureClick()
+        row_click.connect('released', lambda g, n, x, y, idx=index: self._on_edit_slice(idx))
+        row.add_controller(row_click)
+
+        return row
+
+    def _on_edit_slice(self, slice_index):
+        """Open dialog to edit a specific slice"""
+        if self.parent_window:
+            dialog = SliceConfigDialog(self.parent_window, slice_index, self.config_manager, self._on_slice_saved)
+            dialog.present()
+
+    def _on_slice_saved(self):
+        """Called when a slice is saved - refresh the UI"""
+        # Refresh slices display
+        slices = self._get_current_slices()
+        position_labels = ['Top', 'Top Right', 'Right', 'Bottom Right', 'Bottom', 'Bottom Left', 'Left', 'Top Left']
+
+        for i, slice_data in enumerate(slices):
+            if i in self.slice_rows:
+                # Update the existing row's content
+                row = self.slice_rows[i]
+                # Find and update the label
+                for child in row:
+                    if isinstance(child, Gtk.Label):
+                        child.set_text(slice_data.get('label', f'Slice {i + 1}'))
+                        break
+
+
+class SliceConfigDialog(Adw.Window):
+    """Dialog for configuring a single radial menu slice"""
+
+    # Available action types
+    ACTION_TYPES = [
+        ('exec', 'Run Command', 'Execute a shell command'),
+        ('url', 'Open URL', 'Open a web address'),
+        ('settings', 'Open Settings', 'Open JuhRadial settings'),
+        ('emoji', 'Emoji Picker', 'Show emoji picker'),
+        ('submenu', 'Submenu', 'Show a submenu with more options'),
+    ]
+
+    # Preset actions for quick selection
+    PRESET_ACTIONS = [
+        ('Play/Pause', 'exec', 'playerctl play-pause', 'green', 'media-playback-start-symbolic'),
+        ('Next Track', 'exec', 'playerctl next', 'green', 'media-skip-forward-symbolic'),
+        ('Previous Track', 'exec', 'playerctl previous', 'green', 'media-skip-backward-symbolic'),
+        ('Volume Up', 'exec', 'pactl set-sink-volume @DEFAULT_SINK@ +5%', 'blue', 'audio-volume-high-symbolic'),
+        ('Volume Down', 'exec', 'pactl set-sink-volume @DEFAULT_SINK@ -5%', 'blue', 'audio-volume-low-symbolic'),
+        ('Mute', 'exec', 'pactl set-sink-mute @DEFAULT_SINK@ toggle', 'blue', 'audio-volume-muted-symbolic'),
+        ('Screenshot', 'exec', 'spectacle', 'blue', 'camera-photo-symbolic'),
+        ('Screenshot Area', 'exec', 'spectacle -r', 'blue', 'camera-photo-symbolic'),
+        ('Lock Screen', 'exec', 'loginctl lock-session', 'red', 'system-lock-screen-symbolic'),
+        ('Files', 'exec', 'dolphin', 'sapphire', 'folder-symbolic'),
+        ('Terminal', 'exec', 'konsole', 'teal', 'utilities-terminal-symbolic'),
+        ('Browser', 'exec', 'xdg-open https://', 'blue', 'web-browser-symbolic'),
+        ('New Note', 'exec', 'kwrite', 'yellow', 'document-new-symbolic'),
+        ('Calculator', 'exec', 'kcalc', 'mauve', 'accessories-calculator-symbolic'),
+        ('Settings', 'settings', '', 'mauve', 'emblem-system-symbolic'),
+        ('Emoji Picker', 'emoji', '', 'pink', 'face-smile-symbolic'),
+    ]
+
+    # Available colors
+    COLORS = ['green', 'yellow', 'red', 'mauve', 'blue', 'pink', 'sapphire', 'teal']
+
+    def __init__(self, parent, slice_index, config_manager, on_save_callback=None):
+        super().__init__()
+        self.set_transient_for(parent)
+        self.set_modal(True)
+        self.set_title(f'Configure Slice {slice_index + 1}')
+        self.set_default_size(500, 600)
+
+        self.slice_index = slice_index
+        self.config_manager = config_manager
+        self.on_save_callback = on_save_callback
+
+        # Load current slice data
+        slices = config_manager.get('radial_menu.slices', default=[])
+        if slice_index < len(slices):
+            self.slice_data = slices[slice_index].copy()
+        else:
+            self.slice_data = ConfigManager.DEFAULT_CONFIG['radial_menu']['slices'][slice_index].copy()
+
+        self._build_ui()
+
+    def _build_ui(self):
+        """Build the dialog UI"""
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+
+        # Header bar
+        header = Adw.HeaderBar()
+        header.set_show_end_title_buttons(True)
+        header.set_show_start_title_buttons(False)
+
+        cancel_btn = Gtk.Button(label='Cancel')
+        cancel_btn.connect('clicked', lambda _: self.close())
+        header.pack_start(cancel_btn)
+
+        save_btn = Gtk.Button(label='Save')
+        save_btn.add_css_class('suggested-action')
+        save_btn.connect('clicked', self._on_save)
+        header.pack_end(save_btn)
+
+        main_box.append(header)
+
+        # Scrollable content
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled.set_vexpand(True)
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
+        content.set_margin_top(20)
+        content.set_margin_bottom(20)
+        content.set_margin_start(20)
+        content.set_margin_end(20)
+
+        # ===============================
+        # PRESET ACTIONS SECTION
+        # ===============================
+        preset_label = Gtk.Label(label='Quick Actions')
+        preset_label.set_halign(Gtk.Align.START)
+        preset_label.add_css_class('heading')
+        content.append(preset_label)
+
+        preset_flow = Gtk.FlowBox()
+        preset_flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        preset_flow.set_max_children_per_line(3)
+        preset_flow.set_min_children_per_line(2)
+        preset_flow.set_column_spacing(8)
+        preset_flow.set_row_spacing(8)
+
+        for label, action_type, command, color, icon in self.PRESET_ACTIONS:
+            btn = Gtk.Button()
+            btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            btn_icon = Gtk.Image.new_from_icon_name(icon)
+            btn_icon.set_pixel_size(14)
+            btn_box.append(btn_icon)
+            btn_label = Gtk.Label(label=label)
+            btn_label.set_ellipsize(Pango.EllipsizeMode.END)
+            btn_box.append(btn_label)
+            btn.set_child(btn_box)
+            btn.add_css_class('preset-btn')
+            btn.connect('clicked', lambda _, l=label, t=action_type, c=command, co=color, ic=icon:
+                        self._apply_preset(l, t, c, co, ic))
+            preset_flow.append(btn)
+
+        content.append(preset_flow)
+
+        # Separator
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        sep.set_margin_top(8)
+        sep.set_margin_bottom(8)
+        content.append(sep)
+
+        # ===============================
+        # CUSTOM CONFIGURATION
+        # ===============================
+        custom_label = Gtk.Label(label='Custom Configuration')
+        custom_label.set_halign(Gtk.Align.START)
+        custom_label.add_css_class('heading')
+        content.append(custom_label)
+
+        # Label entry
+        label_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        label_title = Gtk.Label(label='Label')
+        label_title.set_halign(Gtk.Align.START)
+        label_title.add_css_class('dim-label')
+        label_box.append(label_title)
+
+        self.label_entry = Gtk.Entry()
+        self.label_entry.set_text(self.slice_data.get('label', ''))
+        self.label_entry.set_placeholder_text('Enter action label')
+        label_box.append(self.label_entry)
+        content.append(label_box)
+
+        # Action type dropdown
+        type_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        type_title = Gtk.Label(label='Action Type')
+        type_title.set_halign(Gtk.Align.START)
+        type_title.add_css_class('dim-label')
+        type_box.append(type_title)
+
+        self.type_dropdown = Gtk.DropDown()
+        type_names = [name for _, name, _ in self.ACTION_TYPES]
+        self.type_dropdown.set_model(Gtk.StringList.new(type_names))
+
+        # Set current type
+        current_type = self.slice_data.get('type', 'exec')
+        type_ids = [tid for tid, _, _ in self.ACTION_TYPES]
+        if current_type in type_ids:
+            self.type_dropdown.set_selected(type_ids.index(current_type))
+
+        self.type_dropdown.connect('notify::selected', self._on_type_changed)
+        type_box.append(self.type_dropdown)
+        content.append(type_box)
+
+        # Command entry
+        cmd_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.cmd_title = Gtk.Label(label='Command')
+        self.cmd_title.set_halign(Gtk.Align.START)
+        self.cmd_title.add_css_class('dim-label')
+        cmd_box.append(self.cmd_title)
+
+        self.command_entry = Gtk.Entry()
+        self.command_entry.set_text(self.slice_data.get('command', ''))
+        self.command_entry.set_placeholder_text('e.g., playerctl play-pause')
+        cmd_box.append(self.command_entry)
+        self.cmd_box = cmd_box
+        content.append(cmd_box)
+
+        # Color picker
+        color_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        color_title = Gtk.Label(label='Color')
+        color_title.set_halign(Gtk.Align.START)
+        color_title.add_css_class('dim-label')
+        color_box.append(color_title)
+
+        color_flow = Gtk.FlowBox()
+        color_flow.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        color_flow.set_max_children_per_line(8)
+        color_flow.set_min_children_per_line(8)
+        color_flow.set_column_spacing(8)
+
+        self.color_buttons = {}
+        current_color = self.slice_data.get('color', 'teal')
+
+        for color in self.COLORS:
+            btn = Gtk.ToggleButton()
+            btn.set_size_request(32, 32)
+            btn.add_css_class(f'color-btn-{color}')
+            if color == current_color:
+                btn.set_active(True)
+            btn.connect('toggled', lambda b, c=color: self._on_color_selected(c, b))
+            self.color_buttons[color] = btn
+            color_flow.append(btn)
+
+        color_box.append(color_flow)
+        content.append(color_box)
+
+        # Icon selector
+        icon_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        icon_title = Gtk.Label(label='Icon')
+        icon_title.set_halign(Gtk.Align.START)
+        icon_title.add_css_class('dim-label')
+        icon_box.append(icon_title)
+
+        self.icon_entry = Gtk.Entry()
+        self.icon_entry.set_text(self.slice_data.get('icon', 'application-x-executable-symbolic'))
+        self.icon_entry.set_placeholder_text('Icon name (e.g., folder-symbolic)')
+        icon_box.append(self.icon_entry)
+        content.append(icon_box)
+
+        scrolled.set_child(content)
+        main_box.append(scrolled)
+        self.set_content(main_box)
+
+        # Update command visibility based on type
+        self._update_command_visibility()
+
+    def _apply_preset(self, label, action_type, command, color, icon):
+        """Apply a preset action"""
+        self.label_entry.set_text(label)
+        self.command_entry.set_text(command)
+        self.icon_entry.set_text(icon)
+
+        # Set type dropdown
+        type_ids = [tid for tid, _, _ in self.ACTION_TYPES]
+        if action_type in type_ids:
+            self.type_dropdown.set_selected(type_ids.index(action_type))
+
+        # Set color
+        for c, btn in self.color_buttons.items():
+            btn.set_active(c == color)
+
+    def _on_type_changed(self, dropdown, _):
+        """Handle action type change"""
+        self._update_command_visibility()
+
+    def _update_command_visibility(self):
+        """Show/hide command entry based on action type"""
+        selected = self.type_dropdown.get_selected()
+        type_id = self.ACTION_TYPES[selected][0] if selected < len(self.ACTION_TYPES) else 'exec'
+
+        # Command is needed for exec and url types
+        needs_command = type_id in ('exec', 'url')
+        self.cmd_box.set_visible(needs_command)
+
+        if type_id == 'url':
+            self.cmd_title.set_text('URL')
+            self.command_entry.set_placeholder_text('e.g., https://claude.ai')
+        else:
+            self.cmd_title.set_text('Command')
+            self.command_entry.set_placeholder_text('e.g., playerctl play-pause')
+
+    def _on_color_selected(self, color, button):
+        """Handle color selection - ensure only one is selected"""
+        if button.get_active():
+            for c, btn in self.color_buttons.items():
+                if c != color and btn.get_active():
+                    btn.set_active(False)
+
+    def _on_save(self, button):
+        """Save the slice configuration"""
+        # Get selected type
+        selected_type = self.type_dropdown.get_selected()
+        type_id = self.ACTION_TYPES[selected_type][0] if selected_type < len(self.ACTION_TYPES) else 'exec'
+
+        # Get selected color
+        selected_color = 'teal'
+        for color, btn in self.color_buttons.items():
+            if btn.get_active():
+                selected_color = color
+                break
+
+        # Build slice data
+        new_slice = {
+            'label': self.label_entry.get_text() or f'Slice {self.slice_index + 1}',
+            'type': type_id,
+            'command': self.command_entry.get_text(),
+            'color': selected_color,
+            'icon': self.icon_entry.get_text() or 'application-x-executable-symbolic',
+        }
+
+        # Update config
+        slices = self.config_manager.get('radial_menu.slices', default=[])
+
+        # Ensure we have 8 slices
+        while len(slices) < 8:
+            slices.append(ConfigManager.DEFAULT_CONFIG['radial_menu']['slices'][len(slices)])
+
+        slices[self.slice_index] = new_slice
+        self.config_manager.set('radial_menu.slices', slices)
+        self.config_manager.save()
+
+        # Call callback to refresh UI
+        if self.on_save_callback:
+            self.on_save_callback()
+
+        self.close()
 
 
 class DPIVisualSlider(Gtk.Box):
@@ -1432,6 +2773,59 @@ class ScrollPage(Gtk.ScrolledWindow):
         smooth_row.set_control(smooth_switch)
         scroll_card.append(smooth_row)
 
+        # Separator before scroll speed
+        sep3 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        sep3.set_margin_top(16)
+        sep3.set_margin_bottom(16)
+        scroll_card.append(sep3)
+
+        # Scroll Speed slider
+        scroll_speed_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+
+        scroll_speed_label_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        scroll_speed_label = Gtk.Label(label='Scroll Speed')
+        scroll_speed_label.set_halign(Gtk.Align.START)
+        scroll_speed_label.add_css_class('heading')
+        scroll_speed_label_box.append(scroll_speed_label)
+
+        spacer_speed = Gtk.Box()
+        spacer_speed.set_hexpand(True)
+        scroll_speed_label_box.append(spacer_speed)
+
+        self.scroll_speed_value = Gtk.Label()
+        self.scroll_speed_value.add_css_class('dim-label')
+        scroll_speed_label_box.append(self.scroll_speed_value)
+        scroll_speed_box.append(scroll_speed_label_box)
+
+        scroll_speed_desc = Gtk.Label(label='Control scroll wheel resolution (fewer events = slower scrolling)')
+        scroll_speed_desc.set_halign(Gtk.Align.START)
+        scroll_speed_desc.set_wrap(True)
+        scroll_speed_desc.set_max_width_chars(50)
+        scroll_speed_desc.add_css_class('dim-label')
+        scroll_speed_box.append(scroll_speed_desc)
+
+        scroll_speed_slider_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        slow_label = Gtk.Label(label='Slow')
+        slow_label.add_css_class('dim-label')
+        scroll_speed_slider_box.append(slow_label)
+
+        # Slider from 10 to 200 (percentage), default 100 (normal)
+        self.scroll_speed_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 10, 200, 5)
+        self.scroll_speed_scale.set_hexpand(True)
+        self.scroll_speed_scale.set_draw_value(False)
+        self.scroll_speed_scale.set_value(config.get('scroll', 'speed', default=100))
+        self.scroll_speed_scale.add_mark(100, Gtk.PositionType.BOTTOM, None)  # Mark at 100% (normal)
+        self.scroll_speed_scale.connect('value-changed', self._on_scroll_speed_changed)
+        self._update_scroll_speed_label(self.scroll_speed_scale.get_value())
+        scroll_speed_slider_box.append(self.scroll_speed_scale)
+
+        fast_label = Gtk.Label(label='Fast')
+        fast_label.add_css_class('dim-label')
+        scroll_speed_slider_box.append(fast_label)
+
+        scroll_speed_box.append(scroll_speed_slider_box)
+        scroll_card.append(scroll_speed_box)
+
         content.append(scroll_card)
 
         # ═══════════════════════════════════════════════════════════════
@@ -1552,6 +2946,87 @@ class ScrollPage(Gtk.ScrolledWindow):
         except Exception:
             pass
         return False
+
+    def _on_scroll_speed_changed(self, scale):
+        """Handle scroll speed slider change
+
+        Uses Solaar to control MX Master 4 scroll speed via HID++:
+        - hires-smooth-resolution: On = fast (many events), Off = slow (fewer events)
+        - Slider maps: 10-50% = slow (hires off), 51-200% = fast (hires on)
+        """
+        value = int(scale.get_value())
+        config.set('scroll', 'speed', value)
+        self._update_scroll_speed_label(value)
+        # Apply via Solaar HID++ command
+        self._apply_scroll_speed_solaar(value)
+
+    def _update_scroll_speed_label(self, value):
+        """Update the scroll speed percentage label"""
+        if value <= 50:
+            self.scroll_speed_value.set_text(f'{int(value)}% (Slow)')
+        else:
+            self.scroll_speed_value.set_text(f'{int(value)}% (Fast)')
+
+    def _apply_scroll_speed_solaar(self, speed_percent):
+        """Apply scroll speed to MX Master 4 via Solaar HID++ commands
+
+        Controls the hires-smooth-resolution setting:
+        - True (on): High-resolution mode, many scroll events = fast scrolling
+        - False (off): Low-resolution mode, fewer scroll events = slow scrolling
+
+        Slider mapping:
+        - 10-50%: hires-smooth-resolution = false (slow)
+        - 51-200%: hires-smooth-resolution = true (fast/normal)
+        """
+        import subprocess
+        import shutil
+
+        # Check if solaar is available (used for HID++ communication)
+        solaar_path = shutil.which('solaar')
+        if not solaar_path:
+            print("solaar not found - cannot control scroll speed")
+            if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
+                self.status_icon.set_from_icon_name('dialog-warning-symbolic')
+                self.status_label.set_text('Install solaar package')
+                GLib.timeout_add(3000, self._reset_status)
+            return
+
+        try:
+            # Determine hires mode based on slider position
+            # 50% or below = slow (hires off), above 50% = fast (hires on)
+            hires_enabled = speed_percent > 50
+            hires_value = 'true' if hires_enabled else 'false'
+
+            # Apply via Solaar
+            result = subprocess.run(
+                [solaar_path, 'config', 'MX Master 4', 'hires-smooth-resolution', hires_value],
+                capture_output=True, text=True, timeout=10
+            )
+
+            if result.returncode == 0:
+                mode = 'Fast (HiRes)' if hires_enabled else 'Slow (Standard)'
+                print(f"Applied scroll speed: {mode}")
+                if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
+                    self.status_icon.set_from_icon_name('emblem-ok-symbolic')
+                    self.status_label.set_text(f'Scroll: {mode}')
+                    GLib.timeout_add(2000, self._reset_status)
+            else:
+                print(f"Solaar error: {result.stderr}")
+                # Try alternative device name
+                result2 = subprocess.run(
+                    [solaar_path, 'config', 'MX Master 4', 'hires-smooth-resolution', hires_value],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result2.returncode != 0:
+                    if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
+                        self.status_icon.set_from_icon_name('dialog-warning-symbolic')
+                        self.status_label.set_text('Mouse not found')
+                        GLib.timeout_add(3000, self._reset_status)
+
+        except subprocess.TimeoutExpired:
+            print("Solaar command timed out")
+        except Exception as e:
+            print(f"Failed to apply scroll speed: {e}")
 
     def _apply_pointer_speed(self, dpi):
         """Apply pointer speed via gsettings (-1.0 to 1.0)"""
@@ -1769,30 +3244,28 @@ class SettingsPage(Gtk.ScrolledWindow):
         # Appearance settings
         appearance_card = SettingsCard('Appearance')
 
-        theme_row = SettingRow('Theme', 'Choose the color theme for the radial menu')
+        theme_row = SettingRow('Theme', 'Choose color theme for radial menu and settings')
         theme_dropdown = Gtk.DropDown()
         theme_options = Gtk.StringList.new([
-            'Catppuccin Mocha',   # Dark
-            'Catppuccin Latte',   # Light
-            'Nord',               # Dark
-            'Dracula',            # Dark
-            'Light',              # Clean white
-            'Solarized Light',    # Light
-            'GitHub Light',       # Light
-            'System'
+            'JuhRadial MX (Premium)',  # Premium cyan theme
+            'Catppuccin Mocha',        # Dark
+            'Nord',                    # Arctic bluish
+            'Dracula',                 # Purple accents
+            'Catppuccin Latte',        # Light
+            'GitHub Light',            # Light
+            'Solarized Light',         # Light
         ])
         theme_dropdown.set_model(theme_options)
         # Set current theme
-        current_theme = config.get('theme', default='catppuccin-mocha')
+        current_theme = config.get('theme', default='juhradial-mx')
         theme_map = {
-            'catppuccin-mocha': 0,
-            'catppuccin-latte': 1,
+            'juhradial-mx': 0,
+            'catppuccin-mocha': 1,
             'nord': 2,
             'dracula': 3,
-            'light': 4,
-            'solarized-light': 5,
-            'github-light': 6,
-            'system': 7
+            'catppuccin-latte': 4,
+            'github-light': 5,
+            'solarized-light': 6,
         }
         theme_dropdown.set_selected(theme_map.get(current_theme, 0))
         theme_dropdown.connect('notify::selected', self._on_theme_changed)
@@ -1884,24 +3357,26 @@ class SettingsPage(Gtk.ScrolledWindow):
         self.set_child(content)
 
     def _on_theme_changed(self, dropdown, _):
-        """Handle theme selection change"""
+        """Handle theme selection change - applies to both overlay and settings"""
         import subprocess
 
         theme_values = [
+            'juhradial-mx',
             'catppuccin-mocha',
-            'catppuccin-latte',
             'nord',
             'dracula',
-            'light',
-            'solarized-light',
+            'catppuccin-latte',
             'github-light',
-            'system'
+            'solarized-light',
         ]
         selected = dropdown.get_selected()
         if 0 <= selected < len(theme_values):
             theme = theme_values[selected]
             config.set('theme', theme)
             print(f"Theme changed to: {theme}")
+
+            # Reload CSS for the settings window
+            self._reload_theme_css()
 
             # Restart the overlay to apply the new theme
             try:
@@ -1915,6 +3390,26 @@ class SettingsPage(Gtk.ScrolledWindow):
                 print("Overlay restarted with new theme")
             except Exception as e:
                 print(f"Could not restart overlay: {e}")
+
+    def _reload_theme_css(self):
+        """Reload CSS with new theme colors"""
+        global COLORS
+        # Reload colors from the new theme
+        COLORS = load_colors()
+
+        # Regenerate CSS with new colors
+        new_css = generate_css()
+
+        # Apply new CSS
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(new_css.encode())
+
+        # Get the display and apply
+        display = Gdk.Display.get_default()
+        Gtk.StyleContext.add_provider_for_display(
+            display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        print("Settings CSS reloaded with new theme")
 
     def _on_startup_changed(self, switch, state):
         """Handle start at login toggle"""
@@ -2368,8 +3863,11 @@ class SettingsWindow(Adw.ApplicationWindow):
         # Select first nav item
         self._on_nav_clicked('buttons')
 
-        # Start battery update timer (every 10 seconds for responsive charging status)
-        GLib.timeout_add_seconds(10, self._update_battery)
+        # Setup UPower signal monitoring for instant battery updates (system events)
+        self._setup_upower_signals()
+        # Start battery update timer (2 seconds for responsive charging status)
+        # This frequent polling is fine since settings window is only open briefly
+        GLib.timeout_add_seconds(2, self._update_battery)
         # Initial battery update
         GLib.idle_add(self._update_battery)
 
@@ -2396,6 +3894,68 @@ class SettingsWindow(Adw.ApplicationWindow):
             print(f"Failed to connect to D-Bus: {e}")
             self.dbus_proxy = None
 
+    def _setup_upower_signals(self):
+        """Setup UPower D-Bus signals for instant battery charging updates"""
+        try:
+            system_bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+
+            # Subscribe to UPower device changed signals
+            # This catches battery state changes (charging/discharging)
+            system_bus.signal_subscribe(
+                'org.freedesktop.UPower',          # sender
+                'org.freedesktop.DBus.Properties', # interface
+                'PropertiesChanged',               # signal name
+                None,                              # object path (all devices)
+                None,                              # arg0 (interface name filter)
+                Gio.DBusSignalFlags.NONE,
+                self._on_upower_changed,           # callback
+                None                               # user data
+            )
+
+            # Also listen for device added/removed (e.g., USB charger connected)
+            system_bus.signal_subscribe(
+                'org.freedesktop.UPower',
+                'org.freedesktop.UPower',
+                'DeviceAdded',
+                '/org/freedesktop/UPower',
+                None,
+                Gio.DBusSignalFlags.NONE,
+                self._on_upower_device_event,
+                None
+            )
+            system_bus.signal_subscribe(
+                'org.freedesktop.UPower',
+                'org.freedesktop.UPower',
+                'DeviceRemoved',
+                '/org/freedesktop/UPower',
+                None,
+                Gio.DBusSignalFlags.NONE,
+                self._on_upower_device_event,
+                None
+            )
+
+            print("UPower signal monitoring enabled for instant battery updates")
+        except Exception as e:
+            print(f"Could not setup UPower signals: {e}")
+            print("Falling back to polling only")
+
+    def _on_upower_changed(self, connection, sender, path, interface, signal, params, user_data):
+        """Handle UPower property changes - triggers instant battery update"""
+        # Only respond to battery-related property changes
+        if params:
+            changed_props = params.unpack()
+            if len(changed_props) > 0:
+                interface_name = changed_props[0]
+                # Check if this is a battery device property change
+                if 'UPower' in interface_name or 'Device' in interface_name:
+                    # Schedule immediate battery update on main thread
+                    GLib.idle_add(self._update_battery)
+
+    def _on_upower_device_event(self, connection, sender, path, interface, signal, params, user_data):
+        """Handle UPower device added/removed - charger connected/disconnected"""
+        # Immediate battery update when a device is added/removed
+        GLib.idle_add(self._update_battery)
+
     def _update_battery(self):
         """Fetch battery status from daemon via D-Bus"""
         if self.dbus_proxy is None or self.battery_label is None or not self._battery_available:
@@ -2412,7 +3972,12 @@ class SettingsWindow(Adw.ApplicationWindow):
             )
             if result:
                 percentage, is_charging = result.unpack()
-                self.battery_label.set_label(f'{percentage}%')
+
+                # Show charging indicator in label with ⚡ symbol
+                if is_charging:
+                    self.battery_label.set_label(f'⚡ {percentage}%')
+                else:
+                    self.battery_label.set_label(f'{percentage}%')
 
                 # Update icon based on level and charging status
                 if is_charging:
@@ -2447,10 +4012,15 @@ class SettingsWindow(Adw.ApplicationWindow):
         return True  # Keep timer running
 
     def _create_title_widget(self):
-        """Create the title widget with logo and app name for the header bar"""
-        # Container for logo + text
-        title_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        """Create the premium title widget with logo, app name, and device badge"""
+        # Main container
+        title_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
         title_box.set_valign(Gtk.Align.CENTER)
+
+        # Logo container with glow effect
+        logo_container = Gtk.Box()
+        logo_container.add_css_class('logo-container')
+        logo_container.set_valign(Gtk.Align.CENTER)
 
         # JuhRadial MX header: logo icon + text
         script_dir = Path(__file__).resolve().parent
@@ -2462,27 +4032,60 @@ class SettingsWindow(Adw.ApplicationWindow):
 
         # Load logo icon with proper scaling
         from gi.repository import GdkPixbuf
+        logo_loaded = False
         for img_path in logo_paths:
             if img_path.exists():
                 try:
-                    # Load and scale to 28px height, preserve aspect ratio
+                    # Load and scale to 32px height, preserve aspect ratio
                     pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                        str(img_path), -1, 28, True
+                        str(img_path), -1, 32, True
                     )
                     texture = Gdk.Texture.new_for_pixbuf(pixbuf)
                     logo_widget = Gtk.Picture.new_for_paintable(texture)
                     logo_widget.set_valign(Gtk.Align.CENTER)
-                    title_box.append(logo_widget)
+                    logo_container.append(logo_widget)
+                    logo_loaded = True
                     print(f"Header logo loaded from: {img_path}")
                 except Exception as e:
                     print(f"Failed to load header logo: {e}")
                 break
 
-        # Add text label
-        title = Gtk.Label(label='JuhRadial MX')
-        title.add_css_class('title-2')
-        title.set_valign(Gtk.Align.CENTER)
-        title_box.append(title)
+        # Fallback icon if logo not loaded
+        if not logo_loaded:
+            fallback_icon = Gtk.Image.new_from_icon_name('input-mouse-symbolic')
+            fallback_icon.set_pixel_size(28)
+            logo_container.append(fallback_icon)
+
+        title_box.append(logo_container)
+
+        # Text content - title and subtitle
+        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        text_box.set_valign(Gtk.Align.CENTER)
+
+        # App title with accent color on "MX"
+        title = Gtk.Label()
+        title.set_markup(f'<span weight="800" size="large">JuhRadial</span> <span weight="800" size="large" color="{COLORS["accent"]}">MX</span>')
+        title.set_halign(Gtk.Align.START)
+        text_box.append(title)
+
+        # Subtitle
+        subtitle = Gtk.Label(label='MOUSE CONFIGURATION')
+        subtitle.add_css_class('app-subtitle')
+        subtitle.set_halign(Gtk.Align.START)
+        text_box.append(subtitle)
+
+        title_box.append(text_box)
+
+        # Vertical divider
+        divider = Gtk.Box()
+        divider.add_css_class('header-divider')
+        title_box.append(divider)
+
+        # Device badge
+        device_badge = Gtk.Label(label='MX MASTER 3S')
+        device_badge.add_css_class('device-badge')
+        device_badge.set_valign(Gtk.Align.CENTER)
+        title_box.append(device_badge)
 
         return title_box
 
@@ -2580,7 +4183,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         buttons_page.append(mouse_viz)
 
         # Settings panel (right side)
-        self.buttons_settings = ButtonsPage(on_button_config=self._on_mouse_button_click, parent_window=self)
+        self.buttons_settings = ButtonsPage(on_button_config=self._on_mouse_button_click, parent_window=self, config_manager=config)
         self.buttons_settings.set_size_request(400, -1)
         buttons_page.append(self.buttons_settings)
 
@@ -2597,20 +4200,18 @@ class SettingsWindow(Adw.ApplicationWindow):
         status = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
         status.add_css_class('status-bar')
 
-        # Battery
+        # Battery section
         battery_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+
+        # Battery icon (left of percentage)
+        self.battery_icon = Gtk.Image.new_from_icon_name('battery-good-symbolic')
+        self.battery_icon.add_css_class('battery-icon')
+        battery_box.append(self.battery_icon)
 
         # Store as instance variables for D-Bus updates
         self.battery_label = Gtk.Label(label='--')
         self.battery_label.add_css_class('battery-indicator')
         battery_box.append(self.battery_label)
-
-        self.battery_icon = Gtk.Image.new_from_icon_name('battery-good-symbolic')
-        battery_box.append(self.battery_icon)
-
-        # Bolt indicator
-        bolt_icon = Gtk.Image.new_from_icon_name('bluetooth-active-symbolic')
-        battery_box.append(bolt_icon)
 
         status.append(battery_box)
 
@@ -2619,10 +4220,19 @@ class SettingsWindow(Adw.ApplicationWindow):
         spacer.set_hexpand(True)
         status.append(spacer)
 
-        # Connection status
-        conn_label = Gtk.Label(label='Connected via Bolt USB Receiver')
-        conn_label.add_css_class('connection-status')
-        status.append(conn_label)
+        # Connection status with icon
+        conn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+
+        # Connection icon (USB receiver)
+        self.conn_icon = Gtk.Image.new_from_icon_name('network-wireless-signal-excellent-symbolic')
+        self.conn_icon.add_css_class('connection-icon')
+        conn_box.append(self.conn_icon)
+
+        self.conn_label = Gtk.Label(label='Logi Bolt USB')
+        self.conn_label.add_css_class('connection-status')
+        conn_box.append(self.conn_label)
+
+        status.append(conn_box)
 
         return status
 

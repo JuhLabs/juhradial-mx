@@ -283,24 +283,47 @@ impl BatteryHandler {
         let function = if self.is_unified_battery { 0x01 } else { 0x00 };
         let response = self.hidpp_request(feature_index, function, &[])?;
 
-        if response.len() >= 7 {
-            let percentage = response[4];
-            let charging_status = response[6];
+        // Log raw response for debugging
+        tracing::info!(
+            response_len = response.len(),
+            is_unified = self.is_unified_battery,
+            "Battery response: {:02X?}",
+            &response[..response.len().min(12)]
+        );
 
-            // For UNIFIED_BATTERY: charging_status: 0=discharging, 1=charging, 2=charging_slow, 3=charging_complete
-            // For BATTERY_STATUS: status: 0=discharging, 1-4=various charging states
-            let charging = if self.is_unified_battery {
-                charging_status >= 1 && charging_status <= 3
-            } else {
-                charging_status >= 1 && charging_status <= 4
-            };
+        // HID++ UNIFIED_BATTERY (0x1004) response format:
+        // [0] report_type, [1] device_index, [2] feature_index, [3] function_id
+        // [4] state_of_charge (percentage), [5] level (0-4), [6] flags, [7] charging_status
+        //
+        // HID++ BATTERY_STATUS (0x1000) response format:
+        // [4] level, [5] next_level, [6] status
+        if response.len() >= 8 && self.is_unified_battery {
+            let percentage = response[4];
+            let charging_status = response[7]; // Charging status is at byte 7 for UNIFIED_BATTERY
+
+            // UNIFIED_BATTERY charging_status: 0=discharging, 1=charging, 2=charging_slow, 3=charging_complete, 5=invalid
+            let charging = charging_status >= 1 && charging_status <= 3;
 
             tracing::debug!(
                 percentage,
                 charging_status,
                 charging,
-                is_unified = self.is_unified_battery,
-                "Battery query result"
+                "Battery query result (UNIFIED_BATTERY)"
+            );
+
+            Ok((percentage, charging))
+        } else if response.len() >= 7 {
+            let percentage = response[4];
+            let charging_status = response[6];
+
+            // BATTERY_STATUS status: 0=discharging, 1-4=various charging states
+            let charging = charging_status >= 1 && charging_status <= 4;
+
+            tracing::debug!(
+                percentage,
+                charging_status,
+                charging,
+                "Battery query result (BATTERY_STATUS)"
             );
 
             Ok((percentage, charging))
@@ -363,8 +386,9 @@ pub async fn start_battery_updater(state: SharedBatteryState) {
     // Initial update
     handler.update_state().await;
 
-    // Update every 10 seconds for responsive charging status
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
+    // Update every 2 seconds for instant charging status detection
+    // HID++ queries are lightweight, so frequent polling is acceptable
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
 
     loop {
         interval.tick().await;
