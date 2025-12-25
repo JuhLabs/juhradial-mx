@@ -191,24 +191,9 @@ def load_ai_icons():
 
 
 def open_settings():
-    """Launch the settings dashboard (singleton - only one instance allowed)"""
-    # Check if settings is already running
-    try:
-        result = subprocess.run(
-            ["pgrep", "-f", "settings_dashboard.py"],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            print("Settings already running, focusing existing window")
-            # Try to focus the existing window using wmctrl
-            subprocess.run(
-                ["wmctrl", "-a", "JuhRadial"],
-                capture_output=True
-            )
-            return
-    except Exception:
-        pass
-
+    """Launch the settings dashboard (GTK4 handles single-instance via D-Bus)"""
+    # GTK4/Adwaita application handles single-instance automatically
+    # If settings is already running, it will activate the existing window
     settings_script = os.path.join(os.path.dirname(__file__), "settings_dashboard.py")
     subprocess.Popen(["python3", settings_script],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

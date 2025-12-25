@@ -86,6 +86,14 @@ pub mod features {
     /// Users want their DPI setting to be remembered across reboots.
     /// Functions: [0] getSensorCount, [1] getSensorDpiList, [2] getSensorDpi, [3] setSensorDpi
     pub const ADJUSTABLE_DPI: u16 = 0x2201;
+    /// HiResScroll - High-resolution scroll with SmartShift (MX Master 3/4)
+    /// This is used by newer mice (MX Master 3, 3S, 4) for ratchet/free-spin control.
+    /// Functions: [0] getMode, [1] setMode (contains ratchet mode control)
+    pub const HIRES_SCROLL: u16 = 0x2111;
+
+    /// SmartShift Legacy - For older mice (MX Master 2S and earlier)
+    /// Functions: [0] getRatchetControlMode, [1] setRatchetControlMode
+    pub const SMARTSHIFT_LEGACY: u16 = 0x2110;
 }
 
 /// BLOCKLISTED HID++ feature IDs - NEVER use these!
@@ -414,6 +422,10 @@ pub struct HidppDevice {
     dpi_supported: bool,
     /// Adjustable DPI feature index (0x2201)
     dpi_feature_index: Option<u8>,
+    /// Whether SmartShift feature is available (0x2110)
+    smartshift_supported: bool,
+    /// SmartShift feature index (0x2110)
+    smartshift_feature_index: Option<u8>,
     /// Whether unified battery feature is available (0x1004)
     battery_supported: bool,
     /// Battery feature index (0x1004 or 0x1000)
@@ -567,6 +579,8 @@ impl HidppDevice {
                 mx4_haptic_feature_index: None,
                 dpi_supported: false,
                 dpi_feature_index: None,
+                smartshift_supported: false,
+                smartshift_feature_index: None,
                 battery_supported: false,
                 battery_feature_index: None,
                 is_unified_battery: false,
@@ -881,6 +895,29 @@ impl HidppDevice {
                     );
                 }
 
+                // Check for HiResScroll feature (0x2111) - MX Master 3/4 SmartShift control
+                if feature_id == features::HIRES_SCROLL {
+                    self.smartshift_supported = true;
+                    self.smartshift_feature_index = Some(feature_index);
+                    tracing::info!(
+                        index = feature_index,
+                        "HiResScroll feature found (0x2111) - SmartShift control available"
+                    );
+                }
+
+                // Also check for legacy SmartShift feature (0x2110) for older mice
+                if feature_id == features::SMARTSHIFT_LEGACY {
+                    // Only set if not already detected via HiResScroll
+                    if !self.smartshift_supported {
+                        self.smartshift_supported = true;
+                        self.smartshift_feature_index = Some(feature_index);
+                        tracing::info!(
+                            index = feature_index,
+                            "Legacy SmartShift feature found (0x2110)"
+                        );
+                    }
+                }
+
                 // Check for UNIFIED_BATTERY feature (0x1004) - preferred for MX Master 4
                 if feature_id == features::UNIFIED_BATTERY {
                     self.battery_supported = true;
@@ -910,6 +947,7 @@ impl HidppDevice {
             legacy_haptic = self.haptic_supported,
             mx4_haptic = self.mx4_haptic_supported,
             dpi = self.dpi_supported,
+            smartshift = self.smartshift_supported,
             battery = self.battery_supported,
             "Feature enumeration complete (blocklisted features excluded)"
         );
@@ -1159,6 +1197,118 @@ impl HidppDevice {
             tracing::debug!(dpi_list = ?dpi_list, "Got DPI list");
             Some(dpi_list)
         })
+    }
+
+    /// Check if SmartShift is supported
+    pub fn smartshift_supported(&self) -> bool {
+        self.smartshift_supported
+    }
+
+    /// Get SmartShift configuration
+    ///
+    /// Returns the current SmartShift wheel mode and auto-disengage threshold.
+    ///
+    /// # Returns
+    /// Some((wheel_mode, auto_disengage, auto_disengage_default)) where:
+    /// - wheel_mode: 1 = Freespin, 2 = Ratchet
+    /// - auto_disengage: Threshold for automatic ratchet disengagement (1-254 = N/4 turns/sec, 255 = always engaged)
+    /// - auto_disengage_default: Default threshold stored in device
+    /// None if SmartShift is not supported
+    pub fn get_smartshift(&mut self) -> Option<(u8, u8, u8)> {
+        let feature_index = self.smartshift_feature_index?;
+
+        tracing::debug!(feature_index, "Getting SmartShift config from device");
+
+        // Function [0] getRatchetControlMode() -> wheelMode, autoDisengage, autoDisengageDefault
+        let params = [0x00, 0x00, 0x00];
+
+        self.hidpp_request(feature_index, 0x00, &params).and_then(|resp| {
+            if resp.len() >= 7 {
+                // Response: [report_type, device_idx, feature_idx, fn_sw_id, wheel_mode, auto_disengage, auto_disengage_default, ...]
+                let wheel_mode = resp[4];
+                let auto_disengage = resp[5];
+                let auto_disengage_default = resp[6];
+
+                tracing::debug!(
+                    wheel_mode,
+                    auto_disengage,
+                    auto_disengage_default,
+                    "Got SmartShift config"
+                );
+                Some((wheel_mode, auto_disengage, auto_disengage_default))
+            } else {
+                tracing::warn!("Invalid getRatchetControlMode response length: {}", resp.len());
+                None
+            }
+        })
+    }
+
+    /// Set SmartShift configuration
+    ///
+    /// Configures the wheel mode and auto-disengage threshold.
+    ///
+    /// # Arguments
+    /// * `wheel_mode` - 0 = no change, 1 = Freespin, 2 = Ratchet
+    /// * `auto_disengage` - 0 = no change, 1-254 = N/4 turns/sec threshold, 255 = always engaged
+    /// * `auto_disengage_default` - 0 = no change, 1-254 = default threshold, 255 = always engaged
+    ///
+    /// # Returns
+    /// Ok(()) on success, error on failure
+    pub fn set_smartshift(
+        &mut self,
+        wheel_mode: u8,
+        auto_disengage: u8,
+        auto_disengage_default: u8,
+    ) -> Result<(), HapticError> {
+        let feature_index = match self.smartshift_feature_index {
+            Some(idx) => idx,
+            None => {
+                tracing::debug!("SmartShift not supported on this device");
+                return Err(HapticError::NotSupported);
+            }
+        };
+
+        tracing::info!(
+            feature_index,
+            wheel_mode,
+            auto_disengage,
+            auto_disengage_default,
+            "Setting SmartShift config"
+        );
+
+        // Function [1] setRatchetControlMode(wheelMode, autoDisengage, autoDisengageDefault)
+        let params = [wheel_mode, auto_disengage, auto_disengage_default];
+
+        match self.hidpp_request(feature_index, 0x01, &params) {
+            Some(resp) if resp.len() >= 7 => {
+                // Response echoes the parameters
+                let returned_wheel_mode = resp[4];
+                let returned_auto_disengage = resp[5];
+                let returned_auto_disengage_default = resp[6];
+
+                tracing::debug!(
+                    returned_wheel_mode,
+                    returned_auto_disengage,
+                    returned_auto_disengage_default,
+                    "SmartShift config set successfully"
+                );
+                Ok(())
+            }
+            Some(resp) => {
+                tracing::warn!("Invalid setRatchetControlMode response length: {}", resp.len());
+                Err(HapticError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Invalid SmartShift response",
+                )))
+            }
+            None => {
+                tracing::warn!("Failed to set SmartShift config");
+                Err(HapticError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Failed to set SmartShift",
+                )))
+            }
+        }
     }
 
     /// Query battery status from the device
@@ -2172,6 +2322,110 @@ impl HapticManager {
         }
         self.device.as_mut().and_then(|d| d.get_dpi_list())
     }
+
+    // =========================================================================
+    // SmartShift Methods (delegated to HidppDevice)
+    // =========================================================================
+
+    /// Check if SmartShift is supported
+    pub fn smartshift_supported(&mut self) -> bool {
+        // Try to connect if not connected
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_ref().map(|d| d.smartshift_supported()).unwrap_or(false)
+    }
+
+    /// Get SmartShift configuration
+    ///
+    /// Returns the current SmartShift wheel mode and auto-disengage threshold.
+    ///
+    /// # Returns
+    /// Some((wheel_mode, auto_disengage, auto_disengage_default)) where:
+    /// - wheel_mode: 1 = Freespin, 2 = Ratchet
+    /// - auto_disengage: Threshold for automatic ratchet disengagement (1-254 = N/4 turns/sec, 255 = always engaged)
+    /// - auto_disengage_default: Default threshold stored in device
+    /// None if SmartShift is not supported or device not connected
+    pub fn get_smartshift(&mut self) -> Option<(u8, u8, u8)> {
+        // Try to connect if not connected
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_mut().and_then(|d| d.get_smartshift())
+    }
+
+    /// Set SmartShift configuration
+    ///
+    /// Configures the wheel mode and auto-disengage threshold.
+    ///
+    /// # Arguments
+    /// * `wheel_mode` - 0 = no change, 1 = Freespin, 2 = Ratchet
+    /// * `auto_disengage` - 0 = no change, 1-254 = N/4 turns/sec threshold, 255 = always engaged
+    /// * `auto_disengage_default` - 0 = no change, 1-254 = default threshold, 255 = always engaged
+    ///
+    /// # Returns
+    /// Ok(()) on success, error on failure
+    pub fn set_smartshift(
+        &mut self,
+        wheel_mode: u8,
+        auto_disengage: u8,
+        auto_disengage_default: u8,
+    ) -> Result<(), HapticError> {
+        // Try to connect if not connected
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        match self.device.as_mut() {
+            Some(device) => device.set_smartshift(wheel_mode, auto_disengage, auto_disengage_default),
+            None => {
+                tracing::warn!("Cannot set SmartShift: device not connected");
+                Err(HapticError::DeviceNotFound)
+            }
+        }
+    }
+
+    /// Get SmartShift configuration (simplified API for DBus)
+    ///
+    /// Returns simplified SmartShift state for DBus interface.
+    ///
+    /// # Returns
+    /// Some((enabled, threshold)) where:
+    /// - enabled: true if in Freespin mode (auto-mode), false if in Ratchet mode
+    /// - threshold: auto-disengage threshold (inverted: 255 - raw_threshold for user-friendly 0-255 scale)
+    /// None if SmartShift is not supported or device not connected
+    pub fn get_smart_shift(&mut self) -> Option<(bool, u8)> {
+        self.get_smartshift().map(|(wheel_mode, auto_disengage, _default)| {
+            // wheel_mode: 1 = Freespin (enabled), 2 = Ratchet (disabled)
+            let enabled = wheel_mode == 1;
+            // Invert threshold for user-friendly scale (0 = most sensitive, 255 = least sensitive)
+            let threshold = 255u8.saturating_sub(auto_disengage);
+            (enabled, threshold)
+        })
+    }
+
+    /// Set SmartShift configuration (simplified API for DBus)
+    ///
+    /// Simplified SmartShift setter for DBus interface.
+    ///
+    /// # Arguments
+    /// * `enabled` - true for Freespin mode (auto-mode), false for Ratchet mode
+    /// * `threshold` - sensitivity threshold (0-255 scale, inverted to HID++ format)
+    ///   0 = most sensitive, 255 = least sensitive
+    ///
+    /// # Returns
+    /// Ok(()) on success, error on failure
+    pub fn set_smart_shift(&mut self, enabled: bool, threshold: u8) -> Result<(), HapticError> {
+        // Convert enabled to wheel_mode: true -> 1 (Freespin), false -> 2 (Ratchet)
+        let wheel_mode = if enabled { 1 } else { 2 };
+        // Invert threshold from user-friendly scale to HID++ scale
+        let auto_disengage = 255u8.saturating_sub(threshold);
+        // Set both current and default to the same value
+        self.set_smartshift(wheel_mode, auto_disengage, auto_disengage)
+    }
+
+    // =========================================================================
+    // Battery Methods (delegated to HidppDevice)
+    // =========================================================================
 
     /// Query battery status from the device
     ///

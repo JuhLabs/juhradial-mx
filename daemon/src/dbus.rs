@@ -383,6 +383,89 @@ impl JuhRadialService {
     }
 
     // =========================================================================
+    // SMARTSHIFT METHODS
+    // =========================================================================
+
+    /// Get current SmartShift configuration from the mouse
+    ///
+    /// # Returns
+    /// Tuple of (enabled: bool, threshold: u8) where:
+    /// - enabled: true if SmartShift auto-mode is enabled (auto_disengage > 0)
+    /// - threshold: sensitivity threshold (0-255), from auto_disengage value
+    /// Returns (false, 0) if SmartShift is not supported
+    async fn get_smart_shift(&self) -> fdo::Result<(bool, u8)> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                match manager.get_smartshift() {
+                    Some((_wheel_mode, auto_disengage, _auto_disengage_default)) => {
+                        // If auto_disengage > 0, SmartShift is enabled
+                        let enabled = auto_disengage > 0;
+                        // Return the threshold value
+                        let threshold = if enabled { auto_disengage } else { 30 };
+                        Ok((enabled, threshold))
+                    }
+                    None => Ok((false, 0))
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for get_smart_shift");
+                Ok((false, 0))
+            }
+        }
+    }
+
+    /// Set SmartShift configuration on the mouse
+    ///
+    /// # Arguments
+    /// * `enabled` - true to enable SmartShift auto-mode, false for manual ratchet mode
+    /// * `threshold` - sensitivity threshold (1-255), N/4 turns/sec for auto-disengage
+    ///   Typical range: 10-50, recommended: 30
+    ///
+    /// # Returns
+    /// Ok on success, error on failure
+    async fn set_smart_shift(&self, enabled: bool, threshold: u8) -> fdo::Result<()> {
+        tracing::info!(enabled, threshold, "SetSmartShift called");
+
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                // wheel_mode: 1 = freespin (allows auto-switching)
+                // auto_disengage: 0 = disabled, 1-254 = threshold, 255 = always engaged
+                let wheel_mode = 1u8; // Always use freespin mode
+                let auto_disengage = if enabled { threshold } else { 0u8 };
+                let auto_disengage_default = auto_disengage;
+
+                match manager.set_smartshift(wheel_mode, auto_disengage, auto_disengage_default) {
+                    Ok(()) => {
+                        tracing::info!(enabled, threshold, "SmartShift set successfully");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, enabled, threshold, "Failed to set SmartShift");
+                        Err(fdo::Error::Failed(format!("Failed to set SmartShift: {}", e)))
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for set_smart_shift");
+                Err(fdo::Error::Failed(format!("Lock error: {}", e)))
+            }
+        }
+    }
+
+    /// Check if SmartShift is supported on the connected device
+    async fn smart_shift_supported(&self) -> fdo::Result<bool> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                Ok(manager.smartshift_supported())
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for smart_shift_supported");
+                Ok(false)
+            }
+        }
+    }
+
+    // =========================================================================
     // PROPERTIES
     // =========================================================================
 
