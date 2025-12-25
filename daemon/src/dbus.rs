@@ -195,6 +195,7 @@ impl JuhRadialService {
     /// # Arguments
     /// * `event` - The haptic event type (menu_appear, slice_change, confirm, invalid)
     async fn trigger_haptic(&self, event: &str) -> fdo::Result<()> {
+        tracing::info!(event, "TriggerHaptic D-Bus method called");
         let haptic_event = match event {
             "menu_appear" => HapticEvent::MenuAppear,
             "slice_change" => HapticEvent::SliceChange,
@@ -206,10 +207,13 @@ impl JuhRadialService {
             }
         };
 
+        tracing::debug!("Attempting to lock haptic_manager");
         match self.haptic_manager.lock() {
             Ok(mut manager) => {
-                if let Err(e) = manager.emit(haptic_event) {
-                    tracing::debug!(error = %e, "Haptic emit failed (non-fatal)");
+                tracing::debug!("Lock acquired, calling emit()");
+                match manager.emit(haptic_event) {
+                    Ok(()) => tracing::info!("Haptic emit succeeded"),
+                    Err(e) => tracing::warn!(error = %e, "Haptic emit failed"),
                 }
             }
             Err(e) => {

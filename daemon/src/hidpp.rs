@@ -67,8 +67,10 @@ pub mod features {
     pub const I_FEATURE_SET: u16 = 0x0001;
     /// Device name and type (READ-ONLY)
     pub const DEVICE_NAME: u16 = 0x0005;
-    /// Battery status (READ-ONLY)
+    /// Battery status (READ-ONLY) - older devices
     pub const BATTERY_STATUS: u16 = 0x1000;
+    /// Unified Battery (READ-ONLY) - newer devices like MX Master 4
+    pub const UNIFIED_BATTERY: u16 = 0x1004;
     /// LED control - some devices include haptic here (RUNTIME-ONLY)
     pub const LED_CONTROL: u16 = 0x1300;
     /// Force feedback for racing wheels like G920/G923 (RUNTIME-ONLY - does NOT persist)
@@ -412,18 +414,24 @@ pub struct HidppDevice {
     dpi_supported: bool,
     /// Adjustable DPI feature index (0x2201)
     dpi_feature_index: Option<u8>,
+    /// Whether unified battery feature is available (0x1004)
+    battery_supported: bool,
+    /// Battery feature index (0x1004 or 0x1000)
+    battery_feature_index: Option<u8>,
+    /// Whether using UNIFIED_BATTERY (true) or BATTERY_STATUS (false)
+    is_unified_battery: bool,
 }
 
 impl HidppDevice {
     /// Find a Logitech hidraw device suitable for HID++ communication
     ///
-    /// Scans /sys/class/hidraw/ for Logitech devices and returns the path
-    /// to the best one for HID++ communication (prefers interface 2).
-    fn find_device() -> Option<(PathBuf, ConnectionType)> {
+    /// Scans /sys/class/hidraw/ for Logitech devices and returns ALL candidates
+    /// for HID++ communication (prefers interface 2).
+    fn find_all_devices() -> Vec<(PathBuf, ConnectionType)> {
         let hidraw_dir = PathBuf::from("/sys/class/hidraw");
         if !hidraw_dir.exists() {
             tracing::debug!("/sys/class/hidraw not found");
-            return None;
+            return Vec::new();
         }
 
         let mut candidates: Vec<(PathBuf, String, ConnectionType)> = Vec::new();
@@ -432,7 +440,7 @@ impl HidppDevice {
             Ok(e) => e,
             Err(e) => {
                 tracing::debug!(error = %e, "Failed to read /sys/class/hidraw");
-                return None;
+                return Vec::new();
             }
         };
 
@@ -472,27 +480,25 @@ impl HidppDevice {
             }
         }
 
-        // Prefer interface 2 for HID++ (typically the control interface)
+        // Sort: interface 2 devices first (preferred for HID++)
+        candidates.sort_by(|a, b| {
+            let a_is_input2 = a.1.contains("input2");
+            let b_is_input2 = b.1.contains("input2");
+            b_is_input2.cmp(&a_is_input2)
+        });
+
+        // Log all candidates
         for (dev_path, uevent, conn_type) in &candidates {
-            if uevent.contains("input2") {
-                tracing::debug!(
-                    path = %dev_path.display(),
-                    connection = %conn_type,
-                    "Found Logitech HID++ device (interface 2)"
-                );
-                return Some((dev_path.clone(), *conn_type));
-            }
+            let is_input2 = uevent.contains("input2");
+            tracing::debug!(
+                path = %dev_path.display(),
+                connection = %conn_type,
+                is_input2,
+                "Found Logitech HID++ candidate"
+            );
         }
 
-        // Fallback to first candidate
-        candidates.into_iter().next().map(|(path, _, conn_type)| {
-            tracing::debug!(
-                path = %path.display(),
-                connection = %conn_type,
-                "Found Logitech HID++ device (fallback)"
-            );
-            (path, conn_type)
-        })
+        candidates.into_iter().map(|(path, _, conn_type)| (path, conn_type)).collect()
     }
 
     /// Attempt to open and initialize an MX Master 4 device
@@ -502,77 +508,96 @@ impl HidppDevice {
     ///
     /// Uses direct hidraw access instead of hidapi for more reliable
     /// device communication (same approach as the battery module).
+    ///
+    /// Tries ALL candidate devices until one validates HID++ 2.0.
+    /// This handles setups with multiple Logitech receivers (e.g., MX Master 4
+    /// on one Bolt receiver, Keys S on another).
     pub fn open() -> Option<Self> {
-        let (device_path, connection_type) = Self::find_device()?;
+        let candidates = Self::find_all_devices();
 
-        // Determine device index based on connection type
-        let device_index = match connection_type {
-            ConnectionType::Usb => 0xFF,       // Direct USB uses 0xFF
-            ConnectionType::Bolt => 0x02,      // Bolt receiver device slot (0x02 is common for MX4)
-            ConnectionType::Unifying => 0x01,  // Unifying receiver typically 0x01
-            ConnectionType::Bluetooth => 0xFF, // Bluetooth direct uses 0xFF
-        };
-
-        // Open the device with read/write and non-blocking
-        let device = match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .custom_flags(libc::O_NONBLOCK)
-            .open(&device_path)
-        {
-            Ok(f) => f,
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::PermissionDenied {
-                    tracing::warn!(
-                        path = %device_path.display(),
-                        "Permission denied opening hidraw device. Check udev rules."
-                    );
-                } else {
-                    tracing::debug!(
-                        path = %device_path.display(),
-                        error = %e,
-                        "Failed to open hidraw device"
-                    );
-                }
-                return None;
-            }
-        };
-
-        let mut hidpp = Self {
-            device,
-            device_index,
-            connection_type,
-            feature_table: std::collections::HashMap::new(),
-            haptic_supported: false,
-            haptic_feature_index: None,
-            mx4_haptic_supported: false,
-            mx4_haptic_feature_index: None,
-            dpi_supported: false,
-            dpi_feature_index: None,
-        };
-
-        // Validate HID++ 2.0 support
-        if !hidpp.validate_hidpp20() {
-            tracing::debug!(
-                path = %device_path.display(),
-                connection = %connection_type,
-                "Device does not support HID++ 2.0"
-            );
+        if candidates.is_empty() {
+            tracing::debug!("No Logitech HID++ devices found");
             return None;
         }
 
-        // Enumerate features and check for haptic support
-        hidpp.enumerate_features();
+        tracing::debug!(count = candidates.len(), "Trying HID++ device candidates");
 
-        tracing::info!(
-            path = %device_path.display(),
-            connection = %connection_type,
-            haptic_supported = hidpp.haptic_supported,
-            mx4_haptic_supported = hidpp.mx4_haptic_supported,
-            "Connected to MX Master 4 via hidraw"
-        );
+        for (device_path, connection_type) in candidates {
+            // Determine device index based on connection type
+            let device_index = match connection_type {
+                ConnectionType::Usb => 0xFF,       // Direct USB uses 0xFF
+                ConnectionType::Bolt => 0x02,      // Bolt receiver device slot (0x02 is common for MX4)
+                ConnectionType::Unifying => 0x01,  // Unifying receiver typically 0x01
+                ConnectionType::Bluetooth => 0xFF, // Bluetooth direct uses 0xFF
+            };
 
-        Some(hidpp)
+            // Open the device with read/write and non-blocking
+            let device = match OpenOptions::new()
+                .read(true)
+                .write(true)
+                .custom_flags(libc::O_NONBLOCK)
+                .open(&device_path)
+            {
+                Ok(f) => f,
+                Err(e) => {
+                    if e.kind() == std::io::ErrorKind::PermissionDenied {
+                        tracing::warn!(
+                            path = %device_path.display(),
+                            "Permission denied opening hidraw device. Check udev rules."
+                        );
+                    } else {
+                        tracing::debug!(
+                            path = %device_path.display(),
+                            error = %e,
+                            "Failed to open hidraw device"
+                        );
+                    }
+                    continue; // Try next candidate
+                }
+            };
+
+            let mut hidpp = Self {
+                device,
+                device_index,
+                connection_type,
+                feature_table: std::collections::HashMap::new(),
+                haptic_supported: false,
+                haptic_feature_index: None,
+                mx4_haptic_supported: false,
+                mx4_haptic_feature_index: None,
+                dpi_supported: false,
+                dpi_feature_index: None,
+                battery_supported: false,
+                battery_feature_index: None,
+                is_unified_battery: false,
+            };
+
+            // Validate HID++ 2.0 support - if this fails, try next candidate
+            if !hidpp.validate_hidpp20() {
+                tracing::debug!(
+                    path = %device_path.display(),
+                    connection = %connection_type,
+                    "Device does not support HID++ 2.0, trying next candidate"
+                );
+                continue; // Try next candidate
+            }
+
+            // Enumerate features and check for haptic support
+            hidpp.enumerate_features();
+
+            tracing::info!(
+                path = %device_path.display(),
+                connection = %connection_type,
+                haptic_supported = hidpp.haptic_supported,
+                mx4_haptic_supported = hidpp.mx4_haptic_supported,
+                "Connected to MX Master 4 via hidraw"
+            );
+
+            return Some(hidpp);
+        }
+
+        tracing::debug!("No valid HID++ 2.0 device found among candidates");
+        None
     }
 
     /// Drain any pending data from the device buffer
@@ -855,6 +880,28 @@ impl HidppDevice {
                         "Adjustable DPI feature found (0x2201)"
                     );
                 }
+
+                // Check for UNIFIED_BATTERY feature (0x1004) - preferred for MX Master 4
+                if feature_id == features::UNIFIED_BATTERY {
+                    self.battery_supported = true;
+                    self.battery_feature_index = Some(feature_index);
+                    self.is_unified_battery = true;
+                    tracing::info!(
+                        index = feature_index,
+                        "Unified Battery feature found (0x1004)"
+                    );
+                }
+
+                // Check for BATTERY_STATUS feature (0x1000) - fallback for older devices
+                if feature_id == features::BATTERY_STATUS && !self.battery_supported {
+                    self.battery_supported = true;
+                    self.battery_feature_index = Some(feature_index);
+                    self.is_unified_battery = false;
+                    tracing::info!(
+                        index = feature_index,
+                        "Battery Status feature found (0x1000)"
+                    );
+                }
             }
         }
 
@@ -863,6 +910,7 @@ impl HidppDevice {
             legacy_haptic = self.haptic_supported,
             mx4_haptic = self.mx4_haptic_supported,
             dpi = self.dpi_supported,
+            battery = self.battery_supported,
             "Feature enumeration complete (blocklisted features excluded)"
         );
     }
@@ -1111,6 +1159,86 @@ impl HidppDevice {
             tracing::debug!(dpi_list = ?dpi_list, "Got DPI list");
             Some(dpi_list)
         })
+    }
+
+    /// Query battery status from the device
+    ///
+    /// # Returns
+    /// Ok((percentage, charging)) on success, or error if battery query fails.
+    /// percentage is 0-100, charging is true if device is charging.
+    pub fn query_battery(&mut self) -> Result<(u8, bool), HapticError> {
+        let feature_index = match self.battery_feature_index {
+            Some(idx) => idx,
+            None => {
+                tracing::debug!("Battery feature not supported on this device");
+                return Err(HapticError::NotSupported);
+            }
+        };
+
+        // Query battery status
+        // UNIFIED_BATTERY (0x1004): function 1 = get_status
+        // BATTERY_STATUS (0x1000): function 0 = GetBatteryLevelStatus
+        let function = if self.is_unified_battery { 0x01 } else { 0x00 };
+
+        match self.hidpp_request(feature_index, function, &[]) {
+            Some(resp) => {
+                tracing::debug!(
+                    response_len = resp.len(),
+                    is_unified = self.is_unified_battery,
+                    "Battery response: {:02X?}",
+                    &resp[..resp.len().min(12)]
+                );
+
+                // HID++ UNIFIED_BATTERY (0x1004) response format:
+                // [0] report_type, [1] device_index, [2] feature_index, [3] function_id
+                // [4] state_of_charge (percentage), [5] level (0-4), [6] flags, [7] charging_status
+                //
+                // HID++ BATTERY_STATUS (0x1000) response format:
+                // [4] level, [5] next_level, [6] status
+                if self.is_unified_battery && resp.len() >= 8 {
+                    let percentage = resp[4];
+                    let charging_status = resp[7];
+
+                    // UNIFIED_BATTERY charging_status: 0=discharging, 1=charging, 2=charging_slow, 3=charging_complete, 5=invalid
+                    let charging = charging_status >= 1 && charging_status <= 3;
+
+                    tracing::debug!(
+                        percentage,
+                        charging_status,
+                        charging,
+                        "Battery query result (UNIFIED_BATTERY)"
+                    );
+
+                    Ok((percentage, charging))
+                } else if resp.len() >= 7 {
+                    let percentage = resp[4];
+                    let charging_status = resp[6];
+
+                    // BATTERY_STATUS status: 0=discharging, 1-4=various charging states
+                    let charging = charging_status >= 1 && charging_status <= 4;
+
+                    tracing::debug!(
+                        percentage,
+                        charging_status,
+                        charging,
+                        "Battery query result (BATTERY_STATUS)"
+                    );
+
+                    Ok((percentage, charging))
+                } else {
+                    Err(HapticError::ProtocolError("Invalid battery response".into()))
+                }
+            }
+            None => {
+                tracing::warn!("No response from battery query");
+                Err(HapticError::CommunicationError)
+            }
+        }
+    }
+
+    /// Check if battery feature is supported
+    pub fn battery_supported(&self) -> bool {
+        self.battery_supported
     }
 }
 
@@ -1692,9 +1820,9 @@ impl HapticManager {
             return Ok(());
         }
 
-        // Check if device is available
+        // Check if device is available (legacy haptic OR MX4 haptic)
         let device = match &mut self.device {
-            Some(d) if d.haptic_supported() => d,
+            Some(d) if d.haptic_supported() || d.mx4_haptic_supported() => d,
             _ => {
                 // No device or haptics not supported - succeed silently
                 return Ok(());
@@ -1750,16 +1878,23 @@ impl HapticManager {
     ///
     /// CRITICAL: This method MUST NOT write to onboard mouse memory.
     pub fn emit(&mut self, event: HapticEvent) -> Result<(), HapticError> {
+        tracing::debug!(event = %event, enabled = self.enabled, has_device = self.device.is_some(), "HapticManager.emit() called");
+
         // Check if haptics are enabled
         if !self.enabled {
+            tracing::debug!("Haptic disabled - returning early");
             return Ok(());
         }
 
-        // Check if device is available
+        // Check if device is available (legacy haptic OR MX4 haptic)
         let device = match &mut self.device {
-            Some(d) if d.haptic_supported() => d,
-            _ => {
-                // No device or haptics not supported - succeed silently
+            Some(d) if d.haptic_supported() || d.mx4_haptic_supported() => d,
+            Some(d) => {
+                tracing::debug!(haptic = d.haptic_supported(), mx4_haptic = d.mx4_haptic_supported(), "Device exists but no haptic support");
+                return Ok(());
+            }
+            None => {
+                tracing::debug!("No device available");
                 return Ok(());
             }
         };
@@ -1771,6 +1906,7 @@ impl HapticManager {
             .as_millis() as u64;
 
         if now.saturating_sub(self.last_pulse_ms) < self.debounce_ms {
+            tracing::debug!(last_pulse_ms = self.last_pulse_ms, now = now, debounce_ms = self.debounce_ms, "Debounce - skipping");
             return Ok(());
         }
 
@@ -2035,6 +2171,32 @@ impl HapticManager {
             let _ = self.connect();
         }
         self.device.as_mut().and_then(|d| d.get_dpi_list())
+    }
+
+    /// Query battery status from the device
+    ///
+    /// Uses the shared HidppDevice to query battery, avoiding conflicts
+    /// with haptic feedback that uses the same device.
+    ///
+    /// # Returns
+    /// Ok((percentage, charging)) on success, or error if battery query fails.
+    pub fn query_battery(&mut self) -> Result<(u8, bool), HapticError> {
+        // Try to connect if not connected
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        match self.device.as_mut() {
+            Some(device) => device.query_battery(),
+            None => {
+                tracing::warn!("Cannot query battery: device not connected");
+                Err(HapticError::DeviceNotFound)
+            }
+        }
+    }
+
+    /// Check if battery feature is supported
+    pub fn battery_supported(&self) -> bool {
+        self.device.as_ref().map(|d| d.battery_supported()).unwrap_or(false)
     }
 }
 

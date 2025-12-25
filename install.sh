@@ -228,11 +228,13 @@ install_files() {
     sudo mkdir -p /usr/share/juhradial
     sudo cp -r overlay/*.py /usr/share/juhradial/
 
-    # Install launcher script
+    # Install launcher scripts
     sudo install -Dm755 juhradial-mx.sh "$BIN_DIR/juhradial-mx"
+    sudo install -Dm755 juhradial-settings.sh "$BIN_DIR/juhradial-settings"
 
-    # Install desktop file
+    # Install desktop files
     sudo install -Dm644 juhradial-mx.desktop /usr/share/applications/juhradial-mx.desktop
+    sudo install -Dm644 org.kde.juhradialmx.settings.desktop /usr/share/applications/org.kde.juhradialmx.settings.desktop
 
     # Install icons
     sudo install -Dm644 assets/juhradial-mx.svg /usr/share/icons/hicolor/scalable/apps/juhradial-mx.svg

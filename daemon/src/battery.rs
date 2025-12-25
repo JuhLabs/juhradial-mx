@@ -33,6 +33,8 @@ pub struct BatteryState {
     pub available: bool,
     /// Last error message if any
     pub error: Option<String>,
+    /// Whether logid is controlling HID++ (battery unavailable)
+    pub logid_active: bool,
 }
 
 /// Shared battery state type
@@ -72,56 +74,83 @@ impl BatteryHandler {
         }
     }
 
-    /// Find the Logitech hidraw device for HID++ communication
-    fn find_device() -> Result<PathBuf, BatteryError> {
+    /// Find all Logitech hidraw devices for HID++ communication
+    ///
+    /// Supports multiple receiver types:
+    /// - Bolt receiver (046D:C548)
+    /// - Unifying receiver (046D:C52B)
+    /// - Direct USB connection (046D:B034, etc.)
+    ///
+    /// Returns ALL candidates sorted by priority, with interface 2 devices first.
+    fn find_all_devices() -> Vec<PathBuf> {
         let hidraw_dir = PathBuf::from("/sys/class/hidraw");
         if !hidraw_dir.exists() {
-            return Err(BatteryError::DeviceNotFound);
+            return Vec::new();
         }
 
-        let mut candidates: Vec<(PathBuf, String)> = Vec::new();
+        let mut candidates: Vec<(PathBuf, String, u8)> = Vec::new();
 
-        for entry in std::fs::read_dir(&hidraw_dir).map_err(BatteryError::IoError)? {
-            let entry = entry.map_err(BatteryError::IoError)?;
+        let entries = match std::fs::read_dir(&hidraw_dir) {
+            Ok(e) => e,
+            Err(_) => return Vec::new(),
+        };
+
+        for entry in entries.flatten() {
             let path = entry.path();
 
             let uevent_path = path.join("device/uevent");
             if let Ok(uevent) = std::fs::read_to_string(&uevent_path) {
-                // Look for Logitech Bolt receiver (046D:C548)
-                if uevent.contains("046D") && uevent.contains("C548") {
-                    if let Some(name) = path.file_name() {
-                        let dev_path = PathBuf::from("/dev").join(name);
-                        candidates.push((dev_path, uevent));
-                    }
+                // Check for Logitech vendor ID (046D)
+                if !uevent.contains("046D") && !uevent.contains("046d") {
+                    continue;
+                }
+
+                // Prioritize by connection type
+                // Higher priority = better choice for HID++ battery queries
+                let priority = if uevent.contains("C548") || uevent.contains("c548") {
+                    // Bolt receiver - highest priority
+                    3
+                } else if uevent.contains("C52B") || uevent.contains("c52b") {
+                    // Unifying receiver
+                    2
+                } else if uevent.contains("B034") || uevent.contains("b034") {
+                    // MX Master 4 direct USB
+                    2
+                } else {
+                    // Other Logitech device
+                    1
+                };
+
+                if let Some(name) = path.file_name() {
+                    let dev_path = PathBuf::from("/dev").join(name);
+                    candidates.push((dev_path, uevent, priority));
                 }
             }
         }
 
-        // Prefer interface 2 for HID++
-        for (dev_path, uevent) in &candidates {
-            if uevent.contains("input2") {
-                return Ok(dev_path.clone());
+        // Sort by priority (highest first), then by interface 2 preference
+        candidates.sort_by(|a, b| {
+            let priority_cmp = b.2.cmp(&a.2);
+            if priority_cmp != std::cmp::Ordering::Equal {
+                return priority_cmp;
             }
-        }
+            // Same priority: prefer input2
+            let a_is_input2 = a.1.contains("input2");
+            let b_is_input2 = b.1.contains("input2");
+            b_is_input2.cmp(&a_is_input2)
+        });
 
-        // Fallback to first candidate
-        candidates
-            .into_iter()
-            .next()
-            .map(|(p, _)| p)
-            .ok_or(BatteryError::DeviceNotFound)
+        candidates.into_iter().map(|(p, _, _)| p).collect()
     }
 
-    /// Open the hidraw device for read/write
-    fn open(&mut self) -> Result<(), BatteryError> {
-        let path = Self::find_device()?;
-
+    /// Try to open a specific hidraw device for read/write
+    fn try_open_device(&mut self, path: &PathBuf) -> Result<(), BatteryError> {
         // Open with read/write and non-blocking
         let file = OpenOptions::new()
             .read(true)
             .write(true)
             .custom_flags(libc::O_NONBLOCK)
-            .open(&path)
+            .open(path)
             .map_err(|e| {
                 if e.kind() == std::io::ErrorKind::PermissionDenied {
                     BatteryError::PermissionDenied
@@ -130,9 +159,44 @@ impl BatteryHandler {
                 }
             })?;
 
-        self.device_path = Some(path);
+        self.device_path = Some(path.clone());
         self.device = Some(file);
         Ok(())
+    }
+
+    /// Open the best hidraw device for read/write, trying all candidates
+    fn open(&mut self) -> Result<(), BatteryError> {
+        let candidates = Self::find_all_devices();
+
+        if candidates.is_empty() {
+            return Err(BatteryError::DeviceNotFound);
+        }
+
+        for path in candidates {
+            // Try to open this device
+            if self.try_open_device(&path).is_err() {
+                continue;
+            }
+
+            // Try a simple HID++ ping to validate the device has a mouse connected
+            // IRoot function 0x01 (ping) with test data
+            let ping_params = [0, 0, 0xAA];
+            match self.hidpp_request(0x00, 0x01, &ping_params) {
+                Ok(resp) if resp.len() >= 7 && resp[6] == 0xAA => {
+                    tracing::info!(path = %path.display(), "Found Logitech HID++ device (validated)");
+                    return Ok(());
+                }
+                _ => {
+                    // This device didn't respond correctly, try next
+                    tracing::debug!(path = %path.display(), "HID++ device did not validate, trying next");
+                    self.device = None;
+                    self.device_path = None;
+                    continue;
+                }
+            }
+        }
+
+        Err(BatteryError::DeviceNotFound)
     }
 
     /// Send a HID++ request and read the response
@@ -379,20 +443,173 @@ impl std::fmt::Display for BatteryError {
 
 impl std::error::Error for BatteryError {}
 
-/// Start a periodic battery update task
+/// Check if logid (LogiOps) is running
+fn is_logid_running() -> bool {
+    std::process::Command::new("pgrep")
+        .arg("-x")
+        .arg("logid")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Start a periodic battery update task (legacy - uses its own hidraw handle)
+#[deprecated(note = "Use start_battery_updater_shared instead to share hidraw with haptic")]
 pub async fn start_battery_updater(state: SharedBatteryState) {
-    let mut handler = BatteryHandler::new(state);
+    let mut handler = BatteryHandler::new(state.clone());
+    let mut consecutive_errors = 0u32;
+    let mut logid_warned = false;
+
+    // Check if logid is running - if so, battery queries will fail
+    if is_logid_running() {
+        tracing::info!("LogiOps (logid) detected - battery status via HID++ unavailable");
+        let mut s = state.write().await;
+        s.available = false;
+        s.logid_active = true;
+        s.error = Some("LogiOps controls HID++".to_string());
+        logid_warned = true;
+    }
 
     // Initial update
     handler.update_state().await;
 
     // Update every 2 seconds for instant charging status detection
-    // HID++ queries are lightweight, so frequent polling is acceptable
     let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
 
     loop {
         interval.tick().await;
-        handler.update_state().await;
+
+        // Re-check logid periodically (every 30 seconds worth of ticks)
+        if consecutive_errors > 0 && consecutive_errors % 15 == 0 {
+            if is_logid_running() && !logid_warned {
+                tracing::info!("LogiOps (logid) detected - battery queries will fail");
+                let mut s = state.write().await;
+                s.logid_active = true;
+                logid_warned = true;
+            }
+        }
+
+        match handler.query_battery() {
+            Ok((percentage, charging)) => {
+                consecutive_errors = 0;
+                let mut s = state.write().await;
+                s.percentage = percentage;
+                s.charging = charging;
+                s.available = true;
+                s.error = None;
+                s.logid_active = false;
+                tracing::debug!(percentage, charging, "Battery state updated");
+            }
+            Err(e) => {
+                consecutive_errors += 1;
+                let mut s = state.write().await;
+                s.available = false;
+                s.error = Some(e.to_string());
+
+                // Only log warning for first few errors, then go quiet
+                if consecutive_errors <= 3 {
+                    tracing::warn!(error = %e, "Failed to query battery");
+                } else if consecutive_errors == 4 {
+                    tracing::info!("Battery queries failing repeatedly - suppressing further warnings");
+                }
+                // After 4 errors, stay quiet to avoid log spam
+            }
+        }
+    }
+}
+
+/// Start a periodic battery update task using shared HapticManager
+///
+/// This version shares the HidppDevice with haptic feedback to avoid
+/// conflicts when both need to access the same hidraw device.
+pub async fn start_battery_updater_shared(
+    state: SharedBatteryState,
+    haptic_manager: crate::hidpp::SharedHapticManager,
+) {
+    let mut consecutive_errors = 0u32;
+    let mut logid_warned = false;
+
+    // Check if logid is running - if so, battery queries will fail
+    if is_logid_running() {
+        tracing::info!("LogiOps (logid) detected - battery status via HID++ unavailable");
+        let mut s = state.write().await;
+        s.available = false;
+        s.logid_active = true;
+        s.error = Some("LogiOps controls HID++".to_string());
+        logid_warned = true;
+    }
+
+    // Initial update - get result first, then update state (don't hold lock across await)
+    let initial_result = {
+        let mut manager = haptic_manager.lock().unwrap();
+        manager.query_battery()
+    };
+
+    match initial_result {
+        Ok((percentage, charging)) => {
+            let mut s = state.write().await;
+            s.percentage = percentage;
+            s.charging = charging;
+            s.available = true;
+            s.error = None;
+            tracing::info!(percentage, charging, "Initial battery state");
+        }
+        Err(e) => {
+            let mut s = state.write().await;
+            s.available = false;
+            s.error = Some(format!("{}", e));
+            tracing::warn!(error = %e, "Failed initial battery query");
+        }
+    }
+
+    // Update every 2 seconds for instant charging status detection
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
+
+    loop {
+        interval.tick().await;
+
+        // Re-check logid periodically (every 30 seconds worth of ticks)
+        if consecutive_errors > 0 && consecutive_errors % 15 == 0 {
+            if is_logid_running() && !logid_warned {
+                tracing::info!("LogiOps (logid) detected - battery queries will fail");
+                let mut s = state.write().await;
+                s.logid_active = true;
+                logid_warned = true;
+            }
+        }
+
+        // Lock the haptic manager briefly to query battery
+        let result = {
+            let mut manager = haptic_manager.lock().unwrap();
+            manager.query_battery()
+        };
+
+        match result {
+            Ok((percentage, charging)) => {
+                consecutive_errors = 0;
+                let mut s = state.write().await;
+                s.percentage = percentage;
+                s.charging = charging;
+                s.available = true;
+                s.error = None;
+                s.logid_active = false;
+                tracing::debug!(percentage, charging, "Battery state updated (shared)");
+            }
+            Err(e) => {
+                consecutive_errors += 1;
+                let mut s = state.write().await;
+                s.available = false;
+                s.error = Some(format!("{}", e));
+
+                // Only log warning for first few errors, then go quiet
+                if consecutive_errors <= 3 {
+                    tracing::warn!(error = %e, "Failed to query battery (shared)");
+                } else if consecutive_errors == 4 {
+                    tracing::info!("Battery queries failing repeatedly - suppressing further warnings");
+                }
+                // After 4 errors, stay quiet to avoid log spam
+            }
+        }
     }
 }
 
