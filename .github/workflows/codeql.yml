@@ -1,0 +1,84 @@
+name: "CodeQL Security Scan"
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC to catch new vulnerabilities
+    - cron: '0 0 * * 0'
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      # Required for all workflows
+      security-events: write
+      # Required to fetch internal or private CodeQL packs
+      packages: read
+      # Required for workflows in private repositories
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Analyze both Python (overlay) and Rust (daemon)
+        language: [ 'python', 'rust' ]
+        # Learn more about CodeQL language support:
+        # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        # Use security-and-quality query suite for comprehensive analysis
+        # Includes security queries plus code quality checks
+        queries: security-and-quality
+        # For Rust, we may want to add custom queries in the future:
+        # config-file: ./.github/codeql/codeql-config.yml
+
+    # For compiled languages (Rust), we need to build the code
+    # Autobuild attempts a basic build, but we can customize if needed
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+      if: matrix.language == 'rust'
+
+    # For Python, no build step is needed (interpreted language)
+    # CodeQL will analyze the source directly
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{ matrix.language }}"
+        # Upload SARIF results to GitHub Security tab
+        upload: true
+        # Generate detailed output for debugging
+        output: sarif-results
+        # Add code snippets to SARIF output for better context
+        add-snippets: true
+
+    - name: Upload SARIF as artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: codeql-results-${{ matrix.language }}
+        path: sarif-results
+        retention-days: 5
+
+    # Optional: Fail the build on high/critical vulnerabilities
+    # Uncomment to enforce security standards in CI
+    # - name: Check for critical vulnerabilities
+    #   if: always()
+    #   run: |
+    #     if grep -q '"level": "error"' sarif-results/${{ matrix.language }}.sarif; then
+    #       echo "❌ Critical security vulnerabilities found!"
+    #       exit 1
+    #     fi

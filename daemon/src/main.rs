@@ -10,7 +10,7 @@ use tracing::{info, warn, error, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use juhradiald::{
-    battery::{new_shared_state, start_battery_updater},
+    battery::{new_shared_state, start_battery_updater_shared},
     config::load_shared_config,
     cursor::{get_screen_bounds, ScreenBounds},
     dbus::{init_dbus_service, DBUS_PATH, DBUS_NAME},
@@ -92,6 +92,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // Clone haptic_manager for battery updater before passing to D-Bus
+    let haptic_manager_for_battery = haptic_manager.clone();
+
     // Initialize D-Bus service with battery state, config, and haptic manager
     let dbus_connection = match init_dbus_service(
         battery_state.clone(),
@@ -108,9 +111,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // Spawn battery status updater
+    // Spawn battery status updater (shares HidppDevice with haptic via SharedHapticManager)
     let battery_handle = tokio::spawn(async move {
-        start_battery_updater(battery_state).await
+        start_battery_updater_shared(battery_state, haptic_manager_for_battery).await
     });
 
     // Load profiles (Story 3.1: Task 5)

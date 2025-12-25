@@ -78,7 +78,12 @@ impl HidrawHandler {
         }
     }
 
-    /// Find the Logitech Bolt receiver hidraw device
+    /// Find the Logitech hidraw device for HID++ button events
+    ///
+    /// Supports multiple receiver types:
+    /// - Bolt receiver (046D:C548)
+    /// - Unifying receiver (046D:C52B)
+    /// - Direct USB connection (046D:B034, etc.)
     pub fn find_device() -> Result<PathBuf, HidrawError> {
         // Scan /sys/class/hidraw/ for Logitech devices
         let hidraw_dir = PathBuf::from("/sys/class/hidraw");
@@ -86,7 +91,7 @@ impl HidrawHandler {
             return Err(HidrawError::DeviceNotFound);
         }
 
-        let mut candidates: Vec<(PathBuf, String)> = Vec::new();
+        let mut candidates: Vec<(PathBuf, String, u8)> = Vec::new();
 
         for entry in std::fs::read_dir(&hidraw_dir).map_err(HidrawError::IoError)? {
             let entry = entry.map_err(HidrawError::IoError)?;
@@ -95,37 +100,58 @@ impl HidrawHandler {
             // Check uevent for vendor/product ID
             let uevent_path = path.join("device/uevent");
             if let Ok(uevent) = std::fs::read_to_string(&uevent_path) {
-                // Look for Logitech Bolt receiver (046D:C548)
-                if uevent.contains("046D") && uevent.contains("C548") {
-                    if let Some(name) = path.file_name() {
-                        let dev_path = PathBuf::from("/dev").join(name);
-                        candidates.push((dev_path, uevent));
-                    }
+                // Check for Logitech vendor ID (046D)
+                if !uevent.contains("046D") && !uevent.contains("046d") {
+                    continue;
+                }
+
+                // Prioritize by connection type
+                let priority = if uevent.contains("C548") || uevent.contains("c548") {
+                    // Bolt receiver - highest priority for HID++ events
+                    3
+                } else if uevent.contains("C52B") || uevent.contains("c52b") {
+                    // Unifying receiver
+                    2
+                } else if uevent.contains("B034") || uevent.contains("b034") {
+                    // MX Master 4 direct USB
+                    2
+                } else {
+                    // Other Logitech device
+                    1
+                };
+
+                if let Some(name) = path.file_name() {
+                    let dev_path = PathBuf::from("/dev").join(name);
+                    candidates.push((dev_path, uevent, priority));
                 }
             }
         }
 
+        // Sort by priority (highest first)
+        candidates.sort_by(|a, b| b.2.cmp(&a.2));
+
         // Prefer interface 2 (input2) which is typically used for HID++ communication
-        for (dev_path, uevent) in &candidates {
-            if uevent.contains("input2") {
+        let max_priority = candidates.first().map(|(_, _, p)| *p).unwrap_or(0);
+        for (dev_path, uevent, priority) in &candidates {
+            if *priority == max_priority && uevent.contains("input2") {
                 tracing::info!(
                     path = %dev_path.display(),
-                    "Found Logitech Bolt receiver hidraw device (interface 2)"
+                    "Found Logitech hidraw device (interface 2)"
                 );
                 return Ok(dev_path.clone());
             }
         }
 
-        // Fall back to first candidate if no input2 found
-        if let Some((dev_path, _)) = candidates.into_iter().next() {
+        // Fall back to first highest-priority candidate if no input2 found
+        if let Some((dev_path, _, _)) = candidates.into_iter().next() {
             tracing::info!(
                 path = %dev_path.display(),
-                "Found Logitech Bolt receiver hidraw device (fallback)"
+                "Found Logitech hidraw device (fallback)"
             );
             return Ok(dev_path);
         }
 
-        tracing::warn!("Logitech Bolt receiver hidraw device not found");
+        tracing::warn!("Logitech hidraw device not found");
         Err(HidrawError::DeviceNotFound)
     }
 

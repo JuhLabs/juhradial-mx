@@ -103,6 +103,11 @@ class ConfigManager:
             print(f"Error loading config: {e}")
         return self.DEFAULT_CONFIG.copy()
 
+    def reload(self):
+        """Reload config from disk - useful when settings window reopens"""
+        self.config = self._load()
+        return self.config
+
     def _merge_defaults(self, loaded: dict) -> dict:
         """Deep merge loaded config with defaults"""
         result = json.loads(json.dumps(self.DEFAULT_CONFIG))  # Deep copy
@@ -118,11 +123,15 @@ class ConfigManager:
                 base[key] = value
 
     def save(self, show_toast=True):
-        """Save config to file and notify daemon"""
+        """Save config to file atomically and notify daemon"""
         try:
             self.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-            with open(self.CONFIG_FILE, 'w', encoding='utf-8') as f:
+            # Atomic write: write to temp file, then rename (atomic on POSIX)
+            temp_path = self.CONFIG_FILE.with_suffix('.json.tmp')
+            with open(temp_path, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=2)
+            # Atomic rename - replaces old file safely
+            os.replace(temp_path, self.CONFIG_FILE)
             # Notify daemon to reload config
             self._notify_daemon()
             if show_toast:
@@ -169,8 +178,13 @@ class ConfigManager:
                 return default
         return value
 
-    def set(self, *keys_and_value):
-        """Set nested config value and save"""
+    def set(self, *keys_and_value, auto_save=False):
+        """Set nested config value and optionally save
+
+        Args:
+            *keys_and_value: Keys path followed by value
+            auto_save: If False (default), just update in-memory. Use Apply button to save.
+        """
         if len(keys_and_value) < 2:
             return
         *keys, value = keys_and_value
@@ -180,10 +194,104 @@ class ConfigManager:
                 target[key] = {}
             target = target[key]
         target[keys[-1]] = value
-        self.save()
+        if auto_save:
+            self.save()
 
 # Global config instance
 config = ConfigManager()
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+def disable_scroll_on_scale(scale):
+    """Disable scroll wheel on Gtk.Scale to prevent accidental value changes
+
+    This prevents scroll events from changing slider values when scrolling
+    in a ScrolledWindow. The slider will only respond to:
+    - Direct click and drag
+    - Arrow keys when focused
+    """
+    # Add scroll controller that consumes scroll events (returns True)
+    scroll_controller = Gtk.EventControllerScroll.new(
+        Gtk.EventControllerScrollFlags.VERTICAL | Gtk.EventControllerScrollFlags.HORIZONTAL
+    )
+    # Set to CAPTURE phase to intercept before the Scale widget sees it
+    scroll_controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+    # Handler that consumes the scroll event (prevents it from reaching Scale)
+    scroll_controller.connect('scroll', lambda controller, dx, dy: True)
+    scale.add_controller(scroll_controller)
+
+def detect_logitech_mouse():
+    """Detect connected Logitech mouse name"""
+    import subprocess
+    import shutil
+    from pathlib import Path
+
+    # Logitech vendor ID
+    LOGITECH_VENDOR = '046d'
+
+    # Known MX Master device IDs and names (direct USB connection)
+    DEVICE_NAMES = {
+        'b034': 'MX Master 4',
+        'b035': 'MX Master 4',
+        'b023': 'MX Master 3S',
+        'b028': 'MX Master 3S',
+        'b024': 'MX Master 3',
+        '4082': 'MX Master 3',
+        '4069': 'MX Master 2S',
+        '4041': 'MX Master',
+    }
+
+    try:
+        # Method 1: Check HID devices for direct USB connection
+        hid_path = Path('/sys/bus/hid/devices/')
+        if hid_path.exists():
+            for device in hid_path.iterdir():
+                name = device.name.upper()
+                if LOGITECH_VENDOR.upper() in name:
+                    parts = name.split(':')
+                    if len(parts) >= 3:
+                        product_id = parts[2].split('.')[0].lower()
+                        if product_id in DEVICE_NAMES:
+                            return DEVICE_NAMES[product_id]
+
+        # Method 2: Check logid config for device name
+        logid_cfg = Path('/etc/logid.cfg')
+        if logid_cfg.exists():
+            try:
+                with open(logid_cfg, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    import re
+                    match = re.search(r'name:\s*"([^"]+)"', content)
+                    if match:
+                        return match.group(1)
+            except Exception:
+                pass
+
+        # Method 3: Try libinput
+        result = subprocess.run(
+            ['libinput', 'list-devices'],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            for line in result.stdout.split('\n'):
+                if 'MX Master' in line and 'Device:' in line:
+                    return line.split('Device:')[1].strip()
+
+    except Exception as e:
+        print(f"Device detection error: {e}")
+
+    return 'MX Master 4'  # Default fallback
+
+# Cache the detected device name
+_detected_device = None
+
+def get_device_name():
+    """Get detected device name (cached)"""
+    global _detected_device
+    if _detected_device is None:
+        _detected_device = detect_logitech_mouse()
+    return _detected_device
 
 # =============================================================================
 # THEME SYSTEM - Load colors from shared theme module
@@ -279,6 +387,7 @@ NAV_ITEMS = [
     ('buttons', 'BUTTONS', 'input-mouse-symbolic'),
     ('scroll', 'POINT, SCROLL, PRESS', 'input-touchpad-symbolic'),
     ('haptics', 'HAPTIC FEEDBACK', 'audio-speakers-symbolic'),
+    ('devices', 'DEVICES', 'computer-symbolic'),
     ('easy_switch', 'EASY-SWITCH', 'network-wireless-symbolic'),
     ('flow', 'FLOW', 'view-dual-symbolic'),
     ('settings', 'SETTINGS', 'emblem-system-symbolic'),
@@ -2539,6 +2648,8 @@ class DPIVisualSlider(Gtk.Box):
         self.scale.set_draw_value(False)
         self.scale.set_size_request(300, -1)
         self.scale.connect('value-changed', self._on_value_changed)
+        # Disable scroll wheel to prevent accidental changes while scrolling page
+        disable_scroll_on_scale(self.scale)
         slider_box.append(self.scale)
 
         fast_label = Gtk.Label(label='Fast')
@@ -2742,6 +2853,8 @@ class ScrollPage(Gtk.ScrolledWindow):
         self.threshold_scale.set_value(config.get('scroll', 'smartshift_threshold', default=50))
         self.threshold_scale.connect('value-changed', self._on_threshold_changed)
         self._update_threshold_label(self.threshold_scale.get_value())
+        # Disable scroll wheel to prevent accidental changes while scrolling page
+        disable_scroll_on_scale(self.threshold_scale)
         threshold_slider_box.append(self.threshold_scale)
 
         freespin_label = Gtk.Label(label='Free-spin')
@@ -2817,6 +2930,8 @@ class ScrollPage(Gtk.ScrolledWindow):
         self.scroll_speed_scale.add_mark(100, Gtk.PositionType.BOTTOM, None)  # Mark at 100% (normal)
         self.scroll_speed_scale.connect('value-changed', self._on_scroll_speed_changed)
         self._update_scroll_speed_label(self.scroll_speed_scale.get_value())
+        # Disable scroll wheel to prevent accidental changes while scrolling page
+        disable_scroll_on_scale(self.scroll_speed_scale)
         scroll_speed_slider_box.append(self.scroll_speed_scale)
 
         fast_label = Gtk.Label(label='Fast')
@@ -2839,6 +2954,8 @@ class ScrollPage(Gtk.ScrolledWindow):
         thumb_scale.set_size_request(200, -1)
         thumb_scale.set_draw_value(False)
         thumb_scale.connect('value-changed', lambda s: config.set('thumbwheel', 'speed', int(s.get_value())))
+        # Disable scroll wheel to prevent accidental changes while scrolling page
+        disable_scroll_on_scale(thumb_scale)
         thumb_speed_row.set_control(thumb_scale)
         thumb_card.append(thumb_speed_row)
 
@@ -2865,7 +2982,7 @@ class ScrollPage(Gtk.ScrolledWindow):
         self.status_icon = Gtk.Image.new_from_icon_name('emblem-ok-symbolic')
         self.status_box.append(self.status_icon)
 
-        self.status_label = Gtk.Label(label='Settings saved automatically')
+        self.status_label = Gtk.Label(label='Settings are up to date')
         self.status_label.add_css_class('dim-label')
         self.status_box.append(self.status_label)
 
@@ -2902,7 +3019,7 @@ class ScrollPage(Gtk.ScrolledWindow):
         self.set_child(content)
 
     def _on_dpi_changed(self, dpi):
-        # Convert DPI to speed (1-20) for config
+        # Convert DPI to speed (1-20) for config (no auto-save to avoid lag)
         speed = max(1, min(20, (dpi - 400) // 400 + 1))
         config.set('pointer', 'speed', speed)
         config.set('pointer', 'dpi', dpi)
@@ -2910,6 +3027,8 @@ class ScrollPage(Gtk.ScrolledWindow):
         self._apply_dpi_to_device(dpi)
         # Also apply pointer speed via gsettings (software multiplier)
         self._apply_pointer_speed(dpi)
+        # Show pending changes indicator
+        self._show_pending_changes()
 
     def _on_accel_changed(self, combo):
         profile = combo.get_active_id()
@@ -2932,6 +3051,7 @@ class ScrollPage(Gtk.ScrolledWindow):
         value = int(scale.get_value())
         config.set('scroll', 'smartshift_threshold', value)
         self._update_threshold_label(value)
+        self._show_pending_changes()
 
     def _update_threshold_label(self, value):
         self.threshold_value.set_text(f'{int(value)}%')
@@ -2948,17 +3068,11 @@ class ScrollPage(Gtk.ScrolledWindow):
         return False
 
     def _on_scroll_speed_changed(self, scale):
-        """Handle scroll speed slider change
-
-        Uses Solaar to control MX Master 4 scroll speed via HID++:
-        - hires-smooth-resolution: On = fast (many events), Off = slow (fewer events)
-        - Slider maps: 10-50% = slow (hires off), 51-200% = fast (hires on)
-        """
+        """Handle scroll speed slider change"""
         value = int(scale.get_value())
         config.set('scroll', 'speed', value)
         self._update_scroll_speed_label(value)
-        # Apply via Solaar HID++ command
-        self._apply_scroll_speed_solaar(value)
+        self._show_pending_changes()
 
     def _update_scroll_speed_label(self, value):
         """Update the scroll speed percentage label"""
@@ -2966,67 +3080,6 @@ class ScrollPage(Gtk.ScrolledWindow):
             self.scroll_speed_value.set_text(f'{int(value)}% (Slow)')
         else:
             self.scroll_speed_value.set_text(f'{int(value)}% (Fast)')
-
-    def _apply_scroll_speed_solaar(self, speed_percent):
-        """Apply scroll speed to MX Master 4 via Solaar HID++ commands
-
-        Controls the hires-smooth-resolution setting:
-        - True (on): High-resolution mode, many scroll events = fast scrolling
-        - False (off): Low-resolution mode, fewer scroll events = slow scrolling
-
-        Slider mapping:
-        - 10-50%: hires-smooth-resolution = false (slow)
-        - 51-200%: hires-smooth-resolution = true (fast/normal)
-        """
-        import subprocess
-        import shutil
-
-        # Check if solaar is available (used for HID++ communication)
-        solaar_path = shutil.which('solaar')
-        if not solaar_path:
-            print("solaar not found - cannot control scroll speed")
-            if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
-                self.status_icon.set_from_icon_name('dialog-warning-symbolic')
-                self.status_label.set_text('Install solaar package')
-                GLib.timeout_add(3000, self._reset_status)
-            return
-
-        try:
-            # Determine hires mode based on slider position
-            # 50% or below = slow (hires off), above 50% = fast (hires on)
-            hires_enabled = speed_percent > 50
-            hires_value = 'true' if hires_enabled else 'false'
-
-            # Apply via Solaar
-            result = subprocess.run(
-                [solaar_path, 'config', 'MX Master 4', 'hires-smooth-resolution', hires_value],
-                capture_output=True, text=True, timeout=10
-            )
-
-            if result.returncode == 0:
-                mode = 'Fast (HiRes)' if hires_enabled else 'Slow (Standard)'
-                print(f"Applied scroll speed: {mode}")
-                if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
-                    self.status_icon.set_from_icon_name('emblem-ok-symbolic')
-                    self.status_label.set_text(f'Scroll: {mode}')
-                    GLib.timeout_add(2000, self._reset_status)
-            else:
-                print(f"Solaar error: {result.stderr}")
-                # Try alternative device name
-                result2 = subprocess.run(
-                    [solaar_path, 'config', 'MX Master 4', 'hires-smooth-resolution', hires_value],
-                    capture_output=True, text=True, timeout=10
-                )
-                if result2.returncode != 0:
-                    if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
-                        self.status_icon.set_from_icon_name('dialog-warning-symbolic')
-                        self.status_label.set_text('Mouse not found')
-                        GLib.timeout_add(3000, self._reset_status)
-
-        except subprocess.TimeoutExpired:
-            print("Solaar command timed out")
-        except Exception as e:
-            print(f"Failed to apply scroll speed: {e}")
 
     def _apply_pointer_speed(self, dpi):
         """Apply pointer speed via gsettings (-1.0 to 1.0)"""
@@ -3069,8 +3122,16 @@ class ScrollPage(Gtk.ScrolledWindow):
         except Exception as e:
             print(f"Failed to set DPI via D-Bus: {e}")
 
+    def _show_pending_changes(self):
+        """Show that there are unsaved changes"""
+        self.status_icon.set_from_icon_name('dialog-warning-symbolic')
+        self.status_label.set_text('Click Apply to save changes')
+
     def _on_apply_clicked(self, button):
-        """Apply all settings via logiops"""
+        """Apply all settings via logiops and save config"""
+        # Save config to file (this will show toast)
+        config.save()
+        # Apply to device hardware
         config.apply_to_device()
         # Update status
         self.status_icon.set_from_icon_name('emblem-ok-symbolic')
@@ -3079,7 +3140,7 @@ class ScrollPage(Gtk.ScrolledWindow):
         GLib.timeout_add(3000, self._reset_status)
 
     def _reset_status(self):
-        self.status_label.set_text('Settings saved automatically')
+        self.status_label.set_text('Settings are up to date')
         return False
 
 
@@ -3304,7 +3365,7 @@ class SettingsPage(Gtk.ScrolledWindow):
         info_card = SettingsCard('Device Information')
 
         # Try to get actual device info from daemon
-        device_name = 'MX Master 4'  # Default
+        device_name = get_device_name()
         connection_type = 'Not available'
         battery_level = 'Not available'
 
@@ -3373,6 +3434,7 @@ class SettingsPage(Gtk.ScrolledWindow):
         if 0 <= selected < len(theme_values):
             theme = theme_values[selected]
             config.set('theme', theme)
+            config.save(show_toast=False)  # Save immediately so overlay picks it up
             print(f"Theme changed to: {theme}")
 
             # Reload CSS for the settings window
@@ -3459,6 +3521,229 @@ X-GNOME-Autostart-enabled=true
         )
         dialog.add_response("ok", "OK")
         dialog.present(self.get_root())
+
+
+class DevicesPage(Gtk.ScrolledWindow):
+    """Device information and management page"""
+
+    def __init__(self):
+        super().__init__()
+        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
+        content.set_margin_top(24)
+        content.set_margin_bottom(24)
+        content.set_margin_start(32)
+        content.set_margin_end(32)
+
+        # Device Information Card
+        device_card = SettingsCard('Connected Device')
+
+        # Device name
+        device_name = get_device_name()
+        name_row = SettingRow('Device Name', 'Your Logitech mouse model')
+        name_label = Gtk.Label(label=device_name)
+        name_label.add_css_class('heading')
+        name_row.set_control(name_label)
+        device_card.append(name_row)
+
+        # Separator
+        sep1 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        sep1.set_margin_top(12)
+        sep1.set_margin_bottom(12)
+        device_card.append(sep1)
+
+        # Connection status
+        connection_type = self._get_connection_type()
+        conn_row = SettingRow('Connection', 'How your device is connected')
+        conn_icon_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+
+        if 'Bluetooth' in connection_type:
+            conn_icon = Gtk.Image.new_from_icon_name('bluetooth-symbolic')
+        elif 'USB' in connection_type:
+            conn_icon = Gtk.Image.new_from_icon_name('usb-symbolic')
+        else:
+            conn_icon = Gtk.Image.new_from_icon_name('network-wireless-symbolic')
+
+        conn_icon.add_css_class('accent-color')
+        conn_icon_box.append(conn_icon)
+
+        conn_label = Gtk.Label(label=connection_type)
+        conn_icon_box.append(conn_label)
+        conn_row.set_control(conn_icon_box)
+        device_card.append(conn_row)
+
+        # Separator
+        sep2 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        sep2.set_margin_top(12)
+        sep2.set_margin_bottom(12)
+        device_card.append(sep2)
+
+        # Battery level
+        battery_info = self._get_battery_info()
+        battery_row = SettingRow('Battery Level', 'Current battery status')
+        battery_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+
+        battery_icon = Gtk.Image.new_from_icon_name('battery-good-symbolic')
+        battery_icon.add_css_class('battery-icon')
+        battery_box.append(battery_icon)
+
+        battery_label = Gtk.Label(label=battery_info)
+        battery_label.add_css_class('battery-indicator')
+        battery_box.append(battery_label)
+        battery_row.set_control(battery_box)
+        device_card.append(battery_row)
+
+        # Separator
+        sep3 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        sep3.set_margin_top(12)
+        sep3.set_margin_bottom(12)
+        device_card.append(sep3)
+
+        # Firmware version (placeholder)
+        fw_row = SettingRow('Firmware Version', 'Device firmware information')
+        fw_label = Gtk.Label(label='Managed by LogiOps')
+        fw_label.add_css_class('dim-label')
+        fw_row.set_control(fw_label)
+        device_card.append(fw_row)
+
+        content.append(device_card)
+
+        # Additional Info Card
+        info_card = SettingsCard('Device Management')
+
+        info_label = Gtk.Label()
+        info_label.set_markup(
+            'For advanced device configuration (button remapping, scroll settings), '
+            'edit <b>/etc/logid.cfg</b> and restart logid.\n\n'
+            'LogiOps docs: <tt>https://github.com/PixlOne/logiops</tt>'
+        )
+        info_label.set_wrap(True)
+        info_label.set_max_width_chars(50)
+        info_label.set_halign(Gtk.Align.START)
+        info_label.set_margin_top(8)
+        info_label.set_margin_bottom(8)
+        info_card.append(info_label)
+
+        content.append(info_card)
+
+        self.set_child(content)
+
+    def _get_connection_type(self):
+        """Get connection type from daemon or detect"""
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+            # Try to get battery status as indicator of connection
+            result = proxy.call_sync('GetBatteryStatus', None, Gio.DBusCallFlags.NONE, 500, None)
+            if result:
+                return 'USB Receiver / Bluetooth'
+        except Exception:
+            pass
+        return 'USB Receiver'
+
+    def _get_battery_info(self):
+        """Get battery info from daemon"""
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+            result = proxy.call_sync('GetBatteryStatus', None, Gio.DBusCallFlags.NONE, 500, None)
+            if result:
+                percentage, charging = result.unpack()
+                if percentage > 0:
+                    status = 'Charging' if charging else 'Discharging'
+                    return f'{percentage}% ({status})'
+                else:
+                    # 0% usually means unavailable (logid controlling HID++)
+                    return 'Managed by LogiOps'
+        except Exception:
+            pass
+        return 'Managed by LogiOps'
+
+
+class FlowPage(Gtk.ScrolledWindow):
+    """Logitech Flow configuration page"""
+
+    def __init__(self):
+        super().__init__()
+        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
+        content.set_margin_top(24)
+        content.set_margin_bottom(24)
+        content.set_margin_start(32)
+        content.set_margin_end(32)
+
+        # Flow Info Card
+        flow_card = SettingsCard('Logitech Flow')
+
+        # Coming soon message with icon
+        coming_soon_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        coming_soon_box.set_halign(Gtk.Align.CENTER)
+        coming_soon_box.set_margin_top(32)
+        coming_soon_box.set_margin_bottom(32)
+
+        icon = Gtk.Image.new_from_icon_name('view-dual-symbolic')
+        icon.set_pixel_size(64)
+        icon.add_css_class('accent-color')
+        coming_soon_box.append(icon)
+
+        title = Gtk.Label(label='Flow Support Coming Soon')
+        title.add_css_class('title-1')
+        coming_soon_box.append(title)
+
+        desc = Gtk.Label()
+        desc.set_markup(
+            'Logitech Flow allows you to seamlessly move your mouse cursor\n'
+            'between multiple computers and transfer files between them.\n\n'
+            '<b>Features (planned):</b>\n'
+            '• Multi-computer cursor control\n'
+            '• Cross-computer copy &amp; paste\n'
+            '• File sharing between devices\n'
+            '• Automatic computer switching'
+        )
+        desc.set_wrap(True)
+        desc.set_justify(Gtk.Justification.CENTER)
+        desc.set_margin_top(8)
+        desc.add_css_class('dim-label')
+        coming_soon_box.append(desc)
+
+        flow_card.append(coming_soon_box)
+        content.append(flow_card)
+
+        # Learn More Card
+        learn_card = SettingsCard('Learn More')
+
+        link_label = Gtk.Label()
+        link_label.set_markup(
+            'For more information about Logitech Flow, visit:\n'
+            '<a href="https://www.logitech.com/en-us/software/options-plus.html">Logitech Options+ Documentation</a>'
+        )
+        link_label.set_wrap(True)
+        link_label.set_halign(Gtk.Align.START)
+        link_label.set_margin_top(8)
+        link_label.set_margin_bottom(8)
+        learn_card.append(link_label)
+
+        content.append(learn_card)
+
+        self.set_child(content)
 
 
 class PlaceholderPage(Gtk.Box):
@@ -3762,6 +4047,9 @@ class SettingsWindow(Adw.ApplicationWindow):
         super().__init__(application=app, title='JuhRadial MX Settings')
         self.add_css_class('settings-window')
 
+        # Reload config from disk to ensure we have latest values
+        config.reload()
+
         # Force dark theme
         style_manager = Adw.StyleManager.get_default()
         style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
@@ -3973,6 +4261,13 @@ class SettingsWindow(Adw.ApplicationWindow):
             if result:
                 percentage, is_charging = result.unpack()
 
+                # 0% means battery info unavailable (logid controls HID++)
+                if percentage == 0:
+                    self.battery_label.set_label('LogiOps')
+                    if self.battery_icon:
+                        self.battery_icon.set_from_icon_name('battery-missing-symbolic')
+                    return True
+
                 # Show charging indicator in label with ⚡ symbol
                 if is_charging:
                     self.battery_label.set_label(f'⚡ {percentage}%')
@@ -4082,7 +4377,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         title_box.append(divider)
 
         # Device badge
-        device_badge = Gtk.Label(label='MX MASTER 3S')
+        device_badge = Gtk.Label(label=get_device_name().upper())
         device_badge.add_css_class('device-badge')
         device_badge.set_valign(Gtk.Align.CENTER)
         title_box.append(device_badge)
@@ -4192,8 +4487,9 @@ class SettingsWindow(Adw.ApplicationWindow):
         # Other pages
         self.content_stack.add_named(ScrollPage(), 'scroll')
         self.content_stack.add_named(HapticsPage(), 'haptics')
+        self.content_stack.add_named(DevicesPage(), 'devices')
         self.content_stack.add_named(PlaceholderPage('Easy-Switch'), 'easy_switch')
-        self.content_stack.add_named(PlaceholderPage('Flow'), 'flow')
+        self.content_stack.add_named(FlowPage(), 'flow')
         self.content_stack.add_named(SettingsPage(), 'settings')
 
     def _create_status_bar(self):
@@ -4286,6 +4582,26 @@ class SettingsApp(Adw.Application):
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    # Single instance check using D-Bus application ID
+    # GTK4/Adwaita handles this automatically with application_id,
+    # but we also check manually to ensure it works reliably
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['pgrep', '-f', '-c', 'settings_dashboard.py'],
+            capture_output=True, text=True
+        )
+        # pgrep counts include this process, so >1 means another is running
+        if result.returncode == 0:
+            count = int(result.stdout.strip())
+            if count > 1:
+                print('Settings dashboard already running - focusing existing window')
+                # Try to focus existing window
+                subprocess.run(['wmctrl', '-a', 'JuhRadial'], capture_output=True)
+                return 0
+    except Exception:
+        pass  # Continue if check fails
 
     print('JuhRadial MX Settings Dashboard')
     print('  Theme: Catppuccin Mocha')

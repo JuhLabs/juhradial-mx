@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=JuhRadial MX Settings
 Comment=Configure JuhRadial MX radial menu
-Exec=python3 /home/juhlabs/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py
+Exec=juhradial-settings
 Icon=juhradial-mx
 Terminal=false
 Type=Application

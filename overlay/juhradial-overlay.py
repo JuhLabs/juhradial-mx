@@ -36,170 +36,38 @@ SUBMENU_EXTEND = 80  # Extra space for submenu items beyond main menu
 WINDOW_SIZE = (MENU_RADIUS + SHADOW_OFFSET + SUBMENU_EXTEND) * 2
 
 # =============================================================================
-# THEME PALETTES
+# THEME SYSTEM - Uses shared themes.py module
 # =============================================================================
-THEMES = {
-    'catppuccin-mocha': {
-        'crust':    QColor(17, 17, 27),
-        'base':     QColor(30, 30, 46),
-        'surface0': QColor(49, 50, 68),
-        'surface1': QColor(69, 71, 90),
-        'surface2': QColor(88, 91, 112),
-        'text':     QColor(205, 214, 244),
-        'subtext1': QColor(186, 194, 222),
-        'lavender': QColor(180, 190, 254),
-        'blue':     QColor(137, 180, 250),
-        'sapphire': QColor(116, 199, 236),
-        'teal':     QColor(148, 226, 213),
-        'green':    QColor(166, 227, 161),
-        'yellow':   QColor(249, 226, 175),
-        'peach':    QColor(250, 179, 135),
-        'mauve':    QColor(203, 166, 247),
-        'pink':     QColor(245, 194, 231),
-        'red':      QColor(243, 139, 168),
-    },
-    'catppuccin-latte': {
-        'crust':    QColor(220, 224, 232),
-        'base':     QColor(239, 241, 245),
-        'surface0': QColor(204, 208, 218),
-        'surface1': QColor(188, 192, 204),
-        'surface2': QColor(172, 176, 190),
-        'text':     QColor(76, 79, 105),
-        'subtext1': QColor(92, 95, 119),
-        'lavender': QColor(114, 135, 253),
-        'blue':     QColor(30, 102, 245),
-        'sapphire': QColor(32, 159, 181),
-        'teal':     QColor(23, 146, 153),
-        'green':    QColor(64, 160, 43),
-        'yellow':   QColor(223, 142, 29),
-        'peach':    QColor(254, 100, 11),
-        'mauve':    QColor(136, 57, 239),
-        'pink':     QColor(234, 118, 203),
-        'red':      QColor(210, 15, 57),
-    },
-    'nord': {
-        'crust':    QColor(46, 52, 64),
-        'base':     QColor(59, 66, 82),
-        'surface0': QColor(67, 76, 94),
-        'surface1': QColor(76, 86, 106),
-        'surface2': QColor(94, 105, 117),
-        'text':     QColor(236, 239, 244),
-        'subtext1': QColor(229, 233, 240),
-        'lavender': QColor(180, 142, 173),
-        'blue':     QColor(129, 161, 193),
-        'sapphire': QColor(136, 192, 208),
-        'teal':     QColor(143, 188, 187),
-        'green':    QColor(163, 190, 140),
-        'yellow':   QColor(235, 203, 139),
-        'peach':    QColor(208, 135, 112),
-        'mauve':    QColor(180, 142, 173),
-        'pink':     QColor(180, 142, 173),
-        'red':      QColor(191, 97, 106),
-    },
-    'dracula': {
-        'crust':    QColor(33, 34, 44),
-        'base':     QColor(40, 42, 54),
-        'surface0': QColor(52, 54, 68),
-        'surface1': QColor(65, 67, 83),
-        'surface2': QColor(78, 80, 98),
-        'text':     QColor(248, 248, 242),
-        'subtext1': QColor(226, 226, 216),
-        'lavender': QColor(189, 147, 249),
-        'blue':     QColor(139, 233, 253),
-        'sapphire': QColor(139, 233, 253),
-        'teal':     QColor(80, 250, 123),
-        'green':    QColor(80, 250, 123),
-        'yellow':   QColor(241, 250, 140),
-        'peach':    QColor(255, 184, 108),
-        'mauve':    QColor(189, 147, 249),
-        'pink':     QColor(255, 121, 198),
-        'red':      QColor(255, 85, 85),
-    },
-    'light': {
-        'crust':    QColor(230, 230, 230),
-        'base':     QColor(255, 255, 255),
-        'surface0': QColor(245, 245, 245),
-        'surface1': QColor(235, 235, 235),
-        'surface2': QColor(220, 220, 220),
-        'text':     QColor(30, 30, 30),
-        'subtext1': QColor(80, 80, 80),
-        'lavender': QColor(120, 100, 180),
-        'blue':     QColor(30, 120, 220),
-        'sapphire': QColor(20, 140, 180),
-        'teal':     QColor(0, 150, 140),
-        'green':    QColor(40, 160, 60),
-        'yellow':   QColor(200, 150, 0),
-        'peach':    QColor(230, 120, 50),
-        'mauve':    QColor(140, 80, 200),
-        'pink':     QColor(220, 80, 160),
-        'red':      QColor(220, 50, 60),
-    },
-    'solarized-light': {
-        'crust':    QColor(238, 232, 213),
-        'base':     QColor(253, 246, 227),
-        'surface0': QColor(238, 232, 213),
-        'surface1': QColor(224, 220, 200),
-        'surface2': QColor(210, 205, 185),
-        'text':     QColor(101, 123, 131),
-        'subtext1': QColor(88, 110, 117),
-        'lavender': QColor(108, 113, 196),
-        'blue':     QColor(38, 139, 210),
-        'sapphire': QColor(42, 161, 152),
-        'teal':     QColor(42, 161, 152),
-        'green':    QColor(133, 153, 0),
-        'yellow':   QColor(181, 137, 0),
-        'peach':    QColor(203, 75, 22),
-        'mauve':    QColor(108, 113, 196),
-        'pink':     QColor(211, 54, 130),
-        'red':      QColor(220, 50, 47),
-    },
-    'github-light': {
-        'crust':    QColor(240, 240, 240),
-        'base':     QColor(255, 255, 255),
-        'surface0': QColor(246, 248, 250),
-        'surface1': QColor(234, 238, 242),
-        'surface2': QColor(216, 222, 228),
-        'text':     QColor(36, 41, 47),
-        'subtext1': QColor(87, 96, 106),
-        'lavender': QColor(130, 80, 223),
-        'blue':     QColor(9, 105, 218),
-        'sapphire': QColor(0, 131, 143),
-        'teal':     QColor(18, 138, 139),
-        'green':    QColor(26, 127, 55),
-        'yellow':   QColor(191, 135, 0),
-        'peach':    QColor(191, 87, 0),
-        'mauve':    QColor(130, 80, 223),
-        'pink':     QColor(191, 57, 137),
-        'red':      QColor(207, 34, 46),
-    },
-}
+from themes import get_colors, load_theme_name, THEMES as THEME_DEFS, DEFAULT_THEME
 
-def load_theme():
-    """Load theme from config file"""
-    import json
-    from pathlib import Path
+def hex_to_qcolor(hex_color: str) -> QColor:
+    """Convert hex color string to QColor"""
+    hex_color = hex_color.lstrip('#')
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return QColor(r, g, b)
 
-    config_path = Path.home() / ".config" / "juhradial" / "config.json"
-    theme_name = "catppuccin-mocha"  # Default
+def load_theme() -> dict:
+    """Load theme from config and convert to QColor objects"""
+    theme_name = load_theme_name()
+    hex_colors = get_colors(theme_name)
 
-    try:
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                theme_name = config.get('theme', 'catppuccin-mocha')
-    except Exception as e:
-        print(f"Could not load theme from config: {e}")
+    # Convert hex colors to QColor objects
+    qcolors = {}
+    for key, value in hex_colors.items():
+        if isinstance(value, str) and value.startswith('#'):
+            qcolors[key] = hex_to_qcolor(value)
+        elif isinstance(value, str) and value.startswith('rgba'):
+            # Skip rgba strings, just use the accent color
+            continue
 
-    # Handle 'system' theme - default to mocha for now
-    if theme_name == 'system':
-        theme_name = 'catppuccin-mocha'
-
-    if theme_name not in THEMES:
-        print(f"Unknown theme '{theme_name}', using catppuccin-mocha")
-        theme_name = 'catppuccin-mocha'
+    # Ensure 'lavender' exists (used for accent in ACTIONS)
+    if 'lavender' not in qcolors and 'accent' in qcolors:
+        qcolors['lavender'] = qcolors['accent']
 
     print(f"Loaded theme: {theme_name}")
-    return THEMES[theme_name]
+    return qcolors
 
 # Load theme at startup
 COLORS = load_theme()
@@ -216,7 +84,8 @@ AI_SUBMENU = [
     ("Perplexity", "url", "https://perplexity.ai",   "perplexity"),
 ]
 
-ACTIONS = [
+# Default actions (fallback if config not found)
+DEFAULT_ACTIONS = [
     ("Play/Pause",   "exec",    "playerctl play-pause",  "green",    "play_pause", None),
     ("New Note",     "exec",    "kwrite",                "yellow",   "note",       None),
     ("Lock",         "exec",    "loginctl lock-session", "red",      "lock",       None),
@@ -226,6 +95,70 @@ ACTIONS = [
     ("Files",        "exec",    "dolphin",               "sapphire", "folder",     None),
     ("AI",           "submenu", "",                      "teal",     "ai",         AI_SUBMENU),
 ]
+
+# Icon name mapping from GTK symbolic names to internal icon IDs
+ICON_NAME_MAP = {
+    'media-playback-start-symbolic': 'play_pause',
+    'media-skip-forward-symbolic': 'next_track',
+    'media-skip-backward-symbolic': 'prev_track',
+    'audio-volume-high-symbolic': 'volume_up',
+    'audio-volume-low-symbolic': 'volume_down',
+    'audio-volume-muted-symbolic': 'mute',
+    'camera-photo-symbolic': 'screenshot',
+    'system-lock-screen-symbolic': 'lock',
+    'folder-symbolic': 'folder',
+    'utilities-terminal-symbolic': 'terminal',
+    'web-browser-symbolic': 'browser',
+    'document-new-symbolic': 'note',
+    'accessories-calculator-symbolic': 'calculator',
+    'emblem-system-symbolic': 'settings',
+    'face-smile-symbolic': 'emoji',
+    'applications-science-symbolic': 'ai',
+}
+
+def load_actions_from_config():
+    """Load radial menu actions from config file"""
+    import json
+    from pathlib import Path
+
+    config_path = Path.home() / ".config" / "juhradial" / "config.json"
+
+    try:
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+
+            slices = config.get('radial_menu', {}).get('slices', [])
+            if not slices:
+                print("No radial_menu slices in config, using defaults")
+                return DEFAULT_ACTIONS
+
+            actions = []
+            for slice_data in slices:
+                label = slice_data.get('label', 'Action')
+                action_type = slice_data.get('type', 'exec')
+                command = slice_data.get('command', '')
+                color = slice_data.get('color', 'teal')
+                gtk_icon = slice_data.get('icon', 'application-x-executable-symbolic')
+
+                # Map GTK icon name to internal icon ID
+                icon = ICON_NAME_MAP.get(gtk_icon, 'settings')
+
+                # Handle submenu type (use AI_SUBMENU as default)
+                submenu = AI_SUBMENU if action_type == 'submenu' else None
+
+                actions.append((label, action_type, command, color, icon, submenu))
+
+            print(f"Loaded {len(actions)} actions from config")
+            return actions
+
+    except Exception as e:
+        print(f"Error loading actions from config: {e}")
+
+    return DEFAULT_ACTIONS
+
+# Load actions at startup
+ACTIONS = load_actions_from_config()
 
 # =============================================================================
 # AI SUBMENU ICONS (SVG)
@@ -327,6 +260,7 @@ class RadialMenu(QWidget):
             "org.kde.juhradialmx.Daemon",
             bus
         )
+        print(f"[DBUS] D-Bus interface created - isValid: {self.daemon_iface.isValid()}")
 
         # Fade animation
         self.anim = QPropertyAnimation(self, b"windowOpacity")
@@ -354,6 +288,11 @@ class RadialMenu(QWidget):
     @pyqtSlot(int, int)
     def on_show(self, x, y):
         import time
+        global ACTIONS
+
+        # Reload actions from config each time menu is shown
+        # This ensures changes from settings are picked up immediately
+        ACTIONS = load_actions_from_config()
 
         # If already in toggle mode and menu is visible, this is a second tap to close
         if self.toggle_mode and self.isVisible():
@@ -391,6 +330,18 @@ class RadialMenu(QWidget):
         self.anim.setEndValue(1.0)
         self.anim.start()
 
+        # Verify D-Bus interface is still valid (in case daemon restarted)
+        if not self.daemon_iface.isValid():
+            print("[DBUS] D-Bus interface invalid, recreating...")
+            bus = QDBusConnection.sessionBus()
+            self.daemon_iface = QDBusInterface(
+                "org.kde.juhradialmx",
+                "/org/kde/juhradialmx/Daemon",
+                "org.kde.juhradialmx.Daemon",
+                bus
+            )
+            print(f"[DBUS] D-Bus interface recreated - isValid: {self.daemon_iface.isValid()}")
+
         # Trigger haptic feedback for menu appearance
         self._trigger_haptic("menu_appear")
 
@@ -400,8 +351,15 @@ class RadialMenu(QWidget):
         Args:
             event: One of "menu_appear", "slice_change", "confirm", "invalid"
         """
+        print(f"[HAPTIC] _trigger_haptic called: event={event}, iface_valid={self.daemon_iface.isValid()}")
         if self.daemon_iface.isValid():
-            self.daemon_iface.call("TriggerHaptic", event)
+            reply = self.daemon_iface.call("TriggerHaptic", event)
+            if reply.type() == reply.MessageType.ErrorMessage:
+                print(f"[HAPTIC] D-Bus call failed: {reply.errorName()} - {reply.errorMessage()}")
+            else:
+                print(f"[HAPTIC] D-Bus call succeeded for {event}")
+        else:
+            print(f"[HAPTIC] ERROR: daemon_iface is INVALID - cannot send haptic signal")
 
     @pyqtSlot()
     def on_hide(self):
@@ -443,6 +401,7 @@ class RadialMenu(QWidget):
             new_slice = int((angle + 22.5) / 45) % 8
 
         if new_slice != self.highlighted_slice:
+            print(f"[HOVER-HOLD] on_cursor_moved: slice changed from {self.highlighted_slice} to {new_slice}")
             # Trigger haptic for slice change (only when entering a valid slice)
             if new_slice >= 0:
                 self._trigger_haptic("slice_change")
@@ -564,6 +523,7 @@ class RadialMenu(QWidget):
                 self.highlighted_subitem = -1
 
         if new_slice != self.highlighted_slice:
+            print(f"[HOVER-TOGGLE] _poll_cursor: slice changed from {self.highlighted_slice} to {new_slice}")
             # Trigger haptic for slice change (only when entering a valid slice)
             if new_slice >= 0:
                 self._trigger_haptic("slice_change")
@@ -606,6 +566,7 @@ class RadialMenu(QWidget):
         return -1
 
     def mouseMoveEvent(self, event):
+        print(f"[MOUSE] mouseMoveEvent called - toggle_mode={self.toggle_mode}")
         cx = WINDOW_SIZE / 2
         cy = WINDOW_SIZE / 2
         pos = event.position()
@@ -650,6 +611,7 @@ class RadialMenu(QWidget):
                 self.highlighted_subitem = -1
 
         if new_slice != self.highlighted_slice:
+            print(f"[HOVER-MOUSE] mouseMoveEvent: slice changed from {self.highlighted_slice} to {new_slice}")
             # Trigger haptic for slice change (only when entering a valid slice)
             if new_slice >= 0:
                 self._trigger_haptic("slice_change")
