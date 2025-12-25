@@ -385,7 +385,7 @@ MOUSE_BUTTONS = {
 # =============================================================================
 NAV_ITEMS = [
     ('buttons', 'BUTTONS', 'input-mouse-symbolic'),
-    ('scroll', 'POINT, SCROLL, PRESS', 'input-touchpad-symbolic'),
+    ('scroll', 'SENSITIVITY', 'input-touchpad-symbolic'),
     ('haptics', 'HAPTIC FEEDBACK', 'audio-speakers-symbolic'),
     ('devices', 'DEVICES', 'computer-symbolic'),
     ('easy_switch', 'EASY-SWITCH', 'network-wireless-symbolic'),
@@ -2737,7 +2737,7 @@ class ScrollWheelVisual(Gtk.DrawingArea):
 
 
 class ScrollPage(Gtk.ScrolledWindow):
-    """Point, Scroll, Press settings page - Logi Options+ inspired design"""
+    """Sensitivity settings page - Mouse pointer, scroll wheel, and button sensitivity"""
 
     def __init__(self):
         super().__init__()
@@ -2783,6 +2783,54 @@ class ScrollPage(Gtk.ScrolledWindow):
         content.append(pointer_card)
 
         # ═══════════════════════════════════════════════════════════════
+        # APPLY SECTION
+        # ═══════════════════════════════════════════════════════════════
+        apply_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        apply_card.add_css_class('card')
+        apply_card.set_margin_top(8)
+
+        # Status indicator
+        self.status_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.status_box.set_halign(Gtk.Align.CENTER)
+
+        self.status_icon = Gtk.Image.new_from_icon_name('emblem-ok-symbolic')
+        self.status_box.append(self.status_icon)
+
+        self.status_label = Gtk.Label(label='Settings are up to date')
+        self.status_label.add_css_class('dim-label')
+        self.status_box.append(self.status_label)
+
+        apply_card.append(self.status_box)
+
+        # Apply button
+        apply_btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        apply_btn_box.set_halign(Gtk.Align.CENTER)
+
+        apply_btn = Gtk.Button()
+        apply_btn.add_css_class('suggested-action')
+        apply_btn.set_size_request(220, 40)
+
+        apply_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        apply_content.set_halign(Gtk.Align.CENTER)
+        apply_icon = Gtk.Image.new_from_icon_name('emblem-synchronizing-symbolic')
+        apply_content.append(apply_icon)
+        apply_label = Gtk.Label(label='Apply to Device')
+        apply_content.append(apply_label)
+        apply_btn.set_child(apply_content)
+        apply_btn.connect('clicked', self._on_apply_clicked)
+
+        apply_btn_box.append(apply_btn)
+        apply_card.append(apply_btn_box)
+
+        # Note
+        note = Gtk.Label()
+        note.set_markup(f'<span size="small" color="{COLORS["subtext0"]}">Applies DPI, SmartShift, and scroll settings via logiops (requires sudo)</span>')
+        note.set_halign(Gtk.Align.CENTER)
+        apply_card.append(note)
+
+        content.append(apply_card)
+
+        # ═══════════════════════════════════════════════════════════════
         # SCROLL WHEEL SECTION
         # ═══════════════════════════════════════════════════════════════
         scroll_card = SettingsCard('Scroll Wheel')
@@ -2814,10 +2862,10 @@ class ScrollPage(Gtk.ScrolledWindow):
 
         smartshift_content.append(smartshift_header)
 
-        smartshift_desc = Gtk.Label(label='Automatically switch between ratchet and free-spin modes based on scroll speed')
+        smartshift_desc = Gtk.Label(label='Auto-switch to free-spin when scrolling fast, return to ratchet when slow')
         smartshift_desc.set_halign(Gtk.Align.START)
         smartshift_desc.set_wrap(True)
-        smartshift_desc.set_max_width_chars(50)
+        smartshift_desc.set_max_width_chars(60)
         smartshift_desc.add_css_class('dim-label')
         smartshift_content.append(smartshift_desc)
 
@@ -2829,7 +2877,7 @@ class ScrollPage(Gtk.ScrolledWindow):
         threshold_box.set_margin_start(76)  # Align with text above
 
         threshold_label_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        threshold_label = Gtk.Label(label='Sensitivity')
+        threshold_label = Gtk.Label(label='Switch Threshold')
         threshold_label.set_halign(Gtk.Align.START)
         threshold_label_box.append(threshold_label)
 
@@ -2843,7 +2891,7 @@ class ScrollPage(Gtk.ScrolledWindow):
         threshold_box.append(threshold_label_box)
 
         threshold_slider_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        ratchet_label = Gtk.Label(label='Ratchet')
+        ratchet_label = Gtk.Label(label='Stay ratchet')
         ratchet_label.add_css_class('dim-label')
         threshold_slider_box.append(ratchet_label)
 
@@ -2857,7 +2905,7 @@ class ScrollPage(Gtk.ScrolledWindow):
         disable_scroll_on_scale(self.threshold_scale)
         threshold_slider_box.append(self.threshold_scale)
 
-        freespin_label = Gtk.Label(label='Free-spin')
+        freespin_label = Gtk.Label(label='Easy free-spin')
         freespin_label.add_css_class('dim-label')
         threshold_slider_box.append(freespin_label)
 
@@ -2968,55 +3016,10 @@ class ScrollPage(Gtk.ScrolledWindow):
 
         content.append(thumb_card)
 
-        # ═══════════════════════════════════════════════════════════════
-        # APPLY SECTION
-        # ═══════════════════════════════════════════════════════════════
-        apply_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        apply_card.add_css_class('card')
-        apply_card.set_margin_top(8)
-
-        # Status indicator
-        self.status_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        self.status_box.set_halign(Gtk.Align.CENTER)
-
-        self.status_icon = Gtk.Image.new_from_icon_name('emblem-ok-symbolic')
-        self.status_box.append(self.status_icon)
-
-        self.status_label = Gtk.Label(label='Settings are up to date')
-        self.status_label.add_css_class('dim-label')
-        self.status_box.append(self.status_label)
-
-        apply_card.append(self.status_box)
-
-        # Apply button
-        apply_btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        apply_btn_box.set_halign(Gtk.Align.CENTER)
-
-        apply_btn = Gtk.Button()
-        apply_btn.add_css_class('suggested-action')
-        apply_btn.set_size_request(220, 40)
-
-        apply_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        apply_content.set_halign(Gtk.Align.CENTER)
-        apply_icon = Gtk.Image.new_from_icon_name('emblem-synchronizing-symbolic')
-        apply_content.append(apply_icon)
-        apply_label = Gtk.Label(label='Apply to Device')
-        apply_content.append(apply_label)
-        apply_btn.set_child(apply_content)
-        apply_btn.connect('clicked', self._on_apply_clicked)
-
-        apply_btn_box.append(apply_btn)
-        apply_card.append(apply_btn_box)
-
-        # Note
-        note = Gtk.Label()
-        note.set_markup(f'<span size="small" color="{COLORS["subtext0"]}">Applies DPI, SmartShift, and scroll settings via logiops (requires sudo)</span>')
-        note.set_halign(Gtk.Align.CENTER)
-        apply_card.append(note)
-
-        content.append(apply_card)
-
         self.set_child(content)
+
+        # Load SmartShift settings from device on startup
+        self._load_smartshift_settings()
 
     def _on_dpi_changed(self, dpi):
         # Convert DPI to speed (1-20) for config (no auto-save to avoid lag)
@@ -3045,12 +3048,28 @@ class ScrollPage(Gtk.ScrolledWindow):
         config.set('scroll', 'smartshift', state)
         self.scroll_visual.set_smartshift(state)
         self.threshold_scale.set_sensitive(state)
+
+        # Apply to device via D-Bus
+        threshold = int(self.threshold_scale.get_value())
+        # Convert UI percentage (1-100) to device threshold (0-255)
+        # Lower threshold = more sensitive, so we invert the percentage
+        device_threshold = int((100 - threshold) * 2.55)
+        self._apply_smartshift_to_device(state, device_threshold)
+
         return False
 
     def _on_threshold_changed(self, scale):
         value = int(scale.get_value())
         config.set('scroll', 'smartshift_threshold', value)
         self._update_threshold_label(value)
+
+        # Apply to device via D-Bus
+        enabled = self.smartshift_switch.get_active()
+        # Convert UI percentage (1-100) to device threshold (0-255)
+        # Lower threshold = more sensitive, so we invert the percentage
+        device_threshold = int((100 - value) * 2.55)
+        self._apply_smartshift_to_device(enabled, device_threshold)
+
         self._show_pending_changes()
 
     def _update_threshold_label(self, value):
@@ -3142,6 +3161,111 @@ class ScrollPage(Gtk.ScrolledWindow):
     def _reset_status(self):
         self.status_label.set_text('Settings are up to date')
         return False
+
+    def _load_smartshift_settings(self):
+        """Load SmartShift settings from device via D-Bus on startup"""
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+
+            # Check if SmartShift is supported
+            supported = proxy.call_sync(
+                'SmartShiftSupported',
+                None,
+                Gio.DBusCallFlags.NONE,
+                2000,
+                None
+            )
+
+            if supported and supported.get_child_value(0).get_boolean():
+                # Get current SmartShift configuration
+                result = proxy.call_sync(
+                    'GetSmartShift',
+                    None,
+                    Gio.DBusCallFlags.NONE,
+                    2000,
+                    None
+                )
+
+                if result:
+                    enabled = result.get_child_value(0).get_boolean()
+                    device_threshold = result.get_child_value(1).get_byte()
+
+                    # Convert device threshold (0-255) to UI percentage (1-100)
+                    # Device: lower = more sensitive, so we invert it
+                    ui_threshold = 100 - int(device_threshold / 2.55)
+                    ui_threshold = max(1, min(100, ui_threshold))
+
+                    # Update UI elements
+                    self.smartshift_switch.set_active(enabled)
+                    self.threshold_scale.set_value(ui_threshold)
+                    self.threshold_scale.set_sensitive(enabled)
+                    self.scroll_visual.set_smartshift(enabled)
+
+                    # Update config
+                    config.set('scroll', 'smartshift', enabled)
+                    config.set('scroll', 'smartshift_threshold', ui_threshold)
+
+                    print(f"SmartShift loaded: enabled={enabled}, threshold={ui_threshold}%")
+            else:
+                # SmartShift not supported, disable UI
+                self.smartshift_switch.set_sensitive(False)
+                self.threshold_scale.set_sensitive(False)
+                print("SmartShift not supported on this device")
+
+        except GLib.Error as e:
+            print(f"D-Bus error loading SmartShift settings: {e.message}")
+        except Exception as e:
+            print(f"Failed to load SmartShift settings: {e}")
+
+    def _apply_smartshift_to_device(self, enabled, threshold):
+        """Apply SmartShift settings directly to the mouse via D-Bus"""
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+
+            # Call SetSmartShift with enabled and threshold
+            proxy.call_sync(
+                'SetSmartShift',
+                GLib.Variant('(by)', (enabled, threshold)),
+                Gio.DBusCallFlags.NONE,
+                2000,
+                None
+            )
+
+            # Update status to show SmartShift was applied
+            if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
+                self.status_icon.set_from_icon_name('emblem-ok-symbolic')
+                mode = 'enabled' if enabled else 'disabled'
+                self.status_label.set_text(f'SmartShift {mode}')
+                GLib.timeout_add(2000, self._reset_status)
+
+            print(f"SmartShift applied: enabled={enabled}, threshold={threshold}")
+
+        except GLib.Error as e:
+            print(f"D-Bus error setting SmartShift: {e.message}")
+            if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
+                self.status_icon.set_from_icon_name('dialog-warning-symbolic')
+                self.status_label.set_text('SmartShift error: daemon not running?')
+                GLib.timeout_add(3000, self._reset_status)
+        except Exception as e:
+            print(f"Failed to set SmartShift via D-Bus: {e}")
 
 
 class HapticsPage(Gtk.ScrolledWindow):
@@ -3248,9 +3372,24 @@ class HapticsPage(Gtk.ScrolledWindow):
                 current_index = i
 
         dropdown.set_active(current_index)
-        dropdown.connect('changed', lambda d: on_change_callback(d.get_active_id()) if d.get_active_id() else None)
+        dropdown.connect('changed', lambda d: self._on_pattern_selected(d, on_change_callback))
 
         return dropdown
+
+    def _on_pattern_selected(self, dropdown, callback):
+        """Handle pattern selection - save and apply instantly"""
+        pattern = dropdown.get_active_id()
+        if not pattern:
+            return
+
+        # Save to config (in-memory)
+        callback(pattern)
+
+        # Save config to file so daemon can read it
+        config.save(show_toast=False)
+
+        # Reload daemon config to apply instantly
+        self._reload_daemon_config()
 
     def _apply_pattern_to_all(self, pattern):
         """Apply the selected pattern to all event types"""
@@ -3274,17 +3413,52 @@ class HapticsPage(Gtk.ScrolledWindow):
         for key, dropdown in self.event_dropdowns.items():
             dropdown.set_active(pattern_index)
 
+        # Save config to file so daemon can read it
+        config.save(show_toast=False)
+
+        # Reload daemon config to apply all patterns instantly
+        self._reload_daemon_config()
+
+    def _reload_daemon_config(self):
+        """Reload daemon config via D-Bus to apply haptic pattern changes instantly"""
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+            proxy.call_sync('ReloadConfig', None, Gio.DBusCallFlags.NONE, 2000, None)
+            print("Daemon config reloaded - haptic patterns applied")
+        except Exception as e:
+            print(f"Failed to reload daemon config: {e}")
+
     def _on_test_clicked(self, button):
         """Send a test haptic pulse via D-Bus"""
         try:
-            import subprocess
-            # Trigger haptic via D-Bus - daemon will use the current default pattern
-            subprocess.run([
-                'dbus-send', '--session', '--type=method_call',
-                '--dest=org.kde.juhradialmx',
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.kde.juhradialmx',
                 '/org/kde/juhradialmx/Daemon',
-                'org.kde.juhradialmx.Daemon.TestHaptic'
-            ], check=False, capture_output=True)
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+            # Trigger haptic with "menu_appear" event to test the pattern
+            proxy.call_sync(
+                'TriggerHaptic',
+                GLib.Variant('(s)', ('menu_appear',)),
+                Gio.DBusCallFlags.NONE,
+                2000,
+                None
+            )
+            print("Test haptic triggered")
         except Exception as e:
             print(f"Failed to send test haptic: {e}")
 
@@ -4559,7 +4733,7 @@ class SettingsApp(Adw.Application):
     def __init__(self):
         super().__init__(
             application_id='org.kde.juhradialmx.settings',
-            flags=Gio.ApplicationFlags.FLAGS_NONE
+            flags=Gio.ApplicationFlags.DEFAULT_FLAGS  # Enables single-instance via D-Bus
         )
 
     def do_startup(self):
@@ -4576,6 +4750,14 @@ class SettingsApp(Adw.Application):
         )
 
     def do_activate(self):
+        # Single-instance logic: check if window already exists
+        windows = self.get_windows()
+        if windows:
+            # Window already exists - bring it to front
+            windows[0].present()
+            return
+
+        # No window exists - create new one
         win = SettingsWindow(self)
         win.present()
 
@@ -4583,26 +4765,9 @@ class SettingsApp(Adw.Application):
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    # Single instance check using D-Bus application ID
-    # GTK4/Adwaita handles this automatically with application_id,
-    # but we also check manually to ensure it works reliably
-    import subprocess
-    try:
-        result = subprocess.run(
-            ['pgrep', '-f', '-c', 'settings_dashboard.py'],
-            capture_output=True, text=True
-        )
-        # pgrep counts include this process, so >1 means another is running
-        if result.returncode == 0:
-            count = int(result.stdout.strip())
-            if count > 1:
-                print('Settings dashboard already running - focusing existing window')
-                # Try to focus existing window
-                subprocess.run(['wmctrl', '-a', 'JuhRadial'], capture_output=True)
-                return 0
-    except Exception:
-        pass  # Continue if check fails
-
+    # GTK4/Adwaita handles single-instance automatically via D-Bus
+    # Using application_id='org.kde.juhradialmx.settings' with DEFAULT_FLAGS
+    # If another instance is launched, it activates the existing window
     print('JuhRadial MX Settings Dashboard')
     print('  Theme: Catppuccin Mocha')
     print(f'  Size: {WINDOW_WIDTH}x{WINDOW_HEIGHT}')
