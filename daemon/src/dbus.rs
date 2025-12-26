@@ -466,6 +466,56 @@ impl JuhRadialService {
     }
 
     // =========================================================================
+    // EASY-SWITCH METHODS
+    // =========================================================================
+
+    /// Get host names for Easy-Switch slots
+    ///
+    /// Uses HID++ 0x1815 (HOSTS_INFO) feature to read paired host names.
+    /// This is a READ-ONLY operation that does not modify device memory.
+    ///
+    /// # Returns
+    /// Vec of host names, one per slot. Empty strings for unpaired slots.
+    async fn get_host_names(&self) -> fdo::Result<Vec<String>> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                let names = manager.get_host_names();
+                tracing::info!(host_names = ?names, "Easy-Switch host names retrieved");
+                Ok(names)
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for get_host_names");
+                Ok(Vec::new())
+            }
+        }
+    }
+
+    /// Get Easy-Switch info: number of hosts and current host
+    ///
+    /// # Returns
+    /// (num_hosts, current_host) - current_host is 0-indexed
+    async fn get_easy_switch_info(&self) -> fdo::Result<(u8, u8)> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                match manager.get_easy_switch_info() {
+                    Some((num, current)) => {
+                        tracing::info!(num_hosts = num, current_host = current, "Easy-Switch info retrieved");
+                        Ok((num, current))
+                    }
+                    None => {
+                        tracing::debug!("Easy-Switch not supported or unavailable");
+                        Ok((0, 0))
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for get_easy_switch_info");
+                Ok((0, 0))
+            }
+        }
+    }
+
+    // =========================================================================
     // PROPERTIES
     // =========================================================================
 

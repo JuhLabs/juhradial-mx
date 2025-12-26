@@ -3939,6 +3939,206 @@ class PlaceholderPage(Gtk.Box):
         self.append(label)
 
 
+class EasySwitchPage(Gtk.ScrolledWindow):
+    """Easy-Switch configuration page - shows paired hosts and current slot"""
+
+    def __init__(self):
+        super().__init__()
+        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+
+        self.slot_buttons = []
+        self.slot_labels = []
+        self.host_names = []
+        self.num_hosts = 0
+        self.current_host = 0
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
+        content.set_margin_top(24)
+        content.set_margin_bottom(24)
+        content.set_margin_start(32)
+        content.set_margin_end(32)
+
+        # Header
+        header_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        header_box.set_halign(Gtk.Align.CENTER)
+        header_box.set_margin_bottom(16)
+
+        header_icon = Gtk.Image.new_from_icon_name('network-wireless-symbolic')
+        header_icon.set_pixel_size(48)
+        header_icon.add_css_class('accent-color')
+        header_box.append(header_icon)
+
+        header_title = Gtk.Label(label='Easy-Switch')
+        header_title.add_css_class('title-1')
+        header_box.append(header_title)
+
+        header_subtitle = Gtk.Label(label='Switch between paired computers')
+        header_subtitle.add_css_class('dim-label')
+        header_box.append(header_subtitle)
+
+        content.append(header_box)
+
+        # Host Slots Card
+        self.slots_card = SettingsCard('Paired Computers')
+
+        # Will be populated by _load_host_info
+        self.slots_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        self.slots_box.set_margin_top(8)
+        self.slots_box.set_margin_bottom(8)
+        self.slots_card.append(self.slots_box)
+
+        content.append(self.slots_card)
+
+        # Info Card
+        info_card = SettingsCard('About Easy-Switch')
+        info_label = Gtk.Label()
+        info_label.set_markup(
+            'Easy-Switch allows your mouse to connect to multiple computers.\n'
+            'Use the button on your mouse to switch between paired devices.\n\n'
+            '<b>Note:</b> Host names are read from the device and reflect\n'
+            'the computer names set during pairing.'
+        )
+        info_label.set_wrap(True)
+        info_label.set_max_width_chars(50)
+        info_label.set_halign(Gtk.Align.START)
+        info_label.set_margin_top(8)
+        info_label.set_margin_bottom(8)
+        info_card.append(info_label)
+
+        content.append(info_card)
+
+        self.set_child(content)
+
+        # Load host info from D-Bus
+        GLib.idle_add(self._load_host_info)
+
+    def _create_slot_widget(self, slot_index, is_current=False):
+        """Create a widget for a single Easy-Switch slot"""
+        slot_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        slot_box.set_margin_start(8)
+        slot_box.set_margin_end(8)
+
+        # Slot indicator
+        indicator = Gtk.Box()
+        indicator.set_size_request(12, 12)
+        indicator.add_css_class('connection-dot')
+        if is_current:
+            indicator.add_css_class('connected')
+        else:
+            indicator.add_css_class('disconnected')
+        slot_box.append(indicator)
+
+        # Computer icon
+        conn_icon = Gtk.Image.new_from_icon_name('computer-symbolic')
+        conn_icon.set_pixel_size(24)
+        if is_current:
+            conn_icon.add_css_class('accent-color')
+        else:
+            conn_icon.add_css_class('dim-label')
+        slot_box.append(conn_icon)
+
+        # Name and status
+        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        text_box.set_hexpand(True)
+
+        name_label = Gtk.Label(label=f'Slot {slot_index + 1}')
+        name_label.set_halign(Gtk.Align.START)
+        name_label.add_css_class('heading')
+        text_box.append(name_label)
+        self.slot_labels.append(name_label)
+
+        status_label = Gtk.Label(label='Current' if is_current else 'Available')
+        status_label.set_halign(Gtk.Align.START)
+        status_label.add_css_class('dim-label')
+        status_label.add_css_class('caption')
+        text_box.append(status_label)
+
+        slot_box.append(text_box)
+
+        # Status badge
+        if is_current:
+            badge = Gtk.Label(label='Active')
+            badge.add_css_class('success')
+            badge.add_css_class('badge')
+            slot_box.append(badge)
+
+        return slot_box
+
+    def _load_host_info(self):
+        """Load host information from daemon via D-Bus"""
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus, Gio.DBusProxyFlags.NONE, None,
+                'org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+
+            # Get Easy-Switch info (num_hosts, current_host)
+            try:
+                result = proxy.call_sync('GetEasySwitchInfo', None, Gio.DBusCallFlags.NONE, 2000, None)
+                if result:
+                    self.num_hosts, self.current_host = result.unpack()
+                    print(f"Easy-Switch: {self.num_hosts} hosts, current={self.current_host}")
+            except Exception as e:
+                print(f"Could not get Easy-Switch info: {e}")
+                self.num_hosts = 3  # Default to 3 slots
+                self.current_host = 0
+
+            # Get host names
+            try:
+                result = proxy.call_sync('GetHostNames', None, Gio.DBusCallFlags.NONE, 2000, None)
+                if result:
+                    self.host_names = list(result.unpack()[0])
+                    print(f"Host names: {self.host_names}")
+            except Exception as e:
+                print(f"Could not get host names: {e}")
+                self.host_names = []
+
+            # Update UI with slots
+            self._update_slot_display()
+
+        except Exception as e:
+            print(f"Failed to connect to D-Bus: {e}")
+            # Show error state
+            error_label = Gtk.Label(label='Could not connect to daemon')
+            error_label.add_css_class('dim-label')
+            self.slots_box.append(error_label)
+
+        return False  # Don't repeat
+
+    def _update_slot_display(self):
+        """Update the slot display with host information"""
+        # Clear existing slots
+        while child := self.slots_box.get_first_child():
+            self.slots_box.remove(child)
+
+        self.slot_labels = []
+
+        # Create slot widgets
+        num_slots = max(self.num_hosts, 3)  # Show at least 3 slots
+        for i in range(num_slots):
+            is_current = (i == self.current_host)
+            slot_widget = self._create_slot_widget(i, is_current)
+            self.slots_box.append(slot_widget)
+
+            # Update label with host name if available
+            if i < len(self.slot_labels) and i < len(self.host_names):
+                host_name = self.host_names[i]
+                if host_name:
+                    self.slot_labels[i].set_text(host_name)
+                    self.slot_labels[i].set_tooltip_text(f'Slot {i + 1}: {host_name}')
+
+            # Add separator except for last
+            if i < num_slots - 1:
+                sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+                sep.set_margin_top(8)
+                sep.set_margin_bottom(8)
+                self.slots_box.append(sep)
+
+
 class AddApplicationDialog(Adw.Window):
     """Dialog for adding a per-application profile"""
 
@@ -4662,7 +4862,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         self.content_stack.add_named(ScrollPage(), 'scroll')
         self.content_stack.add_named(HapticsPage(), 'haptics')
         self.content_stack.add_named(DevicesPage(), 'devices')
-        self.content_stack.add_named(PlaceholderPage('Easy-Switch'), 'easy_switch')
+        self.content_stack.add_named(EasySwitchPage(), 'easy_switch')
         self.content_stack.add_named(FlowPage(), 'flow')
         self.content_stack.add_named(SettingsPage(), 'settings')
 

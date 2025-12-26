@@ -94,6 +94,16 @@ pub mod features {
     /// SmartShift Legacy - For older mice (MX Master 2S and earlier)
     /// Functions: [0] getRatchetControlMode, [1] setRatchetControlMode
     pub const SMARTSHIFT_LEGACY: u16 = 0x2110;
+
+    /// Change Host - Easy-Switch device slot switching (READ-ONLY safe)
+    /// Functions: [0] getHostInfo (returns numHosts, currentHost), [1] setHost(slot)
+    /// Used for reading current Easy-Switch status - we only use function 0
+    pub const CHANGE_HOST: u16 = 0x1814;
+
+    /// Host Info - READ-ONLY access to paired host names (0x1815)
+    /// Functions: [0] getHostInfo, [1] getHostDescriptor, [3] getHostFriendlyName
+    /// NOTE: This is blocklisted for WRITE but READ is safe for getting host names
+    pub const HOSTS_INFO: u16 = 0x1815;
 }
 
 /// BLOCKLISTED HID++ feature IDs - NEVER use these!
@@ -1390,6 +1400,123 @@ impl HidppDevice {
     pub fn battery_supported(&self) -> bool {
         self.battery_supported
     }
+
+    /// Get host names for Easy-Switch slots using HID++ 0x1815 (HOSTS_INFO)
+    ///
+    /// This is a READ-ONLY operation that retrieves the friendly names of
+    /// paired hosts. It does NOT write to device memory.
+    ///
+    /// Returns a Vec of host names for each slot, or empty if feature not supported.
+    pub fn get_host_names(&mut self) -> Vec<String> {
+        // Query HOSTS_INFO feature (0x1815) directly using IRoot
+        // This bypasses the blocklist check since we only READ, never WRITE
+        let hosts_info_index = match self.get_feature_index(features::HOSTS_INFO) {
+            Some(idx) => idx,
+            None => {
+                tracing::debug!("HOSTS_INFO feature (0x1815) not supported on this device");
+                return Vec::new();
+            }
+        };
+
+        tracing::debug!(index = hosts_info_index, "Found HOSTS_INFO feature");
+
+        // Function 0x00: getHostInfo - get number of hosts and capabilities
+        let resp = match self.hidpp_request(hosts_info_index, 0x00, &[]) {
+            Some(r) => r,
+            None => {
+                tracing::debug!("Failed to get host info");
+                return Vec::new();
+            }
+        };
+
+        if resp.len() < 6 {
+            return Vec::new();
+        }
+
+        // Response: [4]=capability_flags, [5]=numHosts, [6]=currentHost
+        let num_hosts = resp[5];
+        let _current_host = resp[6];
+        tracing::debug!(num_hosts, "Got host count from device");
+
+        let mut host_names = Vec::new();
+
+        // Get name for each host slot
+        for host_idx in 0..num_hosts {
+            // Function 0x01: getHostDescriptor - get status and name length
+            let resp = match self.hidpp_request(hosts_info_index, 0x01, &[host_idx, 0, 0]) {
+                Some(r) => r,
+                None => {
+                    host_names.push(String::new());
+                    continue;
+                }
+            };
+
+            if resp.len() < 9 {
+                host_names.push(String::new());
+                continue;
+            }
+
+            // Response: [4]=host, [5]=busType, [6]=flags, [7]=status, [8]=nameLen, [9]=maxNameLen
+            let name_len = resp[8] as usize;
+            if name_len == 0 {
+                host_names.push(String::new());
+                continue;
+            }
+
+            // Function 0x03: getHostFriendlyName - get actual name (chunked, 14 bytes per call)
+            let mut name_bytes = Vec::new();
+            let mut offset = 0u8;
+
+            while (offset as usize) < name_len {
+                let resp = match self.hidpp_request(hosts_info_index, 0x03, &[host_idx, offset, 0]) {
+                    Some(r) => r,
+                    None => break,
+                };
+
+                if resp.len() < 6 {
+                    break;
+                }
+
+                // Response: [4]=host, [5]=offset, [6..20]=name (up to 14 bytes)
+                let chunk_start = 6;
+                let chunk_len = std::cmp::min(14, name_len - offset as usize);
+                if resp.len() >= chunk_start + chunk_len {
+                    name_bytes.extend_from_slice(&resp[chunk_start..chunk_start + chunk_len]);
+                }
+
+                offset += 14;
+            }
+
+            // Convert to string, trimming null bytes
+            let name = String::from_utf8_lossy(&name_bytes)
+                .trim_end_matches('\0')
+                .to_string();
+
+            tracing::debug!(host = host_idx, name = %name, "Got host name");
+            host_names.push(name);
+        }
+
+        host_names
+    }
+
+    /// Get Easy-Switch info: (num_hosts, current_host)
+    pub fn get_easy_switch_info(&mut self) -> Option<(u8, u8)> {
+        // Query CHANGE_HOST feature (0x1814)
+        let change_host_index = self.get_feature_index(features::CHANGE_HOST)?;
+
+        // Function 0: getHostInfo
+        let resp = self.hidpp_request(change_host_index, 0x00, &[])?;
+
+        if resp.len() < 6 {
+            return None;
+        }
+
+        // Response: [4]=numHosts, [5]=currentHost
+        let num_hosts = resp[4];
+        let current_host = resp[5];
+
+        Some((num_hosts, current_host))
+    }
 }
 
 // ============================================================================
@@ -2451,6 +2578,34 @@ impl HapticManager {
     /// Check if battery feature is supported
     pub fn battery_supported(&self) -> bool {
         self.device.as_ref().map(|d| d.battery_supported()).unwrap_or(false)
+    }
+
+    // =========================================================================
+    // Easy-Switch Methods (delegated to HidppDevice)
+    // =========================================================================
+
+    /// Get host names for Easy-Switch slots
+    ///
+    /// Returns a Vec of host names for each slot, or empty if not supported.
+    pub fn get_host_names(&mut self) -> Vec<String> {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        match self.device.as_mut() {
+            Some(device) => device.get_host_names(),
+            None => Vec::new(),
+        }
+    }
+
+    /// Get Easy-Switch info: (num_hosts, current_host)
+    pub fn get_easy_switch_info(&mut self) -> Option<(u8, u8)> {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        match self.device.as_mut() {
+            Some(device) => device.get_easy_switch_info(),
+            None => None,
+        }
     }
 }
 
