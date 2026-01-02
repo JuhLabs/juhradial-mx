@@ -244,6 +244,12 @@ GNU General Public License v3.0 - see [LICENSE](LICENSE)
 
 ---
 
+## Disclaimer
+
+This project is **not affiliated with, endorsed by, or associated with Logitech** in any way. "Logitech", "MX Master", "Logi Options+", and related names are trademarks of Logitech International S.A. This is an independent, open-source project created by the community for the community.
+
+---
+
 <div align="center">
 
 **Made with love by [JuhLabs](https://github.com/JuhLabs)**
