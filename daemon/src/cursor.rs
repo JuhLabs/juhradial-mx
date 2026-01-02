@@ -1,7 +1,7 @@
 //! Cursor position query module
 //!
 //! Provides cross-protocol cursor position retrieval for Wayland and X11.
-//! Uses KWin D-Bus API for Wayland, XQueryPointer for X11 fallback.
+//! Supports Hyprland (wlroots), KDE Plasma (KWin), and X11 environments.
 
 use std::process::Command;
 
@@ -70,12 +70,18 @@ impl CursorPosition {
 /// Get current cursor position
 ///
 /// Attempts to query cursor position using available methods:
-/// 1. KWin scripting (Wayland) - most accurate for Plasma 6 Wayland multi-monitor
-/// 2. KWin D-Bus API (older Plasma versions)
-/// 3. xdotool fallback (X11)
-/// 4. Returns (0, 0) if all methods fail
+/// 1. Hyprland (wlroots-based Wayland) - via hyprctl
+/// 2. KWin scripting (Wayland) - most accurate for Plasma 6 Wayland multi-monitor
+/// 3. KWin D-Bus API (older Plasma versions)
+/// 4. xdotool fallback (X11)
+/// 5. Returns (0, 0) if all methods fail
 pub fn get_cursor_position() -> CursorPosition {
-    // Try KWin scripting first (works correctly on Plasma 6 Wayland multi-monitor)
+    // Try Hyprland first (wlroots-based Wayland compositor)
+    if let Some(pos) = get_cursor_via_hyprland() {
+        return pos;
+    }
+
+    // Try KWin scripting (works correctly on Plasma 6 Wayland multi-monitor)
     if let Some(pos) = get_cursor_via_kwin_script() {
         return pos;
     }
@@ -93,6 +99,74 @@ pub fn get_cursor_position() -> CursorPosition {
     // Fallback: return placeholder
     tracing::warn!("Could not query cursor position, using default (0, 0)");
     CursorPosition::default()
+}
+
+/// Query cursor position via Hyprland (wlroots-based Wayland compositor)
+///
+/// Uses Hyprland IPC socket for fast cursor position retrieval.
+/// Falls back to hyprctl subprocess if socket fails.
+/// Only attempts if HYPRLAND_INSTANCE_SIGNATURE env var is set.
+fn get_cursor_via_hyprland() -> Option<CursorPosition> {
+    // Only try if we're actually running on Hyprland
+    let sig = std::env::var("HYPRLAND_INSTANCE_SIGNATURE").ok()?;
+
+    // Try socket first (much faster than subprocess)
+    if let Some(pos) = get_cursor_via_hyprland_socket(&sig) {
+        return Some(pos);
+    }
+
+    // Fallback to subprocess
+    let output = Command::new("hyprctl")
+        .arg("cursorpos")
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Output format: "x, y" (e.g., "2536, 1109")
+    let parts: Vec<&str> = stdout.trim().split(',').collect();
+    if parts.len() >= 2 {
+        let x: i32 = parts[0].trim().parse().ok()?;
+        let y: i32 = parts[1].trim().parse().ok()?;
+        tracing::debug!(x, y, "Got cursor position via Hyprland (subprocess)");
+        return Some(CursorPosition::new(x, y));
+    }
+
+    None
+}
+
+/// Query cursor position via Hyprland IPC socket (faster than subprocess)
+fn get_cursor_via_hyprland_socket(sig: &str) -> Option<CursorPosition> {
+    use std::io::{Read, Write};
+    use std::os::unix::net::UnixStream;
+    use std::time::Duration;
+
+    let xdg_runtime = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+    let socket_path = format!("{}/hypr/{}/.socket.sock", xdg_runtime, sig);
+
+    let mut stream = UnixStream::connect(&socket_path).ok()?;
+    stream.set_read_timeout(Some(Duration::from_millis(50))).ok()?;
+    stream.set_write_timeout(Some(Duration::from_millis(50))).ok()?;
+
+    stream.write_all(b"cursorpos").ok()?;
+
+    let mut buf = [0u8; 64];
+    let n = stream.read(&mut buf).ok()?;
+
+    let response = String::from_utf8_lossy(&buf[..n]);
+    let parts: Vec<&str> = response.trim().split(',').collect();
+
+    if parts.len() >= 2 {
+        let x: i32 = parts[0].trim().parse().ok()?;
+        let y: i32 = parts[1].trim().parse().ok()?;
+        tracing::debug!(x, y, "Got cursor position via Hyprland socket");
+        return Some(CursorPosition::new(x, y));
+    }
+
+    None
 }
 
 /// Query cursor position via KWin scripting (for Plasma 6 Wayland)
@@ -221,7 +295,12 @@ fn get_cursor_via_xdotool() -> Option<CursorPosition> {
 ///
 /// Queries total screen dimensions across all monitors for edge clamping.
 pub fn get_screen_bounds() -> ScreenBounds {
-    // Try xrandr first (supports multi-monitor)
+    // Try Hyprland first (wlroots-based Wayland compositor)
+    if let Some(bounds) = get_screen_via_hyprland() {
+        return bounds;
+    }
+
+    // Try xrandr (supports multi-monitor, works on X11 and XWayland)
     if let Some(bounds) = get_screen_via_xrandr() {
         return bounds;
     }
@@ -234,6 +313,52 @@ pub fn get_screen_bounds() -> ScreenBounds {
     // Fallback to default
     tracing::warn!("Could not query screen bounds, using default 1920x1080");
     ScreenBounds::default()
+}
+
+/// Query screen bounds via Hyprland (wlroots-based Wayland compositor)
+///
+/// Uses `hyprctl monitors -j` to get monitor dimensions and calculates
+/// the bounding box of all monitors.
+fn get_screen_via_hyprland() -> Option<ScreenBounds> {
+    // Only try hyprctl if we're actually running on Hyprland
+    if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_err() {
+        return None;
+    }
+
+    let output = Command::new("hyprctl")
+        .args(["monitors", "-j"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Parse JSON output to get monitor dimensions
+    // Calculate bounding box of all monitors
+    let monitors: Vec<serde_json::Value> = serde_json::from_str(&stdout).ok()?;
+
+    let mut max_x = 0i32;
+    let mut max_y = 0i32;
+
+    for monitor in &monitors {
+        let x = monitor.get("x")?.as_i64()? as i32;
+        let y = monitor.get("y")?.as_i64()? as i32;
+        let width = monitor.get("width")?.as_i64()? as i32;
+        let height = monitor.get("height")?.as_i64()? as i32;
+
+        max_x = max_x.max(x + width);
+        max_y = max_y.max(y + height);
+    }
+
+    if max_x > 0 && max_y > 0 {
+        tracing::debug!(width = max_x, height = max_y, "Got screen bounds via Hyprland");
+        return Some(ScreenBounds { width: max_x, height: max_y });
+    }
+
+    None
 }
 
 /// Query screen bounds via xrandr (for multi-monitor support)

@@ -1321,6 +1321,128 @@ impl HidppDevice {
         }
     }
 
+    /// Get HiResScroll mode configuration
+    ///
+    /// Returns the current scroll mode settings.
+    ///
+    /// # Returns
+    /// Some((hires, invert, target)) where:
+    /// - hires: true = high resolution scrolling (more events, feels faster)
+    /// - invert: true = natural/inverted scrolling
+    /// - target: true = send scroll events directly to focused window
+    /// None if HiResScroll is not supported
+    pub fn get_hiresscroll_mode(&mut self) -> Option<(bool, bool, bool)> {
+        let feature_index = self.smartshift_feature_index?;
+
+        tracing::debug!(feature_index, "Getting HiResScroll mode from device");
+
+        // Function [1] getMode() -> mode byte
+        // Mode byte bits:
+        // - Bit 0 (0x01) = Target
+        // - Bit 1 (0x02) = HiRes
+        // - Bit 2 (0x04) = Inverted
+        let params = [0x00, 0x00, 0x00];
+
+        self.hidpp_request(feature_index, 0x01, &params).and_then(|resp| {
+            if resp.len() >= 5 {
+                let mode = resp[4];
+                let target = (mode & 0x01) != 0;
+                let hires = (mode & 0x02) != 0;
+                let invert = (mode & 0x04) != 0;
+
+                tracing::debug!(
+                    mode,
+                    hires,
+                    invert,
+                    target,
+                    "Got HiResScroll mode"
+                );
+                Some((hires, invert, target))
+            } else {
+                tracing::warn!("Invalid getMode response length: {}", resp.len());
+                None
+            }
+        })
+    }
+
+    /// Set HiResScroll mode configuration
+    ///
+    /// Configures the scroll mode.
+    ///
+    /// # Arguments
+    /// * `hires` - true = high resolution (more scroll events, feels faster)
+    /// * `invert` - true = natural/inverted scrolling
+    /// * `target` - true = send scroll events directly to focused window
+    ///
+    /// # Returns
+    /// Ok(()) on success, error on failure
+    pub fn set_hiresscroll_mode(
+        &mut self,
+        hires: bool,
+        invert: bool,
+        target: bool,
+    ) -> Result<(), HapticError> {
+        let feature_index = match self.smartshift_feature_index {
+            Some(idx) => idx,
+            None => {
+                tracing::debug!("HiResScroll not supported on this device");
+                return Err(HapticError::NotSupported);
+            }
+        };
+
+        // Build mode byte
+        // - Bit 0 (0x01) = Target
+        // - Bit 1 (0x02) = HiRes
+        // - Bit 2 (0x04) = Inverted
+        let mut mode: u8 = 0;
+        if target {
+            mode |= 0x01;
+        }
+        if hires {
+            mode |= 0x02;
+        }
+        if invert {
+            mode |= 0x04;
+        }
+
+        tracing::info!(
+            feature_index,
+            mode,
+            hires,
+            invert,
+            target,
+            "Setting HiResScroll mode"
+        );
+
+        // Function [2] setMode(mode)
+        let params = [mode, 0x00, 0x00];
+
+        match self.hidpp_request(feature_index, 0x02, &params) {
+            Some(resp) if resp.len() >= 5 => {
+                let returned_mode = resp[4];
+                tracing::debug!(
+                    returned_mode,
+                    "HiResScroll mode set successfully"
+                );
+                Ok(())
+            }
+            Some(resp) => {
+                tracing::warn!("Invalid setMode response length: {}", resp.len());
+                Err(HapticError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Invalid HiResScroll response",
+                )))
+            }
+            None => {
+                tracing::warn!("Failed to set HiResScroll mode");
+                Err(HapticError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Failed to set HiResScroll",
+                )))
+            }
+        }
+    }
+
     /// Query battery status from the device
     ///
     /// # Returns
@@ -1516,6 +1638,52 @@ impl HidppDevice {
         let current_host = resp[5];
 
         Some((num_hosts, current_host))
+    }
+
+    /// Switch to a different paired host (Easy-Switch)
+    ///
+    /// Uses HID++ feature 0x1814 (CHANGE_HOST) function 0x01 (setCurrentHost)
+    /// to switch the mouse to a different paired host slot.
+    ///
+    /// # Arguments
+    /// * `host_index` - The host slot to switch to (0, 1, or 2 for the three Easy-Switch slots)
+    ///
+    /// # Returns
+    /// * `Ok(())` - Successfully sent the switch command
+    /// * `Err(String)` - Error message if the switch failed
+    ///
+    /// # Note
+    /// After calling this, the device will disconnect from the current host
+    /// and attempt to connect to the specified host slot.
+    pub fn set_current_host(&mut self, host_index: u8) -> Result<(), String> {
+        // Query CHANGE_HOST feature (0x1814)
+        let change_host_index = self.get_feature_index(features::CHANGE_HOST)
+            .ok_or_else(|| "CHANGE_HOST feature (0x1814) not supported".to_string())?;
+
+        // Validate host_index (typically 0, 1, or 2)
+        if host_index > 2 {
+            return Err(format!("Invalid host_index: {}. Must be 0, 1, or 2", host_index));
+        }
+
+        tracing::info!(host_index, "Switching to Easy-Switch host slot");
+
+        // Function 0x01: setCurrentHost with param = host_index
+        // Note: Some documentation shows function 0x00 for setHost, but logitech-flow-kvm
+        // uses the setCurrentHost function which takes the target host index as parameter
+        let resp = self.hidpp_request(change_host_index, 0x01, &[host_index]);
+
+        match resp {
+            Some(_) => {
+                tracing::info!(host_index, "Successfully sent host switch command");
+                Ok(())
+            }
+            None => {
+                // Note: The device may disconnect before sending a response
+                // when switching hosts, so a missing response might still mean success
+                tracing::warn!(host_index, "No response from host switch command (device may have disconnected)");
+                Ok(())
+            }
+        }
     }
 }
 
@@ -2551,6 +2719,58 @@ impl HapticManager {
     }
 
     // =========================================================================
+    // HiResScroll Methods (delegated to HidppDevice)
+    // =========================================================================
+
+    /// Get HiResScroll mode configuration
+    ///
+    /// Returns the current scroll mode settings.
+    ///
+    /// # Returns
+    /// Some((hires, invert, target)) where:
+    /// - hires: true = high resolution scrolling (more events, feels faster)
+    /// - invert: true = natural/inverted scrolling
+    /// - target: true = send scroll events directly to focused window
+    /// None if HiResScroll is not supported or device not connected
+    pub fn get_hiresscroll_mode(&mut self) -> Option<(bool, bool, bool)> {
+        // Try to connect if not connected
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_mut().and_then(|d| d.get_hiresscroll_mode())
+    }
+
+    /// Set HiResScroll mode configuration
+    ///
+    /// Configures the scroll mode.
+    ///
+    /// # Arguments
+    /// * `hires` - true = high resolution (more scroll events, feels faster)
+    /// * `invert` - true = natural/inverted scrolling
+    /// * `target` - true = send scroll events directly to focused window
+    ///
+    /// # Returns
+    /// Ok(()) on success, error on failure
+    pub fn set_hiresscroll_mode(
+        &mut self,
+        hires: bool,
+        invert: bool,
+        target: bool,
+    ) -> Result<(), HapticError> {
+        // Try to connect if not connected
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        match self.device.as_mut() {
+            Some(device) => device.set_hiresscroll_mode(hires, invert, target),
+            None => {
+                tracing::warn!("Cannot set HiResScroll: device not connected");
+                Err(HapticError::DeviceNotFound)
+            }
+        }
+    }
+
+    // =========================================================================
     // Battery Methods (delegated to HidppDevice)
     // =========================================================================
 
@@ -2605,6 +2825,24 @@ impl HapticManager {
         match self.device.as_mut() {
             Some(device) => device.get_easy_switch_info(),
             None => None,
+        }
+    }
+
+    /// Switch to a different paired host (Easy-Switch)
+    ///
+    /// # Arguments
+    /// * `host_index` - The host slot to switch to (0, 1, or 2 for the three Easy-Switch slots)
+    ///
+    /// # Returns
+    /// * `Ok(())` - Successfully sent the switch command
+    /// * `Err(String)` - Error message if the switch failed
+    pub fn set_current_host(&mut self, host_index: u8) -> Result<(), String> {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        match self.device.as_mut() {
+            Some(device) => device.set_current_host(host_index),
+            None => Err("No device connected".to_string()),
         }
     }
 }

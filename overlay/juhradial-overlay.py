@@ -40,6 +40,67 @@ WINDOW_SIZE = (MENU_RADIUS + SHADOW_OFFSET + SUBMENU_EXTEND) * 2
 # =============================================================================
 from themes import get_colors, load_theme_name, THEMES as THEME_DEFS, DEFAULT_THEME
 
+# =============================================================================
+# CURSOR POSITION HELPERS (Hyprland/Wayland support)
+# =============================================================================
+IS_HYPRLAND = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") is not None
+
+# Cache for Hyprland socket path
+_hyprland_socket = None
+
+def _get_hyprland_socket():
+    """Get Hyprland socket path (cached)."""
+    global _hyprland_socket
+    if _hyprland_socket is None:
+        sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", "")
+        xdg_runtime = os.environ.get("XDG_RUNTIME_DIR", "/run/user/1000")
+        _hyprland_socket = f"{xdg_runtime}/hypr/{sig}/.socket.sock"
+    return _hyprland_socket
+
+def get_cursor_position_hyprland():
+    """Get cursor position using Hyprland IPC socket (faster than subprocess)."""
+    try:
+        import socket
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(0.05)  # 50ms timeout
+        sock.connect(_get_hyprland_socket())
+        sock.send(b"cursorpos")
+        response = sock.recv(64).decode('utf-8').strip()
+        sock.close()
+
+        # Parse "x, y" format
+        parts = response.split(",")
+        if len(parts) >= 2:
+            x = int(parts[0].strip())
+            y = int(parts[1].strip())
+            return (x, y)
+    except Exception:
+        # Fallback to subprocess if socket fails
+        try:
+            result = subprocess.run(
+                ["hyprctl", "cursorpos"],
+                capture_output=True,
+                text=True,
+                timeout=0.1
+            )
+            if result.returncode == 0:
+                parts = result.stdout.strip().split(",")
+                if len(parts) >= 2:
+                    return (int(parts[0].strip()), int(parts[1].strip()))
+        except Exception:
+            pass
+    return None
+
+def get_cursor_pos():
+    """Get cursor position - uses hyprctl on Hyprland, QCursor otherwise."""
+    if IS_HYPRLAND:
+        pos = get_cursor_position_hyprland()
+        if pos:
+            return pos
+    # Fallback to Qt (works on X11/KDE)
+    qpos = QCursor.pos()
+    return (qpos.x(), qpos.y())
+
 def hex_to_qcolor(hex_color: str) -> QColor:
     """Convert hex color string to QColor"""
     hex_color = hex_color.lstrip('#')
@@ -205,14 +266,18 @@ class RadialMenu(QWidget):
 
     def __init__(self):
         super().__init__()
+        # Use Popup for menu-like behavior (receives mouse input)
+        # ToolTip doesn't receive clicks on Hyprland/XWayland
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.ToolTip  # ToolTip windows don't appear in taskbar
+            Qt.WindowType.Popup |  # Popup receives mouse input properly
+            Qt.WindowType.BypassWindowManagerHint  # Skip WM decorations
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setFixedSize(WINDOW_SIZE, WINDOW_SIZE)
         self.setMouseTracking(True)
+        self.setWindowTitle("JuhRadial MX")  # For window rule matching (Hyprland, etc.)
 
         self.highlighted_slice = -1
         self.menu_center_x = 0
@@ -459,14 +524,15 @@ class RadialMenu(QWidget):
 
     def _poll_cursor(self):
         """Poll cursor position for hover detection."""
-        pos = QCursor.pos()
+        # Use hyprctl on Hyprland (QCursor.pos() doesn't work on XWayland)
+        pos_x, pos_y = get_cursor_pos()
         # Use stored center coordinates (reliable on multi-monitor)
         # self.geometry() returns wrong values on XWayland multi-monitor
         cx = self.menu_center_x
         cy = self.menu_center_y
 
-        dx = pos.x() - cx
-        dy = pos.y() - cy
+        dx = pos_x - cx
+        dy = pos_y - cy
         distance = math.sqrt(dx * dx + dy * dy)
 
         # Calculate which slice we're over
@@ -1078,6 +1144,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("JuhRadial MX")
+    app.setDesktopFileName("juhradial-overlay")  # For Wayland compositor identification
 
     # Load AI submenu icons
     load_ai_icons()

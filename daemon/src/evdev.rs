@@ -344,22 +344,30 @@ impl EvdevHandler {
     async fn handle_gesture_event(&mut self, value: i32) {
         match value {
             1 => {
-                // Button pressed - trigger KWin script to get cursor position
+                // Button pressed - get cursor position
                 self.press_time = Some(Instant::now());
                 self.menu_active = true;
                 // Initialize relative cursor tracking (0,0 = menu center)
                 self.cursor_x = 0;
                 self.cursor_y = 0;
-                tracing::info!("Gesture button pressed - triggering KWin cursor query");
 
-                // Use KWin script to get accurate cursor position on Wayland multi-monitor
-                if !Self::trigger_kwin_cursor_script() {
-                    // Fallback to xdotool if KWin script fails
+                // Check for Hyprland - use direct cursor query (no KWin script)
+                if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
+                    tracing::info!("Gesture button pressed - using Hyprland cursor query");
                     let pos = crate::cursor::get_cursor_position();
-                    tracing::warn!(x = pos.x, y = pos.y, "KWin script failed, using fallback");
+                    tracing::info!(x = pos.x, y = pos.y, "Cursor position from Hyprland");
                     let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
+                } else {
+                    // KDE/other - try KWin script first for multi-monitor accuracy
+                    tracing::info!("Gesture button pressed - triggering KWin cursor query");
+                    if !Self::trigger_kwin_cursor_script() {
+                        // Fallback to get_cursor_position if KWin script fails
+                        let pos = crate::cursor::get_cursor_position();
+                        tracing::warn!(x = pos.x, y = pos.y, "KWin script failed, using fallback");
+                        let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
+                    }
+                    // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus directly
                 }
-                // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus directly
             }
             0 => {
                 // Button released
@@ -625,17 +633,24 @@ impl LogidHandler {
 
     async fn handle_press(&mut self) {
         self.press_time = Some(Instant::now());
-        tracing::info!("Logid: F19 press - triggering KWin cursor query");
 
-        // Use KWin script to get accurate cursor position on Wayland multi-monitor
-        // This is the same approach used by EvdevHandler
-        if !Self::trigger_kwin_cursor_script() {
-            // Fallback to xdotool if KWin script fails
+        // Check for Hyprland - use direct cursor query (no KWin script)
+        if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
+            tracing::info!("Logid: F19 press - using Hyprland cursor query");
             let pos = crate::cursor::get_cursor_position();
-            tracing::warn!(x = pos.x, y = pos.y, "KWin script failed, using fallback");
+            tracing::info!(x = pos.x, y = pos.y, "Cursor position from Hyprland");
             let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
+        } else {
+            // KDE/other - try KWin script first for multi-monitor accuracy
+            tracing::info!("Logid: F19 press - triggering KWin cursor query");
+            if !Self::trigger_kwin_cursor_script() {
+                // Fallback to get_cursor_position if KWin script fails
+                let pos = crate::cursor::get_cursor_position();
+                tracing::warn!(x = pos.x, y = pos.y, "KWin script failed, using fallback");
+                let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
+            }
+            // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus directly
         }
-        // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus directly
     }
 
     /// Trigger KWin script to get cursor position and call ShowMenuAtCursor

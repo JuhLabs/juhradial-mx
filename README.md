@@ -2,7 +2,7 @@
   <img src="assets/juhradial-mx.svg" width="128" alt="JuhRadial MX Logo">
   <h1>JuhRadial MX</h1>
   <p><strong>Beautiful radial menu for Logitech MX Master mice on Linux</strong></p>
-  <p>A Logi Options+ inspired experience for KDE Plasma 6</p>
+  <p>A Logi Options+ inspired experience for KDE Plasma 6 & Hyprland</p>
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
@@ -48,9 +48,11 @@
 - **AI Quick Access** - Submenu with Claude, ChatGPT, Gemini, and Perplexity
 - **Multiple Themes** - JuhRadial MX, Catppuccin, Nord, Dracula, and light themes
 - **Settings Dashboard** - Modern GTK4/Adwaita settings app with Actions Ring configuration
+- **Easy-Switch** - Quick host switching with real-time paired device names via HID++
+- **Flow** - Multi-computer control with clipboard sync (inspired by Logi Options+ Flow)
 - **Battery Monitoring** - Real-time battery status with instant charging detection via HID++
 - **DPI Control** - Visual DPI adjustment (400-8000 DPI)
-- **Native Wayland** - Full KDE Plasma 6 Wayland support
+- **Native Wayland** - Full support for KDE Plasma 6 and Hyprland
 
 ## Supported Devices
 
@@ -114,10 +116,11 @@ sudo systemctl enable --now logid
 
 ### Requirements
 
-- **KDE Plasma 6** on Wayland
+- **Wayland compositor** (KDE Plasma 6, Hyprland, or other wlroots-based)
 - **logiops** (logid) for button mapping
 - **Rust** (for building)
 - **Python 3** with PyQt6 and GTK4/Adwaita
+- **XWayland** (for overlay window positioning)
 
 ---
 
@@ -169,6 +172,26 @@ Open Settings and select a theme:
 
 ---
 
+## Hyprland Setup
+
+**Automatic:** The installer detects Hyprland and configures window rules automatically.
+
+**Manual:** If needed, add these rules to your `hyprland.conf` or `custom/rules.conf`:
+
+```conf
+# JuhRadial MX overlay window rules
+windowrulev2 = float, title:^(JuhRadial MX)$
+windowrulev2 = noblur, title:^(JuhRadial MX)$
+windowrulev2 = noborder, title:^(JuhRadial MX)$
+windowrulev2 = noshadow, title:^(JuhRadial MX)$
+windowrulev2 = pin, title:^(JuhRadial MX)$
+windowrulev2 = noanim, title:^(JuhRadial MX)$
+```
+
+These rules ensure the radial menu overlay appears correctly on all workspaces without animations or decorations.
+
+---
+
 ## Troubleshooting
 
 | Problem | Solution |
@@ -177,6 +200,8 @@ Open Settings and select a theme:
 | Wrong cursor position | Ensure you're on Wayland, not X11 |
 | Mouse not detected | Restart logid: `sudo systemctl restart logid` |
 | Build fails | Install dev packages: `hidapi-devel`, `dbus-devel` |
+| Hyprland: Menu hidden | Add window rules from Hyprland Setup section above |
+| Hyprland: Cursor not found | Ensure `hyprctl cursorpos` works in terminal |
 
 ### Debug Mode
 
@@ -214,6 +239,7 @@ GNU General Public License v3.0 - see [LICENSE](LICENSE)
 ## Acknowledgments
 
 - [logiops](https://github.com/PixlOne/logiops) - Logitech device configuration
+- [logitech-flow-kvm](https://github.com/coddingtonbear/logitech-flow-kvm) by Adam Coddington - Flow multi-computer control inspiration
 - [Catppuccin](https://github.com/catppuccin/catppuccin) - Beautiful color scheme
 
 ---

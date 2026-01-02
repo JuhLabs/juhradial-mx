@@ -89,12 +89,73 @@ check_wayland() {
     fi
 }
 
-check_kde() {
-    if [ "$XDG_CURRENT_DESKTOP" = "KDE" ] || [ "$DESKTOP_SESSION" = "plasma" ]; then
+check_desktop() {
+    # Detect desktop environment / compositor
+    DESKTOP_TYPE="unknown"
+
+    if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
+        DESKTOP_TYPE="hyprland"
+        log_success "Hyprland detected"
+    elif [ "$XDG_CURRENT_DESKTOP" = "KDE" ] || [ "$DESKTOP_SESSION" = "plasma" ]; then
+        DESKTOP_TYPE="kde"
         log_success "KDE Plasma detected"
+    elif [ "$XDG_CURRENT_DESKTOP" = "sway" ]; then
+        DESKTOP_TYPE="sway"
+        log_success "Sway detected"
     else
-        log_warning "Non-KDE desktop detected: $XDG_CURRENT_DESKTOP"
-        log_warning "JuhRadial MX is designed for KDE Plasma. Some features may not work."
+        log_warning "Desktop detected: $XDG_CURRENT_DESKTOP"
+        log_warning "JuhRadial MX works best on KDE Plasma or Hyprland."
+    fi
+}
+
+configure_hyprland() {
+    # Configure Hyprland window rules for overlay
+    if [ "$DESKTOP_TYPE" != "hyprland" ]; then
+        return 0
+    fi
+
+    log_info "Configuring Hyprland window rules..."
+
+    HYPR_CONFIG_DIR="$HOME/.config/hypr"
+    RULES_CONTENT='
+# ######## JuhRadial MX - Radial Menu Overlay ########
+# These rules ensure the radial menu appears correctly as an overlay
+windowrulev2 = float, title:^(JuhRadial MX)$
+windowrulev2 = noblur, title:^(JuhRadial MX)$
+windowrulev2 = noborder, title:^(JuhRadial MX)$
+windowrulev2 = noshadow, title:^(JuhRadial MX)$
+windowrulev2 = pin, title:^(JuhRadial MX)$
+windowrulev2 = noanim, title:^(JuhRadial MX)$'
+
+    # Check if rules already exist
+    if grep -q "JuhRadial MX" "$HYPR_CONFIG_DIR"/*.conf "$HYPR_CONFIG_DIR"/**/*.conf 2>/dev/null; then
+        log_info "Hyprland rules already configured"
+        return 0
+    fi
+
+    # Try dots-hyprland custom rules first (end-4/dots-hyprland structure)
+    if [ -f "$HYPR_CONFIG_DIR/custom/rules.conf" ]; then
+        echo "$RULES_CONTENT" >> "$HYPR_CONFIG_DIR/custom/rules.conf"
+        log_success "Added rules to custom/rules.conf (dots-hyprland)"
+    # Try standard hyprland.conf
+    elif [ -f "$HYPR_CONFIG_DIR/hyprland.conf" ]; then
+        echo "$RULES_CONTENT" >> "$HYPR_CONFIG_DIR/hyprland.conf"
+        log_success "Added rules to hyprland.conf"
+    # Create a new rules file and source it
+    else
+        mkdir -p "$HYPR_CONFIG_DIR"
+        echo "$RULES_CONTENT" > "$HYPR_CONFIG_DIR/juhradial-rules.conf"
+
+        # Try to source it from main config
+        if [ -f "$HYPR_CONFIG_DIR/hyprland.conf" ]; then
+            echo "source=juhradial-rules.conf" >> "$HYPR_CONFIG_DIR/hyprland.conf"
+        fi
+        log_success "Created juhradial-rules.conf"
+    fi
+
+    # Reload Hyprland config if possible
+    if command -v hyprctl &> /dev/null; then
+        hyprctl reload 2>/dev/null && log_info "Hyprland config reloaded"
     fi
 }
 
@@ -303,6 +364,12 @@ print_success() {
     echo ""
     echo "  3. Right-click the tray icon to access Settings"
     echo ""
+
+    if [ "$DESKTOP_TYPE" = "hyprland" ]; then
+        echo -e "${CYAN}Hyprland window rules have been configured automatically.${NC}"
+        echo ""
+    fi
+
     echo "Service status: systemctl --user status juhradialmx-daemon"
     echo "View logs: journalctl --user -u juhradialmx-daemon -f"
     echo ""
@@ -317,7 +384,7 @@ main() {
     check_root
     detect_distro
     check_wayland
-    check_kde
+    check_desktop
 
     echo ""
     read -p "Continue with installation? [Y/n] " -n 1 -r
@@ -332,6 +399,7 @@ main() {
     build_project
     install_files
     configure_logiops
+    configure_hyprland
     enable_service
     print_success
 }

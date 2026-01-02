@@ -18,7 +18,17 @@ import signal
 import math
 import json
 import time
+import socket
+import threading
 from pathlib import Path
+
+# Try to import zeroconf for mDNS discovery
+try:
+    from zeroconf import ServiceBrowser, ServiceListener, Zeroconf, ServiceInfo
+    ZEROCONF_AVAILABLE = True
+except ImportError:
+    ZEROCONF_AVAILABLE = False
+    print("[Flow] zeroconf not installed - run: pip install zeroconf")
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
@@ -297,6 +307,19 @@ def get_device_name():
 # THEME SYSTEM - Load colors from shared theme module
 # =============================================================================
 from themes import get_colors, get_theme, load_theme_name, get_theme_list, is_dark_theme, THEMES, DEFAULT_THEME
+
+# Flow module for multi-computer control
+# Inspired by logitech-flow-kvm by Adam Coddington (coddingtonbear)
+# https://github.com/coddingtonbear/logitech-flow-kvm
+try:
+    from flow import (
+        start_flow_server, stop_flow_server, get_flow_server,
+        get_linked_computers, FlowClient, FLOW_PORT
+    )
+    FLOW_MODULE_AVAILABLE = True
+except ImportError:
+    FLOW_MODULE_AVAILABLE = False
+    print("[Warning] Flow module not available")
 
 def load_colors():
     """Load colors from the current theme with glow color computed"""
@@ -1823,32 +1846,30 @@ class ButtonConfigDialog(Adw.Window):
 
 
 # Radial menu slice actions
+# Radial menu action definitions: (action_id, display_name, icon, type, command, color)
 RADIAL_ACTIONS = [
-    ('copy', 'Copy', 'edit-copy-symbolic'),
-    ('paste', 'Paste', 'edit-paste-symbolic'),
-    ('undo', 'Undo', 'edit-undo-symbolic'),
-    ('redo', 'Redo', 'edit-redo-symbolic'),
-    ('cut', 'Cut', 'edit-cut-symbolic'),
-    ('select_all', 'Select All', 'edit-select-all-symbolic'),
-    ('screenshot', 'Screenshot', 'camera-photo-symbolic'),
-    ('close_window', 'Close Window', 'window-close-symbolic'),
-    ('minimize', 'Minimize', 'window-minimize-symbolic'),
-    ('maximize', 'Maximize', 'window-maximize-symbolic'),
-    ('volume_up', 'Volume Up', 'audio-volume-high-symbolic'),
-    ('volume_down', 'Volume Down', 'audio-volume-low-symbolic'),
-    ('mute', 'Mute', 'audio-volume-muted-symbolic'),
-    ('play_pause', 'Play/Pause', 'media-playback-start-symbolic'),
-    ('next_track', 'Next Track', 'media-skip-forward-symbolic'),
-    ('prev_track', 'Previous Track', 'media-skip-backward-symbolic'),
-    ('zoom_in', 'Zoom In', 'zoom-in-symbolic'),
-    ('zoom_out', 'Zoom Out', 'zoom-out-symbolic'),
-    ('new_tab', 'New Tab', 'tab-new-symbolic'),
-    ('close_tab', 'Close Tab', 'window-close-symbolic'),
-    ('refresh', 'Refresh', 'view-refresh-symbolic'),
-    ('home', 'Home', 'go-home-symbolic'),
-    ('back', 'Back', 'go-previous-symbolic'),
-    ('forward', 'Forward', 'go-next-symbolic'),
-    ('none', 'Do Nothing', 'action-unavailable-symbolic'),
+    ('play_pause', 'Play/Pause', 'media-playback-start-symbolic', 'exec', 'playerctl play-pause', 'green'),
+    ('screenshot', 'Screenshot', 'camera-photo-symbolic', 'exec', 'flameshot gui', 'purple'),
+    ('lock', 'Lock Screen', 'system-lock-screen-symbolic', 'exec', 'loginctl lock-session', 'red'),
+    ('settings', 'Settings', 'preferences-system-symbolic', 'settings', '', 'blue'),
+    ('files', 'Files', 'system-file-manager-symbolic', 'exec', 'dolphin', 'orange'),
+    ('emoji', 'Emoji Picker', 'face-smile-symbolic', 'exec', 'ibus emoji', 'yellow'),
+    ('new_note', 'New Note', 'document-new-symbolic', 'exec', 'kwrite', 'yellow'),
+    ('ai', 'AI Assistant', 'dialog-information-symbolic', 'submenu', '', 'teal'),
+    ('copy', 'Copy', 'edit-copy-symbolic', 'shortcut', 'ctrl+c', 'blue'),
+    ('paste', 'Paste', 'edit-paste-symbolic', 'shortcut', 'ctrl+v', 'blue'),
+    ('undo', 'Undo', 'edit-undo-symbolic', 'shortcut', 'ctrl+z', 'blue'),
+    ('redo', 'Redo', 'edit-redo-symbolic', 'shortcut', 'ctrl+shift+z', 'blue'),
+    ('cut', 'Cut', 'edit-cut-symbolic', 'shortcut', 'ctrl+x', 'blue'),
+    ('select_all', 'Select All', 'edit-select-all-symbolic', 'shortcut', 'ctrl+a', 'blue'),
+    ('close_window', 'Close Window', 'window-close-symbolic', 'shortcut', 'alt+F4', 'red'),
+    ('minimize', 'Minimize', 'window-minimize-symbolic', 'shortcut', 'super+d', 'blue'),
+    ('volume_up', 'Volume Up', 'audio-volume-high-symbolic', 'exec', 'pactl set-sink-volume @DEFAULT_SINK@ +5%', 'green'),
+    ('volume_down', 'Volume Down', 'audio-volume-low-symbolic', 'exec', 'pactl set-sink-volume @DEFAULT_SINK@ -5%', 'green'),
+    ('mute', 'Mute', 'audio-volume-muted-symbolic', 'exec', 'pactl set-sink-mute @DEFAULT_SINK@ toggle', 'red'),
+    ('next_track', 'Next Track', 'media-skip-forward-symbolic', 'exec', 'playerctl next', 'green'),
+    ('prev_track', 'Previous Track', 'media-skip-backward-symbolic', 'exec', 'playerctl previous', 'green'),
+    ('none', 'Do Nothing', 'action-unavailable-symbolic', 'none', '', 'gray'),
 ]
 
 
@@ -1915,18 +1936,20 @@ class RadialMenuConfigDialog(Adw.Window):
             slice_box.append(slice_label)
 
             # Get current slice config
-            current_slice = self.profile.get('slices', [{}] * 8)[i] if i < len(self.profile.get('slices', [])) else {}
-            current_action = current_slice.get('action_id', 'none')
+            slices = self.profile.get('slices', [])
+            current_slice = slices[i] if i < len(slices) else {}
+            current_label = current_slice.get('label', '')
 
             # Action dropdown
             dropdown = Gtk.DropDown()
-            action_names = [name for _, name, _ in RADIAL_ACTIONS]
+            action_names = [name for _, name, _, _, _, _ in RADIAL_ACTIONS]
             dropdown.set_model(Gtk.StringList.new(action_names))
 
-            # Find current action index
-            action_ids = [aid for aid, _, _ in RADIAL_ACTIONS]
-            if current_action in action_ids:
-                dropdown.set_selected(action_ids.index(current_action))
+            # Find current action index by matching label
+            for idx, (_, name, _, _, _, _) in enumerate(RADIAL_ACTIONS):
+                if name == current_label:
+                    dropdown.set_selected(idx)
+                    break
 
             dropdown.set_hexpand(True)
             self.slice_dropdowns[i] = dropdown
@@ -1940,50 +1963,52 @@ class RadialMenuConfigDialog(Adw.Window):
         self.set_content(main_box)
 
     def _load_profile(self):
-        """Load the current radial menu profile"""
-        profile_path = Path.home() / '.config' / 'juhradial' / 'profiles.json'
+        """Load the current radial menu from config.json"""
+        config_path = Path.home() / '.config' / 'juhradial' / 'config.json'
         try:
-            if profile_path.exists():
-                with open(profile_path, 'r', encoding='utf-8') as f:
-                    profiles = json.load(f)
-                    # Return the default profile
-                    return profiles.get('default', {})
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+                    # Return the radial_menu section
+                    return config_data.get('radial_menu', {})
         except Exception as e:
-            print(f"Failed to load profile: {e}")
+            print(f"Failed to load config: {e}")
         return {}
 
     def _on_save(self, _):
-        """Save the radial menu configuration"""
-        profile_path = Path.home() / '.config' / 'juhradial' / 'profiles.json'
+        """Save the radial menu configuration to config.json"""
+        config_path = Path.home() / '.config' / 'juhradial' / 'config.json'
 
-        # Build new slices config
+        # Build new slices config in the format the overlay expects
         slices = []
         for i in range(8):
             dropdown = self.slice_dropdowns[i]
             selected = dropdown.get_selected()
             if 0 <= selected < len(RADIAL_ACTIONS):
-                action_id, action_name, icon = RADIAL_ACTIONS[selected]
+                action_id, label, icon, action_type, command, color = RADIAL_ACTIONS[selected]
                 slices.append({
-                    'action_id': action_id,
-                    'label': action_name,
+                    'label': label,
+                    'type': action_type,
+                    'command': command,
+                    'color': color,
                     'icon': icon,
                 })
 
-        # Load existing profiles and update
+        # Load existing config and update radial_menu.slices
         try:
-            profiles = {}
-            if profile_path.exists():
-                with open(profile_path, 'r', encoding='utf-8') as f:
-                    profiles = json.load(f)
+            config_data = {}
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
 
-            if 'default' not in profiles:
-                profiles['default'] = {}
+            if 'radial_menu' not in config_data:
+                config_data['radial_menu'] = {}
 
-            profiles['default']['slices'] = slices
+            config_data['radial_menu']['slices'] = slices
 
             # Save
-            with open(profile_path, 'w', encoding='utf-8') as f:
-                json.dump(profiles, f, indent=2)
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=2)
 
             print("Radial menu configuration saved!")
 
@@ -2920,18 +2945,18 @@ class ScrollPage(Gtk.ScrolledWindow):
 
         # Scroll direction
         direction_row = SettingRow('Natural Scrolling', 'Scroll content in the direction of finger movement')
-        direction_switch = Gtk.Switch()
-        direction_switch.set_active(config.get('scroll', 'natural', default=False))
-        direction_switch.connect('state-set', self._on_natural_changed)
-        direction_row.set_control(direction_switch)
+        self.natural_switch = Gtk.Switch()
+        self.natural_switch.set_active(config.get('scroll', 'natural', default=False))
+        self.natural_switch.connect('state-set', self._on_natural_changed)
+        direction_row.set_control(self.natural_switch)
         scroll_card.append(direction_row)
 
-        # Smooth scrolling
-        smooth_row = SettingRow('Smooth Scrolling', 'Enable high-resolution scrolling')
-        smooth_switch = Gtk.Switch()
-        smooth_switch.set_active(config.get('scroll', 'smooth', default=True))
-        smooth_switch.connect('state-set', lambda s, state: config.set('scroll', 'smooth', state) or False)
-        smooth_row.set_control(smooth_switch)
+        # High-resolution scrolling (HiRes mode)
+        smooth_row = SettingRow('High-Resolution Scroll', 'More scroll events for smoother, faster scrolling')
+        self.smooth_switch = Gtk.Switch()
+        self.smooth_switch.set_active(config.get('scroll', 'smooth', default=True))
+        self.smooth_switch.connect('state-set', self._on_smooth_changed)
+        smooth_row.set_control(self.smooth_switch)
         scroll_card.append(smooth_row)
 
         # Separator before scroll speed
@@ -2940,54 +2965,16 @@ class ScrollPage(Gtk.ScrolledWindow):
         sep3.set_margin_bottom(16)
         scroll_card.append(sep3)
 
-        # Scroll Speed slider
-        scroll_speed_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-
-        scroll_speed_label_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        scroll_speed_label = Gtk.Label(label='Scroll Speed')
-        scroll_speed_label.set_halign(Gtk.Align.START)
-        scroll_speed_label.add_css_class('heading')
-        scroll_speed_label_box.append(scroll_speed_label)
-
-        spacer_speed = Gtk.Box()
-        spacer_speed.set_hexpand(True)
-        scroll_speed_label_box.append(spacer_speed)
-
-        self.scroll_speed_value = Gtk.Label()
-        self.scroll_speed_value.add_css_class('dim-label')
-        scroll_speed_label_box.append(self.scroll_speed_value)
-        scroll_speed_box.append(scroll_speed_label_box)
-
-        scroll_speed_desc = Gtk.Label(label='Control scroll wheel resolution (fewer events = slower scrolling)')
-        scroll_speed_desc.set_halign(Gtk.Align.START)
-        scroll_speed_desc.set_wrap(True)
-        scroll_speed_desc.set_max_width_chars(50)
-        scroll_speed_desc.add_css_class('dim-label')
-        scroll_speed_box.append(scroll_speed_desc)
-
-        scroll_speed_slider_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        slow_label = Gtk.Label(label='Slow')
-        slow_label.add_css_class('dim-label')
-        scroll_speed_slider_box.append(slow_label)
-
-        # Slider from 10 to 200 (percentage), default 100 (normal)
-        self.scroll_speed_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 10, 200, 5)
-        self.scroll_speed_scale.set_hexpand(True)
-        self.scroll_speed_scale.set_draw_value(False)
-        self.scroll_speed_scale.set_value(config.get('scroll', 'speed', default=100))
-        self.scroll_speed_scale.add_mark(100, Gtk.PositionType.BOTTOM, None)  # Mark at 100% (normal)
-        self.scroll_speed_scale.connect('value-changed', self._on_scroll_speed_changed)
-        self._update_scroll_speed_label(self.scroll_speed_scale.get_value())
-        # Disable scroll wheel to prevent accidental changes while scrolling page
-        disable_scroll_on_scale(self.scroll_speed_scale)
-        scroll_speed_slider_box.append(self.scroll_speed_scale)
-
-        fast_label = Gtk.Label(label='Fast')
-        fast_label.add_css_class('dim-label')
-        scroll_speed_slider_box.append(fast_label)
-
-        scroll_speed_box.append(scroll_speed_slider_box)
-        scroll_card.append(scroll_speed_box)
+        # Scroll Speed slider for main wheel
+        scroll_speed_row = SettingRow('Scroll Speed', 'Lines scrolled per wheel notch')
+        scroll_speed_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 1, 10, 1)
+        scroll_speed_scale.set_value(config.get('scroll', 'speed', default=3))
+        scroll_speed_scale.set_size_request(200, -1)
+        scroll_speed_scale.set_draw_value(False)
+        scroll_speed_scale.connect('value-changed', self._on_scroll_speed_changed)
+        disable_scroll_on_scale(scroll_speed_scale)
+        scroll_speed_row.set_control(scroll_speed_scale)
+        scroll_card.append(scroll_speed_row)
 
         content.append(scroll_card)
 
@@ -3018,8 +3005,9 @@ class ScrollPage(Gtk.ScrolledWindow):
 
         self.set_child(content)
 
-        # Load SmartShift settings from device on startup
+        # Load SmartShift and HiResScroll settings from device on startup
         self._load_smartshift_settings()
+        self._load_hiresscroll_settings()
 
     def _on_dpi_changed(self, dpi):
         # Convert DPI to speed (1-20) for config (no auto-save to avoid lag)
@@ -3084,21 +3072,190 @@ class ScrollPage(Gtk.ScrolledWindow):
                            'natural-scroll', 'true' if state else 'false'], capture_output=True)
         except Exception:
             pass
+        # Also apply to device via D-Bus HiResScroll
+        self._apply_hiresscroll_to_device()
+        return False
+
+    def _on_smooth_changed(self, switch, state):
+        """Handle high-resolution scroll toggle change"""
+        config.set('scroll', 'smooth', state)
+        # Apply to device via D-Bus HiResScroll
+        self._apply_hiresscroll_to_device()
         return False
 
     def _on_scroll_speed_changed(self, scale):
         """Handle scroll speed slider change"""
         value = int(scale.get_value())
         config.set('scroll', 'speed', value)
-        self._update_scroll_speed_label(value)
-        self._show_pending_changes()
+        # Apply scroll lines setting via imwheel or gsettings
+        self._apply_scroll_speed(value)
 
-    def _update_scroll_speed_label(self, value):
-        """Update the scroll speed percentage label"""
-        if value <= 50:
-            self.scroll_speed_value.set_text(f'{int(value)}% (Slow)')
-        else:
-            self.scroll_speed_value.set_text(f'{int(value)}% (Fast)')
+    def _apply_scroll_speed(self, lines):
+        """Apply scroll speed multiplier - works on GNOME, KDE, Hyprland, etc."""
+        import subprocess
+        import os
+
+        # Convert lines (1-10) to a scroll factor (0.5 to 2.0)
+        # lines=1 -> 0.5x, lines=5 -> 1.0x (default), lines=10 -> 2.0x
+        scroll_factor = 0.5 + (lines - 1) * 0.167  # Linear interpolation
+
+        # Try different desktop environments
+        desktop = os.environ.get('XDG_CURRENT_DESKTOP', '').lower()
+        session = os.environ.get('XDG_SESSION_TYPE', '').lower()
+
+        # GNOME/Mutter on Wayland
+        if 'gnome' in desktop or 'mutter' in desktop:
+            try:
+                # GNOME uses libinput, scroll factor via experimental settings
+                subprocess.run([
+                    'gsettings', 'set', 'org.gnome.mutter', 'experimental-features',
+                    "['scale-monitor-framebuffer']"
+                ], capture_output=True, timeout=2)
+            except Exception:
+                pass
+
+        # KDE Plasma
+        if 'kde' in desktop or 'plasma' in desktop:
+            try:
+                # KDE stores scroll settings in kcminputrc
+                kwinrc = os.path.expanduser('~/.config/kcminputrc')
+                # Update or create the scroll factor setting
+                subprocess.run([
+                    'kwriteconfig5', '--file', 'kcminputrc',
+                    '--group', 'Mouse', '--key', 'ScrollFactor',
+                    str(scroll_factor)
+                ], capture_output=True, timeout=2)
+            except Exception:
+                pass
+
+        # Hyprland
+        hypr_sig = os.environ.get('HYPRLAND_INSTANCE_SIGNATURE', '')
+        if hypr_sig:
+            try:
+                # Hyprland supports runtime scroll_factor change
+                subprocess.run([
+                    'hyprctl', 'keyword', 'input:scroll_factor', str(scroll_factor)
+                ], capture_output=True, timeout=2)
+                print(f"Hyprland scroll_factor set to {scroll_factor:.2f}")
+            except Exception:
+                pass
+
+        # Sway
+        if 'sway' in desktop.lower():
+            try:
+                # Get device name and set scroll factor
+                result = subprocess.run(
+                    ['swaymsg', '-t', 'get_inputs'],
+                    capture_output=True, text=True, timeout=2
+                )
+                if result.returncode == 0:
+                    import json
+                    inputs = json.loads(result.stdout)
+                    for inp in inputs:
+                        if 'pointer' in inp.get('type', ''):
+                            name = inp.get('identifier', '')
+                            subprocess.run([
+                                'swaymsg', 'input', name, 'scroll_factor', str(scroll_factor)
+                            ], capture_output=True, timeout=2)
+            except Exception:
+                pass
+
+        # X11 fallback with imwheel (if available)
+        if session == 'x11':
+            try:
+                # Create/update imwheel config for scroll multiplier
+                imwheel_config = os.path.expanduser('~/.imwheelrc')
+                # lines value directly maps to scroll multiplier
+                config_content = f'''".*"
+None,      Up,   Button4, {lines}
+None,      Down, Button5, {lines}
+'''
+                with open(imwheel_config, 'w', encoding='utf-8') as f:
+                    f.write(config_content)
+                # Restart imwheel if running
+                subprocess.run(['pkill', 'imwheel'], capture_output=True, timeout=2)
+                subprocess.run(['imwheel', '-b', '45'], capture_output=True, timeout=2)
+            except Exception:
+                pass
+
+        print(f"Scroll speed set to {lines} lines (factor: {scroll_factor:.2f})")
+
+    def _apply_hiresscroll_to_device(self):
+        """Apply HiResScroll settings - first try D-Bus, then update logid config"""
+        hires = config.get('scroll', 'smooth', default=True)
+        invert = config.get('scroll', 'natural', default=False)
+        target = False  # Default to False
+
+        # Try D-Bus first
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+            proxy.call_sync(
+                'SetHiresscrollMode',
+                GLib.Variant('(bbb)', (hires, invert, target)),
+                Gio.DBusCallFlags.NONE,
+                2000,
+                None
+            )
+            print(f"HiResScroll applied via D-Bus: hires={hires}, invert={invert}")
+            return
+        except GLib.Error as e:
+            print(f"D-Bus failed (logid may be blocking): {e.message}")
+        except Exception as e:
+            print(f"D-Bus failed: {e}")
+
+        # D-Bus failed, settings will apply after logid restart
+        print(f"HiResScroll saved to config (requires logid restart to apply)")
+
+    def _load_hiresscroll_settings(self):
+        """Load HiResScroll settings from device via D-Bus on startup"""
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.kde.juhradialmx',
+                '/org/kde/juhradialmx/Daemon',
+                'org.kde.juhradialmx.Daemon',
+                None
+            )
+
+            # Get current HiResScroll configuration
+            result = proxy.call_sync(
+                'GetHiresscrollMode',
+                None,
+                Gio.DBusCallFlags.NONE,
+                2000,
+                None
+            )
+
+            if result:
+                hires = result.get_child_value(0).get_boolean()
+                invert = result.get_child_value(1).get_boolean()
+                # target = result.get_child_value(2).get_boolean()  # Not used in UI
+
+                # Update UI to match device
+                if hasattr(self, 'smooth_switch'):
+                    self.smooth_switch.set_active(hires)
+                    config.set('scroll', 'smooth', hires)
+
+                # Note: Natural scrolling is controlled by gsettings, not device
+                # so we don't update it from device settings
+
+                print(f"Loaded HiResScroll from device: hires={hires}, invert={invert}")
+        except GLib.Error as e:
+            print(f"D-Bus error getting HiResScroll: {e.message}")
+        except Exception as e:
+            print(f"Failed to get HiResScroll via D-Bus: {e}")
 
     def _apply_pointer_speed(self, dpi):
         """Apply pointer speed via gsettings (-1.0 to 1.0)"""
@@ -3143,8 +3300,9 @@ class ScrollPage(Gtk.ScrolledWindow):
 
     def _show_pending_changes(self):
         """Show that there are unsaved changes"""
-        self.status_icon.set_from_icon_name('dialog-warning-symbolic')
-        self.status_label.set_text('Click Apply to save changes')
+        if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
+            self.status_icon.set_from_icon_name('dialog-warning-symbolic')
+            self.status_label.set_text('Click Apply to save changes')
 
     def _on_apply_clicked(self, button):
         """Apply all settings via logiops and save config"""
@@ -3153,13 +3311,15 @@ class ScrollPage(Gtk.ScrolledWindow):
         # Apply to device hardware
         config.apply_to_device()
         # Update status
-        self.status_icon.set_from_icon_name('emblem-ok-symbolic')
-        self.status_label.set_text('Settings applied!')
-        # Reset after delay
-        GLib.timeout_add(3000, self._reset_status)
+        if hasattr(self, 'status_icon') and hasattr(self, 'status_label'):
+            self.status_icon.set_from_icon_name('emblem-ok-symbolic')
+            self.status_label.set_text('Settings applied!')
+            # Reset after delay
+            GLib.timeout_add(3000, self._reset_status)
 
     def _reset_status(self):
-        self.status_label.set_text('Settings are up to date')
+        if hasattr(self, 'status_label'):
+            self.status_label.set_text('Settings are up to date')
         return False
 
     def _load_smartshift_settings(self):
@@ -3851,73 +4011,526 @@ class DevicesPage(Gtk.ScrolledWindow):
         return 'Managed by LogiOps'
 
 
+class FlowServiceListener:
+    """mDNS service listener for discovering computers on the network"""
+
+    def __init__(self, flow_page):
+        self.flow_page = flow_page
+        self.seen_ips = set()  # Track IPs to avoid duplicates
+
+    def remove_service(self, zeroconf, type_, name):
+        print(f"[Flow] Service removed: {name}")
+
+    def add_service(self, zeroconf, type_, name):
+        info = zeroconf.get_service_info(type_, name)
+        if info:
+            addresses = info.parsed_addresses()
+            ip = addresses[0] if addresses else None
+            if not ip or ip in self.seen_ips:
+                return  # Skip if no IP or already seen
+            self.seen_ips.add(ip)
+
+            # Determine device/software type from service type
+            if "juhradialmx" in type_:
+                software = "JuhRadialMX"
+            elif "logi" in type_.lower():
+                software = "Logi Options+"
+            elif "companion-link" in type_ or "airplay" in type_ or "raop" in type_:
+                software = "macOS"
+            elif "smb" in type_:
+                software = "Windows/Samba"
+            elif "workstation" in type_:
+                software = "Linux"
+            elif "rdp" in type_:
+                software = "Windows RDP"
+            elif "sftp" in type_ or "ssh" in type_:
+                software = "SSH Server"
+            else:
+                software = "Computer"
+
+            # Clean up name - remove service suffix
+            clean_name = name.split("._")[0] if "._" in name else name
+            # Remove MAC address prefix if present (e.g., "8E46296F5480@MacBook M4")
+            if "@" in clean_name:
+                clean_name = clean_name.split("@")[1]
+
+            self.flow_page.add_discovered_computer(clean_name, ip, info.port, software, type_)
+
+    def update_service(self, zeroconf, type_, name):
+        pass  # Handle service updates if needed
+
+
 class FlowPage(Gtk.ScrolledWindow):
-    """Logitech Flow configuration page"""
+    """Flow multi-computer control settings page"""
 
     def __init__(self):
         super().__init__()
         self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.discovered_computers = {}  # Store discovered computers
 
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
-        content.set_margin_top(24)
-        content.set_margin_bottom(24)
-        content.set_margin_start(32)
-        content.set_margin_end(32)
+        # Main container
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
+        main_box.set_margin_start(32)
+        main_box.set_margin_end(32)
+        main_box.set_margin_top(32)
+        main_box.set_margin_bottom(32)
 
-        # Flow Info Card
-        flow_card = SettingsCard('Logitech Flow')
+        # Header with Flow icon and description
+        header_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        header_box.set_halign(Gtk.Align.CENTER)
+        header_box.set_margin_bottom(16)
 
-        # Coming soon message with icon
-        coming_soon_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
-        coming_soon_box.set_halign(Gtk.Align.CENTER)
-        coming_soon_box.set_margin_top(32)
-        coming_soon_box.set_margin_bottom(32)
+        header_icon = Gtk.Image.new_from_icon_name('view-dual-symbolic')
+        header_icon.set_pixel_size(48)
+        header_icon.add_css_class('accent-color')
+        header_box.append(header_icon)
 
-        icon = Gtk.Image.new_from_icon_name('view-dual-symbolic')
-        icon.set_pixel_size(64)
-        icon.add_css_class('accent-color')
-        coming_soon_box.append(icon)
+        header_title = Gtk.Label(label='Logitech Flow')
+        header_title.add_css_class('title-1')
+        header_box.append(header_title)
 
-        title = Gtk.Label(label='Flow Support Coming Soon')
-        title.add_css_class('title-1')
-        coming_soon_box.append(title)
+        header_subtitle = Gtk.Label(label='Seamlessly move between computers')
+        header_subtitle.add_css_class('dim-label')
+        header_box.append(header_subtitle)
 
-        desc = Gtk.Label()
-        desc.set_markup(
-            'Logitech Flow allows you to seamlessly move your mouse cursor\n'
-            'between multiple computers and transfer files between them.\n\n'
-            '<b>Features (planned):</b>\n'
-            '• Multi-computer cursor control\n'
-            '• Cross-computer copy &amp; paste\n'
-            '• File sharing between devices\n'
-            '• Automatic computer switching'
+        main_box.append(header_box)
+
+        # Enable Flow Card
+        enable_card = SettingsCard('Flow Control')
+
+        enable_row = SettingRow('Enable Flow', 'Control multiple computers with one mouse')
+        self.flow_switch = Gtk.Switch()
+        self.flow_switch.set_active(config.get('flow', 'enabled', default=False))
+        self.flow_switch.connect('state-set', self._on_flow_toggled)
+        enable_row.set_control(self.flow_switch)
+        enable_card.append(enable_row)
+
+        # Edge trigger option
+        edge_row = SettingRow('Switch at screen edge', 'Move cursor to edge to switch computers')
+        self.edge_switch = Gtk.Switch()
+        self.edge_switch.set_active(config.get('flow', 'edge_trigger', default=True))
+        self.edge_switch.set_sensitive(config.get('flow', 'enabled', default=False))
+        self.edge_switch.connect('state-set', self._on_edge_toggled)
+        edge_row.set_control(self.edge_switch)
+        enable_card.append(edge_row)
+
+        main_box.append(enable_card)
+
+        # Detected Computers Card
+        computers_card = SettingsCard('Computers on Network')
+
+        self.computers_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        self.computers_box.set_margin_top(8)
+        self.computers_box.set_margin_bottom(8)
+
+        # Placeholder for no computers detected
+        self.no_computers_label = Gtk.Label(label='No other computers detected')
+        self.no_computers_label.add_css_class('dim-label')
+        self.no_computers_label.set_margin_top(16)
+        self.no_computers_label.set_margin_bottom(16)
+        self.computers_box.append(self.no_computers_label)
+
+        computers_card.append(self.computers_box)
+
+        # Scan button
+        scan_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        scan_box.set_halign(Gtk.Align.END)
+        scan_box.set_margin_top(8)
+
+        self.scan_button = Gtk.Button(label='Scan Network')
+        self.scan_button.add_css_class('suggested-action')
+        self.scan_button.connect('clicked', self._on_scan_clicked)
+        scan_box.append(self.scan_button)
+
+        computers_card.append(scan_box)
+
+        main_box.append(computers_card)
+
+        # How Flow Works Card
+        info_card = SettingsCard('How Flow Works')
+        info_label = Gtk.Label()
+        info_label.set_markup(
+            'Logitech Flow allows you to seamlessly control multiple computers\n'
+            'with a single mouse by moving your cursor to the edge of the screen.\n\n'
+            '<b>Requirements:</b>\n'
+            '  \u2022 JuhRadialMX running on all computers\n'
+            '  \u2022 Computers connected to the same network\n'
+            '  \u2022 Flow enabled on all devices\n\n'
+            '<b>Features:</b>\n'
+            '  \u2022 Move cursor between screens seamlessly\n'
+            '  \u2022 Copy and paste across computers\n'
+            '  \u2022 Transfer files by dragging'
         )
-        desc.set_wrap(True)
-        desc.set_justify(Gtk.Justification.CENTER)
-        desc.set_margin_top(8)
-        desc.add_css_class('dim-label')
-        coming_soon_box.append(desc)
+        info_label.set_wrap(True)
+        info_label.set_max_width_chars(50)
+        info_label.set_halign(Gtk.Align.START)
+        info_label.set_margin_top(8)
+        info_label.set_margin_bottom(8)
+        info_card.append(info_label)
 
-        flow_card.append(coming_soon_box)
-        content.append(flow_card)
+        main_box.append(info_card)
 
-        # Learn More Card
-        learn_card = SettingsCard('Learn More')
+        self.set_child(main_box)
 
-        link_label = Gtk.Label()
-        link_label.set_markup(
-            'For more information about Logitech Flow, visit:\n'
-            '<a href="https://www.logitech.com/en-us/software/options-plus.html">Logitech Options+ Documentation</a>'
+        # Try to discover computers on startup
+        GLib.idle_add(self._discover_computers)
+
+    def _on_flow_toggled(self, switch, state):
+        """Handle Flow enable/disable toggle"""
+        config.set('flow', 'enabled', state)
+        # Enable/disable edge trigger based on Flow state
+        self.edge_switch.set_sensitive(state)
+
+        if FLOW_MODULE_AVAILABLE:
+            if state:
+                # Start the Flow server
+                def on_host_change(new_host):
+                    """Called when another computer changes hosts"""
+                    print(f"[Flow] Received host change request: {new_host}")
+                    # Switch our devices via D-Bus
+                    try:
+                        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+                        proxy = Gio.DBusProxy.new_sync(
+                            bus, Gio.DBusProxyFlags.NONE, None,
+                            'org.kde.juhradialmx',
+                            '/org/kde/juhradialmx/Daemon',
+                            'org.kde.juhradialmx.Daemon',
+                            None
+                        )
+                        proxy.call_sync('SetHost', GLib.Variant('(y)', (new_host,)),
+                                       Gio.DBusCallFlags.NONE, 5000, None)
+                    except Exception as e:
+                        print(f"[Flow] Error switching host: {e}")
+
+                start_flow_server(on_host_change=on_host_change)
+                print("[Flow] Server started")
+            else:
+                # Stop the Flow server
+                stop_flow_server()
+                print("[Flow] Server stopped")
+
+        return False
+
+    def _on_edge_toggled(self, switch, state):
+        """Handle edge trigger toggle"""
+        config.set('flow', 'edge_trigger', state)
+        return False
+
+    def _on_scan_clicked(self, button):
+        """Scan network for other computers running JuhRadialMX"""
+        self.scan_button.set_sensitive(False)
+        self.scan_button.set_label('Scanning...')
+        GLib.timeout_add(1500, self._finish_scan)
+
+    def _finish_scan(self):
+        """Complete the network scan"""
+        self.scan_button.set_sensitive(True)
+        self.scan_button.set_label('Scan Network')
+        # Update UI with discovered computers
+        GLib.idle_add(self._update_computers_list, list(self.discovered_computers.values()))
+        return False
+
+    def _discover_computers(self):
+        """Discover other computers on the network running JuhRadialMX or Logi Options+"""
+        if not ZEROCONF_AVAILABLE:
+            print("[Flow] zeroconf not available, cannot discover computers")
+            self._update_computers_list([])
+            return False
+
+        # Service types to scan for
+        # - JuhRadialMX instances
+        # - Logi Options+ Flow (various possible service names)
+        # - Common device services to find Macs, PCs, etc.
+        SERVICE_TYPES = [
+            "_juhradialmx._tcp.local.",
+            "_logiflow._tcp.local.",
+            "_logitechflow._tcp.local.",
+            "_logi-options._tcp.local.",
+            # Common computer/device services
+            "_companion-link._tcp.local.",  # Apple devices
+            "_airplay._tcp.local.",          # AirPlay (Mac, Apple TV)
+            "_smb._tcp.local.",              # Windows/Samba file sharing
+            "_workstation._tcp.local.",      # Linux workstations
+            "_sftp-ssh._tcp.local.",         # SSH/SFTP servers
+            "_rdp._tcp.local.",              # Windows Remote Desktop
+        ]
+
+        # Start background discovery thread
+        def discover_thread():
+            try:
+                zc = Zeroconf()
+                listener = FlowServiceListener(self)
+                browsers = []
+
+                # Browse for all service types
+                for svc_type in SERVICE_TYPES:
+                    try:
+                        browser = ServiceBrowser(zc, svc_type, listener)
+                        browsers.append(browser)
+                        print(f"[Flow] Browsing for {svc_type}")
+                    except Exception as e:
+                        print(f"[Flow] Failed to browse {svc_type}: {e}")
+
+                # Also register this computer as a JuhRadialMX service
+                self._register_service(zc)
+
+                # Keep browsing for a few seconds
+                time.sleep(4)
+
+                # Update UI on main thread
+                GLib.idle_add(self._update_computers_list, list(self.discovered_computers.values()))
+
+            except Exception as e:
+                print(f"[Flow] Discovery error: {e}")
+                GLib.idle_add(self._update_computers_list, [])
+
+        thread = threading.Thread(target=discover_thread, daemon=True)
+        thread.start()
+        return False
+
+    def _register_service(self, zc):
+        """Register this computer as a Flow-compatible service"""
+        try:
+            hostname = socket.gethostname()
+            # Get local IP
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+
+            # Official Logi Options+ Flow port is 59866 (TCP)
+            FLOW_PORT = 59866
+
+            # Register as JuhRadialMX service
+            info_juh = ServiceInfo(
+                "_juhradialmx._tcp.local.",
+                f"{hostname}._juhradialmx._tcp.local.",
+                addresses=[socket.inet_aton(local_ip)],
+                port=FLOW_PORT,
+                properties={'version': '1.0', 'hostname': hostname, 'flow': 'compatible'},
+            )
+            zc.register_service(info_juh)
+            print(f"[Flow] Registered JuhRadialMX service: {hostname} at {local_ip}:{FLOW_PORT}")
+
+            # Also register as potential Logi Flow compatible service
+            # Logi Options+ may look for these service types
+            for svc_type in ["_logiflow._tcp.local.", "_logitechflow._tcp.local."]:
+                try:
+                    info_logi = ServiceInfo(
+                        svc_type,
+                        f"{hostname}.{svc_type}",
+                        addresses=[socket.inet_aton(local_ip)],
+                        port=FLOW_PORT,
+                        properties={'version': '1.0', 'hostname': hostname, 'platform': 'linux'},
+                    )
+                    zc.register_service(info_logi)
+                    print(f"[Flow] Registered {svc_type}: {hostname}")
+                except Exception as e:
+                    print(f"[Flow] Could not register {svc_type}: {e}")
+
+        except Exception as e:
+            print(f"[Flow] Failed to register service: {e}")
+
+    def add_discovered_computer(self, name, ip, port, software="Unknown", service_type=""):
+        """Called by ServiceListener when a computer is found"""
+        # Don't add ourselves
+        try:
+            my_hostname = socket.gethostname()
+            if name.startswith(my_hostname):
+                return
+        except:
+            pass
+
+        # Clean up service name from the display name
+        clean_name = name
+        for suffix in ['._juhradialmx._tcp.local.', '._logiflow._tcp.local.',
+                       '._logitechflow._tcp.local.', '._logi-options._tcp.local.']:
+            clean_name = clean_name.replace(suffix, '')
+
+        self.discovered_computers[name] = {
+            'name': clean_name,
+            'ip': ip,
+            'port': port,
+            'software': software,
+            'service_type': service_type
+        }
+        print(f"[Flow] Discovered: {clean_name} at {ip}:{port} (Software: {software})")
+
+    def _update_computers_list(self, computers):
+        """Update the list of detected computers"""
+        # Clear existing items except the placeholder
+        while child := self.computers_box.get_first_child():
+            self.computers_box.remove(child)
+
+        if not computers:
+            # Show placeholder
+            self.no_computers_label = Gtk.Label(label='No other computers detected')
+            self.no_computers_label.add_css_class('dim-label')
+            self.no_computers_label.set_margin_top(16)
+            self.no_computers_label.set_margin_bottom(16)
+            self.computers_box.append(self.no_computers_label)
+        else:
+            # Show detected computers
+            for computer in computers:
+                computer_widget = self._create_computer_widget(computer)
+                self.computers_box.append(computer_widget)
+
+    def _create_computer_widget(self, computer):
+        """Create a widget for a detected computer"""
+        computer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        computer_box.set_margin_start(8)
+        computer_box.set_margin_end(8)
+
+        # Status indicator
+        indicator = Gtk.Box()
+        indicator.set_size_request(12, 12)
+        indicator.add_css_class('connection-dot')
+        indicator.add_css_class('connected')
+        computer_box.append(indicator)
+
+        # Computer icon
+        comp_icon = Gtk.Image.new_from_icon_name('computer-symbolic')
+        comp_icon.set_pixel_size(24)
+        comp_icon.add_css_class('accent-color')
+        computer_box.append(comp_icon)
+
+        # Name and status
+        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        text_box.set_hexpand(True)
+
+        name_label = Gtk.Label(label=computer.get('name', 'Unknown'))
+        name_label.set_halign(Gtk.Align.START)
+        name_label.add_css_class('heading')
+        text_box.append(name_label)
+
+        # IP and software info row
+        info_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        info_box.set_halign(Gtk.Align.START)
+
+        ip_label = Gtk.Label(label=computer.get('ip', ''))
+        ip_label.add_css_class('dim-label')
+        ip_label.add_css_class('caption')
+        info_box.append(ip_label)
+
+        # Software badge
+        software = computer.get('software', 'Unknown')
+        software_label = Gtk.Label(label=software)
+        software_label.add_css_class('caption')
+        if software == 'JuhRadialMX':
+            software_label.add_css_class('accent-color')
+        elif software == 'Logi Options+':
+            software_label.add_css_class('warning')
+        else:
+            software_label.add_css_class('dim-label')
+        info_box.append(software_label)
+
+        text_box.append(info_box)
+
+        computer_box.append(text_box)
+
+        # Link button - show for compatible computers
+        software = computer.get('software', 'Unknown')
+        if software == 'JuhRadialMX':
+            link_btn = Gtk.Button(label='Link')
+            link_btn.add_css_class('suggested-action')
+            link_btn.connect('clicked', self._on_link_clicked, computer)
+            computer_box.append(link_btn)
+        elif software in ('Logi Options+', 'macOS', 'Windows/Samba', 'Windows RDP', 'Linux', 'SSH Server', 'Computer'):
+            # These are computers that could potentially run JuhRadialMX
+            info_label = Gtk.Label(label='Install JuhRadialMX')
+            info_label.set_tooltip_text('Install JuhRadialMX on this computer to enable Flow linking')
+            info_label.add_css_class('dim-label')
+            info_label.add_css_class('caption')
+            computer_box.append(info_label)
+        else:
+            # Unknown devices
+            pass  # Just show the device without any action button
+
+        return computer_box
+
+    def _on_link_clicked(self, button, computer):
+        """Handle click on Link button to pair with another computer"""
+        if not FLOW_MODULE_AVAILABLE:
+            print("[Flow] Flow module not available")
+            return
+
+        # Get the Flow server and generate a pairing code
+        server = get_flow_server()
+        if not server:
+            print("[Flow] Flow server not running - enable Flow first")
+            return
+
+        computer_name = computer.get('name', 'Unknown')
+        computer_ip = computer.get('ip', '')
+        computer_port = computer.get('port', FLOW_PORT)
+
+        print(f"[Flow] Initiating link with {computer_name} at {computer_ip}:{computer_port}")
+
+        # Show a pairing dialog
+        self._show_pairing_dialog(computer_name, computer_ip, computer_port)
+
+    def _show_pairing_dialog(self, computer_name, computer_ip, computer_port):
+        """Show a dialog to pair with another computer"""
+        # Create the dialog
+        dialog = Adw.MessageDialog(
+            transient_for=self.get_root(),
+            modal=True,
+            heading=f'Link with {computer_name}',
+            body=f'Enter the pairing code shown on {computer_name} to link the computers.\n\n'
+                 f'If you don\'t see a pairing code, open Flow settings on the other computer.'
         )
-        link_label.set_wrap(True)
-        link_label.set_halign(Gtk.Align.START)
-        link_label.set_margin_top(8)
-        link_label.set_margin_bottom(8)
-        learn_card.append(link_label)
 
-        content.append(learn_card)
+        # Add entry for pairing code
+        content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        content_box.set_margin_top(12)
 
-        self.set_child(content)
+        code_entry = Gtk.Entry()
+        code_entry.set_placeholder_text('Enter 6-digit pairing code')
+        code_entry.set_max_length(6)
+        code_entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
+        content_box.append(code_entry)
+
+        dialog.set_extra_child(content_box)
+
+        dialog.add_response('cancel', 'Cancel')
+        dialog.add_response('link', 'Link')
+        dialog.set_response_appearance('link', Adw.ResponseAppearance.SUGGESTED)
+
+        def on_response(dialog, response):
+            if response == 'link':
+                pairing_code = code_entry.get_text().strip()
+                if len(pairing_code) == 6:
+                    self._complete_pairing(computer_name, computer_ip, computer_port, pairing_code)
+                else:
+                    print("[Flow] Invalid pairing code - must be 6 digits")
+
+        dialog.connect('response', on_response)
+        dialog.present()
+
+    def _complete_pairing(self, computer_name, computer_ip, computer_port, pairing_code):
+        """Complete the pairing process with another computer"""
+        if not FLOW_MODULE_AVAILABLE:
+            return
+
+        # Create a Flow client and try to pair
+        client = FlowClient(computer_ip, computer_port)
+        my_hostname = socket.gethostname()
+
+        if client.pair(pairing_code, my_hostname):
+            # Save the linked computer
+            linked_computers = get_linked_computers()
+            linked_computers.add_computer(computer_name, computer_ip, computer_port, client.token)
+            print(f"[Flow] Successfully linked with {computer_name}")
+
+            # Show success toast
+            toast = Adw.Toast(title=f'Linked with {computer_name}')
+            toast.set_timeout(3)
+            # Find the toast overlay and show the toast
+            window = self.get_root()
+            if hasattr(window, 'toast_overlay'):
+                window.toast_overlay.add_toast(toast)
+        else:
+            print(f"[Flow] Failed to link with {computer_name}")
 
 
 class PlaceholderPage(Gtk.Box):
@@ -3951,6 +4564,7 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         self.host_names = []
         self.num_hosts = 0
         self.current_host = 0
+        self.daemon_proxy = None  # Store D-Bus proxy for reuse
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
         content.set_margin_top(24)
@@ -4013,10 +4627,13 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         GLib.idle_add(self._load_host_info)
 
     def _create_slot_widget(self, slot_index, is_current=False):
-        """Create a widget for a single Easy-Switch slot"""
+        """Create a clickable widget for a single Easy-Switch slot"""
+        # Create the content box for the button
         slot_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
         slot_box.set_margin_start(8)
         slot_box.set_margin_end(8)
+        slot_box.set_margin_top(8)
+        slot_box.set_margin_bottom(8)
 
         # Slot indicator
         indicator = Gtk.Box()
@@ -4041,13 +4658,19 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         text_box.set_hexpand(True)
 
-        name_label = Gtk.Label(label=f'Slot {slot_index + 1}')
+        # Get host name if available
+        host_name = f'Slot {slot_index + 1}'
+        if slot_index < len(self.host_names) and self.host_names[slot_index]:
+            host_name = self.host_names[slot_index]
+
+        name_label = Gtk.Label(label=host_name)
         name_label.set_halign(Gtk.Align.START)
         name_label.add_css_class('heading')
         text_box.append(name_label)
         self.slot_labels.append(name_label)
 
-        status_label = Gtk.Label(label='Current' if is_current else 'Available')
+        status_text = 'Connected' if is_current else 'Click to switch'
+        status_label = Gtk.Label(label=status_text)
         status_label.set_halign(Gtk.Align.START)
         status_label.add_css_class('dim-label')
         status_label.add_css_class('caption')
@@ -4055,20 +4678,64 @@ class EasySwitchPage(Gtk.ScrolledWindow):
 
         slot_box.append(text_box)
 
-        # Status badge
+        # Status badge or switch indicator
         if is_current:
             badge = Gtk.Label(label='Active')
             badge.add_css_class('success')
             badge.add_css_class('badge')
             slot_box.append(badge)
+        else:
+            # Add arrow icon to indicate clickable
+            arrow_icon = Gtk.Image.new_from_icon_name('go-next-symbolic')
+            arrow_icon.set_pixel_size(16)
+            arrow_icon.add_css_class('dim-label')
+            slot_box.append(arrow_icon)
 
-        return slot_box
+        # Wrap in a button for clickability
+        host_button = Gtk.Button()
+        host_button.add_css_class('flat')
+        host_button.set_child(slot_box)
+        host_button.connect('clicked', self._on_host_clicked, slot_index)
+
+        # Make current host button less prominent (already connected)
+        if is_current:
+            host_button.set_sensitive(False)
+
+        self.slot_buttons.append(host_button)
+        return host_button
+
+    def _on_host_clicked(self, button, host_index):
+        """Handle click on a host slot to switch to that host"""
+        if host_index == self.current_host:
+            return  # Already on this host
+
+        print(f"Switching to host {host_index}...")
+
+        try:
+            if self.daemon_proxy:
+                # Call SetHost with the host index (y = uint8/byte)
+                self.daemon_proxy.call_sync(
+                    'SetHost',
+                    GLib.Variant('(y)', (host_index,)),
+                    Gio.DBusCallFlags.NONE,
+                    5000,  # 5 second timeout for host switch
+                    None
+                )
+                print(f"Successfully requested switch to host {host_index}")
+
+                # Update current host and refresh display
+                self.current_host = host_index
+                self._update_slot_display()
+            else:
+                print("D-Bus proxy not available")
+        except Exception as e:
+            print(f"Failed to switch host: {e}")
 
     def _load_host_info(self):
         """Load host information from daemon via D-Bus"""
         try:
             bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
+            self.daemon_proxy = Gio.DBusProxy.new_sync(
                 bus, Gio.DBusProxyFlags.NONE, None,
                 'org.kde.juhradialmx',
                 '/org/kde/juhradialmx/Daemon',
@@ -4078,7 +4745,7 @@ class EasySwitchPage(Gtk.ScrolledWindow):
 
             # Get Easy-Switch info (num_hosts, current_host)
             try:
-                result = proxy.call_sync('GetEasySwitchInfo', None, Gio.DBusCallFlags.NONE, 2000, None)
+                result = self.daemon_proxy.call_sync('GetEasySwitchInfo', None, Gio.DBusCallFlags.NONE, 2000, None)
                 if result:
                     self.num_hosts, self.current_host = result.unpack()
                     print(f"Easy-Switch: {self.num_hosts} hosts, current={self.current_host}")
@@ -4089,7 +4756,7 @@ class EasySwitchPage(Gtk.ScrolledWindow):
 
             # Get host names
             try:
-                result = proxy.call_sync('GetHostNames', None, Gio.DBusCallFlags.NONE, 2000, None)
+                result = self.daemon_proxy.call_sync('GetHostNames', None, Gio.DBusCallFlags.NONE, 2000, None)
                 if result:
                     self.host_names = list(result.unpack()[0])
                     print(f"Host names: {self.host_names}")
@@ -4116,26 +4783,20 @@ class EasySwitchPage(Gtk.ScrolledWindow):
             self.slots_box.remove(child)
 
         self.slot_labels = []
+        self.slot_buttons = []
 
-        # Create slot widgets
+        # Create slot widgets (now buttons)
         num_slots = max(self.num_hosts, 3)  # Show at least 3 slots
         for i in range(num_slots):
             is_current = (i == self.current_host)
             slot_widget = self._create_slot_widget(i, is_current)
             self.slots_box.append(slot_widget)
 
-            # Update label with host name if available
-            if i < len(self.slot_labels) and i < len(self.host_names):
-                host_name = self.host_names[i]
-                if host_name:
-                    self.slot_labels[i].set_text(host_name)
-                    self.slot_labels[i].set_tooltip_text(f'Slot {i + 1}: {host_name}')
-
             # Add separator except for last
             if i < num_slots - 1:
                 sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-                sep.set_margin_top(8)
-                sep.set_margin_bottom(8)
+                sep.set_margin_top(4)
+                sep.set_margin_bottom(4)
                 self.slots_box.append(sep)
 
 

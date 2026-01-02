@@ -428,9 +428,14 @@ impl JuhRadialService {
 
         match self.haptic_manager.lock() {
             Ok(mut manager) => {
-                // wheel_mode: 1 = freespin (allows auto-switching)
-                // auto_disengage: 0 = disabled, 1-254 = threshold, 255 = always engaged
-                let wheel_mode = 1u8; // Always use freespin mode
+                // wheel_mode: 1 = Freespin, 2 = Ratchet
+                // auto_disengage: 0 = disabled (no auto-switch), 1-254 = threshold, 255 = always engaged
+                //
+                // SmartShift behavior (like Logi Options+):
+                // - enabled=true: wheel starts in freespin mode with auto-disengage at threshold
+                //   (auto-switches to ratchet when scrolling fast)
+                // - enabled=false: wheel is locked in ratchet mode (traditional click-by-click)
+                let wheel_mode = if enabled { 1u8 } else { 2u8 };
                 let auto_disengage = if enabled { threshold } else { 0u8 };
                 let auto_disengage_default = auto_disengage;
 
@@ -461,6 +466,65 @@ impl JuhRadialService {
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock haptic manager for smart_shift_supported");
                 Ok(false)
+            }
+        }
+    }
+
+    // =========================================================================
+    // HIRESSCROLL METHODS
+    // =========================================================================
+
+    /// Get current HiResScroll mode configuration from the mouse
+    ///
+    /// # Returns
+    /// Tuple of (hires: bool, invert: bool, target: bool) where:
+    /// - hires: true if high-resolution scrolling is enabled (more events, faster feel)
+    /// - invert: true if natural/inverted scrolling is enabled
+    /// - target: true if scroll events go directly to focused window
+    /// Returns (true, false, false) as default if not supported
+    async fn get_hiresscroll_mode(&self) -> fdo::Result<(bool, bool, bool)> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                match manager.get_hiresscroll_mode() {
+                    Some((hires, invert, target)) => Ok((hires, invert, target)),
+                    None => Ok((true, false, false)) // Default values
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for get_hiresscroll_mode");
+                Ok((true, false, false))
+            }
+        }
+    }
+
+    /// Set HiResScroll mode configuration on the mouse
+    ///
+    /// # Arguments
+    /// * `hires` - true for high-resolution scrolling (more events, faster feel)
+    /// * `invert` - true for natural/inverted scrolling
+    /// * `target` - true to send scroll events directly to focused window
+    ///
+    /// # Returns
+    /// Ok on success, error on failure
+    async fn set_hiresscroll_mode(&self, hires: bool, invert: bool, target: bool) -> fdo::Result<()> {
+        tracing::info!(hires, invert, target, "SetHiResScrollMode called");
+
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                match manager.set_hiresscroll_mode(hires, invert, target) {
+                    Ok(()) => {
+                        tracing::info!(hires, invert, target, "HiResScroll mode set successfully");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, hires, invert, target, "Failed to set HiResScroll mode");
+                        Err(fdo::Error::Failed(format!("Failed to set HiResScroll mode: {}", e)))
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for set_hiresscroll_mode");
+                Err(fdo::Error::Failed(format!("Lock error: {}", e)))
             }
         }
     }
@@ -511,6 +575,36 @@ impl JuhRadialService {
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock haptic manager for get_easy_switch_info");
                 Ok((0, 0))
+            }
+        }
+    }
+
+    /// Switch to a different Easy-Switch host
+    ///
+    /// Uses HID++ to switch the mouse to a different paired host.
+    ///
+    /// # Arguments
+    /// * `host_index` - The host slot to switch to (0, 1, or 2)
+    ///
+    /// # Returns
+    /// true if the switch was successful, false otherwise
+    async fn set_host(&self, host_index: u8) -> fdo::Result<bool> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                match manager.set_current_host(host_index) {
+                    Ok(()) => {
+                        tracing::info!(host_index, "Switched to Easy-Switch host");
+                        Ok(true)
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, host_index, "Failed to switch host");
+                        Ok(false)
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for set_host");
+                Ok(false)
             }
         }
     }
