@@ -97,7 +97,19 @@
   </keywords>
 
   <releases>
-    <release version="1.0.0" date="2024-12-13">
+    <release version="0.2.0" date="2026-01-02">
+      <description>
+        <p>Performance optimizations and scroll settings</p>
+        <ul>
+          <li>Instant cursor detection on Hyprland (1000x faster)</li>
+          <li>Scroll speed control for Hyprland, KDE, Sway, and X11</li>
+          <li>Fixed SmartShift ratchet/freespin toggle</li>
+          <li>HiResScroll HID++ support</li>
+          <li>Improved radial menu configuration</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.1.0" date="2024-12-13">
       <description>
         <p>Initial release of JuhRadial MX</p>
         <ul>
@@ -105,7 +117,7 @@
           <li>Battery status monitoring</li>
           <li>Settings dashboard with mouse visualization</li>
           <li>DPI and scroll wheel configuration</li>
-          <li>KDE Plasma 6 integration</li>
+          <li>KDE Plasma 6 and Hyprland integration</li>
         </ul>
       </description>
     </release>

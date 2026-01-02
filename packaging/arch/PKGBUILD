@@ -2,7 +2,7 @@
 # Arch Linux PKGBUILD for JuhRadial MX
 
 pkgname=juhradial-mx
-pkgver=1.0.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="Beautiful radial menu for Logitech MX Master mice on Linux"
 arch=('x86_64')
