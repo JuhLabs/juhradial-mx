@@ -22,7 +22,7 @@ SUBSYSTEM=="input", ATTRS{idVendor}=="046d", MODE="0660", GROUP="input"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", MODE="0660", GROUP="input"
 
 # Logitech USB receiver (Unifying/Bolt)
-SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", MODE="0666"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", MODE="0660", GROUP="input", TAG+="uaccess"
 
 # MX Master 4 specific rules (USB receiver)
 # Product ID b034 - MX Master 4 via USB receiver

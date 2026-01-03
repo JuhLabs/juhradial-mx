@@ -84,7 +84,8 @@ class ConfigManager:
                 {"label": "Emoji", "type": "emoji", "command": "", "color": "pink", "icon": "face-smile-symbolic"},
                 {"label": "Files", "type": "exec", "command": "dolphin", "color": "sapphire", "icon": "folder-symbolic"},
                 {"label": "AI", "type": "submenu", "command": "", "color": "teal", "icon": "applications-science-symbolic"}
-            ]
+            ],
+            "easy_switch_shortcuts": False
         }
     }
 
@@ -170,12 +171,15 @@ class ConfigManager:
     def apply_to_device(self):
         """Apply settings to device via logiops (requires sudo)"""
         import subprocess
+        import shlex
         script_path = Path(__file__).parent.parent / 'scripts' / 'apply-settings.sh'
-        if script_path.exists():
+        if script_path.exists() and not script_path.is_symlink():
             # Run in konsole for sudo password prompt
+            # Use shlex.quote to prevent command injection
+            safe_path = shlex.quote(str(script_path))
             subprocess.Popen([
                 'konsole', '-e', 'bash', '-c',
-                f'{script_path}; echo ""; echo "Press Enter to close..."; read'
+                f'{safe_path}; echo ""; echo "Press Enter to close..."; read'
             ])
 
     def get(self, *keys, default=None):
@@ -965,6 +969,48 @@ tooltip {{
     background: linear-gradient(90deg, transparent 0%, {accent_30} 50%, transparent 100%);
     min-height: 1px;
     margin: 20px 0;
+}}
+
+/* ============================================
+   EASY-SWITCH SHORTCUTS CARD
+   ============================================ */
+.easyswitch-shortcuts-card {{
+    background: {elevated_bg};
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 12px 0;
+    border: 1px solid {accent_08};
+    box-shadow: 0 4px 16px {shadow_color};
+}}
+
+.easyswitch-row {{
+    padding: 4px 0;
+}}
+
+.easyswitch-icon-box {{
+    background: linear-gradient(135deg, {accent_20} 0%, {accent2_15} 100%);
+    border-radius: 10px;
+    padding: 10px;
+    min-width: 42px;
+    min-height: 42px;
+    border: 1px solid {accent_20};
+}}
+
+.easyswitch-icon {{
+    color: {COLORS['accent']};
+}}
+
+.easyswitch-title {{
+    font-size: 14px;
+    font-weight: 600;
+    color: {COLORS['text']};
+    letter-spacing: 0.3px;
+}}
+
+.easyswitch-desc {{
+    font-size: 12px;
+    color: {COLORS['subtext0']};
+    opacity: 0.85;
 }}
 
 /* ============================================
@@ -2132,6 +2178,53 @@ class ButtonsPage(Gtk.ScrolledWindow):
         content.append(radial_card)
 
         # =============================================
+        # EASY-SWITCH SHORTCUTS CARD
+        # =============================================
+        easyswitch_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        easyswitch_card.add_css_class('easyswitch-shortcuts-card')
+
+        # Create a row with icon, text, and switch
+        easyswitch_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        easyswitch_row.add_css_class('easyswitch-row')
+
+        # Icon box
+        es_icon_box = Gtk.Box()
+        es_icon_box.add_css_class('easyswitch-icon-box')
+        es_icon_box.set_valign(Gtk.Align.CENTER)
+        es_icon = Gtk.Image.new_from_icon_name('network-wireless-symbolic')
+        es_icon.set_pixel_size(20)
+        es_icon.add_css_class('easyswitch-icon')
+        es_icon_box.append(es_icon)
+        easyswitch_row.append(es_icon_box)
+
+        # Text content
+        es_text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        es_text_box.set_hexpand(True)
+        es_text_box.set_valign(Gtk.Align.CENTER)
+
+        es_title = Gtk.Label(label='Easy-Switch Shortcuts')
+        es_title.set_halign(Gtk.Align.START)
+        es_title.add_css_class('easyswitch-title')
+        es_text_box.append(es_title)
+
+        es_desc = Gtk.Label(label='Replace Emoji with Easy-Switch 1, 2, 3 submenu')
+        es_desc.set_halign(Gtk.Align.START)
+        es_desc.add_css_class('easyswitch-desc')
+        es_text_box.append(es_desc)
+
+        easyswitch_row.append(es_text_box)
+
+        # Switch
+        self.easyswitch_switch = Gtk.Switch()
+        self.easyswitch_switch.set_valign(Gtk.Align.CENTER)
+        self.easyswitch_switch.set_active(self.config_manager.get('radial_menu', 'easy_switch_shortcuts', default=False))
+        self.easyswitch_switch.connect('state-set', self._on_easyswitch_toggled)
+        easyswitch_row.append(self.easyswitch_switch)
+
+        easyswitch_card.append(easyswitch_row)
+        content.append(easyswitch_card)
+
+        # =============================================
         # BUTTON ASSIGNMENTS CARD
         # =============================================
         assignments_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -2309,6 +2402,27 @@ class ButtonsPage(Gtk.ScrolledWindow):
                     if isinstance(child, Gtk.Label):
                         child.set_text(slice_data.get('label', f'Slice {i + 1}'))
                         break
+
+    def _on_easyswitch_toggled(self, switch, state):
+        """Handle Easy-Switch shortcuts toggle"""
+        self.config_manager.set('radial_menu', 'easy_switch_shortcuts', state)
+        self.config_manager.save()
+
+        # Update the Emoji slice row to show status
+        if 5 in self.slice_rows:
+            row = self.slice_rows[5]
+            for child in row:
+                if isinstance(child, Gtk.Label):
+                    if state:
+                        child.set_text('Easy-Switch')
+                    else:
+                        # Restore original label from config
+                        slices = self._get_current_slices()
+                        if len(slices) > 5:
+                            child.set_text(slices[5].get('label', 'Emoji'))
+                    break
+
+        return False  # Allow switch to change state
 
 
 class SliceConfigDialog(Adw.Window):
@@ -3950,13 +4064,15 @@ class DevicesPage(Gtk.ScrolledWindow):
         info_label.set_markup(
             'For advanced device configuration (button remapping, scroll settings), '
             'edit <b>/etc/logid.cfg</b> and restart logid.\n\n'
-            'LogiOps docs: <tt>https://github.com/PixlOne/logiops</tt>'
+            'LogiOps docs: <a href="https://github.com/PixlOne/logiops">https://github.com/PixlOne/logiops</a>'
         )
         info_label.set_wrap(True)
         info_label.set_max_width_chars(50)
         info_label.set_halign(Gtk.Align.START)
         info_label.set_margin_top(8)
         info_label.set_margin_bottom(8)
+        # Make links clickable and open in browser
+        info_label.connect('activate-link', lambda label, uri: (Gtk.show_uri(None, uri, Gdk.CURRENT_TIME), True)[-1])
         info_card.append(info_label)
 
         content.append(info_card)

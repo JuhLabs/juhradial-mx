@@ -17,6 +17,7 @@ import sys
 os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 import math
+import shlex
 import subprocess
 from PyQt6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PyQt6.QtCore import Qt, pyqtSlot, QPropertyAnimation, QEasingCurve, QPointF, QRectF, QTimer
@@ -59,6 +60,7 @@ def _get_hyprland_socket():
 
 def get_cursor_position_hyprland():
     """Get cursor position using Hyprland IPC socket (faster than subprocess)."""
+    sock = None
     try:
         import socket
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -66,7 +68,6 @@ def get_cursor_position_hyprland():
         sock.connect(_get_hyprland_socket())
         sock.send(b"cursorpos")
         response = sock.recv(64).decode('utf-8').strip()
-        sock.close()
 
         # Parse "x, y" format
         parts = response.split(",")
@@ -75,20 +76,29 @@ def get_cursor_position_hyprland():
             y = int(parts[1].strip())
             return (x, y)
     except Exception:
-        # Fallback to subprocess if socket fails
-        try:
-            result = subprocess.run(
-                ["hyprctl", "cursorpos"],
-                capture_output=True,
-                text=True,
-                timeout=0.1
-            )
-            if result.returncode == 0:
-                parts = result.stdout.strip().split(",")
-                if len(parts) >= 2:
-                    return (int(parts[0].strip()), int(parts[1].strip()))
-        except Exception:
-            pass
+        pass  # Will fall through to subprocess fallback
+    finally:
+        # Always close socket to prevent resource leak (called 60x/sec in toggle mode)
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+    # Fallback to subprocess if socket fails
+    try:
+        result = subprocess.run(
+            ["hyprctl", "cursorpos"],
+            capture_output=True,
+            text=True,
+            timeout=0.1
+        )
+        if result.returncode == 0:
+            parts = result.stdout.strip().split(",")
+            if len(parts) >= 2:
+                return (int(parts[0].strip()), int(parts[1].strip()))
+    except Exception:
+        pass
     return None
 
 def get_cursor_pos():
@@ -145,6 +155,13 @@ AI_SUBMENU = [
     ("Perplexity", "url", "https://perplexity.ai",   "perplexity"),
 ]
 
+# Easy-Switch submenu - switch between paired hosts
+EASY_SWITCH_SUBMENU = [
+    ("Host 1", "easy_switch", "0", "host1"),
+    ("Host 2", "easy_switch", "1", "host2"),
+    ("Host 3", "easy_switch", "2", "host3"),
+]
+
 # Default actions (fallback if config not found)
 DEFAULT_ACTIONS = [
     ("Play/Pause",   "exec",    "playerctl play-pause",  "green",    "play_pause", None),
@@ -190,12 +207,14 @@ def load_actions_from_config():
                 config = json.load(f)
 
             slices = config.get('radial_menu', {}).get('slices', [])
+            easy_switch_enabled = config.get('radial_menu', {}).get('easy_switch_shortcuts', False)
+
             if not slices:
                 print("No radial_menu slices in config, using defaults")
                 return DEFAULT_ACTIONS
 
             actions = []
-            for slice_data in slices:
+            for i, slice_data in enumerate(slices):
                 label = slice_data.get('label', 'Action')
                 action_type = slice_data.get('type', 'exec')
                 command = slice_data.get('command', '')
@@ -207,6 +226,15 @@ def load_actions_from_config():
 
                 # Handle submenu type (use AI_SUBMENU as default)
                 submenu = AI_SUBMENU if action_type == 'submenu' else None
+
+                # Check if Easy-Switch shortcuts are enabled and this is the Emoji slot (index 5)
+                if easy_switch_enabled and i == 5:
+                    # Replace Emoji with Easy-Switch submenu
+                    label = "Easy-Switch"
+                    action_type = "submenu"
+                    icon = "easy_switch"
+                    submenu = EASY_SWITCH_SUBMENU
+                    print("Easy-Switch shortcuts enabled - replacing Emoji with Easy-Switch submenu")
 
                 actions.append((label, action_type, command, color, icon, submenu))
 
@@ -470,12 +498,16 @@ class RadialMenu(QWidget):
         self.cursor_timer.stop()
         self.toggle_mode = False  # Reset toggle mode
 
+        print(f"_close_menu: execute={execute}, submenu_active={self.submenu_active}, subitem={self.highlighted_subitem}, slice={self.highlighted_slice}")
+
         if execute:
             if self.submenu_active and self.highlighted_subitem >= 0:
                 # Execute submenu item
                 submenu = ACTIONS[self.submenu_slice][5]
+                print(f"_close_menu: Executing submenu item {self.highlighted_subitem} from slice {self.submenu_slice}")
                 if submenu and self.highlighted_subitem < len(submenu):
                     subitem = submenu[self.highlighted_subitem]
+                    print(f"_close_menu: Subitem = {subitem}")
                     self._trigger_haptic("confirm")  # Haptic for selection confirm
                     self._execute_subaction(subitem)
             elif self.highlighted_slice >= 0:
@@ -499,7 +531,12 @@ class RadialMenu(QWidget):
 
         try:
             if cmd_type == "exec":
-                subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                # Use shlex.split for safe command parsing (avoids shell injection)
+                try:
+                    cmd_args = shlex.split(cmd)
+                    subprocess.Popen(cmd_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except ValueError as e:
+                    print(f"Invalid command syntax: {cmd} - {e}")
             elif cmd_type == "url":
                 subprocess.Popen(["xdg-open", cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             elif cmd_type == "emoji":
@@ -524,9 +561,55 @@ class RadialMenu(QWidget):
 
         try:
             if cmd_type == "exec":
-                subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                # Use shlex.split for safe command parsing (avoids shell injection)
+                try:
+                    cmd_args = shlex.split(cmd)
+                    subprocess.Popen(cmd_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except ValueError as e:
+                    print(f"Invalid command syntax: {cmd} - {e}")
             elif cmd_type == "url":
                 subprocess.Popen(["xdg-open", cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            elif cmd_type == "easy_switch":
+                # Switch to host via D-Bus call to daemon
+                # Validate host_index (Easy-Switch supports 0-2 for 3 hosts)
+                try:
+                    host_index = int(cmd)
+                    if not 0 <= host_index <= 2:
+                        print(f"Easy-Switch: Invalid host index {host_index}, must be 0-2")
+                        self._trigger_haptic("invalid")
+                        return
+                except ValueError:
+                    print(f"Easy-Switch: Invalid host index format: {cmd}")
+                    self._trigger_haptic("invalid")
+                    return
+
+                print(f"Easy-Switch: Switching to host {host_index}")
+                # Use gdbus for reliable D-Bus call with proper byte typing
+                # PyQt6 QDBusMessage doesn't properly handle byte (y) signature
+                try:
+                    result = subprocess.run(
+                        [
+                            "gdbus", "call", "--session",
+                            "--dest", "org.kde.juhradialmx",
+                            "--object-path", "/org/kde/juhradialmx/Daemon",
+                            "--method", "org.kde.juhradialmx.Daemon.SetHost",
+                            str(host_index)
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if result.returncode == 0:
+                        print(f"Easy-Switch: Successfully requested switch to host {host_index}")
+                    else:
+                        print(f"Easy-Switch D-Bus error: {result.stderr.strip()}")
+                        self._trigger_haptic("invalid")
+                except subprocess.TimeoutExpired:
+                    print("Easy-Switch: D-Bus call timed out")
+                    self._trigger_haptic("invalid")
+                except Exception as e:
+                    print(f"Easy-Switch D-Bus error: {e}")
+                    self._trigger_haptic("invalid")
         except Exception as e:
             print(f"Error executing subaction: {e}")
 
@@ -684,7 +767,7 @@ class RadialMenu(QWidget):
         if self.toggle_mode:
             # In toggle mode, any click selects the current slice or closes
             if event.button() == Qt.MouseButton.LeftButton:
-                print(f"OVERLAY: Left click in toggle mode - executing slice {self.highlighted_slice}")
+                print(f"OVERLAY: Left click in toggle mode - slice={self.highlighted_slice}, submenu_active={self.submenu_active}, subitem={self.highlighted_subitem}")
                 self._close_menu(execute=True)
             else:
                 # Right-click or other button - close without executing
@@ -994,6 +1077,34 @@ class RadialMenu(QWidget):
             p.drawEllipse(QPointF(cx - size * 0.08, cy - size * 0.08), size * 0.25, size * 0.25)
             p.drawLine(QPointF(cx + size * 0.1, cy + size * 0.1),
                       QPointF(cx + size * 0.3, cy + size * 0.3))
+
+        elif icon_type == "easy_switch":
+            # Easy-Switch icon - wireless/connection symbol
+            p.setPen(QPen(color, 2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            # Three curved lines (signal arcs)
+            for i in range(3):
+                arc_size = size * (0.2 + i * 0.15)
+                arc_rect = QRectF(cx - arc_size, cy - arc_size, arc_size * 2, arc_size * 2)
+                p.drawArc(arc_rect, 45 * 16, 90 * 16)
+            # Center dot
+            p.setBrush(QBrush(color))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawEllipse(QPointF(cx, cy), size * 0.1, size * 0.1)
+
+        elif icon_type in ("host1", "host2", "host3"):
+            # Host icons - numbered circles for easy identification
+            host_num = icon_type[-1]  # Get "1", "2", or "3"
+            p.setPen(QPen(color, 2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawEllipse(QPointF(cx, cy), size * 0.4, size * 0.4)
+            # Draw number
+            font = QFont("Sans", int(size * 0.45))
+            font.setBold(True)
+            p.setFont(font)
+            p.setPen(QPen(color))
+            text_rect = QRectF(cx - size * 0.3, cy - size * 0.3, size * 0.6, size * 0.6)
+            p.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, host_num)
 
     def _draw_submenu(self, p, cx, cy):
         """Draw submenu items when active."""

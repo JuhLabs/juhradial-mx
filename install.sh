@@ -304,11 +304,15 @@ install_files() {
     mkdir -p "$SYSTEMD_USER_DIR"
     cp packaging/systemd/juhradialmx-daemon.service "$SYSTEMD_USER_DIR/"
 
-    # Install udev rules
-    if [ -f packaging/udev/99-logitech-hidpp.rules ]; then
-        sudo install -Dm644 packaging/udev/99-logitech-hidpp.rules /etc/udev/rules.d/
+    # Install/update udev rules (always update to fix security issues in older versions)
+    if [ -f packaging/udev/99-juhradialmx.rules ]; then
+        log_info "Installing udev rules for device access..."
+        sudo install -Dm644 packaging/udev/99-juhradialmx.rules /etc/udev/rules.d/
+        # Remove old insecure rules if they exist
+        [ -f /etc/udev/rules.d/99-logitech-hidpp.rules ] && sudo rm -f /etc/udev/rules.d/99-logitech-hidpp.rules
         sudo udevadm control --reload-rules
         sudo udevadm trigger
+        log_success "udev rules installed"
     fi
 
     # Create config directory
