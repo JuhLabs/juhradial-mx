@@ -49,6 +49,7 @@ Desktop.ini
 .agentvibes/
 .bmad/
 .claude/
+.playwright-mcp/
 bmad-custom-src/
 .mcp.json
 docs/sprint-artifacts/

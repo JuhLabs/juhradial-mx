@@ -44,20 +44,16 @@
 
   <screenshots>
     <screenshot type="default">
-      <caption>Radial menu overlay with dark theme</caption>
-      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/radial-menu-dark.png</image>
+      <caption>Radial menu overlay with JuhRadial MX theme</caption>
+      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/RadialWheel.png</image>
     </screenshot>
     <screenshot>
-      <caption>Settings dashboard with button configuration</caption>
-      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/settings-buttons.png</image>
+      <caption>Settings dashboard</caption>
+      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/Settings.png</image>
     </screenshot>
     <screenshot>
       <caption>DPI and scroll wheel settings</caption>
-      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/settings-scroll.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Mouse configuration interface</caption>
-      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/mouse-config.png</image>
+      <image>https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/screenshots/settingsscroll.png</image>
     </screenshot>
   </screenshots>
 
