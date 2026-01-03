@@ -5,6 +5,9 @@
   <p>A Logi Options+ inspired experience for KDE Plasma 6 & Hyprland</p>
 
   <p>
+    <a href="https://github.com/JuhLabs/juhradial-mx/releases">
+      <img src="https://img.shields.io/badge/version-0.2.1-cyan.svg" alt="Version 0.2.1">
+    </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
     </a>
@@ -14,6 +17,10 @@
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL-3.0">
     </a>
+  </p>
+
+  <p>
+    <strong>🔒 <a href="CHANGELOG.md">v0.2.1 Security Update</a></strong> - Important security fixes. <a href="#installation">Update now</a>.
   </p>
 </div>
 
@@ -25,18 +32,18 @@
   <table>
     <tr>
       <td align="center">
-        <img src="assets/screenshots/radial-menu.png" width="280" alt="Radial Menu">
+        <img src="assets/screenshots/RadialWheel.png" width="280" alt="Radial Menu">
         <br><em>Radial Menu</em>
       </td>
       <td align="center">
-        <img src="assets/screenshots/settings-buttons.png" width="400" alt="Settings - Buttons">
-        <br><em>Settings - Button Configuration</em>
+        <img src="assets/screenshots/Settings.png" width="400" alt="Settings Dashboard">
+        <br><em>Settings Dashboard</em>
       </td>
     </tr>
     <tr>
       <td colspan="2" align="center">
-        <img src="assets/screenshots/settings-scroll.png" width="500" alt="Settings - Scroll">
-        <br><em>Settings - DPI & Scroll Configuration</em>
+        <img src="assets/screenshots/settingsscroll.png" width="500" alt="Settings - DPI & Scroll">
+        <br><em>DPI & Scroll Configuration</em>
       </td>
     </tr>
   </table>
