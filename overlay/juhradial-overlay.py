@@ -350,6 +350,14 @@ class RadialMenu(QWidget):
             self._close_menu(execute=False)
             return
 
+        # On Hyprland, re-query cursor position for freshness
+        # The D-Bus signal coordinates may be stale due to async timing
+        if IS_HYPRLAND:
+            fresh_pos = get_cursor_position_hyprland()
+            if fresh_pos:
+                x, y = fresh_pos
+                print(f"OVERLAY: Hyprland fresh cursor position: ({x}, {y})")
+
         # Use coordinates from D-Bus signal (daemon gets them via KWin scripting)
         # This works correctly on Plasma 6 Wayland with multiple monitors
         print(f"OVERLAY: MenuRequested at ({x}, {y})")
