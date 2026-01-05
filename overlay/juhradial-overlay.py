@@ -49,6 +49,9 @@ IS_HYPRLAND = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") is not None
 # Cache for Hyprland socket path
 _hyprland_socket = None
 
+# Cache for active monitor offset (refreshed when needed)
+_monitor_offset_cache = None
+
 def _get_hyprland_socket():
     """Get Hyprland socket path (cached)."""
     global _hyprland_socket
@@ -58,9 +61,81 @@ def _get_hyprland_socket():
         _hyprland_socket = f"{xdg_runtime}/hypr/{sig}/.socket.sock"
     return _hyprland_socket
 
-def get_cursor_position_hyprland():
-    """Get cursor position using Hyprland IPC socket (faster than subprocess)."""
+
+def _get_focused_monitor_offset():
+    """Get the offset of the focused monitor from Hyprland.
+
+    XWayland coordinates are relative to its virtual screen (usually 0,0),
+    but Hyprland cursor coordinates are global (include monitor offset).
+    We need to subtract the focused monitor's offset to convert.
+
+    Returns:
+        Tuple (x_offset, y_offset) or (0, 0) on failure.
+    """
+    global _monitor_offset_cache
+    import socket
+    import json
+
     sock = None
+    try:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(0.1)
+        sock.connect(_get_hyprland_socket())
+        # Request JSON format with j/ prefix
+        sock.send(b"j/monitors")
+
+        # Read response in chunks
+        chunks = []
+        while True:
+            try:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            except socket.timeout:
+                break
+
+        response = b"".join(chunks).decode('utf-8').strip()
+        monitors = json.loads(response)
+
+        # Find the focused monitor
+        for mon in monitors:
+            if mon.get("focused", False):
+                x_offset = mon.get("x", 0)
+                y_offset = mon.get("y", 0)
+                _monitor_offset_cache = (x_offset, y_offset)
+                return _monitor_offset_cache
+
+        # Fallback: use first monitor
+        if monitors:
+            x_offset = monitors[0].get("x", 0)
+            y_offset = monitors[0].get("y", 0)
+            _monitor_offset_cache = (x_offset, y_offset)
+            return _monitor_offset_cache
+
+    except Exception as e:
+        print(f"[HYPRLAND] Failed to get monitor offset: {e}")
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+    # Return cached value or default
+    return _monitor_offset_cache if _monitor_offset_cache else (0, 0)
+
+def get_cursor_position_hyprland():
+    """Get cursor position using Hyprland IPC socket (faster than subprocess).
+
+    Returns coordinates adjusted for XWayland by subtracting the focused
+    monitor's offset. This is necessary because Hyprland returns global
+    coordinates, but XWayland windows use coordinates relative to their
+    virtual screen origin.
+    """
+    sock = None
+    global_x, global_y = None, None
+
     try:
         import socket
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -72,9 +147,8 @@ def get_cursor_position_hyprland():
         # Parse "x, y" format
         parts = response.split(",")
         if len(parts) >= 2:
-            x = int(parts[0].strip())
-            y = int(parts[1].strip())
-            return (x, y)
+            global_x = int(parts[0].strip())
+            global_y = int(parts[1].strip())
     except Exception:
         pass  # Will fall through to subprocess fallback
     finally:
@@ -86,20 +160,32 @@ def get_cursor_position_hyprland():
                 pass
 
     # Fallback to subprocess if socket fails
-    try:
-        result = subprocess.run(
-            ["hyprctl", "cursorpos"],
-            capture_output=True,
-            text=True,
-            timeout=0.1
-        )
-        if result.returncode == 0:
-            parts = result.stdout.strip().split(",")
-            if len(parts) >= 2:
-                return (int(parts[0].strip()), int(parts[1].strip()))
-    except Exception:
-        pass
-    return None
+    if global_x is None:
+        try:
+            result = subprocess.run(
+                ["hyprctl", "cursorpos"],
+                capture_output=True,
+                text=True,
+                timeout=0.1
+            )
+            if result.returncode == 0:
+                parts = result.stdout.strip().split(",")
+                if len(parts) >= 2:
+                    global_x = int(parts[0].strip())
+                    global_y = int(parts[1].strip())
+        except Exception:
+            pass
+
+    if global_x is None:
+        return None
+
+    # Convert from Hyprland global coordinates to XWayland local coordinates
+    # by subtracting the focused monitor's offset
+    mon_x, mon_y = _get_focused_monitor_offset()
+    local_x = global_x - mon_x
+    local_y = global_y - mon_y
+
+    return (local_x, local_y)
 
 def get_cursor_pos():
     """Get cursor position - uses hyprctl on Hyprland, QCursor otherwise."""
