@@ -6,7 +6,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.2.2-cyan.svg" alt="Version 0.2.2">
+      <img src="https://img.shields.io/badge/version-0.2.3-cyan.svg" alt="Version 0.2.3">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">

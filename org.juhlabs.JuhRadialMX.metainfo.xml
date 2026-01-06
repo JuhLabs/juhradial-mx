@@ -93,6 +93,15 @@
   </keywords>
 
   <releases>
+    <release version="0.2.3" date="2026-01-06">
+      <description>
+        <p>Critical fix for gesture button detection</p>
+        <ul>
+          <li>Fixed logid button CID and divert flag for all MX Master mice</li>
+          <li>Fixed systemd service path to match install location</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.2" date="2026-01-06">
       <description>
         <p>Bug fix release for Fedora 43 and Arch Linux installation</p>
