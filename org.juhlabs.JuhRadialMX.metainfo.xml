@@ -93,6 +93,25 @@
   </keywords>
 
   <releases>
+    <release version="0.2.2" date="2026-01-06">
+      <description>
+        <p>Bug fix release for Fedora 43 and Arch Linux installation</p>
+        <ul>
+          <li>Fixed install script package names for PyQt6 SVG support</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.2.1" date="2026-01-03">
+      <description>
+        <p>Security fixes and Easy-Switch improvements</p>
+        <ul>
+          <li>Fixed command injection vulnerability in radial menu</li>
+          <li>Fixed insecure pairing code generation</li>
+          <li>Fixed overly permissive udev rules</li>
+          <li>Easy-Switch now works in radial menu</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-01-02">
       <description>
         <p>Performance optimizations and scroll settings</p>
