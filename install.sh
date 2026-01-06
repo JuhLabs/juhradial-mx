@@ -164,7 +164,7 @@ install_deps_fedora() {
     sudo dnf install -y \
         rust cargo \
         python3 python3-pip \
-        python3-pyqt6 python3-pyqt6-svg \
+        python3-pyqt6 qt6-qtsvg \
         python3-gobject gtk4 libadwaita \
         dbus-devel systemd-devel \
         libevdev-devel hidapi-devel \
@@ -177,7 +177,7 @@ install_deps_arch() {
     sudo pacman -S --noconfirm --needed \
         rust \
         python python-pip \
-        python-pyqt6 python-pyqt6-svg \
+        python-pyqt6 qt6-svg \
         python-gobject gtk4 libadwaita \
         dbus systemd-libs \
         libevdev hidapi \

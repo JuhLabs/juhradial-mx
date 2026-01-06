@@ -61,7 +61,7 @@ Feature requests are welcome! Please:
 ```bash
 sudo dnf install \
   rust cargo \
-  python3-pyqt6 python3-pyqt6-svg \
+  python3-pyqt6 qt6-qtsvg \
   python3-gobject gtk4 libadwaita \
   dbus-devel systemd-devel \
   libevdev-devel hidapi-devel \
@@ -73,7 +73,7 @@ sudo dnf install \
 ```bash
 sudo pacman -S --needed \
   rust \
-  python-pyqt6 python-pyqt6-svg \
+  python-pyqt6 qt6-svg \
   python-gobject gtk4 libadwaita \
   dbus systemd-libs \
   libevdev hidapi \
