@@ -27,7 +27,7 @@ Requires=dbus.socket
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/juhradiald
+ExecStart=/usr/local/bin/juhradiald
 Restart=on-failure
 RestartSec=5s
 
