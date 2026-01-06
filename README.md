@@ -85,7 +85,7 @@ This script will detect your distro, install dependencies, build from source, an
 
 ```bash
 # 1. Install dependencies
-sudo dnf install rust cargo logiops python3-pyqt6 python3-pyqt6-svg \
+sudo dnf install rust cargo logiops python3-pyqt6 qt6-qtsvg \
     python3-gobject gtk4 libadwaita dbus-devel hidapi-devel
 
 # 2. Clone and build
@@ -105,7 +105,7 @@ sudo systemctl enable --now logid
 
 ```bash
 # 1. Install dependencies
-sudo pacman -S rust python-pyqt6 python-pyqt6-svg python-gobject gtk4 libadwaita
+sudo pacman -S rust python-pyqt6 qt6-svg python-gobject gtk4 libadwaita
 yay -S logiops  # or paru -S logiops
 
 # 2. Clone and build
