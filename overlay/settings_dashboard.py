@@ -2318,7 +2318,7 @@ class ButtonsPage(Gtk.ScrolledWindow):
     def _get_current_slices(self):
         """Get the current radial menu slices from config"""
         if self.config_manager:
-            slices = self.config_manager.get('radial_menu.slices', default=[])
+            slices = self.config_manager.get('radial_menu', 'slices', default=[])
             if slices:
                 return slices
         # Return defaults if no config
@@ -2472,7 +2472,7 @@ class SliceConfigDialog(Adw.Window):
         self.on_save_callback = on_save_callback
 
         # Load current slice data
-        slices = config_manager.get('radial_menu.slices', default=[])
+        slices = config_manager.get('radial_menu', 'slices', default=[])
         if slice_index < len(slices):
             self.slice_data = slices[slice_index].copy()
         else:
@@ -2717,17 +2717,21 @@ class SliceConfigDialog(Adw.Window):
             'color': selected_color,
             'icon': self.icon_entry.get_text() or 'application-x-executable-symbolic',
         }
-
         # Update config
-        slices = self.config_manager.get('radial_menu.slices', default=[])
+        slices = self.config_manager.get('radial_menu', 'slices', default=[])
 
         # Ensure we have 8 slices
         while len(slices) < 8:
-            slices.append(ConfigManager.DEFAULT_CONFIG['radial_menu']['slices'][len(slices)])
+            default_slice = ConfigManager.DEFAULT_CONFIG['radial_menu']['slices'][len(slices)].copy()
+            slices.append(default_slice)
 
         slices[self.slice_index] = new_slice
-        self.config_manager.set('radial_menu.slices', slices)
+        
+        self.config_manager.set('radial_menu', 'slices', slices)
+        
         self.config_manager.save()
+
+        print(f"Radial menu slice {self.slice_index + 1} saved!")
 
         # Call callback to refresh UI
         if self.on_save_callback:
