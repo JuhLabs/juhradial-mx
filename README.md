@@ -257,6 +257,22 @@ This project is **not affiliated with, endorsed by, or associated with Logitech*
 
 ---
 
+## Star History
+
+<div align="center">
+  <a href="https://star-history.com/#JuhLabs/juhradial-mx&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=JuhLabs/juhradial-mx&type=Date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=JuhLabs/juhradial-mx&type=Date" />
+      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=JuhLabs/juhradial-mx&type=Date" width="600" />
+    </picture>
+  </a>
+</div>
+
+> If you find JuhRadial MX useful, consider giving it a star — it helps others discover the project!
+
+---
+
 <div align="center">
 
 **Made with love by [JuhLabs](https://github.com/JuhLabs)**
