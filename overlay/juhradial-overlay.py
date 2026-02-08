@@ -22,7 +22,7 @@ import subprocess
 from PyQt6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PyQt6.QtCore import Qt, pyqtSlot, QPropertyAnimation, QEasingCurve, QPointF, QRectF, QTimer
 from PyQt6.QtGui import QCursor
-from PyQt6.QtGui import QPainter, QRadialGradient, QColor, QBrush, QPen, QFont, QPainterPath, QIcon, QPixmap
+from PyQt6.QtGui import QPainter, QColor, QBrush, QPen, QFont, QPainterPath, QIcon, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface
 
@@ -39,7 +39,7 @@ WINDOW_SIZE = (MENU_RADIUS + SHADOW_OFFSET + SUBMENU_EXTEND) * 2
 # =============================================================================
 # THEME SYSTEM - Uses shared themes.py module
 # =============================================================================
-from themes import get_colors, load_theme_name, THEMES as THEME_DEFS, DEFAULT_THEME
+from themes import get_colors, load_theme_name, THEMES as THEME_DEFS
 
 # =============================================================================
 # CURSOR POSITION HELPERS (Hyprland/Wayland support)
@@ -119,8 +119,8 @@ def _get_focused_monitor_offset():
         if sock is not None:
             try:
                 sock.close()
-            except Exception:
-                pass
+            except OSError:
+                pass  # Socket already closed
 
     # Return cached value or default
     return _monitor_offset_cache if _monitor_offset_cache else (0, 0)
@@ -149,15 +149,15 @@ def get_cursor_position_hyprland():
         if len(parts) >= 2:
             global_x = int(parts[0].strip())
             global_y = int(parts[1].strip())
-    except Exception:
-        pass  # Will fall through to subprocess fallback
+    except (OSError, ValueError):
+        pass  # Socket error or parse failure, fall through to subprocess
     finally:
         # Always close socket to prevent resource leak (called 60x/sec in toggle mode)
         if sock is not None:
             try:
                 sock.close()
-            except Exception:
-                pass
+            except OSError:
+                pass  # Socket already closed
 
     # Fallback to subprocess if socket fails
     if global_x is None:
@@ -173,8 +173,8 @@ def get_cursor_position_hyprland():
                 if len(parts) >= 2:
                     global_x = int(parts[0].strip())
                     global_y = int(parts[1].strip())
-        except Exception:
-            pass
+        except (FileNotFoundError, subprocess.SubprocessError, ValueError):
+            pass  # hyprctl not available or returned unexpected output
 
     if global_x is None:
         return None
@@ -561,7 +561,7 @@ class RadialMenu(QWidget):
     def on_cursor_moved(self, dx, dy):
         """Handle cursor movement from daemon (relative to menu center)."""
         # dx, dy are relative offsets from menu center (button press point)
-        distance = math.sqrt(dx * dx + dy * dy)
+        distance = math.hypot(dx, dy)
 
         if distance < CENTER_ZONE_RADIUS or distance > MENU_RADIUS:
             new_slice = -1
@@ -710,7 +710,7 @@ class RadialMenu(QWidget):
 
         dx = pos_x - cx
         dy = pos_y - cy
-        distance = math.sqrt(dx * dx + dy * dy)
+        distance = math.hypot(dx, dy)
 
         # Calculate which slice we're over
         if distance < CENTER_ZONE_RADIUS or distance > MENU_RADIUS + 60:  # Extended range for submenu
@@ -787,7 +787,7 @@ class RadialMenu(QWidget):
             item_y = SUBMENU_RADIUS * math.sin(item_angle)
 
             # Check if cursor is within this item
-            dist_to_item = math.sqrt((dx - item_x) ** 2 + (dy - item_y) ** 2)
+            dist_to_item = math.hypot(dx - item_x, dy - item_y)
             if dist_to_item < SUBITEM_SIZE:
                 return i
 
@@ -800,7 +800,7 @@ class RadialMenu(QWidget):
         pos = event.position()
         dx = pos.x() - cx
         dy = pos.y() - cy
-        distance = math.sqrt(dx * dx + dy * dy)
+        distance = math.hypot(dx, dy)
 
         # Calculate which slice we're over
         if distance < CENTER_ZONE_RADIUS or distance > MENU_RADIUS + 60:
@@ -913,7 +913,6 @@ class RadialMenu(QWidget):
     def _draw_slice(self, p, cx, cy, index):
         is_highlighted = (index == self.highlighted_slice)
         action = ACTIONS[index]
-        accent = COLORS[action[3]]
 
         start_angle = index * 45 - 22.5 - 90
         outer_r = MENU_RADIUS - 6
@@ -1325,7 +1324,7 @@ def create_tray_icon(app, radial_menu):
 
     # Settings action
     settings_action = menu.addAction("Settings")
-    settings_action.triggered.connect(lambda: open_settings())
+    settings_action.triggered.connect(open_settings)
 
     menu.addSeparator()
 
@@ -1355,7 +1354,7 @@ if __name__ == "__main__":
     load_ai_icons()
 
     w = RadialMenu()
-    tray = create_tray_icon(app, w)
+    _tray = create_tray_icon(app, w)  # Keep reference to prevent GC
 
     print("Starting overlay event loop")
     print("System tray icon active - right-click for menu")
