@@ -6,7 +6,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.2.3-cyan.svg" alt="Version 0.2.3">
+      <img src="https://img.shields.io/badge/version-0.2.4-cyan.svg" alt="Version 0.2.4">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
@@ -20,7 +20,7 @@
   </p>
 
   <p>
-    <strong>🔒 <a href="CHANGELOG.md">v0.2.1 Security Update</a></strong> - Important security fixes. <a href="#installation">Update now</a>.
+    <strong>🐛 <a href="CHANGELOG.md">v0.2.4</a></strong> - Fixed high CPU usage in settings window. <a href="#installation">Update now</a>.
   </p>
 </div>
 
