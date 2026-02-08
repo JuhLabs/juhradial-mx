@@ -310,7 +310,7 @@ def get_device_name():
 # =============================================================================
 # THEME SYSTEM - Load colors from shared theme module
 # =============================================================================
-from themes import get_colors, load_theme_name, get_theme_list, is_dark_theme, THEMES, DEFAULT_THEME
+from themes import get_colors, load_theme_name, is_dark_theme
 
 # Flow module for multi-computer control
 # Inspired by logitech-flow-kvm by Adam Coddington (coddingtonbear)

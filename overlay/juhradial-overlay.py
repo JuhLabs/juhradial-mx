@@ -39,7 +39,7 @@ WINDOW_SIZE = (MENU_RADIUS + SHADOW_OFFSET + SUBMENU_EXTEND) * 2
 # =============================================================================
 # THEME SYSTEM - Uses shared themes.py module
 # =============================================================================
-from themes import get_colors, load_theme_name, THEMES as THEME_DEFS
+from themes import get_colors, load_theme_name
 
 # =============================================================================
 # CURSOR POSITION HELPERS (Hyprland/Wayland support)
@@ -1354,7 +1354,7 @@ if __name__ == "__main__":
     load_ai_icons()
 
     w = RadialMenu()
-    _tray = create_tray_icon(app, w)  # Keep reference to prevent GC
+    app.tray = create_tray_icon(app, w)  # Store reference on app to prevent GC
 
     print("Starting overlay event loop")
     print("System tray icon active - right-click for menu")
