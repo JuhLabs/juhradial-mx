@@ -15,14 +15,13 @@ The Flow protocol allows:
 """
 
 import json
-import os
 import socket
 import subprocess
 import threading
 import time
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Optional, Dict, List, Callable
+from typing import Optional, Dict, Callable
 from pathlib import Path
 
 # For mDNS registration
@@ -56,8 +55,10 @@ def get_clipboard() -> str:
         )
         if result.returncode == 0:
             return result.stdout
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    except FileNotFoundError:
+        pass  # wl-paste not installed, try xclip
+    except subprocess.TimeoutExpired:
+        print("[Flow] wl-paste timed out")
 
     try:
         # Fall back to xclip (X11)
@@ -69,8 +70,10 @@ def get_clipboard() -> str:
         )
         if result.returncode == 0:
             return result.stdout
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    except FileNotFoundError:
+        pass  # xclip not installed
+    except subprocess.TimeoutExpired:
+        print("[Flow] xclip timed out")
 
     return ""
 
@@ -87,8 +90,10 @@ def set_clipboard(content: str) -> bool:
         )
         if result.returncode == 0:
             return True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    except FileNotFoundError:
+        pass  # wl-copy not installed, try xclip
+    except subprocess.TimeoutExpired:
+        print("[Flow] wl-copy timed out")
 
     try:
         # Fall back to xclip (X11)
@@ -100,8 +105,10 @@ def set_clipboard(content: str) -> bool:
         )
         if result.returncode == 0:
             return True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    except FileNotFoundError:
+        pass  # xclip not installed
+    except subprocess.TimeoutExpired:
+        print("[Flow] xclip timed out")
 
     return False
 
@@ -369,7 +376,7 @@ class FlowServer(HTTPServer):
         self.zeroconf: Optional[Zeroconf] = None
         self.service_info: Optional[ServiceInfo] = None
 
-        super().__init__(('0.0.0.0', port), FlowRequestHandler)
+        super().__init__(('', port), FlowRequestHandler)
         print(f"[Flow] Server initialized on port {port}")
 
     def start(self):
@@ -501,7 +508,7 @@ class LogiFlowDiscoveryResponder:
             s.connect(("8.8.8.8", 80))
             self.local_ip = s.getsockname()[0]
             s.close()
-        except Exception:
+        except OSError:
             self.local_ip = "127.0.0.1"
 
     def start(self):
@@ -513,7 +520,7 @@ class LogiFlowDiscoveryResponder:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            self.sock.bind(('0.0.0.0', LOGI_DISCOVERY_PORT))
+            self.sock.bind(('', LOGI_DISCOVERY_PORT))
             self.sock.settimeout(1.0)
 
             self.running = True
@@ -529,8 +536,8 @@ class LogiFlowDiscoveryResponder:
         if self.sock:
             try:
                 self.sock.close()
-            except Exception:
-                pass
+            except OSError:
+                pass  # Socket already closed
 
     def _listen_loop(self):
         """Main loop listening for discovery requests"""
@@ -584,13 +591,13 @@ class LogiFlowServer:
             s.connect(("8.8.8.8", 80))
             self.local_ip = s.getsockname()[0]
             s.close()
-        except Exception:
+        except OSError:
             self.local_ip = "127.0.0.1"
 
     def start(self):
         """Start the Logi Flow compatible server"""
         try:
-            self.server = HTTPServer(('0.0.0.0', LOGI_FLOW_PORT), LogiFlowRequestHandler)
+            self.server = HTTPServer(('', LOGI_FLOW_PORT), LogiFlowRequestHandler)
             self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self.thread.start()
             print(f"[Flow] Logi Flow server started on port {LOGI_FLOW_PORT}")

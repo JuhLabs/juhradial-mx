@@ -24,7 +24,7 @@ from pathlib import Path
 
 # Try to import zeroconf for mDNS discovery
 try:
-    from zeroconf import ServiceBrowser, ServiceListener, Zeroconf, ServiceInfo
+    from zeroconf import ServiceBrowser, Zeroconf, ServiceInfo
     ZEROCONF_AVAILABLE = True
 except ImportError:
     ZEROCONF_AVAILABLE = False
@@ -33,7 +33,7 @@ except ImportError:
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
-from gi.repository import Gtk, Gdk, GLib, Gio, Adw, Pango, Graphene
+from gi.repository import Gtk, Gdk, GLib, Gio, Adw, Pango
 
 # =============================================================================
 # CONFIGURATION MANAGER
@@ -165,7 +165,7 @@ class ConfigManager:
                 None
             )
             proxy.call_sync('ReloadConfig', None, Gio.DBusCallFlags.NONE, 500, None)
-        except Exception:
+        except GLib.Error:
             pass  # Daemon may not be running
 
     def apply_to_device(self):
@@ -279,8 +279,8 @@ def detect_logitech_mouse():
                     match = re.search(r'name:\s*"([^"]+)"', content)
                     if match:
                         return match.group(1)
-            except Exception:
-                pass
+            except (IOError, OSError):
+                pass  # Config file not readable
 
         # Method 3: Try libinput
         result = subprocess.run(
@@ -310,7 +310,7 @@ def get_device_name():
 # =============================================================================
 # THEME SYSTEM - Load colors from shared theme module
 # =============================================================================
-from themes import get_colors, get_theme, load_theme_name, get_theme_list, is_dark_theme, THEMES, DEFAULT_THEME
+from themes import get_colors, load_theme_name, get_theme_list, is_dark_theme, THEMES, DEFAULT_THEME
 
 # Flow module for multi-computer control
 # Inspired by logitech-flow-kvm by Adam Coddington (coddingtonbear)
@@ -437,7 +437,6 @@ def generate_css():
     a2r, a2g, a2b = int(accent2[1:3], 16), int(accent2[3:5], 16), int(accent2[5:7], 16)
 
     # Dynamic accent opacity variants
-    accent_05 = f'rgba({ar}, {ag}, {ab}, 0.05)'
     accent_08 = f'rgba({ar}, {ag}, {ab}, 0.08)'
     accent_10 = f'rgba({ar}, {ag}, {ab}, 0.1)'
     accent_12 = f'rgba({ar}, {ag}, {ab}, 0.12)'
@@ -1640,10 +1639,8 @@ class MouseVisualization(Gtk.DrawingArea):
         """Convert Gdk.Texture to GdkPixbuf for cairo rendering"""
         try:
             from gi.repository import GdkPixbuf
-            width = texture.get_width()
-            height = texture.get_height()
 
-            # Get texture data
+            # Get texture data as PNG bytes and convert to pixbuf
             data = texture.save_to_png_bytes()
             loader = GdkPixbuf.PixbufLoader.new_with_type('png')
             loader.write(data.get_data())
@@ -2071,8 +2068,8 @@ class RadialMenuConfigDialog(Adw.Window):
                     None
                 )
                 proxy.call_sync('ReloadConfig', None, Gio.DBusCallFlags.NONE, 500, None)
-            except Exception:
-                pass
+            except GLib.Error:
+                pass  # Daemon may not be running
 
         except Exception as e:
             print(f"Failed to save profile: {e}")
@@ -2393,7 +2390,6 @@ class ButtonsPage(Gtk.ScrolledWindow):
         """Called when a slice is saved - refresh the UI"""
         # Refresh slices display
         slices = self._get_current_slices()
-        position_labels = ['Top', 'Top Right', 'Right', 'Bottom Right', 'Bottom', 'Bottom Left', 'Left', 'Top Left']
 
         for i, slice_data in enumerate(slices):
             if i in self.slice_rows:
@@ -3149,8 +3145,8 @@ class ScrollPage(Gtk.ScrolledWindow):
             import subprocess
             subprocess.run(['gsettings', 'set', 'org.gnome.desktop.peripherals.mouse',
                            'accel-profile', profile], capture_output=True)
-        except Exception:
-            pass
+        except (FileNotFoundError, subprocess.SubprocessError):
+            pass  # gsettings not available
 
     def _on_smartshift_changed(self, switch, state):
         config.set('scroll', 'smartshift', state)
@@ -3190,8 +3186,8 @@ class ScrollPage(Gtk.ScrolledWindow):
             import subprocess
             subprocess.run(['gsettings', 'set', 'org.gnome.desktop.peripherals.mouse',
                            'natural-scroll', 'true' if state else 'false'], capture_output=True)
-        except Exception:
-            pass
+        except (FileNotFoundError, subprocess.SubprocessError):
+            pass  # gsettings not available
         # Also apply to device via D-Bus HiResScroll
         self._apply_hiresscroll_to_device()
         return False
@@ -3231,22 +3227,20 @@ class ScrollPage(Gtk.ScrolledWindow):
                     'gsettings', 'set', 'org.gnome.mutter', 'experimental-features',
                     "['scale-monitor-framebuffer']"
                 ], capture_output=True, timeout=2)
-            except Exception:
-                pass
+            except (FileNotFoundError, subprocess.SubprocessError):
+                pass  # gsettings not available
 
         # KDE Plasma
         if 'kde' in desktop or 'plasma' in desktop:
             try:
                 # KDE stores scroll settings in kcminputrc
-                kwinrc = os.path.expanduser('~/.config/kcminputrc')
-                # Update or create the scroll factor setting
                 subprocess.run([
                     'kwriteconfig5', '--file', 'kcminputrc',
                     '--group', 'Mouse', '--key', 'ScrollFactor',
                     str(scroll_factor)
                 ], capture_output=True, timeout=2)
-            except Exception:
-                pass
+            except (FileNotFoundError, subprocess.SubprocessError):
+                pass  # kwriteconfig5 not available
 
         # Hyprland
         hypr_sig = os.environ.get('HYPRLAND_INSTANCE_SIGNATURE', '')
@@ -3257,8 +3251,8 @@ class ScrollPage(Gtk.ScrolledWindow):
                     'hyprctl', 'keyword', 'input:scroll_factor', str(scroll_factor)
                 ], capture_output=True, timeout=2)
                 print(f"Hyprland scroll_factor set to {scroll_factor:.2f}")
-            except Exception:
-                pass
+            except (FileNotFoundError, subprocess.SubprocessError):
+                pass  # hyprctl not available
 
         # Sway
         if 'sway' in desktop.lower():
@@ -3269,7 +3263,6 @@ class ScrollPage(Gtk.ScrolledWindow):
                     capture_output=True, text=True, timeout=2
                 )
                 if result.returncode == 0:
-                    import json
                     inputs = json.loads(result.stdout)
                     for inp in inputs:
                         if 'pointer' in inp.get('type', ''):
@@ -3277,8 +3270,8 @@ class ScrollPage(Gtk.ScrolledWindow):
                             subprocess.run([
                                 'swaymsg', 'input', name, 'scroll_factor', str(scroll_factor)
                             ], capture_output=True, timeout=2)
-            except Exception:
-                pass
+            except (FileNotFoundError, subprocess.SubprocessError, json.JSONDecodeError):
+                pass  # swaymsg not available
 
         # X11 fallback with imwheel (if available)
         if session == 'x11':
@@ -3295,8 +3288,8 @@ None,      Down, Button5, {lines}
                 # Restart imwheel if running
                 subprocess.run(['pkill', 'imwheel'], capture_output=True, timeout=2)
                 subprocess.run(['imwheel', '-b', '45'], capture_output=True, timeout=2)
-            except Exception:
-                pass
+            except (FileNotFoundError, subprocess.SubprocessError, OSError):
+                pass  # imwheel not available
 
         print(f"Scroll speed set to {lines} lines (factor: {scroll_factor:.2f})")
 
@@ -3386,8 +3379,8 @@ None,      Down, Button5, {lines}
             speed = max(-1.0, min(1.0, speed))
             subprocess.run(['gsettings', 'set', 'org.gnome.desktop.peripherals.mouse',
                            'speed', str(speed)], capture_output=True)
-        except Exception:
-            pass
+        except (FileNotFoundError, subprocess.SubprocessError):
+            pass  # gsettings not available
 
     def _apply_dpi_to_device(self, dpi):
         """Apply DPI directly to the mouse via D-Bus"""
@@ -3842,7 +3835,7 @@ class SettingsPage(Gtk.ScrolledWindow):
                     status = 'Charging' if charging else 'Discharging'
                     battery_level = f'{percentage}% ({status})'
                     connection_type = 'Connected'
-        except Exception:
+        except GLib.Error:
             pass  # Daemon may not be running
 
         info_items = [
@@ -4102,8 +4095,8 @@ class DevicesPage(Gtk.ScrolledWindow):
             result = proxy.call_sync('GetBatteryStatus', None, Gio.DBusCallFlags.NONE, 500, None)
             if result:
                 return 'USB Receiver / Bluetooth'
-        except Exception:
-            pass
+        except GLib.Error:
+            pass  # Daemon may not be running
         return 'USB Receiver'
 
     def _get_battery_info(self):
@@ -4128,8 +4121,8 @@ class DevicesPage(Gtk.ScrolledWindow):
                 else:
                     # 0% usually means unavailable (logid controlling HID++)
                     return 'Managed by LogiOps'
-        except Exception:
-            pass
+        except GLib.Error:
+            pass  # Daemon may not be running
         return 'Managed by LogiOps'
 
 
@@ -4429,8 +4422,8 @@ class FlowPage(Gtk.ScrolledWindow):
                         for svc_info in self._registered_services:
                             try:
                                 zc.unregister_service(svc_info)
-                            except Exception:
-                                pass
+                            except OSError:
+                                pass  # Service already unregistered
                         self._registered_services.clear()
                         zc.close()
                         print("[Flow] Zeroconf closed after discovery")
@@ -4450,8 +4443,8 @@ class FlowPage(Gtk.ScrolledWindow):
                 for svc_info in self._registered_services:
                     try:
                         self._zeroconf.unregister_service(svc_info)
-                    except Exception:
-                        pass
+                    except OSError:
+                        pass  # Service already unregistered
                 self._registered_services.clear()
                 self._zeroconf.close()
                 print("[Flow] Zeroconf cleaned up")
@@ -4515,8 +4508,8 @@ class FlowPage(Gtk.ScrolledWindow):
             my_hostname = socket.gethostname()
             if name.startswith(my_hostname):
                 return
-        except:
-            pass
+        except OSError:
+            pass  # Hostname lookup failed
 
         # Clean up service name from the display name
         clean_name = name
@@ -5130,8 +5123,8 @@ class AddApplicationDialog(Adw.Window):
                                         app_name = parts[-1] if len(parts) > 2 else app_name
                                     installed_apps[binary] = app_name
                                     break
-                        except Exception:
-                            pass
+                        except (IOError, OSError, UnicodeDecodeError):
+                            pass  # Desktop file not readable
 
             # Get running process names
             result = subprocess.run(['ps', '-eo', 'comm', '--no-headers'],
@@ -5282,8 +5275,6 @@ class SettingsWindow(Adw.ApplicationWindow):
             self.set_icon_name(None)  # Clear any default
             # Load and set icon from file
             try:
-                icon_file = Gio.File.new_for_path(str(icon_path))
-                icon = Gio.FileIcon.new(icon_file)
                 # For GTK4/Adwaita, we need to use the default icon theme
                 # Create a paintable from the SVG
                 display = Gdk.Display.get_default()
