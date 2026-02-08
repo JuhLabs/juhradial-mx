@@ -4155,6 +4155,8 @@ class FlowServiceListener:
             # Determine device/software type from service type
             if "juhradialmx" in type_:
                 software = "JuhRadialMX"
+            elif "inputleap" in type_.lower():
+                software = "Input Leap"
             elif "logi" in type_.lower():
                 software = "Logi Options+"
             elif "companion-link" in type_ or "airplay" in type_ or "raop" in type_:
@@ -4189,6 +4191,8 @@ class FlowPage(Gtk.ScrolledWindow):
         super().__init__()
         self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         self.discovered_computers = {}  # Store discovered computers
+        self._zeroconf = None  # Track Zeroconf instance for cleanup
+        self._registered_services = []  # Track registered ServiceInfo for unregistration
 
         # Main container
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
@@ -4278,6 +4282,10 @@ class FlowPage(Gtk.ScrolledWindow):
             '  \u2022 JuhRadialMX running on all computers\n'
             '  \u2022 Computers connected to the same network\n'
             '  \u2022 Flow enabled on all devices\n\n'
+            '<b>Compatible Software Detected:</b>\n'
+            '  \u2022 JuhRadialMX instances\n'
+            '  \u2022 <a href="https://github.com/input-leap/input-leap">Input Leap</a> (open-source KVM)\n'
+            '  \u2022 Logi Options+ Flow\n\n'
             '<b>Features:</b>\n'
             '  \u2022 Move cursor between screens seamlessly\n'
             '  \u2022 Copy and paste across computers\n'
@@ -4342,7 +4350,10 @@ class FlowPage(Gtk.ScrolledWindow):
         """Scan network for other computers running JuhRadialMX"""
         self.scan_button.set_sensitive(False)
         self.scan_button.set_label('Scanning...')
-        GLib.timeout_add(1500, self._finish_scan)
+        # Clear previous results and re-discover
+        self.discovered_computers.clear()
+        self._discover_computers()
+        GLib.timeout_add(5000, self._finish_scan)
 
     def _finish_scan(self):
         """Complete the network scan"""
@@ -4353,18 +4364,22 @@ class FlowPage(Gtk.ScrolledWindow):
         return False
 
     def _discover_computers(self):
-        """Discover other computers on the network running JuhRadialMX or Logi Options+"""
+        """Discover other computers on the network running JuhRadialMX, Input Leap, or Logi Options+"""
         if not ZEROCONF_AVAILABLE:
             print("[Flow] zeroconf not available, cannot discover computers")
             self._update_computers_list([])
             return False
 
+        # Clean up any previous discovery session
+        self._cleanup_zeroconf()
+
         # Service types to scan for
-        # - JuhRadialMX instances
-        # - Logi Options+ Flow (various possible service names)
-        # - Common device services to find Macs, PCs, etc.
         SERVICE_TYPES = [
             "_juhradialmx._tcp.local.",
+            # Input Leap / Barrier (open-source KVM software)
+            "_inputLeapServerZeroconf._tcp.local.",
+            "_inputLeapClientZeroconf._tcp.local.",
+            # Logi Options+ Flow
             "_logiflow._tcp.local.",
             "_logitechflow._tcp.local.",
             "_logi-options._tcp.local.",
@@ -4379,8 +4394,10 @@ class FlowPage(Gtk.ScrolledWindow):
 
         # Start background discovery thread
         def discover_thread():
+            zc = None
             try:
                 zc = Zeroconf()
+                self._zeroconf = zc
                 listener = FlowServiceListener(self)
                 browsers = []
 
@@ -4405,10 +4422,46 @@ class FlowPage(Gtk.ScrolledWindow):
             except Exception as e:
                 print(f"[Flow] Discovery error: {e}")
                 GLib.idle_add(self._update_computers_list, [])
+            finally:
+                # Clean up Zeroconf resources after discovery completes
+                if zc:
+                    try:
+                        for svc_info in self._registered_services:
+                            try:
+                                zc.unregister_service(svc_info)
+                            except Exception:
+                                pass
+                        self._registered_services.clear()
+                        zc.close()
+                        print("[Flow] Zeroconf closed after discovery")
+                    except Exception as e:
+                        print(f"[Flow] Error closing Zeroconf: {e}")
+                    if self._zeroconf is zc:
+                        self._zeroconf = None
 
         thread = threading.Thread(target=discover_thread, daemon=True)
         thread.start()
         return False
+
+    def _cleanup_zeroconf(self):
+        """Clean up any active Zeroconf instance"""
+        if self._zeroconf:
+            try:
+                for svc_info in self._registered_services:
+                    try:
+                        self._zeroconf.unregister_service(svc_info)
+                    except Exception:
+                        pass
+                self._registered_services.clear()
+                self._zeroconf.close()
+                print("[Flow] Zeroconf cleaned up")
+            except Exception as e:
+                print(f"[Flow] Error cleaning up Zeroconf: {e}")
+            self._zeroconf = None
+
+    def cleanup(self):
+        """Called when the page is being destroyed or navigated away from"""
+        self._cleanup_zeroconf()
 
     def _register_service(self, zc):
         """Register this computer as a Flow-compatible service"""
@@ -4432,6 +4485,7 @@ class FlowPage(Gtk.ScrolledWindow):
                 properties={'version': '1.0', 'hostname': hostname, 'flow': 'compatible'},
             )
             zc.register_service(info_juh)
+            self._registered_services.append(info_juh)
             print(f"[Flow] Registered JuhRadialMX service: {hostname} at {local_ip}:{FLOW_PORT}")
 
             # Also register as potential Logi Flow compatible service
@@ -4446,6 +4500,7 @@ class FlowPage(Gtk.ScrolledWindow):
                         properties={'version': '1.0', 'hostname': hostname, 'platform': 'linux'},
                     )
                     zc.register_service(info_logi)
+                    self._registered_services.append(info_logi)
                     print(f"[Flow] Registered {svc_type}: {hostname}")
                 except Exception as e:
                     print(f"[Flow] Could not register {svc_type}: {e}")
@@ -4557,6 +4612,13 @@ class FlowPage(Gtk.ScrolledWindow):
             link_btn.add_css_class('suggested-action')
             link_btn.connect('clicked', self._on_link_clicked, computer)
             computer_box.append(link_btn)
+        elif software == 'Input Leap':
+            # Input Leap is a compatible KVM - show as detected
+            info_label = Gtk.Label(label='Input Leap detected')
+            info_label.set_tooltip_text('This computer is running Input Leap (open-source KVM)')
+            info_label.add_css_class('accent-color')
+            info_label.add_css_class('caption')
+            computer_box.append(info_label)
         elif software in ('Logi Options+', 'macOS', 'Windows/Samba', 'Windows RDP', 'Linux', 'SSH Server', 'Computer'):
             # These are computers that could potentially run JuhRadialMX
             info_label = Gtk.Label(label='Install JuhRadialMX')
@@ -5312,16 +5374,37 @@ class SettingsWindow(Adw.ApplicationWindow):
         # Setup UPower signal monitoring for instant battery updates (system events)
         self._setup_upower_signals()
         # Start battery update timer (2 seconds for responsive charging status)
-        # This frequent polling is fine since settings window is only open briefly
-        GLib.timeout_add_seconds(2, self._update_battery)
+        self._battery_timer_id = GLib.timeout_add_seconds(2, self._update_battery)
         # Initial battery update
         GLib.idle_add(self._update_battery)
+
+        # Connect close-request to clean up resources
+        self.connect('close-request', self._on_close_request)
 
     def show_toast(self, message, timeout=2):
         """Show a toast notification"""
         toast = Adw.Toast(title=message)
         toast.set_timeout(timeout)
         self.toast_overlay.add_toast(toast)
+
+    def _on_close_request(self, window):
+        """Clean up resources when window is closed"""
+        # Stop battery polling timer
+        if hasattr(self, '_battery_timer_id') and self._battery_timer_id:
+            GLib.source_remove(self._battery_timer_id)
+            self._battery_timer_id = None
+            print("Battery timer stopped")
+
+        # Clean up FlowPage Zeroconf if it exists
+        flow_page = self.content_stack.get_child_by_name('flow')
+        if flow_page and hasattr(flow_page, 'cleanup'):
+            flow_page.cleanup()
+
+        # Clear toast callback to avoid dangling reference
+        config.set_toast_callback(None)
+
+        print("Settings window cleanup complete")
+        return False  # Allow window to close
 
     def _init_dbus(self):
         """Initialize D-Bus connection to daemon"""
@@ -5647,7 +5730,9 @@ class SettingsWindow(Adw.ApplicationWindow):
         self.content_stack.add_named(HapticsPage(), 'haptics')
         self.content_stack.add_named(DevicesPage(), 'devices')
         self.content_stack.add_named(EasySwitchPage(), 'easy_switch')
-        self.content_stack.add_named(FlowPage(), 'flow')
+        # FlowPage is lazy-loaded when navigated to (avoids Zeroconf at startup)
+        self._flow_page_placeholder = Gtk.Box()
+        self.content_stack.add_named(self._flow_page_placeholder, 'flow')
         self.content_stack.add_named(SettingsPage(), 'settings')
 
     def _create_status_bar(self):
@@ -5694,6 +5779,13 @@ class SettingsWindow(Adw.ApplicationWindow):
         # Update active state
         for btn_id, btn in self.nav_buttons.items():
             btn.set_active(btn_id == item_id)
+
+        # Lazy-load FlowPage on first navigation to avoid Zeroconf startup cost
+        if item_id == 'flow' and hasattr(self, '_flow_page_placeholder') and self._flow_page_placeholder:
+            self.content_stack.remove(self._flow_page_placeholder)
+            self._flow_page_placeholder = None
+            flow_page = FlowPage()
+            self.content_stack.add_named(flow_page, 'flow')
 
         # Switch page
         self.content_stack.set_visible_child_name(item_id)
@@ -5744,6 +5836,15 @@ class SettingsApp(Adw.Application):
         # No window exists - create new one
         win = SettingsWindow(self)
         win.present()
+
+    def do_shutdown(self):
+        """Clean up all resources on application exit"""
+        # Ensure all windows get their cleanup called
+        for window in self.get_windows():
+            if hasattr(window, '_on_close_request'):
+                window._on_close_request(window)
+        Adw.Application.do_shutdown(self)
+        print("Settings application shutdown complete")
 
 
 def main():
