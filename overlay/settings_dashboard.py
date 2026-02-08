@@ -353,6 +353,8 @@ IS_DARK_THEME = COLORS.get('is_dark', True)
 # =============================================================================
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 800
+WINDOW_MIN_WIDTH = 400  # Can be narrow - content scrolls horizontally
+WINDOW_MIN_HEIGHT = 300
 
 # =============================================================================
 # MX MASTER 4 BUTTON DEFINITIONS
@@ -2110,13 +2112,13 @@ class ButtonsPage(Gtk.ScrolledWindow):
         self.parent_window = parent_window
         self.config_manager = config_manager
         self.slice_rows = {}  # Store slice row widgets for updating
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)  # Allow horizontal scroll when needed
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
-        content.set_margin_top(24)
-        content.set_margin_bottom(24)
-        content.set_margin_start(24)
-        content.set_margin_end(24)
+        content.set_margin_top(16)
+        content.set_margin_bottom(16)
+        content.set_margin_start(16)
+        content.set_margin_end(16)
 
         # =============================================
         # ACTIONS RING CARD - Shows all 8 slices
@@ -2884,7 +2886,7 @@ class ScrollPage(Gtk.ScrolledWindow):
 
     def __init__(self):
         super().__init__()
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
         content.set_margin_top(24)
@@ -3571,7 +3573,7 @@ class HapticsPage(Gtk.ScrolledWindow):
 
     def __init__(self):
         super().__init__()
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         content.set_margin_top(20)
@@ -3746,7 +3748,7 @@ class SettingsPage(Gtk.ScrolledWindow):
 
     def __init__(self):
         super().__init__()
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         content.set_margin_top(20)
@@ -3980,7 +3982,7 @@ class DevicesPage(Gtk.ScrolledWindow):
 
     def __init__(self):
         super().__init__()
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
         content.set_margin_top(24)
@@ -4185,7 +4187,7 @@ class FlowPage(Gtk.ScrolledWindow):
 
     def __init__(self):
         super().__init__()
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         self.discovered_computers = {}  # Store discovered computers
 
         # Main container
@@ -4677,7 +4679,7 @@ class EasySwitchPage(Gtk.ScrolledWindow):
 
     def __init__(self):
         super().__init__()
-        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
 
         self.slot_buttons = []
         self.slot_labels = []
@@ -5210,6 +5212,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
 
         self.set_default_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.set_size_request(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
 
         # Set window icon for Wayland (fixes yellow default icon)
         icon_path = Path(__file__).parent.parent / "assets" / "juhradial-mx.svg"
