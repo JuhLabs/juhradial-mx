@@ -3,7 +3,7 @@
   <h1>JuhRadial MX</h1>
   <p><strong>Beautiful radial menu for Logitech MX Master mice on Linux</strong></p>
   <p>A Logi Options+ inspired experience for KDE Plasma 6 & Hyprland</p>
-
+  <p>IN PROGRESS: Translations and more radial designs/theme colors</p>
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
       <img src="https://img.shields.io/badge/version-0.2.4-cyan.svg" alt="Version 0.2.4">
