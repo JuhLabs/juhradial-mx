@@ -479,7 +479,7 @@ main() {
     check_desktop
 
     echo ""
-    read -p "Continue with installation? [Y/n] " -n 1 -r
+    read -p "Continue with installation? [Y/n] " -n 1 -r < /dev/tty
     echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z $REPLY ]]; then
         log_info "Installation cancelled."
