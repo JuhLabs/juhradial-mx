@@ -4,7 +4,7 @@
   <p><strong>Beautiful radial menu for Logitech MX Master mice on Linux</strong></p>
   <p>A Logi Options+ inspired experience for KDE Plasma 6 & Hyprland</p>
   <p>IN PROGRESS: Translations and more radial designs/theme colors</p>
-  <img src="assets/github/banner-v3.png" width="100%" alt="JuhRadial MX Banner">
+  <img src="assets/github/githubheader.png" width="100%" alt="JuhRadial MX Banner">
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
       <img src="https://img.shields.io/badge/version-0.2.5-cyan.svg" alt="Version 0.2.5">
@@ -62,6 +62,7 @@
 
 ## Media Kit
 
+- `assets/github/githubheader.png` (1536x1024)
 - `assets/github/hero-v3.png` (1600x900)
 - `assets/github/banner-v3.png` (1600x360)
 - `assets/github/og-v3.png` (1280x640)
