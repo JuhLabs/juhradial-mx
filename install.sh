@@ -28,6 +28,7 @@ INSTALL_DIR="/opt/juhradial-mx"
 BIN_DIR="/usr/local/bin"
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 CONFIG_DIR="$HOME/.config/juhradial"
+DISTRO_FAMILY=""
 
 print_banner() {
     echo -e "${CYAN}"
@@ -78,6 +79,54 @@ detect_distro() {
     fi
 
     log_info "Detected: $DISTRO $VERSION"
+    resolve_distro_family
+}
+
+resolve_distro_family() {
+    DISTRO_FAMILY="$DISTRO"
+
+    case "$DISTRO" in
+        arch|manjaro|endeavouros|garuda|artix)
+            DISTRO_FAMILY="arch"
+            ;;
+        fedora|rhel|centos|rocky|almalinux)
+            DISTRO_FAMILY="fedora"
+            ;;
+        debian|ubuntu|linuxmint|pop|elementary|kali)
+            DISTRO_FAMILY="debian"
+            ;;
+        opensuse*|suse*|sles)
+            DISTRO_FAMILY="opensuse"
+            ;;
+    esac
+
+    if [ "$DISTRO_FAMILY" = "$DISTRO" ] && [ -n "$DISTRO_LIKE" ]; then
+        if [[ "$DISTRO_LIKE" == *"arch"* ]]; then
+            DISTRO_FAMILY="arch"
+        elif [[ "$DISTRO_LIKE" == *"fedora"* ]] || [[ "$DISTRO_LIKE" == *"rhel"* ]]; then
+            DISTRO_FAMILY="fedora"
+        elif [[ "$DISTRO_LIKE" == *"debian"* ]] || [[ "$DISTRO_LIKE" == *"ubuntu"* ]]; then
+            DISTRO_FAMILY="debian"
+        elif [[ "$DISTRO_LIKE" == *"suse"* ]]; then
+            DISTRO_FAMILY="opensuse"
+        fi
+    fi
+
+    if [ "$DISTRO_FAMILY" = "$DISTRO" ] || [ -z "$DISTRO_FAMILY" ]; then
+        if command -v apt-get &> /dev/null; then
+            DISTRO_FAMILY="debian"
+        elif command -v dnf &> /dev/null; then
+            DISTRO_FAMILY="fedora"
+        elif command -v pacman &> /dev/null; then
+            DISTRO_FAMILY="arch"
+        elif command -v zypper &> /dev/null; then
+            DISTRO_FAMILY="opensuse"
+        fi
+    fi
+
+    if [ -n "$DISTRO_FAMILY" ]; then
+        log_info "Using distro family: $DISTRO_FAMILY"
+    fi
 }
 
 check_wayland() {
@@ -166,6 +215,7 @@ install_deps_fedora() {
         python3 python3-pip \
         python3-pyqt6 qt6-qtsvg \
         python3-gobject gtk4 libadwaita \
+        gtk4-layer-shell \
         dbus-devel systemd-devel \
         libevdev-devel hidapi-devel \
         logiops \
@@ -179,6 +229,7 @@ install_deps_arch() {
         python python-pip \
         python-pyqt6 qt6-svg \
         python-gobject gtk4 libadwaita \
+        gtk4-layer-shell \
         dbus systemd-libs \
         libevdev hidapi \
         git make base-devel
@@ -208,6 +259,10 @@ install_deps_debian() {
         libevdev-dev libhidapi-dev \
         git make build-essential
 
+    if apt-cache show libgtk4-layer-shell0 &> /dev/null; then
+        sudo apt-get install -y libgtk4-layer-shell0
+    fi
+
     # logiops needs to be built from source on Debian
     if ! command -v logid &> /dev/null; then
         log_warning "logiops not found. Please install it manually from:"
@@ -225,20 +280,24 @@ install_deps_opensuse() {
         dbus-1-devel systemd-devel \
         libevdev-devel libhidapi-devel \
         git make
+
+    if ! sudo zypper install -y gtk4-layer-shell; then
+        log_warning "gtk4-layer-shell not available on this repo"
+    fi
 }
 
 install_dependencies() {
-    case $DISTRO in
-        fedora|rhel|centos)
+    case $DISTRO_FAMILY in
+        fedora)
             install_deps_fedora
             ;;
-        arch|manjaro|endeavouros)
+        arch)
             install_deps_arch
             ;;
-        debian|ubuntu|linuxmint|pop)
+        debian)
             install_deps_debian
             ;;
-        opensuse*|suse*)
+        opensuse)
             install_deps_opensuse
             ;;
         *)
@@ -255,11 +314,11 @@ clone_repo() {
 
     if [ -d "$INSTALL_DIR" ]; then
         log_info "Existing installation found. Updating..."
-        cd "$INSTALL_DIR"
-        sudo git pull
+        sudo chown -R "$USER:$USER" "$INSTALL_DIR"
+        git -C "$INSTALL_DIR" pull --ff-only
     else
         sudo git clone "$REPO_URL" "$INSTALL_DIR"
-        sudo chown -R $USER:$USER "$INSTALL_DIR"
+        sudo chown -R "$USER:$USER" "$INSTALL_DIR"
     fi
 
     cd "$INSTALL_DIR"
@@ -288,6 +347,16 @@ install_files() {
     # Install overlay scripts
     sudo mkdir -p /usr/share/juhradial
     sudo cp -r overlay/*.py /usr/share/juhradial/
+
+    # Install locale files
+    if [ -d overlay/locales ]; then
+        sudo mkdir -p /usr/share/juhradial/locales
+        sudo cp -r overlay/locales/* /usr/share/juhradial/locales/
+    fi
+
+    # Install 3D radial wheel images
+    sudo mkdir -p /usr/share/juhradial/assets/radial-wheels
+    sudo cp -r assets/radial-wheels/*.png /usr/share/juhradial/assets/radial-wheels/
 
     # Install launcher scripts
     sudo install -Dm755 juhradial-mx.sh "$BIN_DIR/juhradial-mx"
@@ -324,6 +393,16 @@ install_files() {
 configure_logiops() {
     log_info "Configuring logiops..."
 
+    if ! command -v logid &> /dev/null; then
+        log_warning "logiops (logid) not found. Skipping logiops setup."
+        return 0
+    fi
+
+    if ! command -v systemctl &> /dev/null; then
+        log_warning "systemctl not available. Skipping logiops service enable."
+        return 0
+    fi
+
     if [ -f packaging/logid.cfg ]; then
         if [ -f /etc/logid.cfg ]; then
             sudo cp /etc/logid.cfg /etc/logid.cfg.backup
@@ -332,8 +411,12 @@ configure_logiops() {
         sudo cp packaging/logid.cfg /etc/logid.cfg
 
         # Enable and start logid service
-        sudo systemctl enable logid
-        sudo systemctl restart logid
+        if systemctl list-unit-files | grep -q "^logid"; then
+            sudo systemctl enable logid
+            sudo systemctl restart logid
+        else
+            log_warning "logid service not found. Please enable it manually."
+        fi
         log_success "logiops configured"
     else
         log_warning "logid.cfg not found in packaging/"
@@ -343,9 +426,14 @@ configure_logiops() {
 enable_service() {
     log_info "Enabling JuhRadial MX service..."
 
-    systemctl --user daemon-reload
-    systemctl --user enable juhradialmx-daemon
-    systemctl --user start juhradialmx-daemon
+    if ! command -v systemctl &> /dev/null; then
+        log_warning "systemctl not available. Skipping user service enable."
+        return 0
+    fi
+
+    systemctl --user daemon-reload || log_warning "Failed to reload user systemd"
+    systemctl --user enable juhradialmx-daemon || log_warning "Failed to enable user service"
+    systemctl --user start juhradialmx-daemon || log_warning "Failed to start user service"
 
     log_success "Service enabled and started"
 }

@@ -2,7 +2,7 @@
 # Build: rpmbuild -ba juhradial-mx.spec
 
 Name:           juhradial-mx
-Version:        1.0.0
+Version:        0.2.5
 Release:        1%{?dist}
 Summary:        Beautiful radial menu for Logitech MX Master mice on Linux
 
@@ -70,6 +70,11 @@ install -Dm755 juhradial-mx.sh %{buildroot}%{_bindir}/juhradial-mx
 # Install overlay Python files
 install -dm755 %{buildroot}%{_datadir}/juhradial
 install -Dm644 overlay/*.py %{buildroot}%{_datadir}/juhradial/
+
+# Install locales
+if [ -d overlay/locales ]; then
+    cp -r overlay/locales %{buildroot}%{_datadir}/juhradial/
+fi
 
 # Install assets
 install -dm755 %{buildroot}%{_datadir}/juhradial/assets
