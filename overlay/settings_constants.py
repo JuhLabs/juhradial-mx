@@ -6,9 +6,6 @@ Data constants for mouse buttons, navigation, and radial menu actions.
 SPDX-License-Identifier: GPL-3.0
 """
 
-from i18n import _
-
-
 # =============================================================================
 # MX MASTER 4 BUTTON DEFINITIONS
 # Positions for 3/4 angle view (front-top-left perspective)
@@ -224,7 +221,8 @@ _RADIAL_LABEL_ALIAS_TO_ID = {
 }
 
 
-def refresh_translations():
+def refresh_translations(_=lambda x: x):
+    """Refresh translations. Pass _ function from i18n module."""
     base_action_labels = {label for _, label in _BASE_BUTTON_ACTIONS}
     existing_actions = {key: info.get("action") for key, info in MOUSE_BUTTONS.items()}
 
@@ -295,4 +293,6 @@ def translate_radial_label(label, action_id=None):
     return label
 
 
-refresh_translations()
+# Initial call with no-op translation function
+# The real _() function will be passed later when called from i18n
+refresh_translations(lambda x: x)

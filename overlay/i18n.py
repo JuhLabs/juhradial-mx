@@ -13,7 +13,6 @@ SPDX-License-Identifier: GPL-3.0
 
 import gettext
 import locale
-import os
 import json
 from pathlib import Path
 
@@ -51,7 +50,7 @@ def get_configured_language() -> str:
                 config = json.load(f)
             return config.get("language", "system")
     except (json.JSONDecodeError, OSError):
-        pass
+        pass  # Config file doesn't exist or is corrupted, use system default
     return "system"
 
 
@@ -64,7 +63,7 @@ def setup_i18n():
         try:
             locale.setlocale(locale.LC_ALL, "")
         except locale.Error:
-            pass
+            pass  # Locale not supported, will use default
         languages = None  # Let gettext detect from environment
     else:
         languages = [lang]
@@ -104,11 +103,11 @@ def reload_language():
             try:
                 mod.__dict__["_"] = _
             except Exception:
-                pass
+                pass  # Module dict not accessible, skip
 
     try:
         from settings_constants import refresh_translations
 
-        refresh_translations()
+        refresh_translations(_)
     except Exception:
-        pass
+        pass  # settings_constants may not be available

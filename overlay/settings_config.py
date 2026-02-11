@@ -10,7 +10,6 @@ SPDX-License-Identifier: GPL-3.0
 
 import os
 import json
-import signal
 from pathlib import Path
 
 import gi
