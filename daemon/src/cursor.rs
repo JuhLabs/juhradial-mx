@@ -175,9 +175,8 @@ fn get_cursor_via_hyprland_socket(sig: &str) -> Option<CursorPosition> {
 /// which works correctly across multiple monitors on Wayland.
 /// The script calls back to our daemon via D-Bus with the position.
 fn get_cursor_via_kwin_script() -> Option<CursorPosition> {
-    use std::fs;
-
-    let script_path = "/tmp/juhradial_cursor.js";
+    use std::io::Write;
+    use tempfile::Builder;
 
     // Create KWin script that calls our D-Bus method with cursor position
     let script = r#"
@@ -187,10 +186,16 @@ callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
          pos.x, pos.y);
 "#;
 
+    // Create a temporary file with .js suffix securely
+    let mut temp_file = Builder::new().suffix(".js").tempfile().ok()?;
+
     // Write script to temp file
-    if fs::write(script_path, script).is_err() {
+    if write!(temp_file, "{}", script).is_err() {
         return None;
     }
+
+    // Get the path as a string
+    let script_path = temp_file.path().to_string_lossy();
 
     // Load script via D-Bus
     let load_output = Command::new("dbus-send")

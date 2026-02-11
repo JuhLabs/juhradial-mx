@@ -334,10 +334,9 @@ impl HidrawHandler {
     /// This method works correctly on Plasma 6 Wayland with multiple monitors,
     /// unlike xdotool/XWayland which clamps cursor to a single screen.
     fn trigger_kwin_cursor_script() -> bool {
-        use std::fs;
         use std::process::Command;
-
-        let script_path = "/tmp/juhradial_show_menu.js";
+        use std::io::Write;
+        use tempfile::Builder;
 
         // Create KWin script that calls ShowMenuAtCursor with true cursor position
         let script = r#"
@@ -347,11 +346,23 @@ callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
          pos.x, pos.y);
 "#;
 
+        // Create a temporary file with .js suffix securely
+        let mut temp_file = match Builder::new().suffix(".js").tempfile() {
+            Ok(file) => file,
+            Err(e) => {
+                tracing::warn!("Failed to create temp file for KWin script: {}", e);
+                return false;
+            }
+        };
+
         // Write script to temp file
-        if fs::write(script_path, script).is_err() {
-            tracing::warn!("Failed to write KWin script");
+        if let Err(e) = write!(temp_file, "{}", script) {
+            tracing::warn!("Failed to write KWin script: {}", e);
             return false;
         }
+
+        // Get the path as a string
+        let script_path = temp_file.path().to_string_lossy();
 
         // Load script via D-Bus
         let load_result = Command::new("dbus-send")
