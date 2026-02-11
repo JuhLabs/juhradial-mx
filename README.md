@@ -4,6 +4,7 @@
   <p><strong>Beautiful radial menu for Logitech MX Master mice on Linux</strong></p>
   <p>A Logi Options+ inspired experience for KDE Plasma 6 & Hyprland</p>
   <p>IN PROGRESS: Translations and more radial designs/theme colors</p>
+  <img src="assets/github/banner.png" width="100%" alt="JuhRadial MX Banner">
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
       <img src="https://img.shields.io/badge/version-0.2.5-cyan.svg" alt="Version 0.2.5">
@@ -32,22 +33,38 @@
   <table>
     <tr>
       <td align="center">
-        <img src="assets/screenshots/RadialWheel.png" width="280" alt="Radial Menu">
+        <img src="assets/screenshots/RadialWheel.png" width="260" alt="Radial Menu">
         <br><em>Radial Menu</em>
       </td>
       <td align="center">
-        <img src="assets/screenshots/Settings.png" width="400" alt="Settings Dashboard">
+        <img src="assets/screenshots/RadialScreen1.png" width="260" alt="3D Radial Wheel">
+        <br><em>3D Neon</em>
+      </td>
+      <td align="center">
+        <img src="assets/screenshots/RadialScreen2.png" width="260" alt="3D Radial Wheel">
+        <br><em>3D Blossom</em>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="3" align="center">
+        <img src="assets/screenshots/Settings.png" width="500" alt="Settings Dashboard">
         <br><em>Settings Dashboard</em>
       </td>
     </tr>
     <tr>
-      <td colspan="2" align="center">
+      <td colspan="3" align="center">
         <img src="assets/screenshots/settingsscroll.png" width="500" alt="Settings - DPI & Scroll">
         <br><em>DPI & Scroll Configuration</em>
       </td>
     </tr>
   </table>
 </div>
+
+## Media Kit
+
+- `assets/github/hero.png` (1600x900)
+- `assets/github/banner.png` (1600x420)
+- `assets/github/og.png` (1280x640)
 
 ## Features
 
