@@ -93,6 +93,17 @@
   </keywords>
 
   <releases>
+    <release version="0.2.5" date="2026-02-11">
+      <description>
+        <p>Radial wheel polish, translations, and performance improvements</p>
+        <ul>
+          <li>New 3D radial wheel art with per-theme etching and consistent slice geometry</li>
+          <li>Expanded translations for settings navigation and radial menu actions</li>
+          <li>Center label auto-fit prevents long translations from clipping</li>
+          <li>Optimized settings/overlay code paths to reduce UI lag and CPU usage</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.4" date="2026-02-08">
       <description>
         <p>Fixed high CPU usage and zombie process when settings window is shown</p>

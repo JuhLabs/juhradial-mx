@@ -5,6 +5,25 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-02-11
+
+### Added
+
+- **New 3D radial wheel art** with per-theme etching, glow, and consistent slice geometry for easier icon placement.
+- **Expanded translations** for settings navigation and radial menu actions, with stable `action_id` mapping.
+
+### Changed
+
+- **Performance improvements** from sharded/optimized settings + overlay code paths to reduce UI lag and CPU usage.
+- **Center label auto-fit** now scales and wraps long translations to avoid clipping.
+- **Installer improvements** for broader distro detection, optional logiops/systemd handling, and bundled locales + 3D wheels.
+
+### Fixed
+
+- **Radial menu translations update on first open** after language change (no more double-open).
+- **Center text truncation** in the radial wheel for longer translations.
+- **Removed broken Chrome Steel (3D) theme** from the selector.
+
 ## [0.2.4] - 2026-02-08
 
 ### Fixed
@@ -84,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Native Wayland** - Full support for KDE Plasma 6 and Hyprland
 - Support for MX Master 4, MX Master 3S, and MX Master 3
 
+[0.2.5]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.1...v0.2.2

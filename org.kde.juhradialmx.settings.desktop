@@ -1,6 +1,18 @@
 [Desktop Entry]
 Name=JuhRadial MX Settings
 Comment=Configure JuhRadial MX radial menu
+Comment[nb]=Konfigurer JuhRadial MX radialmeny
+Comment[es]=Configurar el menú radial de JuhRadial MX
+Comment[pt_BR]=Configurar o menu radial JuhRadial MX
+Comment[de]=JuhRadial MX Radialmenü konfigurieren
+Comment[fr]=Configurer le menu radial JuhRadial MX
+Comment[it]=Configura il menu radiale JuhRadial MX
+Comment[ru]=Настроить радиальное меню JuhRadial MX
+Comment[ja]=JuhRadial MX ラジアルメニューの設定
+Comment[th]=ตั้งค่าเมนูเรเดียล JuhRadial MX
+Comment[zh_CN]=配置 JuhRadial MX 径向菜单
+Comment[ko]=JuhRadial MX 방사형 메뉴 설정
+Comment[hi]=JuhRadial MX रेडियल मेनू कॉन्फ़िगर करें
 Exec=juhradial-settings
 Icon=juhradial-mx
 Terminal=false

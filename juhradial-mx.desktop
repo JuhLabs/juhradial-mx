@@ -1,6 +1,18 @@
 [Desktop Entry]
 Name=JuhRadial MX
 Comment=Radial menu for Logitech MX Master mice
+Comment[nb]=Radialmeny for Logitech MX Master-mus
+Comment[es]=Menú radial para ratones Logitech MX Master
+Comment[pt_BR]=Menu radial para mouses Logitech MX Master
+Comment[de]=Radialmenü für Logitech MX Master Mäuse
+Comment[fr]=Menu radial pour souris Logitech MX Master
+Comment[it]=Menu radiale per mouse Logitech MX Master
+Comment[ru]=Радиальное меню для мышей Logitech MX Master
+Comment[ja]=Logitech MX Masterマウス用ラジアルメニュー
+Comment[th]=เมนูเรเดียลสำหรับเมาส์ Logitech MX Master
+Comment[zh_CN]=Logitech MX Master 鼠标径向菜单
+Comment[ko]=Logitech MX Master 마우스용 방사형 메뉴
+Comment[hi]=Logitech MX Master माउस के लिए रेडियल मेनू
 Exec=juhradial-mx
 Icon=juhradial-mx
 Terminal=false

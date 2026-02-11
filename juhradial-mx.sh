@@ -3,12 +3,13 @@
 # Starts the daemon and overlay for the radial menu
 
 # Find script directory (works for both installed and dev mode)
-if [ -d "/opt/juhradial-mx" ]; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -d "$SCRIPT_DIR/.git" ]; then
+    :
+elif [ -d "/opt/juhradial-mx" ]; then
     SCRIPT_DIR="/opt/juhradial-mx"
 elif [ -d "/usr/share/juhradial" ]; then
     SCRIPT_DIR="/usr/share/juhradial"
-else
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 
 # Kill any existing instances

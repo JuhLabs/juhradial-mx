@@ -2,7 +2,7 @@
 # Arch Linux PKGBUILD for JuhRadial MX
 
 pkgname=juhradial-mx
-pkgver=0.2.0
+pkgver=0.2.5
 pkgrel=1
 pkgdesc="Beautiful radial menu for Logitech MX Master mice on Linux"
 arch=('x86_64')
@@ -61,6 +61,11 @@ package() {
     # Install overlay Python files
     install -dm755 "$pkgdir/usr/share/juhradial"
     install -Dm644 overlay/*.py "$pkgdir/usr/share/juhradial/"
+
+    # Install locales
+    if [ -d "overlay/locales" ]; then
+        cp -r overlay/locales "$pkgdir/usr/share/juhradial/"
+    fi
 
     # Install assets
     install -dm755 "$pkgdir/usr/share/juhradial/assets"

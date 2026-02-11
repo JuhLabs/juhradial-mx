@@ -1,0 +1,1366 @@
+# French translations for JuhRadial MX package.
+# Copyright (C) 2026 THE JuhRadial MX'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the JuhRadial MX package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JuhRadial MX 1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/JuhLabs/juhradial-mx/issues\n"
+"POT-Creation-Date: 2026-02-08 10:10+0100\n"
+"PO-Revision-Date: 2026-02-08 10:10+0100\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/juhradial-overlay.py:1278
+msgid "Drag"
+msgstr "Glisser"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/juhradial-overlay.py:1327
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1902
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2457
+msgid "Settings"
+msgstr "Paramètres"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/juhradial-overlay.py:1339
+msgid "Exit"
+msgstr "Quitter"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:152
+msgid "Settings saved"
+msgstr "Paramètres enregistrés"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:155
+#, python-brace-format
+msgid "Error saving settings: {}"
+msgstr "Erreur lors de l'enregistrement des paramètres : {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:370
+msgid "Middle Button"
+msgstr "Bouton central"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:371
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1705
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1716
+msgid "Middle Click"
+msgstr "Clic central"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:376
+msgid "Shift Wheel Mode"
+msgstr "Changer le mode de la molette"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:377
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1706
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1724
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2993
+msgid "SmartShift"
+msgstr "SmartShift"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:382
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:383
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1707
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1718
+msgid "Forward"
+msgstr "Suivant"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:388
+msgid "Horizontal Scroll"
+msgstr "Défilement horizontal"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:389
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1708
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1725
+msgid "Scroll Left/Right"
+msgstr "Défilement gauche/droite"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:394
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:395
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1709
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1717
+msgid "Back"
+msgstr "Précédent"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:400
+msgid "Gestures"
+msgstr "Gestes"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:401
+msgid "Virtual desktops"
+msgstr "Bureaux virtuels"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:407
+msgid "Show Actions Ring"
+msgstr "Afficher l'anneau d'actions"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:408
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1711
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1730
+msgid "Radial Menu"
+msgstr "Menu radial"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:419
+msgid "BUTTONS"
+msgstr "BOUTONS"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:420
+msgid "SENSITIVITY"
+msgstr "SENSIBILITÉ"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:421
+msgid "HAPTIC FEEDBACK"
+msgstr "RETOUR HAPTIQUE"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:422
+msgid "DEVICES"
+msgstr "APPAREILS"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:423
+msgid "EASY-SWITCH"
+msgstr "EASY-SWITCH"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:424
+msgid "FLOW"
+msgstr "FLOW"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:425
+msgid "SETTINGS"
+msgstr "PARAMÈTRES"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1494
+msgid "MX Master 4"
+msgstr "MX Master 4"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1710
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1731
+msgid "Virtual Desktops"
+msgstr "Bureaux virtuels"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1719
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1907
+msgid "Copy"
+msgstr "Copier"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1720
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1908
+msgid "Paste"
+msgstr "Coller"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1721
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1909
+msgid "Undo"
+msgstr "Annuler"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1722
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1910
+msgid "Redo"
+msgstr "Rétablir"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1723
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1900
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2449
+msgid "Screenshot"
+msgstr "Capture d'écran"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1726
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1915
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2446
+msgid "Volume Up"
+msgstr "Augmenter le volume"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1727
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1916
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2447
+msgid "Volume Down"
+msgstr "Diminuer le volume"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1728
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1899
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2443
+msgid "Play/Pause"
+msgstr "Lecture/Pause"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1729
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1917
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2448
+msgid "Mute"
+msgstr "Sourdine"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1732
+msgid "Zoom In"
+msgstr "Zoom avant"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1733
+msgid "Zoom Out"
+msgstr "Zoom arrière"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1734
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1920
+msgid "Do Nothing"
+msgstr "Ne rien faire"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1735
+msgid "Custom Action..."
+msgstr "Action personnalisée…"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1749
+#, python-brace-format
+msgid "Configure {}"
+msgstr "Configurer {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1761
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1945
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2493
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4705
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5031
+msgid "Cancel"
+msgstr "Annuler"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1766
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1949
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2497
+msgid "Save"
+msgstr "Enregistrer"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1790
+msgid "Restore Default"
+msgstr "Restaurer les valeurs par défaut"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1798
+#, python-brace-format
+msgid "Current: {}"
+msgstr "Actuel : {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1798
+msgid "Not set"
+msgstr "Non défini"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1901
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2451
+msgid "Lock Screen"
+msgstr "Verrouiller l'écran"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1903
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2452
+msgid "Files"
+msgstr "Fichiers"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1904
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2437
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2458
+msgid "Emoji Picker"
+msgstr "Sélecteur d'émojis"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1905
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2455
+msgid "New Note"
+msgstr "Nouvelle note"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1906
+msgid "AI Assistant"
+msgstr "Assistant IA"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1911
+msgid "Cut"
+msgstr "Couper"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1912
+msgid "Select All"
+msgstr "Tout sélectionner"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1913
+msgid "Close Window"
+msgstr "Fermer la fenêtre"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1914
+msgid "Minimize"
+msgstr "Réduire"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1918
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2444
+msgid "Next Track"
+msgstr "Piste suivante"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1919
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2445
+msgid "Previous Track"
+msgstr "Piste précédente"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1931
+msgid "Configure Radial Menu"
+msgstr "Configurer le menu radial"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1968
+msgid ""
+"Configure the 8 actions in your radial menu. Click on a slice to change its "
+"action."
+msgstr ""
+"Configurez les 8 actions de votre menu radial. Cliquez sur une section pour "
+"modifier son action."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:1981
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2715
+#, python-brace-format
+msgid "Slice {}"
+msgstr "Section {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2147
+msgid "Actions Ring"
+msgstr "Anneau d'actions"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2152
+msgid "Click any action to customize"
+msgstr "Cliquez sur une action pour la personnaliser"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2170
+msgid "Top"
+msgstr "Haut"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2170
+msgid "Top Right"
+msgstr "Haut droite"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2170
+msgid "Right"
+msgstr "Droite"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2170
+msgid "Bottom Right"
+msgstr "Bas droite"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2170
+msgid "Bottom"
+msgstr "Bas"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2170
+msgid "Bottom Left"
+msgstr "Bas gauche"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2170
+msgid "Left"
+msgstr "Gauche"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2170
+msgid "Top Left"
+msgstr "Haut gauche"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2207
+msgid "Easy-Switch Shortcuts"
+msgstr "Raccourcis Easy-Switch"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2212
+msgid "Replace Emoji with Easy-Switch 1, 2, 3 submenu"
+msgstr "Remplacer les émojis par le sous-menu Easy-Switch 1, 2, 3"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2236
+msgid "Button Assignments"
+msgstr "Affectations des boutons"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2418
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4795
+msgid "Easy-Switch"
+msgstr "Easy-Switch"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2423
+msgid "Emoji"
+msgstr "Émoji"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2434
+msgid "Run Command"
+msgstr "Exécuter une commande"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2434
+msgid "Execute a shell command"
+msgstr "Exécuter une commande shell"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2435
+msgid "Open URL"
+msgstr "Ouvrir une URL"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2435
+msgid "Open a web address"
+msgstr "Ouvrir une adresse web"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2436
+msgid "Open Settings"
+msgstr "Ouvrir les paramètres"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2436
+msgid "Open JuhRadial settings"
+msgstr "Ouvrir les paramètres de JuhRadial MX"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2437
+msgid "Show emoji picker"
+msgstr "Afficher le sélecteur d'émojis"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2438
+msgid "Submenu"
+msgstr "Sous-menu"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2438
+msgid "Show a submenu with more options"
+msgstr "Afficher un sous-menu avec plus d'options"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2450
+msgid "Screenshot Area"
+msgstr "Capture de zone"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2453
+msgid "Terminal"
+msgstr "Terminal"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2454
+msgid "Browser"
+msgstr "Navigateur"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2456
+msgid "Calculator"
+msgstr "Calculatrice"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2468
+#, python-brace-format
+msgid "Configure Slice {}"
+msgstr "Configurer la section {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2518
+msgid "Quick Actions"
+msgstr "Actions rapides"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2556
+msgid "Custom Configuration"
+msgstr "Configuration personnalisée"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2563
+msgid "Label"
+msgstr "Libellé"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2570
+msgid "Enter action label"
+msgstr "Saisir le libellé de l'action"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2576
+msgid "Action Type"
+msgstr "Type d'action"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2597
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2690
+msgid "Command"
+msgstr "Commande"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2604
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2691
+msgid "e.g., playerctl play-pause"
+msgstr "ex. : playerctl play-pause"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2611
+msgid "Color"
+msgstr "Couleur"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2640
+msgid "Icon"
+msgstr "Icône"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2647
+msgid "Icon name (e.g., folder-symbolic)"
+msgstr "Nom de l'icône (ex. : folder-symbolic)"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2687
+msgid "URL"
+msgstr "URL"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2688
+msgid "e.g., https://claude.ai"
+msgstr "ex. : https://claude.ai"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2755
+msgid "Pointer Speed"
+msgstr "Vitesse du pointeur"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2758
+msgid "Adjust tracking sensitivity"
+msgstr "Ajuster la sensibilité de suivi"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2776
+msgid "DPI"
+msgstr "DPI"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2786
+msgid "Slow"
+msgstr "Lent"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2799
+msgid "Fast"
+msgstr "Rapide"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2899
+msgid "Pointer"
+msgstr "Pointeur"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2916
+msgid "Acceleration Profile"
+msgstr "Profil d'accélération"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2916
+msgid "How pointer speed scales with movement"
+msgstr "Comment la vitesse du pointeur évolue avec le mouvement"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2918
+msgid "Adaptive (Recommended)"
+msgstr "Adaptative (recommandé)"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2919
+msgid "Flat (Linear)"
+msgstr "Plate (linéaire)"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2920
+msgid "System Default"
+msgstr "Par défaut du système"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2943
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3438
+msgid "Settings are up to date"
+msgstr "Les paramètres sont à jour"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2961
+msgid "Apply to Device"
+msgstr "Appliquer à l'appareil"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2971
+msgid ""
+"Applies DPI, SmartShift, and scroll settings via logiops (requires sudo)"
+msgstr ""
+"Applique les paramètres DPI, SmartShift et de défilement via logiops (nécessite sudo)"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2980
+msgid "Scroll Wheel"
+msgstr "Molette de défilement"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3009
+msgid ""
+"Auto-switch to free-spin when scrolling fast, return to ratchet when slow"
+msgstr ""
+"Basculement automatique en rotation libre lors d'un défilement rapide, retour au mode cranté lorsque lent"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3024
+msgid "Switch Threshold"
+msgstr "Seuil de basculement"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3038
+msgid "Stay ratchet"
+msgstr "Rester en mode cranté"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3052
+msgid "Easy free-spin"
+msgstr "Rotation libre facile"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3066
+msgid "Natural Scrolling"
+msgstr "Défilement naturel"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3066
+msgid "Scroll content in the direction of finger movement"
+msgstr "Faire défiler le contenu dans le sens du mouvement du doigt"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3074
+msgid "High-Resolution Scroll"
+msgstr "Défilement haute résolution"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3074
+msgid "More scroll events for smoother, faster scrolling"
+msgstr "Plus d'événements de défilement pour un défilement plus fluide et plus rapide"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3088
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3105
+msgid "Scroll Speed"
+msgstr "Vitesse de défilement"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3088
+msgid "Lines scrolled per wheel notch"
+msgstr "Lignes défilées par cran de molette"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3103
+msgid "Thumb Wheel"
+msgstr "Molette du pouce"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3105
+msgid "Horizontal scroll sensitivity"
+msgstr "Sensibilité du défilement horizontal"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3116
+msgid "Invert Direction"
+msgstr "Inverser le sens"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3116
+msgid "Reverse thumb wheel scroll direction"
+msgstr "Inverser le sens de défilement de la molette du pouce"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3406
+#, python-brace-format
+msgid "DPI set to {}"
+msgstr "DPI réglé à {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3412
+msgid "DPI error: daemon not running?"
+msgstr "Erreur DPI : le démon n'est pas en cours d'exécution ?"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3421
+msgid "Click Apply to save changes"
+msgstr "Cliquez sur Appliquer pour enregistrer les modifications"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3432
+msgid "Settings applied!"
+msgstr "Paramètres appliqués !"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3531
+msgid "enabled"
+msgstr "activé"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3531
+msgid "disabled"
+msgstr "désactivé"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3532
+#, python-brace-format
+msgid "SmartShift {}"
+msgstr "SmartShift {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3541
+msgid "SmartShift error: daemon not running?"
+msgstr "Erreur SmartShift : le démon n'est pas en cours d'exécution ?"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3552
+msgid "Sharp Click"
+msgstr "Clic net"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3552
+msgid "Crisp, sharp feedback"
+msgstr "Retour vif et net"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3553
+msgid "Soft Click"
+msgstr "Clic doux"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3553
+msgid "Softer, dampened feedback"
+msgstr "Retour plus doux et amorti"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3554
+msgid "Sharp Bump"
+msgstr "Choc net"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3554
+msgid "Strong collision feedback"
+msgstr "Retour de collision fort"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3555
+msgid "Soft Bump"
+msgstr "Choc doux"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3555
+msgid "Gentle collision feedback"
+msgstr "Retour de collision léger"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3556
+msgid "Subtle"
+msgstr "Subtil"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3556
+msgid "Very light, subtle feedback"
+msgstr "Retour très léger et subtil"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3557
+msgid "Whisper"
+msgstr "Murmure"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3557
+msgid "Barely perceptible feedback"
+msgstr "Retour à peine perceptible"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3558
+msgid "Happy"
+msgstr "Joyeux"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3558
+msgid "Positive notification feel"
+msgstr "Sensation de notification positive"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3559
+msgid "Alert"
+msgstr "Alerte"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3559
+msgid "Warning/error feel"
+msgstr "Sensation d'avertissement/erreur"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3560
+msgid "Complete"
+msgstr "Terminé"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3560
+msgid "Success/completion feel"
+msgstr "Sensation de réussite/achèvement"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3561
+msgid "Square Wave"
+msgstr "Onde carrée"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3561
+msgid "Mechanical square pattern"
+msgstr "Motif carré mécanique"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3562
+msgid "Wave"
+msgstr "Onde"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3562
+msgid "Smooth wave pattern"
+msgstr "Motif d'onde lisse"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3563
+msgid "Firework"
+msgstr "Feu d'artifice"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3563
+msgid "Burst pattern"
+msgstr "Motif en rafale"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3564
+msgid "Strong Alert"
+msgstr "Alerte forte"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3564
+msgid "Strong error pattern"
+msgstr "Motif d'erreur fort"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3565
+msgid "Knock"
+msgstr "Coup"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3565
+msgid "Knocking pattern"
+msgstr "Motif de frappe"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3566
+msgid "Jingle"
+msgstr "Tintement"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3566
+msgid "Musical jingle pattern"
+msgstr "Motif de tintement musical"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3567
+msgid "Ringing"
+msgstr "Sonnerie"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3567
+msgid "Ring/vibrate pattern"
+msgstr "Motif de sonnerie/vibration"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3580
+msgid "Haptic Feedback"
+msgstr "Retour haptique"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3583
+msgid "Enable Haptic Feedback"
+msgstr "Activer le retour haptique"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3583
+msgid "Feel vibrations when using the radial menu"
+msgstr "Ressentir des vibrations lors de l'utilisation du menu radial"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3593
+msgid "Haptic Patterns"
+msgstr "Motifs haptiques"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3599
+msgid "Menu Appear"
+msgstr "Apparition du menu"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3599
+msgid "Pattern when radial menu opens"
+msgstr "Motif à l'ouverture du menu radial"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3600
+msgid "Slice Hover"
+msgstr "Survol de section"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3600
+msgid "Pattern when hovering over different slices"
+msgstr "Motif lors du survol des différentes sections"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3601
+msgid "Selection"
+msgstr "Sélection"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3601
+msgid "Pattern when selecting an action"
+msgstr "Motif lors de la sélection d'une action"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3602
+msgid "Invalid Action"
+msgstr "Action non valide"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3602
+msgid "Pattern for blocked/invalid actions"
+msgstr "Motif pour les actions bloquées/non valides"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3617
+msgid "Apply to All"
+msgstr "Appliquer à tout"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3617
+msgid "Set all events to the same pattern"
+msgstr "Appliquer le même motif à tous les événements"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3628
+msgid "Test Haptics"
+msgstr "Tester les haptiques"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3629
+msgid "Test Pattern"
+msgstr "Tester le motif"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3629
+msgid "Feel the selected pattern"
+msgstr "Ressentir le motif sélectionné"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3630
+msgid "Test"
+msgstr "Tester"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3756
+msgid "Appearance"
+msgstr "Apparence"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3758
+msgid "Theme"
+msgstr "Thème"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3758
+msgid "Choose color theme for radial menu and settings"
+msgstr "Choisir le thème de couleurs pour le menu radial et les paramètres"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3761
+msgid "JuhRadial MX (Premium)"
+msgstr "JuhRadial MX (Premium)"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3762
+msgid "Catppuccin Mocha"
+msgstr "Catppuccin Mocha"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3763
+msgid "Nord"
+msgstr "Nord"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3764
+msgid "Dracula"
+msgstr "Dracula"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3765
+msgid "Catppuccin Latte"
+msgstr "Catppuccin Latte"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3766
+msgid "GitHub Light"
+msgstr "GitHub Light"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3767
+msgid "Solarized Light"
+msgstr "Solarized Light"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3786
+msgid "Blur Effect"
+msgstr "Effet de flou"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3786
+msgid "Enable background blur for radial menu"
+msgstr "Activer le flou d'arrière-plan pour le menu radial"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3794
+msgid "Language"
+msgstr "Langue"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3794
+msgid "Choose display language"
+msgstr "Choisir la langue d'affichage"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3810
+msgid "Restart to apply language change"
+msgstr "Redémarrer pour appliquer le changement de langue"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3826
+msgid "Application"
+msgstr "Application"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3828
+msgid "Start at Login"
+msgstr "Lancer à la connexion"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3828
+msgid "Launch JuhRadial MX when you log in"
+msgstr "Lancer JuhRadial MX à l'ouverture de session"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3835
+msgid "Show Tray Icon"
+msgstr "Afficher l'icône dans la barre des tâches"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3835
+msgid "Display icon in system tray"
+msgstr "Afficher l'icône dans la zone de notification"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3845
+msgid "Device Information"
+msgstr "Informations sur l'appareil"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3849
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3850
+msgid "Not available"
+msgstr "Non disponible"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3868
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4152
+msgid "Charging"
+msgstr "En charge"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3868
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4152
+msgid "Discharging"
+msgstr "En décharge"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3870
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4882
+msgid "Connected"
+msgstr "Connecté"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3875
+msgid "Device"
+msgstr "Appareil"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3876
+msgid "Battery"
+msgstr "Batterie"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3877
+msgid "Status"
+msgstr "État"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3887
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3890
+msgid "Reset"
+msgstr "Réinitialiser"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3889
+msgid "Restore Defaults"
+msgstr "Restaurer les valeurs par défaut"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3889
+msgid "Reset all settings to factory defaults"
+msgstr "Réinitialiser tous les paramètres aux valeurs d'usine"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:3999
+msgid "Settings Reset"
+msgstr "Paramètres réinitialisés"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4000
+msgid ""
+"All settings have been restored to defaults. Please restart JuhRadial MX for "
+"changes to take effect."
+msgstr ""
+"Tous les paramètres ont été restaurés aux valeurs par défaut. Veuillez redémarrer "
+"JuhRadial MX pour que les modifications prennent effet."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4002
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5242
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5284
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5733
+msgid "OK"
+msgstr "OK"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4020
+msgid "Connected Device"
+msgstr "Appareil connecté"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4024
+msgid "Device Name"
+msgstr "Nom de l'appareil"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4024
+msgid "Your Logitech mouse model"
+msgstr "Votre modèle de souris Logitech"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4038
+msgid "Connection"
+msgstr "Connexion"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4038
+msgid "How your device is connected"
+msgstr "Comment votre appareil est connecté"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4064
+msgid "Battery Level"
+msgstr "Niveau de batterie"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4064
+msgid "Current battery status"
+msgstr "État actuel de la batterie"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4084
+msgid "Firmware Version"
+msgstr "Version du micrologiciel"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4084
+msgid "Device firmware information"
+msgstr "Informations sur le micrologiciel de l'appareil"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4085
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4156
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4159
+msgid "Managed by LogiOps"
+msgstr "Géré par LogiOps"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4093
+msgid "Device Management"
+msgstr "Gestion de l'appareil"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4097
+msgid ""
+"For advanced device configuration (button remapping, scroll settings), edit "
+"<b>/etc/logid.cfg</b> and restart logid."
+msgstr ""
+"Pour une configuration avancée de l'appareil (réaffectation des boutons, paramètres "
+"de défilement), modifiez <b>/etc/logid.cfg</b> et redémarrez logid."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4130
+msgid "USB Receiver / Bluetooth"
+msgstr "Récepteur USB / Bluetooth"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4133
+msgid "USB Receiver"
+msgstr "Récepteur USB"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4240
+msgid "Logitech Flow"
+msgstr "Logitech Flow"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4244
+msgid "Seamlessly move between computers"
+msgstr "Passez d'un ordinateur à l'autre de manière transparente"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4251
+msgid "Flow Control"
+msgstr "Contrôle Flow"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4253
+msgid "Enable Flow"
+msgstr "Activer Flow"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4253
+msgid "Control multiple computers with one mouse"
+msgstr "Contrôler plusieurs ordinateurs avec une seule souris"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4261
+msgid "Switch at screen edge"
+msgstr "Basculer au bord de l'écran"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4261
+msgid "Move cursor to edge to switch computers"
+msgstr "Déplacer le curseur au bord de l'écran pour changer d'ordinateur"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4272
+msgid "Computers on Network"
+msgstr "Ordinateurs sur le réseau"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4279
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4570
+msgid "No other computers detected"
+msgstr "Aucun autre ordinateur détecté"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4292
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4387
+msgid "Scan Network"
+msgstr "Analyser le réseau"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4302
+msgid "How Flow Works"
+msgstr "Comment fonctionne Flow"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4305
+msgid ""
+"Logitech Flow allows you to seamlessly control multiple computers\n"
+"with a single mouse by moving your cursor to the edge of the screen."
+msgstr ""
+"Logitech Flow vous permet de contrôler plusieurs ordinateurs de manière\n"
+"transparente avec une seule souris en déplaçant le curseur au bord de l'écran."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4307
+msgid "Requirements:"
+msgstr "Prérequis :"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4308
+msgid "JuhRadialMX running on all computers"
+msgstr "JuhRadial MX en cours d'exécution sur tous les ordinateurs"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4309
+msgid "Computers connected to the same network"
+msgstr "Ordinateurs connectés au même réseau"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4310
+msgid "Flow enabled on all devices"
+msgstr "Flow activé sur tous les appareils"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4311
+msgid "Compatible Software Detected:"
+msgstr "Logiciels compatibles détectés :"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4312
+msgid "JuhRadialMX instances"
+msgstr "Instances JuhRadial MX"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4313
+msgid "open-source KVM"
+msgstr "KVM open source"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4315
+msgid "Features:"
+msgstr "Fonctionnalités :"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4316
+msgid "Move cursor between screens seamlessly"
+msgstr "Déplacer le curseur entre les écrans de manière transparente"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4317
+msgid "Copy and paste across computers"
+msgstr "Copier et coller entre les ordinateurs"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4318
+msgid "Transfer files by dragging"
+msgstr "Transférer des fichiers par glisser-déposer"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4378
+msgid "Scanning..."
+msgstr "Analyse en cours…"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4604
+msgid "Unknown"
+msgstr "Inconnu"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4637
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4706
+msgid "Link"
+msgstr "Associer"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4643
+msgid "Input Leap detected"
+msgstr "Input Leap détecté"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4644
+msgid "This computer is running Input Leap (open-source KVM)"
+msgstr "Cet ordinateur exécute Input Leap (KVM open source)"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4650
+msgid "Install JuhRadialMX"
+msgstr "Installer JuhRadial MX"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4651
+msgid "Install JuhRadialMX on this computer to enable Flow linking"
+msgstr "Installer JuhRadial MX sur cet ordinateur pour activer l'association Flow"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4688
+#, python-brace-format
+msgid "Link with {}"
+msgstr "Associer avec {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4689
+#, python-brace-format
+msgid ""
+"Enter the pairing code shown on {name} to link the computers.\n"
+"\n"
+"If you don't see a pairing code, open Flow settings on the other computer."
+msgstr ""
+"Saisissez le code d'appairage affiché sur {name} pour associer les ordinateurs.\n"
+"\n"
+"Si vous ne voyez pas de code d'appairage, ouvrez les paramètres Flow sur l'autre ordinateur."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4698
+msgid "Enter 6-digit pairing code"
+msgstr "Saisir le code d'appairage à 6 chiffres"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4736
+#, python-brace-format
+msgid "Linked with {}"
+msgstr "Associé avec {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4759
+msgid "Coming Soon"
+msgstr "Bientôt disponible"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4799
+msgid "Switch between paired computers"
+msgstr "Basculer entre les ordinateurs appairés"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4806
+msgid "Paired Computers"
+msgstr "Ordinateurs appairés"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4817
+msgid "About Easy-Switch"
+msgstr "À propos d'Easy-Switch"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4820
+msgid ""
+"Easy-Switch allows your mouse to connect to multiple computers.\n"
+"Use the button on your mouse to switch between paired devices."
+msgstr ""
+"Easy-Switch permet à votre souris de se connecter à plusieurs ordinateurs.\n"
+"Utilisez le bouton sur votre souris pour basculer entre les appareils appairés."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4822
+msgid "Note:"
+msgstr "Remarque :"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4822
+msgid ""
+"Host names are read from the device and reflect\n"
+"the computer names set during pairing."
+msgstr ""
+"Les noms d'hôtes sont lus depuis l'appareil et reflètent\n"
+"les noms d'ordinateurs définis lors de l'appairage."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4872
+#, python-brace-format
+msgid "Slot {}"
+msgstr "Emplacement {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4882
+msgid "Click to switch"
+msgstr "Cliquer pour basculer"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4893
+msgid "Active"
+msgstr "Actif"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4983
+msgid "Could not connect to daemon"
+msgstr "Impossible de se connecter au démon"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5020
+msgid "Add Application Profile"
+msgstr "Ajouter un profil d'application"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5045
+msgid ""
+"Create a custom profile for a specific application.\n"
+"The radial menu will use this profile when the application is active."
+msgstr ""
+"Créer un profil personnalisé pour une application spécifique.\n"
+"Le menu radial utilisera ce profil lorsque l'application est active."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5051
+msgid "Select Application"
+msgstr "Sélectionner une application"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5054
+msgid "Running Applications:"
+msgstr "Applications en cours d'exécution :"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5075
+msgid "Or enter application class manually:"
+msgstr "Ou saisir la classe d'application manuellement :"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5081
+msgid "e.g., firefox, code, gimp"
+msgstr "ex. : firefox, code, gimp"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5088
+msgid "Add Profile"
+msgstr "Ajouter un profil"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5200
+msgid "Running"
+msgstr "En cours"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5213
+msgid "(Enter app name manually below)"
+msgstr "(Saisir le nom de l'application manuellement ci-dessous)"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5239
+msgid "No Application Selected"
+msgstr "Aucune application sélectionnée"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5240
+msgid "Please select or enter an application name."
+msgstr "Veuillez sélectionner ou saisir un nom d'application."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5274
+#, python-brace-format
+msgid "Profile created for {}"
+msgstr "Profil créé pour {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5281
+msgid "Error"
+msgstr "Erreur"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5282
+#, python-brace-format
+msgid "Failed to create profile: {}"
+msgstr "Impossible de créer le profil : {}"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5292
+msgid "JuhRadial MX Settings"
+msgstr "Paramètres de JuhRadial MX"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5339
+msgid "+ ADD APPLICATION"
+msgstr "+ AJOUTER UNE APPLICATION"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5531
+msgid "LogiOps"
+msgstr "LogiOps"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5568
+msgid "N/A"
+msgstr "N/D"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5632
+msgid "MOUSE CONFIGURATION"
+msgstr "CONFIGURATION DE LA SOURIS"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5682
+msgid "Developed by"
+msgstr "Développé par"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5693
+msgid ""
+"Free &amp; open source software.\n"
+"If you enjoy this project,\n"
+"consider supporting development."
+msgstr ""
+"Logiciel libre &amp; open source.\n"
+"Si vous appréciez ce projet,\n"
+"pensez à soutenir le développement."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5705
+msgid "Buy me a coffee"
+msgstr "Offrez-moi un café"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5730
+msgid "Grid View"
+msgstr "Affichage en grille"
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5731
+msgid ""
+"Application profiles grid view coming soon!\n"
+"\n"
+"This will show all your per-app profiles in a visual grid."
+msgstr ""
+"L'affichage en grille des profils d'application arrive bientôt !\n"
+"\n"
+"Cela affichera tous vos profils par application dans une grille visuelle."
+
+#: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5794
+msgid "Logi Bolt USB"
+msgstr "Logi Bolt USB"
