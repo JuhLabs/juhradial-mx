@@ -12,10 +12,11 @@ import threading
 import time
 
 import gi
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
 
-from gi.repository import Gtk, Gdk, GLib, Gio, Adw
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+
+from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _
 from settings_config import config
@@ -24,21 +25,27 @@ from settings_widgets import SettingsCard, SettingRow
 # Try to import zeroconf for mDNS discovery
 try:
     from zeroconf import ServiceBrowser, Zeroconf, ServiceInfo
+
     ZEROCONF_AVAILABLE = True
 except ImportError:
     ZEROCONF_AVAILABLE = False
-    print("[Flow] zeroconf not installed - run: pip install zeroconf")
 
 # Flow module for multi-computer control
 try:
     from flow import (
-        start_flow_server, stop_flow_server, get_flow_server,
-        get_linked_computers, FlowClient, FLOW_PORT
+        start_flow_server,
+        stop_flow_server,
+        get_flow_server,
+        get_linked_computers,
+        FlowClient,
+        FLOW_PORT,
     )
+
     FLOW_MODULE_AVAILABLE = True
 except ImportError:
     FLOW_MODULE_AVAILABLE = False
-    print("[Warning] Flow module not available")
+
+
 class FlowServiceListener:
     """mDNS service listener for discovering computers on the network"""
 
@@ -84,7 +91,9 @@ class FlowServiceListener:
             if "@" in clean_name:
                 clean_name = clean_name.split("@")[1]
 
-            self.flow_page.add_discovered_computer(clean_name, ip, info.port, software, type_)
+            self.flow_page.add_discovered_computer(
+                clean_name, ip, info.port, software, type_
+            )
 
     def update_service(self, zeroconf, type_, name):
         pass  # Handle service updates if needed
@@ -112,52 +121,56 @@ class FlowPage(Gtk.ScrolledWindow):
         header_box.set_halign(Gtk.Align.CENTER)
         header_box.set_margin_bottom(16)
 
-        header_icon = Gtk.Image.new_from_icon_name('view-dual-symbolic')
+        header_icon = Gtk.Image.new_from_icon_name("view-dual-symbolic")
         header_icon.set_pixel_size(48)
-        header_icon.add_css_class('accent-color')
+        header_icon.add_css_class("accent-color")
         header_box.append(header_icon)
 
-        header_title = Gtk.Label(label=_('Logitech Flow'))
-        header_title.add_css_class('title-1')
+        header_title = Gtk.Label(label=_("Logitech Flow"))
+        header_title.add_css_class("title-1")
         header_box.append(header_title)
 
-        header_subtitle = Gtk.Label(label=_('Seamlessly move between computers'))
-        header_subtitle.add_css_class('dim-label')
+        header_subtitle = Gtk.Label(label=_("Seamlessly move between computers"))
+        header_subtitle.add_css_class("dim-label")
         header_box.append(header_subtitle)
 
         main_box.append(header_box)
 
         # Enable Flow Card
-        enable_card = SettingsCard(_('Flow Control'))
+        enable_card = SettingsCard(_("Flow Control"))
 
-        enable_row = SettingRow(_('Enable Flow'), _('Control multiple computers with one mouse'))
+        enable_row = SettingRow(
+            _("Enable Flow"), _("Control multiple computers with one mouse")
+        )
         self.flow_switch = Gtk.Switch()
-        self.flow_switch.set_active(config.get('flow', 'enabled', default=False))
-        self.flow_switch.connect('state-set', self._on_flow_toggled)
+        self.flow_switch.set_active(config.get("flow", "enabled", default=False))
+        self.flow_switch.connect("state-set", self._on_flow_toggled)
         enable_row.set_control(self.flow_switch)
         enable_card.append(enable_row)
 
         # Edge trigger option
-        edge_row = SettingRow(_('Switch at screen edge'), _('Move cursor to edge to switch computers'))
+        edge_row = SettingRow(
+            _("Switch at screen edge"), _("Move cursor to edge to switch computers")
+        )
         self.edge_switch = Gtk.Switch()
-        self.edge_switch.set_active(config.get('flow', 'edge_trigger', default=True))
-        self.edge_switch.set_sensitive(config.get('flow', 'enabled', default=False))
-        self.edge_switch.connect('state-set', self._on_edge_toggled)
+        self.edge_switch.set_active(config.get("flow", "edge_trigger", default=True))
+        self.edge_switch.set_sensitive(config.get("flow", "enabled", default=False))
+        self.edge_switch.connect("state-set", self._on_edge_toggled)
         edge_row.set_control(self.edge_switch)
         enable_card.append(edge_row)
 
         main_box.append(enable_card)
 
         # Detected Computers Card
-        computers_card = SettingsCard(_('Computers on Network'))
+        computers_card = SettingsCard(_("Computers on Network"))
 
         self.computers_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self.computers_box.set_margin_top(8)
         self.computers_box.set_margin_bottom(8)
 
         # Placeholder for no computers detected
-        self.no_computers_label = Gtk.Label(label=_('No other computers detected'))
-        self.no_computers_label.add_css_class('dim-label')
+        self.no_computers_label = Gtk.Label(label=_("No other computers detected"))
+        self.no_computers_label.add_css_class("dim-label")
         self.no_computers_label.set_margin_top(16)
         self.no_computers_label.set_margin_bottom(16)
         self.computers_box.append(self.no_computers_label)
@@ -169,9 +182,9 @@ class FlowPage(Gtk.ScrolledWindow):
         scan_box.set_halign(Gtk.Align.END)
         scan_box.set_margin_top(8)
 
-        self.scan_button = Gtk.Button(label=_('Scan Network'))
-        self.scan_button.add_css_class('suggested-action')
-        self.scan_button.connect('clicked', self._on_scan_clicked)
+        self.scan_button = Gtk.Button(label=_("Scan Network"))
+        self.scan_button.add_css_class("suggested-action")
+        self.scan_button.connect("clicked", self._on_scan_clicked)
         scan_box.append(self.scan_button)
 
         computers_card.append(scan_box)
@@ -179,23 +192,28 @@ class FlowPage(Gtk.ScrolledWindow):
         main_box.append(computers_card)
 
         # How Flow Works Card
-        info_card = SettingsCard(_('How Flow Works'))
+        info_card = SettingsCard(_("How Flow Works"))
         info_label = Gtk.Label()
         info_label.set_markup(
-            _('Logitech Flow allows you to seamlessly control multiple computers\n'
-              'with a single mouse by moving your cursor to the edge of the screen.') + '\n\n'
-            '<b>' + _('Requirements:') + '</b>\n'
-            '  \u2022 ' + _('JuhRadialMX running on all computers') + '\n'
-            '  \u2022 ' + _('Computers connected to the same network') + '\n'
-            '  \u2022 ' + _('Flow enabled on all devices') + '\n\n'
-            '<b>' + _('Compatible Software Detected:') + '</b>\n'
-            '  \u2022 ' + _('JuhRadialMX instances') + '\n'
-            '  \u2022 <a href="https://github.com/input-leap/input-leap">Input Leap</a> (' + _('open-source KVM') + ')\n'
-            '  \u2022 Logi Options+ Flow\n\n'
-            '<b>' + _('Features:') + '</b>\n'
-            '  \u2022 ' + _('Move cursor between screens seamlessly') + '\n'
-            '  \u2022 ' + _('Copy and paste across computers') + '\n'
-            '  \u2022 ' + _('Transfer files by dragging')
+            _(
+                "Logitech Flow allows you to seamlessly control multiple computers\n"
+                "with a single mouse by moving your cursor to the edge of the screen."
+            )
+            + "\n\n"
+            "<b>" + _("Requirements:") + "</b>\n"
+            "  \u2022 " + _("JuhRadialMX running on all computers") + "\n"
+            "  \u2022 " + _("Computers connected to the same network") + "\n"
+            "  \u2022 " + _("Flow enabled on all devices") + "\n\n"
+            "<b>" + _("Compatible Software Detected:") + "</b>\n"
+            "  \u2022 " + _("JuhRadialMX instances") + "\n"
+            '  \u2022 <a href="https://github.com/input-leap/input-leap">Input Leap</a> ('
+            + _("open-source KVM")
+            + ")\n"
+            "  \u2022 Logi Options+ Flow\n\n"
+            "<b>" + _("Features:") + "</b>\n"
+            "  \u2022 " + _("Move cursor between screens seamlessly") + "\n"
+            "  \u2022 " + _("Copy and paste across computers") + "\n"
+            "  \u2022 " + _("Transfer files by dragging")
         )
         info_label.set_wrap(True)
         info_label.set_max_width_chars(50)
@@ -213,7 +231,7 @@ class FlowPage(Gtk.ScrolledWindow):
 
     def _on_flow_toggled(self, switch, state):
         """Handle Flow enable/disable toggle"""
-        config.set('flow', 'enabled', state)
+        config.set("flow", "enabled", state)
         # Enable/disable edge trigger based on Flow state
         self.edge_switch.set_sensitive(state)
 
@@ -227,14 +245,21 @@ class FlowPage(Gtk.ScrolledWindow):
                     try:
                         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
                         proxy = Gio.DBusProxy.new_sync(
-                            bus, Gio.DBusProxyFlags.NONE, None,
-                            'org.kde.juhradialmx',
-                            '/org/kde/juhradialmx/Daemon',
-                            'org.kde.juhradialmx.Daemon',
-                            None
+                            bus,
+                            Gio.DBusProxyFlags.NONE,
+                            None,
+                            "org.kde.juhradialmx",
+                            "/org/kde/juhradialmx/Daemon",
+                            "org.kde.juhradialmx.Daemon",
+                            None,
                         )
-                        proxy.call_sync('SetHost', GLib.Variant('(y)', (new_host,)),
-                                       Gio.DBusCallFlags.NONE, 5000, None)
+                        proxy.call_sync(
+                            "SetHost",
+                            GLib.Variant("(y)", (new_host,)),
+                            Gio.DBusCallFlags.NONE,
+                            5000,
+                            None,
+                        )
                     except Exception as e:
                         print(f"[Flow] Error switching host: {e}")
 
@@ -249,13 +274,13 @@ class FlowPage(Gtk.ScrolledWindow):
 
     def _on_edge_toggled(self, switch, state):
         """Handle edge trigger toggle"""
-        config.set('flow', 'edge_trigger', state)
+        config.set("flow", "edge_trigger", state)
         return False
 
     def _on_scan_clicked(self, button):
         """Scan network for other computers running JuhRadialMX"""
         self.scan_button.set_sensitive(False)
-        self.scan_button.set_label(_('Scanning...'))
+        self.scan_button.set_label(_("Scanning..."))
         # Clear previous results and re-discover
         self.discovered_computers.clear()
         self._discover_computers()
@@ -264,9 +289,11 @@ class FlowPage(Gtk.ScrolledWindow):
     def _finish_scan(self):
         """Complete the network scan"""
         self.scan_button.set_sensitive(True)
-        self.scan_button.set_label(_('Scan Network'))
+        self.scan_button.set_label(_("Scan Network"))
         # Update UI with discovered computers
-        GLib.idle_add(self._update_computers_list, list(self.discovered_computers.values()))
+        GLib.idle_add(
+            self._update_computers_list, list(self.discovered_computers.values())
+        )
         return False
 
     def _discover_computers(self):
@@ -291,11 +318,11 @@ class FlowPage(Gtk.ScrolledWindow):
             "_logi-options._tcp.local.",
             # Common computer/device services
             "_companion-link._tcp.local.",  # Apple devices
-            "_airplay._tcp.local.",          # AirPlay (Mac, Apple TV)
-            "_smb._tcp.local.",              # Windows/Samba file sharing
-            "_workstation._tcp.local.",      # Linux workstations
-            "_sftp-ssh._tcp.local.",         # SSH/SFTP servers
-            "_rdp._tcp.local.",              # Windows Remote Desktop
+            "_airplay._tcp.local.",  # AirPlay (Mac, Apple TV)
+            "_smb._tcp.local.",  # Windows/Samba file sharing
+            "_workstation._tcp.local.",  # Linux workstations
+            "_sftp-ssh._tcp.local.",  # SSH/SFTP servers
+            "_rdp._tcp.local.",  # Windows Remote Desktop
         ]
 
         # Start background discovery thread
@@ -323,7 +350,10 @@ class FlowPage(Gtk.ScrolledWindow):
                 time.sleep(4)
 
                 # Update UI on main thread
-                GLib.idle_add(self._update_computers_list, list(self.discovered_computers.values()))
+                GLib.idle_add(
+                    self._update_computers_list,
+                    list(self.discovered_computers.values()),
+                )
 
             except Exception as e:
                 print(f"[Flow] Discovery error: {e}")
@@ -388,11 +418,17 @@ class FlowPage(Gtk.ScrolledWindow):
                 f"{hostname}._juhradialmx._tcp.local.",
                 addresses=[socket.inet_aton(local_ip)],
                 port=FLOW_PORT,
-                properties={'version': '1.0', 'hostname': hostname, 'flow': 'compatible'},
+                properties={
+                    "version": "1.0",
+                    "hostname": hostname,
+                    "flow": "compatible",
+                },
             )
             zc.register_service(info_juh)
             self._registered_services.append(info_juh)
-            print(f"[Flow] Registered JuhRadialMX service: {hostname} at {local_ip}:{FLOW_PORT}")
+            print(
+                f"[Flow] Registered JuhRadialMX service: {hostname} at {local_ip}:{FLOW_PORT}"
+            )
 
             # Also register as potential Logi Flow compatible service
             # Logi Options+ may look for these service types
@@ -403,7 +439,11 @@ class FlowPage(Gtk.ScrolledWindow):
                         f"{hostname}.{svc_type}",
                         addresses=[socket.inet_aton(local_ip)],
                         port=FLOW_PORT,
-                        properties={'version': '1.0', 'hostname': hostname, 'platform': 'linux'},
+                        properties={
+                            "version": "1.0",
+                            "hostname": hostname,
+                            "platform": "linux",
+                        },
                     )
                     zc.register_service(info_logi)
                     self._registered_services.append(info_logi)
@@ -414,7 +454,9 @@ class FlowPage(Gtk.ScrolledWindow):
         except Exception as e:
             print(f"[Flow] Failed to register service: {e}")
 
-    def add_discovered_computer(self, name, ip, port, software="Unknown", service_type=""):
+    def add_discovered_computer(
+        self, name, ip, port, software="Unknown", service_type=""
+    ):
         """Called by ServiceListener when a computer is found"""
         # Don't add ourselves
         try:
@@ -426,16 +468,20 @@ class FlowPage(Gtk.ScrolledWindow):
 
         # Clean up service name from the display name
         clean_name = name
-        for suffix in ['._juhradialmx._tcp.local.', '._logiflow._tcp.local.',
-                       '._logitechflow._tcp.local.', '._logi-options._tcp.local.']:
-            clean_name = clean_name.replace(suffix, '')
+        for suffix in [
+            "._juhradialmx._tcp.local.",
+            "._logiflow._tcp.local.",
+            "._logitechflow._tcp.local.",
+            "._logi-options._tcp.local.",
+        ]:
+            clean_name = clean_name.replace(suffix, "")
 
         self.discovered_computers[name] = {
-            'name': clean_name,
-            'ip': ip,
-            'port': port,
-            'software': software,
-            'service_type': service_type
+            "name": clean_name,
+            "ip": ip,
+            "port": port,
+            "software": software,
+            "service_type": service_type,
         }
         print(f"[Flow] Discovered: {clean_name} at {ip}:{port} (Software: {software})")
 
@@ -447,8 +493,8 @@ class FlowPage(Gtk.ScrolledWindow):
 
         if not computers:
             # Show placeholder
-            self.no_computers_label = Gtk.Label(label=_('No other computers detected'))
-            self.no_computers_label.add_css_class('dim-label')
+            self.no_computers_label = Gtk.Label(label=_("No other computers detected"))
+            self.no_computers_label.add_css_class("dim-label")
             self.no_computers_label.set_margin_top(16)
             self.no_computers_label.set_margin_bottom(16)
             self.computers_box.append(self.no_computers_label)
@@ -467,44 +513,44 @@ class FlowPage(Gtk.ScrolledWindow):
         # Status indicator
         indicator = Gtk.Box()
         indicator.set_size_request(12, 12)
-        indicator.add_css_class('connection-dot')
-        indicator.add_css_class('connected')
+        indicator.add_css_class("connection-dot")
+        indicator.add_css_class("connected")
         computer_box.append(indicator)
 
         # Computer icon
-        comp_icon = Gtk.Image.new_from_icon_name('computer-symbolic')
+        comp_icon = Gtk.Image.new_from_icon_name("computer-symbolic")
         comp_icon.set_pixel_size(24)
-        comp_icon.add_css_class('accent-color')
+        comp_icon.add_css_class("accent-color")
         computer_box.append(comp_icon)
 
         # Name and status
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         text_box.set_hexpand(True)
 
-        name_label = Gtk.Label(label=computer.get('name', _('Unknown')))
+        name_label = Gtk.Label(label=computer.get("name", _("Unknown")))
         name_label.set_halign(Gtk.Align.START)
-        name_label.add_css_class('heading')
+        name_label.add_css_class("heading")
         text_box.append(name_label)
 
         # IP and software info row
         info_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         info_box.set_halign(Gtk.Align.START)
 
-        ip_label = Gtk.Label(label=computer.get('ip', ''))
-        ip_label.add_css_class('dim-label')
-        ip_label.add_css_class('caption')
+        ip_label = Gtk.Label(label=computer.get("ip", ""))
+        ip_label.add_css_class("dim-label")
+        ip_label.add_css_class("caption")
         info_box.append(ip_label)
 
         # Software badge
-        software = computer.get('software', 'Unknown')
+        software = computer.get("software", "Unknown")
         software_label = Gtk.Label(label=software)
-        software_label.add_css_class('caption')
-        if software == 'JuhRadialMX':
-            software_label.add_css_class('accent-color')
-        elif software == 'Logi Options+':
-            software_label.add_css_class('warning')
+        software_label.add_css_class("caption")
+        if software == "JuhRadialMX":
+            software_label.add_css_class("accent-color")
+        elif software == "Logi Options+":
+            software_label.add_css_class("warning")
         else:
-            software_label.add_css_class('dim-label')
+            software_label.add_css_class("dim-label")
         info_box.append(software_label)
 
         text_box.append(info_box)
@@ -512,25 +558,37 @@ class FlowPage(Gtk.ScrolledWindow):
         computer_box.append(text_box)
 
         # Link button - show for compatible computers
-        software = computer.get('software', 'Unknown')
-        if software == 'JuhRadialMX':
-            link_btn = Gtk.Button(label=_('Link'))
-            link_btn.add_css_class('suggested-action')
-            link_btn.connect('clicked', self._on_link_clicked, computer)
+        software = computer.get("software", "Unknown")
+        if software == "JuhRadialMX":
+            link_btn = Gtk.Button(label=_("Link"))
+            link_btn.add_css_class("suggested-action")
+            link_btn.connect("clicked", self._on_link_clicked, computer)
             computer_box.append(link_btn)
-        elif software == 'Input Leap':
+        elif software == "Input Leap":
             # Input Leap is a compatible KVM - show as detected
-            info_label = Gtk.Label(label=_('Input Leap detected'))
-            info_label.set_tooltip_text(_('This computer is running Input Leap (open-source KVM)'))
-            info_label.add_css_class('accent-color')
-            info_label.add_css_class('caption')
+            info_label = Gtk.Label(label=_("Input Leap detected"))
+            info_label.set_tooltip_text(
+                _("This computer is running Input Leap (open-source KVM)")
+            )
+            info_label.add_css_class("accent-color")
+            info_label.add_css_class("caption")
             computer_box.append(info_label)
-        elif software in ('Logi Options+', 'macOS', 'Windows/Samba', 'Windows RDP', 'Linux', 'SSH Server', 'Computer'):
+        elif software in (
+            "Logi Options+",
+            "macOS",
+            "Windows/Samba",
+            "Windows RDP",
+            "Linux",
+            "SSH Server",
+            "Computer",
+        ):
             # These are computers that could potentially run JuhRadialMX
-            info_label = Gtk.Label(label=_('Install JuhRadialMX'))
-            info_label.set_tooltip_text(_('Install JuhRadialMX on this computer to enable Flow linking'))
-            info_label.add_css_class('dim-label')
-            info_label.add_css_class('caption')
+            info_label = Gtk.Label(label=_("Install JuhRadialMX"))
+            info_label.set_tooltip_text(
+                _("Install JuhRadialMX on this computer to enable Flow linking")
+            )
+            info_label.add_css_class("dim-label")
+            info_label.add_css_class("caption")
             computer_box.append(info_label)
         else:
             # Unknown devices
@@ -550,11 +608,13 @@ class FlowPage(Gtk.ScrolledWindow):
             print("[Flow] Flow server not running - enable Flow first")
             return
 
-        computer_name = computer.get('name', 'Unknown')
-        computer_ip = computer.get('ip', '')
-        computer_port = computer.get('port', FLOW_PORT)
+        computer_name = computer.get("name", "Unknown")
+        computer_ip = computer.get("ip", "")
+        computer_port = computer.get("port", FLOW_PORT)
 
-        print(f"[Flow] Initiating link with {computer_name} at {computer_ip}:{computer_port}")
+        print(
+            f"[Flow] Initiating link with {computer_name} at {computer_ip}:{computer_port}"
+        )
 
         # Show a pairing dialog
         self._show_pairing_dialog(computer_name, computer_ip, computer_port)
@@ -565,9 +625,11 @@ class FlowPage(Gtk.ScrolledWindow):
         dialog = Adw.MessageDialog(
             transient_for=self.get_root(),
             modal=True,
-            heading=_('Link with {}').format(computer_name),
-            body=_('Enter the pairing code shown on {name} to link the computers.\n\n'
-                   'If you don\'t see a pairing code, open Flow settings on the other computer.').format(name=computer_name)
+            heading=_("Link with {}").format(computer_name),
+            body=_(
+                "Enter the pairing code shown on {name} to link the computers.\n\n"
+                "If you don't see a pairing code, open Flow settings on the other computer."
+            ).format(name=computer_name),
         )
 
         # Add entry for pairing code
@@ -575,29 +637,33 @@ class FlowPage(Gtk.ScrolledWindow):
         content_box.set_margin_top(12)
 
         code_entry = Gtk.Entry()
-        code_entry.set_placeholder_text(_('Enter 6-digit pairing code'))
+        code_entry.set_placeholder_text(_("Enter 6-digit pairing code"))
         code_entry.set_max_length(6)
         code_entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
         content_box.append(code_entry)
 
         dialog.set_extra_child(content_box)
 
-        dialog.add_response('cancel', _('Cancel'))
-        dialog.add_response('link', _('Link'))
-        dialog.set_response_appearance('link', Adw.ResponseAppearance.SUGGESTED)
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("link", _("Link"))
+        dialog.set_response_appearance("link", Adw.ResponseAppearance.SUGGESTED)
 
         def on_response(dialog, response):
-            if response == 'link':
+            if response == "link":
                 pairing_code = code_entry.get_text().strip()
                 if len(pairing_code) == 6:
-                    self._complete_pairing(computer_name, computer_ip, computer_port, pairing_code)
+                    self._complete_pairing(
+                        computer_name, computer_ip, computer_port, pairing_code
+                    )
                 else:
                     print("[Flow] Invalid pairing code - must be 6 digits")
 
-        dialog.connect('response', on_response)
+        dialog.connect("response", on_response)
         dialog.present()
 
-    def _complete_pairing(self, computer_name, computer_ip, computer_port, pairing_code):
+    def _complete_pairing(
+        self, computer_name, computer_ip, computer_port, pairing_code
+    ):
         """Complete the pairing process with another computer"""
         if not FLOW_MODULE_AVAILABLE:
             return
@@ -609,16 +675,17 @@ class FlowPage(Gtk.ScrolledWindow):
         if client.pair(pairing_code, my_hostname):
             # Save the linked computer
             linked_computers = get_linked_computers()
-            linked_computers.add_computer(computer_name, computer_ip, computer_port, client.token)
+            linked_computers.add_computer(
+                computer_name, computer_ip, computer_port, client.token
+            )
             print(f"[Flow] Successfully linked with {computer_name}")
 
             # Show success toast
-            toast = Adw.Toast(title=_('Linked with {}').format(computer_name))
+            toast = Adw.Toast(title=_("Linked with {}").format(computer_name))
             toast.set_timeout(3)
             # Find the toast overlay and show the toast
             window = self.get_root()
-            if hasattr(window, 'toast_overlay'):
+            if hasattr(window, "toast_overlay"):
                 window.toast_overlay.add_toast(toast)
         else:
             print(f"[Flow] Failed to link with {computer_name}")
-

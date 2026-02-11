@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- ChatGPT/OpenAI logo - interwoven flower knot -->
+  <g fill="none" stroke="#000000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 6 petal loops forming the knot -->
+    <!-- Top petal -->
+    <path d="M24 8 Q30 14, 24 20 Q18 14, 24 8"/>
+    <!-- Top right petal -->
+    <path d="M36 14 Q34 22, 28 24 Q32 18, 36 14"/>
+    <!-- Bottom right petal -->
+    <path d="M36 34 Q30 32, 28 24 Q34 26, 36 34"/>
+    <!-- Bottom petal -->
+    <path d="M24 40 Q18 34, 24 28 Q30 34, 24 40"/>
+    <!-- Bottom left petal -->
+    <path d="M12 34 Q14 26, 20 24 Q16 30, 12 34"/>
+    <!-- Top left petal -->
+    <path d="M12 14 Q18 16, 20 24 Q14 22, 12 14"/>
+    <!-- Connecting arcs -->
+    <path d="M24 8 C32 6, 40 12, 36 14"/>
+    <path d="M36 14 C42 20, 42 28, 36 34"/>
+    <path d="M36 34 C32 42, 24 44, 24 40"/>
+    <path d="M24 40 C16 42, 8 36, 12 34"/>
+    <path d="M12 34 C6 28, 6 20, 12 14"/>
+    <path d="M12 14 C16 6, 24 6, 24 8"/>
+  </g>
+</svg>

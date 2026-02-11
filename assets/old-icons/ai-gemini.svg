@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- Google Gemini logo - 4-pointed star with Google colors -->
+  <!-- Blue top-left point -->
+  <path fill="#4285F4" d="M24 24 L24 4 Q12 12, 4 24 Z"/>
+  <!-- Red top-right point -->
+  <path fill="#EA4335" d="M24 24 L44 24 Q36 12, 24 4 Z"/>
+  <!-- Yellow bottom-right point -->
+  <path fill="#FBBC05" d="M24 24 L24 44 Q36 36, 44 24 Z"/>
+  <!-- Green bottom-left point -->
+  <path fill="#34A853" d="M24 24 L4 24 Q12 36, 24 44 Z"/>
+</svg>

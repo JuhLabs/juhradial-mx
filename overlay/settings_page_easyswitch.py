@@ -8,13 +8,16 @@ SPDX-License-Identifier: GPL-3.0
 """
 
 import gi
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
 
-from gi.repository import Gtk, GLib, Gio, Adw
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+
+from gi.repository import Gtk, Gio, Adw
 
 from i18n import _
 from settings_widgets import SettingsCard
+
+
 class PlaceholderPage(Gtk.Box):
     """Placeholder for unimplemented pages"""
 
@@ -23,12 +26,12 @@ class PlaceholderPage(Gtk.Box):
         self.set_halign(Gtk.Align.CENTER)
         self.set_valign(Gtk.Align.CENTER)
 
-        icon = Gtk.Image.new_from_icon_name('dialog-information-symbolic')
+        icon = Gtk.Image.new_from_icon_name("dialog-information-symbolic")
         icon.set_pixel_size(48)
         icon.set_opacity(0.5)
         self.append(icon)
 
-        label = Gtk.Label(label=f'{title}\n' + _('Coming Soon'))
+        label = Gtk.Label(label=f"{title}\n" + _("Coming Soon"))
         label.set_justify(Gtk.Justification.CENTER)
         label.set_opacity(0.6)
         self.append(label)
@@ -59,23 +62,23 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         header_box.set_halign(Gtk.Align.CENTER)
         header_box.set_margin_bottom(16)
 
-        header_icon = Gtk.Image.new_from_icon_name('network-wireless-symbolic')
+        header_icon = Gtk.Image.new_from_icon_name("network-wireless-symbolic")
         header_icon.set_pixel_size(48)
-        header_icon.add_css_class('accent-color')
+        header_icon.add_css_class("accent-color")
         header_box.append(header_icon)
 
-        header_title = Gtk.Label(label=_('Easy-Switch'))
-        header_title.add_css_class('title-1')
+        header_title = Gtk.Label(label=_("Easy-Switch"))
+        header_title.add_css_class("title-1")
         header_box.append(header_title)
 
-        header_subtitle = Gtk.Label(label=_('Switch between paired computers'))
-        header_subtitle.add_css_class('dim-label')
+        header_subtitle = Gtk.Label(label=_("Switch between paired computers"))
+        header_subtitle.add_css_class("dim-label")
         header_box.append(header_subtitle)
 
         content.append(header_box)
 
         # Host Slots Card
-        self.slots_card = SettingsCard(_('Paired Computers'))
+        self.slots_card = SettingsCard(_("Paired Computers"))
 
         # Will be populated by _load_host_info
         self.slots_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
@@ -86,13 +89,21 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         content.append(self.slots_card)
 
         # Info Card
-        info_card = SettingsCard(_('About Easy-Switch'))
+        info_card = SettingsCard(_("About Easy-Switch"))
         info_label = Gtk.Label()
         info_label.set_markup(
-            _('Easy-Switch allows your mouse to connect to multiple computers.\n'
-              'Use the button on your mouse to switch between paired devices.') + '\n\n'
-            '<b>' + _('Note:') + '</b> ' + _('Host names are read from the device and reflect\n'
-            'the computer names set during pairing.')
+            _(
+                "Easy-Switch allows your mouse to connect to multiple computers.\n"
+                "Use the button on your mouse to switch between paired devices."
+            )
+            + "\n\n"
+            "<b>"
+            + _("Note:")
+            + "</b> "
+            + _(
+                "Host names are read from the device and reflect\n"
+                "the computer names set during pairing."
+            )
         )
         info_label.set_wrap(True)
         info_label.set_max_width_chars(50)
@@ -120,20 +131,20 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         # Slot indicator
         indicator = Gtk.Box()
         indicator.set_size_request(12, 12)
-        indicator.add_css_class('connection-dot')
+        indicator.add_css_class("connection-dot")
         if is_current:
-            indicator.add_css_class('connected')
+            indicator.add_css_class("connected")
         else:
-            indicator.add_css_class('disconnected')
+            indicator.add_css_class("disconnected")
         slot_box.append(indicator)
 
         # Computer icon
-        conn_icon = Gtk.Image.new_from_icon_name('computer-symbolic')
+        conn_icon = Gtk.Image.new_from_icon_name("computer-symbolic")
         conn_icon.set_pixel_size(24)
         if is_current:
-            conn_icon.add_css_class('accent-color')
+            conn_icon.add_css_class("accent-color")
         else:
-            conn_icon.add_css_class('dim-label')
+            conn_icon.add_css_class("dim-label")
         slot_box.append(conn_icon)
 
         # Name and status
@@ -141,43 +152,43 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         text_box.set_hexpand(True)
 
         # Get host name if available
-        host_name = _('Slot {}').format(slot_index + 1)
+        host_name = _("Slot {}").format(slot_index + 1)
         if slot_index < len(self.host_names) and self.host_names[slot_index]:
             host_name = self.host_names[slot_index]
 
         name_label = Gtk.Label(label=host_name)
         name_label.set_halign(Gtk.Align.START)
-        name_label.add_css_class('heading')
+        name_label.add_css_class("heading")
         text_box.append(name_label)
         self.slot_labels.append(name_label)
 
-        status_text = _('Connected') if is_current else _('Click to switch')
+        status_text = _("Connected") if is_current else _("Click to switch")
         status_label = Gtk.Label(label=status_text)
         status_label.set_halign(Gtk.Align.START)
-        status_label.add_css_class('dim-label')
-        status_label.add_css_class('caption')
+        status_label.add_css_class("dim-label")
+        status_label.add_css_class("caption")
         text_box.append(status_label)
 
         slot_box.append(text_box)
 
         # Status badge or switch indicator
         if is_current:
-            badge = Gtk.Label(label=_('Active'))
-            badge.add_css_class('success')
-            badge.add_css_class('badge')
+            badge = Gtk.Label(label=_("Active"))
+            badge.add_css_class("success")
+            badge.add_css_class("badge")
             slot_box.append(badge)
         else:
             # Add arrow icon to indicate clickable
-            arrow_icon = Gtk.Image.new_from_icon_name('go-next-symbolic')
+            arrow_icon = Gtk.Image.new_from_icon_name("go-next-symbolic")
             arrow_icon.set_pixel_size(16)
-            arrow_icon.add_css_class('dim-label')
+            arrow_icon.add_css_class("dim-label")
             slot_box.append(arrow_icon)
 
         # Wrap in a button for clickability
         host_button = Gtk.Button()
-        host_button.add_css_class('flat')
+        host_button.add_css_class("flat")
         host_button.set_child(slot_box)
-        host_button.connect('clicked', self._on_host_clicked, slot_index)
+        host_button.connect("clicked", self._on_host_clicked, slot_index)
 
         # Make current host button less prominent (already connected)
         if is_current:
@@ -197,11 +208,11 @@ class EasySwitchPage(Gtk.ScrolledWindow):
             if self.daemon_proxy:
                 # Call SetHost with the host index (y = uint8/byte)
                 self.daemon_proxy.call_sync(
-                    'SetHost',
-                    GLib.Variant('(y)', (host_index,)),
+                    "SetHost",
+                    GLib.Variant("(y)", (host_index,)),
                     Gio.DBusCallFlags.NONE,
                     5000,  # 5 second timeout for host switch
-                    None
+                    None,
                 )
                 print(f"Successfully requested switch to host {host_index}")
 
@@ -218,19 +229,25 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         try:
             bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
             self.daemon_proxy = Gio.DBusProxy.new_sync(
-                bus, Gio.DBusProxyFlags.NONE, None,
-                'org.kde.juhradialmx',
-                '/org/kde/juhradialmx/Daemon',
-                'org.kde.juhradialmx.Daemon',
-                None
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                "org.kde.juhradialmx",
+                "/org/kde/juhradialmx/Daemon",
+                "org.kde.juhradialmx.Daemon",
+                None,
             )
 
             # Get Easy-Switch info (num_hosts, current_host)
             try:
-                result = self.daemon_proxy.call_sync('GetEasySwitchInfo', None, Gio.DBusCallFlags.NONE, 2000, None)
+                result = self.daemon_proxy.call_sync(
+                    "GetEasySwitchInfo", None, Gio.DBusCallFlags.NONE, 2000, None
+                )
                 if result:
                     self.num_hosts, self.current_host = result.unpack()
-                    print(f"Easy-Switch: {self.num_hosts} hosts, current={self.current_host}")
+                    print(
+                        f"Easy-Switch: {self.num_hosts} hosts, current={self.current_host}"
+                    )
             except Exception as e:
                 print(f"Could not get Easy-Switch info: {e}")
                 self.num_hosts = 3  # Default to 3 slots
@@ -238,7 +255,9 @@ class EasySwitchPage(Gtk.ScrolledWindow):
 
             # Get host names
             try:
-                result = self.daemon_proxy.call_sync('GetHostNames', None, Gio.DBusCallFlags.NONE, 2000, None)
+                result = self.daemon_proxy.call_sync(
+                    "GetHostNames", None, Gio.DBusCallFlags.NONE, 2000, None
+                )
                 if result:
                     self.host_names = list(result.unpack()[0])
                     print(f"Host names: {self.host_names}")
@@ -252,8 +271,8 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         except Exception as e:
             print(f"Failed to connect to D-Bus: {e}")
             # Show error state
-            error_label = Gtk.Label(label=_('Could not connect to daemon'))
-            error_label.add_css_class('dim-label')
+            error_label = Gtk.Label(label=_("Could not connect to daemon"))
+            error_label.add_css_class("dim-label")
             self.slots_box.append(error_label)
 
         return False  # Don't repeat
@@ -270,7 +289,7 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         # Create slot widgets (now buttons)
         num_slots = max(self.num_hosts, 3)  # Show at least 3 slots
         for i in range(num_slots):
-            is_current = (i == self.current_host)
+            is_current = i == self.current_host
             slot_widget = self._create_slot_widget(i, is_current)
             self.slots_box.append(slot_widget)
 
@@ -280,4 +299,3 @@ class EasySwitchPage(Gtk.ScrolledWindow):
                 sep.set_margin_top(4)
                 sep.set_margin_bottom(4)
                 self.slots_box.append(sep)
-
