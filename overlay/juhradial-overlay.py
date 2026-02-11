@@ -62,7 +62,6 @@ from themes import (
     load_theme_name,
     get_radial_image,
     get_radial_params,
-    is_dark_theme,
 )
 from i18n import _
 import settings_constants

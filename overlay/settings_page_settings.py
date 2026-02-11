@@ -19,7 +19,7 @@ from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _, SUPPORTED_LANGUAGES
 from settings_config import ConfigManager, config, get_device_name
-from settings_theme import COLORS, load_colors, generate_css
+import settings_theme
 from settings_widgets import SettingsCard, SettingRow
 from themes import get_theme_list
 
