@@ -783,11 +783,15 @@ class RadialMenu(QWidget):
                 except ValueError as e:
                     print(f"Invalid command syntax: {cmd} - {e}")
             elif cmd_type == "url":
-                subprocess.Popen(
-                    ["xdg-open", cmd],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+                # Ensure cmd doesn't start with - to prevent option injection
+                if cmd.startswith("-"):
+                    print(f"Invalid URL (starts with -): {cmd}")
+                else:
+                    subprocess.Popen(
+                        ["xdg-open", cmd],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
             elif cmd_type == "emoji":
                 subprocess.Popen(
                     ["plasma-emojier"],
@@ -823,11 +827,15 @@ class RadialMenu(QWidget):
                 except ValueError as e:
                     print(f"Invalid command syntax: {cmd} - {e}")
             elif cmd_type == "url":
-                subprocess.Popen(
-                    ["xdg-open", cmd],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+                # Ensure cmd doesn't start with - to prevent option injection
+                if cmd.startswith("-"):
+                    print(f"Invalid URL (starts with -): {cmd}")
+                else:
+                    subprocess.Popen(
+                        ["xdg-open", cmd],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
             elif cmd_type == "easy_switch":
                 # Switch to host via D-Bus call to daemon
                 # Validate host_index (Easy-Switch supports 0-2 for 3 hosts)
@@ -1835,9 +1843,11 @@ def create_tray_icon(app, radial_menu):
     # Exit action - also closes settings dashboard if open
     def exit_application():
         import subprocess
+        import os
 
         # Kill settings dashboard if running
-        subprocess.run(["pkill", "-f", "settings_dashboard.py"], capture_output=True)
+        uid = str(os.getuid())
+        subprocess.run(["pkill", "-u", uid, "-f", "settings_dashboard.py"], capture_output=True)
         app.quit()
 
     exit_action = menu.addAction(_("Exit"))

@@ -38,6 +38,9 @@ dirs = "5"
 # Low-level libc bindings (for O_NONBLOCK)
 libc = "0.2"
 
+# Temporary files for KWin scripts
+tempfile = "3"
+
 # HID++ for haptic feedback (optional - now uses direct hidraw instead)
 # hidapi = { version = "2", optional = true }
 
@@ -49,8 +52,6 @@ default = []
 [dev-dependencies]
 # Performance benchmarks
 criterion = "0.5"
-# Temp directories for testing
-tempfile = "3"
 
 [[bench]]
 name = "latency"

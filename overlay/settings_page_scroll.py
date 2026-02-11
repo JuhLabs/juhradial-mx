@@ -668,7 +668,8 @@ None,      Down, Button5, {lines}
                 with open(imwheel_config, "w", encoding="utf-8") as f:
                     f.write(config_content)
                 # Restart imwheel if running
-                subprocess.run(["pkill", "imwheel"], capture_output=True, timeout=2)
+                uid = str(os.getuid())
+                subprocess.run(["pkill", "-u", uid, "imwheel"], capture_output=True, timeout=2)
                 subprocess.run(["imwheel", "-b", "45"], capture_output=True, timeout=2)
             except (FileNotFoundError, subprocess.SubprocessError, OSError):
                 pass  # imwheel not available
