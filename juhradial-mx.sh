@@ -6,10 +6,10 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -d "$SCRIPT_DIR/.git" ]; then
     :
-elif [ -d "/opt/juhradial-mx" ]; then
-    SCRIPT_DIR="/opt/juhradial-mx"
 elif [ -d "/usr/share/juhradial" ]; then
     SCRIPT_DIR="/usr/share/juhradial"
+elif [ -d "/opt/juhradial-mx" ]; then
+    SCRIPT_DIR="/opt/juhradial-mx"
 fi
 
 # Kill any existing instances

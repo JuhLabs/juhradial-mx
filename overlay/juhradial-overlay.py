@@ -74,8 +74,8 @@ IS_HYPRLAND = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") is not None
 # Cache for Hyprland socket path
 _hyprland_socket = None
 
-# Cache for active monitor offset (refreshed when needed)
-_monitor_offset_cache = None
+# Cache for Hyprland monitor info (refreshed on each menu show)
+_monitors_cache = None
 
 
 def _get_hyprland_socket():
@@ -88,29 +88,16 @@ def _get_hyprland_socket():
     return _hyprland_socket
 
 
-def _get_focused_monitor_offset():
-    """Get the offset of the focused monitor from Hyprland.
-
-    XWayland coordinates are relative to its virtual screen (usually 0,0),
-    but Hyprland cursor coordinates are global (include monitor offset).
-    We need to subtract the focused monitor's offset to convert.
-
-    Returns:
-        Tuple (x_offset, y_offset) or (0, 0) on failure.
-    """
-    global _monitor_offset_cache
-    import socket
-    import json
+def _hyprland_ipc(command: bytes) -> str:
+    """Send a command to Hyprland IPC and return the response string."""
+    import socket as _socket
 
     sock = None
     try:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
         sock.settimeout(0.1)
         sock.connect(_get_hyprland_socket())
-        # Request JSON format with j/ prefix
-        sock.send(b"j/monitors")
-
-        # Read response in chunks
+        sock.send(command)
         chunks = []
         while True:
             try:
@@ -118,99 +105,100 @@ def _get_focused_monitor_offset():
                 if not chunk:
                     break
                 chunks.append(chunk)
-            except socket.timeout:
+            except _socket.timeout:
                 break
-
-        response = b"".join(chunks).decode("utf-8").strip()
-        monitors = json.loads(response)
-
-        # Find the focused monitor
-        for mon in monitors:
-            if mon.get("focused", False):
-                x_offset = mon.get("x", 0)
-                y_offset = mon.get("y", 0)
-                _monitor_offset_cache = (x_offset, y_offset)
-                return _monitor_offset_cache
-
-        # Fallback: use first monitor
-        if monitors:
-            x_offset = monitors[0].get("x", 0)
-            y_offset = monitors[0].get("y", 0)
-            _monitor_offset_cache = (x_offset, y_offset)
-            return _monitor_offset_cache
-
-    except Exception as e:
-        print(f"[HYPRLAND] Failed to get monitor offset: {e}")
+        return b"".join(chunks).decode("utf-8").strip()
     finally:
         if sock is not None:
             try:
                 sock.close()
             except OSError:
-                pass  # Socket already closed
+                pass
 
-    # Return cached value or default
-    return _monitor_offset_cache if _monitor_offset_cache else (0, 0)
+
+def _refresh_monitors():
+    """Refresh cached monitor info from Hyprland."""
+    global _monitors_cache
+    import json
+
+    try:
+        response = _hyprland_ipc(b"j/monitors")
+        _monitors_cache = json.loads(response)
+    except Exception as e:
+        print(f"[HYPRLAND] Failed to refresh monitors: {e}")
+        if _monitors_cache is None:
+            _monitors_cache = []
+
+
+def get_monitor_at_cursor(cx, cy):
+    """Find which monitor contains the given global cursor coordinates.
+
+    Returns dict with keys: x, y, width, height (logical pixel coords).
+    Falls back to the focused monitor, then first monitor.
+    """
+    global _monitors_cache
+    if _monitors_cache is None:
+        _refresh_monitors()
+
+    for mon in _monitors_cache or []:
+        mx = mon.get("x", 0)
+        my = mon.get("y", 0)
+        # Use logical (transformed) size — accounts for scaling and rotation
+        mw = mon.get("width", 1920) / mon.get("scale", 1.0)
+        mh = mon.get("height", 1080) / mon.get("scale", 1.0)
+        if mx <= cx < mx + mw and my <= cy < my + mh:
+            return {
+                "x": mx,
+                "y": my,
+                "width": int(mw),
+                "height": int(mh),
+                "name": mon.get("name", "?"),
+            }
+
+    # Fallback: focused monitor
+    for mon in _monitors_cache or []:
+        if mon.get("focused", False):
+            mw = mon.get("width", 1920) / mon.get("scale", 1.0)
+            mh = mon.get("height", 1080) / mon.get("scale", 1.0)
+            return {
+                "x": mon.get("x", 0),
+                "y": mon.get("y", 0),
+                "width": int(mw),
+                "height": int(mh),
+                "name": mon.get("name", "?"),
+            }
+
+    return {"x": 0, "y": 0, "width": 1920, "height": 1080, "name": "fallback"}
 
 
 def get_cursor_position_hyprland():
     """Get cursor position using Hyprland IPC socket (faster than subprocess).
 
-    Returns coordinates adjusted for XWayland by subtracting the focused
-    monitor's offset. This is necessary because Hyprland returns global
-    coordinates, but XWayland windows use coordinates relative to their
-    virtual screen origin.
+    Returns global coordinates directly — on Hyprland, XWayland windows
+    use the same coordinate space as the compositor (no offset subtraction
+    needed).
     """
-    sock = None
-    global_x, global_y = None, None
-
     try:
-        import socket
-
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.settimeout(0.05)  # 50ms timeout
-        sock.connect(_get_hyprland_socket())
-        sock.send(b"cursorpos")
-        response = sock.recv(64).decode("utf-8").strip()
-
-        # Parse "x, y" format
+        response = _hyprland_ipc(b"cursorpos")
         parts = response.split(",")
         if len(parts) >= 2:
-            global_x = int(parts[0].strip())
-            global_y = int(parts[1].strip())
+            return (int(parts[0].strip()), int(parts[1].strip()))
     except (OSError, ValueError):
-        pass  # Socket error or parse failure, fall through to subprocess
-    finally:
-        # Always close socket to prevent resource leak (called 60x/sec in toggle mode)
-        if sock is not None:
-            try:
-                sock.close()
-            except OSError:
-                pass  # Socket already closed
+        pass
 
-    # Fallback to subprocess if socket fails
-    if global_x is None:
-        try:
-            result = subprocess.run(
-                ["hyprctl", "cursorpos"], capture_output=True, text=True, timeout=0.1
-            )
-            if result.returncode == 0:
-                parts = result.stdout.strip().split(",")
-                if len(parts) >= 2:
-                    global_x = int(parts[0].strip())
-                    global_y = int(parts[1].strip())
-        except (FileNotFoundError, subprocess.SubprocessError, ValueError):
-            pass  # hyprctl not available or returned unexpected output
+    # Fallback to subprocess
+    try:
+        result = subprocess.run(
+            ["hyprctl", "cursorpos"], capture_output=True, text=True, timeout=0.1
+        )
+        if result.returncode == 0:
+            parts = result.stdout.strip().split(",")
+            if len(parts) >= 2:
+                return (int(parts[0].strip()), int(parts[1].strip()))
+    except (FileNotFoundError, subprocess.SubprocessError, ValueError):
+        pass
 
-    if global_x is None:
-        return None
-
-    # Convert from Hyprland global coordinates to XWayland local coordinates
-    # by subtracting the focused monitor's offset
-    mon_x, mon_y = _get_focused_monitor_offset()
-    local_x = global_x - mon_x
-    local_y = global_y - mon_y
-
-    return (local_x, local_y)
+    return None
 
 
 def get_cursor_pos():
@@ -435,7 +423,14 @@ AI_ICONS = {}
 def load_ai_icons():
     """Load SVG icons for AI submenu items."""
     global AI_ICONS
-    assets_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
+    # Search multiple paths: dev layout (../assets) and installed (/usr/share/juhradial/assets)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    search_dirs = [
+        os.path.join(script_dir, "..", "assets"),  # dev: overlay/../assets
+        os.path.join(script_dir, "assets"),  # installed: /usr/share/juhradial/assets
+        "/usr/share/juhradial/assets",  # absolute fallback
+    ]
+    assets_dir = next((d for d in search_dirs if os.path.isdir(d)), search_dirs[0])
 
     icon_files = {
         "claude": "ai-claude.svg",
@@ -601,17 +596,31 @@ class RadialMenu(QWidget):
             self._close_menu(execute=False)
             return
 
-        # On Hyprland, re-query cursor position for freshness
+        # On Hyprland, re-query cursor position and monitor info for freshness
         # The D-Bus signal coordinates may be stale due to async timing
         if IS_HYPRLAND:
+            _refresh_monitors()
             fresh_pos = get_cursor_position_hyprland()
             if fresh_pos:
                 x, y = fresh_pos
                 print(f"OVERLAY: Hyprland fresh cursor position: ({x}, {y})")
 
-        # Use coordinates from D-Bus signal (daemon gets them via KWin scripting)
-        # This works correctly on Plasma 6 Wayland with multiple monitors
+        # Detect which monitor the cursor is on and clamp menu to it
+        if IS_HYPRLAND:
+            mon = get_monitor_at_cursor(x, y)
+            print(
+                f"OVERLAY: Monitor: {mon['name']} ({mon['width']}x{mon['height']} at {mon['x']},{mon['y']})"
+            )
+        else:
+            mon = None
+
         print(f"OVERLAY: MenuRequested at ({x}, {y})")
+
+        # Clamp menu position to stay within the active monitor
+        half = WINDOW_SIZE // 2
+        if mon:
+            x = max(mon["x"] + half, min(x, mon["x"] + mon["width"] - half))
+            y = max(mon["y"] + half, min(y, mon["y"] + mon["height"] - half))
 
         self.menu_center_x = x
         self.menu_center_y = y
@@ -624,7 +633,7 @@ class RadialMenu(QWidget):
         self.highlighted_subitem = -1
 
         # Move window so menu is centered at x, y
-        self.move(x - WINDOW_SIZE // 2, y - WINDOW_SIZE // 2)
+        self.move(x - half, y - half)
         self.highlighted_slice = -1
 
         self.show()
@@ -1793,13 +1802,25 @@ class RadialMenu(QWidget):
 
 def create_tray_icon(app, radial_menu):
     """Create system tray icon with menu"""
-    # Try to load SVG icon, fall back to creating one
-    icon_path = os.path.join(
-        os.path.dirname(__file__), "..", "assets", "juhradial-mx.svg"
-    )
-    if os.path.exists(icon_path):
-        icon = QIcon(icon_path)
-    else:
+    # Prefer icon theme lookup (works with installed desktop icon cache)
+    icon = QIcon.fromTheme("juhradial-mx")
+
+    # Fallback to direct file paths and validate loaded icon
+    icon_paths = [
+        os.path.join(os.path.dirname(__file__), "..", "assets", "juhradial-mx.svg"),
+        os.path.join("/usr/share/juhradial/assets", "juhradial-mx.svg"),
+        os.path.join("/usr/share/icons/hicolor/scalable/apps", "juhradial-mx.svg"),
+    ]
+
+    if icon.isNull():
+        for icon_path in icon_paths:
+            if os.path.exists(icon_path):
+                candidate = QIcon(icon_path)
+                if not candidate.isNull():
+                    icon = candidate
+                    break
+
+    if icon.isNull():
         # Create a simple colored circle icon as fallback
         pixmap = QPixmap(32, 32)
         pixmap.fill(Qt.GlobalColor.transparent)
@@ -1846,7 +1867,9 @@ def create_tray_icon(app, radial_menu):
 
         # Kill settings dashboard if running
         uid = str(os.getuid())
-        subprocess.run(["pkill", "-u", uid, "-f", "settings_dashboard.py"], capture_output=True)
+        subprocess.run(
+            ["pkill", "-u", uid, "-f", "settings_dashboard.py"], capture_output=True
+        )
         app.quit()
 
     exit_action = menu.addAction(_("Exit"))
@@ -1862,7 +1885,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("JuhRadial MX")
-    app.setDesktopFileName("juhradial-overlay")  # For Wayland compositor identification
+    app.setDesktopFileName("juhradial-mx")  # Match installed desktop entry
 
     # Load AI submenu icons and 3D radial image (requires QApplication)
     load_ai_icons()

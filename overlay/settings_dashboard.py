@@ -13,8 +13,8 @@ import sys
 import signal
 from pathlib import Path
 
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
 
 from gi.repository import Gtk, Gdk, GLib, Gio, Adw
 
@@ -22,7 +22,14 @@ from i18n import _
 
 # Layer 1: Config + Theme
 from settings_config import config, get_device_name
-from settings_theme import COLORS, CSS, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT
+from settings_theme import (
+    COLORS,
+    CSS,
+    WINDOW_WIDTH,
+    WINDOW_HEIGHT,
+    WINDOW_MIN_WIDTH,
+    WINDOW_MIN_HEIGHT,
+)
 
 # Layer 2: Constants + Widgets
 from settings_constants import MOUSE_BUTTONS, NAV_ITEMS
@@ -48,15 +55,18 @@ class SettingsWindow(Adw.ApplicationWindow):
     """Main settings window"""
 
     def __init__(self, app):
-        super().__init__(application=app, title=_('JuhRadial MX Settings'))
-        self.add_css_class('settings-window')
+        super().__init__(application=app, title=_("JuhRadial MX Settings"))
+        self.add_css_class("settings-window")
 
         # Reload config from disk to ensure we have latest values
         config.reload()
 
-        # Force dark theme
+        # Match Adwaita palette to selected theme
         style_manager = Adw.StyleManager.get_default()
-        style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        if COLORS.get("is_dark", True):
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        else:
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
 
         self.set_default_size(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.set_size_request(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
@@ -96,16 +106,16 @@ class SettingsWindow(Adw.ApplicationWindow):
         headerbar.pack_start(title_box)
 
         # Add application button to header bar
-        add_app_btn = Gtk.Button(label=_('+ ADD APPLICATION'))
-        add_app_btn.add_css_class('add-app-btn')
-        add_app_btn.connect('clicked', self._on_add_application)
+        add_app_btn = Gtk.Button(label=_("+ ADD APPLICATION"))
+        add_app_btn.add_css_class("add-app-btn")
+        add_app_btn.connect("clicked", self._on_add_application)
         headerbar.pack_end(add_app_btn)
 
         # Grid view toggle
         grid_btn = Gtk.Button()
-        grid_btn.set_child(Gtk.Image.new_from_icon_name('view-grid-symbolic'))
-        grid_btn.add_css_class('flat')
-        grid_btn.connect('clicked', self._on_grid_view_toggle)
+        grid_btn.set_child(Gtk.Image.new_from_icon_name("view-grid-symbolic"))
+        grid_btn.add_css_class("flat")
+        grid_btn.connect("clicked", self._on_grid_view_toggle)
         headerbar.pack_end(grid_btn)
 
         # Main content area
@@ -153,7 +163,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         config.set_toast_callback(self.show_toast)
 
         # Select first nav item
-        self._on_nav_clicked('buttons')
+        self._on_nav_clicked("buttons")
 
         # Setup UPower signal monitoring for instant battery updates (system events)
         self._setup_upower_signals()
@@ -163,7 +173,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         GLib.idle_add(self._update_battery)
 
         # Connect close-request to clean up resources
-        self.connect('close-request', self._on_close_request)
+        self.connect("close-request", self._on_close_request)
 
     def show_toast(self, message, timeout=2):
         """Show a toast notification"""
@@ -174,14 +184,14 @@ class SettingsWindow(Adw.ApplicationWindow):
     def _on_close_request(self, window):
         """Clean up resources when window is closed"""
         # Stop battery polling timer
-        if hasattr(self, '_battery_timer_id') and self._battery_timer_id:
+        if hasattr(self, "_battery_timer_id") and self._battery_timer_id:
             GLib.source_remove(self._battery_timer_id)
             self._battery_timer_id = None
             print("Battery timer stopped")
 
         # Clean up FlowPage Zeroconf if it exists
-        flow_page = self.content_stack.get_child_by_name('flow')
-        if flow_page and hasattr(flow_page, 'cleanup'):
+        flow_page = self.content_stack.get_child_by_name("flow")
+        if flow_page and hasattr(flow_page, "cleanup"):
             flow_page.cleanup()
 
         # Clear toast callback to avoid dangling reference
@@ -198,10 +208,10 @@ class SettingsWindow(Adw.ApplicationWindow):
                 bus,
                 Gio.DBusProxyFlags.NONE,
                 None,
-                'org.kde.juhradialmx',
-                '/org/kde/juhradialmx/Daemon',
-                'org.kde.juhradialmx.Daemon',
-                None
+                "org.kde.juhradialmx",
+                "/org/kde/juhradialmx/Daemon",
+                "org.kde.juhradialmx.Daemon",
+                None,
             )
         except Exception as e:
             print(f"Failed to connect to D-Bus: {e}")
@@ -215,36 +225,36 @@ class SettingsWindow(Adw.ApplicationWindow):
             # Subscribe to UPower device changed signals
             # This catches battery state changes (charging/discharging)
             system_bus.signal_subscribe(
-                'org.freedesktop.UPower',          # sender
-                'org.freedesktop.DBus.Properties', # interface
-                'PropertiesChanged',               # signal name
-                None,                              # object path (all devices)
-                None,                              # arg0 (interface name filter)
+                "org.freedesktop.UPower",  # sender
+                "org.freedesktop.DBus.Properties",  # interface
+                "PropertiesChanged",  # signal name
+                None,  # object path (all devices)
+                None,  # arg0 (interface name filter)
                 Gio.DBusSignalFlags.NONE,
-                self._on_upower_changed,           # callback
-                None                               # user data
+                self._on_upower_changed,  # callback
+                None,  # user data
             )
 
             # Also listen for device added/removed (e.g., USB charger connected)
             system_bus.signal_subscribe(
-                'org.freedesktop.UPower',
-                'org.freedesktop.UPower',
-                'DeviceAdded',
-                '/org/freedesktop/UPower',
+                "org.freedesktop.UPower",
+                "org.freedesktop.UPower",
+                "DeviceAdded",
+                "/org/freedesktop/UPower",
                 None,
                 Gio.DBusSignalFlags.NONE,
                 self._on_upower_device_event,
-                None
+                None,
             )
             system_bus.signal_subscribe(
-                'org.freedesktop.UPower',
-                'org.freedesktop.UPower',
-                'DeviceRemoved',
-                '/org/freedesktop/UPower',
+                "org.freedesktop.UPower",
+                "org.freedesktop.UPower",
+                "DeviceRemoved",
+                "/org/freedesktop/UPower",
                 None,
                 Gio.DBusSignalFlags.NONE,
                 self._on_upower_device_event,
-                None
+                None,
             )
 
             print("UPower signal monitoring enabled for instant battery updates")
@@ -252,7 +262,9 @@ class SettingsWindow(Adw.ApplicationWindow):
             print(f"Could not setup UPower signals: {e}")
             print("Falling back to polling only")
 
-    def _on_upower_changed(self, connection, sender, path, interface, signal, params, user_data):
+    def _on_upower_changed(
+        self, connection, sender, path, interface, signal, params, user_data
+    ):
         """Handle UPower property changes - triggers instant battery update"""
         # Only respond to battery-related property changes
         if params:
@@ -260,72 +272,78 @@ class SettingsWindow(Adw.ApplicationWindow):
             if len(changed_props) > 0:
                 interface_name = changed_props[0]
                 # Check if this is a battery device property change
-                if 'UPower' in interface_name or 'Device' in interface_name:
+                if "UPower" in interface_name or "Device" in interface_name:
                     # Schedule immediate battery update on main thread
                     GLib.idle_add(self._update_battery)
 
-    def _on_upower_device_event(self, connection, sender, path, interface, signal, params, user_data):
+    def _on_upower_device_event(
+        self, connection, sender, path, interface, signal, params, user_data
+    ):
         """Handle UPower device added/removed - charger connected/disconnected"""
         # Immediate battery update when a device is added/removed
         GLib.idle_add(self._update_battery)
 
     def _update_battery(self):
         """Fetch battery status from daemon via D-Bus"""
-        if self.dbus_proxy is None or self.battery_label is None or not self._battery_available:
+        if (
+            self.dbus_proxy is None
+            or self.battery_label is None
+            or not self._battery_available
+        ):
             return self._battery_available  # Stop timer if battery not available
 
         try:
             # Call GetBatteryStatus method
             result = self.dbus_proxy.call_sync(
-                'GetBatteryStatus',
+                "GetBatteryStatus",
                 None,
                 Gio.DBusCallFlags.NONE,
                 1000,  # timeout ms
-                None
+                None,
             )
             if result:
                 percentage, is_charging = result.unpack()
 
                 # 0% means battery info unavailable (logid controls HID++)
                 if percentage == 0:
-                    self.battery_label.set_label(_('LogiOps'))
+                    self.battery_label.set_label(_("LogiOps"))
                     if self.battery_icon:
-                        self.battery_icon.set_from_icon_name('battery-missing-symbolic')
+                        self.battery_icon.set_from_icon_name("battery-missing-symbolic")
                     return True
 
                 # Show charging indicator in label with ⚡ symbol
                 if is_charging:
-                    self.battery_label.set_label(f'⚡ {percentage}%')
+                    self.battery_label.set_label(f"⚡ {percentage}%")
                 else:
-                    self.battery_label.set_label(f'{percentage}%')
+                    self.battery_label.set_label(f"{percentage}%")
 
                 # Update icon based on level and charging status
                 if is_charging:
                     if percentage >= 80:
-                        icon = 'battery-full-charging-symbolic'
+                        icon = "battery-full-charging-symbolic"
                     elif percentage >= 50:
-                        icon = 'battery-good-charging-symbolic'
+                        icon = "battery-good-charging-symbolic"
                     elif percentage >= 20:
-                        icon = 'battery-low-charging-symbolic'
+                        icon = "battery-low-charging-symbolic"
                     else:
-                        icon = 'battery-caution-charging-symbolic'
+                        icon = "battery-caution-charging-symbolic"
                 else:
                     if percentage >= 80:
-                        icon = 'battery-full-symbolic'
+                        icon = "battery-full-symbolic"
                     elif percentage >= 50:
-                        icon = 'battery-good-symbolic'
+                        icon = "battery-good-symbolic"
                     elif percentage >= 20:
-                        icon = 'battery-low-symbolic'
+                        icon = "battery-low-symbolic"
                     else:
-                        icon = 'battery-caution-symbolic'
+                        icon = "battery-caution-symbolic"
 
                 if self.battery_icon:
                     self.battery_icon.set_from_icon_name(icon)
         except Exception as e:
-            if 'UnknownMethod' in str(e):
+            if "UnknownMethod" in str(e):
                 # Daemon doesn't support battery status yet - stop polling
                 self._battery_available = False
-                self.battery_label.set_label(_('N/A'))
+                self.battery_label.set_label(_("N/A"))
                 return False  # Stop timer
             print(f"Battery update failed: {e}")
 
@@ -339,19 +357,20 @@ class SettingsWindow(Adw.ApplicationWindow):
 
         # Logo container with glow effect
         logo_container = Gtk.Box()
-        logo_container.add_css_class('logo-container')
+        logo_container.add_css_class("logo-container")
         logo_container.set_valign(Gtk.Align.CENTER)
 
         # JuhRadial MX header: logo icon + text
         script_dir = Path(__file__).resolve().parent
         logo_paths = [
-            script_dir.parent / 'docs' / 'radiallogo_icon.png',
-            script_dir / 'assets' / 'radiallogo_icon.png',
-            Path('/usr/share/juhradial/radiallogo_icon.png'),
+            script_dir.parent / "docs" / "radiallogo_icon.png",
+            script_dir / "assets" / "radiallogo_icon.png",
+            Path("/usr/share/juhradial/radiallogo_icon.png"),
         ]
 
         # Load logo icon with proper scaling
         from gi.repository import GdkPixbuf
+
         logo_loaded = False
         for img_path in logo_paths:
             if img_path.exists():
@@ -372,7 +391,7 @@ class SettingsWindow(Adw.ApplicationWindow):
 
         # Fallback icon if logo not loaded
         if not logo_loaded:
-            fallback_icon = Gtk.Image.new_from_icon_name('input-mouse-symbolic')
+            fallback_icon = Gtk.Image.new_from_icon_name("input-mouse-symbolic")
             fallback_icon.set_pixel_size(28)
             logo_container.append(fallback_icon)
 
@@ -387,17 +406,17 @@ class SettingsWindow(Adw.ApplicationWindow):
         title_row.set_halign(Gtk.Align.START)
         title_juh = Gtk.Label()
         title_juh.set_markup('<span weight="800" size="large">JuhRadial</span>')
-        title_juh.add_css_class('app-title')
+        title_juh.add_css_class("app-title")
         title_row.append(title_juh)
         title_mx = Gtk.Label()
         title_mx.set_markup('<span weight="800" size="large">MX</span>')
-        title_mx.add_css_class('app-title-accent')
+        title_mx.add_css_class("app-title-accent")
         title_row.append(title_mx)
         text_box.append(title_row)
 
         # Subtitle
-        subtitle = Gtk.Label(label=_('MOUSE CONFIGURATION'))
-        subtitle.add_css_class('app-subtitle')
+        subtitle = Gtk.Label(label=_("MOUSE CONFIGURATION"))
+        subtitle.add_css_class("app-subtitle")
         subtitle.set_halign(Gtk.Align.START)
         text_box.append(subtitle)
 
@@ -405,12 +424,12 @@ class SettingsWindow(Adw.ApplicationWindow):
 
         # Vertical divider
         divider = Gtk.Box()
-        divider.add_css_class('header-divider')
+        divider.add_css_class("header-divider")
         title_box.append(divider)
 
         # Device badge
         device_badge = Gtk.Label(label=get_device_name().upper())
-        device_badge.add_css_class('device-badge')
+        device_badge.add_css_class("device-badge")
         device_badge.set_valign(Gtk.Align.CENTER)
         title_box.append(device_badge)
 
@@ -418,7 +437,7 @@ class SettingsWindow(Adw.ApplicationWindow):
 
     def _create_sidebar(self):
         sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        sidebar.add_css_class('sidebar')
+        sidebar.add_css_class("sidebar")
 
         self.nav_buttons = {}
 
@@ -446,25 +465,37 @@ class SettingsWindow(Adw.ApplicationWindow):
 
         # Developer info
         dev_label = Gtk.Label()
-        dev_label.set_markup(f'<span size="small" color="{COLORS["subtext0"]}">' + _('Developed by') + '</span>')
+        dev_label.set_markup(
+            f'<span size="small" color="{COLORS["subtext0"]}">'
+            + _("Developed by")
+            + "</span>"
+        )
         dev_label.set_halign(Gtk.Align.START)
         credits_box.append(dev_label)
 
         name_label = Gtk.Label()
-        name_label.set_markup(f'<span size="small" weight="bold" color="{COLORS["text"]}">JuhLabs (Julian Hermstad)</span>')
+        name_label.set_markup(
+            f'<span size="small" weight="bold" color="{COLORS["text"]}">JuhLabs (Julian Hermstad)</span>'
+        )
         name_label.set_halign(Gtk.Align.START)
         credits_box.append(name_label)
 
         # Description
         desc_label = Gtk.Label()
-        desc_label.set_markup(f'<span size="x-small" color="{COLORS["subtext0"]}">' + _('Free &amp; open source software.\nIf you enjoy this project,\nconsider supporting development.') + '</span>')
+        desc_label.set_markup(
+            f'<span size="x-small" color="{COLORS["subtext0"]}">'
+            + _(
+                "Free &amp; open source software.\nIf you enjoy this project,\nconsider supporting development."
+            )
+            + "</span>"
+        )
         desc_label.set_halign(Gtk.Align.START)
         desc_label.set_margin_top(4)
         credits_box.append(desc_label)
 
         # Donate button
         donate_btn = Gtk.Button()
-        donate_btn.add_css_class('donate-btn')
+        donate_btn.add_css_class("donate-btn")
         donate_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         donate_box.set_halign(Gtk.Align.CENTER)
         coffee_icon = Gtk.Label(label="\u2615")  # Coffee emoji
@@ -473,7 +504,7 @@ class SettingsWindow(Adw.ApplicationWindow):
         donate_box.append(donate_label)
         donate_btn.set_child(donate_box)
         donate_btn.set_margin_top(8)
-        donate_btn.connect('clicked', self._on_donate_clicked)
+        donate_btn.connect("clicked", self._on_donate_clicked)
         credits_box.append(donate_btn)
 
         sidebar.append(credits_box)
@@ -483,7 +514,8 @@ class SettingsWindow(Adw.ApplicationWindow):
     def _on_donate_clicked(self, button):
         """Open PayPal donation link"""
         import subprocess
-        subprocess.Popen(['xdg-open', 'https://paypal.me/LangbachHermstad'])
+
+        subprocess.Popen(["xdg-open", "https://paypal.me/LangbachHermstad"])
 
     def _on_add_application(self, button):
         """Open dialog to add per-application profile"""
@@ -495,7 +527,9 @@ class SettingsWindow(Adw.ApplicationWindow):
         # TODO: Implement grid view toggle
         dialog = Adw.AlertDialog(
             heading=_("Grid View"),
-            body=_("Application profiles grid view coming soon!\n\nThis will show all your per-app profiles in a visual grid.")
+            body=_(
+                "Application profiles grid view coming soon!\n\nThis will show all your per-app profiles in a visual grid."
+            ),
         )
         dialog.add_response("ok", _("OK"))
         dialog.present(self)
@@ -510,37 +544,41 @@ class SettingsWindow(Adw.ApplicationWindow):
         buttons_page.append(mouse_viz)
 
         # Settings panel (right side)
-        self.buttons_settings = ButtonsPage(on_button_config=self._on_mouse_button_click, parent_window=self, config_manager=config)
+        self.buttons_settings = ButtonsPage(
+            on_button_config=self._on_mouse_button_click,
+            parent_window=self,
+            config_manager=config,
+        )
         self.buttons_settings.set_size_request(400, -1)
         buttons_page.append(self.buttons_settings)
 
-        self.content_stack.add_named(buttons_page, 'buttons')
+        self.content_stack.add_named(buttons_page, "buttons")
 
         # Other pages
-        self.content_stack.add_named(ScrollPage(), 'scroll')
-        self.content_stack.add_named(HapticsPage(), 'haptics')
-        self.content_stack.add_named(DevicesPage(), 'devices')
-        self.content_stack.add_named(EasySwitchPage(), 'easy_switch')
+        self.content_stack.add_named(ScrollPage(), "scroll")
+        self.content_stack.add_named(HapticsPage(), "haptics")
+        self.content_stack.add_named(DevicesPage(), "devices")
+        self.content_stack.add_named(EasySwitchPage(), "easy_switch")
         # FlowPage is lazy-loaded when navigated to (avoids Zeroconf at startup)
         self._flow_page_placeholder = Gtk.Box()
-        self.content_stack.add_named(self._flow_page_placeholder, 'flow')
-        self.content_stack.add_named(SettingsPage(), 'settings')
+        self.content_stack.add_named(self._flow_page_placeholder, "flow")
+        self.content_stack.add_named(SettingsPage(), "settings")
 
     def _create_status_bar(self):
         status = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
-        status.add_css_class('status-bar')
+        status.add_css_class("status-bar")
 
         # Battery section
         battery_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
 
         # Battery icon (left of percentage)
-        self.battery_icon = Gtk.Image.new_from_icon_name('battery-good-symbolic')
-        self.battery_icon.add_css_class('battery-icon')
+        self.battery_icon = Gtk.Image.new_from_icon_name("battery-good-symbolic")
+        self.battery_icon.add_css_class("battery-icon")
         battery_box.append(self.battery_icon)
 
         # Store as instance variables for D-Bus updates
-        self.battery_label = Gtk.Label(label='--')
-        self.battery_label.add_css_class('battery-indicator')
+        self.battery_label = Gtk.Label(label="--")
+        self.battery_label.add_css_class("battery-indicator")
         battery_box.append(self.battery_label)
 
         status.append(battery_box)
@@ -554,12 +592,14 @@ class SettingsWindow(Adw.ApplicationWindow):
         conn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
 
         # Connection icon (USB receiver)
-        self.conn_icon = Gtk.Image.new_from_icon_name('network-wireless-signal-excellent-symbolic')
-        self.conn_icon.add_css_class('connection-icon')
+        self.conn_icon = Gtk.Image.new_from_icon_name(
+            "network-wireless-signal-excellent-symbolic"
+        )
+        self.conn_icon.add_css_class("connection-icon")
         conn_box.append(self.conn_icon)
 
-        self.conn_label = Gtk.Label(label=_('Logi Bolt USB'))
-        self.conn_label.add_css_class('connection-status')
+        self.conn_label = Gtk.Label(label=_("Logi Bolt USB"))
+        self.conn_label.add_css_class("connection-status")
         conn_box.append(self.conn_label)
 
         status.append(conn_box)
@@ -572,11 +612,15 @@ class SettingsWindow(Adw.ApplicationWindow):
             btn.set_active(btn_id == item_id)
 
         # Lazy-load FlowPage on first navigation to avoid Zeroconf startup cost
-        if item_id == 'flow' and hasattr(self, '_flow_page_placeholder') and self._flow_page_placeholder:
+        if (
+            item_id == "flow"
+            and hasattr(self, "_flow_page_placeholder")
+            and self._flow_page_placeholder
+        ):
             self.content_stack.remove(self._flow_page_placeholder)
             self._flow_page_placeholder = None
             flow_page = FlowPage()
-            self.content_stack.add_named(flow_page, 'flow')
+            self.content_stack.add_named(flow_page, "flow")
 
         # Switch page
         self.content_stack.set_visible_child_name(item_id)
@@ -585,12 +629,12 @@ class SettingsWindow(Adw.ApplicationWindow):
         """Open button configuration dialog"""
         if button_id in MOUSE_BUTTONS:
             dialog = ButtonConfigDialog(self, button_id, MOUSE_BUTTONS[button_id])
-            dialog.connect('close-request', lambda _: self._on_dialog_closed())
+            dialog.connect("close-request", lambda _: self._on_dialog_closed())
             dialog.present()
 
     def _on_dialog_closed(self):
         """Refresh UI after dialog closes"""
-        if hasattr(self, 'buttons_settings'):
+        if hasattr(self, "buttons_settings"):
             self.buttons_settings.refresh_button_labels()
 
 
@@ -602,8 +646,8 @@ class SettingsApp(Adw.Application):
 
     def __init__(self):
         super().__init__(
-            application_id='org.kde.juhradialmx.settings',
-            flags=Gio.ApplicationFlags.DEFAULT_FLAGS  # Enables single-instance via D-Bus
+            application_id="org.kde.juhradialmx.settings",
+            flags=Gio.ApplicationFlags.DEFAULT_FLAGS,  # Enables single-instance via D-Bus
         )
 
     def do_startup(self):
@@ -616,7 +660,7 @@ class SettingsApp(Adw.Application):
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(),
             css_provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
     def do_activate(self):
@@ -635,7 +679,7 @@ class SettingsApp(Adw.Application):
         """Clean up all resources on application exit"""
         # Ensure all windows get their cleanup called
         for window in self.get_windows():
-            if hasattr(window, '_on_close_request'):
+            if hasattr(window, "_on_close_request"):
                 window._on_close_request(window)
         Adw.Application.do_shutdown(self)
         print("Settings application shutdown complete")
@@ -647,13 +691,13 @@ def main():
     # GTK4/Adwaita handles single-instance automatically via D-Bus
     # Using application_id='org.kde.juhradialmx.settings' with DEFAULT_FLAGS
     # If another instance is launched, it activates the existing window
-    print('JuhRadial MX Settings Dashboard')
-    print('  Theme: Catppuccin Mocha')
-    print(f'  Size: {WINDOW_WIDTH}x{WINDOW_HEIGHT}')
+    print("JuhRadial MX Settings Dashboard")
+    print("  Theme: Catppuccin Mocha")
+    print(f"  Size: {WINDOW_WIDTH}x{WINDOW_HEIGHT}")
 
     app = SettingsApp()
     return app.run(sys.argv)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

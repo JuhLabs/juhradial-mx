@@ -15,7 +15,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, GLib, Gio, Adw
+from gi.repository import Gtk, Gdk, GLib, Gio, Adw
 
 from i18n import _, SUPPORTED_LANGUAGES
 from settings_config import ConfigManager, config, get_device_name
@@ -236,6 +236,13 @@ class SettingsPage(Gtk.ScrolledWindow):
         # Update the module-level COLORS that generate_css() reads from
         settings_theme.COLORS = settings_theme.load_colors()
 
+        # Keep Adwaita widget palette aligned with selected dark/light theme
+        style_manager = Adw.StyleManager.get_default()
+        if settings_theme.COLORS.get("is_dark", True):
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        else:
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+
         # Regenerate CSS with new colors
         new_css = settings_theme.generate_css()
 
@@ -271,7 +278,7 @@ Type=Application
 Name=JuhRadial MX
 Comment=Radial menu for Logitech MX Master
 Exec={exec_path}
-Icon=org.juhlabs.JuhRadialMX
+Icon=juhradial-mx
 Terminal=false
 Categories=Utility;
 X-GNOME-Autostart-enabled=true
