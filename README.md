@@ -7,7 +7,7 @@
   <img src="assets/github/githubheader.png" width="100%" alt="JuhRadial MX Banner">
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.2.5-cyan.svg" alt="Version 0.2.5">
+      <img src="https://img.shields.io/badge/version-0.2.6-cyan.svg" alt="Version 0.2.6">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
@@ -21,7 +21,7 @@
   </p>
 
   <p>
-    <strong>✨ <a href="CHANGELOG.md">v0.2.5</a></strong> - Sharded/optimized settings + overlay, richer 3D wheels, and expanded translations. <a href="#installation">Update now</a>. If you hit issues, please report them on <a href="https://github.com/JuhLabs/juhradial-mx/issues">GitHub</a>.
+    <strong>✨ <a href="CHANGELOG.md">v0.2.6</a></strong> - Fix settings window crash on startup. <a href="#installation">Update now</a>. If you hit issues, please report them on <a href="https://github.com/JuhLabs/juhradial-mx/issues">GitHub</a>.
   </p>
 </div>
 
