@@ -10,12 +10,11 @@ SPDX-License-Identifier: GPL-3.0
 import gi
 
 gi.require_version("Gtk", "4.0")
-gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, GLib, Gio, Adw, Pango
+from gi.repository import Gtk, Pango
 
 from i18n import _
-from settings_config import ConfigManager, config
+from settings_config import ConfigManager
 from settings_constants import MOUSE_BUTTONS, translate_radial_label
 from settings_dialogs import RadialMenuConfigDialog, SliceConfigDialog
 

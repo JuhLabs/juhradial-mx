@@ -12,9 +12,8 @@ import json
 import gi
 
 gi.require_version("Gtk", "4.0")
-gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, GLib, Gio, Adw
+from gi.repository import Gtk, GLib, Gio
 
 from i18n import _
 from settings_config import config, disable_scroll_on_scale

@@ -19,7 +19,7 @@ from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _, SUPPORTED_LANGUAGES
 from settings_config import ConfigManager, config, get_device_name
-from settings_theme import COLORS, load_colors, generate_css
+import settings_theme
 from settings_widgets import SettingsCard, SettingRow
 from themes import get_theme_list
 
@@ -233,13 +233,11 @@ class SettingsPage(Gtk.ScrolledWindow):
 
     def _reload_theme_css(self):
         """Reload CSS with new theme colors"""
-        import settings_theme
-
         # Update the module-level COLORS that generate_css() reads from
-        settings_theme.COLORS = load_colors()
+        settings_theme.COLORS = settings_theme.load_colors()
 
         # Regenerate CSS with new colors
-        new_css = generate_css()
+        new_css = settings_theme.generate_css()
 
         # Apply new CSS
         css_provider = Gtk.CssProvider()
