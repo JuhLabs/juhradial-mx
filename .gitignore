@@ -68,6 +68,9 @@ flatpak-build/
 *.deb
 *.pkg.tar.*
 
+# Generated test/debug images
+GeneratedImages/
+
 # Test and coverage
 .coverage
 htmlcov/
