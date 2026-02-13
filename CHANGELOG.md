@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Launcher path preference** now prioritizes `/usr/share/juhradial` over legacy `/opt/juhradial-mx` to avoid stale code.
 - **Installed asset paths** for mouse/device visuals and AI icons in installer + settings image loader.
 - **Hyprland menu positioning/runtime behavior** refreshes monitor and cursor data on show for stable popup at cursor.
+- **CodeQL regressions fixed** for uninitialized local translation symbol and empty `except` handlers in overlay cursor fallback logic.
 
 ## [0.2.6] - 2026-02-13
 
