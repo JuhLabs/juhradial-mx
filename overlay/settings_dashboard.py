@@ -36,7 +36,11 @@ from settings_constants import MOUSE_BUTTONS, NAV_ITEMS
 from settings_widgets import NavButton, MouseVisualization
 
 # Layer 3: Dialogs
-from settings_dialogs import ButtonConfigDialog, AddApplicationDialog
+from settings_dialogs import (
+    ButtonConfigDialog,
+    AddApplicationDialog,
+    ApplicationProfilesGridDialog,
+)
 
 # Layer 4: Pages
 from settings_page_buttons import ButtonsPage
@@ -524,15 +528,8 @@ class SettingsWindow(Adw.ApplicationWindow):
 
     def _on_grid_view_toggle(self, button):
         """Toggle grid view for application profiles"""
-        # TODO: Implement grid view toggle
-        dialog = Adw.AlertDialog(
-            heading=_("Grid View"),
-            body=_(
-                "Application profiles grid view coming soon!\n\nThis will show all your per-app profiles in a visual grid."
-            ),
-        )
-        dialog.add_response("ok", _("OK"))
-        dialog.present(self)
+        dialog = ApplicationProfilesGridDialog(self)
+        dialog.present()
 
     def _create_pages(self):
         # Buttons page with mouse visualization

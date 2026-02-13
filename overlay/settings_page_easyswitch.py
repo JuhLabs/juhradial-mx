@@ -74,6 +74,21 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         header_subtitle.add_css_class("dim-label")
         header_box.append(header_subtitle)
 
+        # Small utility actions
+        actions_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        actions_box.set_halign(Gtk.Align.CENTER)
+
+        refresh_btn = Gtk.Button(label=_("Refresh"))
+        refresh_btn.add_css_class("suggested-action")
+        refresh_btn.connect("clicked", self._on_refresh_clicked)
+        actions_box.append(refresh_btn)
+
+        self.detected_slots_label = Gtk.Label(label="")
+        self.detected_slots_label.add_css_class("dim-label")
+        actions_box.append(self.detected_slots_label)
+
+        header_box.append(actions_box)
+
         content.append(header_box)
 
         # Host Slots Card
@@ -102,6 +117,11 @@ class EasySwitchPage(Gtk.ScrolledWindow):
             + _(
                 "Host names are read from the device and reflect\n"
                 "the computer names set during pairing."
+            )
+            + "\n\n"
+            + _(
+                "Slots are auto-detected from your mouse pairing state. "
+                "Add or remove pairings on the mouse/receiver side, then press Refresh here."
             )
         )
         info_label.set_wrap(True)
@@ -226,16 +246,17 @@ class EasySwitchPage(Gtk.ScrolledWindow):
     def _load_host_info(self):
         """Load host information from daemon via D-Bus"""
         try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            self.daemon_proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.kde.juhradialmx",
-                "/org/kde/juhradialmx/Daemon",
-                "org.kde.juhradialmx.Daemon",
-                None,
-            )
+            if self.daemon_proxy is None:
+                bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+                self.daemon_proxy = Gio.DBusProxy.new_sync(
+                    bus,
+                    Gio.DBusProxyFlags.NONE,
+                    None,
+                    "org.kde.juhradialmx",
+                    "/org/kde/juhradialmx/Daemon",
+                    "org.kde.juhradialmx.Daemon",
+                    None,
+                )
 
             # Get Easy-Switch info (num_hosts, current_host)
             try:
@@ -276,6 +297,11 @@ class EasySwitchPage(Gtk.ScrolledWindow):
 
         return False  # Don't repeat
 
+    def _on_refresh_clicked(self, _button):
+        """Refresh host information from daemon"""
+        self.daemon_proxy = None
+        self._load_host_info()
+
     def _update_slot_display(self):
         """Update the slot display with host information"""
         # Clear existing slots
@@ -285,8 +311,16 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         self.slot_labels = []
         self.slot_buttons = []
 
+        # Show detected slot count in header
+        if self.num_hosts > 0:
+            self.detected_slots_label.set_label(
+                _("Detected slots: {}").format(self.num_hosts)
+            )
+        else:
+            self.detected_slots_label.set_label(_("Detected slots: --"))
+
         # Create slot widgets (now buttons)
-        num_slots = max(self.num_hosts, 3)  # Show at least 3 slots
+        num_slots = self.num_hosts if self.num_hosts > 0 else 3
         for i in range(num_slots):
             is_current = i == self.current_host
             slot_widget = self._create_slot_widget(i, is_current)

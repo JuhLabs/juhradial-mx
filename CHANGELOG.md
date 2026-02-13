@@ -5,6 +5,22 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-02-13
+
+### Added
+
+- **Application profile grid view** in Settings with refresh, remove, and per-app "Edit Slices" configuration.
+- **Easy-Switch refresh controls** in Settings with detected-slot status and clearer pairing guidance.
+
+### Fixed
+
+- **Radial menu labels now follow selected language** when changing language in Settings (not only center text).
+- **Settings theme consistency in new dialogs** by applying JuhRadial themed button/card classes.
+- **Tray/menu icon loading reliability** with theme lookup + direct icon path fallbacks.
+- **Launcher path preference** now prioritizes `/usr/share/juhradial` over legacy `/opt/juhradial-mx` to avoid stale code.
+- **Installed asset paths** for mouse/device visuals and AI icons in installer + settings image loader.
+- **Hyprland menu positioning/runtime behavior** refreshes monitor and cursor data on show for stable popup at cursor.
+
 ## [0.2.6] - 2026-02-13
 
 ### Fixed
@@ -111,6 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for MX Master 4, MX Master 3S, and MX Master 3
 
 [0.2.6]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.5...v0.2.6
+[0.2.7]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.6...v0.2.7
 [0.2.5]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.2...v0.2.3

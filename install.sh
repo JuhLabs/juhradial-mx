@@ -358,6 +358,15 @@ install_files() {
     sudo mkdir -p /usr/share/juhradial/assets/radial-wheels
     sudo cp -r assets/radial-wheels/*.png /usr/share/juhradial/assets/radial-wheels/
 
+    # Install device images (mouse illustrations for settings)
+    if [ -d assets/devices ]; then
+        sudo mkdir -p /usr/share/juhradial/assets/devices
+        sudo cp assets/devices/*.png assets/devices/*.svg /usr/share/juhradial/assets/devices/ 2>/dev/null || true
+    fi
+
+    # Install AI assistant icons
+    sudo cp assets/ai-*.svg /usr/share/juhradial/assets/ 2>/dev/null || true
+
     # Install launcher scripts
     sudo install -Dm755 juhradial-mx.sh "$BIN_DIR/juhradial-mx"
     sudo install -Dm755 juhradial-settings.sh "$BIN_DIR/juhradial-settings"

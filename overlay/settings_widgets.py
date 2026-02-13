@@ -73,9 +73,9 @@ class MouseVisualization(Gtk.DrawingArea):
 
         # Load mouse image
         image_paths = [
-            os.path.join(os.path.dirname(__file__), '../assets/devices/logitechmouse.png'),
-            os.path.join(os.path.dirname(__file__), 'assets/devices/logitechmouse.png'),
-            '/usr/share/juhradialmx/devices/logitechmouse.png',
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), '../assets/devices/logitechmouse.png'),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets/devices/logitechmouse.png'),
+            '/usr/share/juhradial/assets/devices/logitechmouse.png',
         ]
 
         self._cached_pixbuf = None  # Cache pixbuf conversion (expensive)

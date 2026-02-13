@@ -371,7 +371,7 @@ def load_actions_from_config():
                 return DEFAULT_ACTIONS
 
             settings_constants._ = _
-            settings_constants.refresh_translations()
+            settings_constants.refresh_translations(_)
 
             actions = []
             for i, slice_data in enumerate(slices):
