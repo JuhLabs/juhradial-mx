@@ -113,7 +113,8 @@ def _hyprland_ipc(command: bytes) -> str:
             try:
                 sock.close()
             except OSError:
-                pass
+                # Socket cleanup failure is non-fatal during IPC fallback.
+                sock = None
 
 
 def _refresh_monitors():
@@ -184,7 +185,8 @@ def get_cursor_position_hyprland():
         if len(parts) >= 2:
             return (int(parts[0].strip()), int(parts[1].strip()))
     except (OSError, ValueError):
-        pass
+        # IPC can fail transiently; subprocess fallback below handles it.
+        response = ""
 
     # Fallback to subprocess
     try:
@@ -196,7 +198,8 @@ def get_cursor_position_hyprland():
             if len(parts) >= 2:
                 return (int(parts[0].strip()), int(parts[1].strip()))
     except (FileNotFoundError, subprocess.SubprocessError, ValueError):
-        pass
+        # hyprctl may be unavailable or return unparsable output.
+        result = None
 
     return None
 

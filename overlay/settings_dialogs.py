@@ -54,7 +54,7 @@ class ButtonConfigDialog(Adw.Window):
 
         cancel_btn = Gtk.Button(label=_("Cancel"))
         cancel_btn.add_css_class("flat")
-        cancel_btn.connect("clicked", lambda _: self.close())
+        cancel_btn.connect("clicked", lambda _btn: self.close())
         header.pack_start(cancel_btn)
 
         save_btn = Gtk.Button(label=_("Save"))
@@ -263,12 +263,22 @@ class RadialMenuConfigDialog(Adw.Window):
 
             # Action dropdown
             dropdown = Gtk.DropDown()
-            action_names = [name for _, name, _, _, _, _ in RADIAL_ACTIONS]
+            action_names = [
+                name
+                for _action_id, name, _icon, _action_type, _command, _color in RADIAL_ACTIONS
+            ]
             dropdown.set_model(Gtk.StringList.new(action_names))
 
             selected_index = -1
             if current_action_id:
-                for idx, (action_id, _, _, _, _, _) in enumerate(RADIAL_ACTIONS):
+                for idx, (
+                    action_id,
+                    _name,
+                    _icon,
+                    _action_type,
+                    _command,
+                    _color,
+                ) in enumerate(RADIAL_ACTIONS):
                     if action_id == current_action_id:
                         selected_index = idx
                         break
@@ -1333,7 +1343,10 @@ class AppProfileSlicesDialog(Adw.Window):
             row.append(label)
 
             dropdown = Gtk.DropDown()
-            action_names = [name for _, name, _, _, _, _ in RADIAL_ACTIONS]
+            action_names = [
+                name
+                for _action_id, name, _icon, _action_type, _command, _color in RADIAL_ACTIONS
+            ]
             dropdown.set_model(Gtk.StringList.new(action_names))
 
             current_slice = (
@@ -1344,7 +1357,14 @@ class AppProfileSlicesDialog(Adw.Window):
 
             selected_index = -1
             if current_action_id:
-                for idx, (action_id, _, _, _, _, _) in enumerate(RADIAL_ACTIONS):
+                for idx, (
+                    action_id,
+                    _name,
+                    _icon,
+                    _action_type,
+                    _command,
+                    _color,
+                ) in enumerate(RADIAL_ACTIONS):
                     if action_id == current_action_id:
                         selected_index = idx
                         break
