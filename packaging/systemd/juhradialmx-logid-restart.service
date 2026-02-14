@@ -1,0 +1,16 @@
+# JuhRadial MX - Restart logid on Logitech device reconnect
+#
+# Triggered by udev when a Logitech HID device appears (e.g. mouse
+# switching back via Easy-Switch). logid only scans for devices at
+# startup, so it must be restarted to pick up newly connected mice.
+#
+# A 2-second delay avoids restarting logid multiple times when the
+# Bolt receiver enumerates several sub-devices in quick succession.
+
+[Unit]
+Description=Restart logid for JuhRadial MX device detection
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 2
+ExecStart=/bin/systemctl restart logid.service
