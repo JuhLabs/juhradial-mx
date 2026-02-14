@@ -393,6 +393,14 @@ install_files() {
         log_success "udev rules installed"
     fi
 
+    # Install logid auto-restart service (triggered by udev on device reconnect)
+    if [ -f packaging/systemd/juhradialmx-logid-restart.service ]; then
+        log_info "Installing logid auto-restart service..."
+        sudo install -Dm644 packaging/systemd/juhradialmx-logid-restart.service /etc/systemd/system/
+        sudo systemctl daemon-reload
+        log_success "logid auto-restart service installed"
+    fi
+
     # Create config directory
     mkdir -p "$CONFIG_DIR"
 

@@ -7,7 +7,7 @@
   <img src="assets/github/githubheader.png" width="100%" alt="JuhRadial MX Banner">
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.2.7-cyan.svg" alt="Version 0.2.7">
+      <img src="https://img.shields.io/badge/version-0.2.8-cyan.svg" alt="Version 0.2.8">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
@@ -21,7 +21,7 @@
   </p>
 
   <p>
-    <strong>✨ <a href="CHANGELOG.md">v0.2.7</a></strong> - Hyprland/runtime fixes, translated radial labels, and new application profile grid editing. <a href="#installation">Update now</a>. If you hit issues, please report them on <a href="https://github.com/JuhLabs/juhradial-mx/issues">GitHub</a>.
+    <strong>✨ <a href="CHANGELOG.md">v0.2.8</a></strong> - Auto-restart logid on Easy-Switch reconnect so the radial menu always works. <a href="#installation">Update now</a>. If you hit issues, please report them on <a href="https://github.com/JuhLabs/juhradial-mx/issues">GitHub</a>.
   </p>
 </div>
 
@@ -223,7 +223,7 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 |---------|----------|
 | Menu doesn't appear | Check logid: `sudo systemctl status logid` |
 | Wrong cursor position | Ensure you're on Wayland, not X11 |
-| Mouse not detected | Restart logid: `sudo systemctl restart logid` |
+| Mouse not detected | Should auto-recover (udev restarts logid). Manual fix: `sudo systemctl restart logid` |
 | Build fails | Install dev packages: `hidapi-devel`, `dbus-devel` |
 | Hyprland: Menu hidden | Add window rules from Hyprland Setup section above |
 | Hyprland: Cursor not found | Ensure `hyprctl cursorpos` works in terminal |

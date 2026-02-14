@@ -93,6 +93,15 @@
   </keywords>
 
   <releases>
+    <release version="0.2.8" date="2026-02-14">
+      <description>
+        <p>Automatic logid restart on Easy-Switch device reconnect</p>
+        <ul>
+          <li>Added udev rule and systemd service to auto-restart logid when a Logitech mouse reconnects after Easy-Switch</li>
+          <li>Fixes radial menu not appearing after switching mouse between computers</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.5" date="2026-02-11">
       <description>
         <p>Radial wheel polish, translations, and performance improvements</p>
