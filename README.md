@@ -38,7 +38,7 @@
 > **New in [v0.2.9](CHANGELOG.md):** GNOME Wayland & COSMIC desktop support, multi-monitor HiDPI fixes, 7-level cursor fallback chain. [Update now](#installation).
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## Screenshots
@@ -75,7 +75,7 @@
 </div>
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## Features
@@ -116,7 +116,7 @@
 </table>
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## Supported Platforms
@@ -154,7 +154,7 @@
 </div>
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## Installation
@@ -224,7 +224,7 @@ sudo systemctl enable --now logid
 </details>
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## Usage
@@ -251,7 +251,7 @@ sudo systemctl enable --now logid
 </div>
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## Configuration
@@ -281,7 +281,7 @@ sed -i "s|Exec=.*|Exec=$(pwd)/juhradial-mx.sh|" ~/.config/autostart/juhradial-mx
 ```
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## Hyprland Setup
@@ -308,7 +308,7 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 </details>
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## Troubleshooting
@@ -333,7 +333,7 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 </details>
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## How It Works
@@ -370,7 +370,7 @@ juhradial-mx/
 ```
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## Contributing
@@ -388,7 +388,7 @@ GNU General Public License v3.0 — see [LICENSE](LICENSE)
 - [Catppuccin](https://github.com/catppuccin/catppuccin) — Beautiful color scheme
 
 <div align="center">
-  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+  <img src="assets/github/divider.png" width="80%" alt="">
 </div>
 
 ## Star History
