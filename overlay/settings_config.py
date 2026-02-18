@@ -45,6 +45,8 @@ class ConfigManager:
             "slice_debounce_ms": 20,
             "reentry_debounce_ms": 50,
         },
+        "desktop_environment": "auto",
+        "de_defaults_applied": False,
         "language": "system",
         "theme": "catppuccin-mocha",
         "blur_enabled": True,
@@ -141,16 +143,50 @@ class ConfigManager:
             self._toast_callback(message)
 
     def _load(self) -> dict:
-        """Load config from file or return defaults"""
+        """Load config from file or return defaults.
+
+        On first run (de_defaults_applied is False), auto-detects the
+        desktop environment and applies DE-appropriate commands to
+        radial menu slices.
+        """
         try:
             if self.CONFIG_FILE.exists():
                 with open(self.CONFIG_FILE, "r", encoding="utf-8") as f:
                     loaded = json.load(f)
                 # Merge with defaults to ensure all keys exist
-                return self._merge_defaults(loaded)
+                config = self._merge_defaults(loaded)
+            else:
+                config = json.loads(json.dumps(self.DEFAULT_CONFIG))
         except Exception as e:
             print(f"Error loading config: {e}")
-        return self.DEFAULT_CONFIG.copy()
+            config = json.loads(json.dumps(self.DEFAULT_CONFIG))
+
+        # Auto-apply DE defaults on first run
+        if not config.get("de_defaults_applied", False):
+            from settings_constants import (
+                detect_desktop_environment,
+                apply_de_defaults_to_slices,
+            )
+
+            de_key = detect_desktop_environment()
+            slices = config.get("radial_menu", {}).get("slices", [])
+            if slices:
+                apply_de_defaults_to_slices(slices, de_key)
+                config["radial_menu"]["slices"] = slices
+            config["de_defaults_applied"] = True
+            print(f"Auto-applied DE defaults for: {de_key}")
+
+            # Save immediately so the flag persists
+            try:
+                self.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+                temp_path = self.CONFIG_FILE.with_suffix(".json.tmp")
+                with open(temp_path, "w", encoding="utf-8") as f:
+                    json.dump(config, f, indent=2)
+                os.replace(temp_path, self.CONFIG_FILE)
+            except Exception as e:
+                print(f"Error saving auto-detected DE defaults: {e}")
+
+        return config
 
     def reload(self):
         """Reload config from disk - useful when settings window reopens"""
@@ -213,12 +249,13 @@ class ConfigManager:
 
         script_path = Path(__file__).parent.parent / "scripts" / "apply-settings.sh"
         if script_path.exists() and not script_path.is_symlink():
-            # Run in konsole for sudo password prompt
             # Use shlex.quote to prevent command injection
             safe_path = shlex.quote(str(script_path))
+            terminal = detect_terminal()
+            # Build terminal command with -e flag (common across terminal emulators)
             subprocess.Popen(
                 [
-                    "konsole",
+                    terminal,
                     "-e",
                     "bash",
                     "-c",
@@ -281,6 +318,28 @@ def disable_scroll_on_scale(scale):
     # Handler that consumes the scroll event (prevents it from reaching Scale)
     scroll_controller.connect("scroll", lambda controller, dx, dy: True)
     scale.add_controller(scroll_controller)
+
+
+def detect_terminal():
+    """Detect available terminal emulator with a fallback chain.
+
+    Returns the first terminal found from the preferred list.
+    """
+    import shutil
+
+    terminals = [
+        "cosmic-term",
+        "konsole",
+        "gnome-terminal",
+        "kgx",
+        "kitty",
+        "alacritty",
+        "xterm",
+    ]
+    for term in terminals:
+        if shutil.which(term):
+            return term
+    return "xterm"  # Last resort fallback
 
 
 def detect_logitech_mouse():

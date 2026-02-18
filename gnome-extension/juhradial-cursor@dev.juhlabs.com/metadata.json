@@ -1,0 +1,8 @@
+{
+    "uuid": "juhradial-cursor@dev.juhlabs.com",
+    "name": "JuhRadial Cursor Helper",
+    "description": "Exposes cursor position via D-Bus for JuhRadial MX radial menu",
+    "shell-version": ["45", "46", "47", "48", "49"],
+    "url": "https://github.com/JuhLabs/juhradial-mx",
+    "version": 1
+}

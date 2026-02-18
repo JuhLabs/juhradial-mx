@@ -26,7 +26,11 @@ from settings_constants import (
     BUTTON_ACTIONS,
     RADIAL_ACTIONS,
     find_radial_action_index,
+    DE_COMMAND_MAP,
+    detect_desktop_environment,
+    get_de_key,
 )
+from settings_config import detect_terminal
 from settings_widgets import SettingsCard
 
 
@@ -396,6 +400,15 @@ class SliceConfigDialog(Adw.Window):
             ("emoji", _("Emoji Picker"), _("Show emoji picker")),
             ("submenu", _("Submenu"), _("Show a submenu with more options")),
         ]
+        # Resolve DE-appropriate commands for preset buttons
+        de_key = get_de_key(config.get("desktop_environment", default="auto"))
+        de_cmds = DE_COMMAND_MAP.get(de_key, DE_COMMAND_MAP.get("generic", {}))
+        screenshot_cmd = de_cmds.get("screenshot", ("exec", "flameshot gui"))
+        files_cmd = de_cmds.get("files", ("exec", "xdg-open ~"))
+        note_cmd = de_cmds.get("new_note", ("exec", "xdg-open"))
+        emoji_cmd = de_cmds.get("emoji", ("exec", "ibus emoji"))
+        terminal_cmd = detect_terminal()
+
         self.PRESET_ACTIONS = [
             (
                 _("Play/Pause"),
@@ -439,14 +452,7 @@ class SliceConfigDialog(Adw.Window):
                 "blue",
                 "audio-volume-muted-symbolic",
             ),
-            (_("Screenshot"), "exec", "spectacle", "blue", "camera-photo-symbolic"),
-            (
-                _("Screenshot Area"),
-                "exec",
-                "spectacle -r",
-                "blue",
-                "camera-photo-symbolic",
-            ),
+            (_("Screenshot"), screenshot_cmd[0], screenshot_cmd[1], "blue", "camera-photo-symbolic"),
             (
                 _("Lock Screen"),
                 "exec",
@@ -454,19 +460,12 @@ class SliceConfigDialog(Adw.Window):
                 "red",
                 "system-lock-screen-symbolic",
             ),
-            (_("Files"), "exec", "dolphin", "sapphire", "folder-symbolic"),
-            (_("Terminal"), "exec", "konsole", "teal", "utilities-terminal-symbolic"),
+            (_("Files"), files_cmd[0], files_cmd[1], "sapphire", "folder-symbolic"),
+            (_("Terminal"), "exec", terminal_cmd, "teal", "utilities-terminal-symbolic"),
             (_("Browser"), "exec", "xdg-open https://", "blue", "web-browser-symbolic"),
-            (_("New Note"), "exec", "kwrite", "yellow", "document-new-symbolic"),
-            (
-                _("Calculator"),
-                "exec",
-                "kcalc",
-                "mauve",
-                "accessories-calculator-symbolic",
-            ),
+            (_("New Note"), note_cmd[0], note_cmd[1], "yellow", "document-new-symbolic"),
+            (_("Emoji Picker"), emoji_cmd[0], emoji_cmd[1], "pink", "face-smile-symbolic"),
             (_("Settings"), "settings", "", "mauve", "emblem-system-symbolic"),
-            (_("Emoji Picker"), "emoji", "", "pink", "face-smile-symbolic"),
         ]
         self.set_transient_for(parent)
         self.set_modal(True)
