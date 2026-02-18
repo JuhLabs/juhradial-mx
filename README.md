@@ -3,7 +3,7 @@
   <h1>JuhRadial MX</h1>
   <p><strong>Beautiful radial menu for Logitech MX Master mice on Linux</strong></p>
   <p>A Logi Options+ inspired experience — works on GNOME, KDE Plasma, Hyprland, COSMIC & more</p>
-  <img src="assets/github/githubheader.png" width="100%" alt="JuhRadial MX Banner">
+
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
       <img src="https://img.shields.io/badge/version-0.2.9-cyan.svg" alt="Version 0.2.9">
@@ -20,14 +20,26 @@
     <a href="https://github.com/JuhLabs/juhradial-mx/stargazers">
       <img src="https://img.shields.io/github/stars/JuhLabs/juhradial-mx?style=flat&color=yellow" alt="GitHub Stars">
     </a>
-  </p>
-
-  <p>
-    <strong>New in <a href="CHANGELOG.md">v0.2.9</a>:</strong> GNOME Wayland & COSMIC support, multi-monitor HiDPI fixes, 7-level cursor fallback chain. <a href="#installation">Update now</a>.
+    <a href="https://github.com/JuhLabs/juhradial-mx/issues">
+      <img src="https://img.shields.io/github/issues/JuhLabs/juhradial-mx?color=green" alt="Open Issues">
+    </a>
   </p>
 </div>
 
----
+<br>
+
+<div align="center">
+  <img src="assets/github/githubheader.png" width="100%" alt="JuhRadial MX Banner">
+</div>
+
+<br>
+
+> [!TIP]
+> **New in [v0.2.9](CHANGELOG.md):** GNOME Wayland & COSMIC desktop support, multi-monitor HiDPI fixes, 7-level cursor fallback chain. [Update now](#installation).
+
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
 
 ## Screenshots
 
@@ -62,82 +74,100 @@
   </table>
 </div>
 
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
+
 ## Features
-
-- **Radial Menu** - Beautiful overlay triggered by gesture button (hold or tap)
-- **AI Quick Access** - Submenu with Claude, ChatGPT, Gemini, and Perplexity
-- **Multiple Themes** - JuhRadial MX, Catppuccin, Nord, Dracula, and light themes
-- **Settings Dashboard** - Modern GTK4/Adwaita settings app with Actions Ring configuration
-- **Easy-Switch** - Quick host switching with real-time paired device names via HID++
-- **Flow** - Multi-computer control with clipboard sync (inspired by Logi Options+ Flow)
-- **Battery Monitoring** - Real-time battery status with instant charging detection via HID++
-- **DPI Control** - Visual DPI adjustment (400-8000 DPI)
-- **Native Wayland** - Full support for GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway & more
-- **Multi-Monitor** - Correct cursor positioning across 1-4+ monitors with HiDPI scaling
-
-## Supported Platforms
 
 <table>
   <tr>
-    <th>Desktop Environment</th>
-    <th>Cursor Detection</th>
-    <th>Status</th>
+    <td width="50%">
+      <h3><img src="assets/github/radial-icon.png" width="24" alt=""> Radial Menu</h3>
+      Beautiful overlay triggered by gesture button — hold to drag-select or tap to keep open. Fully configurable 8-segment wheel with smooth animations.
+    </td>
+    <td width="50%">
+      <h3><img src="assets/github/icon-bolt.png" width="24" alt=""> AI Quick Access</h3>
+      Submenu with Claude, ChatGPT, Gemini, and Perplexity. Launch your favorite AI assistant with a single gesture.
+    </td>
   </tr>
   <tr>
-    <td><strong>GNOME</strong> (Ubuntu, Fedora, Pop!_OS)</td>
-    <td>Shell extension D-Bus</td>
-    <td>Fully supported</td>
+    <td>
+      <h3><img src="assets/github/icon-gear.png" width="24" alt=""> Settings Dashboard</h3>
+      Modern GTK4/Adwaita settings app with Actions Ring configuration, theme picker, DPI control, and Easy-Switch device management.
+    </td>
+    <td>
+      <h3><img src="assets/github/mouse-icon.png" width="24" alt=""> Multi-Device</h3>
+      Easy-Switch host switching with real-time paired device names via HID++. Auto-restarts on device reconnect.
+    </td>
   </tr>
   <tr>
-    <td><strong>KDE Plasma 6</strong></td>
-    <td>KWin scripting / D-Bus</td>
-    <td>Fully supported</td>
-  </tr>
-  <tr>
-    <td><strong>Hyprland</strong></td>
-    <td>IPC socket</td>
-    <td>Fully supported</td>
-  </tr>
-  <tr>
-    <td><strong>COSMIC</strong> (Fedora, Pop!_OS)</td>
-    <td>XWayland sync</td>
-    <td>Fully supported</td>
-  </tr>
-  <tr>
-    <td><strong>Sway / wlroots</strong></td>
-    <td>XWayland fallback</td>
-    <td>Supported</td>
-  </tr>
-  <tr>
-    <td><strong>X11</strong> (any DE)</td>
-    <td>xdotool</td>
-    <td>Supported</td>
+    <td>
+      <strong>Multiple Themes</strong> — JuhRadial MX, Catppuccin, Nord, Dracula, Solarized, and more<br>
+      <strong>Flow</strong> — Multi-computer control with clipboard sync<br>
+      <strong>Battery Monitoring</strong> — Real-time status with instant charging detection via HID++
+    </td>
+    <td>
+      <strong>DPI Control</strong> — Visual DPI adjustment (400-8000 DPI)<br>
+      <strong>Native Wayland</strong> — GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway & more<br>
+      <strong>Multi-Monitor</strong> — Correct cursor positioning across 1-4+ monitors with HiDPI
+    </td>
   </tr>
 </table>
 
-**Distros:** Fedora, Ubuntu/Debian, Arch/Manjaro, openSUSE, and derivatives. The installer auto-detects your distro and package manager.
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
+
+## Supported Platforms
+
+<div align="center">
+
+| Desktop Environment | Cursor Detection | Status |
+|:---:|:---:|:---:|
+| **GNOME** (Ubuntu, Fedora, Pop!_OS) | Shell extension D-Bus | **Fully supported** |
+| **KDE Plasma 6** | KWin scripting / D-Bus | **Fully supported** |
+| **Hyprland** | IPC socket | **Fully supported** |
+| **COSMIC** (Fedora, Pop!_OS) | XWayland sync | **Fully supported** |
+| **Sway / wlroots** | XWayland fallback | Supported |
+| **X11** (any DE) | xdotool | Supported |
+
+</div>
+
+> **Distros:** Fedora, Ubuntu/Debian, Arch/Manjaro, openSUSE, and derivatives. The installer auto-detects your distro and package manager.
 
 ## Supported Devices
 
-| Device | Status |
-|--------|--------|
-| Logitech MX Master 4 | Fully supported |
-| Logitech MX Master 3S | Fully supported |
-| Logitech MX Master 3 | Fully supported |
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="200">
+        <img src="assets/github/mouse-icon.png" width="80" alt="MX Master">
+      </td>
+      <td>
+        <strong>Logitech MX Master 4</strong> — Fully supported<br>
+        <strong>Logitech MX Master 3S</strong> — Fully supported<br>
+        <strong>Logitech MX Master 3</strong> — Fully supported
+      </td>
+    </tr>
+  </table>
+</div>
 
----
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
 
 ## Installation
 
-### One-Line Install (Recommended)
+> [!IMPORTANT]
+> **One-Line Install (Recommended)** — Detects your distro, installs dependencies, builds from source, and configures everything.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash
 ```
 
-This script will detect your distro, install dependencies, build from source, and configure everything.
-
-### Manual Install - Fedora
+<details>
+<summary><strong>Manual Install — Fedora</strong></summary>
 
 ```bash
 # 1. Install dependencies
@@ -157,7 +187,10 @@ sudo systemctl enable --now logid
 ./juhradial-mx.sh
 ```
 
-### Manual Install - Arch Linux
+</details>
+
+<details>
+<summary><strong>Manual Install — Arch Linux</strong></summary>
 
 ```bash
 # 1. Install dependencies
@@ -177,7 +210,10 @@ sudo systemctl enable --now logid
 ./juhradial-mx.sh
 ```
 
-### Requirements
+</details>
+
+<details>
+<summary><strong>Requirements</strong></summary>
 
 - **Wayland compositor** (GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway) or **X11**
 - **logiops** (logid) for button mapping
@@ -185,7 +221,11 @@ sudo systemctl enable --now logid
 - **Python 3** with PyQt6 and GTK4/Adwaita
 - **XWayland** (for overlay window positioning on Wayland)
 
----
+</details>
+
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
 
 ## Usage
 
@@ -195,8 +235,10 @@ sudo systemctl enable --now logid
 
 ### Default Actions (clockwise from top)
 
+<div align="center">
+
 | Position | Action |
-|----------|--------|
+|:---:|:---:|
 | Top | Play/Pause |
 | Top-Right | New Note |
 | Right | Lock Screen |
@@ -206,17 +248,11 @@ sudo systemctl enable --now logid
 | Left | Files |
 | Top-Left | AI (submenu) |
 
----
+</div>
 
-## Autostart
-
-```bash
-# Add to KDE autostart
-cp juhradial-mx.desktop ~/.config/autostart/
-sed -i "s|Exec=.*|Exec=$(pwd)/juhradial-mx.sh|" ~/.config/autostart/juhradial-mx.desktop
-```
-
----
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
 
 ## Configuration
 
@@ -225,21 +261,37 @@ Configuration is stored in `~/.config/juhradial/config.json`.
 ### Themes
 
 Open Settings and select a theme:
-- **JuhRadial MX** (default) - Premium dark theme with vibrant cyan accents
-- Catppuccin Mocha - Soothing pastel theme with lavender accents
-- Catppuccin Latte - Light pastel theme
-- Nord - Arctic, north-bluish palette
-- Dracula - Dark theme with vibrant colors
-- Solarized Light - Precision colors for machines and people
-- GitHub Light - Clean light theme
 
----
+| Theme | Description |
+|-------|-------------|
+| **JuhRadial MX** (default) | Premium dark theme with vibrant cyan accents |
+| Catppuccin Mocha | Soothing pastel theme with lavender accents |
+| Catppuccin Latte | Light pastel theme |
+| Nord | Arctic, north-bluish palette |
+| Dracula | Dark theme with vibrant colors |
+| Solarized Light | Precision colors for machines and people |
+| GitHub Light | Clean light theme |
+
+### Autostart
+
+```bash
+# Add to KDE autostart
+cp juhradial-mx.desktop ~/.config/autostart/
+sed -i "s|Exec=.*|Exec=$(pwd)/juhradial-mx.sh|" ~/.config/autostart/juhradial-mx.desktop
+```
+
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
 
 ## Hyprland Setup
 
 **Automatic:** The installer detects Hyprland and configures window rules automatically.
 
-**Manual:** If needed, add these rules to your `hyprland.conf` or `custom/rules.conf`:
+<details>
+<summary><strong>Manual Setup</strong></summary>
+
+Add these rules to your `hyprland.conf` or `custom/rules.conf`:
 
 ```conf
 # JuhRadial MX overlay window rules
@@ -253,7 +305,11 @@ windowrulev2 = noanim, title:^(JuhRadial MX)$
 
 These rules ensure the radial menu overlay appears correctly on all workspaces without animations or decorations.
 
----
+</details>
+
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
 
 ## Troubleshooting
 
@@ -266,14 +322,35 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 | Hyprland: Menu hidden | Add window rules from Hyprland Setup section above |
 | GNOME: Extension not loading | Requires session restart (log out/in) on Wayland |
 
-### Debug Mode
+<details>
+<summary><strong>Debug Mode</strong></summary>
 
 ```bash
 # Run daemon with verbose output
 ./daemon/target/release/juhradiald --verbose
 ```
 
----
+</details>
+
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
+
+## How It Works
+
+```
+┌──────────────┐     D-Bus      ┌──────────────────┐    PyQt6     ┌──────────────┐
+│  Logitech MX │ ──── logid ──→ │  juhradiald       │ ──────────→ │  Radial Menu │
+│  Master      │   (F19 key)    │  (Rust daemon)    │  overlay    │  (8 segments)│
+└──────────────┘                │                    │             └──────────────┘
+                                │  Cursor Detection: │
+                                │  Hyprland IPC      │             ┌──────────────┐
+                                │  KWin D-Bus        │ ──────────→ │  Settings    │
+                                │  GNOME Extension   │   GTK4      │  (Adwaita)   │
+                                │  XWayland          │             └──────────────┘
+                                │  xdotool           │
+                                └──────────────────┘
+```
 
 ## Project Structure
 
@@ -292,33 +369,27 @@ juhradial-mx/
 └── packaging/           # logid.cfg, systemd, udev rules
 ```
 
----
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
 
 ## Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
----
-
 ## License
 
-GNU General Public License v3.0 - see [LICENSE](LICENSE)
-
----
+GNU General Public License v3.0 — see [LICENSE](LICENSE)
 
 ## Acknowledgments
 
-- [logiops](https://github.com/PixlOne/logiops) - Logitech device configuration
-- [logitech-flow-kvm](https://github.com/coddingtonbear/logitech-flow-kvm) by Adam Coddington - Flow multi-computer control inspiration
-- [Catppuccin](https://github.com/catppuccin/catppuccin) - Beautiful color scheme
+- [logiops](https://github.com/PixlOne/logiops) — Logitech device configuration
+- [logitech-flow-kvm](https://github.com/coddingtonbear/logitech-flow-kvm) by Adam Coddington — Flow multi-computer control inspiration
+- [Catppuccin](https://github.com/catppuccin/catppuccin) — Beautiful color scheme
 
----
-
-## Disclaimer
-
-This project is **not affiliated with, endorsed by, or associated with Logitech** in any way. "Logitech", "MX Master", "Logi Options+", and related names are trademarks of Logitech International S.A. This is an independent, open-source project created by the community for the community.
-
----
+<div align="center">
+  <img src="assets/github/divider-circuit.png" width="80%" alt="">
+</div>
 
 ## Star History
 
@@ -334,12 +405,18 @@ This project is **not affiliated with, endorsed by, or associated with Logitech*
 
 > If you find JuhRadial MX useful, consider giving it a star — it helps others discover the project!
 
----
+<br>
+
+## Disclaimer
+
+This project is **not affiliated with, endorsed by, or associated with Logitech** in any way. "Logitech", "MX Master", "Logi Options+", and related names are trademarks of Logitech International S.A. This is an independent, open-source project created by the community for the community.
+
+<br>
 
 <div align="center">
-
-**Made with love by [JuhLabs](https://github.com/JuhLabs)**
-
-[Report Bug](https://github.com/JuhLabs/juhradial-mx/issues) · [Request Feature](https://github.com/JuhLabs/juhradial-mx/issues) · [Discussions](https://github.com/JuhLabs/juhradial-mx/discussions)
-
+  <img src="assets/github/radial-icon.png" width="48" alt="">
+  <br><br>
+  <strong>Made with love by <a href="https://github.com/JuhLabs">JuhLabs</a></strong>
+  <br><br>
+  <a href="https://github.com/JuhLabs/juhradial-mx/issues">Report Bug</a> · <a href="https://github.com/JuhLabs/juhradial-mx/issues">Request Feature</a> · <a href="https://github.com/JuhLabs/juhradial-mx/discussions">Discussions</a>
 </div>
