@@ -83,7 +83,7 @@
 <table>
   <tr>
     <td width="50%">
-      <h3><img src="assets/github/radial-icon.png" width="24" alt=""> Radial Menu</h3>
+      <h3><img src="assets/github/radial.png" width="24" alt=""> Radial Menu</h3>
       Beautiful overlay triggered by gesture button — hold to drag-select or tap to keep open. Fully configurable 8-segment wheel with smooth animations.
     </td>
     <td width="50%">
@@ -414,7 +414,7 @@ This project is **not affiliated with, endorsed by, or associated with Logitech*
 <br>
 
 <div align="center">
-  <img src="assets/github/radial-icon.png" width="48" alt="">
+  <img src="assets/github/radial.png" width="48" alt="">
   <br><br>
   <strong>Made with love by <a href="https://github.com/JuhLabs">JuhLabs</a></strong>
   <br><br>
