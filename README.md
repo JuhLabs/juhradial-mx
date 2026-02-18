@@ -87,17 +87,17 @@
       Beautiful overlay triggered by gesture button — hold to drag-select or tap to keep open. Fully configurable 8-segment wheel with smooth animations.
     </td>
     <td width="50%">
-      <h3><img src="assets/github/icon-bolt.png" width="24" alt=""> AI Quick Access</h3>
+      <h3><img src="assets/github/bolt.png" width="24" alt=""> AI Quick Access</h3>
       Submenu with Claude, ChatGPT, Gemini, and Perplexity. Launch your favorite AI assistant with a single gesture.
     </td>
   </tr>
   <tr>
     <td>
-      <h3><img src="assets/github/icon-gear.png" width="24" alt=""> Settings Dashboard</h3>
+      <h3><img src="assets/github/gear.png" width="24" alt=""> Settings Dashboard</h3>
       Modern GTK4/Adwaita settings app with Actions Ring configuration, theme picker, DPI control, and Easy-Switch device management.
     </td>
     <td>
-      <h3><img src="assets/github/mouse-icon.png" width="24" alt=""> Multi-Device</h3>
+      <h3><img src="assets/github/mouse.png" width="24" alt=""> Multi-Device</h3>
       Easy-Switch host switching with real-time paired device names via HID++. Auto-restarts on device reconnect.
     </td>
   </tr>
@@ -142,7 +142,7 @@
   <table>
     <tr>
       <td align="center" width="200">
-        <img src="assets/github/mouse-icon.png" width="80" alt="MX Master">
+        <img src="assets/github/mouse.png" width="80" alt="MX Master">
       </td>
       <td>
         <strong>Logitech MX Master 4</strong> — Fully supported<br>
