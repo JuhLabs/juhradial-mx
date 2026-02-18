@@ -204,6 +204,85 @@ _BASE_RADIAL_ACTIONS = [
 ]
 
 
+# =============================================================================
+# DESKTOP ENVIRONMENT COMMAND MAPPINGS
+# Maps action_id -> command for each supported DE
+# =============================================================================
+SUPPORTED_DES = [
+    ("auto", "Auto-detect"),
+    ("kde", "KDE Plasma"),
+    ("gnome", "GNOME"),
+    ("cosmic", "COSMIC"),
+    ("generic", "Generic / Other"),
+]
+
+DE_COMMAND_MAP = {
+    "kde": {
+        "screenshot": ("exec", "spectacle"),
+        "files": ("exec", "dolphin"),
+        "new_note": ("exec", "kwrite"),
+        "emoji": ("emoji", ""),
+        "lock": ("exec", "loginctl lock-session"),
+    },
+    "gnome": {
+        "screenshot": ("exec", "gnome-screenshot --interactive"),
+        "files": ("exec", "nautilus"),
+        "new_note": ("exec", "gnome-text-editor"),
+        "emoji": ("exec", "gnome-characters"),
+        "lock": ("exec", "loginctl lock-session"),
+    },
+    "cosmic": {
+        "screenshot": ("exec", "cosmic-screenshot"),
+        "files": ("exec", "cosmic-files"),
+        "new_note": ("exec", "cosmic-edit"),
+        "emoji": ("exec", "gnome-characters"),
+        "lock": ("exec", "loginctl lock-session"),
+    },
+    "generic": {
+        "screenshot": ("exec", "flameshot gui"),
+        "files": ("exec", "xdg-open ~"),
+        "new_note": ("exec", "xdg-open"),
+        "emoji": ("exec", "ibus emoji"),
+        "lock": ("exec", "loginctl lock-session"),
+    },
+}
+
+
+def apply_de_defaults_to_slices(slices, de_key):
+    """Update slice commands based on the detected desktop environment.
+
+    Modifies slices in-place. Only updates action_ids that have an entry
+    in DE_COMMAND_MAP for the given de_key.
+    """
+    commands = DE_COMMAND_MAP.get(de_key, DE_COMMAND_MAP.get("generic", {}))
+    for slice_data in slices:
+        action_id = slice_data.get("action_id", "")
+        if action_id in commands:
+            new_type, new_cmd = commands[action_id]
+            slice_data["type"] = new_type
+            slice_data["command"] = new_cmd
+
+
+def detect_desktop_environment():
+    """Auto-detect current desktop environment from XDG_CURRENT_DESKTOP."""
+    import os
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+    if "COSMIC" in desktop:
+        return "cosmic"
+    if "KDE" in desktop or "PLASMA" in desktop:
+        return "kde"
+    if "GNOME" in desktop:
+        return "gnome"
+    return "generic"
+
+
+def get_de_key(configured_de):
+    """Resolve 'auto' to actual DE, or return configured value."""
+    if configured_de == "auto":
+        return detect_desktop_environment()
+    return configured_de
+
+
 MOUSE_BUTTONS = {}
 NAV_ITEMS = []
 DEFAULT_BUTTON_ACTIONS = {}

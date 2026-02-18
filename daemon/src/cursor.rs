@@ -73,8 +73,10 @@ impl CursorPosition {
 /// 1. Hyprland (wlroots-based Wayland) - via hyprctl
 /// 2. KWin scripting (Wayland) - most accurate for Plasma 6 Wayland multi-monitor
 /// 3. KWin D-Bus API (older Plasma versions)
-/// 4. xdotool fallback (X11)
-/// 5. Returns (0, 0) if all methods fail
+/// 4. GNOME Shell extension D-Bus (GNOME Wayland)
+/// 5. XWayland XQueryPointer (any Wayland compositor with XWayland)
+/// 6. xdotool fallback (X11)
+/// 7. Screen center fallback (ensures menu is always visible)
 pub fn get_cursor_position() -> CursorPosition {
     // Try Hyprland first (wlroots-based Wayland compositor)
     if let Some(pos) = get_cursor_via_hyprland() {
@@ -91,14 +93,29 @@ pub fn get_cursor_position() -> CursorPosition {
         return pos;
     }
 
+    // Try GNOME Shell extension D-Bus (GNOME Wayland)
+    if let Some(pos) = get_cursor_via_gnome_shell() {
+        return pos;
+    }
+
+    // Try XWayland XQueryPointer (works on any compositor with XWayland)
+    if let Some(pos) = get_cursor_via_xwayland() {
+        return pos;
+    }
+
     // Try xdotool (works on X11)
     if let Some(pos) = get_cursor_via_xdotool() {
         return pos;
     }
 
-    // Fallback: return placeholder
-    tracing::warn!("Could not query cursor position, using default (0, 0)");
-    CursorPosition::default()
+    // Fallback: use screen center so menu is always visible
+    let bounds = get_screen_bounds();
+    tracing::warn!(
+        "Could not query cursor position, using screen center ({}, {})",
+        bounds.width / 2,
+        bounds.height / 2
+    );
+    CursorPosition::new(bounds.width / 2, bounds.height / 2)
 }
 
 /// Query cursor position via Hyprland (wlroots-based Wayland compositor)
@@ -267,6 +284,151 @@ fn get_cursor_via_kwin_dbus() -> Option<CursorPosition> {
     None
 }
 
+/// Query cursor position via GNOME Shell extension D-Bus
+///
+/// Uses the JuhRadial Cursor Helper GNOME Shell extension which exposes
+/// `global.get_pointer()` over D-Bus. Only attempted when running on GNOME.
+fn get_cursor_via_gnome_shell() -> Option<CursorPosition> {
+    // Only try on GNOME desktops
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
+    if !desktop.to_uppercase().contains("GNOME") {
+        return None;
+    }
+
+    let output = Command::new("dbus-send")
+        .args([
+            "--session",
+            "--print-reply",
+            "--dest=org.juhradial.CursorHelper",
+            "/org/juhradial/CursorHelper",
+            "org.juhradial.CursorHelper.GetCursorPosition",
+        ])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Output format from dbus-send:
+    //    int32 1234
+    //    int32 567
+    let mut x: Option<i32> = None;
+    let mut y: Option<i32> = None;
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if let Some(val) = trimmed.strip_prefix("int32 ") {
+            if x.is_none() {
+                x = val.trim().parse().ok();
+            } else {
+                y = val.trim().parse().ok();
+            }
+        }
+    }
+
+    match (x, y) {
+        (Some(x), Some(y)) => {
+            tracing::debug!(x, y, "Got cursor position via GNOME Shell extension");
+            Some(CursorPosition::new(x, y))
+        }
+        _ => None,
+    }
+}
+
+/// Query cursor position via XWayland using XQueryPointer
+///
+/// Dynamically loads libX11.so.6 and calls XQueryPointer on the root window.
+/// Works on any Wayland compositor with XWayland (COSMIC, GNOME, Sway, etc.).
+/// Only attempted when DISPLAY env var is set.
+fn get_cursor_via_xwayland() -> Option<CursorPosition> {
+    // Only try if XWayland is running (DISPLAY is set)
+    std::env::var("DISPLAY").ok()?;
+
+    unsafe {
+        let lib_name = std::ffi::CString::new("libX11.so.6").ok()?;
+        let lib = libc::dlopen(lib_name.as_ptr(), libc::RTLD_LAZY);
+        if lib.is_null() {
+            return None;
+        }
+
+        // Resolve symbols
+        let open_name = std::ffi::CString::new("XOpenDisplay").ok()?;
+        let root_name = std::ffi::CString::new("XDefaultRootWindow").ok()?;
+        let query_name = std::ffi::CString::new("XQueryPointer").ok()?;
+        let close_name = std::ffi::CString::new("XCloseDisplay").ok()?;
+
+        type XOpenDisplayFn = unsafe extern "C" fn(*const libc::c_char) -> *mut libc::c_void;
+        type XDefaultRootWindowFn = unsafe extern "C" fn(*mut libc::c_void) -> libc::c_ulong;
+        type XQueryPointerFn = unsafe extern "C" fn(
+            *mut libc::c_void,
+            libc::c_ulong,
+            *mut libc::c_ulong,
+            *mut libc::c_ulong,
+            *mut libc::c_int,
+            *mut libc::c_int,
+            *mut libc::c_int,
+            *mut libc::c_int,
+            *mut libc::c_uint,
+        ) -> libc::c_int;
+        type XCloseDisplayFn = unsafe extern "C" fn(*mut libc::c_void) -> libc::c_int;
+
+        // Resolve each symbol with null checks to avoid undefined behavior
+        let open_ptr = libc::dlsym(lib, open_name.as_ptr());
+        let root_ptr = libc::dlsym(lib, root_name.as_ptr());
+        let query_ptr = libc::dlsym(lib, query_name.as_ptr());
+        let close_ptr = libc::dlsym(lib, close_name.as_ptr());
+
+        if open_ptr.is_null() || root_ptr.is_null() || query_ptr.is_null() || close_ptr.is_null() {
+            libc::dlclose(lib);
+            return None;
+        }
+
+        let x_open: XOpenDisplayFn = std::mem::transmute(open_ptr);
+        let x_root: XDefaultRootWindowFn = std::mem::transmute(root_ptr);
+        let x_query: XQueryPointerFn = std::mem::transmute(query_ptr);
+        let x_close: XCloseDisplayFn = std::mem::transmute(close_ptr);
+
+        let display = x_open(std::ptr::null());
+        if display.is_null() {
+            libc::dlclose(lib);
+            return None;
+        }
+
+        let root = x_root(display);
+        let mut root_return: libc::c_ulong = 0;
+        let mut child_return: libc::c_ulong = 0;
+        let mut root_x: libc::c_int = 0;
+        let mut root_y: libc::c_int = 0;
+        let mut win_x: libc::c_int = 0;
+        let mut win_y: libc::c_int = 0;
+        let mut mask: libc::c_uint = 0;
+
+        let result = x_query(
+            display,
+            root,
+            &mut root_return,
+            &mut child_return,
+            &mut root_x,
+            &mut root_y,
+            &mut win_x,
+            &mut win_y,
+            &mut mask,
+        );
+
+        x_close(display);
+        libc::dlclose(lib);
+
+        if result != 0 {
+            tracing::debug!(x = root_x, y = root_y, "Got cursor position via XWayland XQueryPointer");
+            Some(CursorPosition::new(root_x, root_y))
+        } else {
+            None
+        }
+    }
+}
+
 /// Query cursor position via xdotool
 fn get_cursor_via_xdotool() -> Option<CursorPosition> {
     let output = Command::new("xdotool")
@@ -349,13 +511,35 @@ fn get_screen_via_hyprland() -> Option<ScreenBounds> {
     let mut max_y = 0i32;
 
     for monitor in &monitors {
-        let x = monitor.get("x")?.as_i64()? as i32;
-        let y = monitor.get("y")?.as_i64()? as i32;
-        let width = monitor.get("width")?.as_i64()? as i32;
-        let height = monitor.get("height")?.as_i64()? as i32;
+        // Use continue (not ?) so one bad monitor doesn't kill the whole query
+        let x = match monitor.get("x").and_then(|v| v.as_i64()) {
+            Some(v) => v as i32,
+            None => continue,
+        };
+        let y = match monitor.get("y").and_then(|v| v.as_i64()) {
+            Some(v) => v as i32,
+            None => continue,
+        };
+        let width = match monitor.get("width").and_then(|v| v.as_i64()) {
+            Some(v) => v as i32,
+            None => continue,
+        };
+        let height = match monitor.get("height").and_then(|v| v.as_i64()) {
+            Some(v) => v as i32,
+            None => continue,
+        };
+        let scale = monitor
+            .get("scale")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(1.0);
 
-        max_x = max_x.max(x + width);
-        max_y = max_y.max(y + height);
+        // Hyprland reports x/y in logical coords but width/height in physical pixels.
+        // Divide by scale to get logical dimensions that match the cursor coordinate space.
+        let logical_w = (width as f64 / scale) as i32;
+        let logical_h = (height as f64 / scale) as i32;
+
+        max_x = max_x.max(x + logical_w);
+        max_y = max_y.max(y + logical_h);
     }
 
     if max_x > 0 && max_y > 0 {

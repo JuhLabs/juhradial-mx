@@ -596,14 +596,51 @@ enable_service() {
     fi
 }
 
+# ── GNOME extension ──────────────────────────────────────────────────
+configure_gnome() {
+    if [ "$DESKTOP_TYPE" != "gnome" ]; then
+        return 0
+    fi
+
+    log_info "Installing GNOME Shell cursor helper extension..."
+
+    local EXT_UUID="juhradial-cursor@dev.juhlabs.com"
+    local EXT_SRC="$INSTALL_DIR/gnome-extension/$EXT_UUID"
+    local EXT_DEST="$HOME/.local/share/gnome-shell/extensions/$EXT_UUID"
+
+    if [ ! -d "$EXT_SRC" ]; then
+        log_warning "GNOME extension source not found — skipping"
+        return 0
+    fi
+
+    mkdir -p "$EXT_DEST"
+    cp "$EXT_SRC/metadata.json" "$EXT_DEST/"
+    cp "$EXT_SRC/extension.js" "$EXT_DEST/"
+    log_success "Extension files installed"
+
+    # Enable the extension (may fail if GNOME Shell isn't running yet)
+    if command -v gnome-extensions &> /dev/null; then
+        gnome-extensions enable "$EXT_UUID" 2>/dev/null && \
+            log_success "Extension enabled" || \
+            log_dim "Extension installed but could not enable automatically"
+    fi
+
+    log_warning "Log out and back in for the extension to load (Wayland requires session restart)"
+}
+
 # ── Desktop environment ─────────────────────────────────────────────
 configure_desktop() {
     step "Desktop integration"
 
     configure_hyprland
+    configure_gnome
 
     if [ "$DESKTOP_TYPE" = "hyprland" ]; then
         log_success "Hyprland window rules configured"
+    elif [ "$DESKTOP_TYPE" = "gnome" ]; then
+        log_success "GNOME cursor helper extension installed"
+    elif [ "$DESKTOP_TYPE" = "cosmic" ]; then
+        log_success "COSMIC detected — cursor position via XWayland"
     elif [ "$DESKTOP_TYPE" = "kde" ] || [ "$DESKTOP_TYPE" = "sway" ]; then
         log_success "No extra configuration needed for ${DESKTOP_LABEL}"
     else

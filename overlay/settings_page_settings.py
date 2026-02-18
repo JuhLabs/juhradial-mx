@@ -19,6 +19,12 @@ from gi.repository import Gtk, Gdk, GLib, Gio, Adw
 
 from i18n import _, SUPPORTED_LANGUAGES
 from settings_config import ConfigManager, config, get_device_name
+from settings_constants import (
+    SUPPORTED_DES,
+    DE_COMMAND_MAP,
+    detect_desktop_environment,
+    get_de_key,
+)
 import settings_theme
 from settings_widgets import SettingsCard, SettingRow
 from themes import get_theme_list
@@ -113,6 +119,46 @@ class SettingsPage(Gtk.ScrolledWindow):
 
         content.append(appearance_card)
 
+        # Desktop Environment selector
+        de_card = SettingsCard(_("Desktop Environment"))
+
+        detected_de = detect_desktop_environment()
+        detected_label = next(
+            (label for key, label in SUPPORTED_DES if key == detected_de),
+            detected_de,
+        )
+
+        de_row = SettingRow(
+            _("Desktop"),
+            _("Commands for screenshot, files, etc. adapt to your DE (detected: {})").format(
+                detected_label
+            ),
+        )
+        de_dropdown = Gtk.DropDown()
+        self._de_keys = [key for key, _ in SUPPORTED_DES]
+        de_labels = [label for _, label in SUPPORTED_DES]
+        de_labels[0] = f"{de_labels[0]} ({detected_label})"
+        de_model = Gtk.StringList.new(de_labels)
+        de_dropdown.set_model(de_model)
+        current_de = config.get("desktop_environment", default="auto")
+        if current_de in self._de_keys:
+            de_dropdown.set_selected(self._de_keys.index(current_de))
+        de_dropdown.connect("notify::selected", self._on_de_changed)
+        de_row.set_control(de_dropdown)
+        de_card.append(de_row)
+
+        apply_de_row = SettingRow(
+            _("Apply DE Defaults"),
+            _("Update radial menu commands to match selected desktop"),
+        )
+        apply_de_btn = Gtk.Button(label=_("Apply"))
+        apply_de_btn.add_css_class("suggested-action")
+        apply_de_btn.connect("clicked", self._on_apply_de_defaults)
+        apply_de_row.set_control(apply_de_btn)
+        de_card.append(apply_de_row)
+
+        content.append(de_card)
+
         # App settings
         app_card = SettingsCard(_("Application"))
 
@@ -196,6 +242,50 @@ class SettingsPage(Gtk.ScrolledWindow):
         content.append(danger_card)
 
         self.set_child(content)
+
+    def _on_de_changed(self, dropdown, _param):
+        """Handle DE selection change - saves preference."""
+        idx = dropdown.get_selected()
+        if 0 <= idx < len(self._de_keys):
+            de_key = self._de_keys[idx]
+            config.set("desktop_environment", de_key)
+            config.save(show_toast=False)
+            print(f"Desktop environment set to: {de_key}")
+
+    def _on_apply_de_defaults(self, button):
+        """Apply DE-specific default commands to radial menu slices."""
+        de_key = get_de_key(config.get("desktop_environment", default="auto"))
+        commands = DE_COMMAND_MAP.get(de_key, DE_COMMAND_MAP["generic"])
+
+        slices = config.get("radial_menu", "slices", default=[])
+        changed = []
+        for slice_data in slices:
+            action_id = slice_data.get("action_id", "")
+            if action_id in commands:
+                new_type, new_cmd = commands[action_id]
+                old_cmd = slice_data.get("command", "")
+                slice_data["type"] = new_type
+                slice_data["command"] = new_cmd
+                if old_cmd != new_cmd:
+                    changed.append(slice_data.get("label", action_id))
+
+        config.set("radial_menu", "slices", slices)
+        config.save(show_toast=False)
+
+        if changed:
+            de_label = next(
+                (label for key, label in SUPPORTED_DES if key == de_key), de_key
+            )
+            msg = _("Updated for {}: {}").format(de_label, ", ".join(changed))
+        else:
+            msg = _("All commands already match selected DE")
+
+        dialog = Adw.AlertDialog(
+            heading=_("Desktop Commands Updated"),
+            body=msg,
+        )
+        dialog.add_response("ok", _("OK"))
+        dialog.present(self.get_root())
 
     def _on_theme_changed(self, dropdown, _):
         """Handle theme selection change - applies to both overlay and settings"""
