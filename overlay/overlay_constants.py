@@ -10,6 +10,13 @@ SPDX-License-Identifier: GPL-3.0
 import os
 import time as _time_mod
 
+__all__ = [
+    "MENU_RADIUS", "SHADOW_OFFSET", "CENTER_ZONE_RADIUS", "ICON_ZONE_RADIUS",
+    "SUBMENU_EXTEND", "WINDOW_SIZE",
+    "IS_HYPRLAND", "IS_GNOME", "IS_COSMIC", "_HAS_XWAYLAND",
+    "_log",
+]
+
 # =============================================================================
 # GEOMETRY
 # =============================================================================
@@ -38,4 +45,4 @@ def _log(msg):
         with open("/tmp/juhradial-overlay.log", "a") as f:
             f.write(f"[{_time_mod.strftime('%H:%M:%S')}] {msg}\n")
     except OSError:
-        pass
+        return  # Cannot log — filesystem issue, silently skip

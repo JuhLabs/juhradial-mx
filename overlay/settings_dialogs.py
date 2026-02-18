@@ -27,7 +27,6 @@ from settings_constants import (
     RADIAL_ACTIONS,
     find_radial_action_index,
     DE_COMMAND_MAP,
-    detect_desktop_environment,
     get_de_key,
 )
 from settings_config import detect_terminal

@@ -13,7 +13,7 @@ SPDX-License-Identifier: GPL-3.0
 import os
 import subprocess
 
-from overlay_constants import IS_HYPRLAND, IS_GNOME, IS_COSMIC, _HAS_XWAYLAND
+from overlay_constants import IS_HYPRLAND, IS_GNOME, _HAS_XWAYLAND
 
 # =============================================================================
 # HYPRLAND CURSOR DETECTION
@@ -177,7 +177,7 @@ def get_cursor_position_gnome():
             if len(parts) >= 2:
                 return (int(parts[0].strip()), int(parts[1].strip()))
     except (FileNotFoundError, subprocess.SubprocessError, ValueError):
-        pass
+        return None  # gdbus unavailable or returned unparsable output
     return None
 
 
@@ -198,7 +198,8 @@ def _init_xlib():
         return True
     try:
         import ctypes
-        from ctypes import c_int, c_uint, c_ulong, c_void_p, c_long, POINTER, Structure
+        c_int, c_uint, c_ulong, c_void_p, c_long = ctypes.c_int, ctypes.c_uint, ctypes.c_ulong, ctypes.c_void_p, ctypes.c_long
+        POINTER, Structure = ctypes.POINTER, ctypes.Structure
 
         _xlib = ctypes.cdll.LoadLibrary("libX11.so.6")
         _xlib.XOpenDisplay.argtypes = [c_void_p]
@@ -282,7 +283,8 @@ def _init_xlib():
 
 def _xquery_pointer():
     """Raw XQueryPointer call (assumes _init_xlib() was called)."""
-    from ctypes import c_int, c_uint, c_ulong, byref
+    import ctypes
+    c_int, c_uint, c_ulong, byref = ctypes.c_int, ctypes.c_uint, ctypes.c_ulong, ctypes.byref
 
     root_return, child_return = c_ulong(), c_ulong()
     root_x, root_y = c_int(), c_int()
@@ -331,7 +333,6 @@ def get_cursor_position_xwayland_synced():
     """
     import ctypes
     import time
-
     from overlay_constants import _log
 
     if not _HAS_XWAYLAND:
