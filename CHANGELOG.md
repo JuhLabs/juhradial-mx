@@ -5,6 +5,29 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] - 2026-02-18
+
+### Added
+
+- **GNOME Wayland support** — Bundled GNOME Shell extension (`juhradial-cursor@dev.juhlabs.com`) exposes cursor position via D-Bus using `global.get_pointer()`. The radial menu now works natively on GNOME Wayland (Ubuntu, Fedora GNOME, Pop!_OS, etc.). Fixes [#6](https://github.com/JuhLabs/juhradial-mx/issues/6).
+- **COSMIC desktop support** — XWayland cursor sync with change-detection polling for accurate cursor tracking on COSMIC compositor.
+- **XWayland cursor fallback** — Dynamic `libX11.so.6` loading via `dlopen`/`XQueryPointer` works on any Wayland compositor with XWayland (Sway, River, etc.).
+- **COSMIC desktop commands** in Settings — Screenshot, Files, Note Editor mapped to `cosmic-screenshot`, `cosmic-files`, `cosmic-edit`.
+
+### Fixed
+
+- **Radial menu appearing at top-left corner on GNOME Wayland** — Cursor detection now has a 7-level fallback chain: Hyprland IPC → KWin script → KWin D-Bus → GNOME extension → XWayland → xdotool → screen center. The menu is always visible. Fixes [#6](https://github.com/JuhLabs/juhradial-mx/issues/6).
+- **Hyprland multi-monitor screen bounds with HiDPI scaling** — Screen bounds calculation now divides physical pixel dimensions by the monitor's scale factor to match the logical cursor coordinate space. Previously, a 4K monitor at 2x scale would report bounds of 3840px instead of the correct 1920px logical width.
+- **Hyprland screen bounds failing on unusual monitor configs** — One monitor with missing JSON fields no longer aborts the entire bounds query; that monitor is skipped and the rest are still used.
+- **XWayland `dlsym` safety** — Added null pointer checks before `transmute` on all dynamically resolved X11 symbols to prevent undefined behavior.
+- **CodeQL unused variable warnings** ([#90](https://github.com/JuhLabs/juhradial-mx/security/code-scanning), [#91](https://github.com/JuhLabs/juhradial-mx/security/code-scanning), [#92](https://github.com/JuhLabs/juhradial-mx/security/code-scanning)) — Removed dead assignments in exception handlers across overlay cursor detection code.
+
+### Changed
+
+- **Overlay refactored into modules** — Split `juhradial-overlay.py` into `overlay_cursor.py`, `overlay_actions.py`, `overlay_painting.py`, and `overlay_constants.py` for better maintainability.
+- **Installer auto-installs GNOME extension** on GNOME desktops and enables it via `gnome-extensions enable`.
+- **Screen center fallback** replaces the broken `(0, 0)` default — if all cursor detection methods fail, the menu appears at screen center instead of the top-left corner.
+
 ## [0.2.8] - 2026-02-14
 
 ### Fixed
@@ -139,6 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [0.2.6]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.5...v0.2.6
 [0.2.7]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.6...v0.2.7
+[0.2.9]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.7...v0.2.8
 [0.2.5]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.3...v0.2.4

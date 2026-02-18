@@ -2,12 +2,11 @@
   <img src="assets/juhradial-mx.svg" width="128" alt="JuhRadial MX Logo">
   <h1>JuhRadial MX</h1>
   <p><strong>Beautiful radial menu for Logitech MX Master mice on Linux</strong></p>
-  <p>A Logi Options+ inspired experience for KDE Plasma 6 & Hyprland</p>
-  <p>IN PROGRESS: Translations and more radial designs/theme colors</p>
+  <p>A Logi Options+ inspired experience — works on GNOME, KDE Plasma, Hyprland, COSMIC & more</p>
   <img src="assets/github/githubheader.png" width="100%" alt="JuhRadial MX Banner">
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.2.8-cyan.svg" alt="Version 0.2.8">
+      <img src="https://img.shields.io/badge/version-0.2.9-cyan.svg" alt="Version 0.2.9">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
@@ -18,10 +17,13 @@
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL-3.0">
     </a>
+    <a href="https://github.com/JuhLabs/juhradial-mx/stargazers">
+      <img src="https://img.shields.io/github/stars/JuhLabs/juhradial-mx?style=flat&color=yellow" alt="GitHub Stars">
+    </a>
   </p>
 
   <p>
-    <strong>✨ <a href="CHANGELOG.md">v0.2.8</a></strong> - Auto-restart logid on Easy-Switch reconnect so the radial menu always works. <a href="#installation">Update now</a>. If you hit issues, please report them on <a href="https://github.com/JuhLabs/juhradial-mx/issues">GitHub</a>.
+    <strong>New in <a href="CHANGELOG.md">v0.2.9</a>:</strong> GNOME Wayland & COSMIC support, multi-monitor HiDPI fixes, 7-level cursor fallback chain. <a href="#installation">Update now</a>.
   </p>
 </div>
 
@@ -60,13 +62,6 @@
   </table>
 </div>
 
-## Media Kit
-
-- `assets/github/githubheader.png` (1536x1024)
-- `assets/github/hero-v3.png` (1600x900)
-- `assets/github/banner-v3.png` (1600x360)
-- `assets/github/og-v3.png` (1280x640)
-
 ## Features
 
 - **Radial Menu** - Beautiful overlay triggered by gesture button (hold or tap)
@@ -77,7 +72,50 @@
 - **Flow** - Multi-computer control with clipboard sync (inspired by Logi Options+ Flow)
 - **Battery Monitoring** - Real-time battery status with instant charging detection via HID++
 - **DPI Control** - Visual DPI adjustment (400-8000 DPI)
-- **Native Wayland** - Full support for KDE Plasma 6 and Hyprland
+- **Native Wayland** - Full support for GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway & more
+- **Multi-Monitor** - Correct cursor positioning across 1-4+ monitors with HiDPI scaling
+
+## Supported Platforms
+
+<table>
+  <tr>
+    <th>Desktop Environment</th>
+    <th>Cursor Detection</th>
+    <th>Status</th>
+  </tr>
+  <tr>
+    <td><strong>GNOME</strong> (Ubuntu, Fedora, Pop!_OS)</td>
+    <td>Shell extension D-Bus</td>
+    <td>Fully supported</td>
+  </tr>
+  <tr>
+    <td><strong>KDE Plasma 6</strong></td>
+    <td>KWin scripting / D-Bus</td>
+    <td>Fully supported</td>
+  </tr>
+  <tr>
+    <td><strong>Hyprland</strong></td>
+    <td>IPC socket</td>
+    <td>Fully supported</td>
+  </tr>
+  <tr>
+    <td><strong>COSMIC</strong> (Fedora, Pop!_OS)</td>
+    <td>XWayland sync</td>
+    <td>Fully supported</td>
+  </tr>
+  <tr>
+    <td><strong>Sway / wlroots</strong></td>
+    <td>XWayland fallback</td>
+    <td>Supported</td>
+  </tr>
+  <tr>
+    <td><strong>X11</strong> (any DE)</td>
+    <td>xdotool</td>
+    <td>Supported</td>
+  </tr>
+</table>
+
+**Distros:** Fedora, Ubuntu/Debian, Arch/Manjaro, openSUSE, and derivatives. The installer auto-detects your distro and package manager.
 
 ## Supported Devices
 
@@ -141,11 +179,11 @@ sudo systemctl enable --now logid
 
 ### Requirements
 
-- **Wayland compositor** (KDE Plasma 6, Hyprland, or other wlroots-based)
+- **Wayland compositor** (GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway) or **X11**
 - **logiops** (logid) for button mapping
-- **Rust** (for building)
+- **Rust** (for building the daemon)
 - **Python 3** with PyQt6 and GTK4/Adwaita
-- **XWayland** (for overlay window positioning)
+- **XWayland** (for overlay window positioning on Wayland)
 
 ---
 
@@ -222,11 +260,11 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 | Problem | Solution |
 |---------|----------|
 | Menu doesn't appear | Check logid: `sudo systemctl status logid` |
-| Wrong cursor position | Ensure you're on Wayland, not X11 |
+| Menu at top-left corner | Log out/in to load GNOME extension, or run `gnome-extensions enable juhradial-cursor@dev.juhlabs.com` |
 | Mouse not detected | Should auto-recover (udev restarts logid). Manual fix: `sudo systemctl restart logid` |
 | Build fails | Install dev packages: `hidapi-devel`, `dbus-devel` |
 | Hyprland: Menu hidden | Add window rules from Hyprland Setup section above |
-| Hyprland: Cursor not found | Ensure `hyprctl cursorpos` works in terminal |
+| GNOME: Extension not loading | Requires session restart (log out/in) on Wayland |
 
 ### Debug Mode
 
@@ -241,9 +279,16 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 
 ```
 juhradial-mx/
-├── daemon/              # Rust daemon (F19 listener, D-Bus, HID++)
-├── overlay/             # Python UI (PyQt6 radial menu + GTK4 settings)
-├── assets/              # Icons and screenshots
+├── daemon/              # Rust daemon (HID++ listener, D-Bus, cursor detection)
+│   └── src/cursor.rs    # 7-level cursor fallback chain
+├── overlay/             # Python UI
+│   ├── juhradial-overlay.py   # Main overlay entry point
+│   ├── overlay_cursor.py      # Multi-compositor cursor detection
+│   ├── overlay_actions.py     # Radial menu actions & themes
+│   ├── overlay_painting.py    # Qt rendering & animations
+│   └── settings_*.py          # GTK4/Adwaita settings app
+├── gnome-extension/     # GNOME Shell cursor helper extension
+├── assets/              # Icons, themes, and screenshots
 └── packaging/           # logid.cfg, systemd, udev rules
 ```
 
