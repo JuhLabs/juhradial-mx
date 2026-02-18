@@ -11,7 +11,6 @@ SPDX-License-Identifier: GPL-3.0
 
 import os
 import sys
-import time as _time_mod
 
 # Force XWayland platform - required for window positioning on Wayland
 # (Native Wayland doesn't allow apps to position their own windows)
@@ -27,10 +26,9 @@ from PyQt6.QtCore import (
     pyqtSlot,
     QPropertyAnimation,
     QEasingCurve,
-    QPointF,
     QTimer,
 )
-from PyQt6.QtGui import QCursor, QPainter, QColor, QBrush, QPen, QIcon, QPixmap
+from PyQt6.QtGui import QPainter, QBrush, QIcon, QPixmap
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface
 
 from overlay_constants import (
@@ -50,8 +48,6 @@ from overlay_cursor import (
     get_cursor_position_gnome,
     get_cursor_position_xwayland,
     get_cursor_position_xwayland_synced,
-    _init_xlib,
-    _xquery_pointer,
     get_cursor_pos,
 )
 import overlay_actions
