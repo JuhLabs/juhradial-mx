@@ -6,21 +6,30 @@ We release patches for security vulnerabilities for the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 0.2.9   | :white_check_mark: Current release |
 | 0.2.x   | :white_check_mark: |
-| 0.1.x   | :warning: Upgrade recommended (security fixes in 0.2.1) |
+| 0.1.x   | :x: Upgrade required (critical security fixes in 0.2.1+) |
 | < 0.1   | :x:                |
 
-**Note:** JuhRadial MX is currently in active development. Security updates are provided for the latest release on the master branch.
+**Note:** JuhRadial MX is in active development. Security updates are provided for the latest release on the master branch. Always run the latest version.
 
 ### Recent Security Updates
 
-**v0.2.1 (January 2026):** Critical security fixes including:
+**v0.2.9 (February 2026):**
+- Fixed XWayland `dlsym` null pointer safety — all dynamically resolved X11 symbols are now null-checked before `transmute` to prevent undefined behavior
+- Resolved all CodeQL unused-variable warnings (#90, #91, #92) in cursor detection code
+- Removed dead assignments in exception handlers across overlay modules
+
+**v0.2.7 (February 2026):**
+- CodeQL hotfixes for code scanning alerts
+
+**v0.2.1 (January 2026):** Critical security fixes:
 - Fixed command injection vulnerability in radial menu
 - Fixed insecure pairing code generation in Flow (now uses cryptographically secure randomness)
 - Fixed overly permissive udev rules (MODE=0666 → 0660)
 - Added input validation for D-Bus calls and HTTP endpoints
 
-**Users of earlier versions should update immediately.**
+**Users on versions older than 0.2.1 should update immediately.**
 
 ## Reporting a Vulnerability
 
@@ -90,6 +99,8 @@ JuhRadial MX is a Linux desktop application that:
 
 - **Runs with user privileges** (no elevated permissions required for normal operation)
 - **Communicates via D-Bus** for IPC between daemon and overlay
+- **GNOME Shell extension** exposes cursor position via a session D-Bus service (`org.juhradial.CursorHelper`)
+- **Dynamically loads libX11** via `dlopen`/`dlsym` for XWayland cursor detection (with null-safety checks)
 - **Accesses HID devices** via hidraw (requires udev rules for user access)
 - **Reads configuration** from `~/.config/juhradial/config.json`
 - **Listens to keyboard events** via evdev (F19 key only)
