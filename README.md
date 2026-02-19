@@ -35,7 +35,7 @@
 <br>
 
 > [!TIP]
-> **New in [v0.2.9](CHANGELOG.md):** GNOME Wayland & COSMIC desktop support, multi-monitor HiDPI fixes, 7-level cursor fallback chain. If you change language I suggest a quick restart of JuhRadial. [Update now](#installation).
+> **New in [v0.2.10](CHANGELOG.md):** Multi-monitor menu positioning fixed on KDE Plasma Wayland, daemon stability fixes for Fedora 43 (WatchdogSec, PrivateTmp). [Update now](#installation).
 
 <div align="center">
   <img src="assets/github/divider.png" width="80%" alt="">
