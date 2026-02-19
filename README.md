@@ -6,7 +6,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.2.10-cyan.svg" alt="Version 0.2.10">
+      <img src="https://img.shields.io/badge/version-0.2.11-cyan.svg" alt="Version 0.2.11">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
@@ -35,7 +35,7 @@
 <br>
 
 > [!TIP]
-> **New in [v0.2.10](CHANGELOG.md):** Multi-monitor menu positioning fixed on KDE Plasma Wayland, daemon stability fixes for Fedora 43 (WatchdogSec, PrivateTmp). [Update now](#installation).
+> **New in [v0.2.11](CHANGELOG.md):** MX Master 4 for Business support added, multi-monitor positioning fixed on KDE Plasma Wayland, daemon stability fixes for Fedora 43. [Update now](#installation).
 
 <div align="center">
   <img src="assets/github/divider.png" width="80%" alt="">
