@@ -5,6 +5,18 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.10] - 2026-02-19
+
+### Fixed
+
+- **Multi-monitor menu positioning on KDE Plasma Wayland** — Menu now appears at the correct cursor position on secondary monitors. KWin's `workspace.cursorPos` returns logical coordinates (accounting for per-monitor DPI scaling) while `QWidget.move()` uses XWayland physical pixel coordinates; these diverge on setups with different per-monitor scale factors. On non-Hyprland/GNOME/COSMIC Wayland compositors with XWayland, the overlay now re-queries cursor position via `XQueryPointer` (which is always in XWayland's coordinate space) immediately before positioning the window. Fixes [#8](https://github.com/JuhLabs/juhradial-mx/issues/8).
+- **Daemon killed after ~10 seconds on Fedora 43 / KDE** — Two root causes: (1) Fedora's systemd drop-in `10-timeout-abort.conf` activates a watchdog that kills daemons not implementing `sd_notify` heartbeats — fixed by adding `WatchdogSec=0` to explicitly disable watchdog for this service. (2) `PrivateTmp=yes` was set, placing the daemon's `/tmp` in a private namespace invisible to KWin — the daemon creates temporary `.js` script files and passes their paths to KWin via D-Bus, so KWin could not find those files, causing the cursor-position query to silently fail and the menu to never appear; fixed by removing `PrivateTmp`. Fixes [#7](https://github.com/JuhLabs/juhradial-mx/issues/7).
+
+### Changed
+
+- **Daemon service file hardened for reliability** — Added `StartLimitIntervalSec=60` / `StartLimitBurst=5` to prevent infinite restart loops; added `WatchdogSec=0` to silence watchdog; improved `[Unit]` comments explaining why `PrivateTmp` is intentionally absent.
+- **Diagnostic logging for unexpected logid key codes** — When the `LogiOps Virtual Input` device emits a key other than `KEY_F19`, the daemon logs a debug message with the received and expected key codes. This helps diagnose misconfigured `logid.cfg` CID mappings without needing to rebuild.
+
 ## [0.2.9] - 2026-02-18
 
 ### Added

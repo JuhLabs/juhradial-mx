@@ -211,6 +211,25 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 x, y = fresh_pos
                 _log(f"COSMIC sync: using position ({x}, {y})")
 
+        # On KDE and other Wayland compositors with XWayland (non-Hyprland,
+        # non-GNOME, non-COSMIC): re-query cursor position via XWayland to
+        # ensure coordinates are in XWayland's pixel space.
+        #
+        # KWin's workspace.cursorPos returns logical coordinates (accounting
+        # for per-monitor DPI scaling), but QWidget.move() on XWayland uses
+        # physical pixel coordinates. On multi-monitor setups with different
+        # scaling factors per monitor, these two coordinate spaces diverge,
+        # causing the menu to appear offset on non-primary monitors.
+        #
+        # XWayland's XQueryPointer always returns coordinates in the XWayland
+        # virtual screen space — the same space that QWidget.move() uses —
+        # so using it here guarantees correct positioning on all monitors.
+        if not IS_HYPRLAND and not IS_GNOME and not IS_COSMIC and _HAS_XWAYLAND:
+            fresh_pos = get_cursor_position_xwayland()
+            if fresh_pos:
+                x, y = fresh_pos
+                _log(f"XWayland cursor position: ({x}, {y})")
+
         # Detect which monitor the cursor is on and clamp menu to it
         if IS_HYPRLAND:
             mon = get_monitor_at_cursor(x, y)

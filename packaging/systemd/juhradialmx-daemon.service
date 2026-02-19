@@ -28,12 +28,18 @@ Requires=dbus.socket
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/juhradiald
-Restart=on-failure
+# Restart on crashes (SIGSEGV, SIGABRT, etc.) and watchdog kills.
+# on-abnormal = non-clean signals, watchdog, timeout — NOT SIGTERM/clean exit.
+Restart=on-abnormal
 RestartSec=5s
 
 # Limit restart attempts to prevent infinite restart loops
 StartLimitIntervalSec=60
 StartLimitBurst=5
+
+# Disable watchdog to prevent systemd drop-ins (e.g. 10-timeout-abort.conf
+# on Fedora) from killing the daemon when it doesn't send sd_notify heartbeats.
+WatchdogSec=0
 
 # Environment
 Environment=RUST_LOG=info
@@ -41,10 +47,10 @@ Environment=RUST_BACKTRACE=1
 
 # Security hardening (user service, so limited options)
 NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=%h/.config/juhradial
-PrivateTmp=yes
+# NOTE: PrivateTmp intentionally NOT set here. The daemon creates temporary
+# KWin script files and passes their paths to KWin via D-Bus. With PrivateTmp
+# the files would live in a private /tmp namespace invisible to KWin, causing
+# the loadScript D-Bus call to silently fail (file not found on KWin's side).
 
 # Resource limits
 MemoryMax=100M
