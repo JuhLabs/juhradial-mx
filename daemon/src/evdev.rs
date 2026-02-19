@@ -614,7 +614,7 @@ impl LogidHandler {
                     let key_code = event.code();
                     let value = event.value();
 
-                    // Only handle KEY_F19 (mapped from haptic thumb button CID 0xd4)
+                    // Only handle KEY_F19 (logid maps gesture button CID 0x1a0 → KEY_F19)
                     if key_code == LOGID_GESTURE_KEY {
                         match value {
                             1 => {
@@ -629,6 +629,18 @@ impl LogidHandler {
                                 // Repeat events (value=2) are ignored
                             }
                         }
+                    } else if value == 1 {
+                        // A different key was pressed from LogiOps Virtual Input.
+                        // This is a diagnostic hint: if the gesture button CID in
+                        // logid.cfg is wrong or mapped to a different key code, it
+                        // will appear here instead of as KEY_F19 (189).
+                        // Check /etc/logid.cfg and ensure:
+                        //   cid: 0x1a0; action = { type: "Keypress"; keys: ["KEY_F19"]; };
+                        tracing::debug!(
+                            key_code,
+                            expected = LOGID_GESTURE_KEY,
+                            "Unexpected key from LogiOps Virtual Input - check logid.cfg button CID mapping"
+                        );
                     }
                 }
                 Err(e) => {
