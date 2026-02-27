@@ -15,6 +15,18 @@ from gi.repository import Gtk, GLib, Gio
 
 from i18n import _
 from settings_widgets import SettingsCard
+from settings_config import config
+
+# OS options for Easy-Switch host identification
+OS_OPTIONS = [
+    ("linux", "Linux"),
+    ("windows", "Windows"),
+    ("macos", "macOS"),
+    ("ios", "iOS"),
+    ("android", "Android"),
+    ("chromeos", "ChromeOS"),
+    ("unknown", "Unknown"),
+]
 
 
 class PlaceholderPage(Gtk.Box):
@@ -140,6 +152,9 @@ class EasySwitchPage(Gtk.ScrolledWindow):
 
     def _create_slot_widget(self, slot_index, is_current=False):
         """Create a clickable widget for a single Easy-Switch slot"""
+        # Outer container: button on the left, OS dropdown on the right
+        outer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+
         # Create the content box for the button
         slot_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
         slot_box.set_margin_start(8)
@@ -206,6 +221,7 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         # Wrap in a button for clickability
         host_button = Gtk.Button()
         host_button.add_css_class("flat")
+        host_button.set_hexpand(True)
         host_button.set_child(slot_box)
         host_button.connect("clicked", self._on_host_clicked, slot_index)
 
@@ -214,7 +230,28 @@ class EasySwitchPage(Gtk.ScrolledWindow):
             host_button.set_sensitive(False)
 
         self.slot_buttons.append(host_button)
-        return host_button
+        outer_box.append(host_button)
+
+        # OS type dropdown (outside button so it's always interactive)
+        os_types = config.get("radial_menu", "easy_switch_host_os", default=["linux", "unknown", "unknown"])
+        current_os = os_types[slot_index] if slot_index < len(os_types) else "unknown"
+
+        os_labels = [label for _, label in OS_OPTIONS]
+        os_model = Gtk.StringList.new(os_labels)
+        os_dropdown = Gtk.DropDown(model=os_model)
+        os_dropdown.set_valign(Gtk.Align.CENTER)
+
+        # Set current selection
+        os_keys = [key for key, _ in OS_OPTIONS]
+        if current_os in os_keys:
+            os_dropdown.set_selected(os_keys.index(current_os))
+        else:
+            os_dropdown.set_selected(len(os_keys) - 1)  # "unknown"
+
+        os_dropdown.connect("notify::selected", self._on_os_changed, slot_index)
+        outer_box.append(os_dropdown)
+
+        return outer_box
 
     def _on_host_clicked(self, button, host_index):
         """Handle click on a host slot to switch to that host"""
@@ -242,6 +279,19 @@ class EasySwitchPage(Gtk.ScrolledWindow):
                 print("D-Bus proxy not available")
         except Exception as e:
             print(f"Failed to switch host: {e}")
+
+    def _on_os_changed(self, dropdown, _pspec, slot_index):
+        """Handle OS type change for a host slot"""
+        selected = dropdown.get_selected()
+        os_keys = [key for key, _ in OS_OPTIONS]
+        os_type = os_keys[selected] if selected < len(os_keys) else "unknown"
+
+        os_types = list(config.get("radial_menu", "easy_switch_host_os", default=["linux", "unknown", "unknown"]))
+        # Extend list if needed
+        while len(os_types) <= slot_index:
+            os_types.append("unknown")
+        os_types[slot_index] = os_type
+        config.set("radial_menu", "easy_switch_host_os", os_types, auto_save=True)
 
     def _load_host_info(self):
         """Load host information from daemon via D-Bus"""
