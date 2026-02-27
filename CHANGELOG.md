@@ -5,6 +5,26 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.12] - 2026-02-27
+
+### Added
+
+- **Smooth hover transitions** - Slice highlights now fade in (~112ms) and fade out (~80ms) with interpolated colors instead of instant hard cuts. Applies to both vector and 3D themes. All visual properties animate smoothly: fill, border, icon background, icon color, and glow ring.
+- **Submenu droplet pop-out animation** - AI and Easy-Switch submenu items now animate outward from the wheel edge with OutBack easing (slight overshoot then settle), staggered cascade timing per item, and scale-up from 50% to full size. Creates a fluid "droplet" effect instead of instant appearance.
+- **Dynamic play/pause icon** - The Play/Pause slice now shows a pause icon (two bars) when media is actively playing and a play triangle when stopped or paused. State is queried via `playerctl status` each time the radial menu opens. Gracefully falls back to play icon if playerctl is not installed.
+- **Selection flash feedback** - Brief white flash on the selected slice before the menu closes, giving clear visual confirmation of which action was picked.
+- **Menu open bloom effect** - Radial wheel scales from 0.92x to 1.0x with OutCubic easing during the fade-in, creating a subtle "breathing" bloom on open.
+- **Center zone pulse** - The center circle does a brief elastic scale pulse when the menu appears, drawing the eye to the center label.
+- **Easy-Switch OS icons** - The Easy-Switch submenu now shows real OS logos (Linux Tux, Windows, macOS Apple, iOS, Android robot, ChromeOS Chrome) instead of generic numbered circles. Users can assign an OS type per host slot in Settings > Easy-Switch. Host 1 defaults to Linux, others to Unknown. Icons are official SVGs from Wikimedia Commons rendered via QSvgRenderer.
+
+### Changed
+
+- **Shared animation timer architecture** - All animations are driven by a single 16ms QTimer that auto-starts on interaction and auto-stops when all animations settle. No CPU usage when the menu is hidden or idle. Zero new dependencies - built entirely on existing PyQt6 primitives.
+
+### Notes
+
+- Looking ahead to v0.3.0: exploring Logitech MX Keys S keyboard support (brightness control, hotkey layout customization) via the existing HID++ 2.0 protocol layer. The daemon architecture supports multiple Bolt receivers and device enumeration. More details in `docs/v0.3.0-keyboard-support.md` when planning begins.
+
 ## [0.2.11] - 2026-02-19
 
 ### Fixed

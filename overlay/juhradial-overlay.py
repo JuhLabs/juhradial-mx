@@ -84,6 +84,18 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.submenu_slice = -1  # Which main slice has active submenu
         self.highlighted_subitem = -1  # Which sub-item is highlighted (-1 = none)
 
+        # Animation state - per-slice highlight progress (0.0 = off, 1.0 = full)
+        self.slice_highlights = [0.0] * 8
+        # Submenu pop-out animation progress (0.0 = hidden, 1.0 = fully shown)
+        self.submenu_progress = 0.0
+        # Selection flash (slice index to flash, -1 = none)
+        self.flash_slice = -1
+        self.flash_progress = 0.0  # 1.0 = bright, fades to 0.0
+        # Menu open bloom scale (0.0 = start, 1.0 = settled)
+        self.bloom_progress = 0.0
+        # Center zone pulse (0.0 = start, 1.0 = settled)
+        self.center_pulse = 0.0
+
         # Toggle mode: True when menu was opened with a quick tap and stays open
         self.toggle_mode = False
         # Track when menu was shown (for tap detection)
@@ -137,6 +149,11 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.cursor_timer = QTimer(self)
         self.cursor_timer.timeout.connect(self._poll_cursor)
         self.cursor_timer.setInterval(16)  # ~60fps
+
+        # Animation timer - runs while menu is visible for smooth transitions
+        self._anim_timer = QTimer(self)
+        self._anim_timer.timeout.connect(self._tick_animations)
+        self._anim_timer.setInterval(16)  # ~60fps
 
         print("=" * 60, flush=True)
         print("  JuhRadial MX - PyQt6 Overlay", flush=True)
@@ -253,10 +270,18 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.toggle_mode = False  # Reset toggle mode on new show
         self.show_time = time.time()  # Track when menu was shown
 
-        # Reset submenu state
+        # Reset submenu and animation state
         self.submenu_active = False
         self.submenu_slice = -1
         self.highlighted_subitem = -1
+        self.slice_highlights = [0.0] * 8
+        self.flash_slice = -1
+        self.flash_progress = 0.0
+        self.bloom_progress = 0.0
+        self.center_pulse = 0.0
+
+        # Query media playback state for play/pause icon
+        overlay_actions.get_media_state()
 
         # Position and show: set opacity to 0 and move BEFORE show to prevent
         # any visible frame at the wrong location on multi-monitor setups
@@ -275,6 +300,8 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.anim.setStartValue(0.0)
         self.anim.setEndValue(1.0)
         self.anim.start()
+        # Start animation timer for bloom + center pulse
+        self._anim_timer.start()
 
         # Verify D-Bus interface is still valid (in case daemon restarted)
         if not self.daemon_iface.isValid():
@@ -318,6 +345,47 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             print(
                 f"[HAPTIC] ERROR: daemon_iface is INVALID - cannot send haptic signal"
             )
+
+    def _tick_animations(self):
+        """Update animation state for smooth hover transitions."""
+        dirty = False
+        for i in range(8):
+            target = 1.0 if i == self.highlighted_slice else 0.0
+            current = self.slice_highlights[i]
+            if current < target:
+                self.slice_highlights[i] = min(1.0, current + 0.15)  # ~112ms in
+                dirty = True
+            elif current > target:
+                self.slice_highlights[i] = max(0.0, current - 0.20)  # ~80ms out
+                dirty = True
+
+        # Submenu pop-out animation
+        if self.submenu_active and self.submenu_progress < 1.0:
+            self.submenu_progress = min(1.0, self.submenu_progress + 0.08)  # ~200ms
+            dirty = True
+
+        # Selection flash decay
+        if self.flash_progress > 0:
+            self.flash_progress = max(0.0, self.flash_progress - 0.12)  # ~130ms decay
+            dirty = True
+            if self.flash_progress <= 0:
+                self.flash_slice = -1
+
+        # Menu open bloom (0 -> 1 over ~220ms)
+        if self.bloom_progress < 1.0:
+            self.bloom_progress = min(1.0, self.bloom_progress + 0.075)
+            dirty = True
+
+        # Center zone pulse (0 -> 1 over ~350ms)
+        if self.center_pulse < 1.0:
+            self.center_pulse = min(1.0, self.center_pulse + 0.05)
+            dirty = True
+
+        if dirty:
+            self.update()
+        elif self._anim_timer.isActive():
+            # All animations settled - stop timer to save CPU
+            self._anim_timer.stop()
 
     @pyqtSlot()
     def on_hide(self):
@@ -367,6 +435,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             if new_slice >= 0:
                 self._trigger_haptic("slice_change")
             self.highlighted_slice = new_slice
+            # Start animation timer for smooth highlight transition
+            if not self._anim_timer.isActive():
+                self._anim_timer.start()
             self.update()
 
     def _reposition_cosmic(self):
@@ -406,13 +477,32 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                     # Don't execute, show submenu instead (handled in toggle mode)
                     pass
                 else:
+                    # Trigger selection flash before closing
+                    self.flash_slice = self.highlighted_slice
+                    self.flash_progress = 1.0
+                    self._anim_timer.start()
+                    self.update()
                     self._trigger_haptic("confirm")  # Haptic for selection confirm
-                    self._execute_action(action)
+                    # Delay hide briefly so flash is visible
+                    QTimer.singleShot(80, lambda: self._finish_close(action))
+                    return  # Don't hide yet
 
-        # Reset submenu state
+        # Reset submenu state and hide immediately (no flash)
+        self._finish_hide()
+
+    def _finish_close(self, action):
+        """Complete the close after selection flash - execute action and hide."""
+        self._execute_action(action)
+        self._finish_hide()
+
+    def _finish_hide(self):
+        """Reset state and hide the menu."""
+        self._anim_timer.stop()
         self.submenu_active = False
         self.submenu_slice = -1
         self.highlighted_subitem = -1
+        self.flash_slice = -1
+        self.flash_progress = 0.0
         self.hide()
 
     def _execute_action(self, action):
@@ -458,6 +548,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 self.submenu_active = True
                 self.submenu_slice = self.highlighted_slice
                 self.highlighted_subitem = -1
+                self.submenu_progress = 0.0
+                if not self._anim_timer.isActive():
+                    self._anim_timer.start()
                 self.update()
                 return  # Don't close menu
         except Exception as e:
@@ -578,6 +671,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 self.submenu_active = True
                 self.submenu_slice = new_slice
                 self.highlighted_subitem = -1
+                self.submenu_progress = 0.0
+                if not self._anim_timer.isActive():
+                    self._anim_timer.start()
 
         if new_slice != self.highlighted_slice:
             print(
@@ -586,6 +682,8 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             if new_slice >= 0:
                 self._trigger_haptic("slice_change")
             self.highlighted_slice = new_slice
+            if not self._anim_timer.isActive():
+                self._anim_timer.start()
             self.update()
         elif self.submenu_active:
             self.update()
@@ -658,6 +756,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 self.submenu_active = True
                 self.submenu_slice = new_slice
                 self.highlighted_subitem = -1
+                self.submenu_progress = 0.0
+                if not self._anim_timer.isActive():
+                    self._anim_timer.start()
 
         if new_slice != self.highlighted_slice:
             print(
@@ -666,6 +767,8 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             if new_slice >= 0:
                 self._trigger_haptic("slice_change")
             self.highlighted_slice = new_slice
+            if not self._anim_timer.isActive():
+                self._anim_timer.start()
             self.update()
         elif self.submenu_active:
             self.update()
@@ -768,8 +871,9 @@ if __name__ == "__main__":
     app.setApplicationName("JuhRadial MX")
     app.setDesktopFileName("juhradial-mx")
 
-    # Load AI submenu icons and 3D radial image (requires QApplication)
+    # Load submenu icons and 3D radial image (requires QApplication)
     overlay_actions.load_ai_icons()
+    overlay_actions.load_os_icons()
     overlay_actions.load_radial_image()
 
     w = RadialMenu()

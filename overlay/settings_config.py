@@ -126,6 +126,7 @@ class ConfigManager:
                 },
             ],
             "easy_switch_shortcuts": False,
+            "easy_switch_host_os": ["linux", "unknown", "unknown"],
         },
     }
 

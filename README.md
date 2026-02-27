@@ -6,7 +6,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.2.11-cyan.svg" alt="Version 0.2.11">
+      <img src="https://img.shields.io/badge/version-0.2.12-cyan.svg" alt="Version 0.2.12">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
@@ -35,7 +35,7 @@
 <br>
 
 > [!TIP]
-> **New in [v0.2.11](CHANGELOG.md):** MX Master 4 for Business support added, multi-monitor positioning fixed on KDE Plasma Wayland, daemon stability fixes for Fedora 43. [Update now](#installation).
+> **New in [v0.2.12](CHANGELOG.md):** Smooth hover transitions, submenu pop-out animations, Easy-Switch OS icons (Linux, Windows, macOS, iOS, Android, ChromeOS), dynamic play/pause icon, and selection flash feedback. [Update now](#installation).
 
 <div align="center">
   <img src="assets/github/divider.png" width="80%" alt="">
