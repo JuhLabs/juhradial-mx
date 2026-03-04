@@ -33,8 +33,6 @@ pub struct BatteryState {
     pub available: bool,
     /// Last error message if any
     pub error: Option<String>,
-    /// Whether logid is controlling HID++ (battery unavailable)
-    pub logid_active: bool,
 }
 
 /// Shared battery state type
@@ -443,32 +441,12 @@ impl std::fmt::Display for BatteryError {
 
 impl std::error::Error for BatteryError {}
 
-/// Check if logid (LogiOps) is running
-fn is_logid_running() -> bool {
-    std::process::Command::new("pgrep")
-        .arg("-x")
-        .arg("logid")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-}
 
 /// Start a periodic battery update task (legacy - uses its own hidraw handle)
 #[deprecated(note = "Use start_battery_updater_shared instead to share hidraw with haptic")]
 pub async fn start_battery_updater(state: SharedBatteryState) {
     let mut handler = BatteryHandler::new(state.clone());
     let mut consecutive_errors = 0u32;
-    let mut logid_warned = false;
-
-    // Check if logid is running - if so, battery queries will fail
-    if is_logid_running() {
-        tracing::info!("LogiOps (logid) detected - battery status via HID++ unavailable");
-        let mut s = state.write().await;
-        s.available = false;
-        s.logid_active = true;
-        s.error = Some("LogiOps controls HID++".to_string());
-        logid_warned = true;
-    }
 
     // Initial update
     handler.update_state().await;
@@ -479,16 +457,6 @@ pub async fn start_battery_updater(state: SharedBatteryState) {
     loop {
         interval.tick().await;
 
-        // Re-check logid periodically (every 30 seconds worth of ticks)
-        if consecutive_errors > 0 && consecutive_errors % 15 == 0 {
-            if is_logid_running() && !logid_warned {
-                tracing::info!("LogiOps (logid) detected - battery queries will fail");
-                let mut s = state.write().await;
-                s.logid_active = true;
-                logid_warned = true;
-            }
-        }
-
         match handler.query_battery() {
             Ok((percentage, charging)) => {
                 consecutive_errors = 0;
@@ -497,7 +465,6 @@ pub async fn start_battery_updater(state: SharedBatteryState) {
                 s.charging = charging;
                 s.available = true;
                 s.error = None;
-                s.logid_active = false;
                 tracing::debug!(percentage, charging, "Battery state updated");
             }
             Err(e) => {
@@ -512,7 +479,6 @@ pub async fn start_battery_updater(state: SharedBatteryState) {
                 } else if consecutive_errors == 4 {
                     tracing::info!("Battery queries failing repeatedly - suppressing further warnings");
                 }
-                // After 4 errors, stay quiet to avoid log spam
             }
         }
     }
@@ -527,17 +493,6 @@ pub async fn start_battery_updater_shared(
     haptic_manager: crate::hidpp::SharedHapticManager,
 ) {
     let mut consecutive_errors = 0u32;
-    let mut logid_warned = false;
-
-    // Check if logid is running - if so, battery queries will fail
-    if is_logid_running() {
-        tracing::info!("LogiOps (logid) detected - battery status via HID++ unavailable");
-        let mut s = state.write().await;
-        s.available = false;
-        s.logid_active = true;
-        s.error = Some("LogiOps controls HID++".to_string());
-        logid_warned = true;
-    }
 
     // Initial update - get result first, then update state (don't hold lock across await)
     let initial_result = {
@@ -568,16 +523,6 @@ pub async fn start_battery_updater_shared(
     loop {
         interval.tick().await;
 
-        // Re-check logid periodically (every 30 seconds worth of ticks)
-        if consecutive_errors > 0 && consecutive_errors % 15 == 0 {
-            if is_logid_running() && !logid_warned {
-                tracing::info!("LogiOps (logid) detected - battery queries will fail");
-                let mut s = state.write().await;
-                s.logid_active = true;
-                logid_warned = true;
-            }
-        }
-
         // Lock the haptic manager briefly to query battery
         let result = {
             let mut manager = haptic_manager.lock().unwrap();
@@ -592,7 +537,6 @@ pub async fn start_battery_updater_shared(
                 s.charging = charging;
                 s.available = true;
                 s.error = None;
-                s.logid_active = false;
                 tracing::debug!(percentage, charging, "Battery state updated (shared)");
             }
             Err(e) => {
@@ -607,7 +551,6 @@ pub async fn start_battery_updater_shared(
                 } else if consecutive_errors == 4 {
                     tracing::info!("Battery queries failing repeatedly - suppressing further warnings");
                 }
-                // After 4 errors, stay quiet to avoid log spam
             }
         }
     }
