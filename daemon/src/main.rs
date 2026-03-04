@@ -14,7 +14,7 @@ use juhradiald::{
     config::load_shared_config,
     cursor::{get_screen_bounds, ScreenBounds},
     dbus::{init_dbus_service, DBUS_PATH, DBUS_NAME},
-    evdev::{EvdevHandler, EvdevError, GestureEvent, LogidHandler},
+    evdev::{EvdevHandler, EvdevError, GestureEvent},
     hidraw::{HidrawHandler, HidrawError},
     new_shared_haptic_manager,
     profiles::ProfileManager,
@@ -155,46 +155,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create channel for gesture events
     let (event_tx, mut event_rx) = mpsc::channel::<GestureEvent>(32);
 
-    // Check if logid is available - if so, use it exclusively to avoid duplicate events
-    let logid_available = LogidHandler::find_logid_device().is_ok();
+    // Spawn the HID++ hidraw handler (reads button events directly from mouse)
+    let hidraw_tx = event_tx.clone();
+    let hidraw_handle = tokio::spawn(async move {
+        run_hidraw_loop(hidraw_tx).await
+    });
 
-    if logid_available {
-        info!("LogiOps (logid) detected - using logid handler exclusively");
-    } else {
-        info!("LogiOps not detected - using evdev/hidraw handlers");
-    }
-
-    // Spawn the HID++ hidraw handler (for diverted button events via HID++ protocol)
-    // Only if logid is NOT available
-    let hidraw_handle = if !logid_available {
-        let hidraw_tx = event_tx.clone();
-        Some(tokio::spawn(async move {
-            run_hidraw_loop(hidraw_tx).await
-        }))
-    } else {
-        None
-    };
-
-    // Spawn the evdev handler as fallback (for non-diverted button events)
-    // Only if logid is NOT available
-    let evdev_handle = if !logid_available {
-        let evdev_tx = event_tx.clone();
-        Some(tokio::spawn(async move {
-            run_evdev_loop(evdev_tx).await
-        }))
-    } else {
-        None
-    };
-
-    // Spawn the logid handler (for F19/F20 keypresses from logid)
-    // Only if logid IS available
-    let logid_handle = if logid_available {
-        Some(tokio::spawn(async move {
-            run_logid_loop(event_tx).await
-        }))
-    } else {
-        None
-    };
+    // Spawn the evdev handler as fallback (for standard input events)
+    let evdev_tx = event_tx.clone();
+    let evdev_handle = tokio::spawn(async move {
+        run_evdev_loop(evdev_tx).await
+    });
 
     // Get screen bounds for edge clamping (query once at startup)
     let screen_bounds = get_screen_bounds();
@@ -211,46 +182,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("JuhRadial MX Daemon ready");
 
     // Wait for shutdown signal
-    // Use async block to handle Option handles properly
-    let wait_hidraw = async {
-        if let Some(handle) = hidraw_handle {
-            handle.await
-        } else {
-            std::future::pending().await
-        }
-    };
-    let wait_evdev = async {
-        if let Some(handle) = evdev_handle {
-            handle.await
-        } else {
-            std::future::pending().await
-        }
-    };
-    let wait_logid = async {
-        if let Some(handle) = logid_handle {
-            handle.await
-        } else {
-            std::future::pending().await
-        }
-    };
-
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             info!("Shutdown signal received, exiting...");
         }
-        result = wait_hidraw => {
+        result = hidraw_handle => {
             if let Err(e) = result {
                 error!("hidraw task panicked: {:?}", e);
             }
         }
-        result = wait_evdev => {
+        result = evdev_handle => {
             if let Err(e) = result {
                 error!("evdev task panicked: {:?}", e);
-            }
-        }
-        result = wait_logid => {
-            if let Err(e) = result {
-                error!("logid task panicked: {:?}", e);
             }
         }
         result = event_handle => {
@@ -388,48 +331,6 @@ async fn run_evdev_loop(event_tx: mpsc::Sender<GestureEvent>) {
             }
             Err(EvdevError::IoError(e)) => {
                 error!("I/O error during device scan: {}", e);
-            }
-        }
-
-        // Wait before polling again
-        sleep(Duration::from_secs(DEVICE_POLL_INTERVAL_SECS)).await;
-    }
-}
-
-/// Run the logid event loop for F19/F20 keypresses
-///
-/// This handler listens to the LogiOps Virtual Input device for:
-/// - KEY_F19: Gesture button pressed
-/// - KEY_F20: Gesture button released
-async fn run_logid_loop(event_tx: mpsc::Sender<GestureEvent>) {
-    let mut handler = LogidHandler::new(event_tx);
-
-    loop {
-        match LogidHandler::find_logid_device() {
-            Ok(_) => {
-                info!("LogiOps Virtual Input found, starting logid listener");
-
-                match handler.start().await {
-                    Ok(()) => {
-                        info!("Logid event loop ended normally");
-                    }
-                    Err(EvdevError::DeviceNotFound) => {
-                        warn!("LogiOps device disconnected, will poll for reconnection...");
-                    }
-                    Err(EvdevError::PermissionDenied) => {
-                        error!("Permission denied for LogiOps device");
-                    }
-                    Err(EvdevError::IoError(e)) => {
-                        error!("Logid I/O error: {}. Will retry...", e);
-                    }
-                }
-            }
-            Err(EvdevError::DeviceNotFound) => {
-                // logid not running or device not created yet
-                info!("Waiting for LogiOps Virtual Input... (logid must be running)");
-            }
-            Err(e) => {
-                error!("Error finding LogiOps device: {:?}", e);
             }
         }
 
