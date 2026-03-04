@@ -82,13 +82,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let haptic_config = shared_config.read().unwrap().haptics.clone();
     let haptic_manager = new_shared_haptic_manager(&haptic_config);
 
-    // Try to connect to MX Master 4 for haptic feedback
+    // Try to connect to MX Master 4 for haptic feedback and divert gesture buttons
+    // Also capture the device path so HidrawHandler uses the same Bolt receiver
+    let mx4_hidraw_path;
     {
         let mut manager = haptic_manager.lock().unwrap();
         match manager.connect() {
-            Ok(true) => info!("Haptic feedback connected to MX Master 4"),
+            Ok(true) => {
+                info!("Haptic feedback connected to MX Master 4");
+                // Divert gesture buttons so we receive HID++ notifications
+                // This replaces what logid (LogiOps) was doing with "divert: true"
+                match manager.divert_buttons() {
+                    Ok(n) if n > 0 => info!(count = n, "Gesture buttons diverted via HID++"),
+                    Ok(_) => warn!("No gesture buttons found to divert - thumb button may not work"),
+                    Err(e) => warn!("Button divert failed (non-fatal): {}", e),
+                }
+            }
             Ok(false) => info!("No MX Master 4 found for haptics (optional)"),
             Err(e) => warn!("Haptic connection error (non-fatal): {}", e),
+        }
+        mx4_hidraw_path = manager.device_path();
+        if let Some(ref path) = mx4_hidraw_path {
+            info!(path = %path.display(), "MX Master 4 hidraw path for event listener");
         }
     }
 
@@ -156,9 +171,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (event_tx, mut event_rx) = mpsc::channel::<GestureEvent>(32);
 
     // Spawn the HID++ hidraw handler (reads button events directly from mouse)
+    // Pass the MX Master 4's hidraw path so it uses the correct Bolt receiver
     let hidraw_tx = event_tx.clone();
     let hidraw_handle = tokio::spawn(async move {
-        run_hidraw_loop(hidraw_tx).await
+        run_hidraw_loop(hidraw_tx, mx4_hidraw_path).await
     });
 
     // Spawn the evdev handler as fallback (for standard input events)
@@ -242,12 +258,18 @@ fn list_logitech_devices() {
 ///
 /// When buttons are diverted via HID++ configuration, they send HID++ notifications
 /// instead of evdev events. This handler reads from the hidraw device.
-async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>) {
+async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, preferred_path: Option<std::path::PathBuf>) {
     let mut handler = HidrawHandler::new(event_tx);
 
     loop {
-        // Try to open and start listening
-        match handler.open() {
+        // Try to open - use preferred path from HidppDevice if available
+        // This ensures we listen on the same Bolt receiver where buttons were diverted
+        let open_result = if let Some(ref path) = preferred_path {
+            handler.open_path(path)
+        } else {
+            handler.open()
+        };
+        match open_result {
             Ok(()) => {
                 info!("HID++ hidraw handler connected");
 

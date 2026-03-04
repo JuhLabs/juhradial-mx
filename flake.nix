@@ -135,9 +135,6 @@
               # udev rules (for NixOS module)
               install -Dm644 packaging/udev/99-juhradialmx.rules $out/etc/udev/rules.d/99-juhradialmx.rules
 
-              # logid reference config
-              install -Dm644 packaging/logid.cfg $out/share/juhradial/logid.cfg
-
               runHook postInstall
             '';
 

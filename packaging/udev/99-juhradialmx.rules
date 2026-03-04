@@ -45,8 +45,7 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c548", MODE="06
 SUBSYSTEM=="input", ATTRS{idVendor}=="046d", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", TAG+="uaccess"
 
-# Auto-restart logid when a Logitech HID device appears (e.g. Easy-Switch)
-# logid only scans for devices at startup, so when a mouse reconnects
-# after being on another computer, logid must be restarted to pick it up.
-# Uses a systemd timer to debounce multiple rapid udev events.
-ACTION=="add", SUBSYSTEM=="hid", ATTRS{idVendor}=="046d", TAG+="systemd", ENV{SYSTEMD_WANTS}="juhradialmx-logid-restart.service"
+# Auto-restart JuhRadial MX daemon when a Logitech HID device appears (e.g. Easy-Switch)
+# The daemon monitors hidraw devices, so when a mouse reconnects after being
+# on another computer, the daemon picks it up automatically via udev events.
+ACTION=="add", SUBSYSTEM=="hid", ATTRS{idVendor}=="046d", TAG+="systemd"

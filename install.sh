@@ -33,7 +33,7 @@ BIN_DIR="/usr/local/bin"
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 CONFIG_DIR="$HOME/.config/juhradial"
 DISTRO_FAMILY=""
-TOTAL_STEPS=7
+TOTAL_STEPS=6
 CURRENT_STEP=0
 INSTALL_MODE="install"  # "install" or "upgrade"
 
@@ -269,13 +269,6 @@ print_system_info() {
         echo -e "  ${DIM}Mouse${RESET}        ${YELLOW}No Logitech receiver found${RESET} ${GRAY}— plug in to continue${RESET}"
     fi
 
-    # logid
-    if command -v logid &> /dev/null; then
-        echo -e "  ${DIM}logiops${RESET}      ${GREEN}installed${RESET}"
-    else
-        echo -e "  ${DIM}logiops${RESET}      ${GRAY}not found — will attempt install${RESET}"
-    fi
-
     # Install mode
     if [ "$INSTALL_MODE" = "upgrade" ]; then
         local ver_info=""
@@ -348,7 +341,6 @@ install_deps_fedora() {
         gtk4-layer-shell \
         dbus-devel systemd-devel \
         libevdev-devel hidapi-devel \
-        logiops \
         git make
 }
 
@@ -362,18 +354,6 @@ install_deps_arch() {
         dbus systemd-libs \
         libevdev hidapi \
         git make base-devel
-
-    # Install logiops from AUR if not present
-    if ! command -v logid &> /dev/null; then
-        log_info "Installing logiops from AUR..."
-        if command -v yay &> /dev/null; then
-            yay -S --noconfirm logiops
-        elif command -v paru &> /dev/null; then
-            paru -S --noconfirm logiops
-        else
-            log_warning "No AUR helper found. Please install logiops manually."
-        fi
-    fi
 }
 
 install_deps_debian() {
@@ -391,11 +371,6 @@ install_deps_debian() {
         sudo apt-get install -y libgtk4-layer-shell0
     fi
 
-    # logiops needs to be built from source on Debian
-    if ! command -v logid &> /dev/null; then
-        log_warning "logiops not found. Please install it manually from:"
-        log_dim "https://github.com/PixlOne/logiops"
-    fi
 }
 
 install_deps_opensuse() {
@@ -530,48 +505,8 @@ install_files() {
         log_success "udev rules"
     fi
 
-    # Install logid auto-restart service (triggered by udev on device reconnect)
-    if [ -f packaging/systemd/juhradialmx-logid-restart.service ]; then
-        sudo install -Dm644 packaging/systemd/juhradialmx-logid-restart.service /etc/systemd/system/
-        sudo systemctl daemon-reload
-        log_success "Device reconnect service"
-    fi
-
     # Create config directory
     mkdir -p "$CONFIG_DIR"
-}
-
-# ── Logiops ──────────────────────────────────────────────────────────
-configure_logiops() {
-    step "Configuring logiops"
-
-    if ! command -v logid &> /dev/null; then
-        log_warning "logiops (logid) not found — skipping"
-        return 0
-    fi
-
-    if ! command -v systemctl &> /dev/null; then
-        log_warning "systemctl not available — skipping"
-        return 0
-    fi
-
-    if [ -f packaging/logid.cfg ]; then
-        if [ -f /etc/logid.cfg ]; then
-            sudo cp /etc/logid.cfg /etc/logid.cfg.backup
-            log_dim "Backed up existing logid.cfg"
-        fi
-        sudo cp packaging/logid.cfg /etc/logid.cfg
-
-        if systemctl list-unit-files | grep -q "^logid"; then
-            sudo systemctl enable logid
-            sudo systemctl restart logid
-        else
-            log_warning "logid service not found. Please enable it manually."
-        fi
-        log_success "logiops configured"
-    else
-        log_warning "logid.cfg not found in packaging/"
-    fi
 }
 
 # ── Systemd service ─────────────────────────────────────────────────
@@ -720,7 +655,6 @@ main() {
     clone_repo
     build_project
     install_files
-    configure_logiops
     configure_desktop
     enable_service
     print_success

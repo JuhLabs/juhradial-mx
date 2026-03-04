@@ -171,7 +171,7 @@ curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install
 
 ```bash
 # 1. Install dependencies
-sudo dnf install rust cargo logiops python3-pyqt6 qt6-qtsvg \
+sudo dnf install rust cargo python3-pyqt6 qt6-qtsvg \
     python3-gobject gtk4 libadwaita dbus-devel hidapi-devel
 
 # 2. Clone and build
@@ -179,11 +179,7 @@ git clone https://github.com/JuhLabs/juhradial-mx.git
 cd juhradial-mx
 cd daemon && cargo build --release && cd ..
 
-# 3. Configure logiops (maps haptic button to F19)
-sudo cp packaging/logid.cfg /etc/logid.cfg
-sudo systemctl enable --now logid
-
-# 4. Run
+# 3. Run
 ./juhradial-mx.sh
 ```
 
@@ -195,18 +191,13 @@ sudo systemctl enable --now logid
 ```bash
 # 1. Install dependencies
 sudo pacman -S rust python-pyqt6 qt6-svg python-gobject gtk4 libadwaita
-yay -S logiops  # or paru -S logiops
 
 # 2. Clone and build
 git clone https://github.com/JuhLabs/juhradial-mx.git
 cd juhradial-mx
 cd daemon && cargo build --release && cd ..
 
-# 3. Configure logiops
-sudo cp packaging/logid.cfg /etc/logid.cfg
-sudo systemctl enable --now logid
-
-# 4. Run
+# 3. Run
 ./juhradial-mx.sh
 ```
 
@@ -216,7 +207,6 @@ sudo systemctl enable --now logid
 <summary><strong>Requirements</strong></summary>
 
 - **Wayland compositor** (GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway) or **X11**
-- **logiops** (logid) for button mapping
 - **Rust** (for building the daemon)
 - **Python 3** with PyQt6 and GTK4/Adwaita
 - **XWayland** (for overlay window positioning on Wayland)
@@ -315,9 +305,9 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 
 | Problem | Solution |
 |---------|----------|
-| Menu doesn't appear | Check logid: `sudo systemctl status logid` |
+| Menu doesn't appear | Check daemon: `systemctl --user status juhradialmx` |
 | Menu at top-left corner | Log out/in to load GNOME extension, or run `gnome-extensions enable juhradial-cursor@dev.juhlabs.com` |
-| Mouse not detected | Should auto-recover (udev restarts logid). Manual fix: `sudo systemctl restart logid` |
+| Mouse not detected | Check HID permissions: ensure your user is in the `input` group |
 | Build fails | Install dev packages: `hidapi-devel`, `dbus-devel` |
 | Hyprland: Menu hidden | Add window rules from Hyprland Setup section above |
 | GNOME: Extension not loading | Requires session restart (log out/in) on Wayland |
@@ -339,9 +329,9 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 ## How It Works
 
 ```
-┌──────────────┐     D-Bus      ┌──────────────────┐    PyQt6     ┌──────────────┐
-│  Logitech MX │ ──── logid ──→ │  juhradiald       │ ──────────→ │  Radial Menu │
-│  Master      │   (F19 key)    │  (Rust daemon)    │  overlay    │  (8 segments)│
+┌──────────────┐    HID++       ┌──────────────────┐    PyQt6     ┌──────────────┐
+│  Logitech MX │ ── hidraw ──→ │  juhradiald       │ ──────────→ │  Radial Menu │
+│  Master      │  (native)     │  (Rust daemon)    │  overlay    │  (8 segments)│
 └──────────────┘                │                    │             └──────────────┘
                                 │  Cursor Detection: │
                                 │  Hyprland IPC      │             ┌──────────────┐
@@ -366,7 +356,7 @@ juhradial-mx/
 │   └── settings_*.py          # GTK4/Adwaita settings app
 ├── gnome-extension/     # GNOME Shell cursor helper extension
 ├── assets/              # Icons, themes, and screenshots
-└── packaging/           # logid.cfg, systemd, udev rules
+└── packaging/           # systemd, udev rules
 ```
 
 <div align="center">
@@ -383,7 +373,7 @@ GNU General Public License v3.0 — see [LICENSE](LICENSE)
 
 ## Acknowledgments
 
-- [logiops](https://github.com/PixlOne/logiops) — Logitech device configuration
+- [logiops](https://github.com/PixlOne/logiops) — Logitech device configuration (inspiration for HID++ implementation)
 - [logitech-flow-kvm](https://github.com/coddingtonbear/logitech-flow-kvm) by Adam Coddington — Flow multi-computer control inspiration
 - [Catppuccin](https://github.com/catppuccin/catppuccin) — Beautiful color scheme
 

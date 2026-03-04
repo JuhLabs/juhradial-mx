@@ -104,6 +104,18 @@ pub mod features {
     /// Functions: [0] getHostInfo, [1] getHostDescriptor, [3] getHostFriendlyName
     /// NOTE: This is blocklisted for WRITE but READ is safe for getting host names
     pub const HOSTS_INFO: u16 = 0x1815;
+
+    /// REPROG_CONTROLS_V4 - Special Keys & Mouse Buttons (0x1B04)
+    ///
+    /// Used ONLY for runtime button divert (setCidReporting with divert=true).
+    /// Divert is VOLATILE - it resets on mouse disconnect/host switch.
+    /// We NEVER use persistent remapping functions.
+    ///
+    /// Functions we use:
+    /// - [0] getCount() - number of remappable controls (READ-ONLY)
+    /// - [1] getCidInfo(index) - get control info for an index (READ-ONLY)
+    /// - [3] setCidReporting(CID, flags) - set divert flag (RUNTIME-ONLY, volatile)
+    pub const REPROG_CONTROLS_V4: u16 = 0x1B04;
 }
 
 /// BLOCKLISTED HID++ feature IDs - NEVER use these!
@@ -112,9 +124,11 @@ pub mod features {
 ///
 /// These features write to onboard mouse memory and would break
 /// cross-platform compatibility. Using these is FORBIDDEN.
+///
+/// NOTE: 0x1B04 (REPROG_CONTROLS_V4) was removed from this list.
+/// We use it ONLY for volatile runtime divert (setCidReporting),
+/// which resets on disconnect. See features::REPROG_CONTROLS_V4.
 pub mod blocklisted_features {
-    /// Special Keys & Mouse Buttons - PERSISTENT button remapping
-    pub const SPECIAL_KEYS: u16 = 0x1B04;
     /// Report Rate - MAY persist on some devices
     pub const REPORT_RATE: u16 = 0x8060;
     /// Onboard Profiles - PERSISTENT profile storage
@@ -132,8 +146,7 @@ pub mod blocklisted_features {
     pub fn is_blocklisted(feature_id: u16) -> bool {
         matches!(
             feature_id,
-            SPECIAL_KEYS
-                | REPORT_RATE
+            REPORT_RATE
                 | ONBOARD_PROFILES
                 | MODE_STATUS
                 | MOUSE_BUTTON_SPY
@@ -145,7 +158,6 @@ pub mod blocklisted_features {
     /// Get human-readable name for blocklisted feature
     pub fn blocklist_reason(feature_id: u16) -> Option<&'static str> {
         match feature_id {
-            SPECIAL_KEYS => Some("Persistent button remapping"),
             REPORT_RATE => Some("May persist report rate settings"),
             ONBOARD_PROFILES => Some("Persistent profile storage"),
             MODE_STATUS => Some("Profile switching may persist"),
@@ -172,6 +184,7 @@ pub mod allowed_features {
         features::MX_MASTER_4_HAPTIC,
         features::MX4_HAPTIC_ALT,
         features::ADJUSTABLE_DPI,
+        features::REPROG_CONTROLS_V4,
     ];
 
     /// Check if a feature ID is explicitly allowed
@@ -442,6 +455,12 @@ pub struct HidppDevice {
     battery_feature_index: Option<u8>,
     /// Whether using UNIFIED_BATTERY (true) or BATTERY_STATUS (false)
     is_unified_battery: bool,
+    /// Whether REPROG_CONTROLS_V4 feature is available (0x1B04)
+    reprog_controls_supported: bool,
+    /// REPROG_CONTROLS_V4 feature index (0x1B04) - for button divert
+    reprog_controls_feature_index: Option<u8>,
+    /// Path to the hidraw device we connected to
+    device_path: PathBuf,
 }
 
 impl HidppDevice {
@@ -594,6 +613,9 @@ impl HidppDevice {
                 battery_supported: false,
                 battery_feature_index: None,
                 is_unified_battery: false,
+                reprog_controls_supported: false,
+                reprog_controls_feature_index: None,
+                device_path: device_path.clone(),
             };
 
             // Validate HID++ 2.0 support - if this fails, try next candidate
@@ -609,11 +631,23 @@ impl HidppDevice {
             // Enumerate features and check for haptic support
             hidpp.enumerate_features();
 
+            // Skip devices that aren't the MX Master 4
+            // The MX Master 4 has feature 0x19B0 (haptic) or 0x1B04 (reprog controls)
+            // This prevents connecting to a Keys MX S keyboard on another Bolt receiver
+            if !hidpp.mx4_haptic_supported && !hidpp.reprog_controls_supported {
+                tracing::debug!(
+                    path = %device_path.display(),
+                    "Device is HID++ 2.0 but not MX Master 4 (no haptic/reprog), trying next"
+                );
+                continue;
+            }
+
             tracing::info!(
                 path = %device_path.display(),
                 connection = %connection_type,
                 haptic_supported = hidpp.haptic_supported,
                 mx4_haptic_supported = hidpp.mx4_haptic_supported,
+                reprog_controls = hidpp.reprog_controls_supported,
                 "Connected to MX Master 4 via hidraw"
             );
 
@@ -764,7 +798,7 @@ impl HidppDevice {
         }
     }
 
-    /// Send a long HID++ message (20 bytes) - for haptic patterns
+    /// Send a long HID++ message (20 bytes) - fire and forget
     #[allow(dead_code)]
     fn hidpp_send_long(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Result<(), std::io::Error> {
         // Drain any pending data first
@@ -789,6 +823,88 @@ impl HidppDevice {
         );
 
         self.device.write_all(&request)
+    }
+
+    /// Send a long HID++ request (20 bytes) and wait for response
+    ///
+    /// Used for commands that need more than 3 parameter bytes
+    /// (e.g. setCidReporting which needs 5 bytes).
+    fn hidpp_long_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Option<Vec<u8>> {
+        // Drain any pending data first
+        self.drain_buffer();
+
+        // Build HID++ long report (20 bytes)
+        let mut request = [0u8; 20];
+        request[0] = report_type::LONG;
+        request[1] = self.device_index;
+        request[2] = feature_index;
+        request[3] = (function << 4) | SOFTWARE_ID;
+
+        // Copy params (up to 16 bytes for long report)
+        let param_len = params.len().min(16);
+        request[4..4 + param_len].copy_from_slice(&params[..param_len]);
+
+        tracing::debug!(
+            feature_index,
+            function,
+            "Sending HID++ long request: {:02X?}",
+            &request
+        );
+
+        // Send request
+        if let Err(e) = self.device.write_all(&request) {
+            tracing::debug!(error = %e, "Failed to write HID++ long message");
+            return None;
+        }
+
+        // Read response with timeout (same as hidpp_request)
+        let mut response = [0u8; 20];
+        let mut attempts = 0;
+
+        loop {
+            match self.device.read(&mut response) {
+                Ok(len) if len >= 7 => {
+                    let resp_function = (response[3] >> 4) & 0x0F;
+                    let resp_sw_id = response[3] & 0x0F;
+
+                    // Check for matching response
+                    if (response[0] == report_type::SHORT || response[0] == report_type::LONG)
+                        && response[1] == self.device_index
+                        && response[2] == feature_index
+                        && resp_function == function
+                        && resp_sw_id == SOFTWARE_ID
+                    {
+                        tracing::debug!("HID++ long request matched: {:02X?}", &response[..len]);
+                        return Some(response[..len].to_vec());
+                    }
+
+                    // Check for error response
+                    if response[2] == 0xFF {
+                        let error_code = response[5];
+                        tracing::warn!(
+                            error_code,
+                            "HID++ error response to long request: {:02X?}",
+                            &response[..len]
+                        );
+                        return None;
+                    }
+                }
+                Ok(_) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(e) => {
+                    tracing::debug!(error = %e, "Error reading HID++ long response");
+                    return None;
+                }
+            }
+
+            attempts += 1;
+            if attempts > 100 {
+                tracing::debug!(feature_index, function, "HID++ long request timeout");
+                return None;
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
     }
 
     /// Validate that the device supports HID++ 2.0 protocol
@@ -949,6 +1065,16 @@ impl HidppDevice {
                         "Battery Status feature found (0x1000)"
                     );
                 }
+
+                // Check for REPROG_CONTROLS_V4 feature (0x1B04) - button divert
+                if feature_id == features::REPROG_CONTROLS_V4 {
+                    self.reprog_controls_supported = true;
+                    self.reprog_controls_feature_index = Some(feature_index);
+                    tracing::info!(
+                        index = feature_index,
+                        "REPROG_CONTROLS_V4 feature found (0x1B04) - button divert available"
+                    );
+                }
             }
         }
 
@@ -959,6 +1085,7 @@ impl HidppDevice {
             dpi = self.dpi_supported,
             smartshift = self.smartshift_supported,
             battery = self.battery_supported,
+            reprog_controls = self.reprog_controls_supported,
             "Feature enumeration complete (blocklisted features excluded)"
         );
     }
@@ -982,6 +1109,138 @@ impl HidppDevice {
         })
     }
 
+    /// Divert gesture buttons via REPROG_CONTROLS_V4 (0x1B04)
+    ///
+    /// Tells the mouse to send button presses as HID++ notifications
+    /// instead of standard HID reports. This is how we receive the
+    /// haptic/gesture thumb button press without logid.
+    ///
+    /// # SAFETY
+    ///
+    /// The divert command (setCidReporting function 3) is VOLATILE.
+    /// It resets on mouse disconnect or host switch. It does NOT
+    /// persist to onboard memory.
+    ///
+    /// # Target CIDs
+    ///
+    /// - 0x00C3 (195): Gesture button (thumb button on MX Master 4)
+    /// - 0x01A0 (416): Haptic button (if present as separate control)
+    pub fn divert_buttons(&mut self) -> Result<u8, HapticError> {
+        let feature_index = match self.reprog_controls_feature_index {
+            Some(idx) => idx,
+            None => {
+                tracing::debug!("REPROG_CONTROLS_V4 not available, cannot divert buttons");
+                return Ok(0);
+            }
+        };
+
+        tracing::info!(feature_index, "Diverting gesture buttons via REPROG_CONTROLS_V4");
+
+        // Function 0: getCount() - get number of remappable controls
+        let count = match self.hidpp_request(feature_index, 0x00, &[]) {
+            Some(resp) if resp.len() >= 5 => resp[4],
+            _ => {
+                tracing::warn!("Failed to get control count from REPROG_CONTROLS_V4");
+                return Ok(0);
+            }
+        };
+
+        tracing::debug!(count, "Device has remappable controls");
+
+        // Target CIDs to divert
+        const GESTURE_BUTTON_CID: u16 = 0x00C3; // 195
+        const HAPTIC_BUTTON_CID: u16 = 0x01A0;  // 416
+
+        let mut diverted = 0u8;
+
+        // Function 1: getCidInfo(index) - enumerate controls to find our targets
+        for i in 0..count {
+            let resp = match self.hidpp_request(feature_index, 0x01, &[i, 0, 0]) {
+                Some(r) if r.len() >= 9 => r,
+                _ => continue,
+            };
+
+            // getCidInfo response format (long report):
+            // Byte 4-5: CID (big endian)
+            // Byte 6-7: Task ID
+            // Byte 8: flags (bit 0 = mouse btn, bit 1 = fKey, bit 2 = hotKey,
+            //          bit 3 = fnToggle, bit 4 = reprogrammable, bit 5 = divertable)
+            let cid = ((resp[4] as u16) << 8) | (resp[5] as u16);
+            let flags = resp[8];
+            let divertable = (flags & 0x20) != 0;
+
+            tracing::debug!(
+                index = i,
+                cid = format!("0x{:04X}", cid),
+                flags = format!("0x{:02X}", flags),
+                divertable,
+                "Control info"
+            );
+
+            // Check if this is one of our target buttons AND it's divertable
+            if (cid == GESTURE_BUTTON_CID || cid == HAPTIC_BUTTON_CID) && divertable {
+                tracing::info!(
+                    cid = format!("0x{:04X}", cid),
+                    "Diverting button"
+                );
+
+                // Function 3: setCidReporting - MUST use long report (5 param bytes)
+                //
+                // Flag byte uses "change gate" pattern from HID++ 2.0 spec:
+                //   bit 0: TemporaryDiverted     (0x01) - enable volatile divert
+                //   bit 1: ChangeTemporaryDivert (0x02) - MUST set to apply bit 0
+                //   bit 2: PersistentlyDiverted  (0x04) - DO NOT USE
+                //   bit 3: ChangePersistentDivert(0x08) - DO NOT USE
+                //   bit 4: RawXYDiverted         (0x10) - divert raw XY movement
+                //   bit 5: ChangeRawXYDivert     (0x20) - MUST set to apply bit 4
+                //
+                // We set divert + change gate = 0x03. No persist, no rawXY.
+                let divert_flags: u8 = 0x03; // TemporaryDiverted | ChangeTemporaryDivert
+                let params: &[u8] = &[
+                    (cid >> 8) as u8,   // CID high byte
+                    (cid & 0xFF) as u8, // CID low byte
+                    divert_flags,       // 0x03: divert=true with change gate
+                    0x00,               // remap target CID high (0 = no remap)
+                    0x00,               // remap target CID low  (0 = no remap)
+                ];
+
+                match self.hidpp_long_request(feature_index, 0x03, params) {
+                    Some(resp) => {
+                        tracing::info!(
+                            cid = format!("0x{:04X}", cid),
+                            response = format!("{:02X?}", &resp[4..resp.len().min(9)]),
+                            "Button diverted successfully"
+                        );
+                        diverted += 1;
+                    }
+                    None => {
+                        tracing::warn!(
+                            cid = format!("0x{:04X}", cid),
+                            "Failed to divert button (setCidReporting returned no response)"
+                        );
+                    }
+                }
+            }
+        }
+
+        if diverted > 0 {
+            tracing::info!(count = diverted, "Gesture buttons diverted - HID++ notifications enabled");
+        } else {
+            tracing::warn!("No gesture buttons found to divert. Button detection may not work.");
+        }
+
+        Ok(diverted)
+    }
+
+    /// Check if REPROG_CONTROLS_V4 is available for button divert
+    pub fn reprog_controls_supported(&self) -> bool {
+        self.reprog_controls_supported
+    }
+
+    /// Get the hidraw device path this device is connected to
+    pub fn device_path(&self) -> &std::path::Path {
+        &self.device_path
+    }
 
     /// Check if any haptic feedback is supported (MX4 or legacy)
     pub fn haptic_supported(&self) -> bool {
@@ -2171,6 +2430,23 @@ impl HapticManager {
         }
     }
 
+    /// Divert gesture buttons so HID++ notifications are sent
+    ///
+    /// Must be called after connect(). Sends the REPROG_CONTROLS_V4
+    /// setCidReporting command to divert CID 0xC3 (gesture) and 0x1A0 (haptic).
+    /// This is volatile - resets on disconnect, so call again after reconnect.
+    ///
+    /// Returns the number of buttons successfully diverted.
+    pub fn divert_buttons(&mut self) -> Result<u8, HapticError> {
+        match &mut self.device {
+            Some(device) => device.divert_buttons(),
+            None => {
+                tracing::debug!("No device connected, cannot divert buttons");
+                Ok(0)
+            }
+        }
+    }
+
     /// Handle device disconnection gracefully
     ///
     /// Called when an IO error occurs during haptic communication.
@@ -2220,6 +2496,12 @@ impl HapticManager {
         match self.connect() {
             Ok(true) => {
                 tracing::info!("Haptic device reconnected successfully");
+                // Re-divert buttons after reconnect (divert is volatile)
+                match self.divert_buttons() {
+                    Ok(n) if n > 0 => tracing::info!(count = n, "Re-diverted buttons after reconnect"),
+                    Ok(_) => tracing::debug!("No buttons to re-divert after reconnect"),
+                    Err(e) => tracing::warn!(error = %e, "Failed to re-divert buttons after reconnect"),
+                }
                 true
             }
             Ok(false) => {
@@ -2248,6 +2530,14 @@ impl HapticManager {
             .as_ref()
             .map(|d| d.haptic_supported())
             .unwrap_or(false)
+    }
+
+    /// Get the hidraw device path the MX Master 4 is connected to
+    ///
+    /// Returns None if no device is connected. Use this to coordinate
+    /// with HidrawHandler so both use the same receiver.
+    pub fn device_path(&self) -> Option<PathBuf> {
+        self.device.as_ref().map(|d| d.device_path().to_path_buf())
     }
 
     /// Send a haptic pulse (runtime only, no memory writes)
@@ -2954,31 +3244,16 @@ mod tests {
 
     #[test]
     fn test_disabled_haptics() {
-        let mut manager = HapticManager::new(50, false);
+        let mut manager = HapticManager::new(false);
         // Should succeed but do nothing when disabled
         assert!(manager.pulse(haptic_profiles::CONFIRM).is_ok());
     }
 
     #[test]
-    fn test_zero_intensity() {
-        let mut manager = HapticManager::new(0, true);
-        // Should succeed but do nothing with zero intensity
+    fn test_enabled_haptics_no_device() {
+        let mut manager = HapticManager::new(true);
+        // Should succeed silently without device
         assert!(manager.pulse(haptic_profiles::CONFIRM).is_ok());
-    }
-
-    #[test]
-    fn test_intensity_scaling() {
-        let manager = HapticManager::new(50, true);
-        // 50% of 80 should be 40
-        let scaled = (haptic_profiles::CONFIRM.intensity as u16 * manager.intensity() as u16) / 100;
-        assert_eq!(scaled, 40);
-    }
-
-    #[test]
-    fn test_intensity_clamping() {
-        let manager = HapticManager::new(150, true);
-        // Should be clamped to 100
-        assert_eq!(manager.intensity(), 100);
     }
 
     #[test]
@@ -3040,7 +3315,7 @@ mod tests {
 
     #[test]
     fn test_graceful_fallback_no_device() {
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         // Without connect(), device is None
         // Should succeed silently (graceful degradation)
         assert!(manager.pulse(haptic_profiles::CONFIRM).is_ok());
@@ -3050,13 +3325,13 @@ mod tests {
     #[test]
     fn test_default_manager() {
         let manager = HapticManager::default();
-        assert_eq!(manager.intensity(), 50);
         assert!(manager.is_enabled());
+        assert_eq!(manager.default_pattern(), Mx4HapticPattern::SubtleCollision);
     }
 
     #[test]
     fn test_set_debounce() {
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         manager.set_debounce_ms(30);
         // Debounce is internal but we can verify it doesn't panic
         assert!(manager.pulse(haptic_profiles::CONFIRM).is_ok());
@@ -3068,7 +3343,7 @@ mod tests {
 
         let config = HapticConfig {
             enabled: true,
-            intensity: 75,
+            default_pattern: "subtle_collision".to_string(),
             per_event: Default::default(),
             debounce_ms: 30,
             slice_debounce_ms: 20,
@@ -3076,8 +3351,8 @@ mod tests {
         };
 
         let manager = HapticManager::from_config(&config);
-        assert_eq!(manager.intensity(), 75);
         assert!(manager.is_enabled());
+        assert_eq!(manager.default_pattern(), Mx4HapticPattern::SubtleCollision);
     }
 
     #[test]
@@ -3086,7 +3361,7 @@ mod tests {
 
         let config = HapticConfig {
             enabled: false,
-            intensity: 75,
+            default_pattern: "subtle_collision".to_string(),
             per_event: Default::default(),
             debounce_ms: 20,
             slice_debounce_ms: 20,
@@ -3101,12 +3376,12 @@ mod tests {
     fn test_update_from_config() {
         use crate::config::HapticConfig;
 
-        let mut manager = HapticManager::new(50, true);
-        assert_eq!(manager.intensity(), 50);
+        let mut manager = HapticManager::new(true);
+        assert_eq!(manager.default_pattern(), Mx4HapticPattern::SubtleCollision);
 
         let new_config = HapticConfig {
             enabled: true,
-            intensity: 80,
+            default_pattern: "sharp_state_change".to_string(),
             per_event: Default::default(),
             debounce_ms: 25,
             slice_debounce_ms: 20,
@@ -3114,7 +3389,7 @@ mod tests {
         };
 
         manager.update_from_config(&new_config);
-        assert_eq!(manager.intensity(), 80);
+        assert_eq!(manager.default_pattern(), Mx4HapticPattern::SharpStateChange);
     }
 
     // ========================================================================
@@ -3169,46 +3444,39 @@ mod tests {
     }
 
     #[test]
-    fn test_per_event_intensity_defaults() {
-        let per_event = PerEventIntensity::default();
-        assert_eq!(per_event.menu_appear, 20);
-        assert_eq!(per_event.slice_change, 40);
-        assert_eq!(per_event.confirm, 80);
-        assert_eq!(per_event.invalid, 30);
+    fn test_per_event_pattern_defaults() {
+        let per_event = PerEventPattern::default();
+        assert_eq!(per_event.menu_appear, Mx4HapticPattern::DampStateChange);
+        assert_eq!(per_event.slice_change, Mx4HapticPattern::SubtleCollision);
+        assert_eq!(per_event.confirm, Mx4HapticPattern::SharpStateChange);
+        assert_eq!(per_event.invalid, Mx4HapticPattern::AngryAlert);
     }
 
     #[test]
-    fn test_per_event_intensity_get() {
-        let per_event = PerEventIntensity {
-            menu_appear: 15,
-            slice_change: 35,
-            confirm: 75,
-            invalid: 25,
+    fn test_per_event_pattern_get() {
+        let per_event = PerEventPattern {
+            menu_appear: Mx4HapticPattern::SubtleCollision,
+            slice_change: Mx4HapticPattern::DampStateChange,
+            confirm: Mx4HapticPattern::AngryAlert,
+            invalid: Mx4HapticPattern::SharpStateChange,
         };
 
-        assert_eq!(per_event.get(&HapticEvent::MenuAppear), 15);
-        assert_eq!(per_event.get(&HapticEvent::SliceChange), 35);
-        assert_eq!(per_event.get(&HapticEvent::SelectionConfirm), 75);
-        assert_eq!(per_event.get(&HapticEvent::InvalidAction), 25);
+        assert_eq!(per_event.get(&HapticEvent::MenuAppear), Mx4HapticPattern::SubtleCollision);
+        assert_eq!(per_event.get(&HapticEvent::SliceChange), Mx4HapticPattern::DampStateChange);
+        assert_eq!(per_event.get(&HapticEvent::SelectionConfirm), Mx4HapticPattern::AngryAlert);
+        assert_eq!(per_event.get(&HapticEvent::InvalidAction), Mx4HapticPattern::SharpStateChange);
     }
 
     #[test]
     fn test_emit_disabled() {
-        let mut manager = HapticManager::new(50, false);
+        let mut manager = HapticManager::new(false);
         // Should succeed but do nothing when disabled
         assert!(manager.emit(HapticEvent::MenuAppear).is_ok());
     }
 
     #[test]
-    fn test_emit_zero_intensity() {
-        let mut manager = HapticManager::new(0, true);
-        // Should succeed but do nothing with zero intensity
-        assert!(manager.emit(HapticEvent::MenuAppear).is_ok());
-    }
-
-    #[test]
     fn test_emit_no_device() {
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         // Without connect(), device is None - should succeed silently
         assert!(manager.emit(HapticEvent::MenuAppear).is_ok());
         assert!(manager.emit(HapticEvent::SliceChange).is_ok());
@@ -3244,12 +3512,12 @@ mod tests {
 
         let config = HapticConfig {
             enabled: true,
-            intensity: 60,
+            default_pattern: "subtle_collision".to_string(),
             per_event: HapticEventConfig {
-                menu_appear: 25,
-                slice_change: 45,
-                confirm: 85,
-                invalid: 35,
+                menu_appear: "damp_state_change".to_string(),
+                slice_change: "sharp_state_change".to_string(),
+                confirm: "angry_alert".to_string(),
+                invalid: "subtle_collision".to_string(),
             },
             debounce_ms: 25,
             slice_debounce_ms: 20,
@@ -3257,27 +3525,27 @@ mod tests {
         };
 
         let manager = HapticManager::from_config(&config);
-        assert_eq!(manager.intensity(), 60);
-        assert_eq!(manager.per_event.menu_appear, 25);
-        assert_eq!(manager.per_event.slice_change, 45);
-        assert_eq!(manager.per_event.confirm, 85);
-        assert_eq!(manager.per_event.invalid, 35);
+        assert!(manager.is_enabled());
+        assert_eq!(manager.per_event.menu_appear, Mx4HapticPattern::DampStateChange);
+        assert_eq!(manager.per_event.slice_change, Mx4HapticPattern::SharpStateChange);
+        assert_eq!(manager.per_event.confirm, Mx4HapticPattern::AngryAlert);
+        assert_eq!(manager.per_event.invalid, Mx4HapticPattern::SubtleCollision);
     }
 
     #[test]
     fn test_update_from_config_with_per_event() {
         use crate::config::{HapticConfig, HapticEventConfig};
 
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
 
         let new_config = HapticConfig {
             enabled: true,
-            intensity: 70,
+            default_pattern: "angry_alert".to_string(),
             per_event: HapticEventConfig {
-                menu_appear: 30,
-                slice_change: 50,
-                confirm: 90,
-                invalid: 40,
+                menu_appear: "sharp_state_change".to_string(),
+                slice_change: "angry_alert".to_string(),
+                confirm: "damp_state_change".to_string(),
+                invalid: "subtle_collision".to_string(),
             },
             debounce_ms: 30,
             slice_debounce_ms: 20,
@@ -3285,11 +3553,11 @@ mod tests {
         };
 
         manager.update_from_config(&new_config);
-        assert_eq!(manager.intensity(), 70);
-        assert_eq!(manager.per_event.menu_appear, 30);
-        assert_eq!(manager.per_event.slice_change, 50);
-        assert_eq!(manager.per_event.confirm, 90);
-        assert_eq!(manager.per_event.invalid, 40);
+        assert_eq!(manager.default_pattern(), Mx4HapticPattern::AngryAlert);
+        assert_eq!(manager.per_event.menu_appear, Mx4HapticPattern::SharpStateChange);
+        assert_eq!(manager.per_event.slice_change, Mx4HapticPattern::AngryAlert);
+        assert_eq!(manager.per_event.confirm, Mx4HapticPattern::DampStateChange);
+        assert_eq!(manager.per_event.invalid, Mx4HapticPattern::SubtleCollision);
     }
 
     // ========================================================================
@@ -3299,13 +3567,15 @@ mod tests {
     #[test]
     fn test_blocklisted_features_detection() {
         // All blocklisted features should be detected
-        assert!(blocklisted_features::is_blocklisted(blocklisted_features::SPECIAL_KEYS));
         assert!(blocklisted_features::is_blocklisted(blocklisted_features::REPORT_RATE));
         assert!(blocklisted_features::is_blocklisted(blocklisted_features::ONBOARD_PROFILES));
         assert!(blocklisted_features::is_blocklisted(blocklisted_features::MODE_STATUS));
         assert!(blocklisted_features::is_blocklisted(blocklisted_features::MOUSE_BUTTON_SPY));
         assert!(blocklisted_features::is_blocklisted(blocklisted_features::PERSISTENT_REMAPPABLE_ACTION));
         assert!(blocklisted_features::is_blocklisted(blocklisted_features::HOST_INFO));
+
+        // REPROG_CONTROLS_V4 (0x1B04) was moved to allowed - used for volatile divert only
+        assert!(!blocklisted_features::is_blocklisted(features::REPROG_CONTROLS_V4));
     }
 
     #[test]
@@ -3341,15 +3611,22 @@ mod tests {
     #[test]
     fn test_verify_feature_safety_blocklisted() {
         // Blocklisted features should fail safety check
-        let result = verify_feature_safety(blocklisted_features::SPECIAL_KEYS);
+        let result = verify_feature_safety(blocklisted_features::REPORT_RATE);
         assert!(result.is_err());
 
         if let Err(HapticError::SafetyViolation { feature_id, reason }) = result {
-            assert_eq!(feature_id, blocklisted_features::SPECIAL_KEYS);
-            assert!(reason.contains("button"));
+            assert_eq!(feature_id, blocklisted_features::REPORT_RATE);
+            assert!(reason.contains("report rate") || reason.contains("persist"));
         } else {
             panic!("Expected SafetyViolation error");
         }
+    }
+
+    #[test]
+    fn test_reprog_controls_v4_is_allowed() {
+        // 0x1B04 should now pass safety check (used for volatile divert)
+        assert!(verify_feature_safety(features::REPROG_CONTROLS_V4).is_ok());
+        assert!(allowed_features::is_allowed(features::REPROG_CONTROLS_V4));
     }
 
     #[test]
@@ -3379,24 +3656,25 @@ mod tests {
     #[test]
     fn test_safety_violation_error_display() {
         let error = HapticError::SafetyViolation {
-            feature_id: 0x1B04,
-            reason: "Persistent button remapping",
+            feature_id: 0x8100,
+            reason: "Persistent profile storage",
         };
         let msg = format!("{}", error);
         assert!(msg.contains("SAFETY VIOLATION"));
-        assert!(msg.contains("1B04"));
+        assert!(msg.contains("8100"));
         assert!(msg.contains("Persistent"));
     }
 
     #[test]
     fn test_blocklist_reasons_exist() {
         // All blocklisted features should have reasons
-        assert!(blocklisted_features::blocklist_reason(blocklisted_features::SPECIAL_KEYS).is_some());
         assert!(blocklisted_features::blocklist_reason(blocklisted_features::ONBOARD_PROFILES).is_some());
         assert!(blocklisted_features::blocklist_reason(blocklisted_features::REPORT_RATE).is_some());
 
         // Non-blocklisted should return None
         assert!(blocklisted_features::blocklist_reason(features::FORCE_FEEDBACK).is_none());
+        // REPROG_CONTROLS_V4 is no longer blocklisted
+        assert!(blocklisted_features::blocklist_reason(features::REPROG_CONTROLS_V4).is_none());
     }
 
     #[test]
@@ -3413,13 +3691,13 @@ mod tests {
 
     #[test]
     fn test_connection_state_default() {
-        let manager = HapticManager::new(50, true);
+        let manager = HapticManager::new(true);
         assert_eq!(manager.connection_state(), ConnectionState::NotConnected);
     }
 
     #[test]
     fn test_pulse_succeeds_when_no_device() {
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         // Without connect(), device is None
         // Should succeed silently (graceful degradation)
         assert!(manager.pulse(haptic_profiles::CONFIRM).is_ok());
@@ -3428,7 +3706,7 @@ mod tests {
 
     #[test]
     fn test_emit_succeeds_when_no_device() {
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         // All emit calls should succeed silently
         assert!(manager.emit(HapticEvent::MenuAppear).is_ok());
         assert!(manager.emit(HapticEvent::SliceChange).is_ok());
@@ -3438,7 +3716,7 @@ mod tests {
 
     #[test]
     fn test_reconnect_not_needed_when_not_connected() {
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         // NotConnected state - should return false but not try to reconnect
         assert!(!manager.reconnect_if_needed());
         assert_eq!(manager.connection_state(), ConnectionState::NotConnected);
@@ -3461,16 +3739,8 @@ mod tests {
 
     #[test]
     fn test_graceful_fallback_on_disabled() {
-        let mut manager = HapticManager::new(50, false);
+        let mut manager = HapticManager::new(false);
         // Disabled haptics should always succeed silently
-        assert!(manager.pulse(haptic_profiles::CONFIRM).is_ok());
-        assert!(manager.emit(HapticEvent::SelectionConfirm).is_ok());
-    }
-
-    #[test]
-    fn test_graceful_fallback_on_zero_intensity() {
-        let mut manager = HapticManager::new(0, true);
-        // Zero intensity should always succeed silently
         assert!(manager.pulse(haptic_profiles::CONFIRM).is_ok());
         assert!(manager.emit(HapticEvent::SelectionConfirm).is_ok());
     }
@@ -3499,29 +3769,22 @@ mod tests {
 
     #[test]
     fn test_manager_slice_debounce_defaults() {
-        let manager = HapticManager::new(50, true);
+        let manager = HapticManager::new(true);
         assert_eq!(manager.slice_debounce_ms(), 20);
         assert_eq!(manager.reentry_debounce_ms(), 50);
     }
 
     #[test]
     fn test_emit_slice_change_disabled() {
-        let mut manager = HapticManager::new(50, false);
+        let mut manager = HapticManager::new(false);
         // Should return false when disabled
         assert!(!manager.emit_slice_change(0));
         assert!(!manager.emit_slice_change(1));
     }
 
     #[test]
-    fn test_emit_slice_change_zero_intensity() {
-        let mut manager = HapticManager::new(0, true);
-        // Should return false with zero intensity
-        assert!(!manager.emit_slice_change(0));
-    }
-
-    #[test]
     fn test_emit_slice_change_no_device() {
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         // Without connect(), device is None - should succeed gracefully
         // (returns true because emit succeeds silently without device)
         // First call after debounce window should work
@@ -3531,7 +3794,7 @@ mod tests {
 
     #[test]
     fn test_reset_slice_tracking() {
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         manager.last_slice_index = Some(3);
         manager.last_slice_change_ms = 12345;
 
@@ -3543,26 +3806,26 @@ mod tests {
 
     #[test]
     fn test_set_slice_debounce_ms() {
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         manager.set_slice_debounce_ms(30);
         assert_eq!(manager.slice_debounce_ms(), 30);
     }
 
     #[test]
     fn test_set_reentry_debounce_ms() {
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         manager.set_reentry_debounce_ms(100);
         assert_eq!(manager.reentry_debounce_ms(), 100);
     }
 
     #[test]
     fn test_from_config_with_slice_debounce() {
-        use crate::config::{HapticConfig, HapticEventConfig};
+        use crate::config::HapticConfig;
 
         let config = HapticConfig {
             enabled: true,
-            intensity: 50,
-            per_event: HapticEventConfig::default(),
+            default_pattern: "subtle_collision".to_string(),
+            per_event: Default::default(),
             debounce_ms: 20,
             slice_debounce_ms: 25,
             reentry_debounce_ms: 60,
@@ -3575,16 +3838,16 @@ mod tests {
 
     #[test]
     fn test_update_from_config_with_slice_debounce() {
-        use crate::config::{HapticConfig, HapticEventConfig};
+        use crate::config::HapticConfig;
 
-        let mut manager = HapticManager::new(50, true);
+        let mut manager = HapticManager::new(true);
         assert_eq!(manager.slice_debounce_ms(), 20);
         assert_eq!(manager.reentry_debounce_ms(), 50);
 
         let new_config = HapticConfig {
             enabled: true,
-            intensity: 50,
-            per_event: HapticEventConfig::default(),
+            default_pattern: "subtle_collision".to_string(),
+            per_event: Default::default(),
             debounce_ms: 20,
             slice_debounce_ms: 35,
             reentry_debounce_ms: 75,
@@ -3598,7 +3861,7 @@ mod tests {
     #[test]
     fn test_short_message_buffer_preallocated() {
         // Verify the pre-allocated buffer exists and is correct size
-        let manager = HapticManager::new(50, true);
+        let manager = HapticManager::new(true);
         assert_eq!(manager._short_msg_buffer.len(), 7);
     }
 
