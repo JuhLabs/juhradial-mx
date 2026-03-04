@@ -398,24 +398,24 @@ mod tests {
         let config: Config = serde_json::from_str(json).unwrap();
 
         assert!(config.haptics.enabled);
-        assert_eq!(config.haptics.intensity, 50);
+        assert_eq!(config.haptics.default_pattern, "subtle_collision");
         assert_eq!(config.theme, "catppuccin-mocha");
     }
 
     #[test]
-    fn test_zero_intensity_disables() {
-        let json = r#"{"haptics": {"intensity": 0}}"#;
+    fn test_disabled_haptics_via_enabled_field() {
+        let json = r#"{"haptics": {"enabled": false}}"#;
         let config: Config = serde_json::from_str(json).unwrap();
 
-        assert!(!config.haptics_enabled()); // Effectively disabled
+        assert!(!config.haptics_enabled());
         assert!(config.haptics.is_disabled());
     }
 
     #[test]
-    fn test_legacy_getters() {
+    fn test_haptics_enabled_getter() {
         let config = Config::default();
-        assert_eq!(config.haptic_intensity(), 50);
         assert!(config.haptics_enabled());
+        assert_eq!(config.default_haptic_pattern(), "subtle_collision");
     }
 
     #[test]
@@ -425,7 +425,7 @@ mod tests {
 
         // Should contain expected fields
         assert!(json.contains("haptics"));
-        assert!(json.contains("intensity"));
+        assert!(json.contains("default_pattern"));
         assert!(json.contains("catppuccin-mocha"));
     }
 }

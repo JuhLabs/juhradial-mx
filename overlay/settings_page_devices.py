@@ -97,7 +97,7 @@ class DevicesPage(Gtk.ScrolledWindow):
 
         # Firmware version (placeholder)
         fw_row = SettingRow(_("Firmware Version"), _("Device firmware information"))
-        fw_label = Gtk.Label(label=_("Managed by LogiOps"))
+        fw_label = Gtk.Label(label=_("Managed by JuhRadial MX"))
         fw_label.add_css_class("dim-label")
         fw_row.set_control(fw_label)
         device_card.append(fw_row)
@@ -110,11 +110,12 @@ class DevicesPage(Gtk.ScrolledWindow):
         info_label = Gtk.Label()
         info_label.set_markup(
             _(
-                "For advanced device configuration (button remapping, scroll settings), "
-                "edit <b>/etc/logid.cfg</b> and restart logid."
+                "JuhRadial MX handles device configuration natively via HID++. "
+                "Button remapping, scroll settings, and haptics are all managed "
+                "through this settings window."
             )
             + "\n\n"
-            'LogiOps docs: <a href="https://github.com/PixlOne/logiops">https://github.com/PixlOne/logiops</a>'
+            'GitHub: <a href="https://github.com/JuhLabs/juhradial-mx">https://github.com/JuhLabs/juhradial-mx</a>'
         )
         info_label.set_wrap(True)
         info_label.set_max_width_chars(50)
@@ -177,8 +178,8 @@ class DevicesPage(Gtk.ScrolledWindow):
                     status = _("Charging") if charging else _("Discharging")
                     return f"{percentage}% ({status})"
                 else:
-                    # 0% usually means unavailable (logid controlling HID++)
-                    return _("Managed by LogiOps")
+                    # 0% usually means battery info unavailable
+                    return _("Unavailable")
         except GLib.Error:
             pass  # Daemon may not be running
-        return _("Managed by LogiOps")
+        return _("Unavailable")

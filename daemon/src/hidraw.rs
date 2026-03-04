@@ -155,15 +155,22 @@ impl HidrawHandler {
         Err(HidrawError::DeviceNotFound)
     }
 
-    /// Open the hidraw device for reading
+    /// Open the hidraw device for reading (auto-detect)
     pub fn open(&mut self) -> Result<(), HidrawError> {
         let path = Self::find_device()?;
+        self.open_path(&path)
+    }
 
+    /// Open a specific hidraw device path for reading
+    ///
+    /// Used when the HidppDevice has already identified which Bolt receiver
+    /// has the MX Master 4, to avoid connecting to the wrong receiver.
+    pub fn open_path(&mut self, path: &std::path::Path) -> Result<(), HidrawError> {
         // Open with O_RDONLY and O_NONBLOCK
         let file = OpenOptions::new()
             .read(true)
             .custom_flags(libc::O_NONBLOCK)
-            .open(&path)
+            .open(path)
             .map_err(|e| {
                 if e.kind() == io::ErrorKind::PermissionDenied {
                     tracing::error!(
@@ -176,7 +183,7 @@ impl HidrawHandler {
                 }
             })?;
 
-        self.device_path = Some(path.clone());
+        self.device_path = Some(path.to_path_buf());
         self.device = Some(file);
 
         tracing::info!(path = %path.display(), "Opened hidraw device for HID++ events");

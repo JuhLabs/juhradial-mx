@@ -528,8 +528,7 @@ msgid "Apply to Device"
 msgstr ""
 
 #: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2971
-msgid ""
-"Applies DPI, SmartShift, and scroll settings via logiops (requires sudo)"
+msgid "Applies DPI, SmartShift, and scroll settings to your device"
 msgstr ""
 
 #: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:2980
@@ -1013,7 +1012,10 @@ msgstr ""
 #: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4085
 #: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4156
 #: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4159
-msgid "Managed by LogiOps"
+msgid "Managed by JuhRadial MX"
+msgstr ""
+
+msgid "Unavailable"
 msgstr ""
 
 #: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4093
@@ -1022,8 +1024,14 @@ msgstr ""
 
 #: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4097
 msgid ""
-"For advanced device configuration (button remapping, scroll settings), edit "
-"<b>/etc/logid.cfg</b> and restart logid."
+"JuhRadial MX handles device configuration natively via HID++. Button "
+"remapping, scroll settings, and haptics are all managed through this "
+"settings window."
+msgstr ""
+
+msgid ""
+"GitHub: <a href=\"https://github.com/JuhLabs/juhradial-mx\">https://github."
+"com/JuhLabs/juhradial-mx</a>"
 msgstr ""
 
 #: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:4130
@@ -1299,7 +1307,7 @@ msgid "+ ADD APPLICATION"
 msgstr ""
 
 #: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5531
-msgid "LogiOps"
+msgid "N/A"
 msgstr ""
 
 #: /home/nordlys/Downloads/Prosjekter/JuhRadialMX/overlay/settings_dashboard.py:5568

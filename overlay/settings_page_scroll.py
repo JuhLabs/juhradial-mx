@@ -259,7 +259,7 @@ class ScrollPage(Gtk.ScrolledWindow):
         note.set_markup(
             f'<span size="small" color="{COLORS["subtext0"]}">'
             + _(
-                "Applies DPI, SmartShift, and scroll settings via logiops (requires sudo)"
+                "Applies DPI, SmartShift, and scroll settings to your device"
             )
             + "</span>"
         )
@@ -676,7 +676,7 @@ None,      Down, Button5, {lines}
         print(f"Scroll speed set to {lines} lines (factor: {scroll_factor:.2f})")
 
     def _apply_hiresscroll_to_device(self):
-        """Apply HiResScroll settings - first try D-Bus, then update logid config"""
+        """Apply HiResScroll settings via D-Bus"""
         hires = config.get("scroll", "smooth", default=True)
         invert = config.get("scroll", "natural", default=False)
         target = False  # Default to False
@@ -703,12 +703,9 @@ None,      Down, Button5, {lines}
             print(f"HiResScroll applied via D-Bus: hires={hires}, invert={invert}")
             return
         except GLib.Error as e:
-            print(f"D-Bus failed (logid may be blocking): {e.message}")
+            print(f"D-Bus HiResScroll failed: {e.message}")
         except Exception as e:
             print(f"D-Bus failed: {e}")
-
-        # D-Bus failed, settings will apply after logid restart
-        print(f"HiResScroll saved to config (requires logid restart to apply)")
 
     def _load_hiresscroll_settings(self):
         """Load HiResScroll settings from device via D-Bus on startup"""
@@ -811,7 +808,7 @@ None,      Down, Button5, {lines}
             self.status_label.set_text(_("Click Apply to save changes"))
 
     def _on_apply_clicked(self, button):
-        """Apply all settings via logiops and save config"""
+        """Apply all settings and save config"""
         # Save config to file (this will show toast)
         config.save()
         # Apply to device hardware

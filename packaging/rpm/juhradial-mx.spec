@@ -20,7 +20,6 @@ BuildRequires:  dbus-devel
 BuildRequires:  systemd-devel
 BuildRequires:  libevdev-devel
 
-Requires:       logiops
 Requires:       gtk4
 Requires:       gtk4-layer-shell
 Requires:       python3
@@ -92,8 +91,6 @@ install -Dm644 packaging/systemd/juhradialmx-daemon.service %{buildroot}%{_useru
 # Install udev rules
 install -Dm644 packaging/udev/99-logitech-hidpp.rules %{buildroot}%{_udevrulesdir}/99-logitech-hidpp.rules
 
-# Install default logiops config
-install -Dm644 packaging/logid.cfg %{buildroot}%{_sysconfdir}/logid.cfg.juhradial
 
 %post
 # Update icon cache
@@ -117,8 +114,6 @@ install -Dm644 packaging/logid.cfg %{buildroot}%{_sysconfdir}/logid.cfg.juhradia
 %{_datadir}/icons/hicolor/scalable/apps/juhradial-mx.svg
 %{_userunitdir}/juhradialmx-daemon.service
 %{_udevrulesdir}/99-logitech-hidpp.rules
-%config(noreplace) %{_sysconfdir}/logid.cfg.juhradial
-
 %changelog
 * Fri Dec 13 2024 JuhLabs (Julian Hermstad) <juhlabs@example.com> - 1.0.0-1
 - Initial release

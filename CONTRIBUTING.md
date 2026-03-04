@@ -65,7 +65,6 @@ sudo dnf install \
   python3-gobject gtk4 libadwaita \
   dbus-devel systemd-devel \
   libevdev-devel hidapi-devel \
-  logiops \
   git make
 ```
 
@@ -78,9 +77,6 @@ sudo pacman -S --needed \
   dbus systemd-libs \
   libevdev hidapi \
   git make base-devel
-
-# Install logiops from AUR
-yay -S logiops
 ```
 
 **Debian/Ubuntu:**
@@ -184,7 +180,7 @@ juhradial-mx/
 │   ├── juhradial-overlay.py   # PyQt6 radial menu
 │   └── settings_dashboard.py  # GTK4/Adwaita settings app
 ├── assets/           # Icons and screenshots
-└── packaging/        # Distribution files (systemd, udev, logid.cfg)
+└── packaging/        # Distribution files (systemd, udev rules)
 ```
 
 ## Getting Help

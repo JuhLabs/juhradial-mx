@@ -308,9 +308,9 @@ class SettingsWindow(Adw.ApplicationWindow):
             if result:
                 percentage, is_charging = result.unpack()
 
-                # 0% means battery info unavailable (logid controls HID++)
+                # 0% means battery info unavailable
                 if percentage == 0:
-                    self.battery_label.set_label(_("LogiOps"))
+                    self.battery_label.set_label(_("N/A"))
                     if self.battery_icon:
                         self.battery_icon.set_from_icon_name("battery-missing-symbolic")
                     return True

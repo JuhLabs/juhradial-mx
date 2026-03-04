@@ -244,7 +244,7 @@ class ConfigManager:
             pass  # Daemon may not be running
 
     def apply_to_device(self):
-        """Apply settings to device via logiops (requires sudo)"""
+        """Apply settings to device via D-Bus and system utilities"""
         import subprocess
         import shlex
 
@@ -377,21 +377,7 @@ def detect_logitech_mouse():
                         if product_id in DEVICE_NAMES:
                             return DEVICE_NAMES[product_id]
 
-        # Method 2: Check logid config for device name
-        logid_cfg = Path("/etc/logid.cfg")
-        if logid_cfg.exists():
-            try:
-                with open(logid_cfg, "r", encoding="utf-8") as f:
-                    content = f.read()
-                    import re
-
-                    match = re.search(r'name:\s*"([^"]+)"', content)
-                    if match:
-                        return match.group(1)
-            except (IOError, OSError):
-                pass  # Config file not readable
-
-        # Method 3: Try libinput
+        # Method 2: Try libinput
         result = subprocess.run(
             ["libinput", "list-devices"], capture_output=True, text=True, timeout=5
         )

@@ -15,7 +15,6 @@ depends=(
     'python-gobject'
     'python-cairo'
     'dbus'
-    'logiops'
 )
 makedepends=(
     'rust'
@@ -83,9 +82,6 @@ package() {
     # Install udev rules
     install -Dm644 packaging/udev/99-logitech-hidpp.rules "$pkgdir/usr/lib/udev/rules.d/99-logitech-hidpp.rules"
 
-    # Install default logiops config (as example)
-    install -Dm644 packaging/logid.cfg "$pkgdir/usr/share/juhradial/logid.cfg.example"
-
     # Install license
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 
@@ -95,9 +91,6 @@ package() {
 }
 
 post_install() {
-    echo ">>> Enabling logiops service..."
-    echo "    sudo systemctl enable --now logid"
-    echo ""
     echo ">>> To start JuhRadial MX:"
     echo "    systemctl --user enable --now juhradialmx-daemon"
     echo "    juhradial-mx"
