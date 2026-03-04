@@ -245,6 +245,13 @@ impl HidrawHandler {
         let function_sw_id = data[3];
         let function_id = function_sw_id >> 4;
 
+        // Skip HID++ error responses (feature_index 0xFF) - these are NOT button events.
+        // Error responses have function_id=0 in upper nibble which would falsely match
+        // DIVERTED_BUTTONS_EVENT, producing bogus CIDs from error payload bytes.
+        if feature_index == 0xFF {
+            return;
+        }
+
         // Log all HID++ reports for debugging
         tracing::debug!(
             report_type = format!("0x{:02X}", report_type),
@@ -256,7 +263,8 @@ impl HidrawHandler {
         );
 
         // Check for diverted button event (feature 0x1B04, function 0x00)
-        // The feature index varies per device, so we check function_id
+        // The feature index varies per device, so we check function_id.
+        // We also validate the CID in handle_button_event to ignore unknown buttons.
         if function_id == DIVERTED_BUTTONS_EVENT {
             self.handle_button_event(data).await;
         }
