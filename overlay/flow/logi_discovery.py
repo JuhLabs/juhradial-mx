@@ -50,18 +50,49 @@ class LogiFlowDiscoveryResponder:
         self.discovered_peers: Dict[str, dict] = {}
         self._broadcast_count = 0
 
-        # Get local IP and broadcast address
+        # Get local IP and broadcast address from OS
+        self.local_ip = "127.0.0.1"
+        self.broadcast_addr = "255.255.255.255"
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
             self.local_ip = s.getsockname()[0]
             s.close()
+            # Get the real broadcast address from netifaces or ip command
+            self.broadcast_addr = self._get_broadcast_addr()
         except OSError:
-            self.local_ip = "127.0.0.1"
+            pass
 
-        # Derive broadcast address (assume /24 subnet)
+    def _get_broadcast_addr(self) -> str:
+        """Get the real broadcast address for our network interface.
+
+        Parses 'ip addr' output to find the broadcast address matching
+        our local IP, handling any subnet mask (/22, /24, etc.).
+        Falls back to 255.255.255.255 if detection fails.
+        """
+        import subprocess
+        try:
+            result = subprocess.run(
+                ['ip', '-o', 'addr', 'show'],
+                capture_output=True, text=True, timeout=5
+            )
+            for line in result.stdout.splitlines():
+                if self.local_ip in line and 'brd' in line:
+                    # Format: "3: wlo1 inet 192.168.68.74/22 brd 192.168.71.255 ..."
+                    parts = line.split()
+                    for i, part in enumerate(parts):
+                        if part == 'brd' and i + 1 < len(parts):
+                            brd = parts[i + 1]
+                            print(f"[Flow Discovery] Detected broadcast address: {brd}")
+                            return brd
+        except Exception as e:
+            print(f"[Flow Discovery] Failed to detect broadcast addr: {e}")
+
+        # Fallback: assume /24
         ip_parts = self.local_ip.split('.')
-        self.broadcast_addr = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.255"
+        fallback = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.255"
+        print(f"[Flow Discovery] Using fallback broadcast address: {fallback}")
+        return fallback
 
     def start(self):
         """Start listening for discovery requests and broadcasting our presence"""
