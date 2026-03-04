@@ -392,6 +392,13 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         """Handle HideMenu signal - determine tap vs hold based on time elapsed."""
         import time
 
+        # Guard: if menu was already closed (e.g., by toggle-close in on_show),
+        # don't process another HideMenu - it would use stale show_time and
+        # might execute an action on the already-hidden menu.
+        if not self.isVisible():
+            print("OVERLAY: HideMenu received but menu already hidden - ignoring")
+            return
+
         # Calculate how long the menu was shown
         if self.show_time:
             duration_ms = (time.time() - self.show_time) * 1000
@@ -503,6 +510,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.highlighted_subitem = -1
         self.flash_slice = -1
         self.flash_progress = 0.0
+        self.show_time = None  # Prevent stale duration in on_hide
         self.hide()
 
     def _execute_action(self, action):
@@ -781,9 +789,12 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                     f"OVERLAY: Left click in toggle mode - slice={self.highlighted_slice}, submenu_active={self.submenu_active}, subitem={self.highlighted_subitem}"
                 )
                 self._close_menu(execute=True)
-            else:
-                print("OVERLAY: Non-left click in toggle mode - closing")
+            elif event.button() == Qt.MouseButton.RightButton:
+                print("OVERLAY: Right click in toggle mode - closing")
                 self._close_menu(execute=False)
+            # Ignore BackButton/ForwardButton (gesture button) - handled via D-Bus
+            # Prevents race: Qt mouse event arrives before D-Bus ShowMenu signal,
+            # which would close the menu then immediately reopen it.
 
     def mouseReleaseEvent(self, event):
         """Handle mouse release - only used in non-toggle mode."""
