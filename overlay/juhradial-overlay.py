@@ -890,6 +890,22 @@ if __name__ == "__main__":
     w = RadialMenu()
     app.tray = create_tray_icon(app, w)
 
-    print("Starting overlay event loop")
-    print("System tray icon active - right-click for menu")
-    sys.exit(app.exec())
+    # Start Flow server if enabled in config
+    # NOTE: Cannot import settings_config here - it imports GTK4 (gi)
+    # which deadlocks inside a PyQt6 process. Read JSON directly.
+    try:
+        import json as _json
+        _cfg_path = os.path.join(
+            os.path.expanduser("~"), ".config", "juhradial", "config.json"
+        )
+        with open(_cfg_path) as _f:
+            _cfg = _json.load(_f)
+        if _cfg.get("flow", {}).get("enabled", False):
+            from flow import start_flow_server
+            start_flow_server()
+            print("[Flow] Auto-started from config", flush=True)
+    except Exception as e:
+        print(f"[Flow] Auto-start failed: {e}", flush=True)
+    print("System tray icon active - right-click for menu", flush=True)
+    ret = app.exec()
+    sys.exit(ret)

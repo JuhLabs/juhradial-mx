@@ -231,7 +231,7 @@ class FlowPage(Gtk.ScrolledWindow):
 
     def _on_flow_toggled(self, switch, state):
         """Handle Flow enable/disable toggle"""
-        config.set("flow", "enabled", state)
+        config.set("flow", "enabled", state, auto_save=True)
         # Enable/disable edge trigger based on Flow state
         self.edge_switch.set_sensitive(state)
 
