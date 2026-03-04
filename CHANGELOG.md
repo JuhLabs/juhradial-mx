@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Notes
 
 - Looking ahead to v0.3.0: exploring Logitech MX Keys S keyboard support (brightness control, hotkey layout customization) via the existing HID++ 2.0 protocol layer. The daemon architecture supports multiple Bolt receivers and device enumeration. More details in `docs/v0.3.0-keyboard-support.md` when planning begins.
+- Looking ahead to v0.3.0: **Generic mouse support** - JuhRadial will work with any mouse, not just Logitech MX Master. When no MX Master is detected, users can bind any mouse button (or key combo) to open the radial wheel via a "press your button" capture in Settings. This means SteelSeries, Razer, HyperX, Corsair, basic Logitech, and any other mouse with extra buttons will be supported. MX Master users keep the full experience (HID++, haptics, Easy-Switch, DPI control), while generic mouse users get the radial wheel, submenu system, themes, and all configurable actions - just without the Logitech-specific hardware features.
+- Looking ahead to v0.3.0: **First-launch setup wizard** - A minimal GTK4/Adwaita wizard on first run. Step 1: "What mouse are you using?" with two choices - "Logitech MX Master" or "Other mouse". MX Master users go straight to the ready-to-use state (installer already configured logid, gesture button, autostart - nothing else needed). Other mouse users get a short guided flow: (1) "Press the button you want to use" capture dialog, (2) Quick interactive demo of the radial wheel, (3) Done. One fork, minimal steps for both paths.
 
 ## [0.2.11] - 2026-02-19
 
