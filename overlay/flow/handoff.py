@@ -198,7 +198,10 @@ class FlowHandoffManager:
         arrival_edge = OPPOSITE_EDGE.get(edge, "left")
 
         # Get our screen geometry
-        from overlay.overlay_cursor import get_screen_geometry, warp_cursor
+        try:
+            from overlay.overlay_cursor import get_screen_geometry, warp_cursor
+        except ImportError:
+            from overlay_cursor import get_screen_geometry, warp_cursor
         screen = get_screen_geometry()
         sx, sy = screen["x"], screen["y"]
         sw, sh = screen["width"], screen["height"]

@@ -99,7 +99,10 @@ class ScreenEdgeDetector:
             return
 
         # Get cursor position and screen geometry
-        from overlay.overlay_cursor import get_cursor_pos, get_screen_geometry
+        try:
+            from overlay.overlay_cursor import get_cursor_pos, get_screen_geometry
+        except ImportError:
+            from overlay_cursor import get_cursor_pos, get_screen_geometry
         pos = get_cursor_pos()
         if not pos:
             self._reset_dwell()
