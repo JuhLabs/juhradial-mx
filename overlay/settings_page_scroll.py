@@ -2,7 +2,8 @@
 """
 JuhRadial MX - Scroll/Sensitivity Page
 
-ScrollPage with DPIVisualSlider and ScrollWheelVisual widgets.
+Pointer speed, scroll wheel mode, and thumb wheel settings.
+Matches Logi Options+ card-based layout.
 
 SPDX-License-Identifier: GPL-3.0
 """
@@ -12,17 +13,18 @@ import json
 import gi
 
 gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, GLib, Gio
+from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _
-from settings_config import config, disable_scroll_on_scale
+from settings_config import config, disable_scroll_on_scale, get_device_mode
 from settings_theme import COLORS
-from settings_widgets import SettingsCard, SettingRow
+from settings_widgets import SettingsCard, SettingRow, PageHeader
 
 
 class DPIVisualSlider(Gtk.Box):
-    """Visual DPI slider with gradient bar and value display"""
+    """Visual DPI slider with value display"""
 
     def __init__(self, on_change=None):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -42,7 +44,6 @@ class DPIVisualSlider(Gtk.Box):
         title_box.append(subtitle)
         header.append(title_box)
 
-        # Spacer
         spacer = Gtk.Box()
         spacer.set_hexpand(True)
         header.append(spacer)
@@ -62,7 +63,7 @@ class DPIVisualSlider(Gtk.Box):
 
         self.append(header)
 
-        # Slider with gradient track
+        # Slider
         slider_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
 
         slow_label = Gtk.Label(label=_("Slow"))
@@ -76,7 +77,6 @@ class DPIVisualSlider(Gtk.Box):
         self.scale.set_draw_value(False)
         self.scale.set_size_request(300, -1)
         self.scale.connect("value-changed", self._on_value_changed)
-        # Disable scroll wheel to prevent accidental changes while scrolling page
         disable_scroll_on_scale(self.scale)
         slider_box.append(self.scale)
 
@@ -114,91 +114,106 @@ class DPIVisualSlider(Gtk.Box):
             self.on_change(dpi)
 
 
-class ScrollWheelVisual(Gtk.DrawingArea):
-    """Visual representation of scroll wheel mode"""
+class WheelModeSelector(Gtk.Box):
+    """3-mode segmented control: Ratchet / SmartShift / Free-spin.
 
-    def __init__(self, is_smartshift=True):
-        super().__init__()
-        self.is_smartshift = is_smartshift
-        self.set_content_width(60)
-        self.set_content_height(60)
-        self.set_draw_func(self._draw)
+    Matches the Logi Options+ mode selector.
+    """
 
-    def set_smartshift(self, enabled):
-        self.is_smartshift = enabled
-        self.queue_draw()
+    MODES = [
+        ("ratchet", "Ratchet"),
+        ("smartshift", "SmartShift"),
+        ("freespin", "Free-spin"),
+    ]
 
-    def _draw(self, area, cr, width, height):
-        # Draw scroll wheel icon
-        cx, cy = width / 2, height / 2
-        radius = min(width, height) / 2 - 4
+    def __init__(self, on_change=None):
+        super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.on_change = on_change
+        self._buttons = {}
+        self._active_mode = "smartshift"
 
-        # Outer circle
-        cr.set_source_rgba(*self._hex_to_rgba(COLORS["surface1"]))
-        cr.arc(cx, cy, radius, 0, 2 * math.pi)
-        cr.fill()
+        self.add_css_class("linked")
 
-        # Inner wheel pattern
-        color = COLORS["mauve"] if self.is_smartshift else COLORS["subtext0"]
-        cr.set_source_rgba(*self._hex_to_rgba(color))
+        for mode_id, label in self.MODES:
+            btn = Gtk.ToggleButton(label=_(label))
+            btn.set_hexpand(True)
+            btn.connect("toggled", self._on_toggled, mode_id)
+            self._buttons[mode_id] = btn
+            self.append(btn)
 
-        # Draw ridges
-        for i in range(8):
-            angle = i * math.pi / 4
-            x1 = cx + (radius - 8) * math.cos(angle)
-            y1 = cy + (radius - 8) * math.sin(angle)
-            x2 = cx + (radius - 2) * math.cos(angle)
-            y2 = cy + (radius - 2) * math.sin(angle)
-            cr.set_line_width(2)
-            cr.move_to(x1, y1)
-            cr.line_to(x2, y2)
-            cr.stroke()
+    def set_mode(self, mode):
+        """Set active mode without triggering callback."""
+        if mode not in self._buttons:
+            mode = "smartshift"
+        self._active_mode = mode
+        for mid, btn in self._buttons.items():
+            btn.handler_block_by_func(self._on_toggled)
+            btn.set_active(mid == mode)
+            btn.handler_unblock_by_func(self._on_toggled)
 
-        # Center dot
-        cr.arc(cx, cy, 4, 0, 2 * math.pi)
-        cr.fill()
+    def get_mode(self):
+        return self._active_mode
 
-    def _hex_to_rgba(self, hex_color):
-        hex_color = hex_color.lstrip("#")
-        r = int(hex_color[0:2], 16) / 255
-        g = int(hex_color[2:4], 16) / 255
-        b = int(hex_color[4:6], 16) / 255
-        return (r, g, b, 1.0)
+    def _on_toggled(self, btn, mode_id):
+        if not btn.get_active():
+            # Prevent deselecting the active button
+            if mode_id == self._active_mode:
+                btn.set_active(True)
+            return
+        # Deselect other buttons
+        self._active_mode = mode_id
+        for mid, other in self._buttons.items():
+            if mid != mode_id:
+                other.handler_block_by_func(self._on_toggled)
+                other.set_active(False)
+                other.handler_unblock_by_func(self._on_toggled)
+        if self.on_change:
+            self.on_change(mode_id)
 
 
 class ScrollPage(Gtk.ScrolledWindow):
-    """Sensitivity settings page - Mouse pointer, scroll wheel, and button sensitivity"""
+    """Sensitivity settings - pointer, scroll wheel, and thumb wheel.
+
+    Layout matches Logi Options+ card-based design.
+    In generic mouse mode, Logitech-only widgets (WheelModeSelector,
+    SmartShift sensitivity, thumb wheel) are hidden.
+    """
 
     def __init__(self):
         super().__init__()
         self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
 
+        self._device_mode = get_device_mode()
+        self._is_generic = self._device_mode == "generic"
+
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
         content.set_margin_top(24)
         content.set_margin_bottom(24)
-        content.set_margin_start(32)
-        content.set_margin_end(32)
+        content.set_margin_start(20)
+        content.set_margin_end(20)
 
-        # ═══════════════════════════════════════════════════════════════
-        # POINTER SPEED SECTION
-        # ═══════════════════════════════════════════════════════════════
-        pointer_card = SettingsCard(_("Pointer"))
+        # Page header
+        header = PageHeader(
+            "input-touchpad-symbolic",
+            _("Point & Scroll"),
+            _("Pointer speed, scroll wheel, and thumb wheel"),
+        )
+        content.append(header)
 
-        # DPI Visual Slider
+        # ---- POINTER SPEED ----
+        pointer_card = SettingsCard(_("Pointer Speed"))
+
         self.dpi_slider = DPIVisualSlider(on_change=self._on_dpi_changed)
-        # Convert saved speed (1-20) to DPI (400-8000)
         saved_speed = config.get("pointer", "speed", default=10)
         initial_dpi = 400 + (saved_speed - 1) * 400
         self.dpi_slider.set_dpi(min(initial_dpi, 8000))
         pointer_card.append(self.dpi_slider)
 
-        # Separator
-        sep1 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        sep1.set_margin_top(16)
-        sep1.set_margin_bottom(16)
-        pointer_card.append(sep1)
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        sep.set_margin_top(16)
+        sep.set_margin_bottom(16)
+        pointer_card.append(sep)
 
-        # Acceleration profile
         accel_row = SettingRow(
             _("Acceleration Profile"), _("How pointer speed scales with movement")
         )
@@ -214,193 +229,89 @@ class ScrollPage(Gtk.ScrolledWindow):
 
         content.append(pointer_card)
 
-        # ═══════════════════════════════════════════════════════════════
-        # APPLY SECTION
-        # ═══════════════════════════════════════════════════════════════
-        apply_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        apply_card.add_css_class("card")
-        apply_card.set_margin_top(8)
-
-        # Status indicator
-        self.status_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        self.status_box.set_halign(Gtk.Align.CENTER)
-
-        self.status_icon = Gtk.Image.new_from_icon_name("emblem-ok-symbolic")
-        self.status_box.append(self.status_icon)
-
-        self.status_label = Gtk.Label(label=_("Settings are up to date"))
-        self.status_label.add_css_class("dim-label")
-        self.status_box.append(self.status_label)
-
-        apply_card.append(self.status_box)
-
-        # Apply button
-        apply_btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        apply_btn_box.set_halign(Gtk.Align.CENTER)
-
-        apply_btn = Gtk.Button()
-        apply_btn.add_css_class("suggested-action")
-        apply_btn.set_size_request(220, 40)
-
-        apply_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        apply_content.set_halign(Gtk.Align.CENTER)
-        apply_icon = Gtk.Image.new_from_icon_name("emblem-synchronizing-symbolic")
-        apply_content.append(apply_icon)
-        apply_label = Gtk.Label(label=_("Apply to Device"))
-        apply_content.append(apply_label)
-        apply_btn.set_child(apply_content)
-        apply_btn.connect("clicked", self._on_apply_clicked)
-
-        apply_btn_box.append(apply_btn)
-        apply_card.append(apply_btn_box)
-
-        # Note
-        note = Gtk.Label()
-        note.set_markup(
-            f'<span size="small" color="{COLORS["subtext0"]}">'
-            + _(
-                "Applies DPI, SmartShift, and scroll settings to your device"
-            )
-            + "</span>"
-        )
-        note.set_halign(Gtk.Align.CENTER)
-        apply_card.append(note)
-
-        content.append(apply_card)
-
-        # ═══════════════════════════════════════════════════════════════
-        # SCROLL WHEEL SECTION
-        # ═══════════════════════════════════════════════════════════════
+        # ---- SCROLL WHEEL ----
         scroll_card = SettingsCard(_("Scroll Wheel"))
 
-        # SmartShift with visual
-        smartshift_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
-        smartshift_box.set_margin_bottom(8)
-
-        self.scroll_visual = ScrollWheelVisual(
-            config.get("scroll", "smartshift", default=True)
+        # Wheel mode selector and SmartShift - Logitech only (HID++)
+        # Wrap in a container so we can hide them together in generic mode
+        self._logitech_wheel_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=0
         )
-        smartshift_box.append(self.scroll_visual)
 
-        smartshift_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        smartshift_content.set_hexpand(True)
+        # Mode selector (Ratchet / SmartShift / Free-spin)
+        mode_label = Gtk.Label(label=_("Wheel Mode"))
+        mode_label.set_halign(Gtk.Align.START)
+        mode_label.add_css_class("heading")
+        mode_label.set_margin_bottom(8)
+        self._logitech_wheel_box.append(mode_label)
 
-        smartshift_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-        smartshift_title = Gtk.Label(label=_("SmartShift"))
-        smartshift_title.set_halign(Gtk.Align.START)
-        smartshift_title.add_css_class("heading")
-        smartshift_header.append(smartshift_title)
+        self.mode_selector = WheelModeSelector(on_change=self._on_mode_changed)
+        self.mode_selector.set_margin_bottom(16)
+        self._logitech_wheel_box.append(self.mode_selector)
+
+        # SmartShift sensitivity (only visible in smartshift mode)
+        self.sensitivity_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=8
+        )
+        self.sensitivity_box.set_margin_bottom(8)
+
+        sens_label_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        sens_label = Gtk.Label(label=_("Sensitivity"))
+        sens_label.set_halign(Gtk.Align.START)
+        sens_label_box.append(sens_label)
 
         spacer = Gtk.Box()
         spacer.set_hexpand(True)
-        smartshift_header.append(spacer)
+        sens_label_box.append(spacer)
 
-        self.smartshift_switch = Gtk.Switch()
-        self.smartshift_switch.set_active(
-            config.get("scroll", "smartshift", default=True)
-        )
-        self.smartshift_switch.connect("state-set", self._on_smartshift_changed)
-        smartshift_header.append(self.smartshift_switch)
+        self.sens_value_label = Gtk.Label()
+        self.sens_value_label.add_css_class("dim-label")
+        sens_label_box.append(self.sens_value_label)
+        self.sensitivity_box.append(sens_label_box)
 
-        smartshift_content.append(smartshift_header)
-
-        smartshift_desc = Gtk.Label(
-            label=_(
-                "Auto-switch to free-spin when scrolling fast, return to ratchet when slow"
-            )
-        )
-        smartshift_desc.set_halign(Gtk.Align.START)
-        smartshift_desc.set_wrap(True)
-        smartshift_desc.set_max_width_chars(60)
-        smartshift_desc.add_css_class("dim-label")
-        smartshift_content.append(smartshift_desc)
-
-        smartshift_box.append(smartshift_content)
-        scroll_card.append(smartshift_box)
-
-        # Threshold slider
-        threshold_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        threshold_box.set_margin_start(76)  # Align with text above
-
-        threshold_label_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        threshold_label = Gtk.Label(label=_("Switch Threshold"))
-        threshold_label.set_halign(Gtk.Align.START)
-        threshold_label_box.append(threshold_label)
-
-        spacer2 = Gtk.Box()
-        spacer2.set_hexpand(True)
-        threshold_label_box.append(spacer2)
-
-        self.threshold_value = Gtk.Label()
-        self.threshold_value.add_css_class("dim-label")
-        threshold_label_box.append(self.threshold_value)
-        threshold_box.append(threshold_label_box)
-
-        threshold_slider_box = Gtk.Box(
+        sens_slider_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=8
         )
-        ratchet_label = Gtk.Label(label=_("Stay ratchet"))
-        ratchet_label.add_css_class("dim-label")
-        threshold_slider_box.append(ratchet_label)
+        easy_label = Gtk.Label(label=_("Easy"))
+        easy_label.add_css_class("dim-label")
+        sens_slider_box.append(easy_label)
 
-        self.threshold_scale = Gtk.Scale.new_with_range(
+        self.sens_scale = Gtk.Scale.new_with_range(
             Gtk.Orientation.HORIZONTAL, 1, 100, 1
         )
-        self.threshold_scale.set_hexpand(True)
-        self.threshold_scale.set_draw_value(False)
-        self.threshold_scale.set_value(
+        self.sens_scale.set_hexpand(True)
+        self.sens_scale.set_draw_value(False)
+        self.sens_scale.set_value(
             config.get("scroll", "smartshift_threshold", default=50)
         )
-        self.threshold_scale.connect("value-changed", self._on_threshold_changed)
-        self._update_threshold_label(self.threshold_scale.get_value())
-        # Disable scroll wheel to prevent accidental changes while scrolling page
-        disable_scroll_on_scale(self.threshold_scale)
-        threshold_slider_box.append(self.threshold_scale)
+        self.sens_scale.connect("value-changed", self._on_sensitivity_changed)
+        self._update_sens_label(self.sens_scale.get_value())
+        disable_scroll_on_scale(self.sens_scale)
+        sens_slider_box.append(self.sens_scale)
 
-        freespin_label = Gtk.Label(label=_("Easy free-spin"))
-        freespin_label.add_css_class("dim-label")
-        threshold_slider_box.append(freespin_label)
+        hard_label = Gtk.Label(label=_("Hard"))
+        hard_label.add_css_class("dim-label")
+        sens_slider_box.append(hard_label)
 
-        threshold_box.append(threshold_slider_box)
-        scroll_card.append(threshold_box)
+        self.sensitivity_box.append(sens_slider_box)
+        self._logitech_wheel_box.append(self.sensitivity_box)
 
-        # Separator
-        sep2 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        sep2.set_margin_top(16)
-        sep2.set_margin_bottom(16)
-        scroll_card.append(sep2)
-
-        # Scroll direction
-        direction_row = SettingRow(
-            _("Natural Scrolling"),
-            _("Scroll content in the direction of finger movement"),
+        self._logitech_wheel_sep = Gtk.Separator(
+            orientation=Gtk.Orientation.HORIZONTAL
         )
-        self.natural_switch = Gtk.Switch()
-        self.natural_switch.set_active(config.get("scroll", "natural", default=False))
-        self.natural_switch.connect("state-set", self._on_natural_changed)
-        direction_row.set_control(self.natural_switch)
-        scroll_card.append(direction_row)
+        self._logitech_wheel_sep.set_margin_top(8)
+        self._logitech_wheel_sep.set_margin_bottom(16)
+        self._logitech_wheel_box.append(self._logitech_wheel_sep)
 
-        # High-resolution scrolling (HiRes mode)
-        smooth_row = SettingRow(
-            _("High-Resolution Scroll"),
-            _("More scroll events for smoother, faster scrolling"),
-        )
-        self.smooth_switch = Gtk.Switch()
-        self.smooth_switch.set_active(config.get("scroll", "smooth", default=True))
-        self.smooth_switch.connect("state-set", self._on_smooth_changed)
-        smooth_row.set_control(self.smooth_switch)
-        scroll_card.append(smooth_row)
+        scroll_card.append(self._logitech_wheel_box)
 
-        # Separator before scroll speed
-        sep3 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        sep3.set_margin_top(16)
-        sep3.set_margin_bottom(16)
-        scroll_card.append(sep3)
+        # Hide WheelModeSelector + SmartShift in generic mode
+        if self._is_generic:
+            self._logitech_wheel_box.set_visible(False)
 
-        # Scroll Speed slider for main wheel
+        # Scroll speed
         scroll_speed_row = SettingRow(
-            _("Scroll Speed"), _("Lines scrolled per wheel notch")
+            _("Speed"), _("Lines scrolled per wheel notch")
         )
         scroll_speed_scale = Gtk.Scale.new_with_range(
             Gtk.Orientation.HORIZONTAL, 1, 10, 1
@@ -413,17 +324,43 @@ class ScrollPage(Gtk.ScrolledWindow):
         scroll_speed_row.set_control(scroll_speed_scale)
         scroll_card.append(scroll_speed_row)
 
+        # Direction
+        direction_row = SettingRow(
+            _("Natural Scrolling"),
+            _("Content follows finger direction"),
+        )
+        self.natural_switch = Gtk.Switch()
+        self.natural_switch.set_active(
+            config.get("scroll", "natural", default=False)
+        )
+        self.natural_switch.connect("state-set", self._on_natural_changed)
+        direction_row.set_control(self.natural_switch)
+        scroll_card.append(direction_row)
+
+        # Smooth scrolling
+        smooth_row = SettingRow(
+            _("Smooth Scrolling"),
+            _("High-resolution scroll for smoother movement"),
+        )
+        self.smooth_switch = Gtk.Switch()
+        self.smooth_switch.set_active(
+            config.get("scroll", "smooth", default=True)
+        )
+        self.smooth_switch.connect("state-set", self._on_smooth_changed)
+        smooth_row.set_control(self.smooth_switch)
+        scroll_card.append(smooth_row)
+
         content.append(scroll_card)
 
-        # ═══════════════════════════════════════════════════════════════
-        # THUMB WHEEL SECTION
-        # ═══════════════════════════════════════════════════════════════
-        thumb_card = SettingsCard(_("Thumb Wheel"))
+        # ---- THUMB WHEEL ---- (Logitech only - MX Master has thumb wheel)
+        self._thumb_card = SettingsCard(_("Thumb Wheel"))
 
         thumb_speed_row = SettingRow(
-            _("Scroll Speed"), _("Horizontal scroll sensitivity")
+            _("Speed"), _("Horizontal scroll sensitivity")
         )
-        thumb_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 1, 10, 1)
+        thumb_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 1, 10, 1
+        )
         thumb_scale.set_value(config.get("thumbwheel", "speed", default=5))
         thumb_scale.set_size_request(200, -1)
         thumb_scale.set_draw_value(False)
@@ -431,128 +368,131 @@ class ScrollPage(Gtk.ScrolledWindow):
             "value-changed",
             lambda s: config.set("thumbwheel", "speed", int(s.get_value())),
         )
-        # Disable scroll wheel to prevent accidental changes while scrolling page
         disable_scroll_on_scale(thumb_scale)
         thumb_speed_row.set_control(thumb_scale)
-        thumb_card.append(thumb_speed_row)
+        self._thumb_card.append(thumb_speed_row)
 
         thumb_invert_row = SettingRow(
             _("Invert Direction"), _("Reverse thumb wheel scroll direction")
         )
         thumb_invert = Gtk.Switch()
-        thumb_invert.set_active(config.get("thumbwheel", "invert", default=False))
+        thumb_invert.set_active(
+            config.get("thumbwheel", "invert", default=False)
+        )
         thumb_invert.connect(
             "state-set",
             lambda s, state: config.set("thumbwheel", "invert", state) or False,
         )
         thumb_invert_row.set_control(thumb_invert)
-        thumb_card.append(thumb_invert_row)
+        self._thumb_card.append(thumb_invert_row)
 
-        content.append(thumb_card)
+        content.append(self._thumb_card)
 
-        self.set_child(content)
+        # Hide thumb wheel card in generic mode
+        if self._is_generic:
+            self._thumb_card.set_visible(False)
 
-        # Load SmartShift and HiResScroll settings from device on startup
-        self._load_smartshift_settings()
-        self._load_hiresscroll_settings()
+        # Wrap in Adw.Clamp for responsive centering
+        clamp = Adw.Clamp()
+        clamp.set_maximum_size(900)
+        clamp.set_tightening_threshold(700)
+        clamp.set_child(content)
+        self.set_child(clamp)
 
+        # Load device state and set mode selector
+        self._load_device_settings()
+
+    # ------------------------------------------------------------------
+    # Mode selector
+    # ------------------------------------------------------------------
+    def _on_mode_changed(self, mode):
+        """Handle wheel mode change from segmented control."""
+        config.set("scroll", "mode", mode)
+        # Show/hide sensitivity slider
+        self.sensitivity_box.set_visible(mode == "smartshift")
+
+        # Apply to device
+        if mode == "ratchet":
+            self._apply_smartshift_to_device(False, 0)
+        elif mode == "freespin":
+            # Free-spin: wheel_mode=1 (freespin), auto_disengage=0 (no auto-switch)
+            self._apply_smartshift_to_device_raw(1, 0)
+        else:
+            # SmartShift
+            threshold = int(self.sens_scale.get_value())
+            device_threshold = int((100 - threshold) * 2.55)
+            self._apply_smartshift_to_device(True, device_threshold)
+
+    def _on_sensitivity_changed(self, scale):
+        value = int(scale.get_value())
+        config.set("scroll", "smartshift_threshold", value)
+        self._update_sens_label(value)
+
+        # Apply to device
+        device_threshold = int((100 - value) * 2.55)
+        self._apply_smartshift_to_device(True, device_threshold)
+
+    def _update_sens_label(self, value):
+        self.sens_value_label.set_text(f"{int(value)}%")
+
+    # ------------------------------------------------------------------
+    # Pointer speed
+    # ------------------------------------------------------------------
     def _on_dpi_changed(self, dpi):
-        # Convert DPI to speed (1-20) for config (no auto-save to avoid lag)
         speed = max(1, min(20, (dpi - 400) // 400 + 1))
         config.set("pointer", "speed", speed)
         config.set("pointer", "dpi", dpi)
-        # Apply to hardware via D-Bus
-        self._apply_dpi_to_device(dpi)
-        # Also apply pointer speed via gsettings (software multiplier)
+        # In generic mode, skip HID++ DPI - only use gsettings/libinput
+        if not self._is_generic:
+            self._apply_dpi_to_device(dpi)
         self._apply_pointer_speed(dpi)
-        # Show pending changes indicator
-        self._show_pending_changes()
 
     def _on_accel_changed(self, combo):
         profile = combo.get_active_id()
         config.set("pointer", "accel_profile", profile)
-        # Apply immediately
         try:
             import subprocess
-
             subprocess.run(
                 [
-                    "gsettings",
-                    "set",
+                    "gsettings", "set",
                     "org.gnome.desktop.peripherals.mouse",
-                    "accel-profile",
-                    profile,
+                    "accel-profile", profile,
                 ],
                 capture_output=True,
             )
         except (FileNotFoundError, subprocess.SubprocessError):
-            pass  # gsettings not available
+            pass
 
-    def _on_smartshift_changed(self, switch, state):
-        config.set("scroll", "smartshift", state)
-        self.scroll_visual.set_smartshift(state)
-        self.threshold_scale.set_sensitive(state)
-
-        # Apply to device via D-Bus
-        threshold = int(self.threshold_scale.get_value())
-        # Convert UI percentage (1-100) to device threshold (0-255)
-        # Lower threshold = more sensitive, so we invert the percentage
-        device_threshold = int((100 - threshold) * 2.55)
-        self._apply_smartshift_to_device(state, device_threshold)
-
-        return False
-
-    def _on_threshold_changed(self, scale):
-        value = int(scale.get_value())
-        config.set("scroll", "smartshift_threshold", value)
-        self._update_threshold_label(value)
-
-        # Apply to device via D-Bus
-        enabled = self.smartshift_switch.get_active()
-        # Convert UI percentage (1-100) to device threshold (0-255)
-        # Lower threshold = more sensitive, so we invert the percentage
-        device_threshold = int((100 - value) * 2.55)
-        self._apply_smartshift_to_device(enabled, device_threshold)
-
-        self._show_pending_changes()
-
-    def _update_threshold_label(self, value):
-        self.threshold_value.set_text(f"{int(value)}%")
-
+    # ------------------------------------------------------------------
+    # Scroll settings
+    # ------------------------------------------------------------------
     def _on_natural_changed(self, switch, state):
         config.set("scroll", "natural", state)
-        # Apply immediately via gsettings
         try:
             import subprocess
-
             subprocess.run(
                 [
-                    "gsettings",
-                    "set",
+                    "gsettings", "set",
                     "org.gnome.desktop.peripherals.mouse",
-                    "natural-scroll",
-                    "true" if state else "false",
+                    "natural-scroll", "true" if state else "false",
                 ],
                 capture_output=True,
             )
         except (FileNotFoundError, subprocess.SubprocessError):
-            pass  # gsettings not available
-        # Also apply to device via D-Bus HiResScroll
-        self._apply_hiresscroll_to_device()
+            pass
+        if not self._is_generic:
+            self._apply_hiresscroll_to_device()
         return False
 
     def _on_smooth_changed(self, switch, state):
-        """Handle high-resolution scroll toggle change"""
         config.set("scroll", "smooth", state)
-        # Apply to device via D-Bus HiResScroll
-        self._apply_hiresscroll_to_device()
+        if not self._is_generic:
+            self._apply_hiresscroll_to_device()
         return False
 
     def _on_scroll_speed_changed(self, scale):
-        """Handle scroll speed slider change"""
         value = int(scale.get_value())
         config.set("scroll", "speed", value)
-        # Apply scroll lines setting via imwheel or gsettings
         self._apply_scroll_speed(value)
 
     def _apply_scroll_speed(self, lines):
@@ -560,76 +500,52 @@ class ScrollPage(Gtk.ScrolledWindow):
         import subprocess
         import os
 
-        # Convert lines (1-10) to a scroll factor (0.5 to 2.0)
-        # lines=1 -> 0.5x, lines=5 -> 1.0x (default), lines=10 -> 2.0x
-        scroll_factor = 0.5 + (lines - 1) * 0.167  # Linear interpolation
-
-        # Try different desktop environments
+        scroll_factor = 0.5 + (lines - 1) * 0.167
         desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
         session = os.environ.get("XDG_SESSION_TYPE", "").lower()
 
-        # GNOME/Mutter on Wayland
         if "gnome" in desktop or "mutter" in desktop:
             try:
-                # GNOME uses libinput, scroll factor via experimental settings
                 subprocess.run(
                     [
-                        "gsettings",
-                        "set",
-                        "org.gnome.mutter",
+                        "gsettings", "set", "org.gnome.mutter",
                         "experimental-features",
                         "['scale-monitor-framebuffer']",
                     ],
-                    capture_output=True,
-                    timeout=2,
+                    capture_output=True, timeout=2,
                 )
             except (FileNotFoundError, subprocess.SubprocessError):
-                pass  # gsettings not available
+                pass
 
-        # KDE Plasma
         if "kde" in desktop or "plasma" in desktop:
             try:
-                # KDE stores scroll settings in kcminputrc
                 subprocess.run(
                     [
-                        "kwriteconfig5",
-                        "--file",
-                        "kcminputrc",
-                        "--group",
-                        "Mouse",
-                        "--key",
-                        "ScrollFactor",
+                        "kwriteconfig5", "--file", "kcminputrc",
+                        "--group", "Mouse", "--key", "ScrollFactor",
                         str(scroll_factor),
                     ],
-                    capture_output=True,
-                    timeout=2,
+                    capture_output=True, timeout=2,
                 )
             except (FileNotFoundError, subprocess.SubprocessError):
-                pass  # kwriteconfig5 not available
+                pass
 
-        # Hyprland
         hypr_sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", "")
         if hypr_sig:
             try:
-                # Hyprland supports runtime scroll_factor change
                 subprocess.run(
-                    ["hyprctl", "keyword", "input:scroll_factor", str(scroll_factor)],
-                    capture_output=True,
-                    timeout=2,
+                    ["hyprctl", "keyword", "input:scroll_factor",
+                     str(scroll_factor)],
+                    capture_output=True, timeout=2,
                 )
-                print(f"Hyprland scroll_factor set to {scroll_factor:.2f}")
             except (FileNotFoundError, subprocess.SubprocessError):
-                pass  # hyprctl not available
+                pass
 
-        # Sway
         if "sway" in desktop.lower():
             try:
-                # Get device name and set scroll factor
                 result = subprocess.run(
                     ["swaymsg", "-t", "get_inputs"],
-                    capture_output=True,
-                    text=True,
-                    timeout=2,
+                    capture_output=True, text=True, timeout=2,
                 )
                 if result.returncode == 0:
                     inputs = json.loads(result.stdout)
@@ -637,289 +553,204 @@ class ScrollPage(Gtk.ScrolledWindow):
                         if "pointer" in inp.get("type", ""):
                             name = inp.get("identifier", "")
                             subprocess.run(
-                                [
-                                    "swaymsg",
-                                    "input",
-                                    name,
-                                    "scroll_factor",
-                                    str(scroll_factor),
-                                ],
-                                capture_output=True,
-                                timeout=2,
+                                ["swaymsg", "input", name,
+                                 "scroll_factor", str(scroll_factor)],
+                                capture_output=True, timeout=2,
                             )
-            except (
-                FileNotFoundError,
-                subprocess.SubprocessError,
-                json.JSONDecodeError,
-            ):
-                pass  # swaymsg not available
+            except (FileNotFoundError, subprocess.SubprocessError,
+                    json.JSONDecodeError):
+                pass
 
-        # X11 fallback with imwheel (if available)
         if session == "x11":
             try:
-                # Create/update imwheel config for scroll multiplier
-                imwheel_config = os.path.expanduser("~/.imwheelrc")
-                # lines value directly maps to scroll multiplier
+                import os as _os
+                imwheel_config = _os.path.expanduser("~/.imwheelrc")
                 config_content = f"""".*"
 None,      Up,   Button4, {lines}
 None,      Down, Button5, {lines}
 """
                 with open(imwheel_config, "w", encoding="utf-8") as f:
                     f.write(config_content)
-                # Restart imwheel if running
-                uid = str(os.getuid())
-                subprocess.run(["pkill", "-u", uid, "imwheel"], capture_output=True, timeout=2)
-                subprocess.run(["imwheel", "-b", "45"], capture_output=True, timeout=2)
+                uid = str(_os.getuid())
+                subprocess.run(
+                    ["pkill", "-u", uid, "imwheel"],
+                    capture_output=True, timeout=2,
+                )
+                subprocess.run(
+                    ["imwheel", "-b", "45"],
+                    capture_output=True, timeout=2,
+                )
             except (FileNotFoundError, subprocess.SubprocessError, OSError):
-                pass  # imwheel not available
+                pass
 
-        print(f"Scroll speed set to {lines} lines (factor: {scroll_factor:.2f})")
-
-    def _apply_hiresscroll_to_device(self):
-        """Apply HiResScroll settings via D-Bus"""
-        hires = config.get("scroll", "smooth", default=True)
-        invert = config.get("scroll", "natural", default=False)
-        target = False  # Default to False
-
-        # Try D-Bus first
+    # ------------------------------------------------------------------
+    # D-Bus device methods
+    # ------------------------------------------------------------------
+    def _get_dbus_proxy(self):
+        """Get a cached D-Bus proxy to the daemon."""
         try:
             bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
+            return Gio.DBusProxy.new_sync(
+                bus, Gio.DBusProxyFlags.NONE, None,
                 "org.kde.juhradialmx",
                 "/org/kde/juhradialmx/Daemon",
                 "org.kde.juhradialmx.Daemon",
                 None,
             )
-            proxy.call_sync(
-                "SetHiresscrollMode",
-                GLib.Variant("(bbb)", (hires, invert, target)),
-                Gio.DBusCallFlags.NONE,
-                2000,
-                None,
-            )
-            print(f"HiResScroll applied via D-Bus: hires={hires}, invert={invert}")
+        except Exception:
+            return None
+
+    def _apply_dpi_to_device(self, dpi):
+        proxy = self._get_dbus_proxy()
+        if not proxy:
             return
-        except GLib.Error as e:
-            print(f"D-Bus HiResScroll failed: {e.message}")
-        except Exception as e:
-            print(f"D-Bus failed: {e}")
-
-    def _load_hiresscroll_settings(self):
-        """Load HiResScroll settings from device via D-Bus on startup"""
         try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.kde.juhradialmx",
-                "/org/kde/juhradialmx/Daemon",
-                "org.kde.juhradialmx.Daemon",
-                None,
+            proxy.call_sync(
+                "SetDpi",
+                GLib.Variant("(q)", (dpi,)),
+                Gio.DBusCallFlags.NONE, 2000, None,
             )
-
-            # Get current HiResScroll configuration
-            result = proxy.call_sync(
-                "GetHiresscrollMode", None, Gio.DBusCallFlags.NONE, 2000, None
-            )
-
-            if result:
-                hires = result.get_child_value(0).get_boolean()
-                invert = result.get_child_value(1).get_boolean()
-                # target = result.get_child_value(2).get_boolean()  # Not used in UI
-
-                # Update UI to match device
-                if hasattr(self, "smooth_switch"):
-                    self.smooth_switch.set_active(hires)
-                    config.set("scroll", "smooth", hires)
-
-                # Note: Natural scrolling is controlled by gsettings, not device
-                # so we don't update it from device settings
-
-                print(f"Loaded HiResScroll from device: hires={hires}, invert={invert}")
         except GLib.Error as e:
-            print(f"D-Bus error getting HiResScroll: {e.message}")
-        except Exception as e:
-            print(f"Failed to get HiResScroll via D-Bus: {e}")
+            print(f"D-Bus error setting DPI: {e.message}")
 
     def _apply_pointer_speed(self, dpi):
-        """Apply pointer speed via gsettings (-1.0 to 1.0)"""
         try:
             import subprocess
-
-            # Convert DPI (400-8000) to gsettings speed (-1.0 to 1.0)
-            speed = (dpi - 4200) / 3800  # Maps 400->-1.0, 8000->1.0
+            speed = (dpi - 4200) / 3800
             speed = max(-1.0, min(1.0, speed))
             subprocess.run(
                 [
-                    "gsettings",
-                    "set",
+                    "gsettings", "set",
                     "org.gnome.desktop.peripherals.mouse",
-                    "speed",
-                    str(speed),
+                    "speed", str(speed),
                 ],
                 capture_output=True,
             )
         except (FileNotFoundError, subprocess.SubprocessError):
-            pass  # gsettings not available
+            pass
 
-    def _apply_dpi_to_device(self, dpi):
-        """Apply DPI directly to the mouse via D-Bus"""
+    def _apply_smartshift_to_device(self, enabled, threshold):
+        """Apply SmartShift via the simplified D-Bus API."""
+        proxy = self._get_dbus_proxy()
+        if not proxy:
+            return
         try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.kde.juhradialmx",
-                "/org/kde/juhradialmx/Daemon",
-                "org.kde.juhradialmx.Daemon",
-                None,
-            )
-            # Call SetDpi with the DPI value
             proxy.call_sync(
-                "SetDpi",
-                GLib.Variant("(q)", (dpi,)),
-                Gio.DBusCallFlags.NONE,
-                2000,
-                None,
+                "SetSmartShift",
+                GLib.Variant("(by)", (enabled, threshold)),
+                Gio.DBusCallFlags.NONE, 2000, None,
             )
-            # Update status to show DPI was applied
-            if hasattr(self, "status_icon") and hasattr(self, "status_label"):
-                self.status_icon.set_from_icon_name("emblem-ok-symbolic")
-                self.status_label.set_text(_("DPI set to {}").format(dpi))
-                GLib.timeout_add(2000, self._reset_status)
         except GLib.Error as e:
-            print(f"D-Bus error setting DPI: {e.message}")
-            if hasattr(self, "status_icon") and hasattr(self, "status_label"):
-                self.status_icon.set_from_icon_name("dialog-warning-symbolic")
-                self.status_label.set_text(_("DPI error: daemon not running?"))
-                GLib.timeout_add(3000, self._reset_status)
-        except Exception as e:
-            print(f"Failed to set DPI via D-Bus: {e}")
+            print(f"D-Bus error setting SmartShift: {e.message}")
 
-    def _show_pending_changes(self):
-        """Show that there are unsaved changes"""
-        if hasattr(self, "status_icon") and hasattr(self, "status_label"):
-            self.status_icon.set_from_icon_name("dialog-warning-symbolic")
-            self.status_label.set_text(_("Click Apply to save changes"))
+    def _apply_smartshift_to_device_raw(self, wheel_mode, auto_disengage):
+        """Set SmartShift with explicit wheel_mode for free-spin support.
 
-    def _on_apply_clicked(self, button):
-        """Apply all settings and save config"""
-        # Save config to file (this will show toast)
-        config.save()
-        # Apply to device hardware
-        config.apply_to_device()
-        # Update status
-        if hasattr(self, "status_icon") and hasattr(self, "status_label"):
-            self.status_icon.set_from_icon_name("emblem-ok-symbolic")
-            self.status_label.set_text(_("Settings applied!"))
-            # Reset after delay
-            GLib.timeout_add(3000, self._reset_status)
-
-    def _reset_status(self):
-        if hasattr(self, "status_label"):
-            self.status_label.set_text(_("Settings are up to date"))
-        return False
-
-    def _load_smartshift_settings(self):
-        """Load SmartShift settings from device via D-Bus on startup"""
+        Free-spin = wheel_mode=1, auto_disengage=0 (no auto-switch).
+        Falls back to the simplified API if direct call fails.
+        """
+        proxy = self._get_dbus_proxy()
+        if not proxy:
+            return
+        # Use the simplified API: enabled=True with threshold=0 results in
+        # wheel_mode=1 (freespin), auto_disengage=0 on the daemon side.
         try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.kde.juhradialmx",
-                "/org/kde/juhradialmx/Daemon",
-                "org.kde.juhradialmx.Daemon",
-                None,
+            proxy.call_sync(
+                "SetSmartShift",
+                GLib.Variant("(by)", (True, 0)),
+                Gio.DBusCallFlags.NONE, 2000, None,
             )
+        except GLib.Error as e:
+            print(f"D-Bus error setting wheel mode: {e.message}")
 
-            # Check if SmartShift is supported
+    def _apply_hiresscroll_to_device(self):
+        hires = config.get("scroll", "smooth", default=True)
+        invert = config.get("scroll", "natural", default=False)
+        proxy = self._get_dbus_proxy()
+        if not proxy:
+            return
+        try:
+            proxy.call_sync(
+                "SetHiresscrollMode",
+                GLib.Variant("(bbb)", (hires, invert, False)),
+                Gio.DBusCallFlags.NONE, 2000, None,
+            )
+        except GLib.Error as e:
+            print(f"D-Bus HiResScroll failed: {e.message}")
+
+    # ------------------------------------------------------------------
+    # Load device state on startup
+    # ------------------------------------------------------------------
+    def _load_device_settings(self):
+        """Load SmartShift and HiResScroll settings from device.
+
+        In generic mode, skip all HID++ device queries - just use config values.
+        """
+        if self._is_generic:
+            # No HID++ device to query; use saved config for basic scroll settings
+            return
+
+        proxy = self._get_dbus_proxy()
+        if not proxy:
+            # Fall back to config
+            mode = config.get("scroll", "mode", default="smartshift")
+            self.mode_selector.set_mode(mode)
+            self.sensitivity_box.set_visible(mode == "smartshift")
+            return
+
+        # Load SmartShift
+        try:
             supported = proxy.call_sync(
-                "SmartShiftSupported", None, Gio.DBusCallFlags.NONE, 2000, None
+                "SmartShiftSupported", None,
+                Gio.DBusCallFlags.NONE, 2000, None,
             )
-
             if supported and supported.get_child_value(0).get_boolean():
-                # Get current SmartShift configuration
                 result = proxy.call_sync(
-                    "GetSmartShift", None, Gio.DBusCallFlags.NONE, 2000, None
+                    "GetSmartShift", None,
+                    Gio.DBusCallFlags.NONE, 2000, None,
                 )
-
                 if result:
                     enabled = result.get_child_value(0).get_boolean()
                     device_threshold = result.get_child_value(1).get_byte()
 
-                    # Convert device threshold (0-255) to UI percentage (1-100)
-                    # Device: lower = more sensitive, so we invert it
+                    # Determine mode from device + saved config
+                    saved_mode = config.get("scroll", "mode", default=None)
+                    if saved_mode == "freespin":
+                        mode = "freespin"
+                    elif enabled:
+                        mode = "smartshift"
+                    else:
+                        mode = "ratchet"
+
+                    # Convert device threshold to UI percentage
                     ui_threshold = 100 - int(device_threshold / 2.55)
                     ui_threshold = max(1, min(100, ui_threshold))
 
-                    # Update UI elements
-                    self.smartshift_switch.set_active(enabled)
-                    self.threshold_scale.set_value(ui_threshold)
-                    self.threshold_scale.set_sensitive(enabled)
-                    self.scroll_visual.set_smartshift(enabled)
+                    self.mode_selector.set_mode(mode)
+                    self.sens_scale.set_value(ui_threshold)
+                    self.sensitivity_box.set_visible(mode == "smartshift")
 
-                    # Update config
-                    config.set("scroll", "smartshift", enabled)
+                    config.set("scroll", "mode", mode)
                     config.set("scroll", "smartshift_threshold", ui_threshold)
-
-                    print(
-                        f"SmartShift loaded: enabled={enabled}, threshold={ui_threshold}%"
-                    )
             else:
-                # SmartShift not supported, disable UI
-                self.smartshift_switch.set_sensitive(False)
-                self.threshold_scale.set_sensitive(False)
-                print("SmartShift not supported on this device")
-
+                # SmartShift not supported
+                self.mode_selector.set_sensitive(False)
+                self.sensitivity_box.set_visible(False)
         except GLib.Error as e:
-            print(f"D-Bus error loading SmartShift settings: {e.message}")
-        except Exception as e:
-            print(f"Failed to load SmartShift settings: {e}")
+            print(f"D-Bus error loading SmartShift: {e.message}")
+            mode = config.get("scroll", "mode", default="smartshift")
+            self.mode_selector.set_mode(mode)
+            self.sensitivity_box.set_visible(mode == "smartshift")
 
-    def _apply_smartshift_to_device(self, enabled, threshold):
-        """Apply SmartShift settings directly to the mouse via D-Bus"""
+        # Load HiResScroll
         try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.kde.juhradialmx",
-                "/org/kde/juhradialmx/Daemon",
-                "org.kde.juhradialmx.Daemon",
-                None,
+            result = proxy.call_sync(
+                "GetHiresscrollMode", None,
+                Gio.DBusCallFlags.NONE, 2000, None,
             )
-
-            # Call SetSmartShift with enabled and threshold
-            proxy.call_sync(
-                "SetSmartShift",
-                GLib.Variant("(by)", (enabled, threshold)),
-                Gio.DBusCallFlags.NONE,
-                2000,
-                None,
-            )
-
-            # Update status to show SmartShift was applied
-            if hasattr(self, "status_icon") and hasattr(self, "status_label"):
-                self.status_icon.set_from_icon_name("emblem-ok-symbolic")
-                mode = _("enabled") if enabled else _("disabled")
-                self.status_label.set_text(_("SmartShift {}").format(mode))
-                GLib.timeout_add(2000, self._reset_status)
-
-            print(f"SmartShift applied: enabled={enabled}, threshold={threshold}")
-
+            if result:
+                hires = result.get_child_value(0).get_boolean()
+                self.smooth_switch.set_active(hires)
+                config.set("scroll", "smooth", hires)
         except GLib.Error as e:
-            print(f"D-Bus error setting SmartShift: {e.message}")
-            if hasattr(self, "status_icon") and hasattr(self, "status_label"):
-                self.status_icon.set_from_icon_name("dialog-warning-symbolic")
-                self.status_label.set_text(_("SmartShift error: daemon not running?"))
-                GLib.timeout_add(3000, self._reset_status)
-        except Exception as e:
-            print(f"Failed to set SmartShift via D-Bus: {e}")
+            print(f"D-Bus error loading HiResScroll: {e.message}")

@@ -56,8 +56,13 @@ class ConfigManager:
             "smooth": True,
             "smartshift": True,
             "smartshift_threshold": 50,
+            "mode": "smartshift",
         },
         "app": {"start_at_login": True, "show_tray_icon": True},
+        "device_mode": "auto",
+        "radial": {
+            "minimal_mode": False,
+        },
         "radial_menu": {
             "slices": [
                 {
@@ -299,6 +304,20 @@ config = ConfigManager()
 
 
 # =============================================================================
+# RADIAL MINIMAL MODE
+# =============================================================================
+def get_minimal_mode() -> bool:
+    """Return True when minimal mode is enabled (icons only, no slices)."""
+    return config.get("radial", "minimal_mode", default=False)
+
+
+def set_minimal_mode(enabled: bool):
+    """Enable or disable minimal mode and save config."""
+    config.set("radial", "minimal_mode", enabled)
+    config.save(show_toast=False)
+
+
+# =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 def disable_scroll_on_scale(scale):
@@ -402,3 +421,112 @@ def get_device_name():
     if _detected_device is None:
         _detected_device = detect_logitech_mouse()
     return _detected_device
+
+
+# =============================================================================
+# GENERIC MOUSE MODE DETECTION (via D-Bus daemon)
+# =============================================================================
+_cached_device_mode = None
+
+
+def _get_daemon_proxy():
+    """Get a D-Bus proxy to the daemon. Returns None on failure."""
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        return Gio.DBusProxy.new_sync(
+            bus,
+            Gio.DBusProxyFlags.NONE,
+            None,
+            "org.kde.juhradialmx",
+            "/org/kde/juhradialmx/Daemon",
+            "org.kde.juhradialmx.Daemon",
+            None,
+        )
+    except GLib.Error:
+        return None
+
+
+def get_device_mode():
+    """Get device mode: 'logitech' or 'generic'.
+
+    Returns 'generic' only when the user has explicitly toggled it in settings.
+    'auto' (default) and 'logitech' both resolve to 'logitech'.
+    The daemon always runs both MX and generic evdev loops, so both mice
+    work regardless - this setting only controls the UI layout.
+    Result is cached for the lifetime of the process.
+    """
+    global _cached_device_mode
+    if _cached_device_mode is not None:
+        return _cached_device_mode
+
+    configured = config.get("device_mode", default="auto")
+    if configured == "generic":
+        _cached_device_mode = "generic"
+    else:
+        _cached_device_mode = "logitech"
+    return _cached_device_mode
+
+
+def get_device_name_from_daemon():
+    """Get device name from daemon via D-Bus GetDeviceName().
+
+    In forced generic mode (config override), scans for non-Logitech mice.
+    Falls back to D-Bus daemon name, then existing detection.
+    """
+    # If user forced generic mode, find a non-Logitech mouse
+    configured = config.get("device_mode", default="auto")
+    if configured == "generic":
+        name = _detect_non_logitech_mouse()
+        if name:
+            return name
+
+    proxy = _get_daemon_proxy()
+    if proxy:
+        try:
+            result = proxy.call_sync(
+                "GetDeviceName", None,
+                Gio.DBusCallFlags.NONE, 500, None,
+            )
+            if result:
+                name = result.get_child_value(0).get_string()
+                if name:
+                    return name
+        except GLib.Error:
+            pass  # Method not yet implemented or daemon not running
+
+    return get_device_name()
+
+
+def _detect_non_logitech_mouse():
+    """Scan /sys/class/input/ for non-Logitech mice. Returns name or None."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["libinput", "list-devices"],
+            capture_output=True, text=True, timeout=2,
+        )
+        if result.returncode != 0:
+            return None
+        current_name = None
+        is_pointer = False
+        for line in result.stdout.splitlines():
+            if line.startswith("Device:"):
+                current_name = line.split(":", 1)[1].strip()
+                is_pointer = False
+            elif "Capabilities:" in line and "pointer" in line:
+                is_pointer = True
+            elif line.strip() == "" and current_name and is_pointer:
+                # Found a pointer device - skip Logitech ones
+                lower = current_name.lower()
+                if "logitech" not in lower and "logi" not in lower:
+                    return current_name
+                current_name = None
+                is_pointer = False
+        # Check last device
+        if current_name and is_pointer:
+            lower = current_name.lower()
+            if "logitech" not in lower and "logi" not in lower:
+                return current_name
+    except (FileNotFoundError, subprocess.SubprocessError):
+        pass
+    return None

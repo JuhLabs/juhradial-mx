@@ -38,6 +38,8 @@ from overlay_constants import (
     IS_HYPRLAND,
     IS_GNOME,
     IS_COSMIC,
+    IS_KDE,
+    IS_X11,
     _HAS_XWAYLAND,
     _log,
 )
@@ -194,6 +196,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         overlay_actions.ACTIONS = overlay_actions.load_actions_from_config()
         overlay_actions.COLORS = overlay_actions.load_theme()
         overlay_actions.load_radial_image()
+        overlay_actions.MINIMAL_MODE = overlay_actions.load_minimal_mode()
 
         # If already in toggle mode and menu is visible, this is a second tap to close
         if self.toggle_mode and self.isVisible():
@@ -218,30 +221,35 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 x, y = fresh_pos
                 print(f"OVERLAY: GNOME fresh cursor position: ({x}, {y})")
 
+        # On KDE X11, use QCursor.pos() directly - most reliable because it
+        # returns coordinates in Qt's own space (matching QWidget.move()).
+        # The daemon's xdotool/XQueryPointer coords may be in physical pixels
+        # while Qt uses logical pixels with KDE display scaling, causing the
+        # menu to appear offset from the cursor.
+        if IS_KDE and IS_X11:
+            from PyQt6.QtGui import QCursor
+            qpos = QCursor.pos()
+            x, y = qpos.x(), qpos.y()
+            _log(f"KDE X11: QCursor position ({x}, {y})")
+
         # On COSMIC, XWayland doesn't track the cursor unless it's over an
         # XWayland window.  Use a dedicated raw X11 sync window (truly
-        # transparent ARGB, override-redirect) — no Qt overhead, no visual
+        # transparent ARGB, override-redirect) - no Qt overhead, no visual
         # artifacts.  The sync window is separate from the overlay.
-        if IS_COSMIC and _HAS_XWAYLAND:
+        elif IS_COSMIC and _HAS_XWAYLAND:
             fresh_pos = get_cursor_position_xwayland_synced()
             if fresh_pos:
                 x, y = fresh_pos
                 _log(f"COSMIC sync: using position ({x}, {y})")
 
-        # On KDE and other Wayland compositors with XWayland (non-Hyprland,
-        # non-GNOME, non-COSMIC): re-query cursor position via XWayland to
-        # ensure coordinates are in XWayland's pixel space.
-        #
-        # KWin's workspace.cursorPos returns logical coordinates (accounting
-        # for per-monitor DPI scaling), but QWidget.move() on XWayland uses
-        # physical pixel coordinates. On multi-monitor setups with different
-        # scaling factors per monitor, these two coordinate spaces diverge,
-        # causing the menu to appear offset on non-primary monitors.
+        # On KDE Wayland and other Wayland compositors with XWayland
+        # (non-Hyprland, non-GNOME, non-COSMIC): re-query cursor position
+        # via XWayland to ensure coordinates are in XWayland's pixel space.
         #
         # XWayland's XQueryPointer always returns coordinates in the XWayland
-        # virtual screen space — the same space that QWidget.move() uses —
+        # virtual screen space - the same space that QWidget.move() uses -
         # so using it here guarantees correct positioning on all monitors.
-        if not IS_HYPRLAND and not IS_GNOME and not IS_COSMIC and _HAS_XWAYLAND:
+        elif not IS_HYPRLAND and not IS_GNOME and _HAS_XWAYLAND:
             fresh_pos = get_cursor_position_xwayland()
             if fresh_pos:
                 x, y = fresh_pos

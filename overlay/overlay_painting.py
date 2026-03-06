@@ -67,46 +67,54 @@ class RadialMenuPaintingMixin:
             p.scale(scale, scale)
             p.translate(-cx, -cy)
 
+        minimal = overlay_actions.MINIMAL_MODE
+
         if overlay_actions.RADIAL_IMAGE is not None:
             # === 3D Image Mode ===
-            # Draw the pre-rendered 3D radial wheel image centered
-            img_x = cx - overlay_actions.RADIAL_IMAGE.width() / 2
-            img_y = cy - overlay_actions.RADIAL_IMAGE.height() / 2
-            p.drawPixmap(int(img_x), int(img_y), overlay_actions.RADIAL_IMAGE)
+            if not minimal:
+                # Draw the pre-rendered 3D radial wheel image centered
+                img_x = cx - overlay_actions.RADIAL_IMAGE.width() / 2
+                img_y = cy - overlay_actions.RADIAL_IMAGE.height() / 2
+                p.drawPixmap(int(img_x), int(img_y), overlay_actions.RADIAL_IMAGE)
 
-            # Draw highlight on slices with active animation
-            highlights = getattr(self, 'slice_highlights', [0.0] * 8)
-            for i in range(8):
-                if highlights[i] > 0:
-                    self._draw_3d_slice_highlight(p, cx, cy, i, highlights[i])
+                # Draw highlight on slices with active animation
+                highlights = getattr(self, 'slice_highlights', [0.0] * 8)
+                for i in range(8):
+                    if highlights[i] > 0:
+                        self._draw_3d_slice_highlight(p, cx, cy, i, highlights[i])
 
             # Draw icons floating on the 3D image
             for i in range(8):
                 self._draw_3d_icon(p, cx, cy, i)
         else:
             # === Vector Mode (original) ===
-            # Shadow
-            shadow_color = QColor(0, 0, 0, 100)
-            p.setBrush(QBrush(shadow_color))
-            p.setPen(Qt.PenStyle.NoPen)
-            p.drawEllipse(QPointF(cx + 4, cy + 6), MENU_RADIUS, MENU_RADIUS)
+            if not minimal:
+                # Shadow
+                shadow_color = QColor(0, 0, 0, 100)
+                p.setBrush(QBrush(shadow_color))
+                p.setPen(Qt.PenStyle.NoPen)
+                p.drawEllipse(QPointF(cx + 4, cy + 6), MENU_RADIUS, MENU_RADIUS)
 
-            # Main background
-            base_color = QColor(overlay_actions.COLORS["base"])
-            base_color.setAlpha(235)
-            p.setBrush(QBrush(base_color))
-            p.drawEllipse(QPointF(cx, cy), MENU_RADIUS, MENU_RADIUS)
+                # Main background
+                base_color = QColor(overlay_actions.COLORS["base"])
+                base_color.setAlpha(235)
+                p.setBrush(QBrush(base_color))
+                p.drawEllipse(QPointF(cx, cy), MENU_RADIUS, MENU_RADIUS)
 
-            # Border
-            border_color = QColor(overlay_actions.COLORS["surface2"])
-            border_color.setAlpha(150)
-            p.setPen(QPen(border_color, 2))
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            p.drawEllipse(QPointF(cx, cy), MENU_RADIUS, MENU_RADIUS)
+                # Border
+                border_color = QColor(overlay_actions.COLORS["surface2"])
+                border_color.setAlpha(150)
+                p.setPen(QPen(border_color, 2))
+                p.setBrush(Qt.BrushStyle.NoBrush)
+                p.drawEllipse(QPointF(cx, cy), MENU_RADIUS, MENU_RADIUS)
 
-            # Draw slices
-            for i in range(8):
-                self._draw_slice(p, cx, cy, i)
+                # Draw slices
+                for i in range(8):
+                    self._draw_slice(p, cx, cy, i)
+            else:
+                # Minimal mode - draw only floating icons (no slices)
+                for i in range(8):
+                    self._draw_minimal_icon(p, cx, cy, i)
 
         # Draw submenu if active (same for both modes)
         if self.submenu_active and self.submenu_slice >= 0:
@@ -116,7 +124,10 @@ class RadialMenuPaintingMixin:
         flash_idx = getattr(self, 'flash_slice', -1)
         flash_alpha = getattr(self, 'flash_progress', 0.0)
         if flash_idx >= 0 and flash_alpha > 0:
-            self._draw_flash(p, cx, cy, flash_idx, flash_alpha)
+            if minimal:
+                self._draw_minimal_flash(p, cx, cy, flash_idx, flash_alpha)
+            else:
+                self._draw_flash(p, cx, cy, flash_idx, flash_alpha)
 
         # Center zone (same for both modes)
         self._draw_center(p, cx, cy)
@@ -196,6 +207,16 @@ class RadialMenuPaintingMixin:
         p.setBrush(QBrush(QColor(255, 255, 255, int(120 * progress))))
         p.setPen(Qt.PenStyle.NoPen)
         p.drawPath(path)
+
+    def _draw_minimal_flash(self, p, cx, cy, index, progress):
+        """Draw a circular white flash on an icon for minimal mode selection feedback."""
+        icon_angle = math.radians(index * 45 - 90)
+        icon_x = cx + ICON_ZONE_RADIUS * math.cos(icon_angle)
+        icon_y = cy + ICON_ZONE_RADIUS * math.sin(icon_angle)
+        flash_radius = 30
+        p.setBrush(QBrush(QColor(255, 255, 255, int(120 * progress))))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(QPointF(icon_x, icon_y), flash_radius, flash_radius)
 
     def _draw_badge_shape(self, p, x, y, shape, params, angle_deg, size_extra=0):
         """Draw a badge shape centered at (x,y), oriented radially outward."""
@@ -403,6 +424,48 @@ class RadialMenuPaintingMixin:
             p.drawEllipse(QPointF(icon_x, icon_y), icon_radius + 2, icon_radius + 2)
 
         # Icon background - interpolate from surface1@230 to surface2@255
+        c1 = overlay_actions.COLORS["surface1"]
+        c2 = overlay_actions.COLORS["surface2"]
+        icon_bg = QColor(
+            int(c1.red() + (c2.red() - c1.red()) * h),
+            int(c1.green() + (c2.green() - c1.green()) * h),
+            int(c1.blue() + (c2.blue() - c1.blue()) * h),
+            int(230 + 25 * h),
+        )
+        p.setBrush(QBrush(icon_bg))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(QPointF(icon_x, icon_y), icon_radius, icon_radius)
+
+        # Icon color - interpolate from subtext1 to text
+        ct1 = overlay_actions.COLORS["subtext1"]
+        ct2 = overlay_actions.COLORS["text"]
+        icon_color = QColor(
+            int(ct1.red() + (ct2.red() - ct1.red()) * h),
+            int(ct1.green() + (ct2.green() - ct1.green()) * h),
+            int(ct1.blue() + (ct2.blue() - ct1.blue()) * h),
+        )
+        self._draw_icon(p, icon_x, icon_y, action[4], icon_radius * 0.65, icon_color)
+
+    def _draw_minimal_icon(self, p, cx, cy, index):
+        """Draw a floating icon without slice background (vector minimal mode)."""
+        h = getattr(self, 'slice_highlights', [0.0] * 8)[index]
+        action = overlay_actions.ACTIONS[index]
+
+        # Icon position - same circular arrangement as normal slices
+        icon_angle = math.radians(index * 45 - 90)
+        icon_x = cx + ICON_ZONE_RADIUS * math.cos(icon_angle)
+        icon_y = cy + ICON_ZONE_RADIUS * math.sin(icon_angle)
+
+        icon_radius = 26
+
+        # Subtle hover glow circle behind icon
+        if h > 0:
+            glow = QColor(255, 255, 255, int(40 * h))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.setPen(QPen(glow, 3))
+            p.drawEllipse(QPointF(icon_x, icon_y), icon_radius + 2, icon_radius + 2)
+
+        # Icon background circle - interpolate from surface1@230 to surface2@255
         c1 = overlay_actions.COLORS["surface1"]
         c2 = overlay_actions.COLORS["surface2"]
         icon_bg = QColor(

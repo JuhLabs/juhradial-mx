@@ -13,7 +13,8 @@ import time as _time_mod
 __all__ = [
     "MENU_RADIUS", "SHADOW_OFFSET", "CENTER_ZONE_RADIUS", "ICON_ZONE_RADIUS",
     "SUBMENU_EXTEND", "WINDOW_SIZE",
-    "IS_HYPRLAND", "IS_GNOME", "IS_COSMIC", "_HAS_XWAYLAND",
+    "IS_HYPRLAND", "IS_GNOME", "IS_COSMIC", "IS_KDE", "IS_X11",
+    "_HAS_XWAYLAND",
     "_log",
 ]
 
@@ -33,6 +34,9 @@ WINDOW_SIZE = (MENU_RADIUS + SHADOW_OFFSET + SUBMENU_EXTEND) * 2
 IS_HYPRLAND = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") is not None
 IS_GNOME = "GNOME" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
 IS_COSMIC = "COSMIC" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+_desktop_upper = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+IS_KDE = "KDE" in _desktop_upper or "PLASMA" in _desktop_upper
+IS_X11 = os.environ.get("XDG_SESSION_TYPE", "").lower() == "x11"
 _HAS_XWAYLAND = os.environ.get("DISPLAY") is not None
 
 

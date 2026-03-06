@@ -10,12 +10,13 @@ SPDX-License-Identifier: GPL-3.0
 import gi
 
 gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, Gio
+from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _
 from settings_config import config
-from settings_widgets import SettingsCard, SettingRow
+from settings_widgets import SettingsCard, SettingRow, PageHeader
 
 
 class HapticsPage(Gtk.ScrolledWindow):
@@ -50,6 +51,14 @@ class HapticsPage(Gtk.ScrolledWindow):
         content.set_margin_bottom(20)
         content.set_margin_start(20)
         content.set_margin_end(20)
+
+        # Page header
+        header = PageHeader(
+            "audio-speakers-symbolic",
+            _("Haptic Feedback"),
+            _("Configure vibration patterns for the radial menu"),
+        )
+        content.append(header)
 
         card = SettingsCard(_("Haptic Feedback"))
 
@@ -121,7 +130,12 @@ class HapticsPage(Gtk.ScrolledWindow):
 
         content.append(test_card)
 
-        self.set_child(content)
+        # Wrap in Adw.Clamp for responsive centering
+        clamp = Adw.Clamp()
+        clamp.set_maximum_size(900)
+        clamp.set_tightening_threshold(700)
+        clamp.set_child(content)
+        self.set_child(clamp)
 
     def _create_pattern_dropdown(self, current_value, on_change_callback):
         """Create a dropdown for selecting haptic patterns"""
