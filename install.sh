@@ -339,6 +339,7 @@ install_deps_fedora() {
         python3-pyqt6 qt6-qtsvg \
         python3-gobject gtk4 libadwaita \
         gtk4-layer-shell \
+        python3-cryptography \
         dbus-devel systemd-devel \
         libevdev-devel hidapi-devel \
         git make
@@ -351,6 +352,7 @@ install_deps_arch() {
         python-pyqt6 qt6-svg \
         python-gobject gtk4 libadwaita \
         gtk4-layer-shell \
+        python-cryptography \
         dbus systemd-libs \
         libevdev hidapi \
         git make base-devel
@@ -363,6 +365,7 @@ install_deps_debian() {
         python3 python3-pip python3-venv \
         python3-pyqt6 python3-pyqt6.qtsvg \
         python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
+        python3-cryptography \
         libdbus-1-dev libsystemd-dev \
         libevdev-dev libhidapi-dev \
         git make build-essential
@@ -379,6 +382,7 @@ install_deps_opensuse() {
         python3 python3-pip \
         python3-qt6 python3-qt6-svg \
         python3-gobject gtk4 libadwaita-devel \
+        python3-cryptography \
         dbus-1-devel systemd-devel \
         libevdev-devel libhidapi-devel \
         git make
@@ -459,6 +463,10 @@ install_files() {
     sudo mkdir -p /usr/share/juhradial
     sudo cp -r overlay/*.py /usr/share/juhradial/
     log_success "Overlay scripts"
+
+    # Install flow module (subdirectory)
+    sudo cp -r overlay/flow /usr/share/juhradial/flow
+    log_success "Flow module"
 
     # Install locale files
     if [ -d overlay/locales ]; then

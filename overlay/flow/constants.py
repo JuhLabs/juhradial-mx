@@ -21,3 +21,25 @@ DISCOVERY_BROADCAST_INTERVAL = 5
 DATA_DIR = Path.home() / ".local" / "share" / "juhradialmx"
 TOKENS_FILE = DATA_DIR / "flow_tokens.json"
 LINKED_COMPUTERS_FILE = DATA_DIR / "linked_computers.json"
+
+# Crypto key storage
+FLOW_KEYS_DIR = Path.home() / ".config" / "juhradial" / "flow_keys"
+FLOW_PEERS_DIR = FLOW_KEYS_DIR / "peers"
+
+# Encrypted protocol constants
+FLOW_PROTOCOL_VERSION = 0x0000
+FLOW_HKDF_INFO = b"juhradial-flow-v1"
+FLOW_NONCE_LEN = 12
+FLOW_TAG_LEN = 16
+
+# Screen edge detection
+EDGE_THRESHOLD_PX = 2
+EDGE_DWELL_MS = 300
+EDGE_POLL_INTERVAL_MS = 16
+EDGE_COOLDOWN_MS = 1000
+
+# Message types for encrypted presence channel
+MSG_DISCOVERY_BEACON = "discovery_beacon"
+MSG_CURSOR_HANDOFF = "cursor_handoff"
+MSG_CLIPBOARD_SYNC = "clipboard_sync"
+MSG_HEARTBEAT = "heartbeat"

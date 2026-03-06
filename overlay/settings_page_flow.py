@@ -673,17 +673,25 @@ class FlowPage(Gtk.ScrolledWindow):
         my_hostname = socket.gethostname()
 
         if client.pair(pairing_code, my_hostname):
-            # Save the linked computer
+            # Save the linked computer (including public key for crypto)
             linked_computers = get_linked_computers()
             linked_computers.add_computer(
-                computer_name, computer_ip, computer_port, client.token
+                computer_name, computer_ip, computer_port, client.token,
+                public_key=client.peer_public_key or ""
             )
-            print(f"[Flow] Successfully linked with {computer_name}")
+
+            # Notify discovery about new peer key for encrypted beacons
+            if client.peer_aes_key:
+                from flow import get_logi_discovery
+                discovery = get_logi_discovery()
+                if discovery:
+                    discovery.add_peer_key(computer_name, client.peer_aes_key)
+
+            print(f"[Flow] Successfully linked with {computer_name} (crypto: {'yes' if client.peer_public_key else 'no'})")
 
             # Show success toast
             toast = Adw.Toast(title=_("Linked with {}").format(computer_name))
             toast.set_timeout(3)
-            # Find the toast overlay and show the toast
             window = self.get_root()
             if hasattr(window, "toast_overlay"):
                 window.toast_overlay.add_toast(toast)

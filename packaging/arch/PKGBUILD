@@ -14,6 +14,7 @@ depends=(
     'python'
     'python-gobject'
     'python-cairo'
+    'python-cryptography'
     'dbus'
 )
 makedepends=(
@@ -60,6 +61,9 @@ package() {
     # Install overlay Python files
     install -dm755 "$pkgdir/usr/share/juhradial"
     install -Dm644 overlay/*.py "$pkgdir/usr/share/juhradial/"
+
+    # Install flow module
+    cp -r overlay/flow "$pkgdir/usr/share/juhradial/flow"
 
     # Install locales
     if [ -d "overlay/locales" ]; then

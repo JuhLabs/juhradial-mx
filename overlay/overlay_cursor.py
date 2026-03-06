@@ -441,3 +441,94 @@ def get_cursor_pos():
     from PyQt6.QtGui import QCursor
     qpos = QCursor.pos()
     return (qpos.x(), qpos.y())
+
+
+# =============================================================================
+# CURSOR WARPING
+# =============================================================================
+
+
+def warp_cursor(x: int, y: int) -> bool:
+    """Warp cursor to absolute position (x, y).
+
+    Tries compositor-native methods first, then falls back to generic tools.
+    Returns True on success.
+    """
+    if IS_HYPRLAND:
+        try:
+            result = subprocess.run(
+                ["hyprctl", "dispatch", "movecursor", str(x), str(y)],
+                capture_output=True, timeout=0.5,
+            )
+            if result.returncode == 0:
+                return True
+        except (FileNotFoundError, subprocess.SubprocessError):
+            pass
+
+    # ydotool works on most Wayland compositors (needs ydotoold running)
+    try:
+        result = subprocess.run(
+            ["ydotool", "mousemove", "--absolute", "-x", str(x), "-y", str(y)],
+            capture_output=True, timeout=0.5,
+        )
+        if result.returncode == 0:
+            return True
+    except (FileNotFoundError, subprocess.SubprocessError):
+        pass
+
+    # XWarpPointer via libX11 (works on X11/XWayland)
+    if _HAS_XWAYLAND and _init_xlib():
+        try:
+            import ctypes
+            # XWarpPointer(display, src_window, dst_window, src_x, src_y,
+            #              src_width, src_height, dst_x, dst_y)
+            if not hasattr(_xlib, '_warp_setup'):
+                _xlib.XWarpPointer.argtypes = [
+                    ctypes.c_void_p, ctypes.c_ulong, ctypes.c_ulong,
+                    ctypes.c_int, ctypes.c_int, ctypes.c_uint, ctypes.c_uint,
+                    ctypes.c_int, ctypes.c_int,
+                ]
+                _xlib.XWarpPointer.restype = ctypes.c_int
+                _xlib._warp_setup = True
+
+            _xlib.XWarpPointer(_xdisplay, 0, _xroot, 0, 0, 0, 0, x, y)
+            _xlib.XFlush(_xdisplay)
+            return True
+        except Exception:
+            pass
+
+    return False
+
+
+def get_screen_geometry():
+    """Get the current screen geometry for cursor position.
+
+    Returns dict with x, y, width, height of the monitor at cursor.
+    """
+    pos = get_cursor_pos()
+    if not pos:
+        return {"x": 0, "y": 0, "width": 1920, "height": 1080}
+
+    cx, cy = pos
+
+    # Hyprland: use monitor detection
+    if IS_HYPRLAND:
+        return get_monitor_at_cursor(cx, cy)
+
+    # Other compositors: try Qt screen geometry
+    try:
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            for screen in app.screens():
+                geom = screen.geometry()
+                if (geom.x() <= cx < geom.x() + geom.width() and
+                        geom.y() <= cy < geom.y() + geom.height()):
+                    return {
+                        "x": geom.x(), "y": geom.y(),
+                        "width": geom.width(), "height": geom.height(),
+                    }
+    except Exception:
+        pass
+
+    return {"x": 0, "y": 0, "width": 1920, "height": 1080}

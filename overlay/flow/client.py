@@ -2,8 +2,9 @@
 
 from typing import Optional
 
-from flow.constants import FLOW_PORT
-from flow.clipboard import get_clipboard
+from .constants import FLOW_PORT
+from .clipboard import get_clipboard
+from .keys import get_public_key_hex, derive_and_store_peer_key
 
 
 class FlowClient:
@@ -13,20 +14,34 @@ class FlowClient:
         self.server_ip = server_ip
         self.server_port = server_port
         self.token: Optional[str] = None
+        self.peer_public_key: Optional[str] = None
+        self.peer_aes_key: Optional[bytes] = None
 
     def pair(self, pairing_code: str, my_name: str) -> bool:
         import requests
 
         try:
             url = f"http://{self.server_ip}:{self.server_port}/pair"
-            response = requests.post(
-                url,
-                json={'pairing_code': pairing_code, 'name': my_name},
-                timeout=5
-            )
+            pair_data = {
+                'pairing_code': pairing_code,
+                'name': my_name,
+                'public_key': get_public_key_hex(),
+            }
+            response = requests.post(url, json=pair_data, timeout=5)
             if response.ok:
                 data = response.json()
                 self.token = data.get('token')
+                self.peer_public_key = data.get('public_key', '')
+
+                # Derive and store peer AES key if server sent a public key
+                if self.peer_public_key:
+                    peer_name = data.get('hostname', self.server_ip)
+                    self.peer_aes_key = derive_and_store_peer_key(
+                        peer_name, self.peer_public_key,
+                        self.server_ip, self.server_port
+                    )
+                    print(f"[Flow Client] Crypto key exchange complete with {peer_name}")
+
                 return True
         except Exception as e:
             print(f"[Flow Client] Pairing failed: {e}")
