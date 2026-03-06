@@ -27,8 +27,10 @@ PILL_LENGTH = 100      # along the edge
 PILL_THICKNESS = 6     # perpendicular to edge
 GLOW_SPREAD = 28       # glow radius beyond the pill
 WINDOW_PAD = 4         # extra padding for glow rendering
-ICON_SIZE = 20         # OS icon size
-ICON_OFFSET = 10       # gap between pill and icon
+ICON_SIZE = 32         # OS icon size
+ICON_OFFSET = 14       # gap between pill and icon
+ICON_CIRCLE_PAD = 8    # padding around icon inside circle
+ICON_GLOW_SPREAD = 20  # glow radius around icon circle
 
 # Platform -> SVG filename mapping
 PLATFORM_ICON_MAP = {
@@ -63,6 +65,8 @@ class FlowEdgeIndicator(QWidget):
         self._visible_target = False
         self._peer_platform = ""  # "macos", "windows", etc.
         self._icon_renderer = None  # QSvgRenderer for peer OS icon
+        self._last_peer_seen = 0.0  # timestamp of last peer check with peers
+        self._grace_period = 8.0    # seconds to keep showing after peers disappear
 
         # Breathing animation
         self._breath_anim = QPropertyAnimation(self, b"breath")
@@ -123,7 +127,8 @@ class FlowEdgeIndicator(QWidget):
     def _get_window_size(self):
         """Calculate window size based on direction, including space for icon."""
         pad = GLOW_SPREAD + WINDOW_PAD
-        icon_space = ICON_OFFSET + ICON_SIZE
+        circle_diameter = ICON_SIZE + ICON_CIRCLE_PAD * 2
+        icon_space = ICON_OFFSET + circle_diameter + ICON_GLOW_SPREAD
 
         d = self._direction
         if d in ("left", "right"):
@@ -200,6 +205,8 @@ class FlowEdgeIndicator(QWidget):
             from . import get_juhflow_bridge
             bridge = get_juhflow_bridge()
             if bridge and bridge.get_peers():
+                import time
+                self._last_peer_seen = time.time()
                 peers = bridge.get_peers()
                 platform = peers[0].get("platform", "") if peers else ""
                 if platform != self._peer_platform:
@@ -212,7 +219,10 @@ class FlowEdgeIndicator(QWidget):
                     self._read_direction()
                     self.show_indicator()
             else:
-                self.hide_indicator()
+                # Grace period - don't hide during handoff
+                import time
+                if time.time() - self._last_peer_seen > self._grace_period:
+                    self.hide_indicator()
         except Exception:
             pass
 
@@ -337,25 +347,48 @@ class FlowEdgeIndicator(QWidget):
             ly = py + ph / 2
             p.drawLine(int(px + pw * 0.1), int(ly), int(px + pw * 0.9), int(ly))
 
-        # --- OS icon ---
+        # --- Icon with glowing circle ---
         if self._icon_renderer:
-            icon_alpha = int(160 + t * 80)
-            p.setOpacity(icon_alpha / 255.0)
+            circle_r = (ICON_SIZE + ICON_CIRCLE_PAD * 2) / 2
 
+            # Icon center position
             if d == "right":
-                ix = px - ICON_OFFSET - ICON_SIZE
-                iy = pill_cy - ICON_SIZE / 2
+                icx = px - ICON_OFFSET - circle_r
+                icy = pill_cy
             elif d == "left":
-                ix = px + pw + ICON_OFFSET
-                iy = pill_cy - ICON_SIZE / 2
+                icx = px + pw + ICON_OFFSET + circle_r
+                icy = pill_cy
             elif d == "top":
-                ix = pill_cx - ICON_SIZE / 2
-                iy = py + ph + ICON_OFFSET
+                icx = pill_cx
+                icy = py + ph + ICON_OFFSET + circle_r
             else:  # bottom
-                ix = pill_cx - ICON_SIZE / 2
-                iy = py - ICON_OFFSET - ICON_SIZE
+                icx = pill_cx
+                icy = py - ICON_OFFSET - circle_r
 
-            icon_rect = QRectF(ix, iy, ICON_SIZE, ICON_SIZE)
+            # Icon circle glow
+            glow_r = circle_r + ICON_GLOW_SPREAD + t * 6
+            glow_a = int(70 + t * 80)
+            icon_glow = QRadialGradient(icx, icy, glow_r)
+            icon_glow.setColorAt(0.0, QColor(80, 170, 255, glow_a))
+            icon_glow.setColorAt(0.4, QColor(70, 150, 255, int(glow_a * 0.5)))
+            icon_glow.setColorAt(1.0, QColor(60, 140, 255, 0))
+            p.setBrush(icon_glow)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawEllipse(QRectF(icx - glow_r, icy - glow_r, glow_r * 2, glow_r * 2))
+
+            # Circle background
+            bg_alpha = int(40 + t * 30)
+            p.setBrush(QColor(30, 60, 120, bg_alpha))
+            circle_pen_alpha = int(120 + t * 80)
+            from PyQt6.QtGui import QPen
+            p.setPen(QPen(QColor(100, 180, 255, circle_pen_alpha), 1.5))
+            p.drawEllipse(QRectF(icx - circle_r, icy - circle_r, circle_r * 2, circle_r * 2))
+
+            # Icon
+            p.setPen(Qt.PenStyle.NoPen)
+            icon_alpha = int(200 + t * 55)
+            p.setOpacity(icon_alpha / 255.0)
+            icon_rect = QRectF(icx - ICON_SIZE / 2, icy - ICON_SIZE / 2, ICON_SIZE, ICON_SIZE)
             self._icon_renderer.render(p, icon_rect)
             p.setOpacity(1.0)
 
