@@ -32,12 +32,14 @@ OPPOSITE_EDGE = {
 class FlowHandoffManager:
     """Orchestrates cursor handoff between machines.
 
-    Connects: edge detector -> presence clients -> cursor warp
+    Connects: edge detector -> presence clients / juhflow bridge -> cursor warp
     """
 
-    def __init__(self, edge_detector=None, presence_server=None):
+    def __init__(self, edge_detector=None, presence_server=None,
+                 juhflow_bridge=None):
         self.edge_detector = edge_detector
         self.presence_server = presence_server
+        self.juhflow_bridge = juhflow_bridge
 
         # {peer_name: FlowPresenceClient}
         self.presence_clients: Dict[str, 'FlowPresenceClient'] = {}
@@ -91,19 +93,9 @@ class FlowHandoffManager:
         """Called when cursor hits a screen edge.
 
         Finds which peer is configured for this edge, computes relative
-        position, and sends cursor_handoff + clipboard_sync.
+        position, and sends cursor_handoff + clipboard_sync via presence
+        channel or JuhFlow bridge.
         """
-        # Find peer for this edge
-        peer_name = None
-        for name, peer_edge in self.peer_edges.items():
-            if peer_edge == edge:
-                peer_name = name
-                break
-
-        if not peer_name:
-            logger.debug("No peer configured for %s edge", edge)
-            return
-
         # Compute relative position along the edge (0.0 - 1.0)
         sx, sy = screen["x"], screen["y"]
         sw, sh = screen["width"], screen["height"]
@@ -115,35 +107,71 @@ class FlowHandoffManager:
 
         relative_pos = max(0.0, min(1.0, relative_pos))
 
-        # Send cursor handoff message
-        handoff_msg = {
-            "type": MSG_CURSOR_HANDOFF,
-            "edge": edge,
-            "relative_position": relative_pos,
-            "screen_width": sw,
-            "screen_height": sh,
-        }
+        # Find presence peer for this edge
+        peer_name = None
+        for name, peer_edge in self.peer_edges.items():
+            if peer_edge == edge:
+                peer_name = name
+                break
 
-        sent = self._send_to_peer(peer_name, handoff_msg)
-        if sent:
-            logger.info("Cursor handoff to %s via %s edge (rel: %.2f)", peer_name, edge, relative_pos)
+        sent = False
+        if peer_name:
+            # Send via presence channel (paired JuhRadialMX peers)
+            handoff_msg = {
+                "type": MSG_CURSOR_HANDOFF,
+                "edge": edge,
+                "relative_position": relative_pos,
+                "screen_width": sw,
+                "screen_height": sh,
+            }
+            sent = self._send_to_peer(peer_name, handoff_msg)
+            if sent:
+                logger.info("Cursor handoff to %s via %s edge (rel: %.2f)",
+                            peer_name, edge, relative_pos)
 
-            # Also send clipboard content
-            try:
-                import subprocess
-                result = subprocess.run(
-                    ["wl-paste", "--no-newline"],
-                    capture_output=True, text=True, timeout=1,
-                )
-                clipboard_content = result.stdout if result.returncode == 0 else ""
-                if clipboard_content:
-                    clipboard_msg = {
-                        "type": MSG_CLIPBOARD_SYNC,
-                        "content": clipboard_content,
-                    }
-                    self._send_to_peer(peer_name, clipboard_msg)
-            except Exception as e:
-                logger.debug("Clipboard sync failed: %s", e)
+        # Also send to JuhFlow bridge peers (Mac/Win companion apps)
+        if self.juhflow_bridge and self.juhflow_bridge.get_peers():
+            self.juhflow_bridge.send_edge_hit(
+                edge, (cx, cy), screen,
+                relative_position=relative_pos,
+            )
+            sent = True
+            logger.info("Edge hit forwarded to JuhFlow bridge peers: %s (rel: %.2f)",
+                        edge, relative_pos)
+
+        if not sent:
+            logger.debug("No peer configured for %s edge", edge)
+            return
+
+        # Send clipboard content to whichever channel delivered
+        self._sync_clipboard(peer_name)
+
+    def _sync_clipboard(self, peer_name: Optional[str] = None):
+        """Sync clipboard to peer via presence or bridge."""
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["wl-paste", "--no-newline"],
+                capture_output=True, text=True, timeout=1,
+            )
+            clipboard_content = result.stdout if result.returncode == 0 else ""
+            if not clipboard_content:
+                return
+
+            # Send to presence peer if specified
+            if peer_name:
+                clipboard_msg = {
+                    "type": MSG_CLIPBOARD_SYNC,
+                    "content": clipboard_content,
+                }
+                self._send_to_peer(peer_name, clipboard_msg)
+
+            # Send to bridge peers
+            if self.juhflow_bridge and self.juhflow_bridge.get_peers():
+                self.juhflow_bridge.send_clipboard(clipboard_content)
+
+        except Exception as e:
+            logger.debug("Clipboard sync failed: %s", e)
 
     def _on_client_message(self, peer_name: str, message: dict):
         """Handle message received from outgoing presence client."""
