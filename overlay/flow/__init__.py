@@ -234,6 +234,22 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
     return _flow_server
 
 
+def update_indicator_direction(direction=None):
+    """Re-read config and reposition the flow edge indicator."""
+    global _flow_indicator
+    if _flow_indicator is None:
+        return
+    if direction is None:
+        try:
+            import json as _json
+            from pathlib import Path as _Path
+            _cp = _Path.home() / ".config" / "juhradial" / "config.json"
+            direction = _json.loads(_cp.read_text()).get("flow", {}).get("direction", "right")
+        except Exception:
+            direction = "right"
+    _flow_indicator.configure(direction)
+
+
 def stop_flow_server():
     """Stop all Flow servers"""
     global _flow_server, _logi_flow_server, _logi_discovery, _presence_server

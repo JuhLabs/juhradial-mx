@@ -253,6 +253,7 @@ class JuhFlowBridge:
         """Handle incoming connection with X25519 handshake."""
         peer = None
         try:
+            conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             conn.settimeout(10.0)
 
             # Step 1: Receive peer's handshake (plaintext JSON with pubkey)
