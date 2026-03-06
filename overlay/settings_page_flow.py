@@ -187,6 +187,27 @@ class FlowPage(Gtk.ScrolledWindow):
         monitor_row.set_control(self.monitor_dropdown)
         enable_card.append(monitor_row)
 
+        # JuhFlow companion status
+        juhflow_row = SettingRow(
+            _("JuhFlow companion"), _("Mac/Windows companion app status")
+        )
+        self._juhflow_status_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=6
+        )
+        self._juhflow_dot = Gtk.Box()
+        self._juhflow_dot.set_size_request(8, 8)
+        self._juhflow_dot.add_css_class("connection-dot")
+        self._juhflow_status_box.append(self._juhflow_dot)
+        self._juhflow_label = Gtk.Label(label=_("Checking..."))
+        self._juhflow_label.add_css_class("caption")
+        self._juhflow_status_box.append(self._juhflow_label)
+        juhflow_row.set_control(self._juhflow_status_box)
+        enable_card.append(juhflow_row)
+
+        # Poll JuhFlow status every 3 seconds
+        self._update_juhflow_status()
+        self._juhflow_poll = GLib.timeout_add(3000, self._update_juhflow_status)
+
         main_box.append(enable_card)
 
         # Indicator Card
@@ -416,6 +437,33 @@ class FlowPage(Gtk.ScrolledWindow):
         config.set("flow", "extend_edge_zone", state, auto_save=True)
         print(f"[Flow] Extend edge zone: {state}")
         return False
+
+    def _update_juhflow_status(self):
+        """Check if JuhFlow companion app is connected via bridge."""
+        peers = []
+        if FLOW_MODULE_AVAILABLE:
+            try:
+                from flow import get_juhflow_bridge
+                bridge = get_juhflow_bridge()
+                if bridge:
+                    peers = bridge.get_peers()
+            except Exception:
+                pass
+
+        if peers:
+            name = peers[0].get("hostname", "Mac")
+            self._juhflow_dot.remove_css_class("disconnected")
+            self._juhflow_dot.add_css_class("connected")
+            self._juhflow_label.set_text(_("Connected - {}").format(name))
+            self._juhflow_label.remove_css_class("dim-label")
+            self._juhflow_label.add_css_class("success")
+        else:
+            self._juhflow_dot.remove_css_class("connected")
+            self._juhflow_dot.add_css_class("disconnected")
+            self._juhflow_label.set_text(_("Not connected"))
+            self._juhflow_label.remove_css_class("success")
+            self._juhflow_label.add_css_class("dim-label")
+        return True  # Keep polling
 
     def _get_monitor_connectors(self):
         """Get list of monitor connector info from GDK.
@@ -784,11 +832,16 @@ class FlowPage(Gtk.ScrolledWindow):
             "SSH Server",
             "Computer",
         ):
-            # These are computers that could potentially run JuhRadialMX
-            info_label = Gtk.Label(label=_("Install JuhRadialMX"))
-            info_label.set_tooltip_text(
-                _("Install JuhRadialMX on this computer to enable Flow linking")
-            )
+            # macOS/Windows -> suggest JuhFlow companion app
+            # Linux -> suggest JuhRadial MX
+            if software in ("macOS", "Windows/Samba", "Windows RDP", "Logi Options+"):
+                label_text = _("Install JuhFlow")
+                tip_text = _("Install the JuhFlow companion app to enable Flow")
+            else:
+                label_text = _("Install JuhRadial MX")
+                tip_text = _("Install JuhRadial MX on this computer to enable Flow")
+            info_label = Gtk.Label(label=label_text)
+            info_label.set_tooltip_text(tip_text)
             info_label.add_css_class("dim-label")
             info_label.add_css_class("caption")
             computer_box.append(info_label)

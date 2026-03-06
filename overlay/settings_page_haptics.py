@@ -68,10 +68,7 @@ class HapticsPage(Gtk.ScrolledWindow):
         )
         enable_switch = Gtk.Switch()
         enable_switch.set_active(config.get("haptics", "enabled", default=True))
-        enable_switch.connect(
-            "state-set",
-            lambda s, state: config.set("haptics", "enabled", state) or False,
-        )
+        enable_switch.connect("state-set", self._on_haptics_toggled)
         enable_row.set_control(enable_switch)
         card.append(enable_row)
 
@@ -136,6 +133,13 @@ class HapticsPage(Gtk.ScrolledWindow):
         clamp.set_tightening_threshold(700)
         clamp.set_child(content)
         self.set_child(clamp)
+
+    def _on_haptics_toggled(self, switch, state):
+        """Handle haptics enable/disable - save and reload daemon."""
+        config.set("haptics", "enabled", state)
+        config.save(show_toast=False)
+        self._reload_daemon_config()
+        return False
 
     def _create_pattern_dropdown(self, current_value, on_change_callback):
         """Create a dropdown for selecting haptic patterns"""

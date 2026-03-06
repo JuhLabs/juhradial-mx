@@ -621,17 +621,25 @@ class SettingsWindow(Adw.ApplicationWindow):
         desc_label.set_margin_top(4)
         credits_box.append(desc_label)
 
+        # Glowing heart (Cairo-drawn with breathing animation)
+        self._heart_area = Gtk.DrawingArea()
+        self._heart_area.set_size_request(40, 40)
+        self._heart_area.set_halign(Gtk.Align.CENTER)
+        self._heart_area.set_margin_top(6)
+        self._heart_breath = 0.0
+        self._heart_area.set_draw_func(self._draw_heart)
+        self._heart_timer = GLib.timeout_add(30, self._tick_heart)
+        credits_box.append(self._heart_area)
+
         # Donate button
         donate_btn = Gtk.Button()
         donate_btn.add_css_class("donate-btn")
         donate_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         donate_box.set_halign(Gtk.Align.CENTER)
-        coffee_icon = Gtk.Label(label="\u2615")  # Coffee emoji
-        donate_box.append(coffee_icon)
         donate_label = Gtk.Label(label=_("Buy me a coffee"))
         donate_box.append(donate_label)
         donate_btn.set_child(donate_box)
-        donate_btn.set_margin_top(8)
+        donate_btn.set_margin_top(4)
         donate_btn.connect("clicked", self._on_donate_clicked)
         credits_box.append(donate_btn)
 
@@ -654,6 +662,63 @@ class SettingsWindow(Adw.ApplicationWindow):
         sidebar.append(exit_btn)
 
         return sidebar
+
+    def _tick_heart(self):
+        """Advance breathing cycle and redraw the heart."""
+        import math
+        self._heart_breath = (self._heart_breath + 0.03) % (2 * math.pi)
+        self._heart_area.queue_draw()
+        return True
+
+    def _draw_heart(self, area, cr, width, height):
+        """Draw a glowing heart with Cairo."""
+        import math
+        import cairo
+
+        t = (math.sin(self._heart_breath) + 1.0) / 2.0  # 0..1 breathing
+        cx, cy = width / 2, height / 2 + 2
+        scale = 0.38 + t * 0.04  # subtle size pulse
+
+        # Parse accent color
+        r, g, b = self._parse_hex_color(COLORS.get("accent", "#cba6f7"))
+
+        # Outer glow (soft radial gradient)
+        glow_alpha = 0.15 + t * 0.2
+        glow_r = 18 + t * 6
+        pat = cairo.RadialGradient(cx, cy, 0, cx, cy, glow_r)
+        pat.add_color_stop_rgba(0, r, g, b, glow_alpha)
+        pat.add_color_stop_rgba(1, r, g, b, 0)
+        cr.set_source(pat)
+        cr.arc(cx, cy, glow_r, 0, 2 * math.pi)
+        cr.fill()
+
+        # Draw heart shape
+        cr.save()
+        cr.translate(cx, cy)
+        cr.scale(scale, scale)
+        cr.move_to(0, 10)
+        cr.curve_to(-20, -6, -12, -22, 0, -12)
+        cr.curve_to(12, -22, 20, -6, 0, 10)
+        cr.close_path()
+        cr.restore()
+
+        # Fill with gradient
+        heart_alpha = 0.75 + t * 0.25
+        cr.set_source_rgba(r, g, b, heart_alpha)
+        cr.fill_preserve()
+
+        # Thin bright outline
+        cr.set_source_rgba(r, g, b, 0.4 + t * 0.3)
+        cr.set_line_width(0.6)
+        cr.stroke()
+
+    @staticmethod
+    def _parse_hex_color(hex_color):
+        """Parse '#rrggbb' to (r, g, b) floats 0..1."""
+        h = hex_color.lstrip("#")
+        if len(h) == 6:
+            return int(h[0:2], 16) / 255, int(h[2:4], 16) / 255, int(h[4:6], 16) / 255
+        return 0.8, 0.6, 0.9  # fallback lavender
 
     def _on_donate_clicked(self, button):
         """Open PayPal donation link"""
