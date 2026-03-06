@@ -201,11 +201,12 @@ class FlowPage(Gtk.ScrolledWindow):
             )
             + "\n\n"
             "<b>" + _("Requirements:") + "</b>\n"
-            "  \u2022 " + _("JuhRadialMX running on all computers") + "\n"
+            "  \u2022 " + _("JuhRadialMX on Linux, JuhFlow on Mac/Windows") + "\n"
             "  \u2022 " + _("Computers connected to the same network") + "\n"
             "  \u2022 " + _("Flow enabled on all devices") + "\n\n"
-            "<b>" + _("Compatible Software Detected:") + "</b>\n"
-            "  \u2022 " + _("JuhRadialMX instances") + "\n"
+            "<b>" + _("Compatible Software:") + "</b>\n"
+            "  \u2022 " + _("JuhRadialMX (Linux)") + "\n"
+            "  \u2022 " + _("JuhFlow companion app (Mac/Windows)") + "\n"
             '  \u2022 <a href="https://github.com/input-leap/input-leap">Input Leap</a> ('
             + _("open-source KVM")
             + ")\n"
@@ -264,6 +265,18 @@ class FlowPage(Gtk.ScrolledWindow):
                         print(f"[Flow] Error switching host: {e}")
 
                 start_flow_server(on_host_change=on_host_change)
+
+                # Enable edge detection if configured
+                edge_enabled = config.get("flow", "edge_trigger", default=True)
+                if edge_enabled:
+                    try:
+                        from flow import get_edge_detector
+                        detector = get_edge_detector()
+                        if detector:
+                            detector.set_enabled(True)
+                    except Exception:
+                        pass
+
                 print("[Flow] Server started")
             else:
                 # Stop the Flow server
@@ -274,7 +287,17 @@ class FlowPage(Gtk.ScrolledWindow):
 
     def _on_edge_toggled(self, switch, state):
         """Handle edge trigger toggle"""
-        config.set("flow", "edge_trigger", state)
+        config.set("flow", "edge_trigger", state, auto_save=True)
+
+        # Wire to actual edge detector
+        if FLOW_MODULE_AVAILABLE:
+            try:
+                from flow import get_edge_detector
+                detector = get_edge_detector()
+                if detector:
+                    detector.set_enabled(state)
+            except Exception as e:
+                print(f"[Flow] Edge toggle error: {e}")
         return False
 
     def _on_scan_clicked(self, button):
@@ -290,11 +313,37 @@ class FlowPage(Gtk.ScrolledWindow):
         """Complete the network scan"""
         self.scan_button.set_sensitive(True)
         self.scan_button.set_label(_("Scan Network"))
-        # Update UI with discovered computers
-        GLib.idle_add(
-            self._update_computers_list, list(self.discovered_computers.values())
-        )
+        # Merge mDNS-discovered + JuhFlow bridge peers
+        all_computers = list(self.discovered_computers.values())
+        all_computers.extend(self._get_bridge_peers())
+        GLib.idle_add(self._update_computers_list, all_computers)
         return False
+
+    def _get_bridge_peers(self):
+        """Get connected JuhFlow bridge peers (Mac/Win companion apps)."""
+        if not FLOW_MODULE_AVAILABLE:
+            return []
+        try:
+            from flow import get_juhflow_bridge
+            bridge = get_juhflow_bridge()
+            if not bridge:
+                return []
+            peers = []
+            for p in bridge.get_peers():
+                # Avoid duplicates with mDNS results
+                ip = p.get("ip", "")
+                if ip in {c.get("ip") for c in self.discovered_computers.values()}:
+                    continue
+                peers.append({
+                    "name": p.get("hostname", "Unknown"),
+                    "ip": ip,
+                    "port": 59872,
+                    "software": "JuhFlow",
+                    "service_type": "juhflow_bridge",
+                })
+            return peers
+        except Exception:
+            return []
 
     def _discover_computers(self):
         """Discover other computers on the network running JuhRadialMX, Input Leap, or Logi Options+"""
@@ -349,10 +398,12 @@ class FlowPage(Gtk.ScrolledWindow):
                 # Keep browsing for a few seconds
                 time.sleep(4)
 
-                # Update UI on main thread
+                # Update UI on main thread (include bridge peers)
+                all_computers = list(self.discovered_computers.values())
+                all_computers.extend(self._get_bridge_peers())
                 GLib.idle_add(
                     self._update_computers_list,
-                    list(self.discovered_computers.values()),
+                    all_computers,
                 )
 
             except Exception as e:
@@ -559,7 +610,16 @@ class FlowPage(Gtk.ScrolledWindow):
 
         # Link button - show for compatible computers
         software = computer.get("software", "Unknown")
-        if software == "JuhRadialMX":
+        if software == "JuhFlow":
+            # JuhFlow companion app - already connected via encrypted bridge
+            info_label = Gtk.Label(label=_("Connected (JuhFlow)"))
+            info_label.set_tooltip_text(
+                _("Mac/Windows companion app connected via encrypted bridge")
+            )
+            info_label.add_css_class("success")
+            info_label.add_css_class("caption")
+            computer_box.append(info_label)
+        elif software == "JuhRadialMX":
             link_btn = Gtk.Button(label=_("Link"))
             link_btn.add_css_class("suggested-action")
             link_btn.connect("clicked", self._on_link_clicked, computer)

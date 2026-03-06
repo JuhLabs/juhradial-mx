@@ -16,6 +16,8 @@ Sharded into:
   flow/logi_server.py     - Logi Options+ HTTP control server (port 59866)
   flow/edge_detector.py   - Screen edge cursor monitoring with dwell detection
   flow/handoff.py         - Cursor handoff orchestrator (edge -> encrypt -> warp)
+  flow/marconi.py         - thekogans Marconi wire format (FrameHeader, SizeT, etc.)
+  flow/juhflow_bridge.py  - JuhFlow Mac/Win companion app bridge (TCP port 59872)
 """
 
 import logging
@@ -39,6 +41,7 @@ _logi_discovery: Optional[LogiFlowDiscoveryResponder] = None
 _presence_server: Optional['FlowPresenceServer'] = None
 _handoff_manager = None
 _edge_detector = None
+_juhflow_bridge = None
 
 # Crypto identity (set at startup)
 _identity = None  # (private_key, public_key_bytes, node_id)
@@ -69,6 +72,10 @@ def get_handoff_manager():
 
 def get_edge_detector():
     return _edge_detector
+
+
+def get_juhflow_bridge():
+    return _juhflow_bridge
 
 
 def _on_peer_key(peer_name: str, aes_key: bytes):
@@ -150,13 +157,61 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
     except Exception as e:
         logger.warning("Edge detector/handoff setup deferred: %s", e)
 
+    # 8. Start JuhFlow bridge (accepts connections from Mac/Win JuhFlow apps)
+    try:
+        from .juhflow_bridge import JuhFlowBridge
+        global _juhflow_bridge
+
+        if _juhflow_bridge is None:
+            def _on_bridge_edge_hit(peer_id, msg):
+                """Forward edge hit from JuhFlow peer to local cursor warp."""
+                if _handoff_manager:
+                    edge = msg.get("edge", "right")
+                    rel = msg.get("relative_position", 0.5)
+                    _handoff_manager._handle_cursor_handoff(peer_id, {
+                        "type": "cursor_handoff",
+                        "edge": edge,
+                        "relative_position": rel,
+                    })
+                elif _edge_detector:
+                    # No handoff manager - at least suppress edge detector
+                    _edge_detector.suppress_for(1000)
+
+            def _on_bridge_clipboard(peer_id, msg):
+                """Forward clipboard from JuhFlow peer."""
+                content = msg.get("content", "")
+                if content:
+                    import subprocess
+                    try:
+                        subprocess.run(
+                            ["wl-copy"], input=content, text=True, timeout=1,
+                        )
+                    except Exception:
+                        pass
+
+            _juhflow_bridge = JuhFlowBridge(
+                on_edge_hit=_on_bridge_edge_hit,
+                on_clipboard=_on_bridge_clipboard,
+            )
+            _juhflow_bridge.start()
+
+            # Wire bridge into handoff manager for outgoing edge hits
+            if _handoff_manager:
+                _handoff_manager.juhflow_bridge = _juhflow_bridge
+    except Exception as e:
+        logger.warning("JuhFlow bridge setup deferred: %s", e)
+
     return _flow_server
 
 
 def stop_flow_server():
     """Stop all Flow servers"""
     global _flow_server, _logi_flow_server, _logi_discovery, _presence_server
-    global _handoff_manager, _edge_detector
+    global _handoff_manager, _edge_detector, _juhflow_bridge
+
+    if _juhflow_bridge:
+        _juhflow_bridge.stop()
+        _juhflow_bridge = None
 
     if _edge_detector:
         _edge_detector.stop()
