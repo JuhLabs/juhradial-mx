@@ -32,6 +32,8 @@ try:
 except ImportError:
     HAS_RUMPS = False
 
+from flow_indicator import FlowIndicator
+
 from juhflow_crypto import (
     build_encrypted_packet,
     decrypt_payload,
@@ -56,8 +58,9 @@ BEACON_INTERVAL = 3.0
 
 # Edge detection (must match Linux overlay/flow/constants.py)
 EDGE_THRESHOLD_PX = 5
-EDGE_DWELL_MS = 150  # ms cursor must stay at edge
+EDGE_DWELL_MS = 100  # ms cursor must stay at edge
 EDGE_COOLDOWN_MS = 1000  # ms after handoff before re-triggering
+EDGE_VELOCITY_INSTANT_PX_PER_S = 3000  # instant trigger if cursor hits edge this fast
 
 # Message types (must match Linux side)
 MSG_HANDSHAKE = "handshake"
@@ -94,6 +97,135 @@ def _recv_framed(sock):
     return data
 
 
+class LogiAgent:
+    """Communicate with Logi Options+ agent via its Unix socket IPC.
+
+    Uses the agent's JSON-over-Unix-socket protocol to trigger Easy-Switch
+    channel changes on Logitech devices (MX Master 4, MX Keys S, etc).
+    """
+
+    SOCKET_GLOB = "/tmp/logitech_kiros_agent-*"
+    DEVICE_ID = "dev00000000"  # MX Master 4 (first device)
+
+    def __init__(self):
+        self._sock = None
+        self._lock = threading.Lock()
+
+    def _find_socket(self):
+        import glob
+        socks = glob.glob(self.SOCKET_GLOB)
+        # Filter to actual sockets (not updater)
+        for s in socks:
+            if "updater" not in s:
+                return s
+        return None
+
+    def _connect(self):
+        if self._sock:
+            return True
+        sock_path = self._find_socket()
+        if not sock_path:
+            logger.debug("Logi agent socket not found")
+            return False
+        try:
+            self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self._sock.settimeout(5)
+            self._sock.connect(sock_path)
+            # Read initial handshake frame (4-byte start)
+            self._sock.recv(4)
+            # Read the server's initial protobuf messages
+            self._read_frame()  # "protobuf" subprotocol
+            self._read_frame()  # OPTIONS / message
+            return True
+        except Exception as e:
+            logger.debug("Logi agent connect failed: %s", e)
+            self._sock = None
+            return False
+
+    def _read_frame(self):
+        header = b""
+        while len(header) < 4:
+            chunk = self._sock.recv(4 - len(header))
+            if not chunk:
+                return None
+            header += chunk
+        frame_len = struct.unpack('>I', header)[0]
+        body = b""
+        while len(body) < frame_len:
+            chunk = self._sock.recv(frame_len - len(body))
+            if not chunk:
+                return None
+            body += chunk
+        return body
+
+    def _send_json(self, msg):
+        json_bytes = json.dumps(msg).encode('utf-8')
+        proto_name = b"json"
+        total_size = len(proto_name) + len(json_bytes) + 8
+        frame = (struct.pack('<I', total_size) +
+                 struct.pack('>I', len(proto_name)) + proto_name +
+                 struct.pack('>I', len(json_bytes)) + json_bytes)
+        self._sock.sendall(frame)
+
+    def _recv_json(self, timeout=5):
+        self._sock.settimeout(timeout)
+        # skip 4-byte start marker
+        self._sock.recv(4)
+        proto_len = struct.unpack('>I', self._sock.recv(4))[0]
+        proto_name = self._sock.recv(proto_len).decode('ascii')
+        msg_len = struct.unpack('>I', self._sock.recv(4))[0]
+        msg_data = b""
+        while len(msg_data) < msg_len:
+            msg_data += self._sock.recv(msg_len - len(msg_data))
+        if proto_name == "json":
+            return json.loads(msg_data)
+        return None
+
+    def switch_channel(self, channel):
+        """Switch MX Master 4 Easy-Switch to given channel (1-based).
+
+        Sends the HID++ ChangeHost command via the Logi Options+ agent.
+        Payload: {"@type": "...devices.ChangeHost", "host": <0-based index>}
+        """
+        host_index = channel - 1  # change_host uses 0-based index
+        with self._lock:
+            self._disconnect()
+            if not self._connect():
+                logger.warning("Cannot switch Easy-Switch: Logi agent not available")
+                return False
+            try:
+                self._send_json({
+                    "msgId": "juhflow-ch",
+                    "verb": "set",
+                    "path": f"/change_host/{self.DEVICE_ID}/host",
+                    "payload": {
+                        "@type": "type.googleapis.com/logi.protocol.devices.ChangeHost",
+                        "host": host_index,
+                    }
+                })
+                resp = self._recv_json(timeout=3)
+                code = resp.get("result", {}).get("code") if resp else "no response"
+                if code == "SUCCESS":
+                    logger.info("Easy-Switch: switched to host %d (ch%d)", host_index, channel)
+                    return True
+                else:
+                    logger.warning("Easy-Switch change_host failed: %s", code)
+                    return False
+            except Exception as e:
+                logger.warning("Easy-Switch error: %s", e)
+                return False
+            finally:
+                self._disconnect()
+
+    def _disconnect(self):
+        if self._sock:
+            try:
+                self._sock.close()
+            except OSError:
+                pass
+            self._sock = None
+
+
 class EdgeDetector:
     """Detect when mouse cursor hits screen edges on macOS.
 
@@ -101,14 +233,17 @@ class EdgeDetector:
     Falls back to polling CGEvent.mouseLocation if tap fails.
     """
 
-    def __init__(self, on_edge_hit=None):
+    def __init__(self, on_edge_hit=None, watch_edge=None):
         self.on_edge_hit = on_edge_hit
+        self.watch_edge = watch_edge  # only detect this specific edge
         self.running = False
-        self.active = False  # only detect edges when Mac is the active machine
+        self.active = True
         self._thread = None
         self._suppressed_until = 0
         self._edge_start_time = 0
         self._current_edge = None
+        self._prev_pos = None
+        self._prev_time = 0
 
     def start(self):
         self.running = True
@@ -132,7 +267,7 @@ class EdgeDetector:
             return
 
         while self.running:
-            time.sleep(0.016)  # ~60Hz polling
+            time.sleep(0.008)  # ~120Hz polling
 
             if not self.active or time.time() < self._suppressed_until:
                 self._current_edge = None
@@ -153,18 +288,47 @@ class EdgeDetector:
             # NSScreen coordinates are bottom-left origin, convert
             my = sh - my_flipped
 
-            # Detect edge
+            # Velocity tracking
+            now = time.time()
+            velocity = 0.0
+            if self._prev_pos is not None and now > self._prev_time:
+                dx = mx - self._prev_pos[0]
+                dy = my - self._prev_pos[1]
+                dt = now - self._prev_time
+                velocity = (dx * dx + dy * dy) ** 0.5 / dt
+            self._prev_pos = (mx, my)
+            self._prev_time = now
+
+            # Detect only the watched edge
             edge = None
-            if mx <= EDGE_THRESHOLD_PX:
-                edge = "left"
-            elif mx >= sw - EDGE_THRESHOLD_PX:
+            if self.watch_edge == "right" and mx >= sw - EDGE_THRESHOLD_PX:
                 edge = "right"
-            elif my <= EDGE_THRESHOLD_PX:
+            elif self.watch_edge == "left" and mx <= EDGE_THRESHOLD_PX:
+                edge = "left"
+            elif self.watch_edge == "top" and my <= EDGE_THRESHOLD_PX:
                 edge = "top"
-            elif my >= sh - EDGE_THRESHOLD_PX:
+            elif self.watch_edge == "bottom" and my >= sh - EDGE_THRESHOLD_PX:
                 edge = "bottom"
 
+            # Debug: log when near the watched edge
+            if self.watch_edge == "right" and mx >= sw - 50:
+                if not hasattr(self, '_last_debug') or time.time() - self._last_debug > 2:
+                    logger.debug("Near right edge: mx=%.0f, threshold=%d, sw=%.0f", mx, sw - EDGE_THRESHOLD_PX, sw)
+                    self._last_debug = time.time()
+
             if edge:
+                # Instant trigger if cursor hits edge at high velocity
+                if velocity >= EDGE_VELOCITY_INSTANT_PX_PER_S:
+                    if self.on_edge_hit:
+                        screen = {
+                            "x": 0, "y": 0,
+                            "width": int(sw), "height": int(sh),
+                        }
+                        self.on_edge_hit(edge, int(mx), int(my), screen)
+                    self.suppress_for(EDGE_COOLDOWN_MS)
+                    self._current_edge = None
+                    continue
+
                 if edge == self._current_edge:
                     # Check dwell time
                     elapsed_ms = (time.time() - self._edge_start_time) * 1000
@@ -188,10 +352,12 @@ class LinuxBridgeClient:
     """Encrypted TCP client connecting to JuhRadial MX on Linux."""
 
     def __init__(self, linux_ip, linux_port=BRIDGE_TCP_PORT,
-                 on_message=None):
+                 on_message=None, on_connect=None, on_disconnect=None):
         self.linux_ip = linux_ip
         self.linux_port = linux_port
         self.on_message = on_message
+        self.on_connect = on_connect
+        self.on_disconnect = on_disconnect
 
         self._private_key, self._public_key_bytes = generate_keypair()
         self._node_id = generate_node_id()
@@ -238,6 +404,7 @@ class LinuxBridgeClient:
         while self._running:
             try:
                 self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self._sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 self._sock.settimeout(5.0)
                 self._sock.connect((self.linux_ip, self.linux_port))
 
@@ -267,6 +434,8 @@ class LinuxBridgeClient:
                 logger.info("Connected to Linux: %s (%s)",
                             peer_handshake.get("hostname"), self.linux_ip)
                 self._connected.set()
+                if self.on_connect:
+                    self.on_connect()
                 backoff = 1.0
 
                 # Start heartbeat
@@ -299,7 +468,10 @@ class LinuxBridgeClient:
                 if self._running:
                     logger.debug("Connection to %s failed: %s", self.linux_ip, e)
             finally:
+                was_connected = self._connected.is_set()
                 self._connected.clear()
+                if was_connected and self.on_disconnect:
+                    self.on_disconnect()
                 if self._sock:
                     try:
                         self._sock.close()
@@ -383,12 +555,29 @@ class DiscoveryListener:
 class JuhFlowApp:
     """Main JuhFlow application controller."""
 
-    def __init__(self):
-        self.edge_detector = EdgeDetector(on_edge_hit=self._on_edge_hit)
+    OPPOSITE = {"left": "right", "right": "left", "top": "bottom", "bottom": "top"}
+
+    def __init__(self, linux_direction="right", mac_channel=1, linux_channel=2):
+        """
+        linux_direction: which edge Linux is on (left/right/top/bottom).
+        mac_channel: MX Easy-Switch channel for this Mac (1-3).
+        linux_channel: MX Easy-Switch channel for the Linux machine (1-3).
+        """
+        self.linux_direction = linux_direction
+        self.mac_arrival_edge = linux_direction  # cursor arrives from the same side Linux is on
+        self.mac_channel = mac_channel
+        self.linux_channel = linux_channel
+        self.edge_detector = EdgeDetector(on_edge_hit=self._on_edge_hit, watch_edge=linux_direction)
         self.discovery = DiscoveryListener(on_peer_found=self._on_peer_found)
         self.bridge_client = None
+        self.logi_agent = LogiAgent()
+        self.indicator = FlowIndicator(edge=linux_direction)
         self._running = False
         self._linux_ip = None
+        self._cursor_on_mac = False
+        self._sent_to_linux_at = 0
+        logger.info("Layout: Linux is on the %s | Easy-Switch: Mac=ch%d Linux=ch%d",
+                     linux_direction, mac_channel, linux_channel)
 
     def start(self, linux_ip=None):
         """Start JuhFlow. If linux_ip provided, connect directly. Otherwise discover."""
@@ -400,18 +589,124 @@ class JuhFlowApp:
         # Start edge detection
         self.edge_detector.start()
 
+        # Start global hotkey listener (Ctrl+Shift+Arrow to switch)
+        self._start_hotkey_listener()
+
         # Connect to known Linux IP if provided
         if linux_ip:
             self._connect_to_linux(linux_ip)
 
-        logger.info("JuhFlow started - monitoring edges, discovering peers")
+        logger.info("JuhFlow started - edges + hotkey (Ctrl+Shift+Arrow) + discovery")
 
     def stop(self):
         self._running = False
         self.edge_detector.stop()
         self.discovery.stop()
+        self.indicator.hide()
         if self.bridge_client:
             self.bridge_client.stop()
+
+    def _start_hotkey_listener(self):
+        """Listen for Ctrl+Shift+Arrow to switch machines."""
+        def _listener():
+            try:
+                import Quartz
+                from Quartz import (
+                    CGEventTapCreate, kCGSessionEventTap,
+                    kCGHeadInsertEventTap, kCGEventTapOptionListenOnly,
+                    CGEventMaskBit, kCGEventKeyDown, CGEventGetIntegerValueField,
+                    kCGKeyboardEventKeycode, CFMachPortCreateRunLoopSource,
+                    CFRunLoopGetCurrent, CFRunLoopAddSource, kCFRunLoopDefaultMode,
+                    CFRunLoopRun,
+                )
+            except ImportError:
+                logger.error("Quartz not available for hotkey listener")
+                return
+
+            # Arrow keycodes: left=123, right=124, up=126, down=125
+            ARROW_TO_DIRECTION = {123: "left", 124: "right", 126: "top", 125: "bottom"}
+
+            def callback(proxy, event_type, event, refcon):
+                flags = Quartz.CGEventGetFlags(event)
+                ctrl = (flags & Quartz.kCGEventFlagMaskControl) != 0
+                shift = (flags & Quartz.kCGEventFlagMaskShift) != 0
+                if ctrl and shift:
+                    keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode)
+                    if keycode in ARROW_TO_DIRECTION:
+                        direction = ARROW_TO_DIRECTION[keycode]
+                        if direction == self.linux_direction:
+                            logger.info("Hotkey: Ctrl+Shift+%s -> switch to Linux", direction)
+                            self.switch_to_linux()
+                return event
+
+            tap = CGEventTapCreate(
+                kCGSessionEventTap, kCGHeadInsertEventTap,
+                kCGEventTapOptionListenOnly,
+                CGEventMaskBit(kCGEventKeyDown),
+                callback, None,
+            )
+            if not tap:
+                logger.error("Failed to create event tap for hotkeys (check Accessibility permissions)")
+                return
+
+            src = CFMachPortCreateRunLoopSource(None, tap, 0)
+            CFRunLoopAddSource(CFRunLoopGetCurrent(), src, kCFRunLoopDefaultMode)
+            logger.info("Hotkey listener active: Ctrl+Shift+Arrow to switch")
+            CFRunLoopRun()
+
+        threading.Thread(target=_listener, daemon=True).start()
+
+    def switch_to_linux(self):
+        """Send edge_hit + device_switch to Linux."""
+        if not self.bridge_client or not self.bridge_client.connected:
+            logger.warning("Cannot switch: not connected to Linux")
+            return
+
+        try:
+            import Quartz
+            loc = Quartz.NSEvent.mouseLocation()
+            screen = Quartz.NSScreen.mainScreen().frame()
+            sw, sh = int(screen.size.width), int(screen.size.height)
+            mx, my = int(loc.x), int(sh - loc.y)
+        except ImportError:
+            mx, my, sw, sh = 0, 0, 1920, 1080
+
+        if self.linux_direction in ("left", "right"):
+            relative_pos = my / sh if sh > 0 else 0.5
+        else:
+            relative_pos = mx / sw if sw > 0 else 0.5
+
+        self.bridge_client.send({
+            "type": MSG_EDGE_HIT,
+            "edge": self.linux_direction,
+            "position": {"x": mx, "y": my},
+            "relative_position": max(0.0, min(1.0, relative_pos)),
+            "screen": {"x": 0, "y": 0, "width": sw, "height": sh},
+            "timestamp": time.time(),
+        })
+        self._cursor_on_mac = False
+        self._sent_to_linux_at = time.time()
+        self.edge_detector.suppress_for(3000)
+        logger.info("Switching to Linux (ch%d)...", self.linux_channel)
+        self._sync_clipboard_to_linux()
+        # Switch MX Master 4 Easy-Switch + toggle BT to release BLE connection
+        threading.Thread(target=self._switch_away_from_mac, daemon=True).start()
+
+    def _switch_away_from_mac(self):
+        """Send Easy-Switch ChangeHost command, toggle BT off briefly as insurance."""
+        # Step 1: Send HID++ ChangeHost via Logi agent
+        ok = self.logi_agent.switch_channel(self.linux_channel)
+        if not ok:
+            logger.warning("Easy-Switch command failed, trying BT toggle anyway")
+        # Step 2: Brief BT toggle to ensure Mac doesn't auto-reconnect
+        time.sleep(0.2)
+        try:
+            subprocess.run(["blueutil", "--power", "0"], timeout=5)
+            time.sleep(1.5)
+            subprocess.run(["blueutil", "--power", "1"], timeout=5)
+            logger.info("Bluetooth toggled to release BLE")
+        except Exception as e:
+            logger.warning("blueutil toggle failed: %s", e)
 
     def _connect_to_linux(self, ip, port=BRIDGE_TCP_PORT):
         """Establish encrypted bridge to Linux JuhRadial MX."""
@@ -420,6 +715,8 @@ class JuhFlowApp:
         self.bridge_client = LinuxBridgeClient(
             ip, port,
             on_message=self._on_linux_message,
+            on_connect=lambda: self.indicator.show(),
+            on_disconnect=lambda: self.indicator.hide(),
         )
         self.bridge_client.start()
         self._linux_ip = ip
@@ -432,33 +729,12 @@ class JuhFlowApp:
             self._connect_to_linux(ip, peer_info.get("port", BRIDGE_TCP_PORT))
 
     def _on_edge_hit(self, edge, mx, my, screen):
-        """Forward edge hit to Linux."""
-        if not self.bridge_client or not self.bridge_client.connected:
-            logger.warning("Edge hit %s but bridge not connected", edge)
+        """Forward edge hit to Linux (only on the configured edge)."""
+        if edge != self.linux_direction:
             return
-
-        # Compute relative position
-        sw, sh = screen["width"], screen["height"]
-        if edge in ("left", "right"):
-            relative_pos = my / sh if sh > 0 else 0.5
-        else:
-            relative_pos = mx / sw if sw > 0 else 0.5
-
-        msg = {
-            "type": MSG_EDGE_HIT,
-            "edge": edge,
-            "position": {"x": mx, "y": my},
-            "relative_position": max(0.0, min(1.0, relative_pos)),
-            "screen": screen,
-            "timestamp": time.time(),
-        }
-        self.bridge_client.send(msg)
-        # Deactivate edge detection - Linux is now the active machine
+        logger.info("Edge hit: %s at (%d, %d)", edge, mx, my)
         self.edge_detector.active = False
-        logger.info("Edge hit: %s at (%d, %d) -> sent to Linux (edge detect off)", edge, mx, my)
-
-        # Also send clipboard
-        self._sync_clipboard_to_linux()
+        self.switch_to_linux()
 
     def _sync_clipboard_to_linux(self):
         """Send Mac clipboard content to Linux."""
@@ -486,18 +762,25 @@ class JuhFlowApp:
         elif msg_type == MSG_CLIPBOARD:
             self._handle_clipboard(msg)
         elif msg_type == MSG_DEVICE_SWITCH:
-            logger.info("Device switch request: ch %s", msg.get("channel"))
+            channel = msg.get("channel")
+            logger.info("Device switch request from Linux: ch %s", channel)
+            if channel == self.mac_channel:
+                # Switching TO Mac - ensure BT is on for reconnection
+                threading.Thread(target=self._ensure_bt_on, daemon=True).start()
+            elif channel == self.linux_channel:
+                # Switching TO Linux - send command + toggle BT
+                threading.Thread(target=self._switch_away_from_mac, daemon=True).start()
 
     def _handle_incoming_edge_hit(self, msg):
         """Handle edge hit from Linux - warp cursor to opposite edge."""
-        edge = msg.get("edge", "right")
-        relative_pos = msg.get("relative_position", 0.5)
+        if self._cursor_on_mac:
+            return  # cursor already on Mac, ignore repeated warps from Linux
+        # Grace period after sending cursor to Linux - ignore stale Linux edge_hits
+        if time.time() - self._sent_to_linux_at < 3.0:
+            return
 
-        opposite = {
-            "left": "right", "right": "left",
-            "top": "bottom", "bottom": "top",
-        }
-        arrival_edge = opposite.get(edge, "left")
+        relative_pos = msg.get("relative_position", 0.5)
+        arrival_edge = self.mac_arrival_edge  # always arrive on the edge facing Linux
 
         try:
             import Quartz
@@ -506,27 +789,41 @@ class JuhFlowApp:
             sw = int(frame.size.width)
             sh = int(frame.size.height)
 
-            # Offset must be > EDGE_THRESHOLD_PX to avoid landing in the detection zone
-            inset = EDGE_THRESHOLD_PX * 3  # 15px inside
             if arrival_edge == "left":
-                x, y = inset, int(relative_pos * sh)
+                x, y = 15, int(relative_pos * sh)
             elif arrival_edge == "right":
-                x, y = sw - inset, int(relative_pos * sh)
+                x, y = sw - 15, int(relative_pos * sh)
             elif arrival_edge == "top":
-                x, y = int(relative_pos * sw), inset
+                x, y = int(relative_pos * sw), 15
             else:
-                x, y = int(relative_pos * sw), sh - inset
+                x, y = int(relative_pos * sw), sh - 15
 
             Quartz.CGWarpMouseCursorPosition((x, y))
+            self._cursor_on_mac = True  # cursor is now on Mac, block further warps
             self.edge_detector.suppress_for(EDGE_COOLDOWN_MS)
-            # Activate edge detection - Mac is now the active machine
             self.edge_detector.active = True
-            logger.info("Cursor warped to %s edge: (%d, %d) (edge detect on)", arrival_edge, x, y)
+            logger.info("Cursor warped to %s edge: (%d, %d) - switching to Mac ch%d",
+                         arrival_edge, x, y, self.mac_channel)
+            # Ensure Bluetooth is on so device can reconnect to Mac
+            # (Linux side handles sending ChangeHost via Bolt receiver)
+            threading.Thread(target=self._ensure_bt_on, daemon=True).start()
         except ImportError:
             logger.error("Quartz not available for cursor warp")
 
+    def _ensure_bt_on(self):
+        """Make sure Bluetooth is powered on for BLE reconnection."""
+        try:
+            result = subprocess.run(["blueutil", "--power"], capture_output=True, text=True, timeout=5)
+            if result.stdout.strip() == "0":
+                logger.info("Turning Bluetooth back on for Mac reconnection...")
+                subprocess.run(["blueutil", "--power", "1"], timeout=5)
+        except Exception as e:
+            logger.warning("blueutil check/restore failed: %s", e)
+
     def _warp_cursor(self, msg):
         """Warp cursor to absolute position."""
+        if self._cursor_on_mac or time.time() - self._sent_to_linux_at < 3.0:
+            return
         try:
             import Quartz
             x = msg.get("x", 0)
@@ -610,24 +907,52 @@ def main():
     parser = argparse.ArgumentParser(description="JuhFlow - Mac companion for JuhRadial MX")
     parser.add_argument("--ip", help="Linux IP to connect to directly")
     parser.add_argument("--cli", action="store_true", help="Run without menubar GUI")
+    parser.add_argument("--direction", default="right",
+                        choices=["left", "right", "top", "bottom"],
+                        help="Which edge Linux is on (default: right)")
+    parser.add_argument("--mac-channel", type=int, default=1,
+                        help="MX Easy-Switch channel for this Mac (1-3)")
+    parser.add_argument("--linux-channel", type=int, default=2,
+                        help="MX Easy-Switch channel for Linux (1-3)")
     args = parser.parse_args()
 
     if args.cli or not HAS_RUMPS:
-        # CLI mode
-        app = JuhFlowApp()
+        # CLI mode - need NSApplication event loop for overlay indicator
+        try:
+            from AppKit import NSApplication, NSApplicationActivationPolicyAccessory
+            ns_app = NSApplication.sharedApplication()
+            ns_app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+        except ImportError:
+            ns_app = None
+
+        app = JuhFlowApp(linux_direction=args.direction,
+                         mac_channel=args.mac_channel,
+                         linux_channel=args.linux_channel)
         app.start(linux_ip=args.ip)
         logger.info("Running in CLI mode. Press Ctrl+C to stop.")
-        try:
-            while True:
-                time.sleep(1)
-                if app.bridge_client and app.bridge_client.connected:
-                    pass  # connected, running
-                elif app.discovery.peers:
-                    logger.info("Peers found: %s",
-                                list(app.discovery.peers.keys()))
-        except KeyboardInterrupt:
-            logger.info("Shutting down...")
-            app.stop()
+
+        if ns_app:
+            # Run AppKit event loop on main thread (required for overlay windows)
+            # Use a timer to check for KeyboardInterrupt periodically
+            import signal
+            _shutdown = threading.Event()
+
+            def _sigint(sig, frame):
+                logger.info("Shutting down...")
+                app.stop()
+                _shutdown.set()
+                ns_app.terminate_(None)
+
+            signal.signal(signal.SIGINT, _sigint)
+            signal.signal(signal.SIGTERM, _sigint)
+            ns_app.run()
+        else:
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                logger.info("Shutting down...")
+                app.stop()
     else:
         # Menubar mode
         menubar = JuhFlowMenubar()
