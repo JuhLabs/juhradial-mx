@@ -54,9 +54,9 @@ BRIDGE_TCP_PORT = 59872
 DISCOVERY_PORT = 59873
 BEACON_INTERVAL = 3.0
 
-# Edge detection
-EDGE_THRESHOLD_PX = 2
-EDGE_DWELL_MS = 300  # ms cursor must stay at edge
+# Edge detection (must match Linux overlay/flow/constants.py)
+EDGE_THRESHOLD_PX = 5
+EDGE_DWELL_MS = 150  # ms cursor must stay at edge
 EDGE_COOLDOWN_MS = 1000  # ms after handoff before re-triggering
 
 # Message types (must match Linux side)
@@ -113,6 +113,8 @@ class EdgeDetector:
         self.running = True
         self._thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._thread.start()
+        logger.info("Edge detector started (threshold=%dpx, dwell=%dms)",
+                     EDGE_THRESHOLD_PX, EDGE_DWELL_MS)
 
     def stop(self):
         self.running = False
@@ -431,6 +433,7 @@ class JuhFlowApp:
     def _on_edge_hit(self, edge, mx, my, screen):
         """Forward edge hit to Linux."""
         if not self.bridge_client or not self.bridge_client.connected:
+            logger.warning("Edge hit %s but bridge not connected", edge)
             return
 
         # Compute relative position

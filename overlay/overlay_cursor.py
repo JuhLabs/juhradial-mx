@@ -500,12 +500,13 @@ def warp_cursor(x: int, y: int) -> bool:
     return False
 
 
-def get_screen_geometry():
+def get_screen_geometry(cursor_pos=None):
     """Get the current screen geometry for cursor position.
 
     Returns dict with x, y, width, height of the monitor at cursor.
+    Pass cursor_pos=(x,y) to avoid a redundant get_cursor_pos() call.
     """
-    pos = get_cursor_pos()
+    pos = cursor_pos or get_cursor_pos()
     if not pos:
         return {"x": 0, "y": 0, "width": 1920, "height": 1080}
 

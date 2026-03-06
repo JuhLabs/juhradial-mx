@@ -109,7 +109,8 @@ class ScreenEdgeDetector:
             return
 
         cx, cy = pos
-        screen = get_screen_geometry()
+        # Pass cursor pos to avoid redundant gdbus call inside get_screen_geometry
+        screen = get_screen_geometry(cursor_pos=pos)
 
         sx = screen["x"]
         sy = screen["y"]
