@@ -5,7 +5,7 @@ import time
 import uuid
 from typing import Optional, Dict
 
-from flow.constants import DATA_DIR, TOKENS_FILE, LINKED_COMPUTERS_FILE
+from .constants import DATA_DIR, TOKENS_FILE, LINKED_COMPUTERS_FILE
 
 
 class FlowTokenManager:
@@ -68,11 +68,13 @@ class LinkedComputersManager:
         with open(LINKED_COMPUTERS_FILE, 'w', encoding='utf-8') as f:
             json.dump(self.computers, f, indent=2)
 
-    def add_computer(self, name: str, ip: str, port: int, token: str) -> None:
+    def add_computer(self, name: str, ip: str, port: int, token: str,
+                     public_key: str = "") -> None:
         self.computers[name] = {
             'ip': ip,
             'port': port,
             'token': token,
+            'public_key': public_key,
             'linked_at': time.time()
         }
         self._save()

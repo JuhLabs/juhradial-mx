@@ -12,9 +12,10 @@ try:
 except ImportError:
     ZEROCONF_AVAILABLE = False
 
-from flow.constants import FLOW_PORT, FLOW_SERVICE_TYPE
-from flow.clipboard import get_clipboard, set_clipboard
-from flow.managers import FlowTokenManager, LinkedComputersManager
+from .constants import FLOW_PORT, FLOW_SERVICE_TYPE
+from .clipboard import get_clipboard, set_clipboard
+from .managers import FlowTokenManager, LinkedComputersManager
+from .keys import get_public_key_hex, derive_and_store_peer_key
 
 
 class FlowRequestHandler(BaseHTTPRequestHandler):
@@ -101,12 +102,29 @@ class FlowRequestHandler(BaseHTTPRequestHandler):
                 data = json.loads(body)
                 pairing_code = data.get('pairing_code', '')
                 client_name = data.get('name', '')
+                client_public_key = data.get('public_key', '')
 
                 if self.server.pending_pairing_code and pairing_code == self.server.pending_pairing_code:
                     token = self.server.token_manager.create_token(client_name)
                     self.server.pending_pairing_code = None
-                    self._send_json({'token': token, 'hostname': self.server.hostname})
-                    print(f"[Flow] Paired with {client_name}")
+
+                    response_data = {'token': token, 'hostname': self.server.hostname}
+
+                    # Exchange X25519 public keys if client sent one
+                    if client_public_key:
+                        response_data['public_key'] = get_public_key_hex()
+                        # Derive and store peer AES key
+                        client_addr = self.client_address[0]
+                        aes_key = derive_and_store_peer_key(
+                            client_name, client_public_key, client_addr,
+                            data.get('port', FLOW_PORT)
+                        )
+                        # Notify discovery about new peer key
+                        if self.server.on_peer_key_callback:
+                            self.server.on_peer_key_callback(client_name, aes_key)
+
+                    self._send_json(response_data)
+                    print(f"[Flow] Paired with {client_name} (crypto: {'yes' if client_public_key else 'no'})")
                 else:
                     self._send_error(401, 'Invalid pairing code')
             except json.JSONDecodeError:
@@ -153,12 +171,14 @@ class FlowRequestHandler(BaseHTTPRequestHandler):
 class FlowServer(HTTPServer):
     """Flow server for JuhRadialMX"""
 
-    def __init__(self, port: int = FLOW_PORT, on_host_change: Callable[[int], None] = None):
+    def __init__(self, port: int = FLOW_PORT, on_host_change: Callable[[int], None] = None,
+                 on_peer_key: Callable = None):
         self.hostname = socket.gethostname()
         self.current_host_slot = 0
         self.token_manager = FlowTokenManager()
         self.pending_pairing_code: Optional[str] = None
         self.on_host_change_callback = on_host_change
+        self.on_peer_key_callback = on_peer_key
         self.zeroconf: Optional['Zeroconf'] = None
         self.service_info: Optional['ServiceInfo'] = None
 

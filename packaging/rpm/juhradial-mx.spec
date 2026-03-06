@@ -25,6 +25,7 @@ Requires:       gtk4-layer-shell
 Requires:       python3
 Requires:       python3-gobject
 Requires:       python3-cairo
+Requires:       python3-cryptography
 Requires:       dbus
 
 Recommends:     ydotool
@@ -69,6 +70,9 @@ install -Dm755 juhradial-mx.sh %{buildroot}%{_bindir}/juhradial-mx
 # Install overlay Python files
 install -dm755 %{buildroot}%{_datadir}/juhradial
 install -Dm644 overlay/*.py %{buildroot}%{_datadir}/juhradial/
+
+# Install flow module
+cp -r overlay/flow %{buildroot}%{_datadir}/juhradial/flow
 
 # Install locales
 if [ -d overlay/locales ]; then

@@ -1,22 +1,27 @@
 """Logi Options+ UDP broadcast discovery on port 59870
 
 Handles both listening for Logi Options+ discovery broadcasts
-and broadcasting our own presence. Includes hex dump logging
-for protocol reverse-engineering.
+and broadcasting our own presence. Supports encrypted beacons
+for paired peers (Logi-format packets) and plaintext JSON for
+unpaired JuhRadialMX discovery.
 """
 
 import json
+import logging
 import socket
 import threading
 import time
-from typing import Dict
+from typing import Callable, Dict, Optional
 
-from flow.constants import (
+from .constants import (
     LOGI_FLOW_PORT,
     LOGI_PRESENCE_PORT,
     LOGI_DISCOVERY_PORT,
     DISCOVERY_BROADCAST_INTERVAL,
 )
+from .crypto import build_encrypted_packet, decrypt_payload, parse_encrypted_packet
+
+logger = logging.getLogger("juhradial.flow.discovery")
 
 
 def _hex_dump(data: bytes, prefix: str = "") -> str:
@@ -35,12 +40,17 @@ class LogiFlowDiscoveryResponder:
 
     Logi Options+ uses UDP broadcast on port 59870 to discover Flow-compatible
     computers on the network. This class:
-    1. Listens for discovery broadcasts from Logi Options+ and responds
-    2. Periodically broadcasts our own presence so Logi Options+ can find us
-    3. Logs all packets in hex for protocol reverse-engineering
+    1. Listens for discovery broadcasts and responds
+    2. Sends encrypted beacons to paired peers (one per peer, each with peer's AES key)
+    3. Broadcasts plaintext JuhRadialMX beacon for unpaired discovery
+    4. Logs all packets in hex for protocol analysis
     """
 
-    def __init__(self, hostname: str = None):
+    def __init__(self, hostname: str = None,
+                 node_id: bytes = None,
+                 private_key=None,
+                 public_key_bytes: bytes = None,
+                 on_unpaired_peer: Optional[Callable] = None):
         self.hostname = hostname or socket.gethostname()
         self.running = False
         self.listen_sock = None
@@ -50,6 +60,18 @@ class LogiFlowDiscoveryResponder:
         self.discovered_peers: Dict[str, dict] = {}
         self._broadcast_count = 0
 
+        # Crypto identity
+        self.node_id = node_id
+        self.private_key = private_key
+        self.public_key_bytes = public_key_bytes
+
+        # AES keys for paired peers: {peer_name: aes_key_bytes}
+        self.peer_aes_keys: Dict[str, bytes] = {}
+        self._peer_aes_lock = threading.Lock()
+
+        # Callback for unpaired JuhRadialMX peers discovered
+        self.on_unpaired_peer = on_unpaired_peer
+
         # Get local IP and broadcast address from OS
         self.local_ip = "127.0.0.1"
         self.broadcast_addr = "255.255.255.255"
@@ -58,7 +80,6 @@ class LogiFlowDiscoveryResponder:
             s.connect(("8.8.8.8", 80))
             self.local_ip = s.getsockname()[0]
             s.close()
-            # Get the real broadcast address from netifaces or ip command
             self.broadcast_addr = self._get_broadcast_addr()
         except OSError:
             pass
@@ -78,21 +99,30 @@ class LogiFlowDiscoveryResponder:
             )
             for line in result.stdout.splitlines():
                 if self.local_ip in line and 'brd' in line:
-                    # Format: "3: wlo1 inet 192.168.68.74/22 brd 192.168.71.255 ..."
                     parts = line.split()
                     for i, part in enumerate(parts):
                         if part == 'brd' and i + 1 < len(parts):
                             brd = parts[i + 1]
-                            print(f"[Flow Discovery] Detected broadcast address: {brd}")
+                            logger.info("Detected broadcast address: %s", brd)
                             return brd
         except Exception as e:
-            print(f"[Flow Discovery] Failed to detect broadcast addr: {e}")
+            logger.warning("Failed to detect broadcast addr: %s", e)
 
-        # Fallback: assume /24
         ip_parts = self.local_ip.split('.')
         fallback = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.255"
-        print(f"[Flow Discovery] Using fallback broadcast address: {fallback}")
+        logger.info("Using fallback broadcast address: %s", fallback)
         return fallback
+
+    def add_peer_key(self, peer_name: str, aes_key: bytes):
+        """Add or update a peer's AES key for encrypted discovery."""
+        with self._peer_aes_lock:
+            self.peer_aes_keys[peer_name] = aes_key
+        logger.info("Added peer key for encrypted discovery: %s", peer_name)
+
+    def remove_peer_key(self, peer_name: str):
+        """Remove a peer's AES key."""
+        with self._peer_aes_lock:
+            self.peer_aes_keys.pop(peer_name, None)
 
     def start(self):
         """Start listening for discovery requests and broadcasting our presence"""
@@ -149,35 +179,133 @@ class LogiFlowDiscoveryResponder:
                 if not data or addr[0] == self.local_ip:
                     continue
 
-                self._log_incoming_packet(data, addr)
-                self.discovered_peers[addr[0]] = {
-                    'last_seen': time.time(),
-                    'port': addr[1],
-                    'data_preview': data[:100].hex()
-                }
-                self._send_response(addr)
+                # Try encrypted Logi-format packet first (>= 72 bytes, version match)
+                if len(data) >= 72 and data[32:34] == b'\x00\x00':
+                    parsed = parse_encrypted_packet(data)
+                    if parsed:
+                        node_id, nonce, tag, ciphertext = parsed
+                        decrypted = self._try_decrypt_with_peer_keys(nonce, tag, ciphertext)
+                        if decrypted:
+                            peer_name, plaintext = decrypted
+                            try:
+                                msg = json.loads(plaintext.decode("utf-8"))
+                                msg["_encrypted"] = True
+                                msg["_peer_name"] = peer_name
+                                self.discovered_peers[addr[0]] = {
+                                    "last_seen": time.time(),
+                                    "port": msg.get("port", LOGI_FLOW_PORT),
+                                    "hostname": msg.get("hostname", addr[0]),
+                                    "software": msg.get("software", "unknown"),
+                                    "encrypted": True,
+                                    "peer_name": peer_name,
+                                }
+                                logger.debug("Encrypted beacon from %s (%s)", peer_name, addr[0])
+                            except (json.JSONDecodeError, UnicodeDecodeError):
+                                logger.debug("Decrypted non-JSON from %s", addr[0])
+                            continue
+                        # Could not decrypt - log for analysis
+                        self._log_incoming_packet(data, addr)
+                        continue
+
+                # Try plaintext JSON
+                try:
+                    text = data.decode("utf-8")
+                    msg = json.loads(text)
+                    is_juhradial = msg.get("software") == "JuhRadialMX"
+
+                    self.discovered_peers[addr[0]] = {
+                        "last_seen": time.time(),
+                        "port": msg.get("port", LOGI_FLOW_PORT),
+                        "hostname": msg.get("hostname", addr[0]),
+                        "software": msg.get("software", "unknown"),
+                        "public_key": msg.get("public_key", ""),
+                        "presence_port": msg.get("presence_port", LOGI_PRESENCE_PORT),
+                        "encrypted": False,
+                    }
+
+                    if is_juhradial and self.on_unpaired_peer:
+                        self.on_unpaired_peer(msg, addr[0])
+
+                    self._send_response(addr)
+
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    # Unknown format - log for protocol analysis
+                    self._log_incoming_packet(data, addr)
+                    self.discovered_peers[addr[0]] = {
+                        "last_seen": time.time(),
+                        "port": addr[1],
+                        "data_preview": data[:100].hex(),
+                    }
+                    self._send_response(addr)
 
             except socket.timeout:
                 continue
             except Exception as e:
                 if self.running:
-                    print(f"[Flow Discovery] Listener error: {e}")
+                    logger.error("Listener error: %s", e)
+
+    def _try_decrypt_with_peer_keys(self, nonce, tag, ciphertext):
+        """Try decrypting with each known peer key. Returns (peer_name, plaintext) or None."""
+        with self._peer_aes_lock:
+            keys_snapshot = dict(self.peer_aes_keys)
+
+        for peer_name, aes_key in keys_snapshot.items():
+            try:
+                plaintext = decrypt_payload(aes_key, nonce, tag, ciphertext)
+                return peer_name, plaintext
+            except Exception:
+                continue
+        return None
 
     def _broadcast_loop(self):
-        """Periodically broadcast our presence on port 59870"""
+        """Periodically broadcast: encrypted beacons to paired peers, plaintext for unpaired."""
         while self.running:
             try:
-                announcement = self._build_announcement()
+                # Send encrypted beacon to each paired peer
+                with self._peer_aes_lock:
+                    keys_snapshot = dict(self.peer_aes_keys)
+
+                if keys_snapshot and self.node_id:
+                    announcement_json = json.dumps({
+                        "hostname": self.hostname,
+                        "ip": self.local_ip,
+                        "port": LOGI_FLOW_PORT,
+                        "presence_port": LOGI_PRESENCE_PORT,
+                        "platform": "linux",
+                        "software": "JuhRadialMX",
+                        "flow_version": "1.0",
+                    }).encode("utf-8")
+
+                    for peer_name, aes_key in keys_snapshot.items():
+                        try:
+                            packet = build_encrypted_packet(
+                                self.node_id, aes_key, announcement_json
+                            )
+                            self.broadcast_sock.sendto(
+                                packet, (self.broadcast_addr, LOGI_DISCOVERY_PORT)
+                            )
+                        except Exception as e:
+                            logger.debug("Encrypted broadcast to %s failed: %s", peer_name, e)
+
+                # Always broadcast plaintext JuhRadialMX beacon for unpaired discovery
+                plaintext_announcement = self._build_announcement()
                 self.broadcast_sock.sendto(
-                    announcement,
+                    plaintext_announcement,
                     (self.broadcast_addr, LOGI_DISCOVERY_PORT)
                 )
+
                 self._broadcast_count += 1
                 if self._broadcast_count == 1 or self._broadcast_count % 12 == 0:
-                    print(f"[Flow Discovery] Broadcast #{self._broadcast_count} to {self.broadcast_addr}:{LOGI_DISCOVERY_PORT}")
+                    enc_count = len(keys_snapshot) if keys_snapshot else 0
+                    logger.info(
+                        "Broadcast #%d (%d encrypted + 1 plaintext) to %s:%d",
+                        self._broadcast_count, enc_count,
+                        self.broadcast_addr, LOGI_DISCOVERY_PORT,
+                    )
+
             except Exception as e:
                 if self.running:
-                    print(f"[Flow Discovery] Broadcast error: {e}")
+                    logger.error("Broadcast error: %s", e)
 
             # Interruptible sleep
             for _ in range(int(DISCOVERY_BROADCAST_INTERVAL * 10)):
@@ -186,24 +314,27 @@ class LogiFlowDiscoveryResponder:
                 time.sleep(0.1)
 
     def _build_announcement(self) -> bytes:
-        """Build the discovery announcement packet"""
-        return json.dumps({
-            'hostname': self.hostname,
-            'ip': self.local_ip,
-            'port': LOGI_FLOW_PORT,
-            'presence_port': LOGI_PRESENCE_PORT,
-            'platform': 'linux',
-            'software': 'JuhRadialMX',
-            'flow_version': '1.0'
-        }).encode('utf-8')
+        """Build the plaintext discovery announcement packet (includes public key for pairing)."""
+        announcement = {
+            "hostname": self.hostname,
+            "ip": self.local_ip,
+            "port": LOGI_FLOW_PORT,
+            "presence_port": LOGI_PRESENCE_PORT,
+            "platform": "linux",
+            "software": "JuhRadialMX",
+            "flow_version": "1.0",
+        }
+        if self.public_key_bytes:
+            announcement["public_key"] = self.public_key_bytes.hex()
+        return json.dumps(announcement).encode("utf-8")
 
     def _send_response(self, addr):
         """Send a discovery response"""
         try:
             self.listen_sock.sendto(self._build_announcement(), addr)
-            print(f"[Flow Discovery] Sent response to {addr}")
+            logger.debug("Sent response to %s", addr)
         except Exception as e:
-            print(f"[Flow Discovery] Failed to send response: {e}")
+            logger.debug("Failed to send response to %s: %s", addr, e)
 
     def _log_incoming_packet(self, data: bytes, addr: tuple):
         """Log full packet details for protocol analysis"""

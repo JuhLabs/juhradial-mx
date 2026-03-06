@@ -8,7 +8,7 @@ import socket
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from flow.constants import LOGI_FLOW_PORT
+from .constants import LOGI_FLOW_PORT
 
 
 class _ReusableHTTPServer(HTTPServer):
