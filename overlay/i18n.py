@@ -39,6 +39,12 @@ SUPPORTED_LANGUAGES = {
     "zh_CN": "中文 (简体)",
     "ko": "한국어",
     "hi": "हिन्दी",
+    "pl": "Polski",
+    "tr": "Turkce",
+    "nl": "Nederlands",
+    "sv": "Svenska",
+    "ar": "العربية",
+    "uk": "Українська",
 }
 
 

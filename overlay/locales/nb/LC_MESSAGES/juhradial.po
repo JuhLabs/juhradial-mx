@@ -68,6 +68,9 @@ msgid ""
 "If you enjoy this project,\n"
 "consider supporting development."
 msgstr ""
+"Fri &amp; apen kildekode.\n"
+"Hvis du liker dette prosjektet,\n"
+"vurder a stotte utviklingen."
 
 #: overlay/settings_dashboard.py:507
 msgid "Buy me a coffee"
@@ -113,6 +116,8 @@ msgid ""
 "Configure the 8 actions in your radial menu. Click on a slice to change its "
 "action."
 msgstr ""
+"Konfigurer de 8 handlingene i radialmenyen. Klikk pa et felt for a endre "
+"handlingen."
 
 #: overlay/settings_dialogs.py:256 overlay/settings_dialogs.py:735
 #: overlay/settings_dialogs.py:1338
@@ -268,6 +273,8 @@ msgid ""
 "Create a custom profile for a specific application.\n"
 "The radial menu will use this profile when the application is active."
 msgstr ""
+"Opprett en egendefinert profil for en bestemt applikasjon.\n"
+"Radialmenyen bruker denne profilen nar applikasjonen er aktiv."
 
 #: overlay/settings_dialogs.py:809
 msgid "Select Application"
@@ -325,56 +332,57 @@ msgstr "Kunne ikke opprette profil: {}"
 
 #: overlay/settings_dialogs.py:1112
 msgid "Application Profiles"
-msgstr ""
+msgstr "Applikasjonsprofiler"
 
 #: overlay/settings_dialogs.py:1124
 msgid "Close"
-msgstr ""
+msgstr "Lukk"
 
 #: overlay/settings_dialogs.py:1129 overlay/settings_page_easyswitch.py:93
 msgid "Refresh"
-msgstr ""
+msgstr "Oppdater"
 
 #: overlay/settings_dialogs.py:1201
 msgid "Slices: {}/8 configured"
-msgstr ""
+msgstr "Felt: {}/8 konfigurert"
 
 #: overlay/settings_dialogs.py:1209
 msgid "Edit Slices"
-msgstr ""
+msgstr "Rediger felt"
 
 #: overlay/settings_dialogs.py:1214
 msgid "Remove"
-msgstr ""
+msgstr "Fjern"
 
 #: overlay/settings_dialogs.py:1239
 msgid "Removed profile for {}"
-msgstr ""
+msgstr "Fjernet profil for {}"
 
 #: overlay/settings_dialogs.py:1244
 msgid "Failed to remove profile: {}"
-msgstr ""
+msgstr "Kunne ikke fjerne profil: {}"
 
 #: overlay/settings_dialogs.py:1264
 msgid "No application profiles yet. Use '+ Add Application' to create one."
-msgstr ""
+msgstr "Ingen applikasjonsprofiler enda. Bruk '+ Legg til applikasjon' for a opprette en."
 
 #: overlay/settings_dialogs.py:1268
 msgid "Profiles: {}"
-msgstr ""
+msgstr "Profiler: {}"
 
 #: overlay/settings_dialogs.py:1288
 msgid "Edit Profile: {}"
-msgstr ""
+msgstr "Rediger profil: {}"
 
 #: overlay/settings_dialogs.py:1322
 msgid ""
 "Choose which action each slice should use when this application is active."
 msgstr ""
+"Velg hvilken handling hvert felt skal bruke nar denne applikasjonen er aktiv."
 
 #: overlay/settings_dialogs.py:1453
 msgid "Updated profile for {}"
-msgstr ""
+msgstr "Oppdatert profil for {}"
 
 #: overlay/settings_page_buttons.py:88
 msgid "Actions Ring"
@@ -470,7 +478,7 @@ msgstr "Fastvareinformasjon for enheten"
 
 #: overlay/settings_page_devices.py:100
 msgid "Managed by JuhRadial MX"
-msgstr ""
+msgstr "Administrert av JuhRadial MX"
 
 #: overlay/settings_page_devices.py:108
 msgid "Device Management"
@@ -482,6 +490,9 @@ msgid ""
 "remapping, scroll settings, and haptics are all managed through this "
 "settings window."
 msgstr ""
+"JuhRadial MX handterer enhetskonfigurasjon direkte via HID++. "
+"Knappetilordninger, rulleinnstillinger og haptikk administreres gjennom "
+"dette innstillingsvinduet."
 
 #: overlay/settings_page_devices.py:154
 msgid "USB Receiver / Bluetooth"
@@ -501,7 +512,7 @@ msgstr "Utlading"
 
 #: overlay/settings_page_devices.py:182 overlay/settings_page_devices.py:185
 msgid "Unavailable"
-msgstr ""
+msgstr "Utilgjengelig"
 
 #: overlay/settings_page_easyswitch.py:45
 msgid "Coming Soon"
@@ -524,6 +535,8 @@ msgid ""
 "Easy-Switch allows your mouse to connect to multiple computers.\n"
 "Use the button on your mouse to switch between paired devices."
 msgstr ""
+"Easy-Switch lar musen koble til flere datamaskiner.\n"
+"Bruk knappen pa musen for a bytte mellom sammenparte enheter."
 
 #: overlay/settings_page_easyswitch.py:127
 msgid "Note:"
@@ -534,12 +547,16 @@ msgid ""
 "Host names are read from the device and reflect\n"
 "the computer names set during pairing."
 msgstr ""
+"Vertsnavn leses fra enheten og gjenspeiler\n"
+"datamaskinnavnene satt under sammenparingen."
 
 #: overlay/settings_page_easyswitch.py:135
 msgid ""
 "Slots are auto-detected from your mouse pairing state. Add or remove "
 "pairings on the mouse/receiver side, then press Refresh here."
 msgstr ""
+"Plasser oppdages automatisk fra musens sammenparingsstatus. Legg til eller "
+"fjern sammenparing pa mus-/mottakersiden, og trykk Oppdater her."
 
 #: overlay/settings_page_easyswitch.py:189
 msgid "Slot {}"
@@ -564,11 +581,11 @@ msgstr "Kunne ikke koble til daemon"
 
 #: overlay/settings_page_easyswitch.py:367
 msgid "Detected slots: {}"
-msgstr ""
+msgstr "Oppdagede plasser: {}"
 
 #: overlay/settings_page_easyswitch.py:370
 msgid "Detected slots: --"
-msgstr ""
+msgstr "Oppdagede plasser: --"
 
 #: overlay/settings_page_flow.py:129
 msgid "Logitech Flow"
@@ -619,6 +636,8 @@ msgid ""
 "Logitech Flow allows you to seamlessly control multiple computers\n"
 "with a single mouse by moving your cursor to the edge of the screen."
 msgstr ""
+"Logitech Flow lar deg somlos kontrollere flere datamaskiner\n"
+"med en enkelt mus ved a flytte pekeren til kanten av skjermen."
 
 #: overlay/settings_page_flow.py:203
 msgid "Requirements:"
@@ -704,6 +723,10 @@ msgid ""
 "\n"
 "If you don't see a pairing code, open Flow settings on the other computer."
 msgstr ""
+"Skriv inn sammenparingskoden vist pa {name} for a koble datamaskinene.\n"
+"\n"
+"Hvis du ikke ser en sammenparingskode, apne Flow-innstillinger pa den andre "
+"datamaskinen."
 
 #: overlay/settings_page_flow.py:640
 msgid "Enter 6-digit pairing code"
@@ -967,7 +990,7 @@ msgstr "Bruk på enhet"
 
 #: overlay/settings_page_scroll.py:262
 msgid "Applies DPI, SmartShift, and scroll settings to your device"
-msgstr ""
+msgstr "Bruker DPI-, SmartShift- og rulleinnstillinger pa enheten"
 
 #: overlay/settings_page_scroll.py:274
 msgid "Scroll Wheel"
@@ -981,6 +1004,8 @@ msgstr "SmartShift"
 msgid ""
 "Auto-switch to free-spin when scrolling fast, return to ratchet when slow"
 msgstr ""
+"Bytt automatisk til fritt spinn ved rask rulling, tilbake til hakket ved "
+"sakte rulling"
 
 #: overlay/settings_page_scroll.py:326
 msgid "Switch Threshold"
@@ -1096,27 +1121,27 @@ msgstr "Velg visningsspråk"
 
 #: overlay/settings_page_settings.py:123
 msgid "Desktop Environment"
-msgstr ""
+msgstr "Skrivebordsmiljo"
 
 #: overlay/settings_page_settings.py:132
 msgid "Desktop"
-msgstr ""
+msgstr "Skrivebord"
 
 #: overlay/settings_page_settings.py:133
 msgid "Commands for screenshot, files, etc. adapt to your DE (detected: {})"
-msgstr ""
+msgstr "Kommandoer for skjermbilde, filer osv. tilpasses ditt skrivebordsmiljo (oppdaget: {})"
 
 #: overlay/settings_page_settings.py:151
 msgid "Apply DE Defaults"
-msgstr ""
+msgstr "Bruk standarder for skrivebordsmiljo"
 
 #: overlay/settings_page_settings.py:152
 msgid "Update radial menu commands to match selected desktop"
-msgstr ""
+msgstr "Oppdater radialmenyen til valgt skrivebord"
 
 #: overlay/settings_page_settings.py:154
 msgid "Apply"
-msgstr ""
+msgstr "Bruk"
 
 #: overlay/settings_page_settings.py:163
 msgid "Application"
@@ -1172,15 +1197,15 @@ msgstr "Tilbakestill alle innstillinger til fabrikkstandard"
 
 #: overlay/settings_page_settings.py:279
 msgid "Updated for {}: {}"
-msgstr ""
+msgstr "Oppdatert for {}: {}"
 
 #: overlay/settings_page_settings.py:281
 msgid "All commands already match selected DE"
-msgstr ""
+msgstr "Alle kommandoer stemmer allerede med valgt skrivebordsmiljo"
 
 #: overlay/settings_page_settings.py:284
 msgid "Desktop Commands Updated"
-msgstr ""
+msgstr "Skrivebordskommandoer oppdatert"
 
 #: overlay/settings_page_settings.py:393
 msgid "Settings Reset"
@@ -1191,6 +1216,8 @@ msgid ""
 "All settings have been restored to defaults. Please restart JuhRadial MX for "
 "changes to take effect."
 msgstr ""
+"Alle innstillinger er gjenopprettet til standard. Start JuhRadial MX pa nytt "
+"for at endringene skal tre i kraft."
 
 #: overlay/settings_widgets.py:231
 msgid "MX Master 4"

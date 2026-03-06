@@ -1,4 +1,4 @@
-# Thai translations for JuhRadial MX package.
+# Swedish translations for JuhRadial MX package.
 # Copyright (C) 2026 THE JuhRadial MX'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the JuhRadial MX package.
 # Automatically generated, 2026.
@@ -8,22 +8,22 @@ msgstr ""
 "Project-Id-Version: JuhRadial MX 1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/JuhLabs/juhradial-mx/issues\n"
 "POT-Creation-Date: 2026-03-04 11:35+0100\n"
-"PO-Revision-Date: 2026-02-08 10:10+0100\n"
+"PO-Revision-Date: 2026-03-06 11:00+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
-"Language: th\n"
+"Language: sv\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=1; plural=0;\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: overlay/juhradial-overlay.py:847 overlay/settings_dialogs.py:467
 msgid "Settings"
-msgstr "การตั้งค่า"
+msgstr "Installningar"
 
 #: overlay/juhradial-overlay.py:859
 msgid "Exit"
-msgstr "ออก"
+msgstr "Avsluta"
 
 #: overlay/overlay_actions.py:214 overlay/settings_page_buttons.py:391
 #: overlay/settings_page_easyswitch.py:81
@@ -32,35 +32,35 @@ msgstr "Easy-Switch"
 
 #: overlay/overlay_painting.py:957
 msgid "Drag"
-msgstr "ลาก"
+msgstr "Dra"
 
 #: overlay/settings_config.py:224
 msgid "Settings saved"
-msgstr "บันทึกการตั้งค่าแล้ว"
+msgstr "Installningar sparade"
 
 #: overlay/settings_config.py:227
 msgid "Error saving settings: {}"
-msgstr "ผิดพลาดในการบันทึกการตั้งค่า: {}"
+msgstr "Fel vid sparande av installningar: {}"
 
 #: overlay/settings_dashboard.py:62
 msgid "JuhRadial MX Settings"
-msgstr "การตั้งค่า JuhRadial MX"
+msgstr "JuhRadial MX Installningar"
 
 #: overlay/settings_dashboard.py:113
 msgid "+ ADD APPLICATION"
-msgstr "+ เพิ่มแอปพลิเคชัน"
+msgstr "+ LAGG TILL APPLIKATION"
 
 #: overlay/settings_dashboard.py:313 overlay/settings_dashboard.py:350
 msgid "N/A"
-msgstr "ไม่มี"
+msgstr "Ej tillganglig"
 
 #: overlay/settings_dashboard.py:422
 msgid "MOUSE CONFIGURATION"
-msgstr "MOUSE CONFIGURATION"
+msgstr "MUSKONFIGURATION"
 
 #: overlay/settings_dashboard.py:474
 msgid "Developed by"
-msgstr "พัฒนาโดย"
+msgstr "Utvecklad av"
 
 #: overlay/settings_dashboard.py:492
 msgid ""
@@ -68,13 +68,13 @@ msgid ""
 "If you enjoy this project,\n"
 "consider supporting development."
 msgstr ""
-"ซอฟต์แวร์เสรี &amp; โอเพนซอร์ส\n"
-"หากคุณชอบโปรเจกต์นี้\n"
-"ลองพิจารณาสนับสนุนการพัฒนา"
+"Gratis programvara med oppen kallkod.\n"
+"Om du gillar detta projekt,\n"
+"overvag att stodja utvecklingen."
 
 #: overlay/settings_dashboard.py:507
 msgid "Buy me a coffee"
-msgstr "เลี้ยงกาแฟ"
+msgstr "Bjud mig pa en kaffe"
 
 #: overlay/settings_dashboard.py:598
 msgid "Logi Bolt USB"
@@ -82,177 +82,179 @@ msgstr "Logi Bolt USB"
 
 #: overlay/settings_dialogs.py:46
 msgid "Configure {}"
-msgstr "กำหนดค่า {}"
+msgstr "Konfigurera {}"
 
 #: overlay/settings_dialogs.py:58 overlay/settings_dialogs.py:216
 #: overlay/settings_dialogs.py:498 overlay/settings_dialogs.py:785
 #: overlay/settings_dialogs.py:1299 overlay/settings_page_flow.py:647
 msgid "Cancel"
-msgstr "ยกเลิก"
+msgstr "Avbryt"
 
 #: overlay/settings_dialogs.py:63 overlay/settings_dialogs.py:220
 #: overlay/settings_dialogs.py:502 overlay/settings_dialogs.py:1304
 msgid "Save"
-msgstr "บันทึก"
+msgstr "Spara"
 
 #: overlay/settings_dialogs.py:87
 msgid "Restore Default"
-msgstr "คืนค่าเริ่มต้น"
+msgstr "Aterstall standard"
 
 #: overlay/settings_dialogs.py:96
 msgid "Current: {}"
-msgstr "ปัจจุบัน: {}"
+msgstr "Aktuell: {}"
 
 #: overlay/settings_dialogs.py:96
 msgid "Not set"
-msgstr "ยังไม่ได้ตั้งค่า"
+msgstr "Ej inställd"
 
 #: overlay/settings_dialogs.py:202
 msgid "Configure Radial Menu"
-msgstr "กำหนดค่าเมนูวงกลม"
+msgstr "Konfigurera radialmenyn"
 
 #: overlay/settings_dialogs.py:241
 msgid ""
 "Configure the 8 actions in your radial menu. Click on a slice to change its "
 "action."
-msgstr "กำหนดค่าคำสั่ง 8 รายการในเมนูวงกลมของคุณ คลิกที่ชิ้นส่วนเพื่อเปลี่ยนคำสั่ง"
+msgstr ""
+"Konfigurera de 8 atgarderna i din radialmeny. Klicka pa ett segment for att "
+"andra dess atgard."
 
 #: overlay/settings_dialogs.py:256 overlay/settings_dialogs.py:735
 #: overlay/settings_dialogs.py:1338
 msgid "Slice {}"
-msgstr "ชิ้นที่ {}"
+msgstr "Segment {}"
 
 #: overlay/settings_dialogs.py:396
 msgid "Run Command"
-msgstr "เรียกใช้คำสั่ง"
+msgstr "Kor kommando"
 
 #: overlay/settings_dialogs.py:396
 msgid "Execute a shell command"
-msgstr "เรียกใช้คำสั่งเชลล์"
+msgstr "Kor ett skalkommando"
 
 #: overlay/settings_dialogs.py:397
 msgid "Open URL"
-msgstr "เปิด URL"
+msgstr "Oppna URL"
 
 #: overlay/settings_dialogs.py:397
 msgid "Open a web address"
-msgstr "เปิดที่อยู่เว็บ"
+msgstr "Oppna en webbadress"
 
 #: overlay/settings_dialogs.py:398
 msgid "Open Settings"
-msgstr "เปิดการตั้งค่า"
+msgstr "Oppna installningar"
 
 #: overlay/settings_dialogs.py:398
 msgid "Open JuhRadial settings"
-msgstr "เปิดการตั้งค่า JuhRadial MX"
+msgstr "Oppna JuhRadial-installningar"
 
 #: overlay/settings_dialogs.py:399 overlay/settings_dialogs.py:466
 msgid "Emoji Picker"
-msgstr "ตัวเลือกอีโมจิ"
+msgstr "Emojivaljare"
 
 #: overlay/settings_dialogs.py:399
 msgid "Show emoji picker"
-msgstr "แสดงตัวเลือกอีโมจิ"
+msgstr "Visa emojivaljare"
 
 #: overlay/settings_dialogs.py:400
 msgid "Submenu"
-msgstr "เมนูย่อย"
+msgstr "Undermeny"
 
 #: overlay/settings_dialogs.py:400
 msgid "Show a submenu with more options"
-msgstr "แสดงเมนูย่อยที่มีตัวเลือกเพิ่มเติม"
+msgstr "Visa en undermeny med fler alternativ"
 
 #: overlay/settings_dialogs.py:413
 msgid "Play/Pause"
-msgstr "เล่น/หยุดชั่วคราว"
+msgstr "Spela/Pausa"
 
 #: overlay/settings_dialogs.py:420
 msgid "Next Track"
-msgstr "แทร็กถัดไป"
+msgstr "Nasta spar"
 
 #: overlay/settings_dialogs.py:427
 msgid "Previous Track"
-msgstr "แทร็กก่อนหน้า"
+msgstr "Foregaende spar"
 
 #: overlay/settings_dialogs.py:434
 msgid "Volume Up"
-msgstr "เพิ่มเสียง"
+msgstr "Volym upp"
 
 #: overlay/settings_dialogs.py:441
 msgid "Volume Down"
-msgstr "ลดเสียง"
+msgstr "Volym ner"
 
 #: overlay/settings_dialogs.py:448
 msgid "Mute"
-msgstr "ปิดเสียง"
+msgstr "Ljud av"
 
 #: overlay/settings_dialogs.py:454
 msgid "Screenshot"
-msgstr "จับภาพหน้าจอ"
+msgstr "Skarmbild"
 
 #: overlay/settings_dialogs.py:456
 msgid "Lock Screen"
-msgstr "ล็อกหน้าจอ"
+msgstr "Las skarmen"
 
 #: overlay/settings_dialogs.py:462
 msgid "Files"
-msgstr "ไฟล์"
+msgstr "Filer"
 
 #: overlay/settings_dialogs.py:463
 msgid "Terminal"
-msgstr "เทอร์มินัล"
+msgstr "Terminal"
 
 #: overlay/settings_dialogs.py:464
 msgid "Browser"
-msgstr "เบราว์เซอร์"
+msgstr "Webblasare"
 
 #: overlay/settings_dialogs.py:465
 msgid "New Note"
-msgstr "บันทึกใหม่"
+msgstr "Ny anteckning"
 
 #: overlay/settings_dialogs.py:471
 msgid "Configure Slice {}"
-msgstr "กำหนดค่าชิ้นที่ {}"
+msgstr "Konfigurera segment {}"
 
 #: overlay/settings_dialogs.py:523
 msgid "Quick Actions"
-msgstr "คำสั่งด่วน"
+msgstr "Snabbatgarder"
 
 #: overlay/settings_dialogs.py:565
 msgid "Custom Configuration"
-msgstr "กำหนดค่าเอง"
+msgstr "Anpassad konfiguration"
 
 #: overlay/settings_dialogs.py:572
 msgid "Label"
-msgstr "ป้ายชื่อ"
+msgstr "Etikett"
 
 #: overlay/settings_dialogs.py:579
 msgid "Enter action label"
-msgstr "ป้อนชื่อคำสั่ง"
+msgstr "Ange atgardsetikett"
 
 #: overlay/settings_dialogs.py:585
 msgid "Action Type"
-msgstr "ประเภทคำสั่ง"
+msgstr "Atgardstyp"
 
 #: overlay/settings_dialogs.py:606 overlay/settings_dialogs.py:705
 msgid "Command"
-msgstr "คำสั่ง"
+msgstr "Kommando"
 
 #: overlay/settings_dialogs.py:613 overlay/settings_dialogs.py:706
 msgid "e.g., playerctl play-pause"
-msgstr "เช่น playerctl play-pause"
+msgstr "t.ex. playerctl play-pause"
 
 #: overlay/settings_dialogs.py:620
 msgid "Color"
-msgstr "สี"
+msgstr "Farg"
 
 #: overlay/settings_dialogs.py:649
 msgid "Icon"
-msgstr "ไอคอน"
+msgstr "Ikon"
 
 #: overlay/settings_dialogs.py:658
 msgid "Icon name (e.g., folder-symbolic)"
-msgstr "ชื่อไอคอน (เช่น folder-symbolic)"
+msgstr "Ikonnamn (t.ex. folder-symbolic)"
 
 #: overlay/settings_dialogs.py:702
 msgid "URL"
@@ -260,226 +262,227 @@ msgstr "URL"
 
 #: overlay/settings_dialogs.py:703
 msgid "e.g., https://claude.ai"
-msgstr "เช่น https://claude.ai"
+msgstr "t.ex. https://claude.ai"
 
 #: overlay/settings_dialogs.py:774
 msgid "Add Application Profile"
-msgstr "เพิ่มโปรไฟล์แอปพลิเคชัน"
+msgstr "Lagg till applikationsprofil"
 
 #: overlay/settings_dialogs.py:801
 msgid ""
 "Create a custom profile for a specific application.\n"
 "The radial menu will use this profile when the application is active."
 msgstr ""
-"สร้างโปรไฟล์กำหนดเองสำหรับแอปพลิเคชันเฉพาะ\n"
-"เมนูวงกลมจะใช้โปรไฟล์นี้เมื่อแอปพลิเคชันนั้นทำงานอยู่"
+"Skapa en anpassad profil for en specifik applikation.\n"
+"Radialmenyn anvander denna profil nar applikationen ar aktiv."
 
 #: overlay/settings_dialogs.py:809
 msgid "Select Application"
-msgstr "เลือกแอปพลิเคชัน"
+msgstr "Valj applikation"
 
 #: overlay/settings_dialogs.py:812
 msgid "Running Applications:"
-msgstr "แอปพลิเคชันที่กำลังทำงาน:"
+msgstr "Applikationer som kors:"
 
 #: overlay/settings_dialogs.py:833
 msgid "Or enter application class manually:"
-msgstr "หรือป้อนคลาสแอปพลิเคชันด้วยตนเอง:"
+msgstr "Eller ange applikationsklass manuellt:"
 
 #: overlay/settings_dialogs.py:839
 msgid "e.g., firefox, code, gimp"
-msgstr "เช่น firefox, code, gimp"
+msgstr "t.ex. firefox, code, gimp"
 
 #: overlay/settings_dialogs.py:846
 msgid "Add Profile"
-msgstr "เพิ่มโปรไฟล์"
+msgstr "Lagg till profil"
 
 #: overlay/settings_dialogs.py:1008
 msgid "Running"
-msgstr "กำลังทำงาน"
+msgstr "Kors"
 
 #: overlay/settings_dialogs.py:1021
 msgid "(Enter app name manually below)"
-msgstr "(ป้อนชื่อแอปด้วยตนเองด้านล่าง)"
+msgstr "(Ange appnamn manuellt nedan)"
 
 #: overlay/settings_dialogs.py:1047
 msgid "No Application Selected"
-msgstr "ไม่ได้เลือกแอปพลิเคชัน"
+msgstr "Ingen applikation vald"
 
 #: overlay/settings_dialogs.py:1048
 msgid "Please select or enter an application name."
-msgstr "กรุณาเลือกหรือป้อนชื่อแอปพลิเคชัน"
+msgstr "Valj eller ange ett applikationsnamn."
 
 #: overlay/settings_dialogs.py:1050 overlay/settings_dialogs.py:1100
 #: overlay/settings_dialogs.py:1246 overlay/settings_page_settings.py:287
 #: overlay/settings_page_settings.py:398
 msgid "OK"
-msgstr "ตกลง"
+msgstr "OK"
 
 #: overlay/settings_dialogs.py:1084 overlay/settings_dialogs.py:1091
 msgid "Profile created for {}"
-msgstr "สร้างโปรไฟล์สำหรับ {} แล้ว"
+msgstr "Profil skapad for {}"
 
 #: overlay/settings_dialogs.py:1098 overlay/settings_dialogs.py:1243
 msgid "Error"
-msgstr "ข้อผิดพลาด"
+msgstr "Fel"
 
 #: overlay/settings_dialogs.py:1098
 msgid "Failed to create profile: {}"
-msgstr "ไม่สามารถสร้างโปรไฟล์ได้: {}"
+msgstr "Kunde inte skapa profil: {}"
 
 #: overlay/settings_dialogs.py:1112
 msgid "Application Profiles"
-msgstr "โปรไฟล์แอปพลิเคชัน"
+msgstr "Applikationsprofiler"
 
 #: overlay/settings_dialogs.py:1124
 msgid "Close"
-msgstr "ปิด"
+msgstr "Stang"
 
 #: overlay/settings_dialogs.py:1129 overlay/settings_page_easyswitch.py:93
 msgid "Refresh"
-msgstr "รีเฟรช"
+msgstr "Uppdatera"
 
 #: overlay/settings_dialogs.py:1201
 msgid "Slices: {}/8 configured"
-msgstr "ชิ้น: {}/8 กำหนดค่าแล้ว"
+msgstr "Segment: {}/8 konfigurerade"
 
 #: overlay/settings_dialogs.py:1209
 msgid "Edit Slices"
-msgstr "แก้ไขชิ้น"
+msgstr "Redigera segment"
 
 #: overlay/settings_dialogs.py:1214
 msgid "Remove"
-msgstr "ลบ"
+msgstr "Ta bort"
 
 #: overlay/settings_dialogs.py:1239
 msgid "Removed profile for {}"
-msgstr "ลบโปรไฟล์สำหรับ {} แล้ว"
+msgstr "Profil borttagen for {}"
 
 #: overlay/settings_dialogs.py:1244
 msgid "Failed to remove profile: {}"
-msgstr "ไม่สามารถลบโปรไฟล์ได้: {}"
+msgstr "Kunde inte ta bort profil: {}"
 
 #: overlay/settings_dialogs.py:1264
 msgid "No application profiles yet. Use '+ Add Application' to create one."
-msgstr "ยังไม่มีโปรไฟล์แอปพลิเคชัน ใช้ '+ เพิ่มแอปพลิเคชัน' เพื่อสร้าง"
+msgstr "Inga applikationsprofiler an. Anvand '+ LAGG TILL APPLIKATION' for att skapa en."
 
 #: overlay/settings_dialogs.py:1268
 msgid "Profiles: {}"
-msgstr "โปรไฟล์: {}"
+msgstr "Profiler: {}"
 
 #: overlay/settings_dialogs.py:1288
 msgid "Edit Profile: {}"
-msgstr "แก้ไขโปรไฟล์: {}"
+msgstr "Redigera profil: {}"
 
 #: overlay/settings_dialogs.py:1322
 msgid ""
 "Choose which action each slice should use when this application is active."
-msgstr "เลือกคำสั่งที่แต่ละชิ้นจะใช้เมื่อแอปพลิเคชันนี้ทำงานอยู่"
+msgstr ""
+"Valj vilken atgard varje segment ska anvanda nar denna applikation ar aktiv."
 
 #: overlay/settings_dialogs.py:1453
 msgid "Updated profile for {}"
-msgstr "อัปเดตโปรไฟล์สำหรับ {} แล้ว"
+msgstr "Profil uppdaterad for {}"
 
 #: overlay/settings_page_buttons.py:88
 msgid "Actions Ring"
-msgstr "วงแหวนคำสั่ง"
+msgstr "Atgardsring"
 
 #: overlay/settings_page_buttons.py:93
 msgid "Click any action to customize"
-msgstr "คลิกคำสั่งใดก็ได้เพื่อปรับแต่ง"
+msgstr "Klicka pa en atgard for att anpassa"
 
 #: overlay/settings_page_buttons.py:112
 msgid "Top"
-msgstr "บน"
+msgstr "Uppe"
 
 #: overlay/settings_page_buttons.py:113
 msgid "Top Right"
-msgstr "บนขวา"
+msgstr "Uppe hoger"
 
 #: overlay/settings_page_buttons.py:114
 msgid "Right"
-msgstr "ขวา"
+msgstr "Hoger"
 
 #: overlay/settings_page_buttons.py:115
 msgid "Bottom Right"
-msgstr "ล่างขวา"
+msgstr "Nere hoger"
 
 #: overlay/settings_page_buttons.py:116
 msgid "Bottom"
-msgstr "ล่าง"
+msgstr "Nere"
 
 #: overlay/settings_page_buttons.py:117
 msgid "Bottom Left"
-msgstr "ล่างซ้าย"
+msgstr "Nere vanster"
 
 #: overlay/settings_page_buttons.py:118
 msgid "Left"
-msgstr "ซ้าย"
+msgstr "Vanster"
 
 #: overlay/settings_page_buttons.py:119
 msgid "Top Left"
-msgstr "บนซ้าย"
+msgstr "Uppe vanster"
 
 #: overlay/settings_page_buttons.py:157
 msgid "Easy-Switch Shortcuts"
-msgstr "ทางลัด Easy-Switch"
+msgstr "Easy-Switch genvagar"
 
 #: overlay/settings_page_buttons.py:162
 msgid "Replace Emoji with Easy-Switch 1, 2, 3 submenu"
-msgstr "แทนที่อีโมจิด้วยเมนูย่อย Easy-Switch 1, 2, 3"
+msgstr "Ersatt Emoji med Easy-Switch 1, 2, 3 undermeny"
 
 #: overlay/settings_page_buttons.py:190
 msgid "Button Assignments"
-msgstr "การกำหนดปุ่ม"
+msgstr "Knapptilldelningar"
 
 #: overlay/settings_page_buttons.py:398
 msgid "Emoji"
-msgstr "อีโมจิ"
+msgstr "Emoji"
 
 #: overlay/settings_page_devices.py:35
 msgid "Connected Device"
-msgstr "อุปกรณ์ที่เชื่อมต่อ"
+msgstr "Ansluten enhet"
 
 #: overlay/settings_page_devices.py:39
 msgid "Device Name"
-msgstr "ชื่ออุปกรณ์"
+msgstr "Enhetsnamn"
 
 #: overlay/settings_page_devices.py:39
 msgid "Your Logitech mouse model"
-msgstr "รุ่นเมาส์ Logitech ของคุณ"
+msgstr "Din Logitech-musmodell"
 
 #: overlay/settings_page_devices.py:53
 msgid "Connection"
-msgstr "การเชื่อมต่อ"
+msgstr "Anslutning"
 
 #: overlay/settings_page_devices.py:53
 msgid "How your device is connected"
-msgstr "วิธีที่อุปกรณ์ของคุณเชื่อมต่อ"
+msgstr "Hur din enhet ar ansluten"
 
 #: overlay/settings_page_devices.py:79
 msgid "Battery Level"
-msgstr "ระดับแบตเตอรี่"
+msgstr "Batteriniva"
 
 #: overlay/settings_page_devices.py:79
 msgid "Current battery status"
-msgstr "สถานะแบตเตอรี่ปัจจุบัน"
+msgstr "Aktuell batteristatus"
 
 #: overlay/settings_page_devices.py:99
 msgid "Firmware Version"
-msgstr "เวอร์ชันเฟิร์มแวร์"
+msgstr "Firmware-version"
 
 #: overlay/settings_page_devices.py:99
 msgid "Device firmware information"
-msgstr "ข้อมูลเฟิร์มแวร์ของอุปกรณ์"
+msgstr "Information om enhetens firmware"
 
 #: overlay/settings_page_devices.py:100
 msgid "Managed by JuhRadial MX"
-msgstr "จัดการโดย JuhRadial MX"
+msgstr "Hanteras av JuhRadial MX"
 
 #: overlay/settings_page_devices.py:108
 msgid "Device Management"
-msgstr "การจัดการอุปกรณ์"
+msgstr "Enhetshantering"
 
 #: overlay/settings_page_devices.py:113
 msgid ""
@@ -487,101 +490,102 @@ msgid ""
 "remapping, scroll settings, and haptics are all managed through this "
 "settings window."
 msgstr ""
-"JuhRadial MX จัดการการกำหนดค่าอุปกรณ์โดยตรงผ่าน HID++ การกำหนดปุ่มใหม่ "
-"การตั้งค่าการเลื่อน และแรงสะท้อนสัมผัส ทั้งหมดจัดการผ่านหน้าต่างการตั้งค่านี้"
+"JuhRadial MX hanterar enhetskonfiguration inbyggt via HID++. "
+"Knappmappning, rullningsinstellningar och haptik hanteras alla genom "
+"detta installningsfonster."
 
 #: overlay/settings_page_devices.py:154
 msgid "USB Receiver / Bluetooth"
-msgstr "ตัวรับ USB / บลูทูธ"
+msgstr "USB-mottagare / Bluetooth"
 
 #: overlay/settings_page_devices.py:157
 msgid "USB Receiver"
-msgstr "ตัวรับ USB"
+msgstr "USB-mottagare"
 
 #: overlay/settings_page_devices.py:178 overlay/settings_page_settings.py:212
 msgid "Charging"
-msgstr "กำลังชาร์จ"
+msgstr "Laddar"
 
 #: overlay/settings_page_devices.py:178 overlay/settings_page_settings.py:212
 msgid "Discharging"
-msgstr "กำลังคายประจุ"
+msgstr "Urladdning"
 
 #: overlay/settings_page_devices.py:182 overlay/settings_page_devices.py:185
 msgid "Unavailable"
-msgstr "ไม่พร้อมใช้งาน"
+msgstr "Ej tillganglig"
 
 #: overlay/settings_page_easyswitch.py:45
 msgid "Coming Soon"
-msgstr "เร็วๆ นี้"
+msgstr "Kommer snart"
 
 #: overlay/settings_page_easyswitch.py:85
 msgid "Switch between paired computers"
-msgstr "สลับระหว่างคอมพิวเตอร์ที่จับคู่แล้ว"
+msgstr "Vaxla mellan parkopplade datorer"
 
 #: overlay/settings_page_easyswitch.py:107
 msgid "Paired Computers"
-msgstr "คอมพิวเตอร์ที่จับคู่แล้ว"
+msgstr "Parkopplade datorer"
 
 #: overlay/settings_page_easyswitch.py:118
 msgid "About Easy-Switch"
-msgstr "เกี่ยวกับ Easy-Switch"
+msgstr "Om Easy-Switch"
 
 #: overlay/settings_page_easyswitch.py:122
 msgid ""
 "Easy-Switch allows your mouse to connect to multiple computers.\n"
 "Use the button on your mouse to switch between paired devices."
 msgstr ""
-"Easy-Switch ช่วยให้เมาส์ของคุณเชื่อมต่อกับหลายคอมพิวเตอร์\n"
-"ใช้ปุ่มบนเมาส์เพื่อสลับระหว่างอุปกรณ์ที่จับคู่แล้ว"
+"Easy-Switch gor att din mus kan ansluta till flera datorer.\n"
+"Anvand knappen pa musen for att vaxla mellan parkopplade enheter."
 
 #: overlay/settings_page_easyswitch.py:127
 msgid "Note:"
-msgstr "หมายเหตุ:"
+msgstr "Obs:"
 
 #: overlay/settings_page_easyswitch.py:130
 msgid ""
 "Host names are read from the device and reflect\n"
 "the computer names set during pairing."
 msgstr ""
-"ชื่อโฮสต์จะอ่านจากอุปกรณ์และแสดง\n"
-"ชื่อคอมพิวเตอร์ที่ตั้งไว้ระหว่างการจับคู่"
+"Vardnamn lases fran enheten och avspeglar\n"
+"de datornamn som stalls in vid parkoppling."
 
 #: overlay/settings_page_easyswitch.py:135
 msgid ""
 "Slots are auto-detected from your mouse pairing state. Add or remove "
 "pairings on the mouse/receiver side, then press Refresh here."
 msgstr ""
-"ช่องจะตรวจจับอัตโนมัติจากสถานะการจับคู่เมาส์ เพิ่มหรือลบการจับคู่ที่ฝั่ง"
-"เมาส์/ตัวรับ แล้วกดรีเฟรชที่นี่"
+"Platser identifieras automatiskt fran musens parkopplingsstatus. Lagg till "
+"eller ta bort parkopplingar pa mus-/mottagarsidan och tryck sedan pa Uppdatera har."
 
 #: overlay/settings_page_easyswitch.py:189
 msgid "Slot {}"
-msgstr "ช่องที่ {}"
+msgstr "Plats {}"
 
 #: overlay/settings_page_easyswitch.py:199
 #: overlay/settings_page_settings.py:214
 msgid "Connected"
-msgstr "เชื่อมต่อแล้ว"
+msgstr "Ansluten"
 
 #: overlay/settings_page_easyswitch.py:199
 msgid "Click to switch"
-msgstr "คลิกเพื่อสลับ"
+msgstr "Klicka for att vaxla"
 
 #: overlay/settings_page_easyswitch.py:210
 msgid "Active"
-msgstr "ใช้งานอยู่"
+msgstr "Aktiv"
 
 #: overlay/settings_page_easyswitch.py:344
 msgid "Could not connect to daemon"
-msgstr "ไม่สามารถเชื่อมต่อกับ daemon ได้"
+msgstr "Kunde inte ansluta till daemon"
 
 #: overlay/settings_page_easyswitch.py:367
 msgid "Detected slots: {}"
-msgstr "ช่องที่ตรวจพบ: {}"
+msgstr "Upptackta platser: {}"
 
 #: overlay/settings_page_easyswitch.py:370
 msgid "Detected slots: --"
-msgstr "ช่องที่ตรวจพบ: --"
+msgstr "Upptackta platser: --"
 
 #: overlay/settings_page_flow.py:129
 msgid "Logitech Flow"
@@ -589,127 +593,127 @@ msgstr "Logitech Flow"
 
 #: overlay/settings_page_flow.py:133
 msgid "Seamlessly move between computers"
-msgstr "สลับระหว่างคอมพิวเตอร์ได้อย่างราบรื่น"
+msgstr "Flytta somlost mellan datorer"
 
 #: overlay/settings_page_flow.py:140
 msgid "Flow Control"
-msgstr "การควบคุม Flow"
+msgstr "Flow-styrning"
 
 #: overlay/settings_page_flow.py:143
 msgid "Enable Flow"
-msgstr "เปิดใช้งาน Flow"
+msgstr "Aktivera Flow"
 
 #: overlay/settings_page_flow.py:143
 msgid "Control multiple computers with one mouse"
-msgstr "ควบคุมหลายคอมพิวเตอร์ด้วยเมาส์เดียว"
+msgstr "Styr flera datorer med en mus"
 
 #: overlay/settings_page_flow.py:153
 msgid "Switch at screen edge"
-msgstr "สลับที่ขอบหน้าจอ"
+msgstr "Vaxla vid skarmkanten"
 
 #: overlay/settings_page_flow.py:153
 msgid "Move cursor to edge to switch computers"
-msgstr "เลื่อนเคอร์เซอร์ไปขอบเพื่อสลับคอมพิวเตอร์"
+msgstr "Flytta markoren till kanten for att vaxla dator"
 
 #: overlay/settings_page_flow.py:165
 msgid "Computers on Network"
-msgstr "คอมพิวเตอร์ในเครือข่าย"
+msgstr "Datorer pa natverket"
 
 #: overlay/settings_page_flow.py:172 overlay/settings_page_flow.py:496
 msgid "No other computers detected"
-msgstr "ไม่พบคอมพิวเตอร์อื่น"
+msgstr "Inga andra datorer upptackta"
 
 #: overlay/settings_page_flow.py:185 overlay/settings_page_flow.py:292
 msgid "Scan Network"
-msgstr "สแกนเครือข่าย"
+msgstr "Skanna natverk"
 
 #: overlay/settings_page_flow.py:195
 msgid "How Flow Works"
-msgstr "Flow ทำงานอย่างไร"
+msgstr "Hur Flow fungerar"
 
 #: overlay/settings_page_flow.py:199
 msgid ""
 "Logitech Flow allows you to seamlessly control multiple computers\n"
 "with a single mouse by moving your cursor to the edge of the screen."
 msgstr ""
-"Logitech Flow ช่วยให้คุณควบคุมหลายคอมพิวเตอร์ได้อย่างราบรื่น\n"
-"ด้วยเมาส์เพียงตัวเดียว โดยเลื่อนเคอร์เซอร์ไปที่ขอบหน้าจอ"
+"Logitech Flow later dig somlost styra flera datorer\n"
+"med en enda mus genom att flytta markoren till skarmkanten."
 
 #: overlay/settings_page_flow.py:203
 msgid "Requirements:"
-msgstr "ข้อกำหนด:"
+msgstr "Krav:"
 
 #: overlay/settings_page_flow.py:204
 msgid "JuhRadialMX running on all computers"
-msgstr "JuhRadial MX ทำงานบนทุกคอมพิวเตอร์"
+msgstr "JuhRadialMX kor pa alla datorer"
 
 #: overlay/settings_page_flow.py:205
 msgid "Computers connected to the same network"
-msgstr "คอมพิวเตอร์เชื่อมต่ออยู่ในเครือข่ายเดียวกัน"
+msgstr "Datorer anslutna till samma natverk"
 
 #: overlay/settings_page_flow.py:206
 msgid "Flow enabled on all devices"
-msgstr "เปิดใช้งาน Flow บนทุกอุปกรณ์"
+msgstr "Flow aktiverat pa alla enheter"
 
 #: overlay/settings_page_flow.py:207
 msgid "Compatible Software Detected:"
-msgstr "ตรวจพบซอฟต์แวร์ที่เข้ากันได้:"
+msgstr "Kompatibel programvara upptackt:"
 
 #: overlay/settings_page_flow.py:208
 msgid "JuhRadialMX instances"
-msgstr "อินสแตนซ์ JuhRadial MX"
+msgstr "JuhRadialMX-instanser"
 
 #: overlay/settings_page_flow.py:210
 msgid "open-source KVM"
-msgstr "KVM โอเพนซอร์ส"
+msgstr "KVM med oppen kallkod"
 
 #: overlay/settings_page_flow.py:213
 msgid "Features:"
-msgstr "คุณสมบัติ:"
+msgstr "Funktioner:"
 
 #: overlay/settings_page_flow.py:214
 msgid "Move cursor between screens seamlessly"
-msgstr "เลื่อนเคอร์เซอร์ระหว่างหน้าจอได้อย่างราบรื่น"
+msgstr "Flytta markoren somlost mellan skarmar"
 
 #: overlay/settings_page_flow.py:215
 msgid "Copy and paste across computers"
-msgstr "คัดลอกและวางข้ามคอมพิวเตอร์"
+msgstr "Kopiera och klistra in mellan datorer"
 
 #: overlay/settings_page_flow.py:216
 msgid "Transfer files by dragging"
-msgstr "ถ่ายโอนไฟล์โดยการลาก"
+msgstr "Overfora filer genom att dra"
 
 #: overlay/settings_page_flow.py:283
 msgid "Scanning..."
-msgstr "กำลังสแกน..."
+msgstr "Skannar..."
 
 #: overlay/settings_page_flow.py:530
 msgid "Unknown"
-msgstr "ไม่ทราบ"
+msgstr "Okand"
 
 #: overlay/settings_page_flow.py:563 overlay/settings_page_flow.py:648
 msgid "Link"
-msgstr "เชื่อมโยง"
+msgstr "Lanka"
 
 #: overlay/settings_page_flow.py:569
 msgid "Input Leap detected"
-msgstr "ตรวจพบ Input Leap"
+msgstr "Input Leap upptackt"
 
 #: overlay/settings_page_flow.py:571
 msgid "This computer is running Input Leap (open-source KVM)"
-msgstr "คอมพิวเตอร์เครื่องนี้กำลังใช้งาน Input Leap (KVM โอเพนซอร์ส)"
+msgstr "Denna dator kor Input Leap (KVM med oppen kallkod)"
 
 #: overlay/settings_page_flow.py:586
 msgid "Install JuhRadialMX"
-msgstr "ติดตั้ง JuhRadial MX"
+msgstr "Installera JuhRadialMX"
 
 #: overlay/settings_page_flow.py:588
 msgid "Install JuhRadialMX on this computer to enable Flow linking"
-msgstr "ติดตั้ง JuhRadial MX บนคอมพิวเตอร์เครื่องนี้เพื่อเปิดใช้งานการเชื่อมโยง Flow"
+msgstr "Installera JuhRadialMX pa denna dator for att aktivera Flow-lankning"
 
 #: overlay/settings_page_flow.py:628
 msgid "Link with {}"
-msgstr "เชื่อมโยงกับ {}"
+msgstr "Lanka med {}"
 
 #: overlay/settings_page_flow.py:630
 #, python-brace-format
@@ -718,225 +722,225 @@ msgid ""
 "\n"
 "If you don't see a pairing code, open Flow settings on the other computer."
 msgstr ""
-"ป้อนรหัสจับคู่ที่แสดงบน {name} เพื่อเชื่อมโยงคอมพิวเตอร์\n"
+"Ange parkopplingskoden som visas pa {name} for att lanka datorerna.\n"
 "\n"
-"หากไม่เห็นรหัสจับคู่ ให้เปิดการตั้งค่า Flow บนคอมพิวเตอร์อีกเครื่อง"
+"Om du inte ser en parkopplingskod, oppna Flow-installningar pa den andra datorn."
 
 #: overlay/settings_page_flow.py:640
 msgid "Enter 6-digit pairing code"
-msgstr "ป้อนรหัสจับคู่ 6 หลัก"
+msgstr "Ange 6-siffrig parkopplingskod"
 
 #: overlay/settings_page_flow.py:684
 msgid "Linked with {}"
-msgstr "เชื่อมโยงกับ {} แล้ว"
+msgstr "Lankad med {}"
 
 #: overlay/settings_page_haptics.py:26
 msgid "Sharp Click"
-msgstr "คลิกคม"
+msgstr "Skarpt klick"
 
 #: overlay/settings_page_haptics.py:26
 msgid "Crisp, sharp feedback"
-msgstr "แรงสะท้อนกลับคมชัด"
+msgstr "Tydlig, skarp aterkoppling"
 
 #: overlay/settings_page_haptics.py:27
 msgid "Soft Click"
-msgstr "คลิกนุ่ม"
+msgstr "Mjukt klick"
 
 #: overlay/settings_page_haptics.py:27
 msgid "Softer, dampened feedback"
-msgstr "แรงสะท้อนกลับนุ่มนวล"
+msgstr "Mjukare, dampad aterkoppling"
 
 #: overlay/settings_page_haptics.py:28
 msgid "Sharp Bump"
-msgstr "กระแทกแรง"
+msgstr "Skarp stot"
 
 #: overlay/settings_page_haptics.py:28
 msgid "Strong collision feedback"
-msgstr "แรงสะท้อนกลับจากการกระทบที่แรง"
+msgstr "Stark kollisionsaterkoppling"
 
 #: overlay/settings_page_haptics.py:29
 msgid "Soft Bump"
-msgstr "กระแทกเบา"
+msgstr "Mjuk stot"
 
 #: overlay/settings_page_haptics.py:29
 msgid "Gentle collision feedback"
-msgstr "แรงสะท้อนกลับจากการกระทบเบาๆ"
+msgstr "Mjuk kollisionsaterkoppling"
 
 #: overlay/settings_page_haptics.py:30
 msgid "Subtle"
-msgstr "แผ่วเบา"
+msgstr "Subtil"
 
 #: overlay/settings_page_haptics.py:30
 msgid "Very light, subtle feedback"
-msgstr "แรงสะท้อนกลับเบามากแทบไม่รู้สึก"
+msgstr "Mycket latt, subtil aterkoppling"
 
 #: overlay/settings_page_haptics.py:31
 msgid "Whisper"
-msgstr "กระซิบ"
+msgstr "Viskning"
 
 #: overlay/settings_page_haptics.py:31
 msgid "Barely perceptible feedback"
-msgstr "แรงสะท้อนกลับแทบจะไม่รู้สึก"
+msgstr "Knappt marbar aterkoppling"
 
 #: overlay/settings_page_haptics.py:32
 msgid "Happy"
-msgstr "มีความสุข"
+msgstr "Glad"
 
 #: overlay/settings_page_haptics.py:32
 msgid "Positive notification feel"
-msgstr "ความรู้สึกการแจ้งเตือนเชิงบวก"
+msgstr "Positiv aviseringskansla"
 
 #: overlay/settings_page_haptics.py:33
 msgid "Alert"
-msgstr "เตือน"
+msgstr "Varning"
 
 #: overlay/settings_page_haptics.py:33
 msgid "Warning/error feel"
-msgstr "ความรู้สึกเตือน/ข้อผิดพลาด"
+msgstr "Varnings-/felkansla"
 
 #: overlay/settings_page_haptics.py:34
 msgid "Complete"
-msgstr "เสร็จสมบูรณ์"
+msgstr "Slutfort"
 
 #: overlay/settings_page_haptics.py:34
 msgid "Success/completion feel"
-msgstr "ความรู้สึกสำเร็จ/เสร็จสมบูรณ์"
+msgstr "Lyckat-/slutfortkansla"
 
 #: overlay/settings_page_haptics.py:35
 msgid "Square Wave"
-msgstr "คลื่นสี่เหลี่ยม"
+msgstr "Fyrkantsvag"
 
 #: overlay/settings_page_haptics.py:35
 msgid "Mechanical square pattern"
-msgstr "รูปแบบสี่เหลี่ยมแบบกลไก"
+msgstr "Mekaniskt fyrkantigt monster"
 
 #: overlay/settings_page_haptics.py:36
 msgid "Wave"
-msgstr "คลื่น"
+msgstr "Vag"
 
 #: overlay/settings_page_haptics.py:36
 msgid "Smooth wave pattern"
-msgstr "รูปแบบคลื่นที่ลื่นไหล"
+msgstr "Mjukt vagmonster"
 
 #: overlay/settings_page_haptics.py:37
 msgid "Firework"
-msgstr "พลุ"
+msgstr "Fyrverkeri"
 
 #: overlay/settings_page_haptics.py:37
 msgid "Burst pattern"
-msgstr "รูปแบบระเบิด"
+msgstr "Utbrottsmonster"
 
 #: overlay/settings_page_haptics.py:38
 msgid "Strong Alert"
-msgstr "เตือนแรง"
+msgstr "Stark varning"
 
 #: overlay/settings_page_haptics.py:38
 msgid "Strong error pattern"
-msgstr "รูปแบบข้อผิดพลาดแรง"
+msgstr "Starkt felmonster"
 
 #: overlay/settings_page_haptics.py:39
 msgid "Knock"
-msgstr "เคาะ"
+msgstr "Knackning"
 
 #: overlay/settings_page_haptics.py:39
 msgid "Knocking pattern"
-msgstr "รูปแบบเคาะ"
+msgstr "Knackningsmonster"
 
 #: overlay/settings_page_haptics.py:40
 msgid "Jingle"
-msgstr "จิงเกิล"
+msgstr "Klirr"
 
 #: overlay/settings_page_haptics.py:40
 msgid "Musical jingle pattern"
-msgstr "รูปแบบจิงเกิลเสียงดนตรี"
+msgstr "Musikaliskt klirrmonster"
 
 #: overlay/settings_page_haptics.py:41
 msgid "Ringing"
-msgstr "ดังกริ่ง"
+msgstr "Ringning"
 
 #: overlay/settings_page_haptics.py:41
 msgid "Ring/vibrate pattern"
-msgstr "รูปแบบกริ่ง/สั่น"
+msgstr "Ring-/vibreringsmonster"
 
 #: overlay/settings_page_haptics.py:54
 msgid "Haptic Feedback"
-msgstr "แรงสะท้อนสัมผัส"
+msgstr "Haptisk aterkoppling"
 
 #: overlay/settings_page_haptics.py:58
 msgid "Enable Haptic Feedback"
-msgstr "เปิดใช้งานแรงสะท้อนสัมผัส"
+msgstr "Aktivera haptisk aterkoppling"
 
 #: overlay/settings_page_haptics.py:58
 msgid "Feel vibrations when using the radial menu"
-msgstr "รู้สึกการสั่นเมื่อใช้เมนูวงกลม"
+msgstr "Kanne vibrationer nar du anvander radialmenyn"
 
 #: overlay/settings_page_haptics.py:72
 msgid "Haptic Patterns"
-msgstr "รูปแบบสัมผัส"
+msgstr "Haptiska monster"
 
 #: overlay/settings_page_haptics.py:78
 msgid "Menu Appear"
-msgstr "เมนูปรากฏ"
+msgstr "Meny visas"
 
 #: overlay/settings_page_haptics.py:78
 msgid "Pattern when radial menu opens"
-msgstr "รูปแบบเมื่อเมนูวงกลมเปิดขึ้น"
+msgstr "Monster nar radialmenyn oppnas"
 
 #: overlay/settings_page_haptics.py:81
 msgid "Slice Hover"
-msgstr "วางเมาส์เหนือชิ้น"
+msgstr "Hovra over segment"
 
 #: overlay/settings_page_haptics.py:82
 msgid "Pattern when hovering over different slices"
-msgstr "รูปแบบเมื่อวางเมาส์เหนือชิ้นต่างๆ"
+msgstr "Monster vid hovring over olika segment"
 
 #: overlay/settings_page_haptics.py:84
 msgid "Selection"
-msgstr "การเลือก"
+msgstr "Val"
 
 #: overlay/settings_page_haptics.py:84
 msgid "Pattern when selecting an action"
-msgstr "รูปแบบเมื่อเลือกคำสั่ง"
+msgstr "Monster vid val av atgard"
 
 #: overlay/settings_page_haptics.py:85
 msgid "Invalid Action"
-msgstr "คำสั่งไม่ถูกต้อง"
+msgstr "Ogiltig atgard"
 
 #: overlay/settings_page_haptics.py:85
 msgid "Pattern for blocked/invalid actions"
-msgstr "รูปแบบสำหรับคำสั่งที่ถูกบล็อก/ไม่ถูกต้อง"
+msgstr "Monster for blockerade/ogiltiga atgarder"
 
 #: overlay/settings_page_haptics.py:103
 msgid "Apply to All"
-msgstr "ใช้กับทั้งหมด"
+msgstr "Tillampa pa alla"
 
 #: overlay/settings_page_haptics.py:103
 msgid "Set all events to the same pattern"
-msgstr "ตั้งเหตุการณ์ทั้งหมดเป็นรูปแบบเดียวกัน"
+msgstr "Stall in alla handelser pa samma monster"
 
 #: overlay/settings_page_haptics.py:114
 msgid "Test Haptics"
-msgstr "ทดสอบสัมผัส"
+msgstr "Testa haptik"
 
 #: overlay/settings_page_haptics.py:115
 msgid "Test Pattern"
-msgstr "ทดสอบรูปแบบ"
+msgstr "Testmonster"
 
 #: overlay/settings_page_haptics.py:115
 msgid "Feel the selected pattern"
-msgstr "สัมผัสรูปแบบที่เลือก"
+msgstr "Kanne det valda monstret"
 
 #: overlay/settings_page_haptics.py:116
 msgid "Test"
-msgstr "ทดสอบ"
+msgstr "Testa"
 
 #: overlay/settings_page_scroll.py:35
 msgid "Pointer Speed"
-msgstr "ความเร็วตัวชี้"
+msgstr "Pekhastighet"
 
 #: overlay/settings_page_scroll.py:38
 msgid "Adjust tracking sensitivity"
-msgstr "ปรับความไวในการติดตาม"
+msgstr "Justera sparningskansslighet"
 
 #: overlay/settings_page_scroll.py:58
 msgid "DPI"
@@ -944,51 +948,51 @@ msgstr "DPI"
 
 #: overlay/settings_page_scroll.py:68
 msgid "Slow"
-msgstr "ช้า"
+msgstr "Langsam"
 
 #: overlay/settings_page_scroll.py:83
 msgid "Fast"
-msgstr "เร็ว"
+msgstr "Snabb"
 
 #: overlay/settings_page_scroll.py:185
 msgid "Pointer"
-msgstr "ตัวชี้"
+msgstr "Pekare"
 
 #: overlay/settings_page_scroll.py:203
 msgid "Acceleration Profile"
-msgstr "โปรไฟล์ความเร่ง"
+msgstr "Accelerationsprofil"
 
 #: overlay/settings_page_scroll.py:203
 msgid "How pointer speed scales with movement"
-msgstr "ความเร็วตัวชี้ปรับตามการเคลื่อนไหวอย่างไร"
+msgstr "Hur pekhastigheten skalas med rorelse"
 
 #: overlay/settings_page_scroll.py:206
 msgid "Adaptive (Recommended)"
-msgstr "ปรับตัว (แนะนำ)"
+msgstr "Adaptiv (rekommenderad)"
 
 #: overlay/settings_page_scroll.py:207
 msgid "Flat (Linear)"
-msgstr "คงที่ (เชิงเส้น)"
+msgstr "Platt (linjar)"
 
 #: overlay/settings_page_scroll.py:208
 msgid "System Default"
-msgstr "ค่าเริ่มต้นของระบบ"
+msgstr "Systemstandard"
 
 #: overlay/settings_page_scroll.py:231 overlay/settings_page_scroll.py:825
 msgid "Settings are up to date"
-msgstr "การตั้งค่าเป็นปัจจุบันแล้ว"
+msgstr "Installningarna ar aktuella"
 
 #: overlay/settings_page_scroll.py:249
 msgid "Apply to Device"
-msgstr "ใช้กับอุปกรณ์"
+msgstr "Tillampa pa enhet"
 
 #: overlay/settings_page_scroll.py:262
 msgid "Applies DPI, SmartShift, and scroll settings to your device"
-msgstr "ใช้การตั้งค่า DPI, SmartShift และการเลื่อนกับอุปกรณ์ของคุณ"
+msgstr "Tillampar DPI, SmartShift och rullningsinstellningar pa din enhet"
 
 #: overlay/settings_page_scroll.py:274
 msgid "Scroll Wheel"
-msgstr "ล้อเลื่อน"
+msgstr "Rullhjul"
 
 #: overlay/settings_page_scroll.py:289
 msgid "SmartShift"
@@ -997,83 +1001,84 @@ msgstr "SmartShift"
 #: overlay/settings_page_scroll.py:309
 msgid ""
 "Auto-switch to free-spin when scrolling fast, return to ratchet when slow"
-msgstr "สลับเป็นหมุนอิสระอัตโนมัติเมื่อเลื่อนเร็ว กลับเป็นแบบขั้นเมื่อเลื่อนช้า"
+msgstr ""
+"Vaxla automatiskt till frihjul vid snabb rullning, atga till spaerr vid langsam"
 
 #: overlay/settings_page_scroll.py:326
 msgid "Switch Threshold"
-msgstr "จุดสลับ"
+msgstr "Vaxlingstroskel"
 
 #: overlay/settings_page_scroll.py:342
 msgid "Stay ratchet"
-msgstr "คงแบบขั้น"
+msgstr "Behal spaerr"
 
 #: overlay/settings_page_scroll.py:360
 msgid "Easy free-spin"
-msgstr "หมุนอิสระง่าย"
+msgstr "Enkel frihjulsrullning"
 
 #: overlay/settings_page_scroll.py:375
 msgid "Natural Scrolling"
-msgstr "การเลื่อนแบบธรรมชาติ"
+msgstr "Naturlig rullning"
 
 #: overlay/settings_page_scroll.py:376
 msgid "Scroll content in the direction of finger movement"
-msgstr "เลื่อนเนื้อหาตามทิศทางการเคลื่อนนิ้ว"
+msgstr "Rulla innehall i fingerrorelsens riktning"
 
 #: overlay/settings_page_scroll.py:386
 msgid "High-Resolution Scroll"
-msgstr "การเลื่อนความละเอียดสูง"
+msgstr "Hoguopplost rullning"
 
 #: overlay/settings_page_scroll.py:387
 msgid "More scroll events for smoother, faster scrolling"
-msgstr "เหตุการณ์การเลื่อนมากขึ้นเพื่อการเลื่อนที่ลื่นไหลและรวดเร็วขึ้น"
+msgstr "Fler rullningshundelser for mjukare och snabbare rullning"
 
 #: overlay/settings_page_scroll.py:403 overlay/settings_page_scroll.py:424
 msgid "Scroll Speed"
-msgstr "ความเร็วการเลื่อน"
+msgstr "Rullningshastighet"
 
 #: overlay/settings_page_scroll.py:403
 msgid "Lines scrolled per wheel notch"
-msgstr "จำนวนบรรทัดที่เลื่อนต่อขั้นล้อ"
+msgstr "Rader rullade per hjulspark"
 
 #: overlay/settings_page_scroll.py:421
 msgid "Thumb Wheel"
-msgstr "ล้อหัวแม่มือ"
+msgstr "Tumhjul"
 
 #: overlay/settings_page_scroll.py:424
 msgid "Horizontal scroll sensitivity"
-msgstr "ความไวการเลื่อนแนวนอน"
+msgstr "Horisontell rullningskanslighet"
 
 #: overlay/settings_page_scroll.py:440
 msgid "Invert Direction"
-msgstr "กลับทิศทาง"
+msgstr "Invertera riktning"
 
 #: overlay/settings_page_scroll.py:440
 msgid "Reverse thumb wheel scroll direction"
-msgstr "กลับทิศทางการเลื่อนของล้อหัวแม่มือ"
+msgstr "Vand tumhjulets rullningsriktning"
 
 #: overlay/settings_page_scroll.py:793
 msgid "DPI set to {}"
-msgstr "ตั้ง DPI เป็น {}"
+msgstr "DPI installad pa {}"
 
 #: overlay/settings_page_scroll.py:799
 msgid "DPI error: daemon not running?"
-msgstr "ข้อผิดพลาด DPI: daemon ไม่ได้ทำงานอยู่?"
+msgstr "DPI-fel: daemon kor inte?"
 
 #: overlay/settings_page_scroll.py:808
 msgid "Click Apply to save changes"
-msgstr "คลิกใช้เพื่อบันทึกการเปลี่ยนแปลง"
+msgstr "Klicka Tillumpa for att spara andringarna"
 
 #: overlay/settings_page_scroll.py:819
 msgid "Settings applied!"
-msgstr "ใช้การตั้งค่าแล้ว!"
+msgstr "Installningar tillampad!"
 
 #: overlay/settings_page_scroll.py:912
 msgid "enabled"
-msgstr "เปิดใช้งาน"
+msgstr "aktiverad"
 
 #: overlay/settings_page_scroll.py:912
 msgid "disabled"
-msgstr "ปิดใช้งาน"
+msgstr "inaktiverad"
 
 #: overlay/settings_page_scroll.py:913
 msgid "SmartShift {}"
@@ -1081,134 +1086,135 @@ msgstr "SmartShift {}"
 
 #: overlay/settings_page_scroll.py:922
 msgid "SmartShift error: daemon not running?"
-msgstr "ข้อผิดพลาด SmartShift: daemon ไม่ได้ทำงานอยู่?"
+msgstr "SmartShift-fel: daemon kor inte?"
 
 #: overlay/settings_page_settings.py:47
 msgid "Appearance"
-msgstr "รูปลักษณ์"
+msgstr "Utseende"
 
 #: overlay/settings_page_settings.py:50
 msgid "Theme"
-msgstr "ธีม"
+msgstr "Tema"
 
 #: overlay/settings_page_settings.py:50
 msgid "Choose color theme for radial menu and settings"
-msgstr "เลือกธีมสีสำหรับเมนูวงกลมและการตั้งค่า"
+msgstr "Valj fargtema for radialmenyn och installningar"
 
 #: overlay/settings_page_settings.py:68
 msgid "Blur Effect"
-msgstr "เอฟเฟกต์เบลอ"
+msgstr "Oskarpeffekt"
 
 #: overlay/settings_page_settings.py:68
 msgid "Enable background blur for radial menu"
-msgstr "เปิดใช้งานพื้นหลังเบลอสำหรับเมนูวงกลม"
+msgstr "Aktivera bakgrundsoskarpa for radialmenyn"
 
 #: overlay/settings_page_settings.py:79
 msgid "Language"
-msgstr "ภาษา"
+msgstr "Sprak"
 
 #: overlay/settings_page_settings.py:79
 msgid "Choose display language"
-msgstr "เลือกภาษาที่แสดง"
+msgstr "Valj visningssprak"
 
 #: overlay/settings_page_settings.py:123
 msgid "Desktop Environment"
-msgstr "สภาพแวดล้อมเดสก์ท็อป"
+msgstr "Skrivbordsmiljo"
 
 #: overlay/settings_page_settings.py:132
 msgid "Desktop"
-msgstr "เดสก์ท็อป"
+msgstr "Skrivbord"
 
 #: overlay/settings_page_settings.py:133
 msgid "Commands for screenshot, files, etc. adapt to your DE (detected: {})"
-msgstr "คำสั่งสำหรับจับภาพหน้าจอ ไฟล์ ฯลฯ ปรับตาม DE ของคุณ (ตรวจพบ: {})"
+msgstr "Kommandon for skarmbild, filer m.m. anpassas till din DE (upptackt: {})"
 
 #: overlay/settings_page_settings.py:151
 msgid "Apply DE Defaults"
-msgstr "ใช้ค่าเริ่มต้น DE"
+msgstr "Tillumpa DE-standard"
 
 #: overlay/settings_page_settings.py:152
 msgid "Update radial menu commands to match selected desktop"
-msgstr "อัปเดตคำสั่งเมนูวงกลมให้ตรงกับเดสก์ท็อปที่เลือก"
+msgstr "Uppdatera radialmenykommandon for att matcha valt skrivbord"
 
 #: overlay/settings_page_settings.py:154
 msgid "Apply"
-msgstr "ใช้"
+msgstr "Tillumpa"
 
 #: overlay/settings_page_settings.py:163
 msgid "Application"
-msgstr "แอปพลิเคชัน"
+msgstr "Applikation"
 
 #: overlay/settings_page_settings.py:166
 msgid "Start at Login"
-msgstr "เริ่มทำงานเมื่อเข้าสู่ระบบ"
+msgstr "Starta vid inloggning"
 
 #: overlay/settings_page_settings.py:166
 msgid "Launch JuhRadial MX when you log in"
-msgstr "เปิด JuhRadial MX เมื่อเข้าสู่ระบบ"
+msgstr "Starta JuhRadial MX vid inloggning"
 
 #: overlay/settings_page_settings.py:174
 msgid "Show Tray Icon"
-msgstr "แสดงไอคอนถาดระบบ"
+msgstr "Visa ikon i systemfaltet"
 
 #: overlay/settings_page_settings.py:174
 msgid "Display icon in system tray"
-msgstr "แสดงไอคอนในถาดระบบ"
+msgstr "Visa ikon i systemfaltet"
 
 #: overlay/settings_page_settings.py:187
 msgid "Device Information"
-msgstr "ข้อมูลอุปกรณ์"
+msgstr "Enhetsinformation"
 
 #: overlay/settings_page_settings.py:191 overlay/settings_page_settings.py:192
 msgid "Not available"
-msgstr "ไม่พร้อมใช้งาน"
+msgstr "Ej tillganglig"
 
 #: overlay/settings_page_settings.py:219
 msgid "Device"
-msgstr "อุปกรณ์"
+msgstr "Enhet"
 
 #: overlay/settings_page_settings.py:220
 msgid "Battery"
-msgstr "แบตเตอรี่"
+msgstr "Batteri"
 
 #: overlay/settings_page_settings.py:221
 msgid "Status"
-msgstr "สถานะ"
+msgstr "Status"
 
 #: overlay/settings_page_settings.py:231 overlay/settings_page_settings.py:236
 msgid "Reset"
-msgstr "รีเซ็ต"
+msgstr "Aterstall"
 
 #: overlay/settings_page_settings.py:234
 msgid "Restore Defaults"
-msgstr "คืนค่าเริ่มต้น"
+msgstr "Aterstall standardinstallningar"
 
 #: overlay/settings_page_settings.py:234
 msgid "Reset all settings to factory defaults"
-msgstr "รีเซ็ตการตั้งค่าทั้งหมดเป็นค่าจากโรงงาน"
+msgstr "Aterstall alla installningar till fabriksinstander"
 
 #: overlay/settings_page_settings.py:279
 msgid "Updated for {}: {}"
-msgstr "อัปเดตสำหรับ {}: {}"
+msgstr "Uppdaterat for {}: {}"
 
 #: overlay/settings_page_settings.py:281
 msgid "All commands already match selected DE"
-msgstr "คำสั่งทั้งหมดตรงกับ DE ที่เลือกแล้ว"
+msgstr "Alla kommandon matchar redan vald DE"
 
 #: overlay/settings_page_settings.py:284
 msgid "Desktop Commands Updated"
-msgstr "อัปเดตคำสั่งเดสก์ท็อปแล้ว"
+msgstr "Skrivbordskommandon uppdaterade"
 
 #: overlay/settings_page_settings.py:393
 msgid "Settings Reset"
-msgstr "รีเซ็ตการตั้งค่าแล้ว"
+msgstr "Installningar aterstallda"
 
 #: overlay/settings_page_settings.py:395
 msgid ""
 "All settings have been restored to defaults. Please restart JuhRadial MX for "
 "changes to take effect."
 msgstr ""
-"การตั้งค่าทั้งหมดถูกคืนค่าเป็นค่าเริ่มต้นแล้ว กรุณารีสตาร์ท JuhRadial MX เพื่อให้การเปลี่ยนแปลงมีผล"
+"Alla installningar har aterstullts till standard. Starta om JuhRadial MX "
+"for att andringarna ska trada i kraft."
 
 #: overlay/settings_widgets.py:231
 msgid "MX Master 4"

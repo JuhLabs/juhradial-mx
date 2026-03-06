@@ -331,56 +331,58 @@ msgstr "프로필 생성 실패: {}"
 
 #: overlay/settings_dialogs.py:1112
 msgid "Application Profiles"
-msgstr ""
+msgstr "응용 프로그램 프로필"
 
 #: overlay/settings_dialogs.py:1124
 msgid "Close"
-msgstr ""
+msgstr "닫기"
 
 #: overlay/settings_dialogs.py:1129 overlay/settings_page_easyswitch.py:93
 msgid "Refresh"
-msgstr ""
+msgstr "새로 고침"
 
 #: overlay/settings_dialogs.py:1201
 msgid "Slices: {}/8 configured"
-msgstr ""
+msgstr "슬라이스: {}/8 구성됨"
 
 #: overlay/settings_dialogs.py:1209
 msgid "Edit Slices"
-msgstr ""
+msgstr "슬라이스 편집"
 
 #: overlay/settings_dialogs.py:1214
 msgid "Remove"
-msgstr ""
+msgstr "제거"
 
 #: overlay/settings_dialogs.py:1239
 msgid "Removed profile for {}"
-msgstr ""
+msgstr "{}에 대한 프로필이 제거되었습니다"
 
 #: overlay/settings_dialogs.py:1244
 msgid "Failed to remove profile: {}"
-msgstr ""
+msgstr "프로필 제거 실패: {}"
 
 #: overlay/settings_dialogs.py:1264
 msgid "No application profiles yet. Use '+ Add Application' to create one."
-msgstr ""
+msgstr "응용 프로그램 프로필이 없습니다. '+ 응용 프로그램 추가'를 사용하여 만드십시오."
 
 #: overlay/settings_dialogs.py:1268
 msgid "Profiles: {}"
-msgstr ""
+msgstr "프로필: {}"
 
 #: overlay/settings_dialogs.py:1288
 msgid "Edit Profile: {}"
-msgstr ""
+msgstr "프로필 편집: {}"
 
 #: overlay/settings_dialogs.py:1322
 msgid ""
 "Choose which action each slice should use when this application is active."
 msgstr ""
+"이 응용 프로그램이 활성화되어 있을 때 각 슬라이스에서 사용할 동작을 선택하십시"
+"오."
 
 #: overlay/settings_dialogs.py:1453
 msgid "Updated profile for {}"
-msgstr ""
+msgstr "{}에 대한 프로필이 업데이트되었습니다"
 
 #: overlay/settings_page_buttons.py:88
 msgid "Actions Ring"
@@ -476,7 +478,7 @@ msgstr "장치 펌웨어 정보"
 
 #: overlay/settings_page_devices.py:100
 msgid "Managed by JuhRadial MX"
-msgstr ""
+msgstr "JuhRadial MX에서 관리"
 
 #: overlay/settings_page_devices.py:108
 msgid "Device Management"
@@ -488,6 +490,8 @@ msgid ""
 "remapping, scroll settings, and haptics are all managed through this "
 "settings window."
 msgstr ""
+"JuhRadial MX는 HID++를 통해 장치 구성을 기본적으로 처리합니다. 버튼 재매핑, "
+"스크롤 설정, 햅틱은 모두 이 설정 창에서 관리됩니다."
 
 #: overlay/settings_page_devices.py:154
 msgid "USB Receiver / Bluetooth"
@@ -507,7 +511,7 @@ msgstr "방전 중"
 
 #: overlay/settings_page_devices.py:182 overlay/settings_page_devices.py:185
 msgid "Unavailable"
-msgstr ""
+msgstr "사용 불가"
 
 #: overlay/settings_page_easyswitch.py:45
 msgid "Coming Soon"
@@ -550,6 +554,8 @@ msgid ""
 "Slots are auto-detected from your mouse pairing state. Add or remove "
 "pairings on the mouse/receiver side, then press Refresh here."
 msgstr ""
+"슬롯은 마우스 페어링 상태에서 자동으로 감지됩니다. 마우스/수신기 측에서 "
+"페어링을 추가하거나 제거한 후 여기에서 새로 고침을 누르십시오."
 
 #: overlay/settings_page_easyswitch.py:189
 msgid "Slot {}"
@@ -574,11 +580,11 @@ msgstr "데몬에 연결할 수 없습니다"
 
 #: overlay/settings_page_easyswitch.py:367
 msgid "Detected slots: {}"
-msgstr ""
+msgstr "감지된 슬롯: {}"
 
 #: overlay/settings_page_easyswitch.py:370
 msgid "Detected slots: --"
-msgstr ""
+msgstr "감지된 슬롯: --"
 
 #: overlay/settings_page_flow.py:129
 msgid "Logitech Flow"
@@ -981,7 +987,7 @@ msgstr "장치에 적용"
 
 #: overlay/settings_page_scroll.py:262
 msgid "Applies DPI, SmartShift, and scroll settings to your device"
-msgstr ""
+msgstr "DPI, SmartShift 및 스크롤 설정을 장치에 적용합니다"
 
 #: overlay/settings_page_scroll.py:274
 msgid "Scroll Wheel"
@@ -1112,27 +1118,27 @@ msgstr "표시 언어를 선택합니다"
 
 #: overlay/settings_page_settings.py:123
 msgid "Desktop Environment"
-msgstr ""
+msgstr "데스크톱 환경"
 
 #: overlay/settings_page_settings.py:132
 msgid "Desktop"
-msgstr ""
+msgstr "데스크톱"
 
 #: overlay/settings_page_settings.py:133
 msgid "Commands for screenshot, files, etc. adapt to your DE (detected: {})"
-msgstr ""
+msgstr "스크린샷, 파일 등의 명령이 DE에 맞게 조정됩니다 (감지됨: {})"
 
 #: overlay/settings_page_settings.py:151
 msgid "Apply DE Defaults"
-msgstr ""
+msgstr "DE 기본값 적용"
 
 #: overlay/settings_page_settings.py:152
 msgid "Update radial menu commands to match selected desktop"
-msgstr ""
+msgstr "선택한 데스크톱에 맞게 방사형 메뉴 명령을 업데이트합니다"
 
 #: overlay/settings_page_settings.py:154
 msgid "Apply"
-msgstr ""
+msgstr "적용"
 
 #: overlay/settings_page_settings.py:163
 msgid "Application"
@@ -1188,15 +1194,15 @@ msgstr "모든 설정을 공장 기본값으로 초기화합니다"
 
 #: overlay/settings_page_settings.py:279
 msgid "Updated for {}: {}"
-msgstr ""
+msgstr "{} 업데이트됨: {}"
 
 #: overlay/settings_page_settings.py:281
 msgid "All commands already match selected DE"
-msgstr ""
+msgstr "모든 명령이 선택한 DE와 이미 일치합니다"
 
 #: overlay/settings_page_settings.py:284
 msgid "Desktop Commands Updated"
-msgstr ""
+msgstr "데스크톱 명령이 업데이트되었습니다"
 
 #: overlay/settings_page_settings.py:393
 msgid "Settings Reset"

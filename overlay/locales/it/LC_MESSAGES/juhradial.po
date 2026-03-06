@@ -332,56 +332,58 @@ msgstr "Creazione profilo non riuscita: {}"
 
 #: overlay/settings_dialogs.py:1112
 msgid "Application Profiles"
-msgstr ""
+msgstr "Profili applicazione"
 
 #: overlay/settings_dialogs.py:1124
 msgid "Close"
-msgstr ""
+msgstr "Chiudi"
 
 #: overlay/settings_dialogs.py:1129 overlay/settings_page_easyswitch.py:93
 msgid "Refresh"
-msgstr ""
+msgstr "Aggiorna"
 
 #: overlay/settings_dialogs.py:1201
 msgid "Slices: {}/8 configured"
-msgstr ""
+msgstr "Spicchi: {}/8 configurati"
 
 #: overlay/settings_dialogs.py:1209
 msgid "Edit Slices"
-msgstr ""
+msgstr "Modifica spicchi"
 
 #: overlay/settings_dialogs.py:1214
 msgid "Remove"
-msgstr ""
+msgstr "Rimuovi"
 
 #: overlay/settings_dialogs.py:1239
 msgid "Removed profile for {}"
-msgstr ""
+msgstr "Profilo rimosso per {}"
 
 #: overlay/settings_dialogs.py:1244
 msgid "Failed to remove profile: {}"
-msgstr ""
+msgstr "Rimozione profilo non riuscita: {}"
 
 #: overlay/settings_dialogs.py:1264
 msgid "No application profiles yet. Use '+ Add Application' to create one."
-msgstr ""
+msgstr "Nessun profilo applicazione. Usa '+ Aggiungi applicazione' per crearne uno."
 
 #: overlay/settings_dialogs.py:1268
 msgid "Profiles: {}"
-msgstr ""
+msgstr "Profili: {}"
 
 #: overlay/settings_dialogs.py:1288
 msgid "Edit Profile: {}"
-msgstr ""
+msgstr "Modifica profilo: {}"
 
 #: overlay/settings_dialogs.py:1322
 msgid ""
 "Choose which action each slice should use when this application is active."
 msgstr ""
+"Scegli quale azione ogni spicchio deve usare quando questa applicazione e "
+"attiva."
 
 #: overlay/settings_dialogs.py:1453
 msgid "Updated profile for {}"
-msgstr ""
+msgstr "Profilo aggiornato per {}"
 
 #: overlay/settings_page_buttons.py:88
 msgid "Actions Ring"
@@ -477,7 +479,7 @@ msgstr "Informazioni sul firmware del dispositivo"
 
 #: overlay/settings_page_devices.py:100
 msgid "Managed by JuhRadial MX"
-msgstr ""
+msgstr "Gestito da JuhRadial MX"
 
 #: overlay/settings_page_devices.py:108
 msgid "Device Management"
@@ -489,6 +491,9 @@ msgid ""
 "remapping, scroll settings, and haptics are all managed through this "
 "settings window."
 msgstr ""
+"JuhRadial MX gestisce la configurazione del dispositivo nativamente tramite "
+"HID++. La rimappatura dei pulsanti, le impostazioni di scorrimento e il "
+"feedback aptico sono tutti gestiti da questa finestra delle impostazioni."
 
 #: overlay/settings_page_devices.py:154
 msgid "USB Receiver / Bluetooth"
@@ -508,7 +513,7 @@ msgstr "In scarica"
 
 #: overlay/settings_page_devices.py:182 overlay/settings_page_devices.py:185
 msgid "Unavailable"
-msgstr ""
+msgstr "Non disponibile"
 
 #: overlay/settings_page_easyswitch.py:45
 msgid "Coming Soon"
@@ -551,6 +556,9 @@ msgid ""
 "Slots are auto-detected from your mouse pairing state. Add or remove "
 "pairings on the mouse/receiver side, then press Refresh here."
 msgstr ""
+"Gli slot vengono rilevati automaticamente dallo stato di abbinamento del "
+"mouse. Aggiungi o rimuovi abbinamenti dal lato mouse/ricevitore, poi premi "
+"Aggiorna qui."
 
 #: overlay/settings_page_easyswitch.py:189
 msgid "Slot {}"
@@ -575,11 +583,11 @@ msgstr "Impossibile connettersi al demone"
 
 #: overlay/settings_page_easyswitch.py:367
 msgid "Detected slots: {}"
-msgstr ""
+msgstr "Slot rilevati: {}"
 
 #: overlay/settings_page_easyswitch.py:370
 msgid "Detected slots: --"
-msgstr ""
+msgstr "Slot rilevati: --"
 
 #: overlay/settings_page_flow.py:129
 msgid "Logitech Flow"
@@ -985,7 +993,7 @@ msgstr "Applica al dispositivo"
 
 #: overlay/settings_page_scroll.py:262
 msgid "Applies DPI, SmartShift, and scroll settings to your device"
-msgstr ""
+msgstr "Applica le impostazioni DPI, SmartShift e scorrimento al dispositivo"
 
 #: overlay/settings_page_scroll.py:274
 msgid "Scroll Wheel"
@@ -1116,27 +1124,27 @@ msgstr "Scegli la lingua di visualizzazione"
 
 #: overlay/settings_page_settings.py:123
 msgid "Desktop Environment"
-msgstr ""
+msgstr "Ambiente desktop"
 
 #: overlay/settings_page_settings.py:132
 msgid "Desktop"
-msgstr ""
+msgstr "Desktop"
 
 #: overlay/settings_page_settings.py:133
 msgid "Commands for screenshot, files, etc. adapt to your DE (detected: {})"
-msgstr ""
+msgstr "I comandi per screenshot, file, ecc. si adattano al tuo ambiente desktop (rilevato: {})"
 
 #: overlay/settings_page_settings.py:151
 msgid "Apply DE Defaults"
-msgstr ""
+msgstr "Applica impostazioni predefinite del desktop"
 
 #: overlay/settings_page_settings.py:152
 msgid "Update radial menu commands to match selected desktop"
-msgstr ""
+msgstr "Aggiorna i comandi del menu radiale per il desktop selezionato"
 
 #: overlay/settings_page_settings.py:154
 msgid "Apply"
-msgstr ""
+msgstr "Applica"
 
 #: overlay/settings_page_settings.py:163
 msgid "Application"
@@ -1192,15 +1200,15 @@ msgstr "Ripristina tutte le impostazioni ai valori di fabbrica"
 
 #: overlay/settings_page_settings.py:279
 msgid "Updated for {}: {}"
-msgstr ""
+msgstr "Aggiornato per {}: {}"
 
 #: overlay/settings_page_settings.py:281
 msgid "All commands already match selected DE"
-msgstr ""
+msgstr "Tutti i comandi corrispondono gia al desktop selezionato"
 
 #: overlay/settings_page_settings.py:284
 msgid "Desktop Commands Updated"
-msgstr ""
+msgstr "Comandi desktop aggiornati"
 
 #: overlay/settings_page_settings.py:393
 msgid "Settings Reset"
