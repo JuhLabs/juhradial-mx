@@ -13,7 +13,7 @@ use juhradiald::{
     battery::{new_shared_state, start_battery_updater_shared},
     config::load_shared_config,
     cursor::{get_screen_bounds, ScreenBounds},
-    dbus::{init_dbus_service, DBUS_PATH, DBUS_NAME},
+    dbus::{init_dbus_service_with_device, DBUS_PATH, DBUS_NAME},
     evdev::{EvdevHandler, EvdevError, GestureEvent},
     hidraw::{HidrawHandler, HidrawError},
     new_shared_haptic_manager,
@@ -110,14 +110,65 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Clone haptic_manager for battery updater before passing to D-Bus
     let haptic_manager_for_battery = haptic_manager.clone();
 
-    // Initialize D-Bus service with battery state, config, and haptic manager
-    let dbus_connection = match init_dbus_service(
+    // Determine device mode:
+    // 1. Check config for user override (settings "Generic" toggle)
+    // 2. If HID++ connected -> "logitech" (already have mx4_hidraw_path)
+    // 3. Else try evdev MX detection
+    // 4. Else try generic mouse detection
+    let config_device_mode = read_device_mode_from_config();
+    info!("Config device_mode: {}", config_device_mode);
+
+    let (device_mode, device_name) = if config_device_mode == "generic" {
+        // User forced generic mode via settings toggle
+        let name = match EvdevHandler::find_any_mouse() {
+            Ok(info) => {
+                info!("Device mode: generic (forced, detected: {})", info.name);
+                info.name
+            }
+            Err(_) => {
+                info!("Device mode: generic (forced, no mouse detected yet)");
+                "Generic Mouse".to_string()
+            }
+        };
+        ("generic".to_string(), name)
+    } else if mx4_hidraw_path.is_some() {
+        // HID++ found a Logitech device
+        info!("Device mode: logitech (HID++ connected)");
+        ("logitech".to_string(), "Logitech MX Master 4".to_string())
+    } else {
+        // Try evdev MX detection
+        match EvdevHandler::find_device() {
+            Ok(info) => {
+                info!("Device mode: logitech (evdev MX detected: {})", info.name);
+                ("logitech".to_string(), info.name)
+            }
+            Err(_) => {
+                // Try generic mouse fallback
+                match EvdevHandler::find_any_mouse() {
+                    Ok(info) => {
+                        info!("Device mode: generic (detected: {})", info.name);
+                        ("generic".to_string(), info.name)
+                    }
+                    Err(_) => {
+                        warn!("No mouse detected at startup - will poll for connection");
+                        ("logitech".to_string(), "Unknown".to_string())
+                    }
+                }
+            }
+        }
+    };
+
+
+    // Initialize D-Bus service with battery state, config, haptic manager, and device info
+    let dbus_connection = match init_dbus_service_with_device(
         battery_state.clone(),
         shared_config.clone(),
         haptic_manager,
+        device_mode.clone(),
+        device_name.clone(),
     ).await {
         Ok(conn) => {
-            info!("D-Bus service initialized successfully");
+            info!("D-Bus service initialized successfully (mode={}, device={})", device_mode, device_name);
             conn
         }
         Err(e) => {
@@ -177,10 +228,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         run_hidraw_loop(hidraw_tx, mx4_hidraw_path).await
     });
 
-    // Spawn the evdev handler as fallback (for standard input events)
+    // Spawn evdev handlers:
+    // - MX evdev loop: fallback for standard MX input events (when HID++ divert unavailable)
+    // - Generic evdev loop: handles non-Logitech mice (e.g., SteelSeries)
+    // Both run simultaneously so either mouse can trigger the radial wheel.
     let evdev_tx = event_tx.clone();
     let evdev_handle = tokio::spawn(async move {
         run_evdev_loop(evdev_tx).await
+    });
+
+    let generic_evdev_tx = event_tx.clone();
+    let generic_evdev_handle = tokio::spawn(async move {
+        run_generic_evdev_loop(generic_evdev_tx).await
     });
 
     // Get screen bounds for edge clamping (query once at startup)
@@ -212,6 +271,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 error!("evdev task panicked: {:?}", e);
             }
         }
+        result = generic_evdev_handle => {
+            if let Err(e) = result {
+                error!("generic evdev task panicked: {:?}", e);
+            }
+        }
         result = event_handle => {
             if let Err(e) = result {
                 error!("Event processing task panicked: {:?}", e);
@@ -227,7 +291,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// List all detected Logitech devices
+/// List all detected Logitech devices and generic mouse fallback
 fn list_logitech_devices() {
     println!("Scanning for Logitech input devices...\n");
 
@@ -235,22 +299,41 @@ fn list_logitech_devices() {
 
     if devices.is_empty() {
         println!("No Logitech devices found.");
-        println!("\nTroubleshooting:");
-        println!("  - Ensure your MX Master 4 is connected");
-        println!("  - Check that udev rules are installed");
-        println!("  - Verify user is in 'input' group");
-        return;
+    } else {
+        println!("Found {} Logitech device(s):\n", devices.len());
+
+        for (i, device) in devices.iter().enumerate() {
+            let mx_marker = if device.is_mx_master_4 { " [MX Master 4]" } else { "" };
+            println!("{}. {}{}", i + 1, device.name, mx_marker);
+            println!("   Path:    {:?}", device.path);
+            println!("   Vendor:  0x{:04X}", device.vendor_id);
+            println!("   Product: 0x{:04X}", device.product_id);
+            println!();
+        }
     }
 
-    println!("Found {} Logitech device(s):\n", devices.len());
+    // Also try generic mouse detection
+    println!("Scanning for generic mouse fallback...\n");
+    match EvdevHandler::find_any_mouse() {
+        Ok(info) => {
+            println!("Generic mouse detected: {} [FALLBACK]", info.name);
+            println!("   Path:    {:?}", info.path);
+            println!("   Vendor:  0x{:04X}", info.vendor_id);
+            println!("   Product: 0x{:04X}", info.product_id);
+            println!("   Trigger: BTN_SIDE (0x113, button 8)");
+            println!();
+        }
+        Err(_) => {
+            println!("No generic mouse found.");
+            println!();
+        }
+    }
 
-    for (i, device) in devices.iter().enumerate() {
-        let mx_marker = if device.is_mx_master_4 { " [MX Master 4]" } else { "" };
-        println!("{}. {}{}", i + 1, device.name, mx_marker);
-        println!("   Path:    {:?}", device.path);
-        println!("   Vendor:  0x{:04X}", device.vendor_id);
-        println!("   Product: 0x{:04X}", device.product_id);
-        println!();
+    if devices.is_empty() {
+        println!("Troubleshooting:");
+        println!("  - Ensure your mouse is connected");
+        println!("  - Check that udev rules are installed");
+        println!("  - Verify user is in 'input' group");
     }
 }
 
@@ -346,6 +429,95 @@ async fn run_evdev_loop(event_tx: mpsc::Sender<GestureEvent>) {
             Err(EvdevError::DeviceNotFound) => {
                 // Device not found, this is expected during polling
                 info!("Waiting for MX Master 4... (polling every {}s)", DEVICE_POLL_INTERVAL_SECS);
+            }
+            Err(EvdevError::PermissionDenied) => {
+                error!("Permission denied accessing input devices.");
+                error!("Ensure udev rules are installed and user is in 'input' group.");
+            }
+            Err(EvdevError::IoError(e)) => {
+                error!("I/O error during device scan: {}", e);
+            }
+        }
+
+        // Wait before polling again
+        sleep(Duration::from_secs(DEVICE_POLL_INTERVAL_SECS)).await;
+    }
+}
+
+/// Read generic_trigger_button from ~/.config/juhradial/config.json
+fn read_trigger_button_from_config() -> Option<u16> {
+    let home = std::env::var("HOME").ok()?;
+    let path = std::path::PathBuf::from(home)
+        .join(".config/juhradial/config.json");
+    let data = std::fs::read_to_string(&path).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&data).ok()?;
+    json.get("generic_trigger_button")?.as_u64().map(|v| v as u16)
+}
+
+/// Read device_mode from ~/.config/juhradial/config.json
+///
+/// Returns "generic", "logitech", or "auto" (default).
+/// When the user toggles "Generic" in settings, this is set to "generic".
+fn read_device_mode_from_config() -> String {
+    let home = match std::env::var("HOME") {
+        Ok(h) => h,
+        Err(_) => return "auto".to_string(),
+    };
+    let path = std::path::PathBuf::from(home)
+        .join(".config/juhradial/config.json");
+    let data = match std::fs::read_to_string(&path) {
+        Ok(d) => d,
+        Err(_) => return "auto".to_string(),
+    };
+    let json: serde_json::Value = match serde_json::from_str(&data) {
+        Ok(j) => j,
+        Err(_) => return "auto".to_string(),
+    };
+    json.get("device_mode")
+        .and_then(|v| v.as_str())
+        .unwrap_or("auto")
+        .to_string()
+}
+
+/// Run the generic mouse evdev detection and event loop
+///
+/// Same as run_evdev_loop but uses find_any_mouse() and configurable trigger button.
+/// This is the fallback when no Logitech MX device is found.
+async fn run_generic_evdev_loop(event_tx: mpsc::Sender<GestureEvent>) {
+    let trigger = read_trigger_button_from_config();
+    if let Some(code) = trigger {
+        info!("Generic trigger button from config: {:#x}", code);
+    }
+    let mut handler = EvdevHandler::new_generic(event_tx.clone(), trigger);
+
+    loop {
+        // Try to find any generic mouse
+        match EvdevHandler::find_any_mouse() {
+            Ok(device_info) => {
+                info!(
+                    "Detected generic mouse at {:?} ({})",
+                    device_info.path, device_info.name
+                );
+
+                // Run the event loop until device disconnects
+                match handler.start().await {
+                    Ok(()) => {
+                        info!("Generic mouse event loop ended normally");
+                    }
+                    Err(EvdevError::DeviceNotFound) => {
+                        warn!("Generic mouse disconnected, will poll for reconnection...");
+                    }
+                    Err(EvdevError::PermissionDenied) => {
+                        error!("Permission denied. Ensure udev rules are installed.");
+                        error!("Run: sudo usermod -aG input $USER && logout");
+                    }
+                    Err(EvdevError::IoError(e)) => {
+                        error!("I/O error: {}. Will retry...", e);
+                    }
+                }
+            }
+            Err(EvdevError::DeviceNotFound) => {
+                info!("Waiting for generic mouse... (polling every {}s)", DEVICE_POLL_INTERVAL_SECS);
             }
             Err(EvdevError::PermissionDenied) => {
                 error!("Permission denied accessing input devices.");

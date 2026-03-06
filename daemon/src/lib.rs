@@ -25,8 +25,8 @@ pub use battery::{BatteryState, SharedBatteryState, new_shared_state as new_batt
 pub use bundled_themes::{get_bundled_theme, get_default_theme, list_bundled_themes, DEFAULT_THEME_NAME};
 pub use config::{Config, SharedConfig, new_shared_config, load_shared_config};
 pub use cursor::{get_cursor_position, get_screen_bounds, CursorPosition, ScreenBounds, EDGE_MARGIN, MENU_DIAMETER, MENU_RADIUS};
-pub use dbus::{init_dbus_service, JuhRadialService, DBUS_INTERFACE, DBUS_NAME, DBUS_PATH};
-pub use evdev::{DeviceInfo, EvdevError, EvdevHandler, GestureEvent, LOGITECH_VENDOR_ID};
+pub use dbus::{init_dbus_service, init_dbus_service_with_device, JuhRadialService, DBUS_INTERFACE, DBUS_NAME, DBUS_PATH};
+pub use evdev::{DeviceInfo, EvdevError, EvdevHandler, GestureEvent, LOGITECH_VENDOR_ID, GENERIC_TRIGGER_BUTTON};
 pub use performance_monitor::{BlurMode, PerformanceMonitor};
 pub use profiles::{Profile, ProfileManager};
 pub use theme::{Theme, ThemeManager};
