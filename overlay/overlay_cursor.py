@@ -153,13 +153,70 @@ def get_cursor_position_hyprland():
 # GNOME CURSOR DETECTION
 # =============================================================================
 
+# Cached GLib D-Bus proxy for high-frequency cursor polling
+_gnome_cursor_proxy = None
+_gnome_cursor_proxy_failed = False
+
+
+def _get_gnome_cursor_proxy():
+    """Get or create a cached Gio.DBusProxy for the cursor helper.
+
+    Using a persistent proxy avoids spawning a gdbus subprocess on every call,
+    which is critical for 120Hz edge detection polling.
+    """
+    global _gnome_cursor_proxy, _gnome_cursor_proxy_failed
+    if _gnome_cursor_proxy is not None:
+        return _gnome_cursor_proxy
+    if _gnome_cursor_proxy_failed:
+        return None
+    try:
+        import gi
+        gi.require_version("Gio", "2.0")
+        from gi.repository import Gio, GLib
+        proxy = Gio.DBusProxy.new_for_bus_sync(
+            Gio.BusType.SESSION,
+            Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES
+            | Gio.DBusProxyFlags.DO_NOT_CONNECT_SIGNALS,
+            None,
+            "org.juhradial.CursorHelper",
+            "/org/juhradial/CursorHelper",
+            "org.juhradial.CursorHelper",
+            None,
+        )
+        _gnome_cursor_proxy = proxy
+        return proxy
+    except Exception:
+        _gnome_cursor_proxy_failed = True
+        return None
+
 
 def get_cursor_position_gnome():
     """Get cursor position via JuhRadial GNOME Shell extension D-Bus.
 
-    Uses the juhradial-cursor@juhlabs.com extension which exposes
-    global.get_pointer() over D-Bus.
+    Uses a cached Gio.DBusProxy for low-latency calls. Falls back to
+    gdbus subprocess if GLib bindings are unavailable.
     """
+    proxy = _get_gnome_cursor_proxy()
+    if proxy is not None:
+        try:
+            from gi.repository import GLib
+            result = proxy.call_sync(
+                "GetCursorPosition",
+                None,
+                0,  # Gio.DBusCallFlags.NONE
+                100,  # timeout ms
+                None,
+            )
+            if result:
+                # Result is a GVariant tuple: (x, y)
+                x = result.get_child_value(0).get_int32()
+                y = result.get_child_value(1).get_int32()
+                return (x, y)
+        except Exception:
+            pass
+        return None
+
+    # Fallback: gdbus subprocess (slow, only used if GLib unavailable)
     try:
         result = subprocess.run(
             [
@@ -177,7 +234,7 @@ def get_cursor_position_gnome():
             if len(parts) >= 2:
                 return (int(parts[0].strip()), int(parts[1].strip()))
     except (FileNotFoundError, subprocess.SubprocessError, ValueError):
-        return None  # gdbus unavailable or returned unparsable output
+        return None
     return None
 
 

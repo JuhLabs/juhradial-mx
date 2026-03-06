@@ -34,9 +34,19 @@ FLOW_TAG_LEN = 16
 
 # Screen edge detection
 EDGE_THRESHOLD_PX = 5
-EDGE_DWELL_MS = 150
-EDGE_POLL_INTERVAL_MS = 16
+EDGE_DWELL_MS = 100
+EDGE_POLL_INTERVAL_MS = 8
 EDGE_COOLDOWN_MS = 1000
+
+# Velocity-based instant trigger: if cursor crosses this many px/s toward an edge,
+# skip the dwell timer and fire immediately on first contact.
+EDGE_VELOCITY_INSTANT_PX_PER_S = 3000
+
+# Indicator zone: only trigger edge detection within this many pixels of the
+# screen center (where the indicator bar sits). The bar is ~500px tall, so
+# restrict to 500px total. This prevents accidental handoffs when the cursor
+# hits a corner or non-indicator part of the edge.
+EDGE_INDICATOR_ZONE_PX = 500
 
 # Message types for encrypted presence channel
 MSG_DISCOVERY_BEACON = "discovery_beacon"

@@ -16,6 +16,7 @@ from .constants import (
     MSG_CURSOR_HANDOFF,
     MSG_CLIPBOARD_SYNC,
     EDGE_COOLDOWN_MS,
+    EDGE_THRESHOLD_PX,
 )
 
 logger = logging.getLogger("juhradial.flow.handoff")
@@ -47,6 +48,10 @@ class FlowHandoffManager:
 
         # {peer_name: edge} - which edge each peer is assigned to
         self.peer_edges: Dict[str, str] = {}
+
+        # Cached flow config (avoid re-reading config.json on every edge hit)
+        self._flow_config_cache: Optional[dict] = None
+        self._flow_config_mtime: float = 0.0
 
         # Wire edge detector callback
         if edge_detector:
@@ -213,8 +218,9 @@ class FlowHandoffManager:
         sw, sh = screen["width"], screen["height"]
 
         # Compute arrival position on opposite edge
-        # Offset must be > EDGE_THRESHOLD_PX to avoid landing in the detection zone
-        inset = EDGE_THRESHOLD_PX * 3  # 15px inside, well clear of the 5px edge zone
+        # Warp cursor well inside the screen so it doesn't land on/near the
+        # indicator and accidentally re-trigger a switch back.
+        inset = 80  # 80px inside from the edge
         if arrival_edge == "left":
             x = sx + inset
             y = sy + int(relative_pos * sh)
@@ -231,9 +237,11 @@ class FlowHandoffManager:
             x = sx + sw // 2
             y = sy + sh // 2
 
-        # Suppress edge detector to prevent immediate bounce-back
+        # Suppress edge detector to prevent immediate bounce-back.
+        # Use a longer cooldown (3s) since cursor arrives right at the edge
+        # and the user needs time to move away from the indicator zone.
         if self.edge_detector:
-            self.edge_detector.suppress_for(EDGE_COOLDOWN_MS)
+            self.edge_detector.suppress_for(3000)
 
         # Switch MX Master back to this host (Linux)
         self._switch_host_to_linux()
@@ -284,12 +292,16 @@ class FlowHandoffManager:
         return False
 
     def _get_flow_config(self):
-        """Read flow config from config.json."""
+        """Read flow config from config.json (cached, reloads on file change)."""
         try:
             from pathlib import Path
             cfg_path = Path.home() / ".config" / "juhradial" / "config.json"
             if cfg_path.exists():
-                return json.loads(cfg_path.read_text()).get("flow", {})
+                mtime = cfg_path.stat().st_mtime
+                if self._flow_config_cache is None or mtime != self._flow_config_mtime:
+                    self._flow_config_cache = json.loads(cfg_path.read_text()).get("flow", {})
+                    self._flow_config_mtime = mtime
+                return self._flow_config_cache
         except Exception:
             pass
         return {}
@@ -313,10 +325,13 @@ class FlowHandoffManager:
         self._dbus_set_host(int(local_host))
 
     def _dbus_set_host(self, host_index: int):
-        """Call the daemon's SetHost D-Bus method to switch Easy-Switch channel."""
+        """Call the daemon's SetHost D-Bus method to switch Easy-Switch channel.
+
+        Uses Popen (fire-and-forget) to avoid blocking the handoff critical path.
+        """
         try:
             import subprocess
-            result = subprocess.run(
+            subprocess.Popen(
                 [
                     "gdbus", "call", "--session",
                     "--dest", "org.kde.juhradialmx",
@@ -324,11 +339,8 @@ class FlowHandoffManager:
                     "--method", "org.kde.juhradialmx.Daemon.SetHost",
                     str(host_index),
                 ],
-                capture_output=True, text=True, timeout=1,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-            if result.returncode == 0:
-                logger.info("Switched MX Master to host %d", host_index)
-            else:
-                logger.warning("Host switch failed: %s", result.stderr.strip())
+            logger.info("SetHost %d dispatched (async)", host_index)
         except Exception as e:
             logger.warning("Host switch D-Bus call failed: %s", e)
