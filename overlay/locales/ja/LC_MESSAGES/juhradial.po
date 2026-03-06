@@ -333,56 +333,58 @@ msgstr "プロファイルの作成に失敗しました: {}"
 
 #: overlay/settings_dialogs.py:1112
 msgid "Application Profiles"
-msgstr ""
+msgstr "アプリケーションプロファイル"
 
 #: overlay/settings_dialogs.py:1124
 msgid "Close"
-msgstr ""
+msgstr "閉じる"
 
 #: overlay/settings_dialogs.py:1129 overlay/settings_page_easyswitch.py:93
 msgid "Refresh"
-msgstr ""
+msgstr "更新"
 
 #: overlay/settings_dialogs.py:1201
 msgid "Slices: {}/8 configured"
-msgstr ""
+msgstr "スライス: {}/8 設定済み"
 
 #: overlay/settings_dialogs.py:1209
 msgid "Edit Slices"
-msgstr ""
+msgstr "スライスを編集"
 
 #: overlay/settings_dialogs.py:1214
 msgid "Remove"
-msgstr ""
+msgstr "削除"
 
 #: overlay/settings_dialogs.py:1239
 msgid "Removed profile for {}"
-msgstr ""
+msgstr "{} のプロファイルを削除しました"
 
 #: overlay/settings_dialogs.py:1244
 msgid "Failed to remove profile: {}"
-msgstr ""
+msgstr "プロファイルの削除に失敗しました: {}"
 
 #: overlay/settings_dialogs.py:1264
 msgid "No application profiles yet. Use '+ Add Application' to create one."
-msgstr ""
+msgstr "アプリケーションプロファイルはまだありません。「+ アプリケーションを追加」で作成してください。"
 
 #: overlay/settings_dialogs.py:1268
 msgid "Profiles: {}"
-msgstr ""
+msgstr "プロファイル: {}"
 
 #: overlay/settings_dialogs.py:1288
 msgid "Edit Profile: {}"
-msgstr ""
+msgstr "プロファイルを編集: {}"
 
 #: overlay/settings_dialogs.py:1322
 msgid ""
 "Choose which action each slice should use when this application is active."
 msgstr ""
+"このアプリケーションがアクティブなときに各スライスで使用するアクションを選択し"
+"てください。"
 
 #: overlay/settings_dialogs.py:1453
 msgid "Updated profile for {}"
-msgstr ""
+msgstr "{} のプロファイルを更新しました"
 
 #: overlay/settings_page_buttons.py:88
 msgid "Actions Ring"
@@ -478,7 +480,7 @@ msgstr "デバイスのファームウェア情報"
 
 #: overlay/settings_page_devices.py:100
 msgid "Managed by JuhRadial MX"
-msgstr ""
+msgstr "JuhRadial MX で管理"
 
 #: overlay/settings_page_devices.py:108
 msgid "Device Management"
@@ -490,6 +492,9 @@ msgid ""
 "remapping, scroll settings, and haptics are all managed through this "
 "settings window."
 msgstr ""
+"JuhRadial MX は HID++ を通じてデバイス設定をネイティブに管理します。ボタンの"
+"割り当て変更、スクロール設定、触覚フィードバックはすべてこの設定ウィンドウで"
+"管理されます。"
 
 #: overlay/settings_page_devices.py:154
 msgid "USB Receiver / Bluetooth"
@@ -509,7 +514,7 @@ msgstr "放電中"
 
 #: overlay/settings_page_devices.py:182 overlay/settings_page_devices.py:185
 msgid "Unavailable"
-msgstr ""
+msgstr "利用不可"
 
 #: overlay/settings_page_easyswitch.py:45
 msgid "Coming Soon"
@@ -552,6 +557,8 @@ msgid ""
 "Slots are auto-detected from your mouse pairing state. Add or remove "
 "pairings on the mouse/receiver side, then press Refresh here."
 msgstr ""
+"スロットはマウスのペアリング状態から自動検出されます。マウス/レシーバー側で"
+"ペアリングを追加・削除してから、ここで「更新」を押してください。"
 
 #: overlay/settings_page_easyswitch.py:189
 msgid "Slot {}"
@@ -576,11 +583,11 @@ msgstr "デーモンに接続できませんでした"
 
 #: overlay/settings_page_easyswitch.py:367
 msgid "Detected slots: {}"
-msgstr ""
+msgstr "検出されたスロット: {}"
 
 #: overlay/settings_page_easyswitch.py:370
 msgid "Detected slots: --"
-msgstr ""
+msgstr "検出されたスロット: --"
 
 #: overlay/settings_page_flow.py:129
 msgid "Logitech Flow"
@@ -988,7 +995,7 @@ msgstr "デバイスに適用"
 
 #: overlay/settings_page_scroll.py:262
 msgid "Applies DPI, SmartShift, and scroll settings to your device"
-msgstr ""
+msgstr "DPI、SmartShift、スクロール設定をデバイスに適用します"
 
 #: overlay/settings_page_scroll.py:274
 msgid "Scroll Wheel"
@@ -1117,27 +1124,27 @@ msgstr "表示言語を選択します"
 
 #: overlay/settings_page_settings.py:123
 msgid "Desktop Environment"
-msgstr ""
+msgstr "デスクトップ環境"
 
 #: overlay/settings_page_settings.py:132
 msgid "Desktop"
-msgstr ""
+msgstr "デスクトップ"
 
 #: overlay/settings_page_settings.py:133
 msgid "Commands for screenshot, files, etc. adapt to your DE (detected: {})"
-msgstr ""
+msgstr "スクリーンショットやファイルなどのコマンドが DE に合わせて変わります (検出: {})"
 
 #: overlay/settings_page_settings.py:151
 msgid "Apply DE Defaults"
-msgstr ""
+msgstr "DE の既定値を適用"
 
 #: overlay/settings_page_settings.py:152
 msgid "Update radial menu commands to match selected desktop"
-msgstr ""
+msgstr "ラジアルメニューのコマンドを選択したデスクトップに合わせて更新します"
 
 #: overlay/settings_page_settings.py:154
 msgid "Apply"
-msgstr ""
+msgstr "適用"
 
 #: overlay/settings_page_settings.py:163
 msgid "Application"
@@ -1193,15 +1200,15 @@ msgstr "すべての設定を工場出荷時の既定値にリセットします
 
 #: overlay/settings_page_settings.py:279
 msgid "Updated for {}: {}"
-msgstr ""
+msgstr "{} 向けに更新しました: {}"
 
 #: overlay/settings_page_settings.py:281
 msgid "All commands already match selected DE"
-msgstr ""
+msgstr "すべてのコマンドは選択した DE と一致しています"
 
 #: overlay/settings_page_settings.py:284
 msgid "Desktop Commands Updated"
-msgstr ""
+msgstr "デスクトップコマンドを更新しました"
 
 #: overlay/settings_page_settings.py:393
 msgid "Settings Reset"

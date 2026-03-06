@@ -1,4 +1,4 @@
-# Thai translations for JuhRadial MX package.
+# Arabic translations for JuhRadial MX package.
 # Copyright (C) 2026 THE JuhRadial MX'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the JuhRadial MX package.
 # Automatically generated, 2026.
@@ -8,22 +8,22 @@ msgstr ""
 "Project-Id-Version: JuhRadial MX 1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/JuhLabs/juhradial-mx/issues\n"
 "POT-Creation-Date: 2026-03-04 11:35+0100\n"
-"PO-Revision-Date: 2026-02-08 10:10+0100\n"
+"PO-Revision-Date: 2026-03-06 11:00+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
-"Language: th\n"
+"Language: ar\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=1; plural=0;\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
 
 #: overlay/juhradial-overlay.py:847 overlay/settings_dialogs.py:467
 msgid "Settings"
-msgstr "การตั้งค่า"
+msgstr "الإعدادات"
 
 #: overlay/juhradial-overlay.py:859
 msgid "Exit"
-msgstr "ออก"
+msgstr "خروج"
 
 #: overlay/overlay_actions.py:214 overlay/settings_page_buttons.py:391
 #: overlay/settings_page_easyswitch.py:81
@@ -32,35 +32,35 @@ msgstr "Easy-Switch"
 
 #: overlay/overlay_painting.py:957
 msgid "Drag"
-msgstr "ลาก"
+msgstr "سحب"
 
 #: overlay/settings_config.py:224
 msgid "Settings saved"
-msgstr "บันทึกการตั้งค่าแล้ว"
+msgstr "تم حفظ الإعدادات"
 
 #: overlay/settings_config.py:227
 msgid "Error saving settings: {}"
-msgstr "ผิดพลาดในการบันทึกการตั้งค่า: {}"
+msgstr "خطأ في حفظ الإعدادات: {}"
 
 #: overlay/settings_dashboard.py:62
 msgid "JuhRadial MX Settings"
-msgstr "การตั้งค่า JuhRadial MX"
+msgstr "إعدادات JuhRadial MX"
 
 #: overlay/settings_dashboard.py:113
 msgid "+ ADD APPLICATION"
-msgstr "+ เพิ่มแอปพลิเคชัน"
+msgstr "+ إضافة تطبيق"
 
 #: overlay/settings_dashboard.py:313 overlay/settings_dashboard.py:350
 msgid "N/A"
-msgstr "ไม่มี"
+msgstr "غير متوفر"
 
 #: overlay/settings_dashboard.py:422
 msgid "MOUSE CONFIGURATION"
-msgstr "MOUSE CONFIGURATION"
+msgstr "إعدادات الفأرة"
 
 #: overlay/settings_dashboard.py:474
 msgid "Developed by"
-msgstr "พัฒนาโดย"
+msgstr "تطوير بواسطة"
 
 #: overlay/settings_dashboard.py:492
 msgid ""
@@ -68,13 +68,13 @@ msgid ""
 "If you enjoy this project,\n"
 "consider supporting development."
 msgstr ""
-"ซอฟต์แวร์เสรี &amp; โอเพนซอร์ส\n"
-"หากคุณชอบโปรเจกต์นี้\n"
-"ลองพิจารณาสนับสนุนการพัฒนา"
+"برنامج مجاني ومفتوح المصدر.\n"
+"إذا أعجبك هذا المشروع،\n"
+"فكّر في دعم التطوير."
 
 #: overlay/settings_dashboard.py:507
 msgid "Buy me a coffee"
-msgstr "เลี้ยงกาแฟ"
+msgstr "اشترِ لي قهوة"
 
 #: overlay/settings_dashboard.py:598
 msgid "Logi Bolt USB"
@@ -82,404 +82,407 @@ msgstr "Logi Bolt USB"
 
 #: overlay/settings_dialogs.py:46
 msgid "Configure {}"
-msgstr "กำหนดค่า {}"
+msgstr "تهيئة {}"
 
 #: overlay/settings_dialogs.py:58 overlay/settings_dialogs.py:216
 #: overlay/settings_dialogs.py:498 overlay/settings_dialogs.py:785
 #: overlay/settings_dialogs.py:1299 overlay/settings_page_flow.py:647
 msgid "Cancel"
-msgstr "ยกเลิก"
+msgstr "إلغاء"
 
 #: overlay/settings_dialogs.py:63 overlay/settings_dialogs.py:220
 #: overlay/settings_dialogs.py:502 overlay/settings_dialogs.py:1304
 msgid "Save"
-msgstr "บันทึก"
+msgstr "حفظ"
 
 #: overlay/settings_dialogs.py:87
 msgid "Restore Default"
-msgstr "คืนค่าเริ่มต้น"
+msgstr "استعادة الافتراضي"
 
 #: overlay/settings_dialogs.py:96
 msgid "Current: {}"
-msgstr "ปัจจุบัน: {}"
+msgstr "الحالي: {}"
 
 #: overlay/settings_dialogs.py:96
 msgid "Not set"
-msgstr "ยังไม่ได้ตั้งค่า"
+msgstr "غير محدد"
 
 #: overlay/settings_dialogs.py:202
 msgid "Configure Radial Menu"
-msgstr "กำหนดค่าเมนูวงกลม"
+msgstr "تهيئة القائمة الدائرية"
 
 #: overlay/settings_dialogs.py:241
 msgid ""
 "Configure the 8 actions in your radial menu. Click on a slice to change its "
 "action."
-msgstr "กำหนดค่าคำสั่ง 8 รายการในเมนูวงกลมของคุณ คลิกที่ชิ้นส่วนเพื่อเปลี่ยนคำสั่ง"
+msgstr ""
+"قم بتهيئة الإجراءات الثمانية في قائمتك الدائرية. انقر على شريحة لتغيير "
+"إجراءها."
 
 #: overlay/settings_dialogs.py:256 overlay/settings_dialogs.py:735
 #: overlay/settings_dialogs.py:1338
 msgid "Slice {}"
-msgstr "ชิ้นที่ {}"
+msgstr "شريحة {}"
 
 #: overlay/settings_dialogs.py:396
 msgid "Run Command"
-msgstr "เรียกใช้คำสั่ง"
+msgstr "تشغيل أمر"
 
 #: overlay/settings_dialogs.py:396
 msgid "Execute a shell command"
-msgstr "เรียกใช้คำสั่งเชลล์"
+msgstr "تنفيذ أمر في الطرفية"
 
 #: overlay/settings_dialogs.py:397
 msgid "Open URL"
-msgstr "เปิด URL"
+msgstr "فتح رابط"
 
 #: overlay/settings_dialogs.py:397
 msgid "Open a web address"
-msgstr "เปิดที่อยู่เว็บ"
+msgstr "فتح عنوان ويب"
 
 #: overlay/settings_dialogs.py:398
 msgid "Open Settings"
-msgstr "เปิดการตั้งค่า"
+msgstr "فتح الإعدادات"
 
 #: overlay/settings_dialogs.py:398
 msgid "Open JuhRadial settings"
-msgstr "เปิดการตั้งค่า JuhRadial MX"
+msgstr "فتح إعدادات JuhRadial"
 
 #: overlay/settings_dialogs.py:399 overlay/settings_dialogs.py:466
 msgid "Emoji Picker"
-msgstr "ตัวเลือกอีโมจิ"
+msgstr "منتقي الرموز التعبيرية"
 
 #: overlay/settings_dialogs.py:399
 msgid "Show emoji picker"
-msgstr "แสดงตัวเลือกอีโมจิ"
+msgstr "عرض منتقي الرموز التعبيرية"
 
 #: overlay/settings_dialogs.py:400
 msgid "Submenu"
-msgstr "เมนูย่อย"
+msgstr "قائمة فرعية"
 
 #: overlay/settings_dialogs.py:400
 msgid "Show a submenu with more options"
-msgstr "แสดงเมนูย่อยที่มีตัวเลือกเพิ่มเติม"
+msgstr "عرض قائمة فرعية بخيارات إضافية"
 
 #: overlay/settings_dialogs.py:413
 msgid "Play/Pause"
-msgstr "เล่น/หยุดชั่วคราว"
+msgstr "تشغيل/إيقاف مؤقت"
 
 #: overlay/settings_dialogs.py:420
 msgid "Next Track"
-msgstr "แทร็กถัดไป"
+msgstr "المقطع التالي"
 
 #: overlay/settings_dialogs.py:427
 msgid "Previous Track"
-msgstr "แทร็กก่อนหน้า"
+msgstr "المقطع السابق"
 
 #: overlay/settings_dialogs.py:434
 msgid "Volume Up"
-msgstr "เพิ่มเสียง"
+msgstr "رفع الصوت"
 
 #: overlay/settings_dialogs.py:441
 msgid "Volume Down"
-msgstr "ลดเสียง"
+msgstr "خفض الصوت"
 
 #: overlay/settings_dialogs.py:448
 msgid "Mute"
-msgstr "ปิดเสียง"
+msgstr "كتم الصوت"
 
 #: overlay/settings_dialogs.py:454
 msgid "Screenshot"
-msgstr "จับภาพหน้าจอ"
+msgstr "لقطة شاشة"
 
 #: overlay/settings_dialogs.py:456
 msgid "Lock Screen"
-msgstr "ล็อกหน้าจอ"
+msgstr "قفل الشاشة"
 
 #: overlay/settings_dialogs.py:462
 msgid "Files"
-msgstr "ไฟล์"
+msgstr "الملفات"
 
 #: overlay/settings_dialogs.py:463
 msgid "Terminal"
-msgstr "เทอร์มินัล"
+msgstr "الطرفية"
 
 #: overlay/settings_dialogs.py:464
 msgid "Browser"
-msgstr "เบราว์เซอร์"
+msgstr "المتصفح"
 
 #: overlay/settings_dialogs.py:465
 msgid "New Note"
-msgstr "บันทึกใหม่"
+msgstr "ملاحظة جديدة"
 
 #: overlay/settings_dialogs.py:471
 msgid "Configure Slice {}"
-msgstr "กำหนดค่าชิ้นที่ {}"
+msgstr "تهيئة الشريحة {}"
 
 #: overlay/settings_dialogs.py:523
 msgid "Quick Actions"
-msgstr "คำสั่งด่วน"
+msgstr "إجراءات سريعة"
 
 #: overlay/settings_dialogs.py:565
 msgid "Custom Configuration"
-msgstr "กำหนดค่าเอง"
+msgstr "تهيئة مخصصة"
 
 #: overlay/settings_dialogs.py:572
 msgid "Label"
-msgstr "ป้ายชื่อ"
+msgstr "التسمية"
 
 #: overlay/settings_dialogs.py:579
 msgid "Enter action label"
-msgstr "ป้อนชื่อคำสั่ง"
+msgstr "أدخل تسمية الإجراء"
 
 #: overlay/settings_dialogs.py:585
 msgid "Action Type"
-msgstr "ประเภทคำสั่ง"
+msgstr "نوع الإجراء"
 
 #: overlay/settings_dialogs.py:606 overlay/settings_dialogs.py:705
 msgid "Command"
-msgstr "คำสั่ง"
+msgstr "أمر"
 
 #: overlay/settings_dialogs.py:613 overlay/settings_dialogs.py:706
 msgid "e.g., playerctl play-pause"
-msgstr "เช่น playerctl play-pause"
+msgstr "مثال: playerctl play-pause"
 
 #: overlay/settings_dialogs.py:620
 msgid "Color"
-msgstr "สี"
+msgstr "اللون"
 
 #: overlay/settings_dialogs.py:649
 msgid "Icon"
-msgstr "ไอคอน"
+msgstr "أيقونة"
 
 #: overlay/settings_dialogs.py:658
 msgid "Icon name (e.g., folder-symbolic)"
-msgstr "ชื่อไอคอน (เช่น folder-symbolic)"
+msgstr "اسم الأيقونة (مثال: folder-symbolic)"
 
 #: overlay/settings_dialogs.py:702
 msgid "URL"
-msgstr "URL"
+msgstr "الرابط"
 
 #: overlay/settings_dialogs.py:703
 msgid "e.g., https://claude.ai"
-msgstr "เช่น https://claude.ai"
+msgstr "مثال: https://claude.ai"
 
 #: overlay/settings_dialogs.py:774
 msgid "Add Application Profile"
-msgstr "เพิ่มโปรไฟล์แอปพลิเคชัน"
+msgstr "إضافة ملف تعريف تطبيق"
 
 #: overlay/settings_dialogs.py:801
 msgid ""
 "Create a custom profile for a specific application.\n"
 "The radial menu will use this profile when the application is active."
 msgstr ""
-"สร้างโปรไฟล์กำหนดเองสำหรับแอปพลิเคชันเฉพาะ\n"
-"เมนูวงกลมจะใช้โปรไฟล์นี้เมื่อแอปพลิเคชันนั้นทำงานอยู่"
+"أنشئ ملف تعريف مخصص لتطبيق معين.\n"
+"ستستخدم القائمة الدائرية هذا الملف عندما يكون التطبيق نشطاً."
 
 #: overlay/settings_dialogs.py:809
 msgid "Select Application"
-msgstr "เลือกแอปพลิเคชัน"
+msgstr "اختيار تطبيق"
 
 #: overlay/settings_dialogs.py:812
 msgid "Running Applications:"
-msgstr "แอปพลิเคชันที่กำลังทำงาน:"
+msgstr "التطبيقات قيد التشغيل:"
 
 #: overlay/settings_dialogs.py:833
 msgid "Or enter application class manually:"
-msgstr "หรือป้อนคลาสแอปพลิเคชันด้วยตนเอง:"
+msgstr "أو أدخل فئة التطبيق يدوياً:"
 
 #: overlay/settings_dialogs.py:839
 msgid "e.g., firefox, code, gimp"
-msgstr "เช่น firefox, code, gimp"
+msgstr "مثال: firefox, code, gimp"
 
 #: overlay/settings_dialogs.py:846
 msgid "Add Profile"
-msgstr "เพิ่มโปรไฟล์"
+msgstr "إضافة ملف تعريف"
 
 #: overlay/settings_dialogs.py:1008
 msgid "Running"
-msgstr "กำลังทำงาน"
+msgstr "قيد التشغيل"
 
 #: overlay/settings_dialogs.py:1021
 msgid "(Enter app name manually below)"
-msgstr "(ป้อนชื่อแอปด้วยตนเองด้านล่าง)"
+msgstr "(أدخل اسم التطبيق يدوياً أدناه)"
 
 #: overlay/settings_dialogs.py:1047
 msgid "No Application Selected"
-msgstr "ไม่ได้เลือกแอปพลิเคชัน"
+msgstr "لم يتم اختيار تطبيق"
 
 #: overlay/settings_dialogs.py:1048
 msgid "Please select or enter an application name."
-msgstr "กรุณาเลือกหรือป้อนชื่อแอปพลิเคชัน"
+msgstr "يرجى اختيار أو إدخال اسم التطبيق."
 
 #: overlay/settings_dialogs.py:1050 overlay/settings_dialogs.py:1100
 #: overlay/settings_dialogs.py:1246 overlay/settings_page_settings.py:287
 #: overlay/settings_page_settings.py:398
 msgid "OK"
-msgstr "ตกลง"
+msgstr "موافق"
 
 #: overlay/settings_dialogs.py:1084 overlay/settings_dialogs.py:1091
 msgid "Profile created for {}"
-msgstr "สร้างโปรไฟล์สำหรับ {} แล้ว"
+msgstr "تم إنشاء ملف تعريف لـ {}"
 
 #: overlay/settings_dialogs.py:1098 overlay/settings_dialogs.py:1243
 msgid "Error"
-msgstr "ข้อผิดพลาด"
+msgstr "خطأ"
 
 #: overlay/settings_dialogs.py:1098
 msgid "Failed to create profile: {}"
-msgstr "ไม่สามารถสร้างโปรไฟล์ได้: {}"
+msgstr "فشل إنشاء ملف التعريف: {}"
 
 #: overlay/settings_dialogs.py:1112
 msgid "Application Profiles"
-msgstr "โปรไฟล์แอปพลิเคชัน"
+msgstr "ملفات تعريف التطبيقات"
 
 #: overlay/settings_dialogs.py:1124
 msgid "Close"
-msgstr "ปิด"
+msgstr "إغلاق"
 
 #: overlay/settings_dialogs.py:1129 overlay/settings_page_easyswitch.py:93
 msgid "Refresh"
-msgstr "รีเฟรช"
+msgstr "تحديث"
 
 #: overlay/settings_dialogs.py:1201
 msgid "Slices: {}/8 configured"
-msgstr "ชิ้น: {}/8 กำหนดค่าแล้ว"
+msgstr "الشرائح: {}/8 مهيأة"
 
 #: overlay/settings_dialogs.py:1209
 msgid "Edit Slices"
-msgstr "แก้ไขชิ้น"
+msgstr "تعديل الشرائح"
 
 #: overlay/settings_dialogs.py:1214
 msgid "Remove"
-msgstr "ลบ"
+msgstr "إزالة"
 
 #: overlay/settings_dialogs.py:1239
 msgid "Removed profile for {}"
-msgstr "ลบโปรไฟล์สำหรับ {} แล้ว"
+msgstr "تمت إزالة ملف تعريف {}"
 
 #: overlay/settings_dialogs.py:1244
 msgid "Failed to remove profile: {}"
-msgstr "ไม่สามารถลบโปรไฟล์ได้: {}"
+msgstr "فشل إزالة ملف التعريف: {}"
 
 #: overlay/settings_dialogs.py:1264
 msgid "No application profiles yet. Use '+ Add Application' to create one."
-msgstr "ยังไม่มีโปรไฟล์แอปพลิเคชัน ใช้ '+ เพิ่มแอปพลิเคชัน' เพื่อสร้าง"
+msgstr "لا توجد ملفات تعريف للتطبيقات بعد. استخدم '+ إضافة تطبيق' لإنشاء واحد."
 
 #: overlay/settings_dialogs.py:1268
 msgid "Profiles: {}"
-msgstr "โปรไฟล์: {}"
+msgstr "ملفات التعريف: {}"
 
 #: overlay/settings_dialogs.py:1288
 msgid "Edit Profile: {}"
-msgstr "แก้ไขโปรไฟล์: {}"
+msgstr "تعديل ملف التعريف: {}"
 
 #: overlay/settings_dialogs.py:1322
 msgid ""
 "Choose which action each slice should use when this application is active."
-msgstr "เลือกคำสั่งที่แต่ละชิ้นจะใช้เมื่อแอปพลิเคชันนี้ทำงานอยู่"
+msgstr ""
+"اختر الإجراء الذي يجب أن تستخدمه كل شريحة عندما يكون هذا التطبيق نشطاً."
 
 #: overlay/settings_dialogs.py:1453
 msgid "Updated profile for {}"
-msgstr "อัปเดตโปรไฟล์สำหรับ {} แล้ว"
+msgstr "تم تحديث ملف تعريف {}"
 
 #: overlay/settings_page_buttons.py:88
 msgid "Actions Ring"
-msgstr "วงแหวนคำสั่ง"
+msgstr "حلقة الإجراءات"
 
 #: overlay/settings_page_buttons.py:93
 msgid "Click any action to customize"
-msgstr "คลิกคำสั่งใดก็ได้เพื่อปรับแต่ง"
+msgstr "انقر على أي إجراء لتخصيصه"
 
 #: overlay/settings_page_buttons.py:112
 msgid "Top"
-msgstr "บน"
+msgstr "أعلى"
 
 #: overlay/settings_page_buttons.py:113
 msgid "Top Right"
-msgstr "บนขวา"
+msgstr "أعلى اليمين"
 
 #: overlay/settings_page_buttons.py:114
 msgid "Right"
-msgstr "ขวา"
+msgstr "يمين"
 
 #: overlay/settings_page_buttons.py:115
 msgid "Bottom Right"
-msgstr "ล่างขวา"
+msgstr "أسفل اليمين"
 
 #: overlay/settings_page_buttons.py:116
 msgid "Bottom"
-msgstr "ล่าง"
+msgstr "أسفل"
 
 #: overlay/settings_page_buttons.py:117
 msgid "Bottom Left"
-msgstr "ล่างซ้าย"
+msgstr "أسفل اليسار"
 
 #: overlay/settings_page_buttons.py:118
 msgid "Left"
-msgstr "ซ้าย"
+msgstr "يسار"
 
 #: overlay/settings_page_buttons.py:119
 msgid "Top Left"
-msgstr "บนซ้าย"
+msgstr "أعلى اليسار"
 
 #: overlay/settings_page_buttons.py:157
 msgid "Easy-Switch Shortcuts"
-msgstr "ทางลัด Easy-Switch"
+msgstr "اختصارات Easy-Switch"
 
 #: overlay/settings_page_buttons.py:162
 msgid "Replace Emoji with Easy-Switch 1, 2, 3 submenu"
-msgstr "แทนที่อีโมจิด้วยเมนูย่อย Easy-Switch 1, 2, 3"
+msgstr "استبدال الرموز التعبيرية بقائمة Easy-Switch 1، 2، 3 الفرعية"
 
 #: overlay/settings_page_buttons.py:190
 msgid "Button Assignments"
-msgstr "การกำหนดปุ่ม"
+msgstr "تعيينات الأزرار"
 
 #: overlay/settings_page_buttons.py:398
 msgid "Emoji"
-msgstr "อีโมจิ"
+msgstr "رموز تعبيرية"
 
 #: overlay/settings_page_devices.py:35
 msgid "Connected Device"
-msgstr "อุปกรณ์ที่เชื่อมต่อ"
+msgstr "الجهاز المتصل"
 
 #: overlay/settings_page_devices.py:39
 msgid "Device Name"
-msgstr "ชื่ออุปกรณ์"
+msgstr "اسم الجهاز"
 
 #: overlay/settings_page_devices.py:39
 msgid "Your Logitech mouse model"
-msgstr "รุ่นเมาส์ Logitech ของคุณ"
+msgstr "طراز فأرة Logitech الخاصة بك"
 
 #: overlay/settings_page_devices.py:53
 msgid "Connection"
-msgstr "การเชื่อมต่อ"
+msgstr "الاتصال"
 
 #: overlay/settings_page_devices.py:53
 msgid "How your device is connected"
-msgstr "วิธีที่อุปกรณ์ของคุณเชื่อมต่อ"
+msgstr "طريقة اتصال جهازك"
 
 #: overlay/settings_page_devices.py:79
 msgid "Battery Level"
-msgstr "ระดับแบตเตอรี่"
+msgstr "مستوى البطارية"
 
 #: overlay/settings_page_devices.py:79
 msgid "Current battery status"
-msgstr "สถานะแบตเตอรี่ปัจจุบัน"
+msgstr "حالة البطارية الحالية"
 
 #: overlay/settings_page_devices.py:99
 msgid "Firmware Version"
-msgstr "เวอร์ชันเฟิร์มแวร์"
+msgstr "إصدار البرنامج الثابت"
 
 #: overlay/settings_page_devices.py:99
 msgid "Device firmware information"
-msgstr "ข้อมูลเฟิร์มแวร์ของอุปกรณ์"
+msgstr "معلومات البرنامج الثابت للجهاز"
 
 #: overlay/settings_page_devices.py:100
 msgid "Managed by JuhRadial MX"
-msgstr "จัดการโดย JuhRadial MX"
+msgstr "يُدار بواسطة JuhRadial MX"
 
 #: overlay/settings_page_devices.py:108
 msgid "Device Management"
-msgstr "การจัดการอุปกรณ์"
+msgstr "إدارة الجهاز"
 
 #: overlay/settings_page_devices.py:113
 msgid ""
@@ -487,101 +490,102 @@ msgid ""
 "remapping, scroll settings, and haptics are all managed through this "
 "settings window."
 msgstr ""
-"JuhRadial MX จัดการการกำหนดค่าอุปกรณ์โดยตรงผ่าน HID++ การกำหนดปุ่มใหม่ "
-"การตั้งค่าการเลื่อน และแรงสะท้อนสัมผัส ทั้งหมดจัดการผ่านหน้าต่างการตั้งค่านี้"
+"يتعامل JuhRadial MX مع إعدادات الجهاز مباشرة عبر HID++. إعادة تعيين "
+"الأزرار وإعدادات التمرير والاستجابة اللمسية تُدار جميعها من خلال "
+"نافذة الإعدادات هذه."
 
 #: overlay/settings_page_devices.py:154
 msgid "USB Receiver / Bluetooth"
-msgstr "ตัวรับ USB / บลูทูธ"
+msgstr "مستقبل USB / بلوتوث"
 
 #: overlay/settings_page_devices.py:157
 msgid "USB Receiver"
-msgstr "ตัวรับ USB"
+msgstr "مستقبل USB"
 
 #: overlay/settings_page_devices.py:178 overlay/settings_page_settings.py:212
 msgid "Charging"
-msgstr "กำลังชาร์จ"
+msgstr "جارٍ الشحن"
 
 #: overlay/settings_page_devices.py:178 overlay/settings_page_settings.py:212
 msgid "Discharging"
-msgstr "กำลังคายประจุ"
+msgstr "جارٍ التفريغ"
 
 #: overlay/settings_page_devices.py:182 overlay/settings_page_devices.py:185
 msgid "Unavailable"
-msgstr "ไม่พร้อมใช้งาน"
+msgstr "غير متوفر"
 
 #: overlay/settings_page_easyswitch.py:45
 msgid "Coming Soon"
-msgstr "เร็วๆ นี้"
+msgstr "قريباً"
 
 #: overlay/settings_page_easyswitch.py:85
 msgid "Switch between paired computers"
-msgstr "สลับระหว่างคอมพิวเตอร์ที่จับคู่แล้ว"
+msgstr "التبديل بين الحواسيب المقترنة"
 
 #: overlay/settings_page_easyswitch.py:107
 msgid "Paired Computers"
-msgstr "คอมพิวเตอร์ที่จับคู่แล้ว"
+msgstr "الحواسيب المقترنة"
 
 #: overlay/settings_page_easyswitch.py:118
 msgid "About Easy-Switch"
-msgstr "เกี่ยวกับ Easy-Switch"
+msgstr "حول Easy-Switch"
 
 #: overlay/settings_page_easyswitch.py:122
 msgid ""
 "Easy-Switch allows your mouse to connect to multiple computers.\n"
 "Use the button on your mouse to switch between paired devices."
 msgstr ""
-"Easy-Switch ช่วยให้เมาส์ของคุณเชื่อมต่อกับหลายคอมพิวเตอร์\n"
-"ใช้ปุ่มบนเมาส์เพื่อสลับระหว่างอุปกรณ์ที่จับคู่แล้ว"
+"يتيح Easy-Switch لفأرتك الاتصال بعدة حواسيب.\n"
+"استخدم الزر الموجود على فأرتك للتبديل بين الأجهزة المقترنة."
 
 #: overlay/settings_page_easyswitch.py:127
 msgid "Note:"
-msgstr "หมายเหตุ:"
+msgstr "ملاحظة:"
 
 #: overlay/settings_page_easyswitch.py:130
 msgid ""
 "Host names are read from the device and reflect\n"
 "the computer names set during pairing."
 msgstr ""
-"ชื่อโฮสต์จะอ่านจากอุปกรณ์และแสดง\n"
-"ชื่อคอมพิวเตอร์ที่ตั้งไว้ระหว่างการจับคู่"
+"تُقرأ أسماء المضيف من الجهاز وتعكس\n"
+"أسماء الحواسيب المحددة أثناء الاقتران."
 
 #: overlay/settings_page_easyswitch.py:135
 msgid ""
 "Slots are auto-detected from your mouse pairing state. Add or remove "
 "pairings on the mouse/receiver side, then press Refresh here."
 msgstr ""
-"ช่องจะตรวจจับอัตโนมัติจากสถานะการจับคู่เมาส์ เพิ่มหรือลบการจับคู่ที่ฝั่ง"
-"เมาส์/ตัวรับ แล้วกดรีเฟรชที่นี่"
+"يتم اكتشاف الفتحات تلقائياً من حالة اقتران الفأرة. أضف أو أزل "
+"الاقترانات من جانب الفأرة/المستقبل، ثم اضغط تحديث هنا."
 
 #: overlay/settings_page_easyswitch.py:189
 msgid "Slot {}"
-msgstr "ช่องที่ {}"
+msgstr "فتحة {}"
 
 #: overlay/settings_page_easyswitch.py:199
 #: overlay/settings_page_settings.py:214
 msgid "Connected"
-msgstr "เชื่อมต่อแล้ว"
+msgstr "متصل"
 
 #: overlay/settings_page_easyswitch.py:199
 msgid "Click to switch"
-msgstr "คลิกเพื่อสลับ"
+msgstr "انقر للتبديل"
 
 #: overlay/settings_page_easyswitch.py:210
 msgid "Active"
-msgstr "ใช้งานอยู่"
+msgstr "نشط"
 
 #: overlay/settings_page_easyswitch.py:344
 msgid "Could not connect to daemon"
-msgstr "ไม่สามารถเชื่อมต่อกับ daemon ได้"
+msgstr "تعذر الاتصال بالخدمة الخلفية"
 
 #: overlay/settings_page_easyswitch.py:367
 msgid "Detected slots: {}"
-msgstr "ช่องที่ตรวจพบ: {}"
+msgstr "الفتحات المكتشفة: {}"
 
 #: overlay/settings_page_easyswitch.py:370
 msgid "Detected slots: --"
-msgstr "ช่องที่ตรวจพบ: --"
+msgstr "الفتحات المكتشفة: --"
 
 #: overlay/settings_page_flow.py:129
 msgid "Logitech Flow"
@@ -589,127 +593,127 @@ msgstr "Logitech Flow"
 
 #: overlay/settings_page_flow.py:133
 msgid "Seamlessly move between computers"
-msgstr "สลับระหว่างคอมพิวเตอร์ได้อย่างราบรื่น"
+msgstr "التنقل بسلاسة بين الحواسيب"
 
 #: overlay/settings_page_flow.py:140
 msgid "Flow Control"
-msgstr "การควบคุม Flow"
+msgstr "التحكم في Flow"
 
 #: overlay/settings_page_flow.py:143
 msgid "Enable Flow"
-msgstr "เปิดใช้งาน Flow"
+msgstr "تفعيل Flow"
 
 #: overlay/settings_page_flow.py:143
 msgid "Control multiple computers with one mouse"
-msgstr "ควบคุมหลายคอมพิวเตอร์ด้วยเมาส์เดียว"
+msgstr "التحكم بعدة حواسيب بفأرة واحدة"
 
 #: overlay/settings_page_flow.py:153
 msgid "Switch at screen edge"
-msgstr "สลับที่ขอบหน้าจอ"
+msgstr "التبديل عند حافة الشاشة"
 
 #: overlay/settings_page_flow.py:153
 msgid "Move cursor to edge to switch computers"
-msgstr "เลื่อนเคอร์เซอร์ไปขอบเพื่อสลับคอมพิวเตอร์"
+msgstr "حرّك المؤشر إلى الحافة للتبديل بين الحواسيب"
 
 #: overlay/settings_page_flow.py:165
 msgid "Computers on Network"
-msgstr "คอมพิวเตอร์ในเครือข่าย"
+msgstr "الحواسيب على الشبكة"
 
 #: overlay/settings_page_flow.py:172 overlay/settings_page_flow.py:496
 msgid "No other computers detected"
-msgstr "ไม่พบคอมพิวเตอร์อื่น"
+msgstr "لم يتم اكتشاف حواسيب أخرى"
 
 #: overlay/settings_page_flow.py:185 overlay/settings_page_flow.py:292
 msgid "Scan Network"
-msgstr "สแกนเครือข่าย"
+msgstr "فحص الشبكة"
 
 #: overlay/settings_page_flow.py:195
 msgid "How Flow Works"
-msgstr "Flow ทำงานอย่างไร"
+msgstr "كيف يعمل Flow"
 
 #: overlay/settings_page_flow.py:199
 msgid ""
 "Logitech Flow allows you to seamlessly control multiple computers\n"
 "with a single mouse by moving your cursor to the edge of the screen."
 msgstr ""
-"Logitech Flow ช่วยให้คุณควบคุมหลายคอมพิวเตอร์ได้อย่างราบรื่น\n"
-"ด้วยเมาส์เพียงตัวเดียว โดยเลื่อนเคอร์เซอร์ไปที่ขอบหน้าจอ"
+"يتيح لك Logitech Flow التحكم بسلاسة بعدة حواسيب\n"
+"بفأرة واحدة عن طريق تحريك المؤشر إلى حافة الشاشة."
 
 #: overlay/settings_page_flow.py:203
 msgid "Requirements:"
-msgstr "ข้อกำหนด:"
+msgstr "المتطلبات:"
 
 #: overlay/settings_page_flow.py:204
 msgid "JuhRadialMX running on all computers"
-msgstr "JuhRadial MX ทำงานบนทุกคอมพิวเตอร์"
+msgstr "JuhRadialMX يعمل على جميع الحواسيب"
 
 #: overlay/settings_page_flow.py:205
 msgid "Computers connected to the same network"
-msgstr "คอมพิวเตอร์เชื่อมต่ออยู่ในเครือข่ายเดียวกัน"
+msgstr "الحواسيب متصلة بنفس الشبكة"
 
 #: overlay/settings_page_flow.py:206
 msgid "Flow enabled on all devices"
-msgstr "เปิดใช้งาน Flow บนทุกอุปกรณ์"
+msgstr "Flow مفعّل على جميع الأجهزة"
 
 #: overlay/settings_page_flow.py:207
 msgid "Compatible Software Detected:"
-msgstr "ตรวจพบซอฟต์แวร์ที่เข้ากันได้:"
+msgstr "البرامج المتوافقة المكتشفة:"
 
 #: overlay/settings_page_flow.py:208
 msgid "JuhRadialMX instances"
-msgstr "อินสแตนซ์ JuhRadial MX"
+msgstr "نسخ JuhRadialMX"
 
 #: overlay/settings_page_flow.py:210
 msgid "open-source KVM"
-msgstr "KVM โอเพนซอร์ส"
+msgstr "KVM مفتوح المصدر"
 
 #: overlay/settings_page_flow.py:213
 msgid "Features:"
-msgstr "คุณสมบัติ:"
+msgstr "الميزات:"
 
 #: overlay/settings_page_flow.py:214
 msgid "Move cursor between screens seamlessly"
-msgstr "เลื่อนเคอร์เซอร์ระหว่างหน้าจอได้อย่างราบรื่น"
+msgstr "تحريك المؤشر بين الشاشات بسلاسة"
 
 #: overlay/settings_page_flow.py:215
 msgid "Copy and paste across computers"
-msgstr "คัดลอกและวางข้ามคอมพิวเตอร์"
+msgstr "النسخ واللصق بين الحواسيب"
 
 #: overlay/settings_page_flow.py:216
 msgid "Transfer files by dragging"
-msgstr "ถ่ายโอนไฟล์โดยการลาก"
+msgstr "نقل الملفات بالسحب"
 
 #: overlay/settings_page_flow.py:283
 msgid "Scanning..."
-msgstr "กำลังสแกน..."
+msgstr "جارٍ الفحص..."
 
 #: overlay/settings_page_flow.py:530
 msgid "Unknown"
-msgstr "ไม่ทราบ"
+msgstr "غير معروف"
 
 #: overlay/settings_page_flow.py:563 overlay/settings_page_flow.py:648
 msgid "Link"
-msgstr "เชื่อมโยง"
+msgstr "ربط"
 
 #: overlay/settings_page_flow.py:569
 msgid "Input Leap detected"
-msgstr "ตรวจพบ Input Leap"
+msgstr "تم اكتشاف Input Leap"
 
 #: overlay/settings_page_flow.py:571
 msgid "This computer is running Input Leap (open-source KVM)"
-msgstr "คอมพิวเตอร์เครื่องนี้กำลังใช้งาน Input Leap (KVM โอเพนซอร์ส)"
+msgstr "هذا الحاسوب يشغل Input Leap (KVM مفتوح المصدر)"
 
 #: overlay/settings_page_flow.py:586
 msgid "Install JuhRadialMX"
-msgstr "ติดตั้ง JuhRadial MX"
+msgstr "تثبيت JuhRadialMX"
 
 #: overlay/settings_page_flow.py:588
 msgid "Install JuhRadialMX on this computer to enable Flow linking"
-msgstr "ติดตั้ง JuhRadial MX บนคอมพิวเตอร์เครื่องนี้เพื่อเปิดใช้งานการเชื่อมโยง Flow"
+msgstr "ثبّت JuhRadialMX على هذا الحاسوب لتفعيل ربط Flow"
 
 #: overlay/settings_page_flow.py:628
 msgid "Link with {}"
-msgstr "เชื่อมโยงกับ {}"
+msgstr "ربط مع {}"
 
 #: overlay/settings_page_flow.py:630
 #, python-brace-format
@@ -718,225 +722,225 @@ msgid ""
 "\n"
 "If you don't see a pairing code, open Flow settings on the other computer."
 msgstr ""
-"ป้อนรหัสจับคู่ที่แสดงบน {name} เพื่อเชื่อมโยงคอมพิวเตอร์\n"
+"أدخل رمز الاقتران المعروض على {name} لربط الحواسيب.\n"
 "\n"
-"หากไม่เห็นรหัสจับคู่ ให้เปิดการตั้งค่า Flow บนคอมพิวเตอร์อีกเครื่อง"
+"إذا لم تشاهد رمز اقتران، افتح إعدادات Flow على الحاسوب الآخر."
 
 #: overlay/settings_page_flow.py:640
 msgid "Enter 6-digit pairing code"
-msgstr "ป้อนรหัสจับคู่ 6 หลัก"
+msgstr "أدخل رمز الاقتران المكون من 6 أرقام"
 
 #: overlay/settings_page_flow.py:684
 msgid "Linked with {}"
-msgstr "เชื่อมโยงกับ {} แล้ว"
+msgstr "مرتبط مع {}"
 
 #: overlay/settings_page_haptics.py:26
 msgid "Sharp Click"
-msgstr "คลิกคม"
+msgstr "نقرة حادة"
 
 #: overlay/settings_page_haptics.py:26
 msgid "Crisp, sharp feedback"
-msgstr "แรงสะท้อนกลับคมชัด"
+msgstr "استجابة واضحة وحادة"
 
 #: overlay/settings_page_haptics.py:27
 msgid "Soft Click"
-msgstr "คลิกนุ่ม"
+msgstr "نقرة ناعمة"
 
 #: overlay/settings_page_haptics.py:27
 msgid "Softer, dampened feedback"
-msgstr "แรงสะท้อนกลับนุ่มนวล"
+msgstr "استجابة أنعم ومخففة"
 
 #: overlay/settings_page_haptics.py:28
 msgid "Sharp Bump"
-msgstr "กระแทกแรง"
+msgstr "صدمة حادة"
 
 #: overlay/settings_page_haptics.py:28
 msgid "Strong collision feedback"
-msgstr "แรงสะท้อนกลับจากการกระทบที่แรง"
+msgstr "استجابة تصادم قوية"
 
 #: overlay/settings_page_haptics.py:29
 msgid "Soft Bump"
-msgstr "กระแทกเบา"
+msgstr "صدمة ناعمة"
 
 #: overlay/settings_page_haptics.py:29
 msgid "Gentle collision feedback"
-msgstr "แรงสะท้อนกลับจากการกระทบเบาๆ"
+msgstr "استجابة تصادم لطيفة"
 
 #: overlay/settings_page_haptics.py:30
 msgid "Subtle"
-msgstr "แผ่วเบา"
+msgstr "خفيف"
 
 #: overlay/settings_page_haptics.py:30
 msgid "Very light, subtle feedback"
-msgstr "แรงสะท้อนกลับเบามากแทบไม่รู้สึก"
+msgstr "استجابة خفيفة جداً ودقيقة"
 
 #: overlay/settings_page_haptics.py:31
 msgid "Whisper"
-msgstr "กระซิบ"
+msgstr "همسة"
 
 #: overlay/settings_page_haptics.py:31
 msgid "Barely perceptible feedback"
-msgstr "แรงสะท้อนกลับแทบจะไม่รู้สึก"
+msgstr "استجابة بالكاد محسوسة"
 
 #: overlay/settings_page_haptics.py:32
 msgid "Happy"
-msgstr "มีความสุข"
+msgstr "سعيد"
 
 #: overlay/settings_page_haptics.py:32
 msgid "Positive notification feel"
-msgstr "ความรู้สึกการแจ้งเตือนเชิงบวก"
+msgstr "شعور إشعار إيجابي"
 
 #: overlay/settings_page_haptics.py:33
 msgid "Alert"
-msgstr "เตือน"
+msgstr "تنبيه"
 
 #: overlay/settings_page_haptics.py:33
 msgid "Warning/error feel"
-msgstr "ความรู้สึกเตือน/ข้อผิดพลาด"
+msgstr "شعور تحذير/خطأ"
 
 #: overlay/settings_page_haptics.py:34
 msgid "Complete"
-msgstr "เสร็จสมบูรณ์"
+msgstr "مكتمل"
 
 #: overlay/settings_page_haptics.py:34
 msgid "Success/completion feel"
-msgstr "ความรู้สึกสำเร็จ/เสร็จสมบูรณ์"
+msgstr "شعور نجاح/اكتمال"
 
 #: overlay/settings_page_haptics.py:35
 msgid "Square Wave"
-msgstr "คลื่นสี่เหลี่ยม"
+msgstr "موجة مربعة"
 
 #: overlay/settings_page_haptics.py:35
 msgid "Mechanical square pattern"
-msgstr "รูปแบบสี่เหลี่ยมแบบกลไก"
+msgstr "نمط مربع ميكانيكي"
 
 #: overlay/settings_page_haptics.py:36
 msgid "Wave"
-msgstr "คลื่น"
+msgstr "موجة"
 
 #: overlay/settings_page_haptics.py:36
 msgid "Smooth wave pattern"
-msgstr "รูปแบบคลื่นที่ลื่นไหล"
+msgstr "نمط موجة سلس"
 
 #: overlay/settings_page_haptics.py:37
 msgid "Firework"
-msgstr "พลุ"
+msgstr "ألعاب نارية"
 
 #: overlay/settings_page_haptics.py:37
 msgid "Burst pattern"
-msgstr "รูปแบบระเบิด"
+msgstr "نمط انفجار"
 
 #: overlay/settings_page_haptics.py:38
 msgid "Strong Alert"
-msgstr "เตือนแรง"
+msgstr "تنبيه قوي"
 
 #: overlay/settings_page_haptics.py:38
 msgid "Strong error pattern"
-msgstr "รูปแบบข้อผิดพลาดแรง"
+msgstr "نمط خطأ قوي"
 
 #: overlay/settings_page_haptics.py:39
 msgid "Knock"
-msgstr "เคาะ"
+msgstr "طرق"
 
 #: overlay/settings_page_haptics.py:39
 msgid "Knocking pattern"
-msgstr "รูปแบบเคาะ"
+msgstr "نمط طرق"
 
 #: overlay/settings_page_haptics.py:40
 msgid "Jingle"
-msgstr "จิงเกิล"
+msgstr "رنين"
 
 #: overlay/settings_page_haptics.py:40
 msgid "Musical jingle pattern"
-msgstr "รูปแบบจิงเกิลเสียงดนตรี"
+msgstr "نمط رنين موسيقي"
 
 #: overlay/settings_page_haptics.py:41
 msgid "Ringing"
-msgstr "ดังกริ่ง"
+msgstr "رنّ"
 
 #: overlay/settings_page_haptics.py:41
 msgid "Ring/vibrate pattern"
-msgstr "รูปแบบกริ่ง/สั่น"
+msgstr "نمط رنين/اهتزاز"
 
 #: overlay/settings_page_haptics.py:54
 msgid "Haptic Feedback"
-msgstr "แรงสะท้อนสัมผัส"
+msgstr "الاستجابة اللمسية"
 
 #: overlay/settings_page_haptics.py:58
 msgid "Enable Haptic Feedback"
-msgstr "เปิดใช้งานแรงสะท้อนสัมผัส"
+msgstr "تفعيل الاستجابة اللمسية"
 
 #: overlay/settings_page_haptics.py:58
 msgid "Feel vibrations when using the radial menu"
-msgstr "รู้สึกการสั่นเมื่อใช้เมนูวงกลม"
+msgstr "الشعور بالاهتزازات عند استخدام القائمة الدائرية"
 
 #: overlay/settings_page_haptics.py:72
 msgid "Haptic Patterns"
-msgstr "รูปแบบสัมผัส"
+msgstr "أنماط لمسية"
 
 #: overlay/settings_page_haptics.py:78
 msgid "Menu Appear"
-msgstr "เมนูปรากฏ"
+msgstr "ظهور القائمة"
 
 #: overlay/settings_page_haptics.py:78
 msgid "Pattern when radial menu opens"
-msgstr "รูปแบบเมื่อเมนูวงกลมเปิดขึ้น"
+msgstr "النمط عند فتح القائمة الدائرية"
 
 #: overlay/settings_page_haptics.py:81
 msgid "Slice Hover"
-msgstr "วางเมาส์เหนือชิ้น"
+msgstr "التحويم فوق الشريحة"
 
 #: overlay/settings_page_haptics.py:82
 msgid "Pattern when hovering over different slices"
-msgstr "รูปแบบเมื่อวางเมาส์เหนือชิ้นต่างๆ"
+msgstr "النمط عند التحويم فوق شرائح مختلفة"
 
 #: overlay/settings_page_haptics.py:84
 msgid "Selection"
-msgstr "การเลือก"
+msgstr "الاختيار"
 
 #: overlay/settings_page_haptics.py:84
 msgid "Pattern when selecting an action"
-msgstr "รูปแบบเมื่อเลือกคำสั่ง"
+msgstr "النمط عند اختيار إجراء"
 
 #: overlay/settings_page_haptics.py:85
 msgid "Invalid Action"
-msgstr "คำสั่งไม่ถูกต้อง"
+msgstr "إجراء غير صالح"
 
 #: overlay/settings_page_haptics.py:85
 msgid "Pattern for blocked/invalid actions"
-msgstr "รูปแบบสำหรับคำสั่งที่ถูกบล็อก/ไม่ถูกต้อง"
+msgstr "النمط للإجراءات المحظورة/غير الصالحة"
 
 #: overlay/settings_page_haptics.py:103
 msgid "Apply to All"
-msgstr "ใช้กับทั้งหมด"
+msgstr "تطبيق على الكل"
 
 #: overlay/settings_page_haptics.py:103
 msgid "Set all events to the same pattern"
-msgstr "ตั้งเหตุการณ์ทั้งหมดเป็นรูปแบบเดียวกัน"
+msgstr "تعيين جميع الأحداث على نفس النمط"
 
 #: overlay/settings_page_haptics.py:114
 msgid "Test Haptics"
-msgstr "ทดสอบสัมผัส"
+msgstr "اختبار اللمس"
 
 #: overlay/settings_page_haptics.py:115
 msgid "Test Pattern"
-msgstr "ทดสอบรูปแบบ"
+msgstr "نمط اختبار"
 
 #: overlay/settings_page_haptics.py:115
 msgid "Feel the selected pattern"
-msgstr "สัมผัสรูปแบบที่เลือก"
+msgstr "الشعور بالنمط المحدد"
 
 #: overlay/settings_page_haptics.py:116
 msgid "Test"
-msgstr "ทดสอบ"
+msgstr "اختبار"
 
 #: overlay/settings_page_scroll.py:35
 msgid "Pointer Speed"
-msgstr "ความเร็วตัวชี้"
+msgstr "سرعة المؤشر"
 
 #: overlay/settings_page_scroll.py:38
 msgid "Adjust tracking sensitivity"
-msgstr "ปรับความไวในการติดตาม"
+msgstr "ضبط حساسية التتبع"
 
 #: overlay/settings_page_scroll.py:58
 msgid "DPI"
@@ -944,51 +948,51 @@ msgstr "DPI"
 
 #: overlay/settings_page_scroll.py:68
 msgid "Slow"
-msgstr "ช้า"
+msgstr "بطيء"
 
 #: overlay/settings_page_scroll.py:83
 msgid "Fast"
-msgstr "เร็ว"
+msgstr "سريع"
 
 #: overlay/settings_page_scroll.py:185
 msgid "Pointer"
-msgstr "ตัวชี้"
+msgstr "المؤشر"
 
 #: overlay/settings_page_scroll.py:203
 msgid "Acceleration Profile"
-msgstr "โปรไฟล์ความเร่ง"
+msgstr "ملف التسارع"
 
 #: overlay/settings_page_scroll.py:203
 msgid "How pointer speed scales with movement"
-msgstr "ความเร็วตัวชี้ปรับตามการเคลื่อนไหวอย่างไร"
+msgstr "كيف تتغير سرعة المؤشر مع الحركة"
 
 #: overlay/settings_page_scroll.py:206
 msgid "Adaptive (Recommended)"
-msgstr "ปรับตัว (แนะนำ)"
+msgstr "تكيفي (موصى به)"
 
 #: overlay/settings_page_scroll.py:207
 msgid "Flat (Linear)"
-msgstr "คงที่ (เชิงเส้น)"
+msgstr "مسطح (خطي)"
 
 #: overlay/settings_page_scroll.py:208
 msgid "System Default"
-msgstr "ค่าเริ่มต้นของระบบ"
+msgstr "الافتراضي للنظام"
 
 #: overlay/settings_page_scroll.py:231 overlay/settings_page_scroll.py:825
 msgid "Settings are up to date"
-msgstr "การตั้งค่าเป็นปัจจุบันแล้ว"
+msgstr "الإعدادات محدّثة"
 
 #: overlay/settings_page_scroll.py:249
 msgid "Apply to Device"
-msgstr "ใช้กับอุปกรณ์"
+msgstr "تطبيق على الجهاز"
 
 #: overlay/settings_page_scroll.py:262
 msgid "Applies DPI, SmartShift, and scroll settings to your device"
-msgstr "ใช้การตั้งค่า DPI, SmartShift และการเลื่อนกับอุปกรณ์ของคุณ"
+msgstr "يطبّق إعدادات DPI و SmartShift والتمرير على جهازك"
 
 #: overlay/settings_page_scroll.py:274
 msgid "Scroll Wheel"
-msgstr "ล้อเลื่อน"
+msgstr "عجلة التمرير"
 
 #: overlay/settings_page_scroll.py:289
 msgid "SmartShift"
@@ -997,83 +1001,84 @@ msgstr "SmartShift"
 #: overlay/settings_page_scroll.py:309
 msgid ""
 "Auto-switch to free-spin when scrolling fast, return to ratchet when slow"
-msgstr "สลับเป็นหมุนอิสระอัตโนมัติเมื่อเลื่อนเร็ว กลับเป็นแบบขั้นเมื่อเลื่อนช้า"
+msgstr ""
+"التبديل التلقائي إلى الدوران الحر عند التمرير السريع، والعودة إلى السقاطة عند البطء"
 
 #: overlay/settings_page_scroll.py:326
 msgid "Switch Threshold"
-msgstr "จุดสลับ"
+msgstr "عتبة التبديل"
 
 #: overlay/settings_page_scroll.py:342
 msgid "Stay ratchet"
-msgstr "คงแบบขั้น"
+msgstr "البقاء في وضع السقاطة"
 
 #: overlay/settings_page_scroll.py:360
 msgid "Easy free-spin"
-msgstr "หมุนอิสระง่าย"
+msgstr "دوران حر سهل"
 
 #: overlay/settings_page_scroll.py:375
 msgid "Natural Scrolling"
-msgstr "การเลื่อนแบบธรรมชาติ"
+msgstr "التمرير الطبيعي"
 
 #: overlay/settings_page_scroll.py:376
 msgid "Scroll content in the direction of finger movement"
-msgstr "เลื่อนเนื้อหาตามทิศทางการเคลื่อนนิ้ว"
+msgstr "تمرير المحتوى في اتجاه حركة الإصبع"
 
 #: overlay/settings_page_scroll.py:386
 msgid "High-Resolution Scroll"
-msgstr "การเลื่อนความละเอียดสูง"
+msgstr "تمرير عالي الدقة"
 
 #: overlay/settings_page_scroll.py:387
 msgid "More scroll events for smoother, faster scrolling"
-msgstr "เหตุการณ์การเลื่อนมากขึ้นเพื่อการเลื่อนที่ลื่นไหลและรวดเร็วขึ้น"
+msgstr "المزيد من أحداث التمرير لتمرير أكثر سلاسة وسرعة"
 
 #: overlay/settings_page_scroll.py:403 overlay/settings_page_scroll.py:424
 msgid "Scroll Speed"
-msgstr "ความเร็วการเลื่อน"
+msgstr "سرعة التمرير"
 
 #: overlay/settings_page_scroll.py:403
 msgid "Lines scrolled per wheel notch"
-msgstr "จำนวนบรรทัดที่เลื่อนต่อขั้นล้อ"
+msgstr "عدد الأسطر لكل درجة عجلة"
 
 #: overlay/settings_page_scroll.py:421
 msgid "Thumb Wheel"
-msgstr "ล้อหัวแม่มือ"
+msgstr "عجلة الإبهام"
 
 #: overlay/settings_page_scroll.py:424
 msgid "Horizontal scroll sensitivity"
-msgstr "ความไวการเลื่อนแนวนอน"
+msgstr "حساسية التمرير الأفقي"
 
 #: overlay/settings_page_scroll.py:440
 msgid "Invert Direction"
-msgstr "กลับทิศทาง"
+msgstr "عكس الاتجاه"
 
 #: overlay/settings_page_scroll.py:440
 msgid "Reverse thumb wheel scroll direction"
-msgstr "กลับทิศทางการเลื่อนของล้อหัวแม่มือ"
+msgstr "عكس اتجاه تمرير عجلة الإبهام"
 
 #: overlay/settings_page_scroll.py:793
 msgid "DPI set to {}"
-msgstr "ตั้ง DPI เป็น {}"
+msgstr "تم تعيين DPI إلى {}"
 
 #: overlay/settings_page_scroll.py:799
 msgid "DPI error: daemon not running?"
-msgstr "ข้อผิดพลาด DPI: daemon ไม่ได้ทำงานอยู่?"
+msgstr "خطأ DPI: هل الخدمة الخلفية تعمل؟"
 
 #: overlay/settings_page_scroll.py:808
 msgid "Click Apply to save changes"
-msgstr "คลิกใช้เพื่อบันทึกการเปลี่ยนแปลง"
+msgstr "انقر تطبيق لحفظ التغييرات"
 
 #: overlay/settings_page_scroll.py:819
 msgid "Settings applied!"
-msgstr "ใช้การตั้งค่าแล้ว!"
+msgstr "تم تطبيق الإعدادات!"
 
 #: overlay/settings_page_scroll.py:912
 msgid "enabled"
-msgstr "เปิดใช้งาน"
+msgstr "مفعّل"
 
 #: overlay/settings_page_scroll.py:912
 msgid "disabled"
-msgstr "ปิดใช้งาน"
+msgstr "معطّل"
 
 #: overlay/settings_page_scroll.py:913
 msgid "SmartShift {}"
@@ -1081,134 +1086,135 @@ msgstr "SmartShift {}"
 
 #: overlay/settings_page_scroll.py:922
 msgid "SmartShift error: daemon not running?"
-msgstr "ข้อผิดพลาด SmartShift: daemon ไม่ได้ทำงานอยู่?"
+msgstr "خطأ SmartShift: هل الخدمة الخلفية تعمل؟"
 
 #: overlay/settings_page_settings.py:47
 msgid "Appearance"
-msgstr "รูปลักษณ์"
+msgstr "المظهر"
 
 #: overlay/settings_page_settings.py:50
 msgid "Theme"
-msgstr "ธีม"
+msgstr "السمة"
 
 #: overlay/settings_page_settings.py:50
 msgid "Choose color theme for radial menu and settings"
-msgstr "เลือกธีมสีสำหรับเมนูวงกลมและการตั้งค่า"
+msgstr "اختر سمة الألوان للقائمة الدائرية والإعدادات"
 
 #: overlay/settings_page_settings.py:68
 msgid "Blur Effect"
-msgstr "เอฟเฟกต์เบลอ"
+msgstr "تأثير الضبابية"
 
 #: overlay/settings_page_settings.py:68
 msgid "Enable background blur for radial menu"
-msgstr "เปิดใช้งานพื้นหลังเบลอสำหรับเมนูวงกลม"
+msgstr "تفعيل ضبابية الخلفية للقائمة الدائرية"
 
 #: overlay/settings_page_settings.py:79
 msgid "Language"
-msgstr "ภาษา"
+msgstr "اللغة"
 
 #: overlay/settings_page_settings.py:79
 msgid "Choose display language"
-msgstr "เลือกภาษาที่แสดง"
+msgstr "اختر لغة العرض"
 
 #: overlay/settings_page_settings.py:123
 msgid "Desktop Environment"
-msgstr "สภาพแวดล้อมเดสก์ท็อป"
+msgstr "بيئة سطح المكتب"
 
 #: overlay/settings_page_settings.py:132
 msgid "Desktop"
-msgstr "เดสก์ท็อป"
+msgstr "سطح المكتب"
 
 #: overlay/settings_page_settings.py:133
 msgid "Commands for screenshot, files, etc. adapt to your DE (detected: {})"
-msgstr "คำสั่งสำหรับจับภาพหน้าจอ ไฟล์ ฯลฯ ปรับตาม DE ของคุณ (ตรวจพบ: {})"
+msgstr "أوامر لقطة الشاشة والملفات وغيرها تتكيف مع بيئتك (المكتشفة: {})"
 
 #: overlay/settings_page_settings.py:151
 msgid "Apply DE Defaults"
-msgstr "ใช้ค่าเริ่มต้น DE"
+msgstr "تطبيق إعدادات البيئة الافتراضية"
 
 #: overlay/settings_page_settings.py:152
 msgid "Update radial menu commands to match selected desktop"
-msgstr "อัปเดตคำสั่งเมนูวงกลมให้ตรงกับเดสก์ท็อปที่เลือก"
+msgstr "تحديث أوامر القائمة الدائرية لتتوافق مع سطح المكتب المحدد"
 
 #: overlay/settings_page_settings.py:154
 msgid "Apply"
-msgstr "ใช้"
+msgstr "تطبيق"
 
 #: overlay/settings_page_settings.py:163
 msgid "Application"
-msgstr "แอปพลิเคชัน"
+msgstr "التطبيق"
 
 #: overlay/settings_page_settings.py:166
 msgid "Start at Login"
-msgstr "เริ่มทำงานเมื่อเข้าสู่ระบบ"
+msgstr "البدء عند تسجيل الدخول"
 
 #: overlay/settings_page_settings.py:166
 msgid "Launch JuhRadial MX when you log in"
-msgstr "เปิด JuhRadial MX เมื่อเข้าสู่ระบบ"
+msgstr "تشغيل JuhRadial MX عند تسجيل الدخول"
 
 #: overlay/settings_page_settings.py:174
 msgid "Show Tray Icon"
-msgstr "แสดงไอคอนถาดระบบ"
+msgstr "إظهار أيقونة علبة النظام"
 
 #: overlay/settings_page_settings.py:174
 msgid "Display icon in system tray"
-msgstr "แสดงไอคอนในถาดระบบ"
+msgstr "عرض الأيقونة في علبة النظام"
 
 #: overlay/settings_page_settings.py:187
 msgid "Device Information"
-msgstr "ข้อมูลอุปกรณ์"
+msgstr "معلومات الجهاز"
 
 #: overlay/settings_page_settings.py:191 overlay/settings_page_settings.py:192
 msgid "Not available"
-msgstr "ไม่พร้อมใช้งาน"
+msgstr "غير متوفر"
 
 #: overlay/settings_page_settings.py:219
 msgid "Device"
-msgstr "อุปกรณ์"
+msgstr "الجهاز"
 
 #: overlay/settings_page_settings.py:220
 msgid "Battery"
-msgstr "แบตเตอรี่"
+msgstr "البطارية"
 
 #: overlay/settings_page_settings.py:221
 msgid "Status"
-msgstr "สถานะ"
+msgstr "الحالة"
 
 #: overlay/settings_page_settings.py:231 overlay/settings_page_settings.py:236
 msgid "Reset"
-msgstr "รีเซ็ต"
+msgstr "إعادة تعيين"
 
 #: overlay/settings_page_settings.py:234
 msgid "Restore Defaults"
-msgstr "คืนค่าเริ่มต้น"
+msgstr "استعادة الإعدادات الافتراضية"
 
 #: overlay/settings_page_settings.py:234
 msgid "Reset all settings to factory defaults"
-msgstr "รีเซ็ตการตั้งค่าทั้งหมดเป็นค่าจากโรงงาน"
+msgstr "إعادة تعيين جميع الإعدادات إلى الافتراضيات"
 
 #: overlay/settings_page_settings.py:279
 msgid "Updated for {}: {}"
-msgstr "อัปเดตสำหรับ {}: {}"
+msgstr "تم التحديث لـ {}: {}"
 
 #: overlay/settings_page_settings.py:281
 msgid "All commands already match selected DE"
-msgstr "คำสั่งทั้งหมดตรงกับ DE ที่เลือกแล้ว"
+msgstr "جميع الأوامر تتوافق بالفعل مع البيئة المحددة"
 
 #: overlay/settings_page_settings.py:284
 msgid "Desktop Commands Updated"
-msgstr "อัปเดตคำสั่งเดสก์ท็อปแล้ว"
+msgstr "تم تحديث أوامر سطح المكتب"
 
 #: overlay/settings_page_settings.py:393
 msgid "Settings Reset"
-msgstr "รีเซ็ตการตั้งค่าแล้ว"
+msgstr "تمت إعادة تعيين الإعدادات"
 
 #: overlay/settings_page_settings.py:395
 msgid ""
 "All settings have been restored to defaults. Please restart JuhRadial MX for "
 "changes to take effect."
 msgstr ""
-"การตั้งค่าทั้งหมดถูกคืนค่าเป็นค่าเริ่มต้นแล้ว กรุณารีสตาร์ท JuhRadial MX เพื่อให้การเปลี่ยนแปลงมีผล"
+"تمت استعادة جميع الإعدادات إلى الافتراضيات. يرجى إعادة تشغيل JuhRadial MX "
+"لتطبيق التغييرات."
 
 #: overlay/settings_widgets.py:231
 msgid "MX Master 4"
