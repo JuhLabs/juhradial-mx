@@ -138,6 +138,8 @@ class FlowHandoffManager:
             sent = True
             logger.info("Edge hit forwarded to JuhFlow bridge peers: %s (rel: %.2f)",
                         edge, relative_pos)
+            # Switch MX Master to the Mac's Easy-Switch host channel
+            self._switch_host_for_bridge()
 
         if not sent:
             logger.debug("No peer configured for %s edge", edge)
@@ -227,6 +229,9 @@ class FlowHandoffManager:
         if self.edge_detector:
             self.edge_detector.suppress_for(EDGE_COOLDOWN_MS)
 
+        # Switch MX Master back to this host (Linux)
+        self._switch_host_to_linux()
+
         # Warp cursor
         success = warp_cursor(x, y)
         logger.info(
@@ -257,3 +262,53 @@ class FlowHandoffManager:
             return self.presence_server.send_to_peer(peer_name, message)
 
         return False
+
+    def _get_flow_config(self):
+        """Read flow config from config.json."""
+        try:
+            from pathlib import Path
+            cfg_path = Path.home() / ".config" / "juhradial" / "config.json"
+            if cfg_path.exists():
+                return json.loads(cfg_path.read_text()).get("flow", {})
+        except Exception:
+            pass
+        return {}
+
+    def _switch_host_for_bridge(self):
+        """Switch MX Master to the Mac/Win host via D-Bus Easy-Switch."""
+        cfg = self._get_flow_config()
+        remote_host = cfg.get("remote_host_index")
+        if remote_host is None:
+            logger.debug("No remote_host_index in flow config, skipping host switch")
+            return
+        self._dbus_set_host(int(remote_host))
+
+    def _switch_host_to_linux(self):
+        """Switch MX Master back to this Linux host via D-Bus Easy-Switch."""
+        cfg = self._get_flow_config()
+        local_host = cfg.get("local_host_index")
+        if local_host is None:
+            logger.debug("No local_host_index in flow config, skipping host switch")
+            return
+        self._dbus_set_host(int(local_host))
+
+    def _dbus_set_host(self, host_index: int):
+        """Call the daemon's SetHost D-Bus method to switch Easy-Switch channel."""
+        try:
+            import subprocess
+            result = subprocess.run(
+                [
+                    "gdbus", "call", "--session",
+                    "--dest", "org.kde.juhradialmx",
+                    "--object-path", "/org/kde/juhradialmx/Daemon",
+                    "--method", "org.kde.juhradialmx.Daemon.SetHost",
+                    str(host_index),
+                ],
+                capture_output=True, text=True, timeout=1,
+            )
+            if result.returncode == 0:
+                logger.info("Switched MX Master to host %d", host_index)
+            else:
+                logger.warning("Host switch failed: %s", result.stderr.strip())
+        except Exception as e:
+            logger.warning("Host switch D-Bus call failed: %s", e)
