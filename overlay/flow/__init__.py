@@ -151,9 +151,18 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
                     node_id, peer["aes_key_bytes"],
                 )
 
-        # Start edge detector if edge trigger is enabled
-        # (settings UI will call edge_detector.set_enabled() based on config)
+        # Start edge detector and enable if config says so
         _edge_detector.start()
+        try:
+            import json
+            from pathlib import Path
+            cfg_path = Path.home() / ".config" / "juhradial" / "config.json"
+            cfg = json.loads(cfg_path.read_text()) if cfg_path.exists() else {}
+            edge_on = cfg.get("flow", {}).get("edge_trigger", True)
+        except Exception:
+            edge_on = True
+        if edge_on:
+            _edge_detector.set_enabled(True)
     except Exception as e:
         logger.warning("Edge detector/handoff setup deferred: %s", e)
 
