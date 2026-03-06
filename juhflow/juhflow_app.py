@@ -506,14 +506,16 @@ class JuhFlowApp:
             sw = int(frame.size.width)
             sh = int(frame.size.height)
 
+            # Offset must be > EDGE_THRESHOLD_PX to avoid landing in the detection zone
+            inset = EDGE_THRESHOLD_PX * 3  # 15px inside
             if arrival_edge == "left":
-                x, y = 5, int(relative_pos * sh)
+                x, y = inset, int(relative_pos * sh)
             elif arrival_edge == "right":
-                x, y = sw - 5, int(relative_pos * sh)
+                x, y = sw - inset, int(relative_pos * sh)
             elif arrival_edge == "top":
-                x, y = int(relative_pos * sw), 5
+                x, y = int(relative_pos * sw), inset
             else:
-                x, y = int(relative_pos * sw), sh - 5
+                x, y = int(relative_pos * sw), sh - inset
 
             Quartz.CGWarpMouseCursorPosition((x, y))
             self.edge_detector.suppress_for(EDGE_COOLDOWN_MS)

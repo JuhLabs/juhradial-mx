@@ -209,18 +209,20 @@ class FlowHandoffManager:
         sw, sh = screen["width"], screen["height"]
 
         # Compute arrival position on opposite edge
+        # Offset must be > EDGE_THRESHOLD_PX to avoid landing in the detection zone
+        inset = EDGE_THRESHOLD_PX * 3  # 15px inside, well clear of the 5px edge zone
         if arrival_edge == "left":
-            x = sx + 5  # slightly inside the edge
+            x = sx + inset
             y = sy + int(relative_pos * sh)
         elif arrival_edge == "right":
-            x = sx + sw - 5
+            x = sx + sw - inset
             y = sy + int(relative_pos * sh)
         elif arrival_edge == "top":
             x = sx + int(relative_pos * sw)
-            y = sy + 5
+            y = sy + inset
         elif arrival_edge == "bottom":
             x = sx + int(relative_pos * sw)
-            y = sy + sh - 5
+            y = sy + sh - inset
         else:
             x = sx + sw // 2
             y = sy + sh // 2
