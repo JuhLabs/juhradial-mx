@@ -159,6 +159,21 @@ class FlowPage(Gtk.ScrolledWindow):
         edge_row.set_control(self.edge_switch)
         enable_card.append(edge_row)
 
+        # Flow direction - which edge the peer is on
+        direction_row = SettingRow(
+            _("Peer direction"), _("Which screen edge to cross to the other computer")
+        )
+        self.direction_dropdown = Gtk.DropDown.new_from_strings(
+            [_("Right"), _("Left"), _("Top"), _("Bottom")]
+        )
+        direction_map = {"right": 0, "left": 1, "top": 2, "bottom": 3}
+        current_dir = config.get("flow", "direction", default="right")
+        self.direction_dropdown.set_selected(direction_map.get(current_dir, 0))
+        self.direction_dropdown.set_sensitive(config.get("flow", "enabled", default=False))
+        self.direction_dropdown.connect("notify::selected", self._on_direction_changed)
+        direction_row.set_control(self.direction_dropdown)
+        enable_card.append(direction_row)
+
         main_box.append(enable_card)
 
         # Detected Computers Card
@@ -233,8 +248,9 @@ class FlowPage(Gtk.ScrolledWindow):
     def _on_flow_toggled(self, switch, state):
         """Handle Flow enable/disable toggle"""
         config.set("flow", "enabled", state, auto_save=True)
-        # Enable/disable edge trigger based on Flow state
+        # Enable/disable edge trigger and direction based on Flow state
         self.edge_switch.set_sensitive(state)
+        self.direction_dropdown.set_sensitive(state)
 
         if FLOW_MODULE_AVAILABLE:
             if state:
@@ -284,6 +300,23 @@ class FlowPage(Gtk.ScrolledWindow):
                 print("[Flow] Server stopped")
 
         return False
+
+    def _on_direction_changed(self, dropdown, _pspec):
+        """Handle flow direction change"""
+        idx = dropdown.get_selected()
+        direction_values = ["right", "left", "top", "bottom"]
+        direction = direction_values[idx] if idx < len(direction_values) else "right"
+        config.set("flow", "direction", direction, auto_save=True)
+        print(f"[Flow] Direction set to: {direction}")
+
+        # Update the indicator position if running
+        if FLOW_MODULE_AVAILABLE:
+            try:
+                from flow import _flow_indicator
+                if _flow_indicator:
+                    _flow_indicator.configure(direction)
+            except Exception:
+                pass
 
     def _on_edge_toggled(self, switch, state):
         """Handle edge trigger toggle"""

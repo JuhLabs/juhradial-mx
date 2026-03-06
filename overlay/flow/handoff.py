@@ -130,7 +130,11 @@ class FlowHandoffManager:
                             peer_name, edge, relative_pos)
 
         # Also send to JuhFlow bridge peers (Mac/Win companion apps)
-        if self.juhflow_bridge and self.juhflow_bridge.get_peers():
+        # Only on the configured flow direction edge
+        cfg = self._get_flow_config()
+        flow_direction = cfg.get("direction", "right")
+        if (self.juhflow_bridge and self.juhflow_bridge.get_peers()
+                and edge == flow_direction):
             self.juhflow_bridge.send_edge_hit(
                 edge, (cx, cy), screen,
                 relative_position=relative_pos,
