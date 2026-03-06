@@ -5,7 +5,9 @@
 //!
 //! ## Device Detection
 //! Scans `/dev/input/event*` for Logitech devices (vendor ID 0x046D)
-//! and identifies the MX Master 4 by product ID.
+//! and identifies the MX Master 4 by product ID. If no MX device is found,
+//! falls back to detecting any mouse with EV_REL + REL_X + REL_Y capabilities
+//! (generic mouse mode).
 //!
 //! ## Event Handling
 //! Listens for EV_KEY events on the gesture button and emits
@@ -31,6 +33,9 @@ pub const GESTURE_BUTTON_CODES: &[u16] = &[
     0x116, // BTN_BACK - this is the haptic/gesture button on MX Master 4
 ];
 
+/// Default trigger button for generic mice (BTN_SIDE = 0x113, button 8 - common thumb button)
+pub const GENERIC_TRIGGER_BUTTON: u16 = 0x113;
+
 /// Event types for gesture button
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GestureEvent {
@@ -55,9 +60,11 @@ pub struct DeviceInfo {
     pub product_id: u16,
     /// Whether this appears to be an MX Master 4
     pub is_mx_master_4: bool,
+    /// Whether this is a generic (non-Logitech) mouse detected as fallback
+    pub is_generic_mouse: bool,
 }
 
-/// evdev handler for MX Master 4
+/// evdev handler for MX Master 4 and generic mice
 pub struct EvdevHandler {
     /// Channel to send gesture events
     event_tx: mpsc::Sender<GestureEvent>,
@@ -73,6 +80,10 @@ pub struct EvdevHandler {
     cursor_y: i32,
     /// Whether menu is currently active (button held)
     menu_active: bool,
+    /// Trigger button code (GESTURE_BUTTON_CODES for MX, GENERIC_TRIGGER_BUTTON for generic)
+    trigger_button: u16,
+    /// Whether we are running in generic mouse mode
+    generic_mode: bool,
 }
 
 impl EvdevHandler {
@@ -86,6 +97,23 @@ impl EvdevHandler {
             cursor_x: 0,
             cursor_y: 0,
             menu_active: false,
+            trigger_button: GESTURE_BUTTON_CODES[0],
+            generic_mode: false,
+        }
+    }
+
+    /// Create a new evdev handler for generic mouse mode
+    pub fn new_generic(event_tx: mpsc::Sender<GestureEvent>, trigger_button: Option<u16>) -> Self {
+        Self {
+            event_tx,
+            device_path: None,
+            press_time: None,
+            polling: false,
+            cursor_x: 0,
+            cursor_y: 0,
+            menu_active: false,
+            trigger_button: trigger_button.unwrap_or(GENERIC_TRIGGER_BUTTON),
+            generic_mode: true,
         }
     }
 
@@ -155,6 +183,104 @@ impl EvdevHandler {
         Err(EvdevError::DeviceNotFound)
     }
 
+    /// Scan /dev/input/ for ANY mouse device (generic fallback)
+    ///
+    /// Looks for devices with EV_REL + REL_X + REL_Y capabilities (i.e., a mouse).
+    /// Returns the first matching device found.
+    pub fn find_any_mouse() -> Result<DeviceInfo, EvdevError> {
+        #[cfg(not(target_os = "linux"))]
+        {
+            tracing::warn!("Generic mouse detection is only available on Linux");
+            return Err(EvdevError::DeviceNotFound);
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            Self::scan_generic_mouse()
+        }
+    }
+
+    /// Scan all input devices for any mouse on Linux
+    #[cfg(target_os = "linux")]
+    fn scan_generic_mouse() -> Result<DeviceInfo, EvdevError> {
+        use std::fs;
+        use evdev::{Device, EventType, RelativeAxisCode};
+
+        let input_dir = PathBuf::from("/dev/input");
+        if !input_dir.exists() {
+            tracing::error!("Input directory does not exist: {:?}", input_dir);
+            return Err(EvdevError::DeviceNotFound);
+        }
+
+        let entries = fs::read_dir(&input_dir).map_err(EvdevError::IoError)?;
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+            // Only check event devices
+            if !filename.starts_with("event") {
+                continue;
+            }
+
+            // Try to open the device
+            let device = match Device::open(&path) {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+
+            // Check for mouse capabilities: EV_REL with REL_X and REL_Y
+            let has_rel = device.supported_events().contains(EventType::RELATIVE);
+            if !has_rel {
+                continue;
+            }
+
+            let has_rel_axes = device.supported_relative_axes().map(|axes| {
+                axes.contains(RelativeAxisCode::REL_X) && axes.contains(RelativeAxisCode::REL_Y)
+            }).unwrap_or(false);
+
+            if !has_rel_axes {
+                continue;
+            }
+
+            // Must also have EV_KEY (buttons) to be a real mouse, not just a trackball sensor
+            let has_keys = device.supported_events().contains(EventType::KEY);
+            if !has_keys {
+                continue;
+            }
+
+            let input_id = device.input_id();
+            let vendor_id = input_id.vendor();
+            let product_id = input_id.product();
+            let name = device.name().unwrap_or("Unknown Mouse").to_string();
+
+            // Skip Logitech devices - those should be handled by find_device()
+            if vendor_id == LOGITECH_VENDOR_ID {
+                continue;
+            }
+
+            tracing::info!(
+                path = %path.display(),
+                name = %name,
+                vendor = format!("0x{:04X}", vendor_id),
+                product = format!("0x{:04X}", product_id),
+                "Found generic mouse"
+            );
+
+            return Ok(DeviceInfo {
+                path: path.clone(),
+                name,
+                vendor_id,
+                product_id,
+                is_mx_master_4: false,
+                is_generic_mouse: true,
+            });
+        }
+
+        tracing::warn!("No generic mouse found");
+        Err(EvdevError::DeviceNotFound)
+    }
+
     /// Check if a device path is a Logitech MX Master 4 with gesture buttons
     #[cfg(target_os = "linux")]
     fn check_device(path: &PathBuf) -> Result<Option<DeviceInfo>, EvdevError> {
@@ -204,6 +330,7 @@ impl EvdevHandler {
             vendor_id,
             product_id,
             is_mx_master_4,
+            is_generic_mouse: false,
         }))
     }
 
@@ -257,8 +384,12 @@ impl EvdevHandler {
     async fn run_event_loop(&mut self) -> Result<(), EvdevError> {
         use evdev::{Device, EventType, RelativeAxisCode};
 
-        // Find the device
-        let device_info = Self::find_device()?;
+        // Find the device - use generic fallback if in generic mode
+        let device_info = if self.generic_mode {
+            Self::find_any_mouse()?
+        } else {
+            Self::find_device()?
+        };
         self.device_path = Some(device_info.path.clone());
 
         // Open the device for reading
@@ -275,15 +406,20 @@ impl EvdevHandler {
             }
         })?;
 
+        let mode_label = if self.generic_mode { "generic" } else { "MX" };
         tracing::info!(
-            "Listening for events on {} ({:?})",
+            "Listening for events on {} ({:?}) [{}]",
             device_info.name,
-            device_info.path
+            device_info.path,
+            mode_label
         );
 
         // Create async event stream using into_event_stream()
         let mut events = device.into_event_stream()
             .map_err(EvdevError::IoError)?;
+
+        // Determine which button codes to match
+        let trigger = self.trigger_button;
 
         loop {
             match events.next_event().await {
@@ -291,7 +427,12 @@ impl EvdevHandler {
                     match event.event_type() {
                         EventType::KEY => {
                             let key_code = event.code();
-                            if GESTURE_BUTTON_CODES.contains(&key_code) {
+                            let is_trigger = if self.generic_mode {
+                                key_code == trigger
+                            } else {
+                                GESTURE_BUTTON_CODES.contains(&key_code)
+                            };
+                            if is_trigger {
                                 self.handle_gesture_event(event.value()).await;
                             }
                         }
@@ -486,7 +627,12 @@ callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
         }
 
         self.polling = true;
-        match Self::find_device() {
+        let result = if self.generic_mode {
+            Self::find_any_mouse()
+        } else {
+            Self::find_device()
+        };
+        match result {
             Ok(info) => {
                 self.polling = false;
                 Some(info)
@@ -555,6 +701,12 @@ mod tests {
         assert!(!GESTURE_BUTTON_CODES.is_empty());
         // BTN_BACK - haptic/gesture button on MX Master 4
         assert!(GESTURE_BUTTON_CODES.contains(&0x116));
+    }
+
+    #[test]
+    fn test_generic_trigger_button() {
+        // BTN_SIDE = 0x113 (button 8 - common thumb button on gaming mice)
+        assert_eq!(GENERIC_TRIGGER_BUTTON, 0x113);
     }
 
     #[test]

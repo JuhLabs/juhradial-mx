@@ -43,6 +43,10 @@ pub struct JuhRadialService {
     config: SharedConfig,
     /// Shared haptic manager for triggering haptic feedback
     haptic_manager: SharedHapticManager,
+    /// Device mode: "logitech" or "generic"
+    device_mode: String,
+    /// Detected device name (e.g., "MX Master 4" or "SteelSeries Rival 3")
+    device_name: String,
 }
 
 impl JuhRadialService {
@@ -58,6 +62,27 @@ impl JuhRadialService {
             battery_state,
             config,
             haptic_manager,
+            device_mode: "logitech".to_string(),
+            device_name: "Unknown".to_string(),
+        }
+    }
+
+    /// Create a new D-Bus service instance with device mode info
+    pub fn new_with_device(
+        battery_state: SharedBatteryState,
+        config: SharedConfig,
+        haptic_manager: SharedHapticManager,
+        device_mode: String,
+        device_name: String,
+    ) -> Self {
+        Self {
+            current_profile: "default".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            battery_state,
+            config,
+            haptic_manager,
+            device_mode,
+            device_name,
         }
     }
 }
@@ -428,15 +453,15 @@ impl JuhRadialService {
 
         match self.haptic_manager.lock() {
             Ok(mut manager) => {
-                // wheel_mode: 1 = Freespin, 2 = Ratchet
-                // auto_disengage: 0 = disabled (no auto-switch), 1-254 = threshold, 255 = always engaged
+                // wheel_mode: 0 = no change, 1 = Freespin, 2 = Ratchet
+                // auto_disengage: 0 = no change, 1-254 = N/4 turns/sec threshold, 255 = always engaged
                 //
                 // SmartShift behavior (like Logi Options+):
-                // - enabled=true: wheel starts in freespin mode with auto-disengage at threshold
-                //   (auto-switches to ratchet when scrolling fast)
-                // - enabled=false: wheel is locked in ratchet mode (traditional click-by-click)
+                // - enabled=true, threshold>0: SmartShift auto-mode (freespin + auto-switch at threshold)
+                // - enabled=true, threshold=0: pure free-spin (no auto-switch)
+                // - enabled=false: ratchet mode (255 = always engaged, locks ratchet)
                 let wheel_mode = if enabled { 1u8 } else { 2u8 };
-                let auto_disengage = if enabled { threshold } else { 0u8 };
+                let auto_disengage = if enabled { threshold } else { 255u8 };
                 let auto_disengage_default = auto_disengage;
 
                 match manager.set_smartshift(wheel_mode, auto_disengage, auto_disengage_default) {
@@ -610,6 +635,26 @@ impl JuhRadialService {
     }
 
     // =========================================================================
+    // DEVICE MODE METHODS
+    // =========================================================================
+
+    /// Get device mode: "logitech" or "generic"
+    ///
+    /// Returns "logitech" when an MX Master 4 is detected (full HID++ support),
+    /// or "generic" when using a non-Logitech mouse as fallback (evdev only).
+    async fn get_device_mode(&self) -> fdo::Result<String> {
+        Ok(self.device_mode.clone())
+    }
+
+    /// Get detected device name
+    ///
+    /// Returns the kernel-reported name of the detected mouse device,
+    /// e.g., "Logitech MX Master 4" or "SteelSeries Rival 3".
+    async fn get_device_name(&self) -> fdo::Result<String> {
+        Ok(self.device_name.clone())
+    }
+
+    // =========================================================================
     // PROPERTIES
     // =========================================================================
 
@@ -633,6 +678,18 @@ impl JuhRadialService {
     async fn daemon_version(&self) -> &str {
         &self.version
     }
+
+    /// Get device mode as D-Bus property
+    #[zbus(property)]
+    async fn device_mode(&self) -> &str {
+        &self.device_mode
+    }
+
+    /// Get device name as D-Bus property
+    #[zbus(property)]
+    async fn device_name(&self) -> &str {
+        &self.device_name
+    }
 }
 
 /// Initialize and run the D-Bus service
@@ -644,6 +701,8 @@ impl JuhRadialService {
 /// * `battery_state` - Shared battery state for GetBatteryStatus method
 /// * `config` - Shared configuration for hot-reload support
 /// * `haptic_manager` - Shared haptic manager for triggering haptic feedback
+/// * `device_mode` - Device mode: "logitech" or "generic"
+/// * `device_name` - Detected device name
 ///
 /// # Returns
 /// A `zbus::Connection` that should be kept alive for the service to run.
@@ -652,7 +711,18 @@ pub async fn init_dbus_service(
     config: SharedConfig,
     haptic_manager: SharedHapticManager,
 ) -> zbus::Result<zbus::Connection> {
-    let service = JuhRadialService::new(battery_state, config, haptic_manager);
+    init_dbus_service_with_device(battery_state, config, haptic_manager, "logitech".to_string(), "Unknown".to_string()).await
+}
+
+/// Initialize and run the D-Bus service with device mode information
+pub async fn init_dbus_service_with_device(
+    battery_state: SharedBatteryState,
+    config: SharedConfig,
+    haptic_manager: SharedHapticManager,
+    device_mode: String,
+    device_name: String,
+) -> zbus::Result<zbus::Connection> {
+    let service = JuhRadialService::new_with_device(battery_state, config, haptic_manager, device_mode, device_name);
 
     let connection = zbus::connection::Builder::session()?
         .name(DBUS_NAME)?
@@ -691,9 +761,26 @@ mod tests {
         let haptic_manager = new_shared_haptic_manager(&haptic_config);
         let service = JuhRadialService::new(battery_state, config, haptic_manager);
         assert_eq!(service.current_profile, "default");
+        assert_eq!(service.device_mode, "logitech");
+        assert_eq!(service.device_name, "Unknown");
         // Check haptics from config
         let haptics = service.config.read().unwrap().haptics.enabled;
         assert!(haptics);
         assert!(!service.version.is_empty());
+    }
+
+    #[test]
+    fn test_service_creation_with_device() {
+        let battery_state = new_shared_state();
+        let config = new_shared_config();
+        let haptic_config = config.read().unwrap().haptics.clone();
+        let haptic_manager = new_shared_haptic_manager(&haptic_config);
+        let service = JuhRadialService::new_with_device(
+            battery_state, config, haptic_manager,
+            "generic".to_string(),
+            "SteelSeries Rival 3".to_string(),
+        );
+        assert_eq!(service.device_mode, "generic");
+        assert_eq!(service.device_name, "SteelSeries Rival 3");
     }
 }
