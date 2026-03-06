@@ -16,11 +16,11 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, GLib, Gio, Adw
+from gi.repository import Gtk, Gdk, GLib, Gio, Adw
 
 from i18n import _
 from settings_config import config
-from settings_widgets import SettingsCard, SettingRow
+from settings_widgets import SettingsCard, SettingRow, PageHeader, InfoCard
 
 # Try to import zeroconf for mDNS discovery
 try:
@@ -111,30 +111,18 @@ class FlowPage(Gtk.ScrolledWindow):
 
         # Main container
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
-        main_box.set_margin_start(32)
-        main_box.set_margin_end(32)
-        main_box.set_margin_top(32)
-        main_box.set_margin_bottom(32)
+        main_box.set_margin_start(20)
+        main_box.set_margin_end(20)
+        main_box.set_margin_top(24)
+        main_box.set_margin_bottom(24)
 
-        # Header with Flow icon and description
-        header_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        header_box.set_halign(Gtk.Align.CENTER)
-        header_box.set_margin_bottom(16)
-
-        header_icon = Gtk.Image.new_from_icon_name("view-dual-symbolic")
-        header_icon.set_pixel_size(48)
-        header_icon.add_css_class("accent-color")
-        header_box.append(header_icon)
-
-        header_title = Gtk.Label(label=_("Logitech Flow"))
-        header_title.add_css_class("title-1")
-        header_box.append(header_title)
-
-        header_subtitle = Gtk.Label(label=_("Seamlessly move between computers"))
-        header_subtitle.add_css_class("dim-label")
-        header_box.append(header_subtitle)
-
-        main_box.append(header_box)
+        # Page header
+        header = PageHeader(
+            "view-dual-symbolic",
+            _("Logitech Flow"),
+            _("Seamlessly move between computers"),
+        )
+        main_box.append(header)
 
         # Enable Flow Card
         enable_card = SettingsCard(_("Flow Control"))
@@ -174,7 +162,68 @@ class FlowPage(Gtk.ScrolledWindow):
         direction_row.set_control(self.direction_dropdown)
         enable_card.append(direction_row)
 
+        # Monitor selection for multi-monitor setups
+        monitor_row = SettingRow(
+            _("Monitor"), _("Which screen to show the indicator and detect edges on")
+        )
+        self._monitor_connectors = self._get_monitor_connectors()
+        monitor_labels = [_("Auto")] + [
+            f"{c['connector']} ({c['width']}x{c['height']})"
+            for c in self._monitor_connectors
+        ]
+        self.monitor_dropdown = Gtk.DropDown.new_from_strings(monitor_labels)
+        current_monitor = config.get("flow", "monitor", default="")
+        # "" = Auto (index 0), connector name = find matching index
+        dropdown_idx = 0
+        if current_monitor:
+            for i, c in enumerate(self._monitor_connectors):
+                if c["connector"] == current_monitor:
+                    dropdown_idx = i + 1
+                    break
+        if dropdown_idx < len(monitor_labels):
+            self.monitor_dropdown.set_selected(dropdown_idx)
+        self.monitor_dropdown.set_sensitive(config.get("flow", "enabled", default=False))
+        self.monitor_dropdown.connect("notify::selected", self._on_monitor_changed)
+        monitor_row.set_control(self.monitor_dropdown)
+        enable_card.append(monitor_row)
+
         main_box.append(enable_card)
+
+        # Indicator Card
+        indicator_card = SettingsCard(_("Indicator"))
+
+        # Hide indicator toggle
+        hide_row = SettingRow(
+            _("Hide indicator"), _("Use Flow without the visual edge indicator")
+        )
+        self.hide_indicator_switch = Gtk.Switch()
+        self.hide_indicator_switch.set_active(
+            config.get("flow", "hide_indicator", default=False)
+        )
+        self.hide_indicator_switch.set_sensitive(
+            config.get("flow", "enabled", default=False)
+        )
+        self.hide_indicator_switch.connect("state-set", self._on_hide_indicator_toggled)
+        hide_row.set_control(self.hide_indicator_switch)
+        indicator_card.append(hide_row)
+
+        # Extend edge zone toggle
+        extend_row = SettingRow(
+            _("Extend edge trigger area"),
+            _("Trigger across the full screen edge instead of just the indicator zone"),
+        )
+        self.extend_zone_switch = Gtk.Switch()
+        self.extend_zone_switch.set_active(
+            config.get("flow", "extend_edge_zone", default=False)
+        )
+        self.extend_zone_switch.set_sensitive(
+            config.get("flow", "enabled", default=False)
+        )
+        self.extend_zone_switch.connect("state-set", self._on_extend_zone_toggled)
+        extend_row.set_control(self.extend_zone_switch)
+        indicator_card.append(extend_row)
+
+        main_box.append(indicator_card)
 
         # Detected Computers Card
         computers_card = SettingsCard(_("Computers on Network"))
@@ -206,30 +255,34 @@ class FlowPage(Gtk.ScrolledWindow):
 
         main_box.append(computers_card)
 
-        # How Flow Works Card
-        info_card = SettingsCard(_("How Flow Works"))
+        # How Flow Works Card (quieter styling)
+        info_card = InfoCard(_("How Flow Works"))
         info_label = Gtk.Label()
         info_label.set_markup(
-            _(
-                "Logitech Flow allows you to seamlessly control multiple computers\n"
-                "with a single mouse by moving your cursor to the edge of the screen."
+            "<b>" + _("Overview") + "</b>\n"
+            + _(
+                "Flow lets you control multiple computers with one mouse. "
+                "Move your cursor to a screen edge and it seamlessly jumps "
+                "to the other computer - just like Logitech Options+ Flow."
             )
             + "\n\n"
-            "<b>" + _("Requirements:") + "</b>\n"
-            "  \u2022 " + _("JuhRadialMX on Linux, JuhFlow on Mac/Windows") + "\n"
-            "  \u2022 " + _("Computers connected to the same network") + "\n"
-            "  \u2022 " + _("Flow enabled on all devices") + "\n\n"
-            "<b>" + _("Compatible Software:") + "</b>\n"
-            "  \u2022 " + _("JuhRadialMX (Linux)") + "\n"
-            "  \u2022 " + _("JuhFlow companion app (Mac/Windows)") + "\n"
-            '  \u2022 <a href="https://github.com/input-leap/input-leap">Input Leap</a> ('
-            + _("open-source KVM")
-            + ")\n"
-            "  \u2022 Logi Options+ Flow\n\n"
-            "<b>" + _("Features:") + "</b>\n"
-            "  \u2022 " + _("Move cursor between screens seamlessly") + "\n"
-            "  \u2022 " + _("Copy and paste across computers") + "\n"
-            "  \u2022 " + _("Transfer files by dragging")
+            "<b>" + _("Security") + "</b>\n"
+            + _(
+                "All communication is end-to-end encrypted using X25519 key exchange, "
+                "HKDF-SHA256 key derivation, and AES-256-GCM authenticated encryption - "
+                "the same cryptographic standard as Logi Options+ Flow."
+            )
+            + "\n\n"
+            "<b>" + _("How it connects") + "</b>\n"
+            "  \u2022 " + _("Computers discover each other via mDNS on your local network") + "\n"
+            "  \u2022 " + _("A secure handshake exchanges encryption keys between devices") + "\n"
+            "  \u2022 " + _("The JuhFlow companion app bridges Linux and macOS/Windows") + "\n"
+            "  \u2022 " + _("Edge detection triggers a host switch command to your mouse") + "\n\n"
+            "<b>" + _("Requirements") + "</b>\n"
+            "  \u2022 " + _("JuhRadial MX on Linux") + "\n"
+            "  \u2022 " + _("JuhFlow companion app on macOS (or Windows)") + "\n"
+            "  \u2022 " + _("Both computers on the same local network") + "\n"
+            "  \u2022 " + _("Logitech MX mouse with Easy-Switch")
         )
         info_label.set_wrap(True)
         info_label.set_max_width_chars(50)
@@ -240,7 +293,12 @@ class FlowPage(Gtk.ScrolledWindow):
 
         main_box.append(info_card)
 
-        self.set_child(main_box)
+        # Wrap in Adw.Clamp for responsive centering
+        clamp = Adw.Clamp()
+        clamp.set_maximum_size(900)
+        clamp.set_tightening_threshold(700)
+        clamp.set_child(main_box)
+        self.set_child(clamp)
 
         # Try to discover computers on startup
         GLib.idle_add(self._discover_computers)
@@ -248,9 +306,12 @@ class FlowPage(Gtk.ScrolledWindow):
     def _on_flow_toggled(self, switch, state):
         """Handle Flow enable/disable toggle"""
         config.set("flow", "enabled", state, auto_save=True)
-        # Enable/disable edge trigger and direction based on Flow state
+        # Enable/disable sub-controls based on Flow state
         self.edge_switch.set_sensitive(state)
         self.direction_dropdown.set_sensitive(state)
+        self.monitor_dropdown.set_sensitive(state)
+        self.hide_indicator_switch.set_sensitive(state)
+        self.extend_zone_switch.set_sensitive(state)
 
         if FLOW_MODULE_AVAILABLE:
             if state:
@@ -332,6 +393,54 @@ class FlowPage(Gtk.ScrolledWindow):
             except Exception as e:
                 print(f"[Flow] Edge toggle error: {e}")
         return False
+
+    def _on_monitor_changed(self, dropdown, _pspec):
+        """Handle monitor selection change."""
+        idx = dropdown.get_selected()
+        # Index 0 = Auto (""), index 1+ = connector name (stable across reboots)
+        if idx == 0 or idx - 1 >= len(self._monitor_connectors):
+            monitor_val = ""
+        else:
+            monitor_val = self._monitor_connectors[idx - 1]["connector"]
+        config.set("flow", "monitor", monitor_val, auto_save=True)
+        print(f"[Flow] Monitor set to {'auto' if not monitor_val else monitor_val}")
+
+    def _on_hide_indicator_toggled(self, switch, state):
+        """Handle hide indicator toggle."""
+        config.set("flow", "hide_indicator", state, auto_save=True)
+        print(f"[Flow] Hide indicator: {state}")
+        return False
+
+    def _on_extend_zone_toggled(self, switch, state):
+        """Handle extend edge zone toggle."""
+        config.set("flow", "extend_edge_zone", state, auto_save=True)
+        print(f"[Flow] Extend edge zone: {state}")
+        return False
+
+    def _get_monitor_connectors(self):
+        """Get list of monitor connector info from GDK.
+
+        Returns list of dicts with 'connector', 'width', 'height'.
+        Connector names (e.g. DP-1, HDMI-1) are stable across reboots
+        unlike index-based selection.
+        """
+        result = []
+        try:
+            display = Gdk.Display.get_default()
+            if display:
+                monitors = display.get_monitors()
+                for i in range(monitors.get_n_items()):
+                    mon = monitors.get_item(i)
+                    connector = mon.get_connector() or f"Monitor-{i + 1}"
+                    geom = mon.get_geometry()
+                    result.append({
+                        "connector": connector,
+                        "width": geom.width,
+                        "height": geom.height,
+                    })
+        except Exception:
+            pass
+        return result
 
     def _on_scan_clicked(self, button):
         """Scan network for other computers running JuhRadialMX"""

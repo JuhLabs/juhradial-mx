@@ -11,7 +11,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Gtk, Pango
+from gi.repository import Gtk, GLib, Pango
 
 from i18n import _
 from settings_config import ConfigManager
@@ -45,11 +45,25 @@ class ButtonsPage(Gtk.ScrolledWindow):
         "teal": "#0abdc6",
     }
 
-    def __init__(self, on_button_config=None, parent_window=None, config_manager=None):
+    # Evdev button code to friendly name
+    BUTTON_NAMES = {
+        0x110: "Left Click",
+        0x111: "Right Click",
+        0x112: "Middle Click",
+        0x113: "Side Button (Button 8)",
+        0x114: "Extra Button (Button 9)",
+        0x115: "Forward",
+        0x116: "Back",
+        0x117: "Task",
+    }
+
+    def __init__(self, on_button_config=None, parent_window=None, config_manager=None, generic_mode=False):
         super().__init__()
         self.on_button_config = on_button_config
         self.parent_window = parent_window
         self.config_manager = config_manager
+        self._generic_mode = generic_mode
+        self._capturing = False
         self.slice_rows = {}  # Store slice row widgets for updating
         self.set_policy(
             Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
@@ -129,79 +143,108 @@ class ButtonsPage(Gtk.ScrolledWindow):
         radial_card.append(slices_grid)
         content.append(radial_card)
 
-        # =============================================
-        # EASY-SWITCH SHORTCUTS CARD
-        # =============================================
-        easyswitch_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        easyswitch_card.add_css_class("easyswitch-shortcuts-card")
+        if self._generic_mode:
+            # =============================================
+            # GENERIC: TRIGGER BUTTON BINDING CARD
+            # =============================================
+            from settings_widgets import SettingsCard, SettingRow
 
-        # Create a row with icon, text, and switch
-        easyswitch_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
-        easyswitch_row.add_css_class("easyswitch-row")
+            trigger_card = SettingsCard(_("Radial Wheel Trigger"))
 
-        # Icon box
-        es_icon_box = Gtk.Box()
-        es_icon_box.add_css_class("easyswitch-icon-box")
-        es_icon_box.set_valign(Gtk.Align.CENTER)
-        es_icon = Gtk.Image.new_from_icon_name("network-wireless-symbolic")
-        es_icon.set_pixel_size(20)
-        es_icon.add_css_class("easyswitch-icon")
-        es_icon_box.append(es_icon)
-        easyswitch_row.append(es_icon_box)
-
-        # Text content
-        es_text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-        es_text_box.set_hexpand(True)
-        es_text_box.set_valign(Gtk.Align.CENTER)
-
-        es_title = Gtk.Label(label=_("Easy-Switch Shortcuts"))
-        es_title.set_halign(Gtk.Align.START)
-        es_title.add_css_class("easyswitch-title")
-        es_text_box.append(es_title)
-
-        es_desc = Gtk.Label(label=_("Replace Emoji with Easy-Switch 1, 2, 3 submenu"))
-        es_desc.set_halign(Gtk.Align.START)
-        es_desc.add_css_class("easyswitch-desc")
-        es_text_box.append(es_desc)
-
-        easyswitch_row.append(es_text_box)
-
-        # Switch
-        self.easyswitch_switch = Gtk.Switch()
-        self.easyswitch_switch.set_valign(Gtk.Align.CENTER)
-        self.easyswitch_switch.set_active(
-            self.config_manager.get(
-                "radial_menu", "easy_switch_shortcuts", default=False
+            # Current binding display
+            current_code = self.config_manager.get(
+                "generic_trigger_button", default=0x113
             )
-        )
-        self.easyswitch_switch.connect("state-set", self._on_easyswitch_toggled)
-        easyswitch_row.append(self.easyswitch_switch)
+            current_name = self.BUTTON_NAMES.get(
+                current_code, f"Button {current_code:#x}"
+            )
 
-        easyswitch_card.append(easyswitch_row)
-        content.append(easyswitch_card)
+            trigger_row = SettingRow(
+                _("Trigger Button"),
+                _("Mouse button that opens the radial wheel"),
+            )
 
-        # =============================================
-        # BUTTON ASSIGNMENTS CARD
-        # =============================================
-        assignments_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        assignments_card.add_css_class("button-assignment-card")
+            trigger_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            self._trigger_label = Gtk.Label(label=current_name)
+            self._trigger_label.add_css_class("heading")
+            trigger_box.append(self._trigger_label)
 
-        # Card header
-        header = Gtk.Label(label=_("Button Assignments"))
-        header.set_halign(Gtk.Align.START)
-        header.add_css_class("button-assignment-header")
-        assignments_card.append(header)
+            self._bind_btn = Gtk.Button(label=_("Rebind"))
+            self._bind_btn.add_css_class("suggested-action")
+            self._bind_btn.connect("clicked", self._on_start_capture)
+            trigger_box.append(self._bind_btn)
 
-        # Button rows container
-        self.button_rows = {}
-        self.action_labels = {}
+            trigger_row.set_control(trigger_box)
+            trigger_card.append(trigger_row)
+            content.append(trigger_card)
+        else:
+            # =============================================
+            # LOGITECH: EASY-SWITCH SHORTCUTS CARD
+            # =============================================
+            easyswitch_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            easyswitch_card.add_css_class("easyswitch-shortcuts-card")
 
-        for btn_id, btn_info in MOUSE_BUTTONS.items():
-            row = self._create_button_row(btn_id, btn_info)
-            self.button_rows[btn_id] = row
-            assignments_card.append(row)
+            easyswitch_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+            easyswitch_row.add_css_class("easyswitch-row")
 
-        content.append(assignments_card)
+            es_icon_box = Gtk.Box()
+            es_icon_box.add_css_class("easyswitch-icon-box")
+            es_icon_box.set_valign(Gtk.Align.CENTER)
+            es_icon = Gtk.Image.new_from_icon_name("network-wireless-symbolic")
+            es_icon.set_pixel_size(20)
+            es_icon.add_css_class("easyswitch-icon")
+            es_icon_box.append(es_icon)
+            easyswitch_row.append(es_icon_box)
+
+            es_text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            es_text_box.set_hexpand(True)
+            es_text_box.set_valign(Gtk.Align.CENTER)
+
+            es_title = Gtk.Label(label=_("Easy-Switch Shortcuts"))
+            es_title.set_halign(Gtk.Align.START)
+            es_title.add_css_class("easyswitch-title")
+            es_text_box.append(es_title)
+
+            es_desc = Gtk.Label(label=_("Replace Emoji with Easy-Switch 1, 2, 3 submenu"))
+            es_desc.set_halign(Gtk.Align.START)
+            es_desc.add_css_class("easyswitch-desc")
+            es_text_box.append(es_desc)
+
+            easyswitch_row.append(es_text_box)
+
+            self.easyswitch_switch = Gtk.Switch()
+            self.easyswitch_switch.set_valign(Gtk.Align.CENTER)
+            self.easyswitch_switch.set_active(
+                self.config_manager.get(
+                    "radial_menu", "easy_switch_shortcuts", default=False
+                )
+            )
+            self.easyswitch_switch.connect("state-set", self._on_easyswitch_toggled)
+            easyswitch_row.append(self.easyswitch_switch)
+
+            easyswitch_card.append(easyswitch_row)
+            content.append(easyswitch_card)
+
+            # =============================================
+            # LOGITECH: BUTTON ASSIGNMENTS CARD
+            # =============================================
+            assignments_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            assignments_card.add_css_class("button-assignment-card")
+
+            header = Gtk.Label(label=_("Button Assignments"))
+            header.set_halign(Gtk.Align.START)
+            header.add_css_class("button-assignment-header")
+            assignments_card.append(header)
+
+            self.button_rows = {}
+            self.action_labels = {}
+
+            for btn_id, btn_info in MOUSE_BUTTONS.items():
+                row = self._create_button_row(btn_id, btn_info)
+                self.button_rows[btn_id] = row
+                assignments_card.append(row)
+
+            content.append(assignments_card)
         self.set_child(content)
 
     def _create_button_row(self, btn_id, btn_info):
@@ -402,3 +445,65 @@ class ButtonsPage(Gtk.ScrolledWindow):
                     break
 
         return False  # Allow switch to change state
+
+    # =================================================================
+    # GENERIC MODE: Mouse button capture for trigger binding
+    # =================================================================
+
+    def _on_start_capture(self, button):
+        """Start listening for a mouse button press to bind as trigger."""
+        if self._capturing:
+            return
+        self._capturing = True
+        self._bind_btn.set_label(_("Press a mouse button..."))
+        self._bind_btn.set_sensitive(False)
+        self._trigger_label.set_text(_("Waiting..."))
+
+        # Use GestureClick to capture any mouse button on the entire window
+        self._capture_gesture = Gtk.GestureClick()
+        self._capture_gesture.set_button(0)  # Listen for any button
+        self._capture_gesture.connect("pressed", self._on_button_captured)
+        self.get_root().add_controller(self._capture_gesture)
+
+        # Timeout after 5 seconds
+        GLib.timeout_add(5000, self._capture_timeout)
+
+    def _on_button_captured(self, gesture, n_press, x, y):
+        """A mouse button was pressed - bind it as the trigger."""
+        if not self._capturing:
+            return
+        button_num = gesture.get_current_button()
+        # Map GTK button numbers to evdev codes
+        # GTK: 1=left, 2=middle, 3=right, 8=side, 9=extra
+        gtk_to_evdev = {1: 0x110, 2: 0x112, 3: 0x111, 8: 0x113, 9: 0x114}
+        evdev_code = gtk_to_evdev.get(button_num, 0x110 + button_num - 1)
+
+        name = self.BUTTON_NAMES.get(evdev_code, f"Button {button_num}")
+        self._trigger_label.set_text(name)
+        self._bind_btn.set_label(_("Rebind"))
+        self._bind_btn.set_sensitive(True)
+
+        # Save to config
+        self.config_manager.set("generic_trigger_button", evdev_code, auto_save=True)
+
+        self._stop_capture()
+
+    def _capture_timeout(self):
+        """Cancel capture after timeout."""
+        if self._capturing:
+            current_code = self.config_manager.get(
+                "generic_trigger_button", default=0x113
+            )
+            name = self.BUTTON_NAMES.get(current_code, f"Button {current_code:#x}")
+            self._trigger_label.set_text(name)
+            self._bind_btn.set_label(_("Rebind"))
+            self._bind_btn.set_sensitive(True)
+            self._stop_capture()
+        return False  # Don't repeat
+
+    def _stop_capture(self):
+        """Clean up capture state."""
+        self._capturing = False
+        if hasattr(self, "_capture_gesture") and self._capture_gesture:
+            self.get_root().remove_controller(self._capture_gesture)
+            self._capture_gesture = None

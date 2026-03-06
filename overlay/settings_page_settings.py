@@ -26,7 +26,7 @@ from settings_constants import (
     get_de_key,
 )
 import settings_theme
-from settings_widgets import SettingsCard, SettingRow
+from settings_widgets import SettingsCard, SettingRow, PageHeader, InfoCard
 from themes import get_theme_list
 
 
@@ -42,6 +42,14 @@ class SettingsPage(Gtk.ScrolledWindow):
         content.set_margin_bottom(20)
         content.set_margin_start(20)
         content.set_margin_end(20)
+
+        # Page header
+        header = PageHeader(
+            "emblem-system-symbolic",
+            _("Settings"),
+            _("Appearance, language, and application preferences"),
+        )
+        content.append(header)
 
         # Appearance settings
         appearance_card = SettingsCard(_("Appearance"))
@@ -183,8 +191,8 @@ class SettingsPage(Gtk.ScrolledWindow):
 
         content.append(app_card)
 
-        # Device info - fetch from daemon if available
-        info_card = SettingsCard(_("Device Information"))
+        # Device info - fetch from daemon if available (quieter styling)
+        info_card = InfoCard(_("Device Information"))
 
         # Try to get actual device info from daemon
         device_name = get_device_name()
@@ -241,7 +249,12 @@ class SettingsPage(Gtk.ScrolledWindow):
 
         content.append(danger_card)
 
-        self.set_child(content)
+        # Wrap in Adw.Clamp for responsive centering
+        clamp = Adw.Clamp()
+        clamp.set_maximum_size(900)
+        clamp.set_tightening_threshold(700)
+        clamp.set_child(content)
+        self.set_child(clamp)
 
     def _on_de_changed(self, dropdown, _param):
         """Handle DE selection change - saves preference."""

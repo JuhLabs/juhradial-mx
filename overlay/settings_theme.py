@@ -40,8 +40,8 @@ IS_DARK_THEME = COLORS.get('is_dark', True)
 # =============================================================================
 # WINDOW CONFIGURATION
 # =============================================================================
-WINDOW_WIDTH = 1200
-WINDOW_HEIGHT = 800
+WINDOW_WIDTH = 1400   # Fallback if screen detection fails
+WINDOW_HEIGHT = 950   # Fallback if screen detection fails
 WINDOW_MIN_WIDTH = 400  # Can be narrow - content scrolls horizontally
 WINDOW_MIN_HEIGHT = 300
 
@@ -183,10 +183,10 @@ window.settings-window {{
     border-radius: 12px;
     margin: 4px 0;
     color: {COLORS['subtext0']};
-    font-weight: 500;
+    font-weight: 600;
     font-size: 13px;
     letter-spacing: 0.3px;
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 200ms ease, color 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
     border: 1px solid transparent;
 }}
 
@@ -194,22 +194,55 @@ window.settings-window {{
     background: {hover_bg};
     color: {COLORS['text']};
     border-color: {COLORS['accent_glow_light']};
-    transform: translateX(4px);
     box-shadow: 0 4px 16px {shadow_color};
 }}
 
 .nav-item.active {{
     background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
     color: {text_on_accent};
-    font-weight: 600;
     box-shadow: 0 4px 20px {COLORS['accent_glow']};
     border-color: transparent;
 }}
 
 .nav-item.active:hover {{
     background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
-    transform: translateX(4px);
     box-shadow: 0 6px 28px {COLORS['accent_glow']};
+}}
+
+/* Nav icon badge - themed accent circle behind icons */
+.nav-icon-badge {{
+    background: linear-gradient(135deg, {accent_15} 0%, {accent2_10} 100%);
+    border-radius: 10px;
+    padding: 8px;
+    min-width: 34px;
+    min-height: 34px;
+    border: 1px solid {accent_20};
+    transition: all 200ms ease;
+}}
+
+.nav-icon {{
+    color: {COLORS['accent']};
+    transition: color 200ms ease;
+}}
+
+.nav-item.active .nav-icon-badge {{
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.15);
+}}
+
+.nav-item.active .nav-icon {{
+    color: {text_on_accent};
+}}
+
+.nav-item:hover .nav-icon-badge {{
+    background: linear-gradient(135deg, {accent_25} 0%, {accent2_15} 100%);
+    border-color: {accent_30};
+}}
+
+/* Page header icon */
+.page-header-icon {{
+    color: {COLORS['accent']};
+    opacity: 0.9;
 }}
 
 /* ============================================
@@ -273,6 +306,26 @@ window.settings-window {{
     border-color: {COLORS['accent_glow_light']};
     box-shadow: 0 12px 40px {shadow_color_strong};
     transform: translateY(-2px);
+}}
+
+/* Info card - quieter variant for read-only/informational sections */
+.info-card {{
+    background: {elevated_bg};
+    border-color: {border_faint};
+    box-shadow: 0 4px 16px {shadow_color};
+}}
+
+.info-card:hover {{
+    transform: none;
+    border-color: {border_very_subtle};
+    box-shadow: 0 4px 16px {shadow_color};
+}}
+
+.info-card .card-title {{
+    font-size: 14px;
+    font-weight: 600;
+    color: {COLORS['subtext0']};
+    letter-spacing: 0.8px;
 }}
 
 .card-title {{
@@ -603,8 +656,8 @@ tooltip {{
 .easyswitch-shortcuts-card {{
     background: {elevated_bg};
     border-radius: 12px;
-    padding: 16px 20px;
-    margin: 12px 0;
+    padding: 12px 16px;
+    margin: 8px 0;
     border: 1px solid {accent_08};
     box-shadow: 0 4px 16px {shadow_color};
 }}
@@ -645,8 +698,8 @@ tooltip {{
 .button-assignment-card {{
     background: {elevated_bg};
     border-radius: 16px;
-    padding: 20px;
-    margin: 12px 0;
+    padding: 16px;
+    margin: 8px 0;
     border: 1px solid {accent_08};
     box-shadow: 0 8px 32px {shadow_color_strong};
 }}
@@ -665,8 +718,8 @@ tooltip {{
 .button-row {{
     background: {elevated_bg_hover};
     border-radius: 12px;
-    padding: 14px 16px;
-    margin: 6px 0;
+    padding: 10px 14px;
+    margin: 4px 0;
     border: 1px solid {border_faint};
     transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }}
@@ -724,8 +777,8 @@ tooltip {{
 .radial-menu-card {{
     background: linear-gradient(135deg, {accent_08} 0%, {accent2_05} 100%);
     border-radius: 16px;
-    padding: 24px;
-    margin: 20px 0 12px 0;
+    padding: 18px;
+    margin: 12px 0 8px 0;
     border: 1px solid {accent_20};
     box-shadow: 0 8px 32px {accent_10}, 0 4px 16px {shadow_color};
 }}
@@ -904,6 +957,16 @@ tooltip {{
     min-height: 36px;
     border-radius: 1px;
     margin: 0 16px;
+}}
+
+/* ============================================
+   DONATE CARD - Gradient background
+   ============================================ */
+.donate-card {{
+    background: linear-gradient(160deg, alpha({COLORS['accent']}, 0.08) 0%, alpha({COLORS['accent2']}, 0.12) 100%);
+    border-radius: 12px;
+    border: 1px solid alpha({COLORS['accent']}, 0.15);
+    padding: 12px;
 }}
 
 /* ============================================

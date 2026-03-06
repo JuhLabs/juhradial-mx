@@ -64,7 +64,7 @@ _BASE_MOUSE_BUTTONS = {
 # =============================================================================
 _BASE_NAV_ITEMS = [
     ("buttons", "BUTTONS", "input-mouse-symbolic"),
-    ("scroll", "SENSITIVITY", "input-touchpad-symbolic"),
+    ("scroll", "POINT & SCROLL", "input-touchpad-symbolic"),
     ("haptics", "HAPTIC FEEDBACK", "audio-speakers-symbolic"),
     ("devices", "DEVICES", "computer-symbolic"),
     ("easy_switch", "EASY-SWITCH", "network-wireless-symbolic"),
@@ -281,6 +281,29 @@ def get_de_key(configured_de):
     if configured_de == "auto":
         return detect_desktop_environment()
     return configured_de
+
+
+# =============================================================================
+# GENERIC MOUSE MODE - TABS TO HIDE
+# =============================================================================
+# Sidebar tabs hidden when a non-Logitech (generic) mouse is connected.
+# These features require HID++ or Logitech-specific protocols.
+GENERIC_HIDDEN_TABS = {"haptics", "easy_switch", "flow"}
+
+
+def get_nav_items_for_mode(mode):
+    """Return NAV_ITEMS filtered by device mode.
+
+    In 'generic' mode, Logitech-only tabs (haptics, easy-switch, flow)
+    are removed.  In 'logitech' mode all tabs are returned.
+    """
+    if mode == "generic":
+        return [
+            (item_id, label, icon)
+            for item_id, label, icon in NAV_ITEMS
+            if item_id not in GENERIC_HIDDEN_TABS
+        ]
+    return list(NAV_ITEMS)
 
 
 MOUSE_BUTTONS = {}

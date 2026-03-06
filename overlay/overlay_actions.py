@@ -308,8 +308,32 @@ def load_os_icons():
 
 
 def open_settings():
-    """Launch the settings dashboard (GTK4 handles single-instance via D-Bus)"""
+    """Launch or refocus the settings dashboard.
+
+    On GNOME Wayland, present() from a D-Bus Activate can't raise the window
+    because the calling process (radial overlay) has already hidden itself.
+    So we check if the settings app is running and if so, kill and relaunch
+    to guarantee a focused window.
+    """
     settings_script = os.path.join(os.path.dirname(__file__), "settings_dashboard.py")
+
+    # Check if settings app is already running on D-Bus
+    try:
+        result = subprocess.run(
+            ["busctl", "--user", "status", "org.kde.juhradialmx.settings"],
+            capture_output=True, timeout=0.5,
+        )
+        if result.returncode == 0:
+            # Already running - kill it so the fresh launch gets focus
+            subprocess.run(
+                ["pkill", "-f", "settings_dashboard.py"],
+                capture_output=True, timeout=1,
+            )
+            import time
+            time.sleep(0.15)
+    except Exception:
+        pass
+
     subprocess.Popen(
         ["python3", settings_script],
         stdout=subprocess.DEVNULL,
@@ -350,3 +374,22 @@ RADIAL_PARAMS = None
 
 # Load actions at startup
 ACTIONS = load_actions_from_config()
+
+# Minimal mode flag - hides slice/wedge graphics, shows only floating icons
+MINIMAL_MODE = False
+
+
+def load_minimal_mode():
+    """Read radial.minimal_mode from config.json. Returns bool."""
+    import json
+    from pathlib import Path
+
+    config_path = Path.home() / ".config" / "juhradial" / "config.json"
+    try:
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            return bool(cfg.get("radial", {}).get("minimal_mode", False))
+    except Exception:
+        pass
+    return False

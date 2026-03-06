@@ -21,7 +21,7 @@ from gi.repository import Gtk, Gdk, GLib, Gio, Adw
 from i18n import _
 
 # Layer 1: Config + Theme
-from settings_config import config, get_device_name
+from settings_config import config, get_device_name, get_device_mode, get_device_name_from_daemon
 from settings_theme import (
     COLORS,
     CSS,
@@ -32,8 +32,8 @@ from settings_theme import (
 )
 
 # Layer 2: Constants + Widgets
-from settings_constants import MOUSE_BUTTONS, NAV_ITEMS
-from settings_widgets import NavButton, MouseVisualization
+from settings_constants import MOUSE_BUTTONS, NAV_ITEMS, get_nav_items_for_mode
+from settings_widgets import NavButton, MouseVisualization, GenericMouseVisualization
 
 # Layer 3: Dialogs
 from settings_dialogs import (
@@ -65,6 +65,10 @@ class SettingsWindow(Adw.ApplicationWindow):
         # Reload config from disk to ensure we have latest values
         config.reload()
 
+        # Detect device mode once at startup (cached for lifetime)
+        self._device_mode = get_device_mode()
+        self._is_generic = self._device_mode == "generic"
+
         # Match Adwaita palette to selected theme
         style_manager = Adw.StyleManager.get_default()
         if COLORS.get("is_dark", True):
@@ -72,7 +76,21 @@ class SettingsWindow(Adw.ApplicationWindow):
         else:
             style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
 
-        self.set_default_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+        # Screen-aware sizing: use 75% of screen width, 85% of screen height
+        # Falls back to WINDOW_WIDTH/HEIGHT constants if detection fails
+        w, h = WINDOW_WIDTH, WINDOW_HEIGHT
+        try:
+            display = Gdk.Display.get_default()
+            if display:
+                monitors = display.get_monitors()
+                if monitors.get_n_items() > 0:
+                    mon = monitors.get_item(0)
+                    geom = mon.get_geometry()
+                    w = max(WINDOW_MIN_WIDTH, min(int(geom.width * 0.75), 2400))
+                    h = max(WINDOW_MIN_HEIGHT, min(int(geom.height * 0.85), 1600))
+        except Exception:
+            pass
+        self.set_default_size(w, h)
         self.set_size_request(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
 
         # Set window icon for Wayland (fixes yellow default icon)
@@ -114,6 +132,51 @@ class SettingsWindow(Adw.ApplicationWindow):
         add_app_btn.add_css_class("add-app-btn")
         add_app_btn.connect("clicked", self._on_add_application)
         headerbar.pack_end(add_app_btn)
+
+        # Mode toggles box (Minimal + Generic)
+        toggles_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+
+        # Minimal mode toggle
+        minimal_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        minimal_label = Gtk.Label(label=_("Minimal Radial HUD"))
+        minimal_label.add_css_class("dim-label")
+        minimal_box.append(minimal_label)
+        minimal_info_btn = Gtk.Button()
+        minimal_info_btn.set_child(Gtk.Image.new_from_icon_name("dialog-information-symbolic"))
+        minimal_info_btn.add_css_class("flat")
+        minimal_info_btn.add_css_class("dim-label")
+        minimal_info_btn.set_tooltip_text(_("Show a minimal radial wheel with icons only - no pizza slices or labels"))
+        minimal_info_btn.set_valign(Gtk.Align.CENTER)
+        minimal_box.append(minimal_info_btn)
+        self._minimal_switch = Gtk.Switch()
+        self._minimal_switch.set_valign(Gtk.Align.CENTER)
+        from settings_config import get_minimal_mode, set_minimal_mode
+        self._minimal_switch.set_active(get_minimal_mode())
+        self._minimal_switch.connect("notify::active", self._on_minimal_mode_toggled)
+        minimal_box.append(self._minimal_switch)
+        toggles_box.append(minimal_box)
+
+        # Generic mouse mode toggle
+        generic_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        generic_label = Gtk.Label(label=_("Generic Mouse Mode"))
+        generic_label.add_css_class("dim-label")
+        generic_box.append(generic_label)
+        generic_info_btn = Gtk.Button()
+        generic_info_btn.set_child(Gtk.Image.new_from_icon_name("dialog-information-symbolic"))
+        generic_info_btn.add_css_class("flat")
+        generic_info_btn.add_css_class("dim-label")
+        generic_info_btn.set_tooltip_text(_("Enable for non-Logitech mice. Disables HID++ features like haptics and Easy-Switch."))
+        generic_info_btn.set_valign(Gtk.Align.CENTER)
+        generic_box.append(generic_info_btn)
+        self._generic_switch = Gtk.Switch()
+        self._generic_switch.set_valign(Gtk.Align.CENTER)
+        configured = config.get("device_mode", default="auto")
+        self._generic_switch.set_active(configured == "generic")
+        self._generic_switch.connect("notify::active", self._on_generic_mode_toggled)
+        generic_box.append(self._generic_switch)
+        toggles_box.append(generic_box)
+
+        headerbar.pack_end(toggles_box)
 
         # Grid view toggle
         grid_btn = Gtk.Button()
@@ -169,12 +232,15 @@ class SettingsWindow(Adw.ApplicationWindow):
         # Select first nav item
         self._on_nav_clicked("buttons")
 
-        # Setup UPower signal monitoring for instant battery updates (system events)
-        self._setup_upower_signals()
-        # Start battery update timer (2 seconds for responsive charging status)
-        self._battery_timer_id = GLib.timeout_add_seconds(2, self._update_battery)
-        # Initial battery update
-        GLib.idle_add(self._update_battery)
+        # Battery polling - only for Logitech mode (generic mice don't report battery)
+        self._battery_timer_id = None
+        if not self._is_generic:
+            # Setup UPower signal monitoring for instant battery updates (system events)
+            self._setup_upower_signals()
+            # Start battery update timer (2 seconds for responsive charging status)
+            self._battery_timer_id = GLib.timeout_add_seconds(2, self._update_battery)
+            # Initial battery update
+            GLib.idle_add(self._update_battery)
 
         # Connect close-request to clean up resources
         self.connect("close-request", self._on_close_request)
@@ -364,40 +430,13 @@ class SettingsWindow(Adw.ApplicationWindow):
         logo_container.add_css_class("logo-container")
         logo_container.set_valign(Gtk.Align.CENTER)
 
-        # JuhRadial MX header: logo icon + text
-        script_dir = Path(__file__).resolve().parent
-        logo_paths = [
-            script_dir.parent / "docs" / "radiallogo_icon.png",
-            script_dir / "assets" / "radiallogo_icon.png",
-            Path("/usr/share/juhradial/radiallogo_icon.png"),
-        ]
-
-        # Load logo icon with proper scaling
-        from gi.repository import GdkPixbuf
-
-        logo_loaded = False
-        for img_path in logo_paths:
-            if img_path.exists():
-                try:
-                    # Load and scale to 32px height, preserve aspect ratio
-                    pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                        str(img_path), -1, 32, True
-                    )
-                    texture = Gdk.Texture.new_for_pixbuf(pixbuf)
-                    logo_widget = Gtk.Picture.new_for_paintable(texture)
-                    logo_widget.set_valign(Gtk.Align.CENTER)
-                    logo_container.append(logo_widget)
-                    logo_loaded = True
-                    print(f"Header logo loaded from: {img_path}")
-                except Exception as e:
-                    print(f"Failed to load header logo: {e}")
-                break
-
-        # Fallback icon if logo not loaded
-        if not logo_loaded:
-            fallback_icon = Gtk.Image.new_from_icon_name("input-mouse-symbolic")
-            fallback_icon.set_pixel_size(28)
-            logo_container.append(fallback_icon)
+        # 3D radial wheel icon drawn with Cairo gradients
+        logo_widget = Gtk.DrawingArea()
+        logo_widget.set_content_width(34)
+        logo_widget.set_content_height(34)
+        logo_widget.set_draw_func(self._draw_logo_icon)
+        logo_widget.set_valign(Gtk.Align.CENTER)
+        logo_container.append(logo_widget)
 
         title_box.append(logo_container)
 
@@ -431,13 +470,81 @@ class SettingsWindow(Adw.ApplicationWindow):
         divider.add_css_class("header-divider")
         title_box.append(divider)
 
-        # Device badge
-        device_badge = Gtk.Label(label=get_device_name().upper())
+        # Device badge - use daemon name in generic mode
+        badge_name = (
+            get_device_name_from_daemon() if self._is_generic else get_device_name()
+        )
+        device_badge = Gtk.Label(label=badge_name.upper())
         device_badge.add_css_class("device-badge")
         device_badge.set_valign(Gtk.Align.CENTER)
         title_box.append(device_badge)
 
         return title_box
+
+    def _draw_logo_icon(self, area, cr, width, height):
+        """Draw a 3D radial wheel icon using Cairo gradients."""
+        import math
+        import cairo
+
+        cx, cy = width / 2, height / 2
+        r_outer = min(width, height) / 2 - 1
+        r_inner = r_outer * 0.38
+
+        # Parse accent color
+        accent = COLORS.get("accent", "#00d4ff")
+        ar = int(accent[1:3], 16) / 255
+        ag = int(accent[3:5], 16) / 255
+        ab = int(accent[5:7], 16) / 255
+
+        # Outer ring - 3D metallic gradient
+        ring_grad = cairo.RadialGradient(cx - 4, cy - 4, r_inner, cx, cy, r_outer)
+        ring_grad.add_color_stop_rgba(0.0, ar * 1.4, ag * 1.4, ab * 1.4, 0.95)
+        ring_grad.add_color_stop_rgba(0.5, ar * 0.7, ag * 0.7, ab * 0.7, 0.9)
+        ring_grad.add_color_stop_rgba(1.0, ar * 0.3, ag * 0.3, ab * 0.3, 0.85)
+
+        cr.arc(cx, cy, r_outer, 0, math.pi * 2)
+        cr.arc_negative(cx, cy, r_inner + 1, math.pi * 2, 0)
+        cr.set_source(ring_grad)
+        cr.fill()
+
+        # Segment lines (radial spokes) - 6 segments
+        cr.set_line_width(0.8)
+        cr.set_source_rgba(0, 0, 0, 0.35)
+        for i in range(6):
+            angle = i * math.pi / 3 - math.pi / 6
+            x1 = cx + r_inner * math.cos(angle)
+            y1 = cy + r_inner * math.sin(angle)
+            x2 = cx + r_outer * math.cos(angle)
+            y2 = cy + r_outer * math.sin(angle)
+            cr.move_to(x1, y1)
+            cr.line_to(x2, y2)
+        cr.stroke()
+
+        # Top highlight arc (3D shine)
+        cr.save()
+        cr.arc(cx, cy, r_outer, 0, math.pi * 2)
+        cr.clip()
+        shine = cairo.LinearGradient(cx, cy - r_outer, cx, cy)
+        shine.add_color_stop_rgba(0.0, 1, 1, 1, 0.25)
+        shine.add_color_stop_rgba(1.0, 1, 1, 1, 0.0)
+        cr.rectangle(0, 0, width, height / 2)
+        cr.set_source(shine)
+        cr.fill()
+        cr.restore()
+
+        # Inner circle - dark recessed center with 3D depth
+        center_grad = cairo.RadialGradient(cx - 1.5, cy - 1.5, 0, cx, cy, r_inner)
+        center_grad.add_color_stop_rgba(0.0, 0.25, 0.25, 0.3, 1.0)
+        center_grad.add_color_stop_rgba(0.7, 0.1, 0.1, 0.15, 1.0)
+        center_grad.add_color_stop_rgba(1.0, ar * 0.4, ag * 0.4, ab * 0.4, 0.8)
+        cr.arc(cx, cy, r_inner, 0, math.pi * 2)
+        cr.set_source(center_grad)
+        cr.fill()
+
+        # Center dot - tiny bright highlight
+        cr.arc(cx - 1, cy - 1, 2, 0, math.pi * 2)
+        cr.set_source_rgba(1, 1, 1, 0.4)
+        cr.fill()
 
     def _create_sidebar(self):
         sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
@@ -445,7 +552,10 @@ class SettingsWindow(Adw.ApplicationWindow):
 
         self.nav_buttons = {}
 
-        for item_id, label, icon in NAV_ITEMS:
+        # Filter sidebar tabs based on device mode
+        visible_nav = get_nav_items_for_mode(self._device_mode)
+
+        for item_id, label, icon in visible_nav:
             btn = NavButton(item_id, label, icon, on_click=self._on_nav_clicked)
             self.nav_buttons[item_id] = btn
             sidebar.append(btn)
@@ -461,8 +571,9 @@ class SettingsWindow(Adw.ApplicationWindow):
         sep.set_margin_bottom(8)
         sidebar.append(sep)
 
-        # Credits section
+        # Credits section with gradient card
         credits_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        credits_box.add_css_class("donate-card")
         credits_box.set_margin_start(8)
         credits_box.set_margin_end(8)
         credits_box.set_margin_bottom(8)
@@ -483,6 +594,19 @@ class SettingsWindow(Adw.ApplicationWindow):
         )
         name_label.set_halign(Gtk.Align.START)
         credits_box.append(name_label)
+
+        # Website link
+        site_label = Gtk.Label()
+        site_label.set_markup(
+            f'<span size="x-small"><a href="https://www.juhlabs.com">www.juhlabs.com</a></span>'
+        )
+        site_label.set_halign(Gtk.Align.START)
+        site_label.set_margin_top(2)
+        site_label.connect(
+            "activate-link",
+            lambda label, uri: (Gtk.show_uri(None, uri, Gdk.CURRENT_TIME), True)[-1],
+        )
+        credits_box.append(site_label)
 
         # Description
         desc_label = Gtk.Label()
@@ -513,6 +637,22 @@ class SettingsWindow(Adw.ApplicationWindow):
 
         sidebar.append(credits_box)
 
+        # Exit button - kills daemon, overlay, and settings
+        exit_btn = Gtk.Button()
+        exit_btn.add_css_class("destructive-action")
+        exit_btn.set_margin_start(8)
+        exit_btn.set_margin_end(8)
+        exit_btn.set_margin_bottom(12)
+        exit_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        exit_box.set_halign(Gtk.Align.CENTER)
+        exit_icon = Gtk.Image.new_from_icon_name("application-exit-symbolic")
+        exit_box.append(exit_icon)
+        exit_label = Gtk.Label(label=_("Exit JuhRadial MX"))
+        exit_box.append(exit_label)
+        exit_btn.set_child(exit_box)
+        exit_btn.connect("clicked", self._on_exit_clicked)
+        sidebar.append(exit_btn)
+
         return sidebar
 
     def _on_donate_clicked(self, button):
@@ -521,10 +661,74 @@ class SettingsWindow(Adw.ApplicationWindow):
 
         subprocess.Popen(["xdg-open", "https://paypal.me/LangbachHermstad"])
 
+    def _on_exit_clicked(self, button):
+        """Show confirmation dialog, then kill daemon + overlay + settings."""
+        dialog = Adw.MessageDialog(
+            transient_for=self,
+            modal=True,
+            heading=_("Exit JuhRadial MX?"),
+            body=_(
+                "This will stop the daemon, radial overlay, and close settings. "
+                "The radial wheel and all features will be unavailable until you "
+                "restart JuhRadial MX."
+            ),
+        )
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("exit", _("Exit"))
+        dialog.set_response_appearance("exit", Adw.ResponseAppearance.DESTRUCTIVE)
+
+        def on_response(dlg, response):
+            if response == "exit":
+                import subprocess
+                # Kill daemon and overlay (settings exits via GTK quit)
+                subprocess.run(
+                    ["pkill", "-f", "juhradiald"],
+                    capture_output=True, timeout=2,
+                )
+                subprocess.run(
+                    ["pkill", "-f", "juhradial-overlay"],
+                    capture_output=True, timeout=2,
+                )
+                self.get_application().quit()
+
+        dialog.connect("response", on_response)
+        dialog.present()
+
     def _on_add_application(self, button):
         """Open dialog to add per-application profile"""
         dialog = AddApplicationDialog(self)
         dialog.present()
+
+    def _on_minimal_mode_toggled(self, switch, _pspec):
+        """Toggle minimal radial wheel mode (icons only, no pizza slices)."""
+        from settings_config import set_minimal_mode
+        set_minimal_mode(switch.get_active())
+        label = _("Minimal mode on") if switch.get_active() else _("Minimal mode off")
+        self.show_toast(label, timeout=1)
+
+    def _on_generic_mode_toggled(self, switch, _pspec):
+        """Toggle between generic and auto (Logitech) device mode. Restarts settings."""
+        import settings_config as _sc
+        mode = "generic" if switch.get_active() else "auto"
+        config.set("device_mode", mode, auto_save=True)
+        # Clear cached mode so next launch picks up the new value
+        _sc._cached_device_mode = None
+        # Show toast and restart settings window to rebuild sidebar/pages
+        self.show_toast(_("Restarting settings..."), timeout=1)
+        GLib.timeout_add(500, self._restart_window)
+
+    def _restart_window(self):
+        """Close and reopen the settings window to apply mode change."""
+        import settings_config as _sc
+        app = self.get_application()
+        self.close()
+        def _reopen():
+            _sc._cached_device_mode = None  # Clear right before new window
+            config.reload()  # Re-read from disk
+            SettingsWindow(app).present()
+            return False
+        GLib.idle_add(_reopen)
+        return False
 
     def _on_grid_view_toggle(self, button):
         """Toggle grid view for application profiles"""
@@ -532,53 +736,74 @@ class SettingsWindow(Adw.ApplicationWindow):
         dialog.present()
 
     def _create_pages(self):
-        # Buttons page with mouse visualization
-        buttons_page = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        if self._is_generic:
+            # Generic mode: generic mouse photo + buttons config
+            buttons_page = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-        # Mouse visualization (left side)
-        mouse_viz = MouseVisualization(on_button_click=self._on_mouse_button_click)
-        mouse_viz.set_hexpand(True)
-        buttons_page.append(mouse_viz)
+            generic_viz = GenericMouseVisualization()
+            generic_viz.set_hexpand(True)
+            buttons_page.append(generic_viz)
 
-        # Settings panel (right side)
-        self.buttons_settings = ButtonsPage(
-            on_button_config=self._on_mouse_button_click,
-            parent_window=self,
-            config_manager=config,
-        )
-        self.buttons_settings.set_size_request(400, -1)
-        buttons_page.append(self.buttons_settings)
+            self.buttons_settings = ButtonsPage(
+                on_button_config=self._on_mouse_button_click,
+                parent_window=self,
+                config_manager=config,
+                generic_mode=True,
+            )
+            self.buttons_settings.set_size_request(400, -1)
+            buttons_page.append(self.buttons_settings)
 
-        self.content_stack.add_named(buttons_page, "buttons")
+            self.content_stack.add_named(buttons_page, "buttons")
+        else:
+            # Logitech mode: mouse visualization + buttons config
+            buttons_page = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+
+            mouse_viz = MouseVisualization(on_button_click=self._on_mouse_button_click)
+            mouse_viz.set_hexpand(True)
+            buttons_page.append(mouse_viz)
+
+            self.buttons_settings = ButtonsPage(
+                on_button_config=self._on_mouse_button_click,
+                parent_window=self,
+                config_manager=config,
+            )
+            self.buttons_settings.set_size_request(400, -1)
+            buttons_page.append(self.buttons_settings)
+
+            self.content_stack.add_named(buttons_page, "buttons")
 
         # Other pages
         self.content_stack.add_named(ScrollPage(), "scroll")
-        self.content_stack.add_named(HapticsPage(), "haptics")
         self.content_stack.add_named(DevicesPage(), "devices")
-        self.content_stack.add_named(EasySwitchPage(), "easy_switch")
-        # FlowPage is lazy-loaded when navigated to (avoids Zeroconf at startup)
-        self._flow_page_placeholder = Gtk.Box()
-        self.content_stack.add_named(self._flow_page_placeholder, "flow")
         self.content_stack.add_named(SettingsPage(), "settings")
+
+        # Logitech-only pages - skip in generic mode
+        if not self._is_generic:
+            self.content_stack.add_named(HapticsPage(), "haptics")
+            self.content_stack.add_named(EasySwitchPage(), "easy_switch")
+            # FlowPage is lazy-loaded when navigated to (avoids Zeroconf at startup)
+            self._flow_page_placeholder = Gtk.Box()
+            self.content_stack.add_named(self._flow_page_placeholder, "flow")
 
     def _create_status_bar(self):
         status = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
         status.add_css_class("status-bar")
 
-        # Battery section
-        battery_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        # Battery section - hide for generic mice (no HID++ battery reporting)
+        if not self._is_generic:
+            battery_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
 
-        # Battery icon (left of percentage)
-        self.battery_icon = Gtk.Image.new_from_icon_name("battery-good-symbolic")
-        self.battery_icon.add_css_class("battery-icon")
-        battery_box.append(self.battery_icon)
+            # Battery icon (left of percentage)
+            self.battery_icon = Gtk.Image.new_from_icon_name("battery-good-symbolic")
+            self.battery_icon.add_css_class("battery-icon")
+            battery_box.append(self.battery_icon)
 
-        # Store as instance variables for D-Bus updates
-        self.battery_label = Gtk.Label(label="--")
-        self.battery_label.add_css_class("battery-indicator")
-        battery_box.append(self.battery_label)
+            # Store as instance variables for D-Bus updates
+            self.battery_label = Gtk.Label(label="--")
+            self.battery_label.add_css_class("battery-indicator")
+            battery_box.append(self.battery_label)
 
-        status.append(battery_box)
+            status.append(battery_box)
 
         # Spacer
         spacer = Gtk.Box()
@@ -588,16 +813,26 @@ class SettingsWindow(Adw.ApplicationWindow):
         # Connection status with icon
         conn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
 
-        # Connection icon (USB receiver)
-        self.conn_icon = Gtk.Image.new_from_icon_name(
-            "network-wireless-signal-excellent-symbolic"
-        )
-        self.conn_icon.add_css_class("connection-icon")
-        conn_box.append(self.conn_icon)
+        if self._is_generic:
+            # Generic mode: show mouse icon + "Generic Mouse"
+            self.conn_icon = Gtk.Image.new_from_icon_name("input-mouse-symbolic")
+            self.conn_icon.add_css_class("connection-icon")
+            conn_box.append(self.conn_icon)
 
-        self.conn_label = Gtk.Label(label=_("Logi Bolt USB"))
-        self.conn_label.add_css_class("connection-status")
-        conn_box.append(self.conn_label)
+            self.conn_label = Gtk.Label(label=_("Generic Mouse"))
+            self.conn_label.add_css_class("connection-status")
+            conn_box.append(self.conn_label)
+        else:
+            # Connection icon (USB receiver)
+            self.conn_icon = Gtk.Image.new_from_icon_name(
+                "network-wireless-signal-excellent-symbolic"
+            )
+            self.conn_icon.add_css_class("connection-icon")
+            conn_box.append(self.conn_icon)
+
+            self.conn_label = Gtk.Label(label=_("Logi Bolt USB"))
+            self.conn_label.add_css_class("connection-status")
+            conn_box.append(self.conn_label)
 
         status.append(conn_box)
 
@@ -609,8 +844,10 @@ class SettingsWindow(Adw.ApplicationWindow):
             btn.set_active(btn_id == item_id)
 
         # Lazy-load FlowPage on first navigation to avoid Zeroconf startup cost
+        # (only in Logitech mode - flow tab is hidden in generic mode)
         if (
             item_id == "flow"
+            and not self._is_generic
             and hasattr(self, "_flow_page_placeholder")
             and self._flow_page_placeholder
         ):

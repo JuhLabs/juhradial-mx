@@ -10,11 +10,12 @@ SPDX-License-Identifier: GPL-3.0
 import gi
 
 gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, GLib, Gio
+from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _
-from settings_widgets import SettingsCard
+from settings_widgets import SettingsCard, PageHeader, InfoCard
 from settings_config import config
 
 # OS options for Easy-Switch host identification
@@ -65,30 +66,21 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
         content.set_margin_top(24)
         content.set_margin_bottom(24)
-        content.set_margin_start(32)
-        content.set_margin_end(32)
+        content.set_margin_start(20)
+        content.set_margin_end(20)
 
-        # Header
-        header_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        header_box.set_halign(Gtk.Align.CENTER)
-        header_box.set_margin_bottom(16)
+        # Page header
+        header = PageHeader(
+            "network-wireless-symbolic",
+            _("Easy-Switch"),
+            _("Switch between paired computers"),
+        )
+        content.append(header)
 
-        header_icon = Gtk.Image.new_from_icon_name("network-wireless-symbolic")
-        header_icon.set_pixel_size(48)
-        header_icon.add_css_class("accent-color")
-        header_box.append(header_icon)
-
-        header_title = Gtk.Label(label=_("Easy-Switch"))
-        header_title.add_css_class("title-1")
-        header_box.append(header_title)
-
-        header_subtitle = Gtk.Label(label=_("Switch between paired computers"))
-        header_subtitle.add_css_class("dim-label")
-        header_box.append(header_subtitle)
-
-        # Small utility actions
+        # Action buttons below header
         actions_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         actions_box.set_halign(Gtk.Align.CENTER)
+        actions_box.set_margin_bottom(8)
 
         refresh_btn = Gtk.Button(label=_("Refresh"))
         refresh_btn.add_css_class("suggested-action")
@@ -99,9 +91,7 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         self.detected_slots_label.add_css_class("dim-label")
         actions_box.append(self.detected_slots_label)
 
-        header_box.append(actions_box)
-
-        content.append(header_box)
+        content.append(actions_box)
 
         # Host Slots Card
         self.slots_card = SettingsCard(_("Paired Computers"))
@@ -114,8 +104,8 @@ class EasySwitchPage(Gtk.ScrolledWindow):
 
         content.append(self.slots_card)
 
-        # Info Card
-        info_card = SettingsCard(_("About Easy-Switch"))
+        # Info Card (quieter styling)
+        info_card = InfoCard(_("About Easy-Switch"))
         info_label = Gtk.Label()
         info_label.set_markup(
             _(
@@ -145,7 +135,12 @@ class EasySwitchPage(Gtk.ScrolledWindow):
 
         content.append(info_card)
 
-        self.set_child(content)
+        # Wrap in Adw.Clamp for responsive centering
+        clamp = Adw.Clamp()
+        clamp.set_maximum_size(900)
+        clamp.set_tightening_threshold(700)
+        clamp.set_child(content)
+        self.set_child(clamp)
 
         # Load host info from D-Bus
         GLib.idle_add(self._load_host_info)

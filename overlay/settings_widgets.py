@@ -23,7 +23,7 @@ from settings_constants import MOUSE_BUTTONS
 
 
 class NavButton(Gtk.Button):
-    """Sidebar navigation button"""
+    """Sidebar navigation button with themed icon badge"""
 
     def __init__(self, item_id, label, icon_name, on_click=None):
         super().__init__()
@@ -32,8 +32,16 @@ class NavButton(Gtk.Button):
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
 
+        # Icon in a themed badge circle
+        icon_badge = Gtk.Box()
+        icon_badge.add_css_class('nav-icon-badge')
+        icon_badge.set_valign(Gtk.Align.CENTER)
+        icon_badge.set_halign(Gtk.Align.CENTER)
         icon = Gtk.Image.new_from_icon_name(icon_name)
-        box.append(icon)
+        icon.set_pixel_size(18)
+        icon.add_css_class('nav-icon')
+        icon_badge.append(icon)
+        box.append(icon_badge)
 
         label_widget = Gtk.Label(label=label)
         label_widget.set_halign(Gtk.Align.START)
@@ -391,6 +399,200 @@ class MouseVisualization(Gtk.DrawingArea):
             return None
 
 
+class GenericMouseVisualization(Gtk.DrawingArea):
+    """Mouse image visualization for generic (non-Logitech) mice.
+
+    Shows genericmouse.png with labeled button positions and connector lines.
+    """
+
+    # Generic mouse button positions (relative to image rect)
+    GENERIC_BUTTONS = {
+        "left_click": {
+            "name": "Left Click",
+            "pos": (0.38, 0.18),
+            "line_from": "top",
+        },
+        "right_click": {
+            "name": "Right Click",
+            "pos": (0.62, 0.18),
+            "line_from": "top",
+        },
+        "middle_click": {
+            "name": "Middle / Scroll",
+            "pos": (0.50, 0.22),
+            "line_from": "left",
+        },
+        "side_btn": {
+            "name": "Side Button",
+            "pos": (0.22, 0.48),
+            "line_from": "left",
+        },
+        "extra_btn": {
+            "name": "Extra Button",
+            "pos": (0.22, 0.40),
+            "line_from": "left",
+        },
+    }
+
+    def __init__(self):
+        super().__init__()
+        self.mouse_image = None
+        self._cached_pixbuf = None
+
+        self.set_content_width(500)
+        self.set_content_height(450)
+        self.set_draw_func(self._draw)
+
+        image_paths = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         '../assets/devices/genericmouse.png'),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         'assets/devices/genericmouse.png'),
+            '/usr/share/juhradial/assets/devices/genericmouse.png',
+        ]
+        for path in image_paths:
+            if os.path.exists(path):
+                try:
+                    self.mouse_image = Gdk.Texture.new_from_filename(path)
+                    self._cached_pixbuf = self._texture_to_pixbuf(self.mouse_image)
+                except Exception as e:
+                    print(f"Failed to load generic mouse image: {e}")
+                break
+
+    def _texture_to_pixbuf(self, texture):
+        try:
+            from gi.repository import GdkPixbuf
+            data = texture.save_to_png_bytes()
+            loader = GdkPixbuf.PixbufLoader.new_with_type('png')
+            loader.write(data.get_data())
+            loader.close()
+            return loader.get_pixbuf()
+        except Exception:
+            return None
+
+    def _draw(self, area, cr, width, height):
+        if self.mouse_image:
+            img_w = self.mouse_image.get_width()
+            img_h = self.mouse_image.get_height()
+            scale = min(width * 0.65 / img_w, height * 0.75 / img_h)
+            sw = img_w * scale
+            sh = img_h * scale
+            x_off = (width - sw) / 2
+            y_off = (height - sh) / 2
+            img_rect = (x_off, y_off, sw, sh)
+
+            cr.save()
+            cr.translate(x_off, y_off)
+            cr.scale(scale, scale)
+            if self._cached_pixbuf:
+                Gdk.cairo_set_source_pixbuf(cr, self._cached_pixbuf, 0, 0)
+            cr.paint()
+            cr.restore()
+        else:
+            img_rect = (width * 0.2, height * 0.1, width * 0.6, height * 0.8)
+            cr.set_source_rgba(0.3, 0.3, 0.4, 1)
+            cr.rectangle(*img_rect)
+            cr.fill()
+            cr.set_source_rgba(0.8, 0.8, 0.9, 1)
+            cr.select_font_face("Sans", 0, 0)
+            cr.set_font_size(16)
+            cr.move_to(width * 0.32, height * 0.5)
+            cr.show_text(_("Generic Mouse"))
+
+        for btn_id, btn_info in self.GENERIC_BUTTONS.items():
+            self._draw_label(cr, img_rect, btn_info)
+
+    def _draw_label(self, cr, img_rect, btn_info):
+        ix, iy, iw, ih = img_rect
+        bx = ix + btn_info['pos'][0] * iw
+        by = iy + btn_info['pos'][1] * ih
+        label = btn_info['name']
+        line_from = btn_info.get('line_from', 'left')
+
+        cr.select_font_face("Sans", 0, 0)
+        cr.set_font_size(11)
+        ext = cr.text_extents(label)
+        px, py = 12, 7
+        bw = ext.width + px * 2
+        bh = ext.height + py * 2
+
+        if line_from == 'top':
+            lx = bx - bw / 2
+            ly = by - 50 - bh
+            lsx, lsy = bx, by - 6
+            lex, ley = bx, ly + bh
+        else:
+            lx = bx - 50 - bw
+            ly = by - bh / 2
+            lsx, lsy = bx - 6, by
+            lex, ley = lx + bw, by
+
+        # Shadow
+        cr.set_source_rgba(0, 0, 0, 0.35)
+        r = 8
+        self._rounded_rect(cr, lx + 3, ly + 3, bw, bh, r)
+        cr.fill()
+
+        # Background
+        cr.set_source_rgba(0.1, 0.11, 0.14, 0.9)
+        self._rounded_rect(cr, lx, ly, bw, bh, r)
+        cr.fill()
+
+        # Border
+        cr.set_source_rgba(0, 0.83, 1, 0.3)
+        cr.set_line_width(1.2)
+        self._rounded_rect(cr, lx, ly, bw, bh, r)
+        cr.stroke()
+
+        # Text
+        cr.set_source_rgba(0.94, 0.96, 0.97, 1)
+        cr.move_to(lx + px, ly + py + ext.height)
+        cr.show_text(label)
+
+        # Line
+        cr.set_source_rgba(0, 0.83, 1, 0.45)
+        cr.set_line_width(1.5)
+        cr.move_to(lsx, lsy)
+        cr.line_to(lex, ley)
+        cr.stroke()
+
+        # Dot
+        cr.set_source_rgba(0, 0.83, 1, 0.8)
+        cr.arc(bx, by, 4, 0, 2 * math.pi)
+        cr.fill()
+
+    def _rounded_rect(self, cr, x, y, w, h, r):
+        cr.new_path()
+        cr.arc(x + r, y + r, r, math.pi, 1.5 * math.pi)
+        cr.arc(x + w - r, y + r, r, 1.5 * math.pi, 2 * math.pi)
+        cr.arc(x + w - r, y + h - r, r, 0, 0.5 * math.pi)
+        cr.arc(x + r, y + h - r, r, 0.5 * math.pi, math.pi)
+        cr.close_path()
+
+
+class PageHeader(Gtk.Box):
+    """Consistent page header with icon, title, and subtitle."""
+
+    def __init__(self, icon_name, title, subtitle):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.set_halign(Gtk.Align.CENTER)
+        self.set_margin_top(12)
+        self.set_margin_bottom(16)
+
+        icon = Gtk.Image.new_from_icon_name(icon_name)
+        icon.set_pixel_size(48)
+        icon.add_css_class('page-header-icon')
+        self.append(icon)
+
+        title_label = Gtk.Label(label=title)
+        title_label.add_css_class('title-1')
+        self.append(title_label)
+
+        subtitle_label = Gtk.Label(label=subtitle)
+        subtitle_label.add_css_class('dim-label')
+        self.append(subtitle_label)
+
+
 class SettingsCard(Gtk.Box):
     """A styled settings card"""
 
@@ -435,3 +637,17 @@ class SettingRow(Gtk.Box):
 
     def set_control(self, widget):
         self.control_box.append(widget)
+
+
+class InfoCard(Gtk.Box):
+    """A secondary/informational settings card with quieter styling."""
+
+    def __init__(self, title):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.add_css_class('settings-card')
+        self.add_css_class('info-card')
+
+        title_label = Gtk.Label(label=title)
+        title_label.set_halign(Gtk.Align.START)
+        title_label.add_css_class('card-title')
+        self.append(title_label)
