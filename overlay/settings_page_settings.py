@@ -336,7 +336,7 @@ class SettingsPage(Gtk.ScrolledWindow):
 
     def _reload_theme_css(self):
         """Reload CSS with new theme colors"""
-        # Update the module-level COLORS that generate_css() reads from
+        # Update the module-level COLORS used for CSS generation
         settings_theme.COLORS = settings_theme.load_colors()
 
         # Keep Adwaita widget palette aligned with selected dark/light theme
@@ -347,7 +347,8 @@ class SettingsPage(Gtk.ScrolledWindow):
             style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
 
         # Regenerate CSS with new colors
-        new_css = settings_theme.generate_css()
+        new_css = settings_theme._generate_css(settings_theme.COLORS)
+        settings_theme.CSS = new_css
 
         # Apply new CSS
         css_provider = Gtk.CssProvider()
