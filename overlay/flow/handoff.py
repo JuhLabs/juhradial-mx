@@ -238,6 +238,20 @@ class FlowHandoffManager:
         # Switch MX Master back to this host (Linux)
         self._switch_host_to_linux()
 
+        # Haptic feedback on arrival
+        try:
+            import subprocess
+            subprocess.Popen(
+                ["gdbus", "call", "--session",
+                 "--dest", "org.kde.juhradialmx",
+                 "--object-path", "/org/kde/juhradialmx/Daemon",
+                 "--method", "org.kde.juhradialmx.Daemon.TriggerHaptic",
+                 "confirm"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        except Exception:
+            pass
+
         # Warp cursor
         success = warp_cursor(x, y)
         logger.info(
