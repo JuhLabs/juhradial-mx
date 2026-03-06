@@ -104,6 +104,7 @@ class EdgeDetector:
     def __init__(self, on_edge_hit=None):
         self.on_edge_hit = on_edge_hit
         self.running = False
+        self.active = False  # only detect edges when Mac is the active machine
         self._thread = None
         self._suppressed_until = 0
         self._edge_start_time = 0
@@ -133,7 +134,7 @@ class EdgeDetector:
         while self.running:
             time.sleep(0.016)  # ~60Hz polling
 
-            if time.time() < self._suppressed_until:
+            if not self.active or time.time() < self._suppressed_until:
                 self._current_edge = None
                 continue
 
@@ -452,7 +453,9 @@ class JuhFlowApp:
             "timestamp": time.time(),
         }
         self.bridge_client.send(msg)
-        logger.info("Edge hit: %s at (%d, %d) -> sent to Linux", edge, mx, my)
+        # Deactivate edge detection - Linux is now the active machine
+        self.edge_detector.active = False
+        logger.info("Edge hit: %s at (%d, %d) -> sent to Linux (edge detect off)", edge, mx, my)
 
         # Also send clipboard
         self._sync_clipboard_to_linux()
@@ -514,7 +517,9 @@ class JuhFlowApp:
 
             Quartz.CGWarpMouseCursorPosition((x, y))
             self.edge_detector.suppress_for(EDGE_COOLDOWN_MS)
-            logger.info("Cursor warped to %s edge: (%d, %d)", arrival_edge, x, y)
+            # Activate edge detection - Mac is now the active machine
+            self.edge_detector.active = True
+            logger.info("Cursor warped to %s edge: (%d, %d) (edge detect on)", arrival_edge, x, y)
         except ImportError:
             logger.error("Quartz not available for cursor warp")
 
