@@ -206,6 +206,8 @@ window.settings-window {{
 
 .nav-item.active:hover {{
     background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
+    color: {text_on_accent};
+    border-color: transparent;
     box-shadow: 0 6px 28px {COLORS['accent_glow']};
 }}
 
@@ -237,6 +239,11 @@ window.settings-window {{
 .nav-item:hover .nav-icon-badge {{
     background: linear-gradient(135deg, {accent_25} 0%, {accent2_15} 100%);
     border-color: {accent_30};
+}}
+
+.nav-item.active:hover .nav-icon-badge {{
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.15);
 }}
 
 /* Page header icon */
@@ -987,6 +994,14 @@ tooltip {{
 .donate-btn:hover {{
     box-shadow: 0 6px 24px {COLORS['accent_glow']};
     transform: translateY(-1px);
+}}
+
+/* ============================================
+   DONATE HEART - Container for Cairo-drawn heart
+   ============================================ */
+.donate-heart {{
+    min-width: 40px;
+    min-height: 40px;
 }}
 """
 
