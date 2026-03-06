@@ -124,9 +124,12 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
         monitor_row.set_control(self.monitor_dropdown)
         enable_card.append(monitor_row)
 
-        # JuhFlow companion status
+        # JuhFlow companion status + connect button
         juhflow_row = SettingRow(
             _("JuhFlow companion"), _("Mac/Windows companion app status")
+        )
+        self._juhflow_control_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=8
         )
         self._juhflow_status_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=6
@@ -138,7 +141,15 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
         self._juhflow_label = Gtk.Label(label=_("Checking..."))
         self._juhflow_label.add_css_class("caption")
         self._juhflow_status_box.append(self._juhflow_label)
-        juhflow_row.set_control(self._juhflow_status_box)
+        self._juhflow_control_box.append(self._juhflow_status_box)
+
+        self._juhflow_connect_btn = Gtk.Button(label=_("Connect"))
+        self._juhflow_connect_btn.add_css_class("suggested-action")
+        self._juhflow_connect_btn.add_css_class("caption")
+        self._juhflow_connect_btn.connect("clicked", self._on_juhflow_connect)
+        self._juhflow_control_box.append(self._juhflow_connect_btn)
+
+        juhflow_row.set_control(self._juhflow_control_box)
         enable_card.append(juhflow_row)
 
         # Poll JuhFlow status every 3 seconds
@@ -394,13 +405,42 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
             self._juhflow_label.set_text(_("Connected - {}").format(name))
             self._juhflow_label.remove_css_class("dim-label")
             self._juhflow_label.add_css_class("success")
+            self._juhflow_connect_btn.set_visible(False)
         else:
             self._juhflow_dot.remove_css_class("connected")
             self._juhflow_dot.add_css_class("disconnected")
             self._juhflow_label.set_text(_("Not connected"))
             self._juhflow_label.remove_css_class("success")
             self._juhflow_label.add_css_class("dim-label")
+            self._juhflow_connect_btn.set_visible(True)
         return True  # Keep polling
+
+    def _on_juhflow_connect(self, button):
+        """Start Flow server and JuhFlow bridge to find companion apps."""
+        button.set_sensitive(False)
+        button.set_label(_("Connecting..."))
+
+        # Enable flow if not already
+        if not config.get("flow", "enabled", default=False):
+            config.set("flow", "enabled", True, auto_save=True)
+            self.flow_switch.set_active(True)
+
+        # Start the flow server (which starts the bridge + indicator)
+        if FLOW_MODULE_AVAILABLE:
+            try:
+                server = get_flow_server()
+                if not server:
+                    start_flow_server()
+                    print("[Flow] Started via Connect button")
+            except Exception as e:
+                print(f"[Flow] Connect error: {e}")
+
+        # Re-enable button after a delay
+        def _reset():
+            button.set_sensitive(True)
+            button.set_label(_("Connect"))
+            return False
+        GLib.timeout_add(3000, _reset)
 
     def _get_monitor_connectors(self):
         """Get list of monitor connector info from GDK.
