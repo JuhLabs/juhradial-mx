@@ -42,6 +42,7 @@ _presence_server: Optional['FlowPresenceServer'] = None
 _handoff_manager = None
 _edge_detector = None
 _juhflow_bridge = None
+_flow_indicator = None
 
 # Crypto identity (set at startup)
 _identity = None  # (private_key, public_key_bytes, node_id)
@@ -210,13 +211,38 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
     except Exception as e:
         logger.warning("JuhFlow bridge setup deferred: %s", e)
 
+    # 9. Start flow edge indicator (shows glow on configured edge)
+    try:
+        from .indicator import FlowEdgeIndicator
+        global _flow_indicator
+
+        if _flow_indicator is None:
+            flow_cfg = {}
+            try:
+                import json as _json
+                from pathlib import Path as _Path
+                _cp = _Path.home() / ".config" / "juhradial" / "config.json"
+                flow_cfg = _json.loads(_cp.read_text()).get("flow", {})
+            except Exception:
+                pass
+            direction = flow_cfg.get("direction", "right")
+            _flow_indicator = FlowEdgeIndicator()
+            _flow_indicator.configure(direction)
+    except Exception as e:
+        logger.warning("Flow indicator setup failed: %s", e)
+
     return _flow_server
 
 
 def stop_flow_server():
     """Stop all Flow servers"""
     global _flow_server, _logi_flow_server, _logi_discovery, _presence_server
-    global _handoff_manager, _edge_detector, _juhflow_bridge
+    global _handoff_manager, _edge_detector, _juhflow_bridge, _flow_indicator
+
+    if _flow_indicator:
+        _flow_indicator.hide()
+        _flow_indicator.deleteLater()
+        _flow_indicator = None
 
     if _juhflow_bridge:
         _juhflow_bridge.stop()
