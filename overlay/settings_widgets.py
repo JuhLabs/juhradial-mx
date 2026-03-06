@@ -434,14 +434,29 @@ class GenericMouseVisualization(Gtk.DrawingArea):
         },
     }
 
-    def __init__(self):
+    def __init__(self, on_button_click=None):
         super().__init__()
         self.mouse_image = None
         self._cached_pixbuf = None
+        self._label_rects = {}  # btn_id -> (x, y, w, h) for hit testing
+        self._hovered_btn = None
+        self._on_button_click = on_button_click
 
         self.set_content_width(500)
         self.set_content_height(450)
         self.set_draw_func(self._draw)
+
+        # Enable mouse events for hover/click
+        motion_ctrl = Gtk.EventControllerMotion()
+        motion_ctrl.connect("motion", self._on_motion)
+        motion_ctrl.connect("leave", self._on_leave)
+        self.add_controller(motion_ctrl)
+
+        click_ctrl = Gtk.GestureClick()
+        click_ctrl.connect("pressed", self._on_click)
+        self.add_controller(click_ctrl)
+
+        self.set_cursor_from_name("default")
 
         image_paths = [
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -499,15 +514,43 @@ class GenericMouseVisualization(Gtk.DrawingArea):
             cr.move_to(width * 0.32, height * 0.5)
             cr.show_text(_("Generic Mouse"))
 
+        self._label_rects = {}
         for btn_id, btn_info in self.GENERIC_BUTTONS.items():
-            self._draw_label(cr, img_rect, btn_info)
+            self._draw_label(cr, img_rect, btn_id, btn_info)
 
-    def _draw_label(self, cr, img_rect, btn_info):
+    def _on_motion(self, ctrl, x, y):
+        """Track hover over button labels."""
+        hit = None
+        for btn_id, (rx, ry, rw, rh) in self._label_rects.items():
+            if rx <= x <= rx + rw and ry <= y <= ry + rh:
+                hit = btn_id
+                break
+        if hit != self._hovered_btn:
+            self._hovered_btn = hit
+            self.set_cursor_from_name("pointer" if hit else "default")
+            self.queue_draw()
+
+    def _on_leave(self, ctrl):
+        if self._hovered_btn:
+            self._hovered_btn = None
+            self.set_cursor_from_name("default")
+            self.queue_draw()
+
+    def _on_click(self, gesture, n_press, x, y):
+        """Handle click on a button label."""
+        for btn_id, (rx, ry, rw, rh) in self._label_rects.items():
+            if rx <= x <= rx + rw and ry <= y <= ry + rh:
+                if self._on_button_click:
+                    self._on_button_click(btn_id, self.GENERIC_BUTTONS[btn_id])
+                return
+
+    def _draw_label(self, cr, img_rect, btn_id, btn_info):
         ix, iy, iw, ih = img_rect
         bx = ix + btn_info['pos'][0] * iw
         by = iy + btn_info['pos'][1] * ih
         label = btn_info['name']
         line_from = btn_info.get('line_from', 'left')
+        is_hovered = btn_id == self._hovered_btn
 
         cr.select_font_face("Sans", 0, 0)
         cr.set_font_size(11)
@@ -527,20 +570,27 @@ class GenericMouseVisualization(Gtk.DrawingArea):
             lsx, lsy = bx - 6, by
             lex, ley = lx + bw, by
 
+        # Store rect for hit testing
+        self._label_rects[btn_id] = (lx, ly, bw, bh)
+
         # Shadow
         cr.set_source_rgba(0, 0, 0, 0.35)
         r = 8
         self._rounded_rect(cr, lx + 3, ly + 3, bw, bh, r)
         cr.fill()
 
-        # Background
-        cr.set_source_rgba(0.1, 0.11, 0.14, 0.9)
+        # Background (brighter on hover)
+        if is_hovered:
+            cr.set_source_rgba(0.15, 0.18, 0.22, 0.95)
+        else:
+            cr.set_source_rgba(0.1, 0.11, 0.14, 0.9)
         self._rounded_rect(cr, lx, ly, bw, bh, r)
         cr.fill()
 
-        # Border
-        cr.set_source_rgba(0, 0.83, 1, 0.3)
-        cr.set_line_width(1.2)
+        # Border (brighter on hover)
+        accent_a = 0.6 if is_hovered else 0.3
+        cr.set_source_rgba(0, 0.83, 1, accent_a)
+        cr.set_line_width(1.5 if is_hovered else 1.2)
         self._rounded_rect(cr, lx, ly, bw, bh, r)
         cr.stroke()
 
@@ -549,16 +599,18 @@ class GenericMouseVisualization(Gtk.DrawingArea):
         cr.move_to(lx + px, ly + py + ext.height)
         cr.show_text(label)
 
-        # Line
-        cr.set_source_rgba(0, 0.83, 1, 0.45)
-        cr.set_line_width(1.5)
+        # Line (brighter on hover)
+        line_a = 0.7 if is_hovered else 0.45
+        cr.set_source_rgba(0, 0.83, 1, line_a)
+        cr.set_line_width(2 if is_hovered else 1.5)
         cr.move_to(lsx, lsy)
         cr.line_to(lex, ley)
         cr.stroke()
 
         # Dot
-        cr.set_source_rgba(0, 0.83, 1, 0.8)
-        cr.arc(bx, by, 4, 0, 2 * math.pi)
+        dot_a = 1.0 if is_hovered else 0.8
+        cr.set_source_rgba(0, 0.83, 1, dot_a)
+        cr.arc(bx, by, 5 if is_hovered else 4, 0, 2 * math.pi)
         cr.fill()
 
     def _rounded_rect(self, cr, x, y, w, h, r):
