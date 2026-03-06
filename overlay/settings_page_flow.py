@@ -798,13 +798,16 @@ class FlowPage(Gtk.ScrolledWindow):
 
         computer_box.append(text_box)
 
-        # Link button - show for compatible computers
-        software = computer.get("software", "Unknown")
-        if software == "JuhFlow":
-            # JuhFlow companion app - already connected via encrypted bridge
-            info_label = Gtk.Label(label=_("Connected (JuhFlow)"))
+        # Check if this computer's IP matches a connected JuhFlow bridge peer
+        computer_ip = computer.get("ip", "")
+        bridge_peer_ips = self._get_bridge_peer_ips()
+        has_juhflow = computer_ip in bridge_peer_ips or software == "JuhFlow"
+
+        # Link button / status label
+        if has_juhflow:
+            info_label = Gtk.Label(label=_("JuhFlow Available"))
             info_label.set_tooltip_text(
-                _("Mac/Windows companion app connected via encrypted bridge")
+                _("JuhFlow companion app detected on this device")
             )
             info_label.add_css_class("success")
             info_label.add_css_class("caption")
@@ -815,7 +818,6 @@ class FlowPage(Gtk.ScrolledWindow):
             link_btn.connect("clicked", self._on_link_clicked, computer)
             computer_box.append(link_btn)
         elif software == "Input Leap":
-            # Input Leap is a compatible KVM - show as detected
             info_label = Gtk.Label(label=_("Input Leap detected"))
             info_label.set_tooltip_text(
                 _("This computer is running Input Leap (open-source KVM)")
@@ -823,33 +825,38 @@ class FlowPage(Gtk.ScrolledWindow):
             info_label.add_css_class("accent-color")
             info_label.add_css_class("caption")
             computer_box.append(info_label)
-        elif software in (
-            "Logi Options+",
-            "macOS",
-            "Windows/Samba",
-            "Windows RDP",
-            "Linux",
-            "SSH Server",
-            "Computer",
-        ):
-            # macOS/Windows -> suggest JuhFlow companion app
-            # Linux -> suggest JuhRadial MX
-            if software in ("macOS", "Windows/Samba", "Windows RDP", "Logi Options+"):
-                label_text = _("Install JuhFlow")
-                tip_text = _("Install the JuhFlow companion app to enable Flow")
-            else:
-                label_text = _("Install JuhRadial MX")
-                tip_text = _("Install JuhRadial MX on this computer to enable Flow")
-            info_label = Gtk.Label(label=label_text)
-            info_label.set_tooltip_text(tip_text)
+        elif software == "Linux":
+            info_label = Gtk.Label(label=_("Install JuhRadial MX"))
+            info_label.set_tooltip_text(
+                _("Install JuhRadial MX on this computer to enable Flow")
+            )
             info_label.add_css_class("dim-label")
             info_label.add_css_class("caption")
             computer_box.append(info_label)
-        else:
-            # Unknown devices
-            pass  # Just show the device without any action button
+        elif software not in ("Unknown",):
+            # macOS, Windows, SSH Server, Logi Options+, etc.
+            info_label = Gtk.Label(label=_("Install JuhFlow"))
+            info_label.set_tooltip_text(
+                _("Install the JuhFlow companion app to enable Flow")
+            )
+            info_label.add_css_class("dim-label")
+            info_label.add_css_class("caption")
+            computer_box.append(info_label)
 
         return computer_box
+
+    def _get_bridge_peer_ips(self):
+        """Get set of IPs of connected JuhFlow bridge peers."""
+        if not FLOW_MODULE_AVAILABLE:
+            return set()
+        try:
+            from flow import get_juhflow_bridge
+            bridge = get_juhflow_bridge()
+            if bridge:
+                return {p.get("ip", "") for p in bridge.get_peers()}
+        except Exception:
+            pass
+        return set()
 
     def _on_link_clicked(self, button, computer):
         """Handle click on Link button to pair with another computer"""
