@@ -99,8 +99,8 @@
               install -Dm644 assets/juhradial-mx.svg $out/share/juhradial/assets/juhradial-mx.svg
 
               # Desktop entries
-              install -Dm644 juhradial-mx.desktop $out/share/applications/juhradial-mx.desktop
-              install -Dm644 org.kde.juhradialmx.settings.desktop $out/share/applications/org.kde.juhradialmx.settings.desktop
+              install -Dm644 packaging/juhradial-mx.desktop $out/share/applications/juhradial-mx.desktop
+              install -Dm644 packaging/org.kde.juhradialmx.settings.desktop $out/share/applications/org.kde.juhradialmx.settings.desktop
 
               # Launcher scripts - write Nix-aware versions
               cat > $out/bin/juhradial-mx <<LAUNCHER

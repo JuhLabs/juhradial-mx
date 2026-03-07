@@ -65,7 +65,7 @@ fi
 install -Dm755 daemon/target/release/juhradiald %{buildroot}%{_bindir}/juhradiald
 
 # Install launcher script
-install -Dm755 juhradial-mx.sh %{buildroot}%{_bindir}/juhradial-mx
+install -Dm755 scripts/juhradial-mx.sh %{buildroot}%{_bindir}/juhradial-mx
 
 # Install overlay Python files
 install -dm755 %{buildroot}%{_datadir}/juhradial
@@ -84,7 +84,7 @@ install -dm755 %{buildroot}%{_datadir}/juhradial/assets
 cp -r assets/* %{buildroot}%{_datadir}/juhradial/assets/
 
 # Install desktop file
-install -Dm644 juhradial-mx.desktop %{buildroot}%{_datadir}/applications/juhradial-mx.desktop
+install -Dm644 packaging/juhradial-mx.desktop %{buildroot}%{_datadir}/applications/juhradial-mx.desktop
 
 # Install icon
 install -Dm644 assets/juhradial-mx.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/juhradial-mx.svg
