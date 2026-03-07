@@ -5,6 +5,39 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0-beta] - 2026-03-07
+
+### Added
+
+- **JuhFlow cross-computer control** - Move your cursor seamlessly between Linux and Mac. Encrypted peer-to-peer (X25519 + AES-256-GCM), auto-discovery on local network, no cloud required. Signed & notarized macOS companion app included.
+- **Generic mouse support** - JuhRadial now works with any mouse, not just Logitech MX Master. Bind any mouse button via a "press your button" capture dialog in Settings. SteelSeries, Razer, Corsair, and any other mouse with extra buttons are supported via evdev.
+- **Clickable DPI value** - Click the DPI number on Point & Scroll to type an exact value (400-8000) instead of dragging the slider.
+- **Clickable sensitivity %** - Click the SmartShift sensitivity percentage to type an exact value (1-100%).
+- **Interactive generic mouse visualization** - Labeled button positions with hover highlights and click-to-configure on the generic mouse image.
+
+### Fixed
+
+- **GTK4 child iteration** - Replaced broken Python iteration with get_first_child()/get_next_sibling() throughout settings.
+- **Button config persistence** - Dialog now calls config.save() so button remaps survive restart.
+- **Battery timer leak** - Timer stops when daemon is unavailable instead of running forever.
+- **Atomic profile writes** - Profile JSON uses write-to-tmp + os.replace to prevent corruption on crash.
+- **UPower D-Bus cleanup** - Signal subscriptions and system bus properly stored and cleaned up.
+- **Capture/connect timer cleanup** - All GLib timers stored and cancelled on window close.
+- **RadialMenuConfigDialog** - Uses ConfigManager instead of raw json.load/dump for state consistency.
+- **SmartShift parameters** - Uses actual device params instead of hardcoded defaults.
+- **Flow server double-start** - Prevented via programmatic toggle flag.
+- **Donate card CSS** - Replaced invalid alpha() with pre-computed rgba() values.
+- **Connection dot CSS** - Added .connected/.disconnected classes for Flow and EasySwitch pages.
+
+### Changed
+
+- **All print() migrated to logging** - Every settings_*.py file now uses proper logging module.
+- **Dead CSS removed** - Removed @keyframes (not supported in GTK4), ~15% unused CSS rules, stale IS_DARK_THEME global.
+- **Haptics D-Bus proxy cached** - Single proxy instance instead of creating one per call.
+- **GenericMouseVisualization throttled** - Motion events throttled to 33ms to reduce CPU.
+- **Root directory cleaned up** - Moved 11 files into packaging/, scripts/, tests/ for a tidier GitHub page.
+- **Project structure updated** - New tests/, scripts/ directories; juhflow/ contains Mac companion app + signed .dmg.
+
 ## [0.2.12] - 2026-02-27
 
 ### Added
