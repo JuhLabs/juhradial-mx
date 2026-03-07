@@ -6,7 +6,8 @@ We release patches for security vulnerabilities for the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.2.9   | :white_check_mark: Current release |
+| 0.3.0-beta | :white_check_mark: Current release |
+| 0.2.9   | :white_check_mark: |
 | 0.2.x   | :white_check_mark: |
 | 0.1.x   | :x: Upgrade required (critical security fixes in 0.2.1+) |
 | < 0.1   | :x:                |
@@ -14,6 +15,12 @@ We release patches for security vulnerabilities for the following versions:
 **Note:** JuhRadial MX is in active development. Security updates are provided for the latest release on the master branch. Always run the latest version.
 
 ### Recent Security Updates
+
+**v0.3.0-beta (March 2026):**
+- Atomic profile writes (write-to-tmp + os.replace) prevent config corruption
+- All print() replaced with logging module for proper audit trails
+- JuhFlow uses X25519 + AES-256-GCM end-to-end encryption for cross-computer communication
+- Peer key files enforced at chmod 0o600
 
 **v0.2.9 (February 2026):**
 - Fixed XWayland `dlsym` null pointer safety — all dynamically resolved X11 symbols are now null-checked before `transmute` to prevent undefined behavior
