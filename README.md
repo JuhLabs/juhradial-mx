@@ -1,8 +1,8 @@
 <div align="center">
   <img src="assets/juhradial-mx.svg" width="128" alt="JuhRadial MX Logo">
   <h1>JuhRadial MX</h1>
-  <p><strong>Beautiful radial menu for Logitech MX Master mice on Linux</strong></p>
-  <p>A Logi Options+ inspired experience — works on GNOME, KDE Plasma, Hyprland, COSMIC & more</p>
+  <p><strong>The ultimate Logitech MX Master experience on Linux</strong></p>
+  <p>Radial menu, cross-computer Flow, DPI control, haptic feedback - all native on Wayland</p>
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
@@ -35,7 +35,7 @@
 <br>
 
 > [!TIP]
-> **New in [v0.3.0-beta](CHANGELOG.md):** Code quality overhaul, clickable DPI/sensitivity values, JuhFlow cross-computer control (Linux-Mac), generic mouse support, and 15+ bug fixes. [Update now](#installation).
+> **New in [v0.3.0-beta](CHANGELOG.md):** JuhFlow cross-computer control (Linux-Mac), clickable DPI/sensitivity input, generic mouse support for any mouse, code quality overhaul with 15+ fixes, and a cleaner project structure. [Update now](#installation).
 
 <div align="center">
   <img src="assets/github/separator.png" width="80%" alt="">
@@ -84,33 +84,33 @@
   <tr>
     <td width="50%">
       <h3><img src="assets/github/radial.png" width="24" alt=""> Radial Menu</h3>
-      Beautiful overlay triggered by gesture button — hold to drag-select or tap to keep open. Fully configurable 8-segment wheel with smooth animations.
+      Beautiful overlay triggered by gesture button - hold to drag-select or tap to keep open. Fully configurable 8-segment wheel with smooth animations and 3D themes.
     </td>
     <td width="50%">
-      <h3><img src="assets/github/bolt.png" width="24" alt=""> AI Quick Access</h3>
-      Submenu with Claude, ChatGPT, Gemini, and Perplexity. Launch your favorite AI assistant with a single gesture.
+      <h3><img src="assets/github/bolt.png" width="24" alt=""> JuhFlow</h3>
+      Cross-computer control between Linux and Mac. Move your cursor across machines, share clipboard, all over encrypted connections (X25519 + AES-256-GCM). No cloud required.
     </td>
   </tr>
   <tr>
     <td>
       <h3><img src="assets/github/gear.png" width="24" alt=""> Settings Dashboard</h3>
-      Modern GTK4/Adwaita settings app with Actions Ring configuration, theme picker, DPI control, and Easy-Switch device management.
+      Modern GTK4/Adwaita settings with clickable DPI/sensitivity controls, button remapping, theme picker, and Easy-Switch device management.
     </td>
     <td>
       <h3><img src="assets/github/mouse.png" width="24" alt=""> Multi-Device</h3>
-      Easy-Switch host switching with real-time paired device names via HID++. Auto-restarts on device reconnect.
+      Easy-Switch host switching with real-time paired device names via HID++. Generic mouse mode supports any mouse with evdev.
     </td>
   </tr>
   <tr>
     <td>
-      <strong>Multiple Themes</strong> — JuhRadial MX, Catppuccin, Nord, Dracula, Solarized, and more<br>
-      <strong>Flow</strong> — Multi-computer control with clipboard sync<br>
-      <strong>Battery Monitoring</strong> — Real-time status with instant charging detection via HID++
+      <strong>AI Quick Access</strong> - Claude, ChatGPT, Gemini, Perplexity in a submenu<br>
+      <strong>Multiple Themes</strong> - JuhRadial MX, Catppuccin, Nord, Dracula, Solarized & more<br>
+      <strong>Battery Monitoring</strong> - Real-time status with instant charging detection via HID++
     </td>
     <td>
-      <strong>DPI Control</strong> — Visual DPI adjustment (400-8000 DPI)<br>
-      <strong>Native Wayland</strong> — GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway & more<br>
-      <strong>Multi-Monitor</strong> — Correct cursor positioning across 1-4+ monitors with HiDPI
+      <strong>DPI Control</strong> - Click to type exact DPI (400-8000) or drag the slider<br>
+      <strong>Native Wayland</strong> - GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway & more<br>
+      <strong>Multi-Monitor</strong> - Correct cursor positioning across 1-4+ monitors with HiDPI
     </td>
   </tr>
 </table>
@@ -126,7 +126,7 @@
 | Desktop Environment | Cursor Detection | Status |
 |:---:|:---:|:---:|
 | **GNOME** (Ubuntu, Fedora, Pop!_OS) | Shell extension D-Bus | **Fully supported** |
-| **KDE Plasma 6** | KWin scripting / D-Bus | **Fully supported** |
+| **KDE Plasma 6** (Kubuntu, Fedora KDE) | KWin scripting / D-Bus | **Fully supported** |
 | **Hyprland** | IPC socket | **Fully supported** |
 | **COSMIC** (Fedora, Pop!_OS) | XWayland sync | **Fully supported** |
 | **Sway / wlroots** | XWayland fallback | Supported |
@@ -134,7 +134,7 @@
 
 </div>
 
-> **Distros:** Fedora, Ubuntu/Debian, Arch/Manjaro, openSUSE, and derivatives. The installer auto-detects your distro and package manager.
+> **Distros:** Fedora, Ubuntu/Debian, Arch/Manjaro, openSUSE, NixOS, and derivatives. The installer auto-detects your distro and package manager.
 
 ## Supported Devices
 
@@ -145,9 +145,10 @@
         <img src="assets/github/mouse.png" width="80" alt="MX Master">
       </td>
       <td>
-        <strong>Logitech MX Master 4</strong> — Fully supported<br>
-        <strong>Logitech MX Master 3S</strong> — Fully supported<br>
-        <strong>Logitech MX Master 3</strong> — Fully supported
+        <strong>Logitech MX Master 4</strong> - Full HID++ support<br>
+        <strong>Logitech MX Master 3S</strong> - Full HID++ support<br>
+        <strong>Logitech MX Master 3</strong> - Full HID++ support<br>
+        <strong>Any mouse</strong> - Generic mode with evdev (radial menu + button remapping)
       </td>
     </tr>
   </table>
@@ -160,14 +161,14 @@
 ## Installation
 
 > [!IMPORTANT]
-> **One-Line Install (Recommended)** — Detects your distro, installs dependencies, builds from source, and configures everything.
+> **One-Line Install (Recommended)** - Detects your distro, installs dependencies, builds from source, and configures everything.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash
 ```
 
 <details>
-<summary><strong>Manual Install — Fedora</strong></summary>
+<summary><strong>Manual Install - Fedora</strong></summary>
 
 ```bash
 # 1. Install dependencies
@@ -186,7 +187,7 @@ cd daemon && cargo build --release && cd ..
 </details>
 
 <details>
-<summary><strong>Manual Install — Arch Linux</strong></summary>
+<summary><strong>Manual Install - Arch Linux</strong></summary>
 
 ```bash
 # 1. Install dependencies
@@ -219,9 +220,9 @@ cd daemon && cargo build --release && cd ..
 
 ## Usage
 
-**Hold mode:** Press and hold gesture button → drag to select → release to execute
+**Hold mode:** Press and hold gesture button - drag to select - release to execute
 
-**Tap mode:** Quick tap gesture button → menu stays open → click to select
+**Tap mode:** Quick tap gesture button - menu stays open - click to select
 
 ### Default Actions (clockwise from top)
 
@@ -264,8 +265,9 @@ Open Settings and select a theme:
 
 ### Autostart
 
+The installer sets up autostart automatically. For manual setup:
+
 ```bash
-# Add to KDE autostart
 cp packaging/juhradial-mx.desktop ~/.config/autostart/
 sed -i "s|Exec=.*|Exec=$(pwd)/scripts/juhradial-mx.sh|" ~/.config/autostart/juhradial-mx.desktop
 ```
@@ -293,8 +295,6 @@ windowrulev2 = pin, title:^(JuhRadial MX)$
 windowrulev2 = noanim, title:^(JuhRadial MX)$
 ```
 
-These rules ensure the radial menu overlay appears correctly on all workspaces without animations or decorations.
-
 </details>
 
 <div align="center">
@@ -310,7 +310,6 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 | Mouse not detected | Check HID permissions: ensure your user is in the `input` group |
 | Build fails | Install dev packages: `hidapi-devel`, `dbus-devel` |
 | Hyprland: Menu hidden | Add window rules from Hyprland Setup section above |
-| GNOME: Extension not loading | Requires session restart (log out/in) on Wayland |
 
 <details>
 <summary><strong>Debug Mode</strong></summary>
@@ -326,35 +325,74 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
   <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
-## How It Works
+## JuhFlow - Cross-Computer Control
+
+Move your cursor seamlessly between your Linux and Mac machines. Encrypted, peer-to-peer, no cloud.
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="assets/github/bolt.png" width="64" alt="JuhFlow">
+        <br><br>
+        <a href="https://github.com/JuhLabs/juhradial-mx/raw/master/juhflow/JuhFlow.dmg">
+          <img src="https://img.shields.io/badge/Download_JuhFlow-macOS_(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download JuhFlow for macOS">
+        </a>
+        <br><br>
+        <em>Signed & notarized by Apple - install and run directly</em>
+      </td>
+    </tr>
+  </table>
+</div>
+
+- **Linux side:** Built into JuhRadial MX - just enable Flow in Settings
+- **Mac side:** Download JuhFlow.dmg above, install, and pair
+- **Encrypted:** X25519 key exchange + AES-256-GCM - all traffic is end-to-end encrypted
+- **Zero config:** Auto-discovers peers on your local network
+- **Windows support:** Coming soon
+
+<div align="center">
+  <img src="assets/github/separator.png" width="80%" alt="">
+</div>
+
+## Architecture
 
 ```
-┌──────────────┐    HID++       ┌──────────────────┐    PyQt6     ┌──────────────┐
-│  Logitech MX │ ── hidraw ──→ │  juhradiald       │ ──────────→ │  Radial Menu │
-│  Master      │  (native)     │  (Rust daemon)    │  overlay    │  (8 segments)│
-└──────────────┘                │                    │             └──────────────┘
-                                │  Cursor Detection: │
-                                │  Hyprland IPC      │             ┌──────────────┐
-                                │  KWin D-Bus        │ ──────────→ │  Settings    │
-                                │  GNOME Extension   │   GTK4      │  (Adwaita)   │
-                                │  XWayland          │             └──────────────┘
-                                │  xdotool           │
-                                └──────────────────┘
+                                    JuhRadial MX
+                                    ============
+
+  +--------------+    HID++      +------------------+    PyQt6      +--------------+
+  | Logitech MX  | -- hidraw --> |  juhradiald      | -----------> | Radial Menu  |
+  | Master       |   (native)   |  (Rust daemon)   |   overlay    | (8 segments) |
+  +--------------+               |                  |              +--------------+
+                                 | Cursor detection |
+  +--------------+               | - Hyprland IPC   |              +--------------+
+  | Any Mouse    | -- evdev ---> | - KWin D-Bus     | -----------> | Settings     |
+  | (generic)    |               | - GNOME ext      |    GTK4      | (Adwaita)    |
+  +--------------+               | - XWayland       |              +--------------+
+                                 +------------------+
+                                        |
+                                   JuhFlow (encrypted)
+                                        |
+                                 +------------------+
+                                 |  Mac / Windows   |
+                                 |  companion app   |
+                                 +------------------+
 ```
 
 ## Project Structure
 
 ```
 juhradial-mx/
-├── daemon/              # Rust daemon (HID++ listener, D-Bus, cursor detection)
-├── overlay/             # Python UI (overlay + GTK4 settings)
-│   └── flow/            # JuhFlow multi-computer control
-├── juhflow/             # JuhFlow Mac companion app (Swift + Python)
-├── gnome-extension/     # GNOME Shell cursor helper extension
-├── scripts/             # Launcher scripts
-├── packaging/           # Desktop files, Flatpak, RPM, Arch, systemd
-├── assets/              # Icons, themes, and screenshots
-└── tests/               # Test utilities
++-- daemon/              # Rust daemon (HID++ listener, D-Bus, cursor detection)
++-- overlay/             # Python UI (overlay + GTK4 settings)
+|   +-- flow/            # JuhFlow multi-computer control
++-- juhflow/             # JuhFlow Mac companion app (Swift + Python)
++-- gnome-extension/     # GNOME Shell cursor helper extension
++-- scripts/             # Launcher scripts
++-- packaging/           # Desktop files, Flatpak, RPM, Arch, systemd
++-- assets/              # Icons, themes, and screenshots
++-- tests/               # Test utilities
 ```
 
 <div align="center">
@@ -367,13 +405,7 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 
 ## License
 
-GNU General Public License v3.0 — see [LICENSE](LICENSE)
-
-## Acknowledgments
-
-- [logiops](https://github.com/PixlOne/logiops) — Logitech device configuration (inspiration for HID++ implementation)
-- [logitech-flow-kvm](https://github.com/coddingtonbear/logitech-flow-kvm) by Adam Coddington — Flow multi-computer control inspiration
-- [Catppuccin](https://github.com/catppuccin/catppuccin) — Beautiful color scheme
+GNU General Public License v3.0 - see [LICENSE](LICENSE)
 
 <div align="center">
   <img src="assets/github/separator.png" width="80%" alt="">
@@ -391,7 +423,7 @@ GNU General Public License v3.0 — see [LICENSE](LICENSE)
   </a>
 </div>
 
-> If you find JuhRadial MX useful, consider giving it a star — it helps others discover the project!
+> If you find JuhRadial MX useful, consider giving it a star - it helps others discover the project!
 
 <br>
 
@@ -406,5 +438,5 @@ This project is **not affiliated with, endorsed by, or associated with Logitech*
   <br><br>
   <strong>Made with love by <a href="https://github.com/JuhLabs">JuhLabs</a></strong>
   <br><br>
-  <a href="https://github.com/JuhLabs/juhradial-mx/issues">Report Bug</a> · <a href="https://github.com/JuhLabs/juhradial-mx/issues">Request Feature</a> · <a href="https://github.com/JuhLabs/juhradial-mx/discussions">Discussions</a>
+  <a href="https://github.com/JuhLabs/juhradial-mx/issues">Report Bug</a> - <a href="https://github.com/JuhLabs/juhradial-mx/issues">Request Feature</a> - <a href="https://github.com/JuhLabs/juhradial-mx/discussions">Discussions</a>
 </div>
