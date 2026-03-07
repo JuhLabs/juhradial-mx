@@ -25,7 +25,7 @@ clean:
 # Run JuhRadial MX
 run: build
 	@echo "Starting JuhRadial MX..."
-	./juhradial-mx.sh
+	./scripts/juhradial-mx.sh
 
 # Help
 help:

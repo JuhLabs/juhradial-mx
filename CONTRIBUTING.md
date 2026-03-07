@@ -114,7 +114,7 @@ cd daemon && cargo build --release
 python3 overlay/juhradial-overlay.py
 
 # Or use the launcher script
-./juhradial-mx.sh
+./scripts/juhradial-mx.sh
 ```
 
 ### Testing

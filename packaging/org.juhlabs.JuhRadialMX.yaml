@@ -66,7 +66,7 @@ modules:
         url: https://github.com/JuhLabs/juhradial-mx.git
         branch: master
         dest: .
-      - cargo-sources.json
+      - packaging/cargo-sources.json
 
   # Main application with Python overlay
   - name: juhradial-mx
@@ -97,12 +97,12 @@ modules:
       - chmod +x /app/bin/juhradial-mx
 
       # Install desktop file
-      - install -Dm644 juhradial-mx.desktop /app/share/applications/org.juhlabs.JuhRadialMX.desktop
+      - install -Dm644 packaging/juhradial-mx.desktop /app/share/applications/org.juhlabs.JuhRadialMX.desktop
       - sed -i 's|Exec=.*|Exec=juhradial-mx|g' /app/share/applications/org.juhlabs.JuhRadialMX.desktop
       - sed -i 's|Icon=.*|Icon=org.juhlabs.JuhRadialMX|g' /app/share/applications/org.juhlabs.JuhRadialMX.desktop
 
       # Install AppStream metadata
-      - install -Dm644 org.juhlabs.JuhRadialMX.metainfo.xml /app/share/metainfo/org.juhlabs.JuhRadialMX.metainfo.xml
+      - install -Dm644 packaging/org.juhlabs.JuhRadialMX.metainfo.xml /app/share/metainfo/org.juhlabs.JuhRadialMX.metainfo.xml
 
     sources:
       - type: git

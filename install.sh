@@ -489,12 +489,12 @@ install_files() {
     sudo cp assets/ai-*.svg /usr/share/juhradial/assets/ 2>/dev/null || true
 
     # Install launcher scripts
-    sudo install -Dm755 juhradial-mx.sh "$BIN_DIR/juhradial-mx"
-    sudo install -Dm755 juhradial-settings.sh "$BIN_DIR/juhradial-settings"
+    sudo install -Dm755 scripts/juhradial-mx.sh "$BIN_DIR/juhradial-mx"
+    sudo install -Dm755 scripts/juhradial-settings.sh "$BIN_DIR/juhradial-settings"
 
     # Install desktop files
-    sudo install -Dm644 juhradial-mx.desktop /usr/share/applications/juhradial-mx.desktop
-    sudo install -Dm644 org.kde.juhradialmx.settings.desktop /usr/share/applications/org.kde.juhradialmx.settings.desktop
+    sudo install -Dm644 packaging/juhradial-mx.desktop /usr/share/applications/juhradial-mx.desktop
+    sudo install -Dm644 packaging/org.kde.juhradialmx.settings.desktop /usr/share/applications/org.kde.juhradialmx.settings.desktop
 
     # Install icons
     sudo install -Dm644 assets/juhradial-mx.svg /usr/share/icons/hicolor/scalable/apps/juhradial-mx.svg

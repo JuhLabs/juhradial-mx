@@ -376,7 +376,7 @@ class SettingsPage(Gtk.ScrolledWindow):
             autostart_dir.mkdir(parents=True, exist_ok=True)
             # Get the script path dynamically
             script_dir = Path(__file__).resolve().parent.parent
-            exec_path = script_dir / "juhradial-mx.sh"
+            exec_path = script_dir / "scripts" / "juhradial-mx.sh"
             # Fallback to installed location if not found
             if not exec_path.exists():
                 exec_path = Path("/usr/bin/juhradial-mx")

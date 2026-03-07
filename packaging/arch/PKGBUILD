@@ -56,7 +56,7 @@ package() {
     install -Dm755 daemon/target/release/juhradiald "$pkgdir/usr/bin/juhradiald"
 
     # Install launcher script
-    install -Dm755 juhradial-mx.sh "$pkgdir/usr/bin/juhradial-mx"
+    install -Dm755 scripts/juhradial-mx.sh "$pkgdir/usr/bin/juhradial-mx"
 
     # Install overlay Python files
     install -dm755 "$pkgdir/usr/share/juhradial"
@@ -75,7 +75,7 @@ package() {
     cp -r assets/* "$pkgdir/usr/share/juhradial/assets/"
 
     # Install desktop file
-    install -Dm644 juhradial-mx.desktop "$pkgdir/usr/share/applications/juhradial-mx.desktop"
+    install -Dm644 packaging/juhradial-mx.desktop "$pkgdir/usr/share/applications/juhradial-mx.desktop"
 
     # Install icon
     install -Dm644 assets/juhradial-mx.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/juhradial-mx.svg"

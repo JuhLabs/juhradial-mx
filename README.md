@@ -6,7 +6,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.2.12-cyan.svg" alt="Version 0.2.12">
+      <img src="https://img.shields.io/badge/version-0.3.0--beta-cyan.svg" alt="Version 0.3.0-beta">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
@@ -35,10 +35,10 @@
 <br>
 
 > [!TIP]
-> **New in [v0.2.12](CHANGELOG.md):** Smooth hover transitions, submenu pop-out animations, Easy-Switch OS icons (Linux, Windows, macOS, iOS, Android, ChromeOS), dynamic play/pause icon, and selection flash feedback. [Update now](#installation).
+> **New in [v0.3.0-beta](CHANGELOG.md):** Code quality overhaul, clickable DPI/sensitivity values, JuhFlow cross-computer control (Linux-Mac), generic mouse support, and 15+ bug fixes. [Update now](#installation).
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## Screenshots
@@ -75,7 +75,7 @@
 </div>
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## Features
@@ -116,7 +116,7 @@
 </table>
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## Supported Platforms
@@ -154,7 +154,7 @@
 </div>
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## Installation
@@ -180,7 +180,7 @@ cd juhradial-mx
 cd daemon && cargo build --release && cd ..
 
 # 3. Run
-./juhradial-mx.sh
+./scripts/juhradial-mx.sh
 ```
 
 </details>
@@ -198,7 +198,7 @@ cd juhradial-mx
 cd daemon && cargo build --release && cd ..
 
 # 3. Run
-./juhradial-mx.sh
+./scripts/juhradial-mx.sh
 ```
 
 </details>
@@ -214,7 +214,7 @@ cd daemon && cargo build --release && cd ..
 </details>
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## Usage
@@ -241,7 +241,7 @@ cd daemon && cargo build --release && cd ..
 </div>
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## Configuration
@@ -266,12 +266,12 @@ Open Settings and select a theme:
 
 ```bash
 # Add to KDE autostart
-cp juhradial-mx.desktop ~/.config/autostart/
-sed -i "s|Exec=.*|Exec=$(pwd)/juhradial-mx.sh|" ~/.config/autostart/juhradial-mx.desktop
+cp packaging/juhradial-mx.desktop ~/.config/autostart/
+sed -i "s|Exec=.*|Exec=$(pwd)/scripts/juhradial-mx.sh|" ~/.config/autostart/juhradial-mx.desktop
 ```
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## Hyprland Setup
@@ -298,7 +298,7 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 </details>
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## Troubleshooting
@@ -323,7 +323,7 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 </details>
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## How It Works
@@ -347,20 +347,18 @@ These rules ensure the radial menu overlay appears correctly on all workspaces w
 ```
 juhradial-mx/
 ├── daemon/              # Rust daemon (HID++ listener, D-Bus, cursor detection)
-│   └── src/cursor.rs    # 7-level cursor fallback chain
-├── overlay/             # Python UI
-│   ├── juhradial-overlay.py   # Main overlay entry point
-│   ├── overlay_cursor.py      # Multi-compositor cursor detection
-│   ├── overlay_actions.py     # Radial menu actions & themes
-│   ├── overlay_painting.py    # Qt rendering & animations
-│   └── settings_*.py          # GTK4/Adwaita settings app
+├── overlay/             # Python UI (overlay + GTK4 settings)
+│   └── flow/            # JuhFlow multi-computer control
+├── juhflow/             # JuhFlow Mac companion app (Swift + Python)
 ├── gnome-extension/     # GNOME Shell cursor helper extension
+├── scripts/             # Launcher scripts
+├── packaging/           # Desktop files, Flatpak, RPM, Arch, systemd
 ├── assets/              # Icons, themes, and screenshots
-└── packaging/           # systemd, udev rules
+└── tests/               # Test utilities
 ```
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## Contributing
@@ -378,7 +376,7 @@ GNU General Public License v3.0 — see [LICENSE](LICENSE)
 - [Catppuccin](https://github.com/catppuccin/catppuccin) — Beautiful color scheme
 
 <div align="center">
-  <img src="assets/github/divider.png" width="80%" alt="">
+  <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
 ## Star History
