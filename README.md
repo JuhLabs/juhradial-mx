@@ -147,6 +147,8 @@ Move your cursor seamlessly between your Linux and Mac machines. Encrypted, peer
 - **Zero config:** Auto-discovers peers on your local network
 - **Windows support:** Coming soon
 
+> **Note:** If you quit JuhRadial MX while JuhFlow is connected, you'll need to restart JuhFlow on the Mac side and reconnect.
+
 <div align="center">
   <img src="assets/github/separator.png" width="80%" alt="">
 </div>
