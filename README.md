@@ -36,6 +36,8 @@
 
 > [!TIP]
 > **New in [v0.3.0-beta](CHANGELOG.md):** JuhFlow cross-computer control (Linux-Mac), clickable DPI/sensitivity input, generic mouse support for any mouse, code quality overhaul with 15+ fixes, and a cleaner project structure. [Update now](#installation).
+>
+> **Mac users:** Want to try JuhFlow cross-computer control? [Download JuhFlow.dmg](https://github.com/JuhLabs/juhradial-mx/raw/master/juhflow/JuhFlow.dmg) (signed & notarized) - install it on your Mac, then enable Flow in JuhRadial MX Settings on Linux. Both machines auto-discover each other on your local network.
 
 <div align="center">
   <img src="assets/github/separator.png" width="80%" alt="">
