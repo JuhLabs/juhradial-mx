@@ -119,6 +119,36 @@
   <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
+## JuhFlow - Cross-Computer Control
+
+Move your cursor seamlessly between your Linux and Mac machines. Encrypted, peer-to-peer, no cloud.
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="assets/github/bolt.png" width="64" alt="JuhFlow">
+        <br><br>
+        <a href="https://github.com/JuhLabs/juhradial-mx/raw/master/juhflow/JuhFlow.dmg">
+          <img src="https://img.shields.io/badge/Download_JuhFlow-macOS_(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download JuhFlow for macOS">
+        </a>
+        <br><br>
+        <em>Signed & notarized by Apple - install and run directly</em>
+      </td>
+    </tr>
+  </table>
+</div>
+
+- **Linux side:** Built into JuhRadial MX - just enable Flow in Settings
+- **Mac side:** Download JuhFlow.dmg above, install, and pair
+- **Encrypted:** X25519 key exchange + AES-256-GCM - all traffic is end-to-end encrypted
+- **Zero config:** Auto-discovers peers on your local network
+- **Windows support:** Coming soon
+
+<div align="center">
+  <img src="assets/github/separator.png" width="80%" alt="">
+</div>
+
 ## Supported Platforms
 
 <div align="center">
@@ -320,36 +350,6 @@ windowrulev2 = noanim, title:^(JuhRadial MX)$
 ```
 
 </details>
-
-<div align="center">
-  <img src="assets/github/separator.png" width="80%" alt="">
-</div>
-
-## JuhFlow - Cross-Computer Control
-
-Move your cursor seamlessly between your Linux and Mac machines. Encrypted, peer-to-peer, no cloud.
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <img src="assets/github/bolt.png" width="64" alt="JuhFlow">
-        <br><br>
-        <a href="https://github.com/JuhLabs/juhradial-mx/raw/master/juhflow/JuhFlow.dmg">
-          <img src="https://img.shields.io/badge/Download_JuhFlow-macOS_(.dmg)-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download JuhFlow for macOS">
-        </a>
-        <br><br>
-        <em>Signed & notarized by Apple - install and run directly</em>
-      </td>
-    </tr>
-  </table>
-</div>
-
-- **Linux side:** Built into JuhRadial MX - just enable Flow in Settings
-- **Mac side:** Download JuhFlow.dmg above, install, and pair
-- **Encrypted:** X25519 key exchange + AES-256-GCM - all traffic is end-to-end encrypted
-- **Zero config:** Auto-discovers peers on your local network
-- **Windows support:** Coming soon
 
 <div align="center">
   <img src="assets/github/separator.png" width="80%" alt="">
