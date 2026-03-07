@@ -8,8 +8,9 @@ used across pages and dialogs.
 SPDX-License-Identifier: GPL-3.0
 """
 
-import os
+import logging
 import math
+import os
 import time
 
 import gi
@@ -20,6 +21,30 @@ from gi.repository import Gtk, Gdk
 
 from i18n import _
 from settings_constants import MOUSE_BUTTONS
+
+
+def _texture_to_pixbuf(texture):
+    """Convert Gdk.Texture to GdkPixbuf for cairo rendering."""
+    try:
+        from gi.repository import GdkPixbuf
+        data = texture.save_to_png_bytes()
+        loader = GdkPixbuf.PixbufLoader.new_with_type('png')
+        loader.write(data.get_data())
+        loader.close()
+        return loader.get_pixbuf()
+    except Exception:
+        logging.debug("_texture_to_pixbuf failed", exc_info=True)
+        return None
+
+
+def _rounded_rect(cr, x, y, w, h, r):
+    """Draw a rounded rectangle path on a cairo context."""
+    cr.new_path()
+    cr.arc(x + r, y + r, r, math.pi, 1.5 * math.pi)
+    cr.arc(x + w - r, y + r, r, 1.5 * math.pi, 2 * math.pi)
+    cr.arc(x + w - r, y + h - r, r, 0, 0.5 * math.pi)
+    cr.arc(x + r, y + h - r, r, 0.5 * math.pi, math.pi)
+    cr.close_path()
 
 
 class NavButton(Gtk.Button):
@@ -69,9 +94,8 @@ class MouseVisualization(Gtk.DrawingArea):
         self.mouse_image = None
         # Store image rect for button positioning
         self.img_rect = (0, 0, 600, 500)  # (x_offset, y_offset, width, height)
-        # Cache for hit regions (computed when img_rect changes)
-        self._hit_cache = None
-        self._cached_img_rect = None
+        # Actual drawn label rects for hit testing (populated during draw)
+        self._label_rects = {}
         # Motion throttling
         self._last_motion_time = 0
 
@@ -92,10 +116,10 @@ class MouseVisualization(Gtk.DrawingArea):
             if os.path.exists(path):
                 try:
                     self.mouse_image = Gdk.Texture.new_from_filename(path)
-                    self._cached_pixbuf = self._texture_to_pixbuf(self.mouse_image)
+                    self._cached_pixbuf = _texture_to_pixbuf(self.mouse_image)
                     break
                 except Exception as e:
-                    print(f"Failed to load image: {e}")
+                    logging.warning("Failed to load mouse image: %s", e)
 
         # Mouse tracking
         motion = Gtk.EventControllerMotion()
@@ -108,53 +132,6 @@ class MouseVisualization(Gtk.DrawingArea):
         click.connect('released', self._on_click)
         self.add_controller(click)
 
-    def _compute_hit_regions(self):
-        """Pre-compute hit regions for all buttons (called when img_rect changes)"""
-        img_x, img_y, img_w, img_h = self.img_rect
-        hit_regions = {}
-
-        for btn_id, btn_info in MOUSE_BUTTONS.items():
-            btn_x = img_x + btn_info['pos'][0] * img_w
-            btn_y = img_y + btn_info['pos'][1] * img_h
-            line_from = btn_info.get('line_from', 'left')
-            custom_label_y = btn_info.get('label_y', None)
-
-            # Label box dimensions
-            label_width = 130
-            label_height = 28
-
-            # Calculate label position based on line direction
-            if line_from == 'top':
-                line_length = 60
-                lx = btn_x - label_width / 2
-                ly = btn_y - line_length - label_height
-            elif line_from == 'l_up':
-                line_length = 60
-                lx = btn_x - line_length - label_width
-                if custom_label_y is not None:
-                    ly = img_y + custom_label_y * img_h - label_height / 2
-                else:
-                    ly = btn_y - label_height / 2
-            elif line_from == 'left_short':
-                line_length = 25
-                lx = btn_x - line_length - label_width
-                ly = btn_y - label_height / 2
-            else:
-                line_length = 60
-                lx = btn_x - line_length - label_width
-                ly = btn_y - label_height / 2
-
-            hit_regions[btn_id] = {
-                'dot_x': btn_x,
-                'dot_y': btn_y,
-                'label_x': lx,
-                'label_y': ly,
-                'label_w': label_width,
-                'label_h': label_height,
-            }
-
-        return hit_regions
-
     def _on_motion(self, controller, x, y):
         # Throttle motion events to ~30fps (33ms between updates)
         current_time = time.monotonic()
@@ -162,32 +139,27 @@ class MouseVisualization(Gtk.DrawingArea):
             return
         self._last_motion_time = current_time
 
-        # Rebuild hit cache if img_rect changed
-        if self._hit_cache is None or self._cached_img_rect != self.img_rect:
-            self._hit_cache = self._compute_hit_regions()
-            self._cached_img_rect = self.img_rect
-
-        # Check if hovering over any button region
         old_hovered = self.hovered_button
         self.hovered_button = None
 
-        # Use squared distance comparison (625 = 25^2) to avoid sqrt
-        hover_radius_sq = 625
-
-        for btn_id, region in self._hit_cache.items():
-            # Check dot (squared distance - no sqrt needed)
-            dx = x - region['dot_x']
-            dy = y - region['dot_y']
-            if dx * dx + dy * dy < hover_radius_sq:
+        # Check actual drawn label rects (populated during _draw_button_label)
+        for btn_id, (rx, ry, rw, rh) in self._label_rects.items():
+            if rx <= x <= rx + rw and ry <= y <= ry + rh:
                 self.hovered_button = btn_id
                 break
 
-            # Check label box
-            lx, ly = region['label_x'], region['label_y']
-            lw, lh = region['label_w'], region['label_h']
-            if lx <= x <= lx + lw and ly <= y <= ly + lh:
-                self.hovered_button = btn_id
-                break
+        # Also check dot proximity if no label was hit
+        if self.hovered_button is None:
+            img_x, img_y, img_w, img_h = self.img_rect
+            hover_radius_sq = 625  # 25^2
+            for btn_id, btn_info in MOUSE_BUTTONS.items():
+                dot_x = img_x + btn_info['pos'][0] * img_w
+                dot_y = img_y + btn_info['pos'][1] * img_h
+                dx = x - dot_x
+                dy = y - dot_y
+                if dx * dx + dy * dy < hover_radius_sq:
+                    self.hovered_button = btn_id
+                    break
 
         if old_hovered != self.hovered_button:
             self.queue_draw()
@@ -239,6 +211,7 @@ class MouseVisualization(Gtk.DrawingArea):
             cr.show_text(_("MX Master 4"))
 
         # Draw button labels (positioned relative to image rect)
+        self._label_rects = {}
         for btn_id, btn_info in MOUSE_BUTTONS.items():
             self._draw_button_label(cr, btn_id, btn_info)
 
@@ -298,32 +271,23 @@ class MouseVisualization(Gtk.DrawingArea):
             line_start_x, line_start_y = x - 6, y
             line_end_x, line_end_y = label_x + box_width, y
 
+        # Store actual drawn rect for hit testing (FIX: matches drawn geometry)
+        self._label_rects[btn_id] = (label_x, label_y, box_width, box_height)
+
         # Draw shadow first (offset) - deeper shadow for premium feel
-        cr.set_source_rgba(0, 0, 0, 0.4)
         radius = 10
         shadow_offset = 4
-        cr.new_path()
-        cr.arc(label_x + radius + shadow_offset, label_y + radius + shadow_offset, radius, math.pi, 1.5 * math.pi)
-        cr.arc(label_x + box_width - radius + shadow_offset, label_y + radius + shadow_offset, radius, 1.5 * math.pi, 2 * math.pi)
-        cr.arc(label_x + box_width - radius + shadow_offset, label_y + box_height - radius + shadow_offset, radius, 0, 0.5 * math.pi)
-        cr.arc(label_x + radius + shadow_offset, label_y + box_height - radius + shadow_offset, radius, 0.5 * math.pi, math.pi)
-        cr.close_path()
+        cr.set_source_rgba(0, 0, 0, 0.4)
+        _rounded_rect(cr, label_x + shadow_offset, label_y + shadow_offset,
+                       box_width, box_height, radius)
         cr.fill()
 
         # Premium glassmorphism background - dark with cyan glow
         if is_hovered:
-            # Hover: vibrant cyan gradient
             cr.set_source_rgba(0, 0.83, 1, 0.95)  # #00d4ff - Vibrant cyan
         else:
-            # Normal: dark glass with subtle cyan tint
             cr.set_source_rgba(0.1, 0.11, 0.14, 0.92)  # Dark glass matching theme
-
-        cr.new_path()
-        cr.arc(label_x + radius, label_y + radius, radius, math.pi, 1.5 * math.pi)
-        cr.arc(label_x + box_width - radius, label_y + radius, radius, 1.5 * math.pi, 2 * math.pi)
-        cr.arc(label_x + box_width - radius, label_y + box_height - radius, radius, 0, 0.5 * math.pi)
-        cr.arc(label_x + radius, label_y + box_height - radius, radius, 0.5 * math.pi, math.pi)
-        cr.close_path()
+        _rounded_rect(cr, label_x, label_y, box_width, box_height, radius)
         cr.fill()
 
         # Glass border - cyan accent glow
@@ -332,12 +296,7 @@ class MouseVisualization(Gtk.DrawingArea):
         else:
             cr.set_source_rgba(0, 0.83, 1, 0.35)  # Cyan border glow
         cr.set_line_width(1.5)
-        cr.new_path()
-        cr.arc(label_x + radius, label_y + radius, radius, math.pi, 1.5 * math.pi)
-        cr.arc(label_x + box_width - radius, label_y + radius, radius, 1.5 * math.pi, 2 * math.pi)
-        cr.arc(label_x + box_width - radius, label_y + box_height - radius, radius, 0, 0.5 * math.pi)
-        cr.arc(label_x + radius, label_y + box_height - radius, radius, 0.5 * math.pi, math.pi)
-        cr.close_path()
+        _rounded_rect(cr, label_x, label_y, box_width, box_height, radius)
         cr.stroke()
 
         # Draw text
@@ -383,22 +342,6 @@ class MouseVisualization(Gtk.DrawingArea):
         cr.arc(x, y, 5, 0, 2 * math.pi)
         cr.stroke()
 
-    def _texture_to_pixbuf(self, texture):
-        """Convert Gdk.Texture to GdkPixbuf for cairo rendering"""
-        try:
-            from gi.repository import GdkPixbuf
-
-            # Get texture data as PNG bytes and convert to pixbuf
-            data = texture.save_to_png_bytes()
-            loader = GdkPixbuf.PixbufLoader.new_with_type('png')
-            loader.write(data.get_data())
-            loader.close()
-            return loader.get_pixbuf()
-        except Exception as e:
-            print(f"Texture conversion error: {e}")
-            return None
-
-
 class GenericMouseVisualization(Gtk.DrawingArea):
     """Mouse image visualization for generic (non-Logitech) mice.
 
@@ -406,30 +349,31 @@ class GenericMouseVisualization(Gtk.DrawingArea):
     """
 
     # Generic mouse button positions (relative to image rect)
+    # Tuned for the 3/4-perspective photo (genericmouse.png)
     GENERIC_BUTTONS = {
         "left_click": {
             "name": "Left Click",
-            "pos": (0.38, 0.18),
+            "pos": (0.38, 0.22),
             "line_from": "top",
         },
         "right_click": {
             "name": "Right Click",
-            "pos": (0.62, 0.18),
+            "pos": (0.62, 0.22),
             "line_from": "top",
         },
         "middle_click": {
             "name": "Middle / Scroll",
-            "pos": (0.50, 0.22),
+            "pos": (0.50, 0.30),
             "line_from": "left",
         },
         "side_btn": {
             "name": "Side Button",
-            "pos": (0.22, 0.48),
+            "pos": (0.18, 0.55),
             "line_from": "left",
         },
         "extra_btn": {
             "name": "Extra Button",
-            "pos": (0.22, 0.40),
+            "pos": (0.18, 0.45),
             "line_from": "left",
         },
     }
@@ -441,6 +385,7 @@ class GenericMouseVisualization(Gtk.DrawingArea):
         self._label_rects = {}  # btn_id -> (x, y, w, h) for hit testing
         self._hovered_btn = None
         self._on_button_click = on_button_click
+        self._last_motion_time = 0
 
         self.set_content_width(500)
         self.set_content_height(450)
@@ -469,21 +414,10 @@ class GenericMouseVisualization(Gtk.DrawingArea):
             if os.path.exists(path):
                 try:
                     self.mouse_image = Gdk.Texture.new_from_filename(path)
-                    self._cached_pixbuf = self._texture_to_pixbuf(self.mouse_image)
+                    self._cached_pixbuf = _texture_to_pixbuf(self.mouse_image)
                 except Exception as e:
-                    print(f"Failed to load generic mouse image: {e}")
+                    logging.warning("Failed to load generic mouse image: %s", e)
                 break
-
-    def _texture_to_pixbuf(self, texture):
-        try:
-            from gi.repository import GdkPixbuf
-            data = texture.save_to_png_bytes()
-            loader = GdkPixbuf.PixbufLoader.new_with_type('png')
-            loader.write(data.get_data())
-            loader.close()
-            return loader.get_pixbuf()
-        except Exception:
-            return None
 
     def _draw(self, area, cr, width, height):
         if self.mouse_image:
@@ -520,6 +454,11 @@ class GenericMouseVisualization(Gtk.DrawingArea):
 
     def _on_motion(self, ctrl, x, y):
         """Track hover over button labels."""
+        now = time.monotonic()
+        if now - self._last_motion_time < 0.033:
+            return
+        self._last_motion_time = now
+
         hit = None
         for btn_id, (rx, ry, rw, rh) in self._label_rects.items():
             if rx <= x <= rx + rw and ry <= y <= ry + rh:
@@ -614,12 +553,7 @@ class GenericMouseVisualization(Gtk.DrawingArea):
         cr.fill()
 
     def _rounded_rect(self, cr, x, y, w, h, r):
-        cr.new_path()
-        cr.arc(x + r, y + r, r, math.pi, 1.5 * math.pi)
-        cr.arc(x + w - r, y + r, r, 1.5 * math.pi, 2 * math.pi)
-        cr.arc(x + w - r, y + h - r, r, 0, 0.5 * math.pi)
-        cr.arc(x + r, y + h - r, r, 0.5 * math.pi, math.pi)
-        cr.close_path()
+        _rounded_rect(cr, x, y, w, h, r)
 
 
 class PageHeader(Gtk.Box):

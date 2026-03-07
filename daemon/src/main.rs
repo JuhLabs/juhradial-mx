@@ -491,6 +491,12 @@ async fn run_generic_evdev_loop(event_tx: mpsc::Sender<GestureEvent>) {
     let mut handler = EvdevHandler::new_generic(event_tx.clone(), trigger);
 
     loop {
+        // Re-read trigger button from config on each reconnect cycle
+        // so rebinds in settings take effect without daemon restart
+        if let Some(code) = read_trigger_button_from_config() {
+            handler.set_trigger_button(code);
+        }
+
         // Try to find any generic mouse
         match EvdevHandler::find_any_mouse() {
             Ok(device_info) => {

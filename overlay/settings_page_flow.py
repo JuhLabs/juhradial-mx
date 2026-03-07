@@ -8,6 +8,10 @@ Network discovery and pairing logic lives in settings_flow_discovery.py.
 SPDX-License-Identifier: GPL-3.0
 """
 
+import logging
+import os
+import time
+
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -35,6 +39,8 @@ try:
 except ImportError:
     FLOW_MODULE_AVAILABLE = False
 
+logger = logging.getLogger(__name__)
+
 
 class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
     """Flow multi-computer control settings page"""
@@ -45,6 +51,8 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
         self.discovered_computers = {}  # Store discovered computers
         self._zeroconf = None  # Track Zeroconf instance for cleanup
         self._registered_services = []  # Track registered ServiceInfo for unregistration
+        self._programmatic_toggle = False  # Guard against re-entrant signal
+        self._connect_reset_timer = None  # Timer for connect button reset
 
         # Main container
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
@@ -56,7 +64,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
         # Page header
         header = PageHeader(
             "view-dual-symbolic",
-            _("Logitech Flow"),
+            _("JuhFlow"),
             _("Seamlessly move between computers"),
         )
         main_box.append(header)
@@ -274,6 +282,8 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
 
     def _on_flow_toggled(self, switch, state):
         """Handle Flow enable/disable toggle"""
+        if self._programmatic_toggle:
+            return True
         config.set("flow", "enabled", state, auto_save=True)
         # Enable/disable sub-controls based on Flow state
         self.edge_switch.set_sensitive(state)
@@ -287,7 +297,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                 # Start the Flow server
                 def on_host_change(new_host):
                     """Called when another computer changes hosts"""
-                    print(f"[Flow] Received host change request: {new_host}")
+                    logger.info("Received host change request: %s", new_host)
                     # Switch our devices via D-Bus
                     try:
                         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -308,7 +318,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                             None,
                         )
                     except Exception as e:
-                        print(f"[Flow] Error switching host: {e}")
+                        logger.error("Error switching host: %s", e)
 
                 start_flow_server(on_host_change=on_host_change)
 
@@ -323,11 +333,11 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                     except Exception:
                         pass
 
-                print("[Flow] Server started")
+                logger.info("Server started")
             else:
                 # Stop the Flow server
                 stop_flow_server()
-                print("[Flow] Server stopped")
+                logger.info("Server stopped")
 
         return False
 
@@ -337,7 +347,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
         direction_values = ["right", "left", "top", "bottom"]
         direction = direction_values[idx] if idx < len(direction_values) else "right"
         config.set("flow", "direction", direction, auto_save=True)
-        print(f"[Flow] Direction set to: {direction}")
+        logger.info("Direction set to: %s", direction)
 
         # Update the indicator position if running
         if FLOW_MODULE_AVAILABLE:
@@ -360,7 +370,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                 if detector:
                     detector.set_enabled(state)
             except Exception as e:
-                print(f"[Flow] Edge toggle error: {e}")
+                logger.error("Edge toggle error: %s", e)
         return False
 
     def _on_monitor_changed(self, dropdown, _pspec):
@@ -372,24 +382,43 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
         else:
             monitor_val = self._monitor_connectors[idx - 1]["connector"]
         config.set("flow", "monitor", monitor_val, auto_save=True)
-        print(f"[Flow] Monitor set to {'auto' if not monitor_val else monitor_val}")
+        logger.info("Monitor set to %s", "auto" if not monitor_val else monitor_val)
 
     def _on_hide_indicator_toggled(self, switch, state):
         """Handle hide indicator toggle."""
         config.set("flow", "hide_indicator", state, auto_save=True)
-        print(f"[Flow] Hide indicator: {state}")
+        logger.debug("Hide indicator: %s", state)
         return False
 
     def _on_extend_zone_toggled(self, switch, state):
         """Handle extend edge zone toggle."""
         config.set("flow", "extend_edge_zone", state, auto_save=True)
-        print(f"[Flow] Extend edge zone: {state}")
+        logger.debug("Extend edge zone: %s", state)
         return False
 
     def _update_juhflow_status(self):
-        """Check if JuhFlow companion app is connected via bridge."""
+        """Check if JuhFlow companion app is connected via bridge.
+
+        Reads the status file written by the overlay process's bridge,
+        since settings runs in a separate process and can't access the
+        bridge directly.
+        """
         peers = []
-        if FLOW_MODULE_AVAILABLE:
+        # First try the status file (written by the overlay's bridge)
+        try:
+            import json as _json
+            status_path = os.path.join(
+                os.path.expanduser("~"), ".config", "juhradial", "flow_status.json"
+            )
+            with open(status_path) as f:
+                status = _json.load(f)
+            # Only trust status if updated within the last 10 seconds
+            if time.time() - status.get("updated_at", 0) < 10:
+                peers = status.get("peers", [])
+        except (FileNotFoundError, ValueError):
+            pass
+        # Fallback: try in-process bridge (works if settings started flow)
+        if not peers and FLOW_MODULE_AVAILABLE:
             try:
                 from flow import get_juhflow_bridge
                 bridge = get_juhflow_bridge()
@@ -420,10 +449,12 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
         button.set_sensitive(False)
         button.set_label(_("Connecting..."))
 
-        # Enable flow if not already
+        # Enable flow if not already (block signal to avoid double server start)
         if not config.get("flow", "enabled", default=False):
             config.set("flow", "enabled", True, auto_save=True)
+            self._programmatic_toggle = True
             self.flow_switch.set_active(True)
+            self._programmatic_toggle = False
 
         # Start the flow server (which starts the bridge + indicator)
         if FLOW_MODULE_AVAILABLE:
@@ -431,16 +462,17 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                 server = get_flow_server()
                 if not server:
                     start_flow_server()
-                    print("[Flow] Started via Connect button")
+                    logger.info("Started via Connect button")
             except Exception as e:
-                print(f"[Flow] Connect error: {e}")
+                logger.error("Connect error: %s", e)
 
         # Re-enable button after a delay
         def _reset():
+            self._connect_reset_timer = None
             button.set_sensitive(True)
             button.set_label(_("Connect"))
             return False
-        GLib.timeout_add(3000, _reset)
+        self._connect_reset_timer = GLib.timeout_add(3000, _reset)
 
     def _get_monitor_connectors(self):
         """Get list of monitor connector info from GDK.

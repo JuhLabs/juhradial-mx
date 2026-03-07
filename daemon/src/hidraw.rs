@@ -287,14 +287,25 @@ impl HidrawHandler {
         // A CID of 0 means all buttons released
         let pressed = cid != 0;
 
-        tracing::info!(
-            cid = cid,
-            pressed = pressed,
-            raw_bytes = format!("{:02X} {:02X} {:02X}", data[4], data[5], data[6]),
-            "Diverted button event"
-        );
-
         // Check if this is the gesture button OR haptic button (both can trigger radial menu)
+        let is_known = cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC || cid == 0;
+
+        if is_known {
+            tracing::info!(
+                cid = cid,
+                pressed = pressed,
+                raw_bytes = format!("{:02X} {:02X} {:02X}", data[4], data[5], data[6]),
+                "Diverted button event"
+            );
+        } else {
+            tracing::debug!(
+                cid = cid,
+                pressed = pressed,
+                raw_bytes = format!("{:02X} {:02X} {:02X}", data[4], data[5], data[6]),
+                "Diverted button event (unknown CID)"
+            );
+        }
+
         if cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC {
             self.handle_gesture_button(true).await;
         } else if cid == 0 {

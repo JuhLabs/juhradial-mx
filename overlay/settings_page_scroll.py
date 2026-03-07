@@ -9,6 +9,7 @@ SPDX-License-Identifier: GPL-3.0
 """
 
 import json
+import logging
 
 import gi
 
@@ -21,6 +22,8 @@ from i18n import _
 from settings_config import config, disable_scroll_on_scale, get_device_mode
 from settings_theme import COLORS
 from settings_widgets import SettingsCard, SettingRow, PageHeader
+
+logger = logging.getLogger(__name__)
 
 
 class DPIVisualSlider(Gtk.Box):
@@ -48,14 +51,39 @@ class DPIVisualSlider(Gtk.Box):
         spacer.set_hexpand(True)
         header.append(spacer)
 
-        # DPI value display
+        # DPI value display - clickable to type exact value
+        self._dpi_stack = Gtk.Stack()
+        self._dpi_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self._dpi_stack.set_transition_duration(150)
+
+        # Page 1: styled label (default view)
         self.dpi_label = Gtk.Label()
         self.dpi_label.add_css_class("title-1")
         self.dpi_label.set_markup(
             f'<span size="xx-large" weight="bold" color="{COLORS["mauve"]}">1600</span>'
         )
+        self.dpi_label.set_cursor_from_name("pointer")
+        self.dpi_label.set_tooltip_text(_("Click to type a value"))
+        label_click = Gtk.GestureClick()
+        label_click.connect("released", self._on_dpi_label_clicked)
+        self.dpi_label.add_controller(label_click)
+        self._dpi_stack.add_named(self.dpi_label, "label")
+
+        # Page 2: spin button for manual entry
+        self._dpi_spin = Gtk.SpinButton.new_with_range(400, 8000, 100)
+        self._dpi_spin.set_width_chars(5)
+        self._dpi_spin.set_valign(Gtk.Align.CENTER)
+        self._dpi_spin.connect("activate", self._on_dpi_spin_activate)
+        self._dpi_spin.connect("value-changed", self._on_dpi_spin_changed)
+        spin_focus = Gtk.EventControllerFocus()
+        spin_focus.connect("leave", self._on_dpi_spin_focus_out)
+        self._dpi_spin.add_controller(spin_focus)
+        self._dpi_stack.add_named(self._dpi_spin, "spin")
+
+        self._dpi_stack.set_visible_child_name("label")
+
         dpi_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        dpi_box.append(self.dpi_label)
+        dpi_box.append(self._dpi_stack)
         dpi_unit = Gtk.Label(label=_("DPI"))
         dpi_unit.add_css_class("dim-label")
         dpi_box.append(dpi_unit)
@@ -112,6 +140,37 @@ class DPIVisualSlider(Gtk.Box):
         )
         if self.on_change:
             self.on_change(dpi)
+
+    def _on_dpi_label_clicked(self, gesture, n_press, x, y):
+        """Switch to spin button for manual DPI entry."""
+        self._dpi_spin.set_value(self.scale.get_value())
+        self._dpi_stack.set_visible_child_name("spin")
+        self._dpi_spin.grab_focus()
+        self._dpi_spin.select_region(0, -1)
+
+    def _on_dpi_spin_activate(self, spin):
+        """Enter pressed - apply and switch back to label."""
+        self._apply_spin_value()
+
+    def _on_dpi_spin_focus_out(self, controller):
+        """Focus lost - apply and switch back to label."""
+        self._apply_spin_value()
+
+    def _on_dpi_spin_changed(self, spin):
+        """Live update slider as user changes spin value."""
+        dpi = int(spin.get_value())
+        # Round to nearest 100
+        dpi = round(dpi / 100) * 100
+        dpi = max(400, min(8000, dpi))
+        self.scale.set_value(dpi)
+
+    def _apply_spin_value(self):
+        """Apply spin button value and switch back to label display."""
+        dpi = int(self._dpi_spin.get_value())
+        dpi = round(dpi / 100) * 100
+        dpi = max(400, min(8000, dpi))
+        self.scale.set_value(dpi)
+        self._dpi_stack.set_visible_child_name("label")
 
 
 class WheelModeSelector(Gtk.Box):
@@ -264,9 +323,32 @@ class ScrollPage(Gtk.ScrolledWindow):
         spacer.set_hexpand(True)
         sens_label_box.append(spacer)
 
+        # Clickable sensitivity value - Stack with label and spin button
+        self._sens_stack = Gtk.Stack()
+        self._sens_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self._sens_stack.set_transition_duration(150)
+
         self.sens_value_label = Gtk.Label()
         self.sens_value_label.add_css_class("dim-label")
-        sens_label_box.append(self.sens_value_label)
+        self.sens_value_label.set_cursor_from_name("pointer")
+        self.sens_value_label.set_tooltip_text(_("Click to type a value"))
+        sens_label_click = Gtk.GestureClick()
+        sens_label_click.connect("released", self._on_sens_label_clicked)
+        self.sens_value_label.add_controller(sens_label_click)
+        self._sens_stack.add_named(self.sens_value_label, "label")
+
+        self._sens_spin = Gtk.SpinButton.new_with_range(1, 100, 1)
+        self._sens_spin.set_width_chars(4)
+        self._sens_spin.set_valign(Gtk.Align.CENTER)
+        self._sens_spin.connect("activate", self._on_sens_spin_activate)
+        self._sens_spin.connect("value-changed", self._on_sens_spin_changed)
+        sens_spin_focus = Gtk.EventControllerFocus()
+        sens_spin_focus.connect("leave", self._on_sens_spin_focus_out)
+        self._sens_spin.add_controller(sens_spin_focus)
+        self._sens_stack.add_named(self._sens_spin, "spin")
+
+        self._sens_stack.set_visible_child_name("label")
+        sens_label_box.append(self._sens_stack)
         self.sensitivity_box.append(sens_label_box)
 
         sens_slider_box = Gtk.Box(
@@ -434,6 +516,34 @@ class ScrollPage(Gtk.ScrolledWindow):
 
     def _update_sens_label(self, value):
         self.sens_value_label.set_text(f"{int(value)}%")
+
+    def _on_sens_label_clicked(self, gesture, n_press, x, y):
+        """Switch to spin button for manual sensitivity entry."""
+        self._sens_spin.set_value(self.sens_scale.get_value())
+        self._sens_stack.set_visible_child_name("spin")
+        self._sens_spin.grab_focus()
+        self._sens_spin.select_region(0, -1)
+
+    def _on_sens_spin_activate(self, spin):
+        """Enter pressed - apply and switch back to label."""
+        self._apply_sens_spin_value()
+
+    def _on_sens_spin_focus_out(self, controller):
+        """Focus lost - apply and switch back to label."""
+        self._apply_sens_spin_value()
+
+    def _on_sens_spin_changed(self, spin):
+        """Live update slider as user changes spin value."""
+        value = int(spin.get_value())
+        value = max(1, min(100, value))
+        self.sens_scale.set_value(value)
+
+    def _apply_sens_spin_value(self):
+        """Apply spin value and switch back to label display."""
+        value = int(self._sens_spin.get_value())
+        value = max(1, min(100, value))
+        self.sens_scale.set_value(value)
+        self._sens_stack.set_visible_child_name("label")
 
     # ------------------------------------------------------------------
     # Pointer speed
@@ -611,7 +721,7 @@ None,      Down, Button5, {lines}
                 Gio.DBusCallFlags.NONE, 2000, None,
             )
         except GLib.Error as e:
-            print(f"D-Bus error setting DPI: {e.message}")
+            logger.error("D-Bus error setting DPI: %s", e.message)
 
     def _apply_pointer_speed(self, dpi):
         try:
@@ -641,7 +751,7 @@ None,      Down, Button5, {lines}
                 Gio.DBusCallFlags.NONE, 2000, None,
             )
         except GLib.Error as e:
-            print(f"D-Bus error setting SmartShift: {e.message}")
+            logger.error("D-Bus error setting SmartShift: %s", e.message)
 
     def _apply_smartshift_to_device_raw(self, wheel_mode, auto_disengage):
         """Set SmartShift with explicit wheel_mode for free-spin support.
@@ -652,16 +762,16 @@ None,      Down, Button5, {lines}
         proxy = self._get_dbus_proxy()
         if not proxy:
             return
-        # Use the simplified API: enabled=True with threshold=0 results in
-        # wheel_mode=1 (freespin), auto_disengage=0 on the daemon side.
+        # Use the simplified API: enabled=True with the given threshold.
+        # wheel_mode=1 + auto_disengage=0 -> freespin on the daemon side.
         try:
             proxy.call_sync(
                 "SetSmartShift",
-                GLib.Variant("(by)", (True, 0)),
+                GLib.Variant("(by)", (bool(wheel_mode), auto_disengage)),
                 Gio.DBusCallFlags.NONE, 2000, None,
             )
         except GLib.Error as e:
-            print(f"D-Bus error setting wheel mode: {e.message}")
+            logger.error("D-Bus error setting wheel mode: %s", e.message)
 
     def _apply_hiresscroll_to_device(self):
         hires = config.get("scroll", "smooth", default=True)
@@ -676,7 +786,7 @@ None,      Down, Button5, {lines}
                 Gio.DBusCallFlags.NONE, 2000, None,
             )
         except GLib.Error as e:
-            print(f"D-Bus HiResScroll failed: {e.message}")
+            logger.error("D-Bus HiResScroll failed: %s", e.message)
 
     # ------------------------------------------------------------------
     # Load device state on startup
@@ -737,7 +847,7 @@ None,      Down, Button5, {lines}
                 self.mode_selector.set_sensitive(False)
                 self.sensitivity_box.set_visible(False)
         except GLib.Error as e:
-            print(f"D-Bus error loading SmartShift: {e.message}")
+            logger.error("D-Bus error loading SmartShift: %s", e.message)
             mode = config.get("scroll", "mode", default="smartshift")
             self.mode_selector.set_mode(mode)
             self.sensitivity_box.set_visible(mode == "smartshift")
@@ -753,4 +863,4 @@ None,      Down, Button5, {lines}
                 self.smooth_switch.set_active(hires)
                 config.set("scroll", "smooth", hires)
         except GLib.Error as e:
-            print(f"D-Bus error loading HiResScroll: {e.message}")
+            logger.error("D-Bus error loading HiResScroll: %s", e.message)

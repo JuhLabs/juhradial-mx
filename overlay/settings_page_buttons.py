@@ -7,6 +7,8 @@ ButtonsPage: Actions Ring configuration and button assignment UI.
 SPDX-License-Identifier: GPL-3.0
 """
 
+import logging
+
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -16,7 +18,9 @@ from gi.repository import Gtk, GLib, Pango
 from i18n import _
 from settings_config import ConfigManager
 from settings_constants import MOUSE_BUTTONS, translate_radial_label
-from settings_dialogs import RadialMenuConfigDialog, SliceConfigDialog
+from settings_dialogs import SliceConfigDialog
+
+logger = logging.getLogger(__name__)
 
 
 class ButtonsPage(Gtk.ScrolledWindow):
@@ -64,6 +68,7 @@ class ButtonsPage(Gtk.ScrolledWindow):
         self.config_manager = config_manager
         self._generic_mode = generic_mode
         self._capturing = False
+        self._capture_timer = None
         self.slice_rows = {}  # Store slice row widgets for updating
         self.set_policy(
             Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC
@@ -306,12 +311,6 @@ class ButtonsPage(Gtk.ScrolledWindow):
         if self.on_button_config:
             self.on_button_config(button_id)
 
-    def _on_configure_radial(self):
-        """Open radial menu configuration"""
-        if self.parent_window:
-            dialog = RadialMenuConfigDialog(self.parent_window)
-            dialog.present()
-
     def refresh_button_labels(self):
         """Refresh the button action labels after config change"""
         for btn_id, action_label in self.action_labels.items():
@@ -409,8 +408,9 @@ class ButtonsPage(Gtk.ScrolledWindow):
             if i in self.slice_rows:
                 # Update the existing row's content
                 row = self.slice_rows[i]
-                # Find and update the label
-                for child in row:
+                # Find and update the label using GTK4 child iteration
+                child = row.get_first_child()
+                while child:
                     if isinstance(child, Gtk.Label):
                         child.set_text(
                             translate_radial_label(
@@ -419,6 +419,7 @@ class ButtonsPage(Gtk.ScrolledWindow):
                             )
                         )
                         break
+                    child = child.get_next_sibling()
 
     def _on_easyswitch_toggled(self, switch, state):
         """Handle Easy-Switch shortcuts toggle"""
@@ -428,7 +429,8 @@ class ButtonsPage(Gtk.ScrolledWindow):
         # Update the Emoji slice row to show status
         if 5 in self.slice_rows:
             row = self.slice_rows[5]
-            for child in row:
+            child = row.get_first_child()
+            while child:
                 if isinstance(child, Gtk.Label):
                     if state:
                         child.set_text(_("Easy-Switch"))
@@ -443,6 +445,7 @@ class ButtonsPage(Gtk.ScrolledWindow):
                                 )
                             )
                     break
+                child = child.get_next_sibling()
 
         return False  # Allow switch to change state
 
@@ -466,7 +469,7 @@ class ButtonsPage(Gtk.ScrolledWindow):
         self.get_root().add_controller(self._capture_gesture)
 
         # Timeout after 5 seconds
-        GLib.timeout_add(5000, self._capture_timeout)
+        self._capture_timer = GLib.timeout_add(5000, self._capture_timeout)
 
     def _on_button_captured(self, gesture, n_press, x, y):
         """A mouse button was pressed - bind it as the trigger."""
@@ -504,6 +507,9 @@ class ButtonsPage(Gtk.ScrolledWindow):
     def _stop_capture(self):
         """Clean up capture state."""
         self._capturing = False
+        if self._capture_timer:
+            GLib.source_remove(self._capture_timer)
+            self._capture_timer = None
         if hasattr(self, "_capture_gesture") and self._capture_gesture:
             self.get_root().remove_controller(self._capture_gesture)
             self._capture_gesture = None

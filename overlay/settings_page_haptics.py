@@ -7,6 +7,8 @@ HapticsPage: Haptic feedback pattern configuration.
 SPDX-License-Identifier: GPL-3.0
 """
 
+import logging
+
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -17,6 +19,8 @@ from gi.repository import Gtk, GLib, Gio, Adw
 from i18n import _
 from settings_config import config
 from settings_widgets import SettingsCard, SettingRow, PageHeader
+
+logger = logging.getLogger(__name__)
 
 
 class HapticsPage(Gtk.ScrolledWindow):
@@ -201,38 +205,42 @@ class HapticsPage(Gtk.ScrolledWindow):
         # Reload daemon config to apply all patterns instantly
         self._reload_daemon_config()
 
+    def _get_daemon_proxy(self):
+        """Get a cached D-Bus proxy to the daemon."""
+        if not hasattr(self, '_daemon_proxy') or self._daemon_proxy is None:
+            try:
+                bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+                self._daemon_proxy = Gio.DBusProxy.new_sync(
+                    bus, Gio.DBusProxyFlags.NONE, None,
+                    "org.kde.juhradialmx",
+                    "/org/kde/juhradialmx/Daemon",
+                    "org.kde.juhradialmx.Daemon",
+                    None,
+                )
+            except Exception:
+                self._daemon_proxy = None
+        return self._daemon_proxy
+
     def _reload_daemon_config(self):
-        """Reload daemon config via D-Bus to apply haptic pattern changes instantly"""
+        """Reload daemon config via D-Bus to apply haptic pattern changes instantly."""
+        proxy = self._get_daemon_proxy()
+        if not proxy:
+            logger.warning("Cannot reload daemon config: D-Bus proxy unavailable")
+            return
         try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.kde.juhradialmx",
-                "/org/kde/juhradialmx/Daemon",
-                "org.kde.juhradialmx.Daemon",
-                None,
-            )
             proxy.call_sync("ReloadConfig", None, Gio.DBusCallFlags.NONE, 2000, None)
-            print("Daemon config reloaded - haptic patterns applied")
+            logger.info("Daemon config reloaded - haptic patterns applied")
         except Exception as e:
-            print(f"Failed to reload daemon config: {e}")
+            logger.error("Failed to reload daemon config: %s", e)
+            self._daemon_proxy = None
 
     def _on_test_clicked(self, button):
-        """Send a test haptic pulse via D-Bus"""
+        """Send a test haptic pulse via D-Bus."""
+        proxy = self._get_daemon_proxy()
+        if not proxy:
+            logger.warning("Cannot test haptic: D-Bus proxy unavailable")
+            return
         try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.kde.juhradialmx",
-                "/org/kde/juhradialmx/Daemon",
-                "org.kde.juhradialmx.Daemon",
-                None,
-            )
-            # Trigger haptic with "menu_appear" event to test the pattern
             proxy.call_sync(
                 "TriggerHaptic",
                 GLib.Variant("(s)", ("menu_appear",)),
@@ -240,6 +248,7 @@ class HapticsPage(Gtk.ScrolledWindow):
                 2000,
                 None,
             )
-            print("Test haptic triggered")
+            logger.info("Test haptic triggered")
         except Exception as e:
-            print(f"Failed to send test haptic: {e}")
+            logger.error("Failed to send test haptic: %s", e)
+            self._daemon_proxy = None

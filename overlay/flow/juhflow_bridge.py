@@ -174,6 +174,15 @@ class JuhFlowBridge:
                 self._server_sock.close()
             except OSError:
                 pass
+        # Clear status file
+        try:
+            status_path = os.path.join(
+                os.path.expanduser("~"), ".config", "juhradial", "flow_status.json"
+            )
+            if os.path.exists(status_path):
+                os.remove(status_path)
+        except OSError:
+            pass
 
     def send_edge_hit(self, edge, position, screen, ctrl_key=False,
                       relative_position=None):
@@ -374,10 +383,39 @@ class JuhFlowBridge:
         sock.close()
 
     def _heartbeat_loop(self):
-        """Send periodic heartbeats to all peers."""
+        """Send periodic heartbeats to all peers and write status file."""
+        status_path = os.path.join(
+            os.path.expanduser("~"), ".config", "juhradial", "flow_status.json"
+        )
         while self.running:
             msg = {"type": MSG_HEARTBEAT, "ts": time.time()}
             self._broadcast(msg)
+            # Write status file so settings process can read peer info
+            try:
+                peers = self.get_peers()
+                # Also include presence server connections (Logitech Flow protocol)
+                try:
+                    from . import get_presence_server
+                    ps = get_presence_server()
+                    if ps and hasattr(ps, 'active_connections'):
+                        with ps._conn_lock:
+                            for nid, (conn, name, key) in ps.active_connections.items():
+                                peers.append({
+                                    "id": nid[:16],
+                                    "hostname": name,
+                                    "platform": "unknown",
+                                    "ip": "",
+                                    "connected_at": 0,
+                                })
+                except Exception:
+                    pass
+                status = {"peers": peers, "updated_at": time.time()}
+                tmp = status_path + ".tmp"
+                with open(tmp, "w") as f:
+                    json.dump(status, f)
+                os.replace(tmp, status_path)
+            except Exception:
+                pass
             for _ in range(50):  # 5 seconds
                 if not self.running:
                     return

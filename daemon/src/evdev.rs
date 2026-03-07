@@ -84,6 +84,8 @@ pub struct EvdevHandler {
     trigger_button: u16,
     /// Whether we are running in generic mouse mode
     generic_mode: bool,
+    /// Last time we checked config file for trigger button changes
+    last_config_check: Instant,
 }
 
 impl EvdevHandler {
@@ -99,6 +101,7 @@ impl EvdevHandler {
             menu_active: false,
             trigger_button: GESTURE_BUTTON_CODES[0],
             generic_mode: false,
+            last_config_check: Instant::now(),
         }
     }
 
@@ -114,6 +117,46 @@ impl EvdevHandler {
             menu_active: false,
             trigger_button: trigger_button.unwrap_or(GENERIC_TRIGGER_BUTTON),
             generic_mode: true,
+            last_config_check: Instant::now(),
+        }
+    }
+
+    /// Update the trigger button (e.g. after config reload)
+    pub fn set_trigger_button(&mut self, code: u16) {
+        self.trigger_button = code;
+    }
+
+    /// Re-read trigger button from config file if it changed (throttled to every 2s)
+    fn reload_trigger_from_config(&mut self) {
+        if self.last_config_check.elapsed().as_secs() < 2 {
+            return;
+        }
+        self.last_config_check = Instant::now();
+
+        let home = match std::env::var("HOME") {
+            Ok(h) => h,
+            Err(_) => return,
+        };
+        let path = std::path::PathBuf::from(home)
+            .join(".config/juhradial/config.json");
+        let data = match std::fs::read_to_string(&path) {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+        let json: serde_json::Value = match serde_json::from_str(&data) {
+            Ok(v) => v,
+            Err(_) => return,
+        };
+        if let Some(code) = json.get("generic_trigger_button").and_then(|v| v.as_u64()) {
+            let new_trigger = code as u16;
+            if new_trigger != self.trigger_button {
+                tracing::info!(
+                    old = format!("{:#x}", self.trigger_button),
+                    new = format!("{:#x}", new_trigger),
+                    "Generic trigger button updated from config"
+                );
+                self.trigger_button = new_trigger;
+            }
         }
     }
 
@@ -418,9 +461,6 @@ impl EvdevHandler {
         let mut events = device.into_event_stream()
             .map_err(EvdevError::IoError)?;
 
-        // Determine which button codes to match
-        let trigger = self.trigger_button;
-
         loop {
             match events.next_event().await {
                 Ok(event) => {
@@ -428,7 +468,10 @@ impl EvdevHandler {
                         EventType::KEY => {
                             let key_code = event.code();
                             let is_trigger = if self.generic_mode {
-                                key_code == trigger
+                                // Re-read trigger from config on each key event
+                                // so rebinds in settings take effect immediately
+                                self.reload_trigger_from_config();
+                                key_code == self.trigger_button
                             } else {
                                 GESTURE_BUTTON_CODES.contains(&key_code)
                             };

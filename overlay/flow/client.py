@@ -1,6 +1,9 @@
 """Flow client for connecting to another JuhRadialMX computer"""
 
+import logging
 from typing import Optional
+
+logger = logging.getLogger("juhradial.flow.client")
 
 from .constants import FLOW_PORT
 from .clipboard import get_clipboard
@@ -40,11 +43,11 @@ class FlowClient:
                         peer_name, self.peer_public_key,
                         self.server_ip, self.server_port
                     )
-                    print(f"[Flow Client] Crypto key exchange complete with {peer_name}")
+                    logger.info("Crypto key exchange complete with %s", peer_name)
 
                 return True
         except Exception as e:
-            print(f"[Flow Client] Pairing failed: {e}")
+            logger.warning("Pairing failed: %s", e)
         return False
 
     def get_server_info(self) -> Optional[dict]:
@@ -56,7 +59,7 @@ class FlowClient:
             if response.ok:
                 return response.json()
         except Exception as e:
-            print(f"[Flow Client] Error getting server info: {e}")
+            logger.debug("Error getting server info: %s", e)
         return None
 
     def notify_host_change(self, new_host: int) -> bool:
@@ -75,7 +78,7 @@ class FlowClient:
             )
             return response.ok
         except Exception as e:
-            print(f"[Flow Client] Error notifying host change: {e}")
+            logger.debug("Error notifying host change: %s", e)
         return False
 
     def sync_clipboard(self) -> bool:
@@ -98,7 +101,7 @@ class FlowClient:
             )
             return response.ok
         except Exception as e:
-            print(f"[Flow Client] Error syncing clipboard: {e}")
+            logger.debug("Error syncing clipboard: %s", e)
         return False
 
     def get_clipboard(self) -> Optional[str]:
@@ -117,5 +120,5 @@ class FlowClient:
             if response.ok:
                 return response.text
         except Exception as e:
-            print(f"[Flow Client] Error getting clipboard: {e}")
+            logger.debug("Error getting clipboard: %s", e)
         return None

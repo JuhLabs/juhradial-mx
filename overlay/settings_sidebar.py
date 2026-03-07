@@ -199,9 +199,8 @@ class SidebarMixin:
 
     def _on_donate_clicked(self, button):
         """Open PayPal donation link"""
-        import subprocess
-
-        subprocess.Popen(["xdg-open", "https://paypal.me/LangbachHermstad"])
+        root = self.get_root() if hasattr(self, "get_root") else None
+        Gtk.show_uri(root, "https://paypal.me/LangbachHermstad", Gdk.CURRENT_TIME)
 
     def _on_exit_clicked(self, button):
         """Show confirmation dialog, then kill daemon + overlay + settings."""

@@ -7,6 +7,8 @@ ButtonConfigDialog for configuring mouse button actions.
 SPDX-License-Identifier: GPL-3.0
 """
 
+import logging
+
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -21,6 +23,8 @@ from settings_constants import (
     DEFAULT_BUTTON_ACTIONS,
     BUTTON_ACTIONS,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ButtonConfigDialog(Adw.Window):
@@ -42,7 +46,7 @@ class ButtonConfigDialog(Adw.Window):
 
         # Header bar
         header = Adw.HeaderBar()
-        header.set_show_end_title_buttons(False)
+        header.set_show_end_title_buttons(True)
         header.set_show_start_title_buttons(False)
 
         cancel_btn = Gtk.Button(label=_("Cancel"))
@@ -176,7 +180,8 @@ class ButtonConfigDialog(Adw.Window):
             buttons_config = config.get("buttons", default={})
             buttons_config[self.button_id] = action_id
             config.set("buttons", buttons_config)
+            config.save()
 
-            print(f"Button {self.button_id} configured to: {action_name}")
+            logger.info("Button %s configured to: %s", self.button_id, action_name)
 
         self.close()
