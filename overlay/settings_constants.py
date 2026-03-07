@@ -59,6 +59,17 @@ _BASE_MOUSE_BUTTONS = {
     },
 }
 
+# Generic mouse button definitions (used by GenericMouseVisualization click handler)
+_BASE_GENERIC_BUTTONS = {
+    "left_click": {"name": "Left Click", "action": "Left Click"},
+    "right_click": {"name": "Right Click", "action": "Right Click"},
+    "middle_click": {"name": "Middle / Scroll", "action": "Middle Click"},
+    "side_btn": {"name": "Side Button", "action": "Back"},
+    "extra_btn": {"name": "Extra Button", "action": "Forward"},
+}
+
+GENERIC_BUTTONS = {}
+
 # =============================================================================
 # SIDEBAR NAVIGATION ITEMS
 # =============================================================================
@@ -334,6 +345,18 @@ def refresh_translations(_=lambda x: x):
         if action_label in base_action_labels:
             action_label = _(action_label)
         MOUSE_BUTTONS[key] = {
+            **info,
+            "name": _(info["name"]),
+            "action": action_label,
+        }
+
+    existing_generic = {key: info.get("action") for key, info in GENERIC_BUTTONS.items()}
+    GENERIC_BUTTONS.clear()
+    for key, info in _BASE_GENERIC_BUTTONS.items():
+        action_label = existing_generic.get(key, info["action"])
+        if action_label in base_action_labels:
+            action_label = _(action_label)
+        GENERIC_BUTTONS[key] = {
             **info,
             "name": _(info["name"]),
             "action": action_label,

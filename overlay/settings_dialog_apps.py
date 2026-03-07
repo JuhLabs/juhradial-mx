@@ -8,7 +8,9 @@ for per-application radial menu profiles.
 SPDX-License-Identifier: GPL-3.0
 """
 
+import logging
 import json
+import os
 from pathlib import Path
 
 import gi
@@ -25,6 +27,8 @@ from settings_constants import (
     find_radial_action_index,
 )
 from settings_widgets import SettingsCard
+
+logger = logging.getLogger(__name__)
 
 
 class AddApplicationDialog(Adw.Window):
@@ -150,7 +154,7 @@ class AddApplicationDialog(Adw.Window):
                         if org in ("mozilla", "chromium", "gnome", "gtk"):
                             apps.add(app.lower())
         except Exception as e:
-            print(f"D-Bus app detection failed: {e}")
+            logger.debug("D-Bus app detection failed: %s", e)
 
         try:
             # Method 2: Check for GUI processes with known .desktop files
@@ -233,7 +237,7 @@ class AddApplicationDialog(Adw.Window):
                     ):
                         apps.add(proc)
         except Exception as e:
-            print(f"Process detection failed: {e}")
+            logger.debug("Process detection failed: %s", e)
 
         # Add some common apps that user might want (grayed out if not detected)
         common_apps = [
@@ -336,28 +340,24 @@ class AddApplicationDialog(Adw.Window):
                 "app_class": app_name,
             }
 
-            # Save
+            # Atomic write
             profile_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(profile_path, "w", encoding="utf-8") as f:
+            tmp_path = str(profile_path) + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(profiles, f, indent=2)
+            os.replace(tmp_path, str(profile_path))
 
-            print(f"Created profile for: {app_name}")
+            logger.info("Created profile for: %s", app_name)
 
             if hasattr(self.parent_window, "show_toast"):
                 self.parent_window.show_toast(
                     _("Profile created for {}").format(app_name)
                 )
 
-            # Show success and close
             self.close()
 
-            # Show toast in parent (if supported)
-            toast = Adw.Toast(title=_("Profile created for {}").format(app_name))
-            toast.set_timeout(2)
-            # Note: Would need ToastOverlay in parent for this to work
-
         except Exception as e:
-            print(f"Failed to save profile: {e}")
+            logger.error("Failed to save profile: %s", e)
             dialog = Adw.AlertDialog(
                 heading=_("Error"), body=_("Failed to create profile: {}").format(e)
             )
@@ -433,14 +433,16 @@ class ApplicationProfilesGridDialog(Adw.Window):
                 data = json.load(f)
                 return data if isinstance(data, dict) else {}
         except Exception as e:
-            print(f"Failed to load profiles: {e}")
+            logger.error("Failed to load profiles: %s", e)
             return {}
 
     def _save_profiles(self, profiles):
-        """Save profiles dict to profiles.json"""
+        """Save profiles dict to profiles.json atomically"""
         self.profile_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.profile_path, "w", encoding="utf-8") as f:
+        tmp_path = str(self.profile_path) + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(profiles, f, indent=2)
+        os.replace(tmp_path, str(self.profile_path))
 
     def _create_profile_card(self, app_name, profile):
         """Create a card widget for one app profile"""
@@ -709,8 +711,10 @@ class AppProfileSlicesDialog(Adw.Window):
         }
 
         self.profile_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.profile_path, "w", encoding="utf-8") as f:
+        tmp_path = str(self.profile_path) + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(profiles, f, indent=2)
+        os.replace(tmp_path, str(self.profile_path))
 
         if hasattr(self.parent_dialog.parent_window, "show_toast"):
             self.parent_dialog.parent_window.show_toast(

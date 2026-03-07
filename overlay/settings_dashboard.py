@@ -9,9 +9,12 @@ SPDX-License-Identifier: GPL-3.0
 """
 
 import gi
+import logging
 import sys
 import signal
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
@@ -22,7 +25,7 @@ from i18n import _
 from settings_sidebar import SidebarMixin
 
 # Layer 1: Config + Theme
-from settings_config import config, get_device_name, get_device_mode, get_device_name_from_daemon
+from settings_config import config, get_device_name, get_device_mode, get_device_name_from_daemon, get_minimal_mode, set_minimal_mode
 from settings_theme import (
     COLORS,
     CSS,
@@ -33,7 +36,7 @@ from settings_theme import (
 )
 
 # Layer 2: Constants + Widgets
-from settings_constants import MOUSE_BUTTONS
+from settings_constants import MOUSE_BUTTONS, GENERIC_BUTTONS
 from settings_widgets import MouseVisualization, GenericMouseVisualization
 
 # Layer 3: Dialogs
@@ -69,6 +72,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         # Detect device mode once at startup (cached for lifetime)
         self._device_mode = get_device_mode()
         self._is_generic = self._device_mode == "generic"
+        self._restarting = False  # Guard against double-click on mode toggle
 
         # Match Adwaita palette to selected theme
         style_manager = Adw.StyleManager.get_default()
@@ -97,8 +101,6 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         # Set window icon for Wayland (fixes yellow default icon)
         icon_path = Path(__file__).parent.parent / "assets" / "juhradial-mx.svg"
         if icon_path.exists():
-            self.set_icon_name(None)  # Clear any default
-            # Load and set icon from file
             try:
                 # For GTK4/Adwaita, we need to use the default icon theme
                 # Create a paintable from the SVG
@@ -106,8 +108,9 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                 theme = Gtk.IconTheme.get_for_display(display)
                 # Add our assets directory to the icon search path
                 theme.add_search_path(str(icon_path.parent))
+                self.set_icon_name("juhradial-mx")
             except Exception as e:
-                print(f"Could not set window icon: {e}")
+                logger.warning("Could not set window icon: %s", e)
 
         # D-Bus connection for daemon communication
         self.dbus_proxy = None
@@ -151,7 +154,6 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         minimal_box.append(minimal_info_btn)
         self._minimal_switch = Gtk.Switch()
         self._minimal_switch.set_valign(Gtk.Align.CENTER)
-        from settings_config import get_minimal_mode, set_minimal_mode
         self._minimal_switch.set_active(get_minimal_mode())
         self._minimal_switch.connect("notify::active", self._on_minimal_mode_toggled)
         minimal_box.append(self._minimal_switch)
@@ -243,6 +245,9 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
             # Initial battery update
             GLib.idle_add(self._update_battery)
 
+        # Pause timers when window is hidden, resume when shown
+        self.connect("notify::visible", self._on_visibility_changed)
+
         # Connect close-request to clean up resources
         self.connect("close-request", self._on_close_request)
 
@@ -252,15 +257,44 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         toast.set_timeout(timeout)
         self.toast_overlay.add_toast(toast)
 
+    def _on_visibility_changed(self, window, pspec):
+        """Pause/resume polling timers when window visibility changes."""
+        if self.get_visible():
+            # Resume timers
+            if not self._is_generic and not self._battery_timer_id:
+                self._battery_timer_id = GLib.timeout_add_seconds(2, self._update_battery)
+                GLib.idle_add(self._update_battery)
+            if hasattr(self, "_heart_timer") and not self._heart_timer:
+                self._heart_timer = GLib.timeout_add(30, self._tick_heart)
+        else:
+            # Pause timers
+            if self._battery_timer_id:
+                GLib.source_remove(self._battery_timer_id)
+                self._battery_timer_id = None
+            if hasattr(self, "_heart_timer") and self._heart_timer:
+                GLib.source_remove(self._heart_timer)
+                self._heart_timer = None
+
     def _on_close_request(self, window):
         """Clean up resources when window is closed"""
         # Stop battery polling timer
         if hasattr(self, "_battery_timer_id") and self._battery_timer_id:
             GLib.source_remove(self._battery_timer_id)
             self._battery_timer_id = None
-            print("Battery timer stopped")
+            logger.debug("Battery timer stopped")
 
-        # Clean up FlowPage Zeroconf if it exists
+        # Stop heart animation timer
+        if hasattr(self, "_heart_timer") and self._heart_timer:
+            GLib.source_remove(self._heart_timer)
+            self._heart_timer = None
+
+        # Unsubscribe UPower signals
+        if hasattr(self, "_system_bus") and self._system_bus:
+            for sub_id in getattr(self, "_upower_signal_ids", []):
+                self._system_bus.signal_unsubscribe(sub_id)
+            self._upower_signal_ids = []
+
+        # Clean up FlowPage (Zeroconf + poll timer)
         flow_page = self.content_stack.get_child_by_name("flow")
         if flow_page and hasattr(flow_page, "cleanup"):
             flow_page.cleanup()
@@ -268,7 +302,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         # Clear toast callback to avoid dangling reference
         config.set_toast_callback(None)
 
-        print("Settings window cleanup complete")
+        logger.debug("Settings window cleanup complete")
         return False  # Allow window to close
 
     def _init_dbus(self):
@@ -285,17 +319,19 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                 None,
             )
         except Exception as e:
-            print(f"Failed to connect to D-Bus: {e}")
+            logger.error("Failed to connect to D-Bus: %s", e)
             self.dbus_proxy = None
 
     def _setup_upower_signals(self):
         """Setup UPower D-Bus signals for instant battery charging updates"""
+        self._system_bus = None
+        self._upower_signal_ids = []
         try:
-            system_bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+            self._system_bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
 
             # Subscribe to UPower device changed signals
             # This catches battery state changes (charging/discharging)
-            system_bus.signal_subscribe(
+            sub_id = self._system_bus.signal_subscribe(
                 "org.freedesktop.UPower",  # sender
                 "org.freedesktop.DBus.Properties",  # interface
                 "PropertiesChanged",  # signal name
@@ -305,9 +341,10 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                 self._on_upower_changed,  # callback
                 None,  # user data
             )
+            self._upower_signal_ids.append(sub_id)
 
             # Also listen for device added/removed (e.g., USB charger connected)
-            system_bus.signal_subscribe(
+            sub_id = self._system_bus.signal_subscribe(
                 "org.freedesktop.UPower",
                 "org.freedesktop.UPower",
                 "DeviceAdded",
@@ -317,7 +354,9 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                 self._on_upower_device_event,
                 None,
             )
-            system_bus.signal_subscribe(
+            self._upower_signal_ids.append(sub_id)
+
+            sub_id = self._system_bus.signal_subscribe(
                 "org.freedesktop.UPower",
                 "org.freedesktop.UPower",
                 "DeviceRemoved",
@@ -327,11 +366,12 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                 self._on_upower_device_event,
                 None,
             )
+            self._upower_signal_ids.append(sub_id)
 
-            print("UPower signal monitoring enabled for instant battery updates")
+            logger.debug("UPower signal monitoring enabled for instant battery updates")
         except Exception as e:
-            print(f"Could not setup UPower signals: {e}")
-            print("Falling back to polling only")
+            logger.warning("Could not setup UPower signals: %s", e)
+            logger.warning("Falling back to polling only")
 
     def _on_upower_changed(
         self, connection, sender, path, interface, signal, params, user_data
@@ -356,12 +396,10 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
 
     def _update_battery(self):
         """Fetch battery status from daemon via D-Bus"""
-        if (
-            self.dbus_proxy is None
-            or self.battery_label is None
-            or not self._battery_available
-        ):
-            return self._battery_available  # Stop timer if battery not available
+        if not self._battery_available:
+            return False  # Stop timer - battery not supported by daemon
+        if self.dbus_proxy is None or self.battery_label is None:
+            return False  # Stop timer - no D-Bus connection or UI not ready
 
         try:
             # Call GetBatteryStatus method
@@ -416,7 +454,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                 self._battery_available = False
                 self.battery_label.set_label(_("N/A"))
                 return False  # Stop timer
-            print(f"Battery update failed: {e}")
+            logger.warning("Battery update failed: %s", e)
 
         return True  # Keep timer running
 
@@ -554,13 +592,15 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
 
     def _on_minimal_mode_toggled(self, switch, _pspec):
         """Toggle minimal radial wheel mode (icons only, no pizza slices)."""
-        from settings_config import set_minimal_mode
         set_minimal_mode(switch.get_active())
         label = _("Minimal mode on") if switch.get_active() else _("Minimal mode off")
         self.show_toast(label, timeout=1)
 
     def _on_generic_mode_toggled(self, switch, _pspec):
         """Toggle between generic and auto (Logitech) device mode. Restarts settings."""
+        if self._restarting:
+            return
+        self._restarting = True
         import settings_config as _sc
         mode = "generic" if switch.get_active() else "auto"
         config.set("device_mode", mode, auto_save=True)
@@ -593,7 +633,9 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
             # Generic mode: generic mouse photo + buttons config
             buttons_page = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
 
-            generic_viz = GenericMouseVisualization()
+            generic_viz = GenericMouseVisualization(
+                on_button_click=self._on_generic_button_click
+            )
             generic_viz.set_hexpand(True)
             buttons_page.append(generic_viz)
 
@@ -712,6 +754,13 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         # Switch page
         self.content_stack.set_visible_child_name(item_id)
 
+    def _on_generic_button_click(self, button_id, button_info=None):
+        """Open button configuration dialog for generic mouse buttons"""
+        if button_id in GENERIC_BUTTONS:
+            dialog = ButtonConfigDialog(self, button_id, GENERIC_BUTTONS[button_id])
+            dialog.connect("close-request", lambda _: self._on_dialog_closed())
+            dialog.present()
+
     def _on_mouse_button_click(self, button_id):
         """Open button configuration dialog"""
         if button_id in MOUSE_BUTTONS:
@@ -764,12 +813,9 @@ class SettingsApp(Adw.Application):
 
     def do_shutdown(self):
         """Clean up all resources on application exit"""
-        # Ensure all windows get their cleanup called
-        for window in self.get_windows():
-            if hasattr(window, "_on_close_request"):
-                window._on_close_request(window)
+        # Window cleanup is handled by the close-request signal - no need to call manually
         Adw.Application.do_shutdown(self)
-        print("Settings application shutdown complete")
+        logger.debug("Settings application shutdown complete")
 
 
 def main():
@@ -778,9 +824,9 @@ def main():
     # GTK4/Adwaita handles single-instance automatically via D-Bus
     # Using application_id='org.kde.juhradialmx.settings' with DEFAULT_FLAGS
     # If another instance is launched, it activates the existing window
-    print("JuhRadial MX Settings Dashboard")
-    print("  Theme: Catppuccin Mocha")
-    print(f"  Size: {WINDOW_WIDTH}x{WINDOW_HEIGHT}")
+    logger.info("JuhRadial MX Settings Dashboard")
+    logger.info("  Theme: Catppuccin Mocha")
+    logger.info("  Size: %dx%d", WINDOW_WIDTH, WINDOW_HEIGHT)
 
     app = SettingsApp()
     return app.run(sys.argv)

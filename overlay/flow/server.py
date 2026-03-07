@@ -1,10 +1,13 @@
 """JuhRadialMX Flow HTTP server and request handler"""
 
 import json
+import logging
 import socket
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Optional, Callable
+
+logger = logging.getLogger("juhradial.flow.server")
 
 try:
     from zeroconf import ServiceInfo, Zeroconf
@@ -24,7 +27,7 @@ class FlowRequestHandler(BaseHTTPRequestHandler):
     server: 'FlowServer'
 
     def log_message(self, format, *args):
-        print(f"[Flow Server] {args[0]}")
+        logger.debug(args[0])
 
     def _get_auth_token(self) -> Optional[str]:
         auth_header = self.headers.get('Authorization', '')
@@ -124,7 +127,7 @@ class FlowRequestHandler(BaseHTTPRequestHandler):
                             self.server.on_peer_key_callback(client_name, aes_key)
 
                     self._send_json(response_data)
-                    print(f"[Flow] Paired with {client_name} (crypto: {'yes' if client_public_key else 'no'})")
+                    logger.info("Paired with %s (crypto: %s)", client_name, "yes" if client_public_key else "no")
                 else:
                     self._send_error(401, 'Invalid pairing code')
             except json.JSONDecodeError:
@@ -145,7 +148,7 @@ class FlowRequestHandler(BaseHTTPRequestHandler):
                     self._send_error(400, 'Invalid host slot: must be 0-2')
                     return
 
-                print(f"[Flow] Host change from {client_name}: host {new_host}")
+                logger.info("Host change from %s: host %s", client_name, new_host)
                 if self.server.on_host_change_callback:
                     self.server.on_host_change_callback(new_host)
                 self._send_json({'status': 'ok'})
@@ -154,7 +157,7 @@ class FlowRequestHandler(BaseHTTPRequestHandler):
 
         elif self.path == '/clipboard':
             set_clipboard(body)
-            print(f"[Flow] Clipboard set from {client_name} ({len(body)} bytes)")
+            logger.info("Clipboard set from %s (%s bytes)", client_name, len(body))
             self._send_json({'status': 'ok'})
         else:
             self._send_error(404, 'Not Found')
@@ -184,13 +187,13 @@ class FlowServer(HTTPServer):
 
         self.allow_reuse_address = True
         super().__init__(('', port), FlowRequestHandler)
-        print(f"[Flow] Server initialized on port {port}")
+        logger.info("Server initialized on port %s", port)
 
     def start(self):
         self._register_mdns()
         self.server_thread = threading.Thread(target=self.serve_forever, daemon=True)
         self.server_thread.start()
-        print(f"[Flow] Server started at http://{self.hostname}:{self.server_address[1]}")
+        logger.info("Server started at http://%s:%s", self.hostname, self.server_address[1])
 
     def stop(self):
         self._unregister_mdns()
@@ -198,7 +201,7 @@ class FlowServer(HTTPServer):
 
     def _register_mdns(self):
         if not ZEROCONF_AVAILABLE:
-            print("[Flow] Zeroconf not available, mDNS registration skipped")
+            logger.warning("Zeroconf not available, mDNS registration skipped")
             return
 
         try:
@@ -220,9 +223,9 @@ class FlowServer(HTTPServer):
                 },
             )
             self.zeroconf.register_service(self.service_info)
-            print(f"[Flow] Registered mDNS service: {self.hostname} at {local_ip}")
+            logger.info("Registered mDNS service: %s at %s", self.hostname, local_ip)
         except Exception as e:
-            print(f"[Flow] Failed to register mDNS: {e}")
+            logger.warning("Failed to register mDNS: %s", e)
 
     def _unregister_mdns(self):
         if self.zeroconf and self.service_info:
@@ -230,7 +233,7 @@ class FlowServer(HTTPServer):
                 self.zeroconf.unregister_service(self.service_info)
                 self.zeroconf.close()
             except Exception as e:
-                print(f"[Flow] Error unregistering mDNS: {e}")
+                logger.debug("Error unregistering mDNS: %s", e)
 
     def generate_pairing_code(self) -> str:
         import secrets
@@ -254,11 +257,11 @@ class FlowServer(HTTPServer):
                     timeout=2
                 )
                 if response.ok:
-                    print(f"[Flow] Notified {name} of host change to {new_host}")
+                    logger.info("Notified %s of host change to %s", name, new_host)
                 else:
-                    print(f"[Flow] Failed to notify {name}: {response.status_code}")
+                    logger.warning("Failed to notify %s: %s", name, response.status_code)
             except Exception as e:
-                print(f"[Flow] Error notifying {name}: {e}")
+                logger.warning("Error notifying %s: %s", name, e)
 
     def sync_clipboard_to(self, linked_computers: LinkedComputersManager):
         import requests
@@ -277,6 +280,6 @@ class FlowServer(HTTPServer):
                     timeout=2
                 )
                 if response.ok:
-                    print(f"[Flow] Synced clipboard to {name}")
+                    logger.info("Synced clipboard to %s", name)
             except Exception as e:
-                print(f"[Flow] Error syncing clipboard to {name}: {e}")
+                logger.warning("Error syncing clipboard to %s: %s", name, e)

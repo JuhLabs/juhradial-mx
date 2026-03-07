@@ -165,7 +165,7 @@ impl HapticManager {
                 Ok(true)
             }
             None => {
-                tracing::info!("No MX Master 4 found, haptics disabled");
+                tracing::debug!("No MX Master 4 found, haptics disabled");
                 self.connection_state = ConnectionState::NotConnected;
                 Ok(false)
             }
@@ -682,7 +682,7 @@ impl HapticManager {
         match self.device.as_mut() {
             Some(device) => device.query_battery(),
             None => {
-                tracing::warn!("Cannot query battery: device not connected");
+                tracing::debug!("Cannot query battery: device not connected");
                 Err(HapticError::DeviceNotFound)
             }
         }

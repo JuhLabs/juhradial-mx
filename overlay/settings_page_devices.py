@@ -65,16 +65,10 @@ class DevicesPage(Gtk.ScrolledWindow):
             banner_label.set_halign(Gtk.Align.START)
             banner.append(banner_label)
 
-            # Style the banner with padding
-            banner.set_margin_start(0)
-            banner.set_margin_end(0)
-            for side in ("top", "bottom", "start", "end"):
-                getattr(banner, f"set_margin_{side}")(
-                    12 if side in ("top", "bottom") else banner.get_margin_start()
-                )
-            # Re-apply consistent padding inside the banner
             banner.set_margin_top(12)
             banner.set_margin_bottom(12)
+            banner.set_margin_start(12)
+            banner.set_margin_end(12)
 
             content.append(banner)
 

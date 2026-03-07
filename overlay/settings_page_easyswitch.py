@@ -7,6 +7,8 @@ EasySwitchPage and PlaceholderPage for device switching.
 SPDX-License-Identifier: GPL-3.0
 """
 
+import logging
+
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -17,6 +19,8 @@ from gi.repository import Gtk, GLib, Gio, Adw
 from i18n import _
 from settings_widgets import SettingsCard, PageHeader, InfoCard
 from settings_config import config
+
+logger = logging.getLogger(__name__)
 
 # OS options for Easy-Switch host identification
 OS_OPTIONS = [
@@ -253,7 +257,7 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         if host_index == self.current_host:
             return  # Already on this host
 
-        print(f"Switching to host {host_index}...")
+        logger.info("Switching to host %s...", host_index)
 
         try:
             if self.daemon_proxy:
@@ -265,15 +269,15 @@ class EasySwitchPage(Gtk.ScrolledWindow):
                     5000,  # 5 second timeout for host switch
                     None,
                 )
-                print(f"Successfully requested switch to host {host_index}")
+                logger.info("Successfully requested switch to host %s", host_index)
 
                 # Update current host and refresh display
                 self.current_host = host_index
                 self._update_slot_display()
             else:
-                print("D-Bus proxy not available")
+                logger.warning("D-Bus proxy not available")
         except Exception as e:
-            print(f"Failed to switch host: {e}")
+            logger.error("Failed to switch host: %s", e)
 
     def _on_os_changed(self, dropdown, _pspec, slot_index):
         """Handle OS type change for a host slot"""
@@ -310,11 +314,11 @@ class EasySwitchPage(Gtk.ScrolledWindow):
                 )
                 if result:
                     self.num_hosts, self.current_host = result.unpack()
-                    print(
-                        f"Easy-Switch: {self.num_hosts} hosts, current={self.current_host}"
+                    logger.info(
+                        "Easy-Switch: %s hosts, current=%s", self.num_hosts, self.current_host
                     )
             except Exception as e:
-                print(f"Could not get Easy-Switch info: {e}")
+                logger.warning("Could not get Easy-Switch info: %s", e)
                 self.num_hosts = 3  # Default to 3 slots
                 self.current_host = 0
 
@@ -325,16 +329,16 @@ class EasySwitchPage(Gtk.ScrolledWindow):
                 )
                 if result:
                     self.host_names = list(result.unpack()[0])
-                    print(f"Host names: {self.host_names}")
+                    logger.debug("Host names: %s", self.host_names)
             except Exception as e:
-                print(f"Could not get host names: {e}")
+                logger.warning("Could not get host names: %s", e)
                 self.host_names = []
 
             # Update UI with slots
             self._update_slot_display()
 
         except Exception as e:
-            print(f"Failed to connect to D-Bus: {e}")
+            logger.error("Failed to connect to D-Bus: %s", e)
             # Show error state
             error_label = Gtk.Label(label=_("Could not connect to daemon"))
             error_label.add_css_class("dim-label")

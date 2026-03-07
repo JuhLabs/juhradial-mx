@@ -9,6 +9,7 @@ and toggle handlers.
 SPDX-License-Identifier: GPL-3.0
 """
 
+import logging
 import socket
 import threading
 import time
@@ -46,6 +47,8 @@ try:
 except ImportError:
     FLOW_MODULE_AVAILABLE = False
 
+logger = logging.getLogger(__name__)
+
 
 class FlowServiceListener:
     """mDNS service listener for discovering computers on the network"""
@@ -55,7 +58,7 @@ class FlowServiceListener:
         self.seen_ips = set()  # Track IPs to avoid duplicates
 
     def remove_service(self, zeroconf, type_, name):
-        print(f"[Flow] Service removed: {name}")
+        logger.debug("Service removed: %s", name)
 
     def add_service(self, zeroconf, type_, name):
         info = zeroconf.get_service_info(type_, name)
@@ -173,7 +176,7 @@ class FlowDiscoveryMixin:
     def _discover_computers(self):
         """Discover other computers on the network running JuhRadialMX, Input Leap, or Logi Options+"""
         if not ZEROCONF_AVAILABLE:
-            print("[Flow] zeroconf not available, cannot discover computers")
+            logger.warning("zeroconf not available, cannot discover computers")
             self._update_computers_list([])
             return False
 
@@ -213,9 +216,9 @@ class FlowDiscoveryMixin:
                     try:
                         browser = ServiceBrowser(zc, svc_type, listener)
                         browsers.append(browser)
-                        print(f"[Flow] Browsing for {svc_type}")
+                        logger.debug("Browsing for %s", svc_type)
                     except Exception as e:
-                        print(f"[Flow] Failed to browse {svc_type}: {e}")
+                        logger.warning("Failed to browse %s: %s", svc_type, e)
 
                 # Also register this computer as a JuhRadialMX service
                 self._register_service(zc)
@@ -232,7 +235,7 @@ class FlowDiscoveryMixin:
                 )
 
             except Exception as e:
-                print(f"[Flow] Discovery error: {e}")
+                logger.error("Discovery error: %s", e)
                 GLib.idle_add(self._update_computers_list, [])
             finally:
                 # Clean up Zeroconf resources after discovery completes
@@ -245,9 +248,9 @@ class FlowDiscoveryMixin:
                                 pass  # Service already unregistered
                         self._registered_services.clear()
                         zc.close()
-                        print("[Flow] Zeroconf closed after discovery")
+                        logger.debug("Zeroconf closed after discovery")
                     except Exception as e:
-                        print(f"[Flow] Error closing Zeroconf: {e}")
+                        logger.error("Error closing Zeroconf: %s", e)
                     if self._zeroconf is zc:
                         self._zeroconf = None
 
@@ -266,13 +269,19 @@ class FlowDiscoveryMixin:
                         pass  # Service already unregistered
                 self._registered_services.clear()
                 self._zeroconf.close()
-                print("[Flow] Zeroconf cleaned up")
+                logger.debug("Zeroconf cleaned up")
             except Exception as e:
-                print(f"[Flow] Error cleaning up Zeroconf: {e}")
+                logger.error("Error cleaning up Zeroconf: %s", e)
             self._zeroconf = None
 
     def cleanup(self):
         """Called when the page is being destroyed or navigated away from"""
+        if hasattr(self, "_juhflow_poll") and self._juhflow_poll:
+            GLib.source_remove(self._juhflow_poll)
+            self._juhflow_poll = None
+        if hasattr(self, "_connect_reset_timer") and self._connect_reset_timer:
+            GLib.source_remove(self._connect_reset_timer)
+            self._connect_reset_timer = None
         self._cleanup_zeroconf()
 
     def _register_service(self, zc):
@@ -302,8 +311,8 @@ class FlowDiscoveryMixin:
             )
             zc.register_service(info_juh)
             self._registered_services.append(info_juh)
-            print(
-                f"[Flow] Registered JuhRadialMX service: {hostname} at {local_ip}:{FLOW_PORT}"
+            logger.info(
+                "Registered JuhRadialMX service: %s at %s:%s", hostname, local_ip, FLOW_PORT
             )
 
             # Also register as potential Logi Flow compatible service
@@ -323,12 +332,12 @@ class FlowDiscoveryMixin:
                     )
                     zc.register_service(info_logi)
                     self._registered_services.append(info_logi)
-                    print(f"[Flow] Registered {svc_type}: {hostname}")
+                    logger.debug("Registered %s: %s", svc_type, hostname)
                 except Exception as e:
-                    print(f"[Flow] Could not register {svc_type}: {e}")
+                    logger.warning("Could not register %s: %s", svc_type, e)
 
         except Exception as e:
-            print(f"[Flow] Failed to register service: {e}")
+            logger.error("Failed to register service: %s", e)
 
     def add_discovered_computer(
         self, name, ip, port, software="Unknown", service_type=""
@@ -359,7 +368,7 @@ class FlowDiscoveryMixin:
             "software": software,
             "service_type": service_type,
         }
-        print(f"[Flow] Discovered: {clean_name} at {ip}:{port} (Software: {software})")
+        logger.info("Discovered: %s at %s:%s (Software: %s)", clean_name, ip, port, software)
 
     def _update_computers_list(self, computers):
         """Update the list of detected computers"""
@@ -368,11 +377,7 @@ class FlowDiscoveryMixin:
             self.computers_box.remove(child)
 
         if not computers:
-            # Show placeholder
-            self.no_computers_label = Gtk.Label(label=_("No other computers detected"))
-            self.no_computers_label.add_css_class("dim-label")
-            self.no_computers_label.set_margin_top(16)
-            self.no_computers_label.set_margin_bottom(16)
+            # Re-add the existing placeholder label
             self.computers_box.append(self.no_computers_label)
         else:
             # Show detected computers
@@ -483,21 +488,21 @@ class FlowDiscoveryMixin:
     def _on_link_clicked(self, button, computer):
         """Handle click on Link button to pair with another computer"""
         if not FLOW_MODULE_AVAILABLE:
-            print("[Flow] Flow module not available")
+            logger.warning("Flow module not available")
             return
 
         # Get the Flow server and generate a pairing code
         server = get_flow_server()
         if not server:
-            print("[Flow] Flow server not running - enable Flow first")
+            logger.warning("Flow server not running - enable Flow first")
             return
 
         computer_name = computer.get("name", "Unknown")
         computer_ip = computer.get("ip", "")
         computer_port = computer.get("port", FLOW_PORT)
 
-        print(
-            f"[Flow] Initiating link with {computer_name} at {computer_ip}:{computer_port}"
+        logger.info(
+            "Initiating link with %s at %s:%s", computer_name, computer_ip, computer_port
         )
 
         # Show a pairing dialog
@@ -540,7 +545,7 @@ class FlowDiscoveryMixin:
                         computer_name, computer_ip, computer_port, pairing_code
                     )
                 else:
-                    print("[Flow] Invalid pairing code - must be 6 digits")
+                    logger.warning("Invalid pairing code - must be 6 digits")
 
         dialog.connect("response", on_response)
         dialog.present()
@@ -571,7 +576,10 @@ class FlowDiscoveryMixin:
                 if discovery:
                     discovery.add_peer_key(computer_name, client.peer_aes_key)
 
-            print(f"[Flow] Successfully linked with {computer_name} (crypto: {'yes' if client.peer_public_key else 'no'})")
+            logger.info(
+                "Successfully linked with %s (crypto: %s)",
+                computer_name, "yes" if client.peer_public_key else "no"
+            )
 
             # Show success toast
             toast = Adw.Toast(title=_("Linked with {}").format(computer_name))
@@ -580,4 +588,4 @@ class FlowDiscoveryMixin:
             if hasattr(window, "toast_overlay"):
                 window.toast_overlay.add_toast(toast)
         else:
-            print(f"[Flow] Failed to link with {computer_name}")
+            logger.error("Failed to link with %s", computer_name)

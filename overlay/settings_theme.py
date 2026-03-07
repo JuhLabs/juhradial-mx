@@ -36,7 +36,6 @@ def load_colors():
 
 # Load initial colors
 COLORS = load_colors()
-IS_DARK_THEME = COLORS.get('is_dark', True)
 
 # =============================================================================
 # WINDOW CONFIGURATION

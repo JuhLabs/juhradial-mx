@@ -81,7 +81,7 @@ def setup_i18n():
             languages=languages,
             fallback=True,
         )
-    except Exception:
+    except (OSError, UnicodeDecodeError):
         translation = gettext.NullTranslations()
 
     return translation.gettext
@@ -108,12 +108,12 @@ def reload_language():
         ):
             try:
                 mod.__dict__["_"] = _
-            except Exception:
+            except (TypeError, AttributeError):
                 pass  # Module dict not accessible, skip
 
     try:
         from settings_constants import refresh_translations
 
         refresh_translations(_)
-    except Exception:
+    except ImportError:
         pass  # settings_constants may not be available

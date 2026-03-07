@@ -35,6 +35,7 @@ def generate_css(COLORS):
     accent2_05 = f'rgba({a2r}, {a2g}, {a2b}, 0.05)'
     accent2_08 = f'rgba({a2r}, {a2g}, {a2b}, 0.08)'
     accent2_10 = f'rgba({a2r}, {a2g}, {a2b}, 0.1)'
+    accent2_12 = f'rgba({a2r}, {a2g}, {a2b}, 0.12)'
     accent2_15 = f'rgba({a2r}, {a2g}, {a2b}, 0.15)'
 
     # Theme-aware color adjustments
@@ -67,45 +68,10 @@ def generate_css(COLORS):
 
     return f"""
 /* ============================================
-   GLOBAL TRANSITIONS & ANIMATIONS
-   ============================================ */
-@keyframes pulse-glow {{
-    0%, 100% {{ box-shadow: 0 0 20px {COLORS['accent_glow']}; }}
-    50% {{ box-shadow: 0 0 35px {COLORS['accent_glow']}; }}
-}}
-
-@keyframes subtle-pulse {{
-    0%, 100% {{ opacity: 1; }}
-    50% {{ opacity: 0.85; }}
-}}
-
-@keyframes slide-in {{
-    from {{ opacity: 0; transform: translateX(20px); }}
-    to {{ opacity: 1; transform: translateX(0); }}
-}}
-
-/* ============================================
    MAIN WINDOW
    ============================================ */
 window.settings-window {{
     background: linear-gradient(180deg, {COLORS['crust']} 0%, {COLORS['mantle']} 100%);
-}}
-
-/* ============================================
-   HEADER BAR - Premium Glass Effect
-   ============================================ */
-.header-area {{
-    background: {COLORS['mantle']};
-    padding: 18px 28px;
-    border-bottom: 1px solid {border_subtle};
-    box-shadow: 0 4px 24px {shadow_color};
-}}
-
-.device-title {{
-    font-size: 26px;
-    font-weight: 700;
-    color: {COLORS['text']};
-    letter-spacing: 0.5px;
 }}
 
 .add-app-btn {{
@@ -209,50 +175,6 @@ window.settings-window {{
 .page-header-icon {{
     color: {COLORS['accent']};
     opacity: 0.9;
-}}
-
-/* ============================================
-   MAIN CONTENT AREA
-   ============================================ */
-.content-area {{
-    background: {COLORS['base']};
-}}
-
-/* ============================================
-   MOUSE VISUALIZATION AREA
-   ============================================ */
-.mouse-area {{
-    background: radial-gradient(ellipse at center, {COLORS['surface0']} 0%, {COLORS['base']} 70%);
-    padding: 40px;
-}}
-
-/* ============================================
-   BUTTON LABELS ON MOUSE - Premium Floating Tags
-   ============================================ */
-.button-label {{
-    background: {card_bg};
-    color: {COLORS['text']};
-    padding: 10px 16px;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 600;
-    box-shadow: 0 4px 20px {shadow_color_strong};
-    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid {border_subtle};
-}}
-
-.button-label:hover {{
-    background: {COLORS['surface1']};
-    border-color: {COLORS['accent']};
-    box-shadow: 0 6px 28px {COLORS['accent_glow']};
-    color: {COLORS['accent']};
-}}
-
-.button-label.highlighted {{
-    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
-    color: {text_on_accent};
-    box-shadow: 0 6px 28px {COLORS['accent_glow']};
-    border-color: transparent;
 }}
 
 /* ============================================
@@ -361,6 +283,22 @@ window.settings-window {{
     color: {COLORS['subtext1']};
     font-size: 13px;
     font-weight: 500;
+}}
+
+.connection-dot {{
+    min-width: 10px;
+    min-height: 10px;
+    border-radius: 50%;
+    background: {COLORS['subtext0']};
+}}
+
+.connection-dot.connected {{
+    background: {COLORS['green']};
+    box-shadow: 0 0 6px rgba(0, 230, 118, 0.5);
+}}
+
+.connection-dot.disconnected {{
+    background: {COLORS['surface2']};
 }}
 
 /* ============================================
@@ -570,21 +508,6 @@ tooltip {{
 }}
 
 /* ============================================
-   SPECIAL EFFECTS - Glow Classes
-   ============================================ */
-.glow-accent {{
-    box-shadow: 0 0 20px {COLORS['accent_glow']};
-}}
-
-.glow-pulse {{
-    animation: pulse-glow 2s ease-in-out infinite;
-}}
-
-.animate-slide-in {{
-    animation: slide-in 300ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-/* ============================================
    HAPTIC PATTERN LIST ITEMS
    ============================================ */
 .haptic-pattern-item {{
@@ -605,15 +528,6 @@ tooltip {{
     background: linear-gradient(135deg, {accent_15} 0%, {accent2_10} 100%);
     border-color: {COLORS['accent']};
     box-shadow: 0 4px 16px {accent_20};
-}}
-
-/* ============================================
-   SECTION DIVIDERS
-   ============================================ */
-.section-divider {{
-    background: linear-gradient(90deg, transparent 0%, {accent_30} 50%, transparent 100%);
-    min-height: 1px;
-    margin: 20px 0;
 }}
 
 /* ============================================
@@ -780,24 +694,6 @@ tooltip {{
     margin-top: 4px;
 }}
 
-.configure-radial-btn {{
-    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
-    color: {text_on_accent};
-    border: none;
-    border-radius: 10px;
-    padding: 12px 24px;
-    font-weight: 700;
-    font-size: 14px;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 16px {accent_35};
-    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-.configure-radial-btn:hover {{
-    box-shadow: 0 6px 24px {accent_50};
-    transform: translateY(-2px);
-}}
-
 /* Slice Row Styling */
 .slice-row {{
     background: {COLORS['surface0']};
@@ -929,9 +825,9 @@ tooltip {{
    DONATE CARD - Gradient background
    ============================================ */
 .donate-card {{
-    background: linear-gradient(160deg, alpha({COLORS['accent']}, 0.08) 0%, alpha({COLORS['accent2']}, 0.12) 100%);
+    background: linear-gradient(160deg, {accent_08} 0%, {accent2_12} 100%);
     border-radius: 12px;
-    border: 1px solid alpha({COLORS['accent']}, 0.15);
+    border: 1px solid {accent_15};
     padding: 12px;
 }}
 

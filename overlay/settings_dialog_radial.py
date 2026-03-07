@@ -7,15 +7,14 @@ RadialMenuConfigDialog and SliceConfigDialog for configuring the radial menu.
 SPDX-License-Identifier: GPL-3.0
 """
 
-import json
-from pathlib import Path
+import logging
 
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, GLib, Gio, Adw, Pango
+from gi.repository import Gtk, Adw, Pango
 
 from i18n import _
 from settings_config import ConfigManager, config, detect_terminal
@@ -25,6 +24,8 @@ from settings_constants import (
     DE_COMMAND_MAP,
     get_de_key,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RadialMenuConfigDialog(Adw.Window):
@@ -137,22 +138,11 @@ class RadialMenuConfigDialog(Adw.Window):
         self.set_content(main_box)
 
     def _load_profile(self):
-        """Load the current radial menu from config.json"""
-        config_path = Path.home() / ".config" / "juhradial" / "config.json"
-        try:
-            if config_path.exists():
-                with open(config_path, "r", encoding="utf-8") as f:
-                    config_data = json.load(f)
-                    # Return the radial_menu section
-                    return config_data.get("radial_menu", {})
-        except Exception as e:
-            print(f"Failed to load config: {e}")
-        return {}
+        """Load the current radial menu from config"""
+        return config.get("radial_menu", default={})
 
     def _on_save(self, _):
-        """Save the radial menu configuration to config.json"""
-        config_path = Path.home() / ".config" / "juhradial" / "config.json"
-
+        """Save the radial menu configuration via ConfigManager"""
         # Build new slices config in the format the overlay expects
         slices = []
         for i in range(8):
@@ -173,42 +163,10 @@ class RadialMenuConfigDialog(Adw.Window):
                     }
                 )
 
-        # Load existing config and update radial_menu.slices
-        try:
-            config_data = {}
-            if config_path.exists():
-                with open(config_path, "r", encoding="utf-8") as f:
-                    config_data = json.load(f)
+        config.set("radial_menu", "slices", slices)
+        config.save()
 
-            if "radial_menu" not in config_data:
-                config_data["radial_menu"] = {}
-
-            config_data["radial_menu"]["slices"] = slices
-
-            # Save
-            with open(config_path, "w", encoding="utf-8") as f:
-                json.dump(config_data, f, indent=2)
-
-            print("Radial menu configuration saved!")
-
-            # Notify daemon to reload
-            try:
-                bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-                proxy = Gio.DBusProxy.new_sync(
-                    bus,
-                    Gio.DBusProxyFlags.NONE,
-                    None,
-                    "org.kde.juhradialmx",
-                    "/org/kde/juhradialmx/Daemon",
-                    "org.kde.juhradialmx.Daemon",
-                    None,
-                )
-                proxy.call_sync("ReloadConfig", None, Gio.DBusCallFlags.NONE, 500, None)
-            except GLib.Error:
-                pass  # Daemon may not be running
-
-        except Exception as e:
-            print(f"Failed to save profile: {e}")
+        logger.info("Radial menu configuration saved")
 
         self.close()
 
@@ -541,11 +499,16 @@ class SliceConfigDialog(Adw.Window):
             self.command_entry.set_placeholder_text(_("e.g., playerctl play-pause"))
 
     def _on_color_selected(self, color, button):
-        """Handle color selection - ensure only one is selected"""
+        """Handle color selection - ensure exactly one is selected"""
         if button.get_active():
             for c, btn in self.color_buttons.items():
                 if c != color and btn.get_active():
                     btn.set_active(False)
+        else:
+            # Don't allow deselecting all colors
+            any_active = any(btn.get_active() for btn in self.color_buttons.values())
+            if not any_active:
+                button.set_active(True)
 
     def _on_save(self, button):
         """Save the slice configuration"""
@@ -589,7 +552,7 @@ class SliceConfigDialog(Adw.Window):
 
         self.config_manager.save()
 
-        print(f"Radial menu slice {self.slice_index + 1} saved!")
+        logger.info("Radial menu slice %d saved", self.slice_index + 1)
 
         # Call callback to refresh UI
         if self.on_save_callback:

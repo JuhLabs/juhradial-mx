@@ -86,13 +86,18 @@ def derive_and_store_peer_key(peer_name, peer_pubkey_hex, ip, port):
     keys_dir = get_keys_dir()
     priv_path = keys_dir / "private.key"
     priv_raw = priv_path.read_bytes()
+    if len(priv_raw) != 32:
+        raise ValueError(f"Invalid private key size: {len(priv_raw)} bytes (expected 32)")
     private_key = X25519PrivateKey.from_private_bytes(priv_raw)
 
+    if len(peer_pubkey_hex) != 64:
+        raise ValueError(f"Invalid peer public key hex length: {len(peer_pubkey_hex)} (expected 64)")
     peer_pubkey_bytes = bytes.fromhex(peer_pubkey_hex)
     shared_secret = derive_shared_secret(private_key, peer_pubkey_bytes)
     aes_key = derive_aes_key(shared_secret)
 
     FLOW_PEERS_DIR.mkdir(parents=True, exist_ok=True)
+    os.chmod(FLOW_PEERS_DIR, 0o700)
     peer_file = FLOW_PEERS_DIR / f"{peer_name}.json"
     peer_data = {
         "name": peer_name,
@@ -102,6 +107,7 @@ def derive_and_store_peer_key(peer_name, peer_pubkey_hex, ip, port):
         "aes_key": aes_key.hex(),
     }
     peer_file.write_text(json.dumps(peer_data, indent=2))
+    os.chmod(peer_file, 0o600)
     logger.info("Stored peer key for %s (%s)", peer_name, ip)
     return aes_key
 

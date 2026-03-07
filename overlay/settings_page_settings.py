@@ -8,6 +8,7 @@ SPDX-License-Identifier: GPL-3.0
 """
 
 import json
+import logging
 from pathlib import Path
 
 import gi
@@ -28,6 +29,8 @@ from settings_constants import (
 import settings_theme
 from settings_widgets import SettingsCard, SettingRow, PageHeader, InfoCard
 from themes import get_theme_list
+
+logger = logging.getLogger(__name__)
 
 
 class SettingsPage(Gtk.ScrolledWindow):
@@ -263,7 +266,7 @@ class SettingsPage(Gtk.ScrolledWindow):
             de_key = self._de_keys[idx]
             config.set("desktop_environment", de_key)
             config.save(show_toast=False)
-            print(f"Desktop environment set to: {de_key}")
+            logger.info("Desktop environment set to: %s", de_key)
 
     def _on_apply_de_defaults(self, button):
         """Apply DE-specific default commands to radial menu slices."""
@@ -309,7 +312,7 @@ class SettingsPage(Gtk.ScrolledWindow):
             theme = self._theme_keys[selected]
             config.set("theme", theme)
             config.save(show_toast=False)  # Save immediately so overlay picks it up
-            print(f"Theme changed to: {theme}")
+            logger.info("Theme changed to: %s", theme)
 
             # Reload CSS for the settings window
             self._reload_theme_css()
@@ -330,9 +333,9 @@ class SettingsPage(Gtk.ScrolledWindow):
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-                print("Overlay restarted with new theme")
+                logger.info("Overlay restarted with new theme")
             except Exception as e:
-                print(f"Could not restart overlay: {e}")
+                logger.error("Could not restart overlay: %s", e)
 
     def _reload_theme_css(self):
         """Reload CSS with new theme colors"""
@@ -359,7 +362,7 @@ class SettingsPage(Gtk.ScrolledWindow):
         Gtk.StyleContext.add_provider_for_display(
             display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
-        print("Settings CSS reloaded with new theme")
+        logger.info("Settings CSS reloaded with new theme")
 
     def _on_startup_changed(self, switch, state):
         """Handle start at login toggle"""
@@ -388,20 +391,19 @@ Categories=Utility;
 X-GNOME-Autostart-enabled=true
 """
             autostart_file.write_text(desktop_content, encoding="utf-8")
-            print(f"Created autostart: {autostart_file}")
+            logger.info("Created autostart: %s", autostart_file)
         else:
             # Remove autostart entry
             if autostart_file.exists():
                 autostart_file.unlink()
-                print(f"Removed autostart: {autostart_file}")
+                logger.info("Removed autostart: %s", autostart_file)
         return False
 
     def _on_reset_clicked(self, button):
         """Reset all settings to defaults"""
-        global config
         config.config = json.loads(json.dumps(ConfigManager.DEFAULT_CONFIG))
         config.save()
-        print("Settings reset to defaults")
+        logger.info("Settings reset to defaults")
         # Show notification
         dialog = Adw.AlertDialog(
             heading=_("Settings Reset"),
