@@ -1,5 +1,5 @@
 {
-  description = "JuhRadial MX - Radial menu for Logitech MX Master on Linux";
+  description = "JuhRadial MX - Radial menu and device manager for Logitech MX Master (and any mouse) on Linux";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -24,7 +24,7 @@
           # Rust daemon - handles evdev input and D-Bus signaling
           juhradiald = pkgs.rustPlatform.buildRustPackage {
             pname = "juhradiald";
-            version = "0.2.11";
+            version = "0.3.0-beta";
 
             src = ./.;
             cargoRoot = "daemon";
@@ -36,7 +36,7 @@
             buildInputs = with pkgs; [ dbus systemd ];
 
             meta = with pkgs.lib; {
-              description = "JuhRadial MX daemon - evdev listener and D-Bus bridge";
+              description = "JuhRadial MX daemon - HID++/evdev listener and D-Bus bridge";
               license = licenses.gpl3Only;
               platforms = platforms.linux;
             };
@@ -48,7 +48,7 @@
 
           default = pkgs.stdenv.mkDerivation {
             pname = "juhradial-mx";
-            version = "0.2.11";
+            version = "0.3.0-beta";
             src = ./.;
 
             nativeBuildInputs = with pkgs; [
@@ -77,6 +77,9 @@
               # Python overlay and settings scripts
               mkdir -p $out/share/juhradial
               cp overlay/*.py $out/share/juhradial/
+
+              # Flow module
+              cp -r overlay/flow $out/share/juhradial/
 
               # Locale files
               cp -r overlay/locales $out/share/juhradial/
@@ -155,7 +158,7 @@
             '';
 
             meta = with pkgs.lib; {
-              description = "Radial menu for Logitech MX Master 4/3S/3 on Linux";
+              description = "Radial menu and device manager for Logitech MX Master (and any mouse) on Linux";
               homepage = "https://github.com/JuhLabs/juhradial-mx";
               license = licenses.gpl3Only;
               platforms = platforms.linux;
