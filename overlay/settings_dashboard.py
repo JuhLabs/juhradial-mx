@@ -683,8 +683,8 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
             self.content_stack.add_named(self._flow_page_placeholder, "flow")
 
         # Macros and Gaming - available in all modes
-        self.content_stack.add_named(MacrosPage(), "macros")
-        self.content_stack.add_named(GamingPage(), "gaming")
+        self.content_stack.add_named(MacrosPage(parent_window=self), "macros")
+        self.content_stack.add_named(GamingPage(parent_window=self), "gaming")
 
     def _create_status_bar(self):
         status = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
