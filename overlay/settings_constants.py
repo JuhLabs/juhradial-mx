@@ -80,6 +80,8 @@ _BASE_NAV_ITEMS = [
     ("devices", "DEVICES", "computer-symbolic"),
     ("easy_switch", "EASY-SWITCH", "network-wireless-symbolic"),
     ("flow", "FLOW", "view-dual-symbolic"),
+    ("macros", "MACROS", "media-record-symbolic"),
+    ("gaming", "GAMING", "input-gaming-symbolic"),
     ("settings", "SETTINGS", "emblem-system-symbolic"),
 ]
 

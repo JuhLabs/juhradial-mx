@@ -161,12 +161,13 @@ impl HidppDevice {
         tracing::debug!(count = candidates.len(), "Trying HID++ device candidates");
 
         for (device_path, connection_type) in candidates {
-            // Determine device index based on connection type
-            let device_index = match connection_type {
-                ConnectionType::Usb => 0xFF,       // Direct USB uses 0xFF
-                ConnectionType::Bolt => 0x02,      // Bolt receiver device slot (0x02 is common for MX4)
-                ConnectionType::Unifying => 0x01,  // Unifying receiver typically 0x01
-                ConnectionType::Bluetooth => 0xFF, // Bluetooth direct uses 0xFF
+            // Determine device indices to try based on connection type
+            // Bolt receivers can have the mouse on any slot (1-6), so try them all
+            let indices_to_try: Vec<u8> = match connection_type {
+                ConnectionType::Usb => vec![0xFF],
+                ConnectionType::Bolt => vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
+                ConnectionType::Unifying => vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
+                ConnectionType::Bluetooth => vec![0xFF],
             };
 
             // Open the device with read/write and non-blocking
@@ -194,61 +195,84 @@ impl HidppDevice {
                 }
             };
 
-            let mut hidpp = Self {
-                device,
-                device_index,
-                connection_type,
-                feature_table: std::collections::HashMap::new(),
-                haptic_supported: false,
-                haptic_feature_index: None,
-                mx4_haptic_supported: false,
-                mx4_haptic_feature_index: None,
-                dpi_supported: false,
-                dpi_feature_index: None,
-                smartshift_supported: false,
-                smartshift_feature_index: None,
-                battery_supported: false,
-                battery_feature_index: None,
-                is_unified_battery: false,
-                reprog_controls_supported: false,
-                reprog_controls_feature_index: None,
-                device_path: device_path.clone(),
-            };
+            for device_index in &indices_to_try {
+                // Clone the file handle for each index attempt (reuse same fd)
+                let device_clone = match device.try_clone() {
+                    Ok(d) => d,
+                    Err(_) => continue,
+                };
 
-            // Validate HID++ 2.0 support - if this fails, try next candidate
-            if !hidpp.validate_hidpp20() {
-                tracing::debug!(
+                let mut hidpp = Self {
+                    device: device_clone,
+                    device_index: *device_index,
+                    connection_type,
+                    feature_table: std::collections::HashMap::new(),
+                    haptic_supported: false,
+                    haptic_feature_index: None,
+                    mx4_haptic_supported: false,
+                    mx4_haptic_feature_index: None,
+                    dpi_supported: false,
+                    dpi_feature_index: None,
+                    smartshift_supported: false,
+                    smartshift_feature_index: None,
+                    battery_supported: false,
+                    battery_feature_index: None,
+                    is_unified_battery: false,
+                    reprog_controls_supported: false,
+                    reprog_controls_feature_index: None,
+                    device_path: device_path.clone(),
+                };
+
+                // Try HID++ validation with retry for sleeping devices
+                // First attempt may fail if device is in deep sleep; second attempt
+                // gives it time to wake up after the first ping
+                let validated = hidpp.validate_hidpp20() || {
+                    tracing::debug!(
+                        path = %device_path.display(),
+                        device_index,
+                        "First HID++ ping failed, retrying after wake-up delay"
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    hidpp.validate_hidpp20()
+                };
+
+                if !validated {
+                    tracing::debug!(
+                        path = %device_path.display(),
+                        device_index,
+                        connection = %connection_type,
+                        "Device index does not support HID++ 2.0"
+                    );
+                    continue; // Try next device index
+                }
+
+                // Enumerate features and check for haptic support
+                hidpp.enumerate_features();
+
+                // Skip devices that aren't the MX Master 4
+                // The MX Master 4 has feature 0x19B0 (haptic) or 0x1B04 (reprog controls)
+                // This prevents connecting to a Keys MX S keyboard on another Bolt receiver
+                if !hidpp.mx4_haptic_supported && !hidpp.reprog_controls_supported {
+                    tracing::debug!(
+                        path = %device_path.display(),
+                        device_index,
+                        "Device is HID++ 2.0 but not MX Master 4 (no haptic/reprog), trying next"
+                    );
+                    continue;
+                }
+
+                tracing::info!(
                     path = %device_path.display(),
+                    device_index,
                     connection = %connection_type,
-                    "Device does not support HID++ 2.0, trying next candidate"
+                    haptic_supported = hidpp.haptic_supported,
+                    mx4_haptic_supported = hidpp.mx4_haptic_supported,
+                    reprog_controls = hidpp.reprog_controls_supported,
+                    "Connected to MX Master 4 via hidraw"
                 );
-                continue; // Try next candidate
+
+                return Some(hidpp);
             }
-
-            // Enumerate features and check for haptic support
-            hidpp.enumerate_features();
-
-            // Skip devices that aren't the MX Master 4
-            // The MX Master 4 has feature 0x19B0 (haptic) or 0x1B04 (reprog controls)
-            // This prevents connecting to a Keys MX S keyboard on another Bolt receiver
-            if !hidpp.mx4_haptic_supported && !hidpp.reprog_controls_supported {
-                tracing::debug!(
-                    path = %device_path.display(),
-                    "Device is HID++ 2.0 but not MX Master 4 (no haptic/reprog), trying next"
-                );
-                continue;
-            }
-
-            tracing::info!(
-                path = %device_path.display(),
-                connection = %connection_type,
-                haptic_supported = hidpp.haptic_supported,
-                mx4_haptic_supported = hidpp.mx4_haptic_supported,
-                reprog_controls = hidpp.reprog_controls_supported,
-                "Connected to MX Master 4 via hidraw"
-            );
-
-            return Some(hidpp);
         }
 
         tracing::debug!("No valid HID++ 2.0 device found among candidates");
