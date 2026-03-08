@@ -54,6 +54,8 @@ from settings_page_devices import DevicesPage
 from settings_page_easyswitch import EasySwitchPage
 from settings_page_flow import FlowPage
 from settings_page_settings import SettingsPage
+from settings_page_macros import MacrosPage
+from settings_page_gaming import GamingPage
 
 
 # =============================================================================
@@ -679,6 +681,10 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
             # FlowPage is lazy-loaded when navigated to (avoids Zeroconf at startup)
             self._flow_page_placeholder = Gtk.Box()
             self.content_stack.add_named(self._flow_page_placeholder, "flow")
+
+        # Macros and Gaming - available in all modes
+        self.content_stack.add_named(MacrosPage(), "macros")
+        self.content_stack.add_named(GamingPage(), "gaming")
 
     def _create_status_bar(self):
         status = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)

@@ -188,9 +188,21 @@ impl EvdevHandler {
             return Err(EvdevError::DeviceNotFound);
         }
 
-        let entries = fs::read_dir(&input_dir).map_err(EvdevError::IoError)?;
+        // Sort entries numerically so event4 is checked before event10.
+        // This matters when two Bolt receivers have identical vendor:product IDs
+        // (e.g. mouse on event4, keyboard on event10).
+        let mut sorted_entries: Vec<_> = fs::read_dir(&input_dir)
+            .map_err(EvdevError::IoError)?
+            .flatten()
+            .collect();
+        sorted_entries.sort_by_key(|e| {
+            e.file_name()
+                .to_str()
+                .and_then(|n| n.strip_prefix("event").and_then(|num| num.parse::<u32>().ok()))
+                .unwrap_or(u32::MAX)
+        });
 
-        for entry in entries.flatten() {
+        for entry in sorted_entries {
             let path = entry.path();
             let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
@@ -427,7 +439,7 @@ impl EvdevHandler {
     async fn run_event_loop(&mut self) -> Result<(), EvdevError> {
         use evdev::{Device, EventType, RelativeAxisCode};
 
-        // Find the device - use generic fallback if in generic mode
+        // Find the device based on mode
         let device_info = if self.generic_mode {
             Self::find_any_mouse()?
         } else {

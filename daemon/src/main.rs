@@ -15,11 +15,15 @@ use juhradiald::{
     cursor::{get_screen_bounds, ScreenBounds},
     dbus::{init_dbus_service_with_device, DBUS_PATH, DBUS_NAME},
     evdev::{EvdevHandler, EvdevError, GestureEvent},
+    gaming::new_shared_gaming_mode,
     hidraw::{HidrawHandler, HidrawError},
+    macros::{MacroEngine, MacroRecorder, TriggerMap},
     new_shared_haptic_manager,
     profiles::ProfileManager,
     window_tracker::WindowTracker,
 };
+
+use std::sync::{Arc, Mutex};
 
 /// Device polling interval when device is not found (2 seconds)
 const DEVICE_POLL_INTERVAL_SECS: u64 = 2;
@@ -91,7 +95,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(true) => {
                 info!("Haptic feedback connected to MX Master 4");
                 // Divert gesture buttons so we receive HID++ notifications
-                // This replaces what logid (LogiOps) was doing with "divert: true"
                 match manager.divert_buttons() {
                     Ok(n) if n > 0 => info!(count = n, "Gesture buttons diverted via HID++"),
                     Ok(_) => warn!("No gesture buttons found to divert - thumb button may not work"),
@@ -159,13 +162,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
 
-    // Initialize D-Bus service with battery state, config, haptic manager, and device info
+    // Initialize gaming mode and macro subsystem
+    let gaming_mode = new_shared_gaming_mode(haptic_manager.clone());
+    let macro_engine = Arc::new(Mutex::new(MacroEngine::new()));
+    let macro_recorder = Arc::new(Mutex::new(MacroRecorder::new()));
+    let trigger_map = Arc::new(std::sync::RwLock::new(TriggerMap::default()));
+
+    // Initialize D-Bus service with battery state, config, haptic manager, device info, and macro state
     let dbus_connection = match init_dbus_service_with_device(
         battery_state.clone(),
         shared_config.clone(),
         haptic_manager,
         device_mode.clone(),
         device_name.clone(),
+        gaming_mode,
+        macro_engine,
+        macro_recorder,
+        trigger_map,
     ).await {
         Ok(conn) => {
             info!("D-Bus service initialized successfully (mode={}, device={})", device_mode, device_name);
