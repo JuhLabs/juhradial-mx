@@ -41,6 +41,7 @@ class FlowEdgeIndicator(QWidget):
             | Qt.WindowType.BypassWindowManagerHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
         self.setMouseTracking(True)
         self.setWindowTitle("JuhFlow Indicator")
 
@@ -242,14 +243,15 @@ class FlowEdgeIndicator(QWidget):
                 self._peer_platform = platform
                 self._read_direction()
                 if not self._visible_target:
+                    logger.info("Peer detected (%s), showing indicator", platform)
                     self.show_indicator()
             else:
                 # Grace period - don't hide during handoff
                 import time
                 if time.time() - self._last_peer_seen > self._grace_period:
                     self.hide_indicator()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("_check_peers error: %s", e)
 
     def _read_direction(self):
         """Read flow config: direction, hide_indicator, monitor."""
