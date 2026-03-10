@@ -17,6 +17,11 @@ from .crypto import derive_aes_key, derive_shared_secret, generate_node_id
 logger = logging.getLogger("juhradial.flow.keys")
 
 
+def _sanitize_log(value) -> str:
+    """Strip newlines and control characters to prevent log injection."""
+    return ''.join(c if c >= ' ' and c != '\x7f' else '?' for c in str(value))
+
+
 def get_keys_dir():
     """Return/create keys directory with restricted permissions."""
     FLOW_KEYS_DIR.mkdir(parents=True, exist_ok=True)
@@ -108,7 +113,7 @@ def derive_and_store_peer_key(peer_name, peer_pubkey_hex, ip, port):
     }
     peer_file.write_text(json.dumps(peer_data, indent=2))
     os.chmod(peer_file, 0o600)
-    logger.info("Stored peer key for %s (%s)", peer_name, ip)
+    logger.info("Stored peer key for %s (%s)", _sanitize_log(peer_name), _sanitize_log(ip))
     return aes_key
 
 

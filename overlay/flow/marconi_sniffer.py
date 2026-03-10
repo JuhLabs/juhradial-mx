@@ -27,14 +27,8 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from overlay.flow.marconi import (
-    FRAME_HEADER_SIZE,
-    frame_header_decode,
     hex_dump,
-    marconi_encrypt,
     parse_udp_beacon,
-    sizet_encode,
-    build_packet_payload,
-    generate_key_id,
 )
 
 # Logi Flow ports (default, may vary)
@@ -58,7 +52,7 @@ def listen_udp(ports, duration=60, broadcast_addr="255.255.255.255"):
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            sock.bind(('0.0.0.0', port))
+            sock.bind(('0.0.0.0', port))  # nosec B104 - LAN broadcast receiver, must bind all interfaces
             sock.settimeout(1.0)
             socks.append((sock, port))
             print(f"{GREEN}[LISTEN]{RESET} Bound to UDP 0.0.0.0:{port}")
@@ -133,6 +127,12 @@ def listen_udp(ports, duration=60, broadcast_addr="255.255.255.255"):
     print(f"\n{CYAN}[DONE]{RESET} Captured {packet_count} beacon(s)")
 
 
+def _read_machine_id():
+    """Read machine-id from /etc/machine-id, truncated to 16 chars."""
+    with open("/etc/machine-id") as f:
+        return f.read().strip()[:16]
+
+
 def send_beacon(mac_ip, ports=None):
     """Send a JuhRadialMX discovery beacon to the Mac."""
     if ports is None:
@@ -161,7 +161,7 @@ def send_beacon(mac_ip, ports=None):
         "software": "JuhRadialMX",
         "flow_version": "1.0",
         "public_key": public_bytes.hex(),
-        "machine_id": open("/etc/machine-id").read().strip()[:16],
+        "machine_id": _read_machine_id(),
     }).encode('utf-8')
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

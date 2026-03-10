@@ -21,7 +21,6 @@ import os
 import socket
 import struct
 import subprocess
-import sys
 import threading
 import time
 
@@ -518,7 +517,7 @@ class DiscoveryListener:
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(('0.0.0.0', DISCOVERY_PORT))
+            sock.bind(('0.0.0.0', DISCOVERY_PORT))  # nosec B104 - LAN broadcast receiver, must bind all interfaces
             sock.settimeout(1.0)
         except OSError as e:
             logger.error("Cannot bind discovery port %d: %s", DISCOVERY_PORT, e)

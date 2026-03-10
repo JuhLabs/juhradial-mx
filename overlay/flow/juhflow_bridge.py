@@ -26,14 +26,11 @@ import socket
 import struct
 import threading
 import time
-from typing import Callable, Dict, Optional
-
 from .crypto import (
     build_encrypted_packet,
     decrypt_payload,
     derive_aes_key,
     derive_shared_secret,
-    generate_x25519_keypair,
     parse_encrypted_packet,
 )
 from .keys import generate_identity
@@ -139,7 +136,7 @@ class JuhFlowBridge:
         try:
             self._server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self._server_sock.bind(("", self._tcp_port))
+            self._server_sock.bind(("", self._tcp_port))  # nosec B104 - accepts LAN peer connections, must bind all interfaces
             self._server_sock.listen(5)
             self._server_sock.settimeout(1.0)
             self._server_thread = threading.Thread(

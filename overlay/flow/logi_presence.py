@@ -101,7 +101,7 @@ class FlowPresenceServer:
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.sock.bind(("", LOGI_PRESENCE_PORT))
+            self.sock.bind(("", LOGI_PRESENCE_PORT))  # nosec B104 - accepts LAN peer connections, must bind all interfaces
             self.sock.listen(5)
             self.sock.settimeout(1.0)
 

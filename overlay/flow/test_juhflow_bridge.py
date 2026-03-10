@@ -7,8 +7,6 @@ clipboard sync, heartbeat keepalive, and reconnect after disconnect.
 import json
 import os
 import socket
-import struct
-import threading
 import time
 import unittest
 

@@ -291,7 +291,7 @@ class DevicesPage(Gtk.ScrolledWindow):
                             if "MOUSE" in text.upper() or "POINTER" in text.upper():
                                 return _("Bluetooth")
         except Exception:
-            pass
+            pass  # HID sysfs scan can fail on some systems
         return _("USB")
 
     def _get_connection_type(self):

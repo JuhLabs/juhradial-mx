@@ -72,6 +72,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             | Qt.WindowType.BypassWindowManagerHint  # Skip WM decorations
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
         self.setFixedSize(WINDOW_SIZE, WINDOW_SIZE)
         self.setMouseTracking(True)
         self.setWindowTitle("JuhRadial MX")  # For window rule matching (Hyprland, etc.)
@@ -232,6 +233,17 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             x, y = qpos.x(), qpos.y()
             _log(f"KDE X11: QCursor position ({x}, {y})")
 
+        # On KDE Wayland, XWayland returns stale cursor coordinates (same
+        # problem as COSMIC) because KWin only updates XWayland pointer
+        # position when the cursor is over an XWayland surface. Use the
+        # synced approach which maps a temporary fullscreen X11 window to
+        # force a fresh XQueryPointer reading.
+        elif IS_KDE and _HAS_XWAYLAND:
+            fresh_pos = get_cursor_position_xwayland_synced()
+            if fresh_pos:
+                x, y = fresh_pos
+                _log(f"KDE Wayland sync: using position ({x}, {y})")
+
         # On COSMIC, XWayland doesn't track the cursor unless it's over an
         # XWayland window.  Use a dedicated raw X11 sync window (truly
         # transparent ARGB, override-redirect) - no Qt overhead, no visual
@@ -242,13 +254,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 x, y = fresh_pos
                 _log(f"COSMIC sync: using position ({x}, {y})")
 
-        # On KDE Wayland and other Wayland compositors with XWayland
-        # (non-Hyprland, non-GNOME, non-COSMIC): re-query cursor position
-        # via XWayland to ensure coordinates are in XWayland's pixel space.
-        #
-        # XWayland's XQueryPointer always returns coordinates in the XWayland
-        # virtual screen space - the same space that QWidget.move() uses -
-        # so using it here guarantees correct positioning on all monitors.
+        # On other Wayland compositors with XWayland (non-Hyprland,
+        # non-GNOME, non-KDE, non-COSMIC): re-query cursor position via
+        # XWayland to ensure coordinates are in XWayland's pixel space.
         elif not IS_HYPRLAND and not IS_GNOME and _HAS_XWAYLAND:
             fresh_pos = get_cursor_position_xwayland()
             if fresh_pos:
@@ -733,7 +741,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         return -1
 
     def mouseMoveEvent(self, event):
-        print(f"[MOUSE] mouseMoveEvent called - toggle_mode={self.toggle_mode}")
+        _log(f"mouseMoveEvent: toggle_mode={self.toggle_mode}")
         cx = WINDOW_SIZE / 2
         cy = WINDOW_SIZE / 2
         pos = event.position()

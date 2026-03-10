@@ -213,7 +213,7 @@ def get_cursor_position_gnome():
                 y = result.get_child_value(1).get_int32()
                 return (x, y)
         except Exception:
-            pass
+            pass  # D-Bus call can fail if extension is not installed
         return None
 
     # Fallback: gdbus subprocess (slow, only used if GLib unavailable)
@@ -552,7 +552,7 @@ def warp_cursor(x: int, y: int) -> bool:
             _xlib.XFlush(_xdisplay)
             return True
         except Exception:
-            pass
+            pass  # XWarpPointer ctypes call can fail on some setups
 
     return False
 
@@ -587,6 +587,6 @@ def get_screen_geometry(cursor_pos=None):
                         "width": geom.width(), "height": geom.height(),
                     }
     except Exception:
-        pass
+        pass  # Qt screen geometry may not be available on all compositors
 
     return {"x": 0, "y": 0, "width": 1920, "height": 1080}

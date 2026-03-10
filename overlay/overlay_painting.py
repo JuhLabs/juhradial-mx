@@ -51,6 +51,12 @@ class RadialMenuPaintingMixin:
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        # Clear entire surface to fully transparent - prevents opaque rectangle
+        # artifacts on KDE Plasma with shader/animated wallpapers
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+        p.fillRect(self.rect(), Qt.GlobalColor.transparent)
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+
         cx = WINDOW_SIZE / 2
         cy = WINDOW_SIZE / 2
 

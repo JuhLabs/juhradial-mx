@@ -5,14 +5,12 @@ animation, matching the JuhRadial MX Linux indicator design.
 """
 
 import logging
-import threading
 
 logger = logging.getLogger("juhflow")
 
 try:
     import objc
     from AppKit import (
-        NSApplication, NSApplicationActivationPolicyAccessory,
         NSWindow, NSView, NSColor, NSBezierPath, NSFont, NSMutableParagraphStyle,
         NSScreen, NSWindowStyleMaskBorderless, NSBackingStoreBuffered,
         NSMutableDictionary, NSForegroundColorAttributeName,
@@ -20,7 +18,6 @@ try:
         NSGraphicsContext, NSObject, NSMakeRect,
         NSTimer, NSRunLoop, NSDefaultRunLoopMode,
     )
-    from Quartz import CGContextRef
     HAS_APPKIT = True
 except ImportError:
     HAS_APPKIT = False

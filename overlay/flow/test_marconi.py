@@ -8,8 +8,6 @@ from .marconi import (
     CIPHERTEXT_HEADER_SIZE,
     FRAME_HEADER_SIZE,
     FLAGS_SESSION_HEADER,
-    GCM_IV_LEN,
-    GCM_TAG_LEN,
     ciphertext_header_decode,
     ciphertext_header_encode,
     frame_header_decode,
@@ -174,7 +172,7 @@ class TestMarconiEncryptDecrypt(unittest.TestCase):
         frame = marconi_encrypt(key_id, aes_key, payload)
 
         # Verify frame structure
-        self.assertTrue(len(frame) > FRAME_HEADER_SIZE)
+        self.assertGreater(len(frame), FRAME_HEADER_SIZE)
         dec_key_id, ct_len = frame_header_decode(frame)
         self.assertEqual(dec_key_id, key_id)
         self.assertEqual(len(frame), FRAME_HEADER_SIZE + ct_len)
