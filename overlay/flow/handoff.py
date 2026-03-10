@@ -11,12 +11,9 @@ import threading
 from typing import Dict, Optional
 
 from .constants import (
-    FLOW_PORT,
     LOGI_PRESENCE_PORT,
     MSG_CURSOR_HANDOFF,
     MSG_CLIPBOARD_SYNC,
-    EDGE_COOLDOWN_MS,
-    EDGE_THRESHOLD_PX,
 )
 
 logger = logging.getLogger("juhradial.flow.handoff")

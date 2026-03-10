@@ -19,10 +19,9 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, GLib, Gio, Adw
+from gi.repository import Gtk, GLib, Adw
 
 from i18n import _
-from settings_config import config
 
 # Try to import zeroconf for mDNS discovery
 try:
@@ -35,8 +34,6 @@ except ImportError:
 # Flow module for multi-computer control
 try:
     from flow import (
-        start_flow_server,
-        stop_flow_server,
         get_flow_server,
         get_linked_computers,
         FlowClient,
@@ -158,7 +155,7 @@ class FlowDiscoveryMixin:
                 })
             return peers
         except Exception:
-            return []
+            return []  # Bridge may not be initialized
 
     def _get_bridge_peer_ips(self):
         """Get set of IPs of connected JuhFlow bridge peers."""
@@ -170,7 +167,7 @@ class FlowDiscoveryMixin:
             if bridge:
                 return {p.get("ip", "") for p in bridge.get_peers()}
         except Exception:
-            pass
+            pass  # Bridge may not be initialized
         return set()
 
     def _discover_computers(self):

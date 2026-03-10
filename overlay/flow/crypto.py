@@ -57,7 +57,8 @@ def generate_node_id(machine_id=None):
     """SHA-256 hash of /etc/machine-id -> 32 bytes."""
     if machine_id is None:
         try:
-            machine_id = open("/etc/machine-id").read().strip()
+            with open("/etc/machine-id") as f:
+                machine_id = f.read().strip()
         except OSError:
             logger.warning("Cannot read /etc/machine-id, generating random node ID")
             return os.urandom(32)
@@ -130,7 +131,7 @@ def parse_encrypted_packet(data):
     try:
         node_id = data[0:32]
         version = struct.unpack(">H", data[32:34])[0]
-        payload_len = struct.unpack(">H", data[34:36])[0]
+        _payload_len = struct.unpack(">H", data[34:36])[0]
         nonce_len = struct.unpack(">H", data[36:38])[0]
         # reserved = data[38:40]
         ct_len = struct.unpack(">H", data[40:42])[0]

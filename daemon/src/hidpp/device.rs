@@ -249,14 +249,14 @@ impl HidppDevice {
                 // Enumerate features and check for haptic support
                 hidpp.enumerate_features();
 
-                // Skip devices that aren't the MX Master 4
-                // The MX Master 4 has feature 0x19B0 (haptic) or 0x1B04 (reprog controls)
-                // This prevents connecting to a Keys MX S keyboard on another Bolt receiver
-                if !hidpp.mx4_haptic_supported && !hidpp.reprog_controls_supported {
+                // Skip devices that aren't a mouse
+                // Use DPI support (0x2201) as the filter - only mice have DPI,
+                // keyboards (e.g. Keys MX S) have reprog_controls but never DPI
+                if !hidpp.dpi_supported {
                     tracing::debug!(
                         path = %device_path.display(),
                         device_index,
-                        "Device is HID++ 2.0 but not MX Master 4 (no haptic/reprog), trying next"
+                        "Device is HID++ 2.0 but has no DPI (not a mouse), trying next"
                     );
                     continue;
                 }

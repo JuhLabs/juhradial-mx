@@ -22,7 +22,7 @@ from gi.repository import Gtk, Gdk, GLib, Gio, Adw
 from i18n import _
 from settings_config import config
 from settings_widgets import SettingsCard, SettingRow, PageHeader, InfoCard
-from settings_flow_discovery import FlowServiceListener, FlowDiscoveryMixin
+from settings_flow_discovery import FlowDiscoveryMixin
 
 # Flow module for multi-computer control
 try:
@@ -30,9 +30,6 @@ try:
         start_flow_server,
         stop_flow_server,
         get_flow_server,
-        get_linked_computers,
-        FlowClient,
-        FLOW_PORT,
     )
 
     FLOW_MODULE_AVAILABLE = True
@@ -331,7 +328,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                         if detector:
                             detector.set_enabled(True)
                     except Exception:
-                        pass
+                        pass  # Edge detector may not be available on all compositors
 
                 logger.info("Server started")
             else:
@@ -356,7 +353,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                 if _flow_indicator:
                     _flow_indicator.configure(direction)
             except Exception:
-                pass
+                pass  # Indicator may not be running
 
     def _on_edge_toggled(self, switch, state):
         """Handle edge trigger toggle"""
@@ -425,7 +422,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                 if bridge:
                     peers = bridge.get_peers()
             except Exception:
-                pass
+                pass  # Bridge may not be available in separate process
 
         if peers:
             name = peers[0].get("hostname", "Mac")
@@ -496,6 +493,6 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                         "height": geom.height,
                     })
         except Exception:
-            pass
+            pass  # GDK display may be unavailable in headless/test environments
         return result
 

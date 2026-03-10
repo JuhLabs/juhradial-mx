@@ -25,7 +25,7 @@ from i18n import _
 from settings_sidebar import SidebarMixin
 
 # Layer 1: Config + Theme
-from settings_config import config, get_device_name, get_device_mode, get_device_name_from_daemon, get_minimal_mode, set_minimal_mode
+from settings_config import config, get_device_name, get_device_mode, get_device_name_from_daemon, get_minimal_mode, set_minimal_mode, clear_device_mode_cache
 from settings_theme import (
     COLORS,
     CSS,
@@ -96,7 +96,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                     w = max(WINDOW_MIN_WIDTH, min(int(geom.width * 0.75), 2400))
                     h = max(WINDOW_MIN_HEIGHT, min(int(geom.height * 0.85), 1600))
         except Exception:
-            pass
+            pass  # GDK monitor detection can fail in headless or early init
         self.set_default_size(w, h)
         self.set_size_request(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
 
@@ -603,22 +603,20 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         if self._restarting:
             return
         self._restarting = True
-        import settings_config as _sc
         mode = "generic" if switch.get_active() else "auto"
         config.set("device_mode", mode, auto_save=True)
         # Clear cached mode so next launch picks up the new value
-        _sc._cached_device_mode = None
+        clear_device_mode_cache()
         # Show toast and restart settings window to rebuild sidebar/pages
         self.show_toast(_("Restarting settings..."), timeout=1)
         GLib.timeout_add(500, self._restart_window)
 
     def _restart_window(self):
         """Close and reopen the settings window to apply mode change."""
-        import settings_config as _sc
         app = self.get_application()
         self.close()
         def _reopen():
-            _sc._cached_device_mode = None  # Clear right before new window
+            clear_device_mode_cache()  # Clear right before new window
             config.reload()  # Re-read from disk
             SettingsWindow(app).present()
             return False

@@ -168,6 +168,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let macro_recorder = Arc::new(Mutex::new(MacroRecorder::new()));
     let trigger_map = Arc::new(std::sync::RwLock::new(TriggerMap::default()));
 
+    // Load existing macro triggers from disk at startup
+    {
+        let mut map = trigger_map.write().unwrap();
+        map.reload();
+        info!(count = map.len(), "Macro triggers loaded at startup");
+    }
+
+    // Clone trigger_map and macro_engine for event processing (macro trigger detection)
+    // Must clone before D-Bus init which moves them
+    let trigger_map_for_events = trigger_map.clone();
+    let macro_engine_for_events = macro_engine.clone();
+
     // Initialize D-Bus service with battery state, config, haptic manager, device info, and macro state
     let dbus_connection = match init_dbus_service_with_device(
         battery_state.clone(),
@@ -261,7 +273,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Spawn event processing task with D-Bus connection
     let event_handle = tokio::spawn(async move {
-        process_gesture_events(&mut event_rx, &dbus_connection, &screen_bounds).await
+        process_gesture_events(
+            &mut event_rx,
+            &dbus_connection,
+            &screen_bounds,
+            trigger_map_for_events,
+            macro_engine_for_events,
+        ).await
     });
 
     // TODO: Initialize remaining components
@@ -556,10 +574,13 @@ async fn run_generic_evdev_loop(event_tx: mpsc::Sender<GestureEvent>) {
 ///
 /// Press triggers ydotool injection -> cursor_grabber catches -> emits ShowMenu
 /// Release emits HideMenu directly
+/// MacroTriggered events are checked against the TriggerMap for macro execution
 async fn process_gesture_events(
     event_rx: &mut mpsc::Receiver<GestureEvent>,
     dbus_connection: &zbus::Connection,
     _screen_bounds: &ScreenBounds,
+    trigger_map: Arc<std::sync::RwLock<juhradiald::macros::TriggerMap>>,
+    macro_engine: Arc<Mutex<juhradiald::macros::MacroEngine>>,
 ) {
     while let Some(event) = event_rx.recv().await {
         match event {
@@ -587,6 +608,53 @@ async fn process_gesture_events(
                 if let Err(e) = emit_cursor_moved(dbus_connection, x, y).await {
                     // Don't log errors for every cursor move - too noisy
                     tracing::trace!("Failed to emit CursorMoved: {}", e);
+                }
+            }
+            GestureEvent::MacroTriggered { key_code, pressed } => {
+                // Look up TriggerMap for a macro bound to this button
+                let macro_id = {
+                    match trigger_map.read() {
+                        Ok(map) => map.get(key_code).map(|s| s.to_string()),
+                        Err(e) => {
+                            error!("Failed to read trigger map: {}", e);
+                            None
+                        }
+                    }
+                };
+
+                if let Some(id) = macro_id {
+                    if pressed {
+                        // Button pressed - load and execute the macro
+                        match juhradiald::macros::storage::load_macro(&id) {
+                            Ok(config) => {
+                                info!(
+                                    macro_id = %id,
+                                    macro_name = %config.name,
+                                    key_code = format!("0x{:03x}", key_code),
+                                    mode = ?config.repeat_mode,
+                                    "Macro triggered by button press"
+                                );
+                                match macro_engine.lock() {
+                                    Ok(mut engine) => engine.execute(config),
+                                    Err(e) => error!("Failed to lock macro engine: {}", e),
+                                }
+                            }
+                            Err(e) => {
+                                warn!(macro_id = %id, error = %e, "Failed to load triggered macro");
+                            }
+                        }
+                    } else {
+                        // Button released - stop if WhileHolding or Sequence mode
+                        match macro_engine.lock() {
+                            Ok(mut engine) => {
+                                if engine.should_stop_on_release() {
+                                    info!(macro_id = %id, "Macro stopped on button release");
+                                    engine.stop();
+                                }
+                            }
+                            Err(e) => error!("Failed to lock macro engine: {}", e),
+                        }
+                    }
                 }
             }
         }

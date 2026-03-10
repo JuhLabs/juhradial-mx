@@ -149,7 +149,7 @@ class LogiFlowDiscoveryResponder:
             self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            self.listen_sock.bind(('0.0.0.0', LOGI_DISCOVERY_PORT))
+            self.listen_sock.bind(('0.0.0.0', LOGI_DISCOVERY_PORT))  # nosec B104 - LAN broadcast receiver, must bind all interfaces
             self.listen_sock.settimeout(1.0)
 
             self.listen_thread = threading.Thread(target=self._listen_loop, daemon=True)

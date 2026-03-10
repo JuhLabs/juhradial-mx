@@ -9,6 +9,12 @@ from typing import Optional, Callable
 
 logger = logging.getLogger("juhradial.flow.server")
 
+
+def _sanitize_log(value) -> str:
+    """Strip newlines and control characters to prevent log injection."""
+    return ''.join(c if c >= ' ' and c != '\x7f' else '?' for c in str(value))
+
+
 try:
     from zeroconf import ServiceInfo, Zeroconf
     ZEROCONF_AVAILABLE = True
@@ -127,7 +133,7 @@ class FlowRequestHandler(BaseHTTPRequestHandler):
                             self.server.on_peer_key_callback(client_name, aes_key)
 
                     self._send_json(response_data)
-                    logger.info("Paired with %s (crypto: %s)", client_name, "yes" if client_public_key else "no")
+                    logger.info("Paired with %s (crypto: %s)", _sanitize_log(client_name), "yes" if client_public_key else "no")
                 else:
                     self._send_error(401, 'Invalid pairing code')
             except json.JSONDecodeError:
@@ -148,7 +154,7 @@ class FlowRequestHandler(BaseHTTPRequestHandler):
                     self._send_error(400, 'Invalid host slot: must be 0-2')
                     return
 
-                logger.info("Host change from %s: host %s", client_name, new_host)
+                logger.info("Host change from %s: host %s", _sanitize_log(client_name), new_host)
                 if self.server.on_host_change_callback:
                     self.server.on_host_change_callback(new_host)
                 self._send_json({'status': 'ok'})
@@ -157,7 +163,7 @@ class FlowRequestHandler(BaseHTTPRequestHandler):
 
         elif self.path == '/clipboard':
             set_clipboard(body)
-            logger.info("Clipboard set from %s (%s bytes)", client_name, len(body))
+            logger.info("Clipboard set from %s (%s bytes)", _sanitize_log(client_name), len(body))
             self._send_json({'status': 'ok'})
         else:
             self._send_error(404, 'Not Found')

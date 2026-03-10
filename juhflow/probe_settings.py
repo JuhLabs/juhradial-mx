@@ -7,6 +7,7 @@ DEVICE_ID = "dev00000000"
 def find_socket():
     for s in glob.glob("/tmp/logitech_kiros_agent-*"):
         if "updater" not in s: return s
+    return None
 
 def connect(sock_path):
     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

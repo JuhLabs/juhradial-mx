@@ -467,6 +467,12 @@ def get_device_mode():
     return _cached_device_mode
 
 
+def clear_device_mode_cache():
+    """Clear the cached device mode so the next get_device_mode() re-reads config."""
+    global _cached_device_mode
+    _cached_device_mode = None
+
+
 def get_device_name_from_daemon():
     """Get device name from daemon via D-Bus GetDeviceName().
 

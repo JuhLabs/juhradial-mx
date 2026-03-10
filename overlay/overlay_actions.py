@@ -332,7 +332,7 @@ def open_settings():
             import time
             time.sleep(0.15)
     except Exception:
-        pass
+        pass  # Settings process may not be running
 
     subprocess.Popen(
         ["python3", settings_script],
@@ -391,5 +391,5 @@ def load_minimal_mode():
                 cfg = json.load(f)
             return bool(cfg.get("radial", {}).get("minimal_mode", False))
     except Exception:
-        pass
+        pass  # Config file may not exist yet
     return False

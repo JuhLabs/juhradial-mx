@@ -36,6 +36,10 @@ pub const GESTURE_BUTTON_CODES: &[u16] = &[
 /// Default trigger button for generic mice (BTN_SIDE = 0x113, button 8 - common thumb button)
 pub const GENERIC_TRIGGER_BUTTON: u16 = 0x113;
 
+/// Primary mouse buttons that should never be treated as macro triggers
+/// (BTN_LEFT, BTN_RIGHT, BTN_MIDDLE)
+const PRIMARY_BUTTONS: &[u16] = &[0x110, 0x111, 0x112];
+
 /// Event types for gesture button
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GestureEvent {
@@ -45,6 +49,8 @@ pub enum GestureEvent {
     Released { duration_ms: u64 },
     /// Cursor moved while button is held (for hover detection on Wayland)
     CursorMoved { x: i32, y: i32 },
+    /// A non-gesture button was pressed/released (for macro trigger detection)
+    MacroTriggered { key_code: u16, pressed: bool },
 }
 
 /// Information about a detected input device
@@ -489,6 +495,15 @@ impl EvdevHandler {
                             };
                             if is_trigger {
                                 self.handle_gesture_event(event.value()).await;
+                            } else if !PRIMARY_BUTTONS.contains(&key_code) {
+                                // Forward non-primary, non-gesture buttons for macro trigger detection
+                                let value = event.value();
+                                if value == 0 || value == 1 {
+                                    let _ = self.event_tx.send(GestureEvent::MacroTriggered {
+                                        key_code,
+                                        pressed: value == 1,
+                                    }).await;
+                                }
                             }
                         }
                         EventType::RELATIVE => {
