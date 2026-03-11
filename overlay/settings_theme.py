@@ -40,8 +40,8 @@ COLORS = load_colors()
 # =============================================================================
 # WINDOW CONFIGURATION
 # =============================================================================
-WINDOW_WIDTH = 1400   # Fallback if screen detection fails
-WINDOW_HEIGHT = 950   # Fallback if screen detection fails
+WINDOW_WIDTH = 1200   # Fallback if screen detection fails
+WINDOW_HEIGHT = 800   # Fallback if screen detection fails
 WINDOW_MIN_WIDTH = 400  # Can be narrow - content scrolls horizontally
 WINDOW_MIN_HEIGHT = 300
 

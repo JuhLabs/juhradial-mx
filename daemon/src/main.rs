@@ -3,6 +3,7 @@
 //! A daemon for Linux that provides radial menu functionality for the
 //! Logitech MX Master 4 mouse via evdev input and KWin overlay.
 
+use std::collections::HashSet;
 use clap::Parser;
 use tokio::sync::mpsc;
 use tokio::time::{sleep, Duration};
@@ -89,6 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Try to connect to MX Master 4 for haptic feedback and divert gesture buttons
     // Also capture the device path so HidrawHandler uses the same Bolt receiver
     let mx4_hidraw_path;
+    let mx4_device_name: Option<String>;
     {
         let mut manager = haptic_manager.lock().unwrap();
         match manager.connect() {
@@ -105,8 +107,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Err(e) => warn!("Haptic connection error (non-fatal): {}", e),
         }
         mx4_hidraw_path = manager.device_path();
+        mx4_device_name = manager.get_device_name_string();
         if let Some(ref path) = mx4_hidraw_path {
             info!(path = %path.display(), "MX Master 4 hidraw path for event listener");
+        }
+        if let Some(ref name) = mx4_device_name {
+            info!(name = %name, "HID++ device name");
         }
     }
 
@@ -135,9 +141,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         ("generic".to_string(), name)
     } else if mx4_hidraw_path.is_some() {
-        // HID++ found a Logitech device
-        info!("Device mode: logitech (HID++ connected)");
-        ("logitech".to_string(), "Logitech MX Master 4".to_string())
+        // HID++ found a Logitech device - use actual device name from HID++ protocol
+        let name = mx4_device_name.unwrap_or_else(|| "Logitech MX Master".to_string());
+        info!("Device mode: logitech (HID++ connected, device: {})", name);
+        ("logitech".to_string(), name)
     } else {
         // Try evdev MX detection
         match EvdevHandler::find_device() {
@@ -169,10 +176,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let trigger_map = Arc::new(std::sync::RwLock::new(TriggerMap::default()));
 
     // Load existing macro triggers from disk at startup
+    let macro_cids: Vec<u16>;
+    let macro_evdev_codes: HashSet<u16>;
     {
         let mut map = trigger_map.write().unwrap();
         map.reload();
         info!(count = map.len(), "Macro triggers loaded at startup");
+
+        // Collect evdev codes for button suppression in evdev handler
+        macro_evdev_codes = map.evdev_codes().into_iter().collect();
+
+        // Divert macro-triggered buttons via HID++ so the OS doesn't process them.
+        // Map evdev key codes (from trigger map) to HID++ CIDs and divert each one.
+        let mut cids = Vec::new();
+        for evdev_code in map.evdev_codes() {
+            if let Some(cid) = juhradiald::hidraw::evdev_keycode_to_cid(evdev_code) {
+                let mut mgr = haptic_manager.lock().unwrap();
+                match mgr.divert_single_button(cid) {
+                    Ok(true) => {
+                        info!(
+                            evdev_code = format!("0x{:04X}", evdev_code),
+                            cid = format!("0x{:04X}", cid),
+                            "Macro button diverted via HID++"
+                        );
+                        cids.push(cid);
+                    }
+                    Ok(false) => {
+                        warn!(
+                            evdev_code = format!("0x{:04X}", evdev_code),
+                            cid = format!("0x{:04X}", cid),
+                            "Could not divert macro button (not found or not divertable)"
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            evdev_code = format!("0x{:04X}", evdev_code),
+                            error = %e,
+                            "Failed to divert macro button"
+                        );
+                    }
+                }
+            }
+        }
+        macro_cids = cids;
     }
 
     // Clone trigger_map and macro_engine for event processing (macro trigger detection)
@@ -250,7 +296,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Pass the MX Master 4's hidraw path so it uses the correct Bolt receiver
     let hidraw_tx = event_tx.clone();
     let hidraw_handle = tokio::spawn(async move {
-        run_hidraw_loop(hidraw_tx, mx4_hidraw_path).await
+        run_hidraw_loop(hidraw_tx, mx4_hidraw_path, macro_cids).await
     });
 
     // Spawn evdev handlers:
@@ -258,13 +304,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // - Generic evdev loop: handles non-Logitech mice (e.g., SteelSeries)
     // Both run simultaneously so either mouse can trigger the radial wheel.
     let evdev_tx = event_tx.clone();
+    let suppressed_for_mx = macro_evdev_codes.clone();
     let evdev_handle = tokio::spawn(async move {
-        run_evdev_loop(evdev_tx).await
+        run_evdev_loop(evdev_tx, suppressed_for_mx).await
     });
 
     let generic_evdev_tx = event_tx.clone();
+    let suppressed_for_generic = macro_evdev_codes.clone();
     let generic_evdev_handle = tokio::spawn(async move {
-        run_generic_evdev_loop(generic_evdev_tx).await
+        run_generic_evdev_loop(generic_evdev_tx, suppressed_for_generic).await
     });
 
     // Get screen bounds for edge clamping (query once at startup)
@@ -372,8 +420,9 @@ fn list_logitech_devices() {
 ///
 /// When buttons are diverted via HID++ configuration, they send HID++ notifications
 /// instead of evdev events. This handler reads from the hidraw device.
-async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, preferred_path: Option<std::path::PathBuf>) {
+async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, preferred_path: Option<std::path::PathBuf>, macro_cids: Vec<u16>) {
     let mut handler = HidrawHandler::new(event_tx);
+    handler.set_macro_cids(macro_cids);
 
     loop {
         // Try to open - use preferred path from HidppDevice if available
@@ -427,8 +476,9 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, preferred_path: O
 /// - Initial device detection
 /// - Polling for device when not found (2-second intervals)
 /// - Reconnection after device disconnect
-async fn run_evdev_loop(event_tx: mpsc::Sender<GestureEvent>) {
+async fn run_evdev_loop(event_tx: mpsc::Sender<GestureEvent>, suppressed_keys: HashSet<u16>) {
     let mut handler = EvdevHandler::new(event_tx.clone());
+    handler.set_suppressed_keys(suppressed_keys);
 
     loop {
         // Try to find and connect to the device
@@ -514,12 +564,13 @@ fn read_device_mode_from_config() -> String {
 ///
 /// Same as run_evdev_loop but uses find_any_mouse() and configurable trigger button.
 /// This is the fallback when no Logitech MX device is found.
-async fn run_generic_evdev_loop(event_tx: mpsc::Sender<GestureEvent>) {
+async fn run_generic_evdev_loop(event_tx: mpsc::Sender<GestureEvent>, suppressed_keys: HashSet<u16>) {
     let trigger = read_trigger_button_from_config();
     if let Some(code) = trigger {
         info!("Generic trigger button from config: {:#x}", code);
     }
     let mut handler = EvdevHandler::new_generic(event_tx.clone(), trigger);
+    handler.set_suppressed_keys(suppressed_keys);
 
     loop {
         // Re-read trigger button from config on each reconnect cycle

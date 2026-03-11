@@ -32,7 +32,7 @@ pub enum HapticError {
 impl fmt::Display for HapticError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            HapticError::DeviceNotFound => write!(f, "MX Master 4 device not found"),
+            HapticError::DeviceNotFound => write!(f, "Logitech device not connected"),
             HapticError::PermissionDenied => {
                 write!(f, "Permission denied accessing HID device")
             }

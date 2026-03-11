@@ -83,7 +83,8 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         else:
             style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
 
-        # Screen-aware sizing: use 75% of screen width, 85% of screen height
+        # Screen-aware sizing: use 70% of screen width, 75% of screen height
+        # This leaves room for panels/taskbars on all DEs (GNOME top bar, KDE panel, etc.)
         # Falls back to WINDOW_WIDTH/HEIGHT constants if detection fails
         w, h = WINDOW_WIDTH, WINDOW_HEIGHT
         try:
@@ -93,8 +94,8 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                 if monitors.get_n_items() > 0:
                     mon = monitors.get_item(0)
                     geom = mon.get_geometry()
-                    w = max(WINDOW_MIN_WIDTH, min(int(geom.width * 0.75), 2400))
-                    h = max(WINDOW_MIN_HEIGHT, min(int(geom.height * 0.85), 1600))
+                    w = max(WINDOW_MIN_WIDTH, min(int(geom.width * 0.70), 2400))
+                    h = max(WINDOW_MIN_HEIGHT, min(int(geom.height * 0.75), 1200))
         except Exception:
             pass  # GDK monitor detection can fail in headless or early init
         self.set_default_size(w, h)
@@ -682,7 +683,13 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
 
         # Macros and Gaming - available in all modes
         self.content_stack.add_named(MacrosPage(parent_window=self), "macros")
-        self.content_stack.add_named(GamingPage(parent_window=self), "gaming")
+        self.content_stack.add_named(
+            GamingPage(
+                parent_window=self,
+                on_open_macros=lambda: self._on_nav_clicked("macros"),
+            ),
+            "gaming",
+        )
 
     def _create_status_bar(self):
         status = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)

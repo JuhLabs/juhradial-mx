@@ -857,6 +857,56 @@ impl HidppDevice {
         Ok(diverted)
     }
 
+    /// Divert a single button by CID for macro interception.
+    ///
+    /// This prevents the OS from seeing the button event. Instead, it arrives
+    /// as a HID++ notification that the hidraw handler forwards as MacroTriggered.
+    pub fn divert_single_button(&mut self, cid: u16) -> Result<bool, HapticError> {
+        let feature_index = match self.reprog_controls_feature_index {
+            Some(idx) => idx,
+            None => return Ok(false),
+        };
+
+        // Enumerate controls to verify the CID exists and is divertable
+        let count = match self.hidpp_request(feature_index, 0x00, &[]) {
+            Some(resp) if resp.len() >= 5 => resp[4],
+            _ => return Ok(false),
+        };
+
+        for i in 0..count {
+            let resp = match self.hidpp_request(feature_index, 0x01, &[i, 0, 0]) {
+                Some(r) if r.len() >= 9 => r,
+                _ => continue,
+            };
+
+            let found_cid = ((resp[4] as u16) << 8) | (resp[5] as u16);
+            let flags = resp[8];
+            let divertable = (flags & 0x20) != 0;
+
+            if found_cid == cid && divertable {
+                let divert_flags: u8 = 0x03; // TemporaryDiverted | ChangeTemporaryDivert
+                let params: &[u8] = &[
+                    (cid >> 8) as u8,
+                    (cid & 0xFF) as u8,
+                    divert_flags,
+                    0x00,
+                    0x00,
+                ];
+
+                if let Some(resp) = self.hidpp_long_request(feature_index, 0x03, params) {
+                    tracing::info!(
+                        cid = format!("0x{:04X}", cid),
+                        response = format!("{:02X?}", &resp[4..resp.len().min(9)]),
+                        "Macro button diverted"
+                    );
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
     // =========================================================================
     // Public Accessors
     // =========================================================================
@@ -889,6 +939,54 @@ impl HidppDevice {
     /// Get connection type
     pub fn connection_type(&self) -> ConnectionType {
         self.connection_type
+    }
+
+    /// Get the device name via HID++ DEVICE_NAME feature (0x0005)
+    ///
+    /// Queries the device for its actual name string (e.g. "MX Master 4",
+    /// "MX Master 4 for Business", "MX Master 3S"). Returns None if
+    /// the feature is not available or the query fails.
+    pub fn get_device_name(&mut self) -> Option<String> {
+        let feat_idx = *self.feature_table.get(&features::DEVICE_NAME)?;
+
+        // Function 0: getDeviceNameCount - returns name length
+        let resp = self.hidpp_request(feat_idx, 0x00, &[])?;
+        if resp.len() < 5 {
+            return None;
+        }
+        let name_len = resp[4] as usize;
+        if name_len == 0 || name_len > 64 {
+            return None;
+        }
+
+        // Function 1: getDeviceName - read name in chunks
+        let mut name_bytes = Vec::with_capacity(name_len);
+        let mut offset = 0usize;
+        while offset < name_len {
+            let resp = self.hidpp_request(feat_idx, 0x01, &[offset as u8])?;
+            // Payload starts at byte 4
+            let available = resp.len().saturating_sub(4);
+            let needed = name_len - offset;
+            let chunk_len = available.min(needed);
+            if chunk_len == 0 {
+                break;
+            }
+            name_bytes.extend_from_slice(&resp[4..4 + chunk_len]);
+            offset += chunk_len;
+        }
+
+        // Convert to string, trimming null bytes
+        let name = String::from_utf8_lossy(&name_bytes)
+            .trim_end_matches('\0')
+            .trim()
+            .to_string();
+
+        if name.is_empty() {
+            None
+        } else {
+            tracing::info!(name = %name, "Device name from HID++");
+            Some(name)
+        }
     }
 
     // =========================================================================
