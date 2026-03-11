@@ -183,6 +183,14 @@ impl HapticManager {
         }
     }
 
+    /// Divert a single button by CID for macro interception
+    pub fn divert_single_button(&mut self, cid: u16) -> Result<bool, HapticError> {
+        match &mut self.device {
+            Some(device) => device.divert_single_button(cid),
+            None => Ok(false),
+        }
+    }
+
     /// Handle device disconnection gracefully
     fn handle_disconnect(&mut self) {
         let now = SystemTime::now()
@@ -265,6 +273,11 @@ impl HapticManager {
     /// Get the hidraw device path the MX Master 4 is connected to
     pub fn device_path(&self) -> Option<PathBuf> {
         self.device.as_ref().map(|d| d.device_path().to_path_buf())
+    }
+
+    /// Get the device name via HID++ DEVICE_NAME feature (0x0005)
+    pub fn get_device_name_string(&mut self) -> Option<String> {
+        self.device.as_mut().and_then(|d| d.get_device_name())
     }
 
     /// Send a haptic pulse (runtime only, no memory writes)
