@@ -10,8 +10,8 @@ from .constants import LOGI_FLOW_PORT
 
 logger = logging.getLogger("juhradial.flow.logi_server")
 
-# Maximum request body size (1 MB)
-MAX_CONTENT_LENGTH = 1_048_576
+# Maximum request body size (64 KB - sufficient for JSON control messages)
+MAX_CONTENT_LENGTH = 65_536
 
 
 class _ReusableHTTPServer(HTTPServer):

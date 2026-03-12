@@ -33,7 +33,6 @@ from PyQt6.QtDBus import QDBusConnection, QDBusInterface
 
 from overlay_constants import (
     MENU_RADIUS,
-    SHADOW_OFFSET,
     CENTER_ZONE_RADIUS,
     WINDOW_SIZE,
     IS_HYPRLAND,

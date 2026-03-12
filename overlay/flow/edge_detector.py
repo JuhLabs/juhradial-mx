@@ -54,6 +54,9 @@ class ScreenEdgeDetector:
         self._flow_monitor = ""  # "" = any monitor, "DP-3" = specific
         self._config_mtime: float = 0.0
 
+        # Cached flow monitor geometry (set from main thread, avoids Qt from bg thread)
+        self._flow_monitor_geom: Optional[dict] = None
+
     def set_enabled(self, enabled: bool):
         """Enable/disable edge detection."""
         self._enabled = enabled
@@ -63,11 +66,39 @@ class ScreenEdgeDetector:
             logger.info("Edge detection disabled")
             self._reset_dwell()
 
+    def cache_monitor_geometry(self):
+        """Cache flow monitor geometry from Qt (call from main thread only).
+
+        Must be called before start() so the background polling thread
+        can filter by monitor without touching Qt APIs.
+        """
+        if not self._flow_monitor:
+            self._reload_config()
+        if not self._flow_monitor:
+            return
+        try:
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            if app:
+                for s in app.screens():
+                    if s.name() == self._flow_monitor:
+                        g = s.geometry()
+                        self._flow_monitor_geom = {
+                            "x": g.x(), "y": g.y(),
+                            "width": g.width(), "height": g.height(),
+                        }
+                        logger.info("Cached edge detector monitor %s: %s",
+                                    self._flow_monitor, self._flow_monitor_geom)
+                        return
+        except Exception as e:
+            logger.debug("Qt monitor cache failed: %s", e)
+
     def start(self):
         """Start the polling thread."""
         if self._running:
             return
         self._reload_config()  # Load direction/monitor before first poll
+        self.cache_monitor_geometry()  # Cache geometry while on main thread
         self._running = True
         self._thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._thread.start()
@@ -172,25 +203,13 @@ class ScreenEdgeDetector:
 
         # Filter by configured monitor: only trigger on the monitor where
         # the indicator is placed, not on every monitor's edge.
-        if self._flow_monitor:
-            try:
-                from PyQt6.QtWidgets import QApplication
-                app = QApplication.instance()
-                if app:
-                    monitor_matched = False
-                    for s in app.screens():
-                        if s.name() == self._flow_monitor:
-                            g = s.geometry()
-                            # Check cursor is on this specific monitor
-                            if (g.x() == sx and g.y() == sy
-                                    and g.width() == sw and g.height() == sh):
-                                monitor_matched = True
-                            break
-                    if not monitor_matched:
-                        self._reset_dwell()
-                        return
-            except Exception:
-                pass
+        # Uses cached geometry (set from main thread) to avoid Qt from bg thread.
+        if self._flow_monitor and self._flow_monitor_geom:
+            g = self._flow_monitor_geom
+            if not (g["x"] == sx and g["y"] == sy
+                    and g["width"] == sw and g["height"] == sh):
+                self._reset_dwell()
+                return
 
         # Only check the configured flow direction edge, not all four edges.
         edge = None

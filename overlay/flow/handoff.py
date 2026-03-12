@@ -10,7 +10,7 @@ import logging
 import subprocess
 import threading
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from .constants import (
     LOGI_PRESENCE_PORT,
@@ -29,7 +29,6 @@ OPPOSITE_EDGE = {
     "top": "bottom",
     "bottom": "top",
 }
-
 
 class FlowHandoffManager:
     """Orchestrates cursor handoff between machines.
@@ -57,6 +56,10 @@ class FlowHandoffManager:
         # Cached flow monitor geometry (set from main thread, used from any thread)
         self._flow_monitor_screen: Optional[dict] = None
 
+        # Active warp timers (cancelled on new handoff to prevent cursor fighting)
+        self._warp_timers: List[threading.Timer] = []
+        self._warp_lock = threading.Lock()
+
         # Wire edge detector callback
         if edge_detector:
             edge_detector.on_edge_hit = self.on_edge_hit
@@ -67,7 +70,7 @@ class FlowHandoffManager:
 
     def cache_flow_monitor_geometry(self):
         """Cache flow monitor geometry from Qt (call from main thread)."""
-        cfg = self._get_flow_config()
+        cfg = self.get_flow_config()
         monitor_name = cfg.get("monitor", "")
         if not monitor_name:
             return
@@ -125,7 +128,7 @@ class FlowHandoffManager:
         if self._flow_monitor_screen:
             return self._flow_monitor_screen
         # Cache miss - try xrandr (works from any thread)
-        cfg = self._get_flow_config()
+        cfg = self.get_flow_config()
         monitor_name = cfg.get("monitor", "")
         if monitor_name:
             screen = self._xrandr_monitor_geometry(monitor_name)
@@ -209,7 +212,7 @@ class FlowHandoffManager:
 
         # Also send to JuhFlow bridge peers (Mac/Win companion apps)
         # Only on the configured flow direction edge
-        cfg = self._get_flow_config()
+        cfg = self.get_flow_config()
         flow_direction = cfg.get("direction", "right")
         if (self.juhflow_bridge and self.juhflow_bridge.get_peers()
                 and edge == flow_direction):
@@ -271,15 +274,19 @@ class FlowHandoffManager:
             self._handle_clipboard_sync(peer_name, message)
         # Heartbeats are silently ignored
 
-    def _handle_cursor_handoff(self, peer_name: str, message: dict):
-        """Handle incoming cursor handoff - warp cursor to arrival position."""
+    def handle_cursor_handoff(self, peer_name: str, message: dict):
+        """Handle incoming cursor handoff - warp cursor to arrival position.
+
+        Places cursor at center-x of the flow monitor to avoid edge re-triggering.
+        Warps repeatedly over 3s to survive MX Master Bolt reconnection race.
+        """
         relative_pos = message.get("relative_position", 0.5)
-        print(f"[HANDOFF] Received from {peer_name}: rel={relative_pos:.2f}")
+        logger.info("Handoff received from %s: rel=%.2f", peer_name, relative_pos)
 
         # Suppress edge detector to prevent bounce-back.
         if self.edge_detector:
             self.edge_detector.suppress_for(15000)
-            print("[HANDOFF] Edge detector suppressed for 15s")
+            logger.debug("Edge detector suppressed for 15s")
 
         try:
             from overlay.overlay_cursor import warp_cursor
@@ -289,18 +296,25 @@ class FlowHandoffManager:
         # Get flow monitor geometry (cached from main thread at startup)
         screen = self._get_flow_monitor_screen()
         if not screen:
-            print("[HANDOFF] ERROR: no flow monitor geometry!")
+            logger.error("No flow monitor geometry - cannot warp cursor")
             return
         sx, sy = screen["x"], screen["y"]
         sw, sh = screen["width"], screen["height"]
 
-        # Place cursor in the CENTER of the flow monitor - far from any edge.
-        # This avoids re-triggering and survives the MX Master reconnection.
+        # Place cursor at center-x of the flow monitor, relative-y along the edge.
+        # Center-x avoids re-triggering the edge detector on arrival.
         x = sx + sw // 2
         y = sy + int(relative_pos * sh)
         # Clamp y to stay within screen
         y = max(sy + 50, min(sy + sh - 50, y))
-        print(f"[HANDOFF] Warp target: ({x}, {y}) center of {sw}x{sh}+{sx}+{sy}")
+        logger.info("Warp target: (%d, %d) center of %dx%d+%d+%d", x, y, sw, sh, sx, sy)
+
+        # Cancel any in-flight warp timers from a previous handoff
+        # to prevent cursor position fighting.
+        with self._warp_lock:
+            for old_timer in self._warp_timers:
+                old_timer.cancel()
+            self._warp_timers.clear()
 
         # Warp cursor repeatedly to survive the MX Master device reconnection.
         # When the device switches back to Linux via the Mac companion, the Bolt
@@ -309,13 +323,18 @@ class FlowHandoffManager:
         def _do_warp(attempt):
             success = warp_cursor(x, y)
             if attempt == 0:
-                print(f"[HANDOFF] warp #{attempt}: ({x}, {y}) -> {'OK' if success else 'FAILED'}")
+                logger.info("Warp #%d: (%d, %d) -> %s", attempt, x, y,
+                            "OK" if success else "FAILED")
 
         _do_warp(0)
+        new_timers = []
         for i in range(1, 7):
             t = threading.Timer(i * 0.5, _do_warp, args=[i])
             t.daemon = True
             t.start()
+            new_timers.append(t)
+        with self._warp_lock:
+            self._warp_timers = new_timers
 
     def _handle_clipboard_sync(self, peer_name: str, message: dict):
         """Handle incoming clipboard sync."""
@@ -339,11 +358,10 @@ class FlowHandoffManager:
 
         return False
 
-    def _get_flow_config(self):
+    def get_flow_config(self):
         """Read flow config from config.json (cached, reloads on file change)."""
         try:
-            from pathlib import Path
-            cfg_path = Path.home() / ".config" / "juhradial" / "config.json"
+            cfg_path = _CFG_PATH
             if cfg_path.exists():
                 mtime = cfg_path.stat().st_mtime
                 if self._flow_config_cache is None or mtime != self._flow_config_mtime:
@@ -356,16 +374,16 @@ class FlowHandoffManager:
 
     def _switch_host_for_bridge(self):
         """Switch MX Master to the Mac/Win host via D-Bus Easy-Switch."""
-        cfg = self._get_flow_config()
+        cfg = self.get_flow_config()
         remote_host = cfg.get("remote_host_index")
         if remote_host is None:
             logger.debug("No remote_host_index in flow config, skipping host switch")
             return
         self._dbus_set_host(int(remote_host))
 
-    def _switch_host_to_linux(self):
+    def switch_host_to_linux(self):
         """Switch MX Master back to this Linux host via D-Bus Easy-Switch."""
-        cfg = self._get_flow_config()
+        cfg = self.get_flow_config()
         local_host = cfg.get("local_host_index")
         if local_host is None:
             logger.debug("No local_host_index in flow config, skipping host switch")

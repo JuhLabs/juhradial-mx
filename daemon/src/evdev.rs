@@ -556,6 +556,13 @@ impl EvdevHandler {
         let mut events = device.into_event_stream()
             .map_err(EvdevError::IoError)?;
 
+        // Buffer for batching events between SYN_REPORT frames.
+        // Physical mice group REL_X + REL_Y + SYN_REPORT into one report.
+        // Emitting each event individually adds extra SYN_REPORTs which can
+        // cause cursor jitter at high polling rates (1000Hz). Instead, we
+        // collect events and emit the full batch when SYN_REPORT arrives.
+        let mut event_batch: Vec<evdev::InputEvent> = Vec::with_capacity(8);
+
         loop {
             match events.next_event().await {
                 Ok(event) => {
@@ -565,10 +572,17 @@ impl EvdevHandler {
                         && self.suppressed_keys.contains(&event.code())
                         && (event.value() == 0 || event.value() == 1);
 
-                    // Forward non-suppressed events to the virtual device
-                    if !is_suppressed_key {
-                        if let Some(ref mut vdev) = virtual_device {
-                            let _ = vdev.emit(&[event]);
+                    // Batch events for the virtual device.
+                    // When SYN_REPORT arrives, emit the entire batch at once
+                    // (emit() auto-appends SYN_REPORT, preserving original timing).
+                    if let Some(ref mut vdev) = virtual_device {
+                        if event.event_type() == EventType::SYNCHRONIZATION {
+                            if !event_batch.is_empty() {
+                                let _ = vdev.emit(&event_batch);
+                                event_batch.clear();
+                            }
+                        } else if !is_suppressed_key {
+                            event_batch.push(event);
                         }
                     }
 

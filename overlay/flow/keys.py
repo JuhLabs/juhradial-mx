@@ -26,12 +26,13 @@ def _sanitize_log(value) -> str:
 def _sanitize_peer_name(name: str) -> str:
     """Sanitize peer name for safe use as a filename component.
 
-    Only allows alphanumeric, dash, underscore, dot, and space.
+    Only allows alphanumeric, dash, underscore, and dot.
+    Spaces are replaced with hyphens for shell compatibility.
     Prevents path traversal via '..' or slashes.
     """
-    sanitized = re.sub(r'[^A-Za-z0-9_\-. ]', '_', name)
-    # Remove leading/trailing dots and spaces to avoid hidden files
-    sanitized = sanitized.strip('. ')
+    sanitized = re.sub(r'[^A-Za-z0-9_\-.]', '_', name)
+    # Remove leading/trailing dots to avoid hidden files
+    sanitized = sanitized.strip('.')
     if not sanitized:
         sanitized = "unnamed_peer"
     return sanitized
