@@ -342,6 +342,7 @@ install_deps_fedora() {
         python3-cryptography \
         dbus-devel systemd-devel \
         libevdev-devel hidapi-devel \
+        ydotool \
         git make
 }
 
@@ -355,6 +356,7 @@ install_deps_arch() {
         python-cryptography \
         dbus systemd-libs \
         libevdev hidapi \
+        ydotool \
         git make base-devel
 }
 
@@ -368,12 +370,12 @@ install_deps_debian() {
         python3-cryptography \
         libdbus-1-dev libsystemd-dev \
         libevdev-dev libhidapi-dev \
+        ydotool \
         git make build-essential
 
     if apt-cache show libgtk4-layer-shell0 &> /dev/null; then
         sudo apt-get install -y libgtk4-layer-shell0
     fi
-
 }
 
 install_deps_opensuse() {
@@ -385,6 +387,7 @@ install_deps_opensuse() {
         python3-cryptography \
         dbus-1-devel systemd-devel \
         libevdev-devel libhidapi-devel \
+        ydotool \
         git make
 
     if ! sudo zypper install -y gtk4-layer-shell; then
@@ -488,6 +491,15 @@ install_files() {
     # Install AI assistant icons
     sudo cp assets/ai-*.svg /usr/share/juhradial/assets/ 2>/dev/null || true
 
+    # Install OS icons (used by Flow easy-switch and device display)
+    sudo cp assets/os-*.svg /usr/share/juhradial/assets/ 2>/dev/null || true
+
+    # Install Flow indicator image
+    sudo cp assets/flow-indicator.png /usr/share/juhradial/assets/ 2>/dev/null || true
+
+    # Install generic mouse icon
+    sudo cp assets/genericmouse.png /usr/share/juhradial/assets/ 2>/dev/null || true
+
     # Install launcher scripts
     sudo install -Dm755 scripts/juhradial-mx.sh "$BIN_DIR/juhradial-mx"
     sudo install -Dm755 scripts/juhradial-settings.sh "$BIN_DIR/juhradial-settings"
@@ -511,6 +523,16 @@ install_files() {
         sudo udevadm control --reload-rules
         sudo udevadm trigger
         log_success "udev rules"
+
+        # Ensure 'input' group exists and user is a member (required for hidraw/evdev access)
+        if ! getent group input &> /dev/null; then
+            sudo groupadd input
+            log_info "Created 'input' group"
+        fi
+        if ! id -nG "$USER" | grep -qw input; then
+            sudo usermod -aG input "$USER"
+            log_warning "Added $USER to 'input' group - log out and back in for device access"
+        fi
     fi
 
     # Create config directory
