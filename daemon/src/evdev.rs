@@ -543,8 +543,9 @@ impl EvdevHandler {
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "Failed to grab device for button suppression: {} \
-                         (macro buttons will still reach the OS)",
+                        "Failed to grab device for button suppression: {}. \
+                         Ensure the uinput kernel module is loaded (modprobe uinput). \
+                         Macros will still fire but bound buttons will also reach the OS.",
                         e
                     );
                 }

@@ -13,7 +13,7 @@ SPDX-License-Identifier: GPL-3.0
 import os
 import subprocess
 
-from overlay_constants import IS_HYPRLAND, IS_GNOME, _HAS_XWAYLAND
+from overlay_constants import IS_HYPRLAND, IS_GNOME, IS_SWAY, _HAS_XWAYLAND
 
 # =============================================================================
 # HYPRLAND CURSOR DETECTION
@@ -489,7 +489,8 @@ def get_cursor_pos():
         pos = get_cursor_position_gnome()
         if pos:
             return pos
-    # XWayland fallback (works on COSMIC, Sway, and other Wayland compositors)
+    # XWayland fallback (works on Sway, COSMIC, and other Wayland compositors).
+    # Sway has excellent XWayland integration so XQueryPointer is accurate.
     if _HAS_XWAYLAND:
         pos = get_cursor_position_xwayland()
         if pos:
