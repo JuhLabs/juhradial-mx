@@ -954,16 +954,19 @@ class RadialMenuPaintingMixin:
             p.setPen(QPen(border, 1.5))
             p.drawEllipse(QPointF(item_x, item_y), scaled_radius, scaled_radius)
 
-            # Icon - use SVG if available, fallback to drawn icon
+            # Icon - use pre-rendered pixmap if available, fallback to drawn icon
             icon_name = item[3]  # e.g., "claude", "chatgpt", "os_linux", etc.
-            svg_icons = {**overlay_actions.AI_ICONS, **overlay_actions.OS_ICONS}
-            if icon_name in svg_icons:
-                # Render SVG icon
+            all_icons = {**overlay_actions.AI_ICONS, **overlay_actions.OS_ICONS}
+            if icon_name in all_icons:
                 icon_size = scaled_radius * 1.4
                 icon_rect = QRectF(
                     item_x - icon_size / 2, item_y - icon_size / 2, icon_size, icon_size
                 )
-                svg_icons[icon_name].render(p, icon_rect)
+                icon = all_icons[icon_name]
+                if hasattr(icon, 'render'):
+                    icon.render(p, icon_rect)
+                else:
+                    p.drawPixmap(icon_rect.toRect(), icon)
             else:
                 # Fallback to drawn icon
                 icon_color = QColor(overlay_actions.COLORS["text"]) if is_highlighted else QColor(overlay_actions.COLORS["subtext1"])

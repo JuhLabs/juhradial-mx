@@ -7,7 +7,9 @@ handoffs from peers and warps cursor to the arrival position.
 
 import json
 import logging
+import subprocess
 import threading
+from pathlib import Path
 from typing import Dict, Optional
 
 from .constants import (
@@ -17,6 +19,8 @@ from .constants import (
 )
 
 logger = logging.getLogger("juhradial.flow.handoff")
+
+_CFG_PATH = Path.home() / ".config" / "juhradial" / "config.json"
 
 # Map edge -> opposite edge for receiving handoffs
 OPPOSITE_EDGE = {
@@ -50,6 +54,9 @@ class FlowHandoffManager:
         self._flow_config_cache: Optional[dict] = None
         self._flow_config_mtime: float = 0.0
 
+        # Cached flow monitor geometry (set from main thread, used from any thread)
+        self._flow_monitor_screen: Optional[dict] = None
+
         # Wire edge detector callback
         if edge_detector:
             edge_detector.on_edge_hit = self.on_edge_hit
@@ -57,6 +64,75 @@ class FlowHandoffManager:
         # Wire presence server message callback
         if presence_server:
             presence_server.on_message = self._on_server_message
+
+    def cache_flow_monitor_geometry(self):
+        """Cache flow monitor geometry from Qt (call from main thread)."""
+        cfg = self._get_flow_config()
+        monitor_name = cfg.get("monitor", "")
+        if not monitor_name:
+            return
+        try:
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            if app:
+                for s in app.screens():
+                    if s.name() == monitor_name:
+                        g = s.geometry()
+                        self._flow_monitor_screen = {
+                            "x": g.x(), "y": g.y(),
+                            "width": g.width(), "height": g.height(),
+                        }
+                        logger.info("Cached flow monitor %s: %s",
+                                    monitor_name, self._flow_monitor_screen)
+                        return
+        except Exception as e:
+            logger.debug("Qt monitor cache failed: %s", e)
+        # Fallback: parse xrandr
+        self._flow_monitor_screen = self._xrandr_monitor_geometry(monitor_name)
+        if self._flow_monitor_screen:
+            logger.info("Cached flow monitor %s via xrandr: %s",
+                        monitor_name, self._flow_monitor_screen)
+
+    @staticmethod
+    def _xrandr_monitor_geometry(monitor_name: str) -> Optional[dict]:
+        """Get monitor geometry from xrandr (thread-safe, no Qt needed)."""
+        try:
+            result = subprocess.run(
+                ["xrandr", "--query"],
+                capture_output=True, text=True, timeout=2.0,
+            )
+            for line in result.stdout.splitlines():
+                if line.startswith(monitor_name + " ") and " connected" in line:
+                    for part in line.split():
+                        if "x" in part and "+" in part:
+                            # e.g. "3840x2160+1920+0"
+                            wxh, rest = part.split("+", 1)
+                            px, py = rest.split("+", 1)
+                            w, h = wxh.split("x")
+                            return {
+                                "x": int(px), "y": int(py),
+                                "width": int(w), "height": int(h),
+                            }
+        except Exception as e:
+            logger.debug("xrandr monitor lookup failed: %s", e)
+        return None
+
+    def _get_flow_monitor_screen(self) -> Optional[dict]:
+        """Get flow monitor geometry (thread-safe).
+
+        Uses cached value from main-thread init, falls back to xrandr.
+        """
+        if self._flow_monitor_screen:
+            return self._flow_monitor_screen
+        # Cache miss - try xrandr (works from any thread)
+        cfg = self._get_flow_config()
+        monitor_name = cfg.get("monitor", "")
+        if monitor_name:
+            screen = self._xrandr_monitor_geometry(monitor_name)
+            if screen:
+                self._flow_monitor_screen = screen
+                return screen
+        return None
 
     def connect_to_peer(self, peer_name: str, peer_ip: str, peer_port: int,
                         our_node_id: bytes, peer_aes_key: bytes):
@@ -157,12 +233,8 @@ class FlowHandoffManager:
     def _sync_clipboard(self, peer_name: Optional[str] = None):
         """Sync clipboard to peer via presence or bridge."""
         try:
-            import subprocess
-            result = subprocess.run(
-                ["wl-paste", "--no-newline"],
-                capture_output=True, text=True, timeout=1,
-            )
-            clipboard_content = result.stdout if result.returncode == 0 else ""
+            from .clipboard import get_clipboard
+            clipboard_content = get_clipboard()
             if not clipboard_content:
                 return
 
@@ -201,77 +273,56 @@ class FlowHandoffManager:
 
     def _handle_cursor_handoff(self, peer_name: str, message: dict):
         """Handle incoming cursor handoff - warp cursor to arrival position."""
-        edge = message.get("edge", "right")
         relative_pos = message.get("relative_position", 0.5)
-        arrival_edge = OPPOSITE_EDGE.get(edge, "left")
+        print(f"[HANDOFF] Received from {peer_name}: rel={relative_pos:.2f}")
 
-        # Get our screen geometry
+        # Suppress edge detector to prevent bounce-back.
+        if self.edge_detector:
+            self.edge_detector.suppress_for(15000)
+            print("[HANDOFF] Edge detector suppressed for 15s")
+
         try:
-            from overlay.overlay_cursor import get_screen_geometry, warp_cursor
+            from overlay.overlay_cursor import warp_cursor
         except ImportError:
-            from overlay_cursor import get_screen_geometry, warp_cursor
-        screen = get_screen_geometry()
+            from overlay_cursor import warp_cursor
+
+        # Get flow monitor geometry (cached from main thread at startup)
+        screen = self._get_flow_monitor_screen()
+        if not screen:
+            print("[HANDOFF] ERROR: no flow monitor geometry!")
+            return
         sx, sy = screen["x"], screen["y"]
         sw, sh = screen["width"], screen["height"]
 
-        # Compute arrival position on opposite edge
-        # Warp cursor well inside the screen so it doesn't land on/near the
-        # indicator and accidentally re-trigger a switch back.
-        inset = 80  # 80px inside from the edge
-        if arrival_edge == "left":
-            x = sx + inset
-            y = sy + int(relative_pos * sh)
-        elif arrival_edge == "right":
-            x = sx + sw - inset
-            y = sy + int(relative_pos * sh)
-        elif arrival_edge == "top":
-            x = sx + int(relative_pos * sw)
-            y = sy + inset
-        elif arrival_edge == "bottom":
-            x = sx + int(relative_pos * sw)
-            y = sy + sh - inset
-        else:
-            x = sx + sw // 2
-            y = sy + sh // 2
+        # Place cursor in the CENTER of the flow monitor - far from any edge.
+        # This avoids re-triggering and survives the MX Master reconnection.
+        x = sx + sw // 2
+        y = sy + int(relative_pos * sh)
+        # Clamp y to stay within screen
+        y = max(sy + 50, min(sy + sh - 50, y))
+        print(f"[HANDOFF] Warp target: ({x}, {y}) center of {sw}x{sh}+{sx}+{sy}")
 
-        # Suppress edge detector to prevent immediate bounce-back.
-        # Use a longer cooldown (3s) since cursor arrives right at the edge
-        # and the user needs time to move away from the indicator zone.
-        if self.edge_detector:
-            self.edge_detector.suppress_for(3000)
+        # Warp cursor repeatedly to survive the MX Master device reconnection.
+        # When the device switches back to Linux via the Mac companion, the Bolt
+        # receiver reconnection can reset/move the cursor. We keep re-warping
+        # for 3 seconds to ensure the cursor lands at the right spot.
+        def _do_warp(attempt):
+            success = warp_cursor(x, y)
+            if attempt == 0:
+                print(f"[HANDOFF] warp #{attempt}: ({x}, {y}) -> {'OK' if success else 'FAILED'}")
 
-        # Switch MX Master back to this host (Linux)
-        self._switch_host_to_linux()
-
-        # Haptic feedback on arrival
-        try:
-            import subprocess
-            subprocess.Popen(
-                ["gdbus", "call", "--session",
-                 "--dest", "org.kde.juhradialmx",
-                 "--object-path", "/org/kde/juhradialmx/Daemon",
-                 "--method", "org.kde.juhradialmx.Daemon.TriggerHaptic",
-                 "confirm"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
-        except Exception:
-            pass
-
-        # Warp cursor
-        success = warp_cursor(x, y)
-        logger.info(
-            "Cursor arrival from %s: %s edge -> (%d, %d) [%s]",
-            peer_name, arrival_edge, x, y, "ok" if success else "failed",
-        )
+        _do_warp(0)
+        for i in range(1, 7):
+            t = threading.Timer(i * 0.5, _do_warp, args=[i])
+            t.daemon = True
+            t.start()
 
     def _handle_clipboard_sync(self, peer_name: str, message: dict):
         """Handle incoming clipboard sync."""
         content = message.get("content", "")
         if content:
-            import subprocess
-            subprocess.run(
-                ["wl-copy"], input=content, text=True, timeout=1,
-            )
+            from .clipboard import set_clipboard
+            set_clipboard(content)
             logger.info("Clipboard synced from %s (%d chars)", peer_name, len(content))
 
     def _send_to_peer(self, peer_name: str, message: dict) -> bool:

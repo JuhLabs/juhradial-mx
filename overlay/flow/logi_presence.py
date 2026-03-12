@@ -108,9 +108,9 @@ class FlowPresenceServer:
             self.running = True
             self.thread = threading.Thread(target=self._accept_loop, daemon=True)
             self.thread.start()
-            print(f"[Flow] Encrypted presence server on TCP port {LOGI_PRESENCE_PORT}")
+            logger.info("Encrypted presence server on TCP port %d", LOGI_PRESENCE_PORT)
         except Exception as e:
-            print(f"[Flow] Failed to start presence server: {e}")
+            logger.error("Failed to start presence server: %s", e)
 
     def stop(self):
         self.running = False
@@ -129,18 +129,23 @@ class FlowPresenceServer:
 
     def send_to_peer(self, peer_name: str, message: dict):
         """Send an encrypted message to a connected peer."""
+        target = None
         with self._conn_lock:
             for nid_hex, (conn, name, aes_key) in self.active_connections.items():
                 if name == peer_name:
-                    try:
-                        payload = json.dumps(message).encode("utf-8")
-                        packet = build_encrypted_packet(self.node_id, aes_key, payload)
-                        _send_framed(conn, packet)
-                        return True
-                    except Exception as e:
-                        logger.debug("Failed to send to %s: %s", peer_name, e)
-                        return False
-        return False
+                    target = (conn, aes_key)
+                    break
+        if target is None:
+            return False
+        conn, aes_key = target
+        try:
+            payload = json.dumps(message).encode("utf-8")
+            packet = build_encrypted_packet(self.node_id, aes_key, payload)
+            _send_framed(conn, packet)
+            return True
+        except Exception as e:
+            logger.debug("Failed to send to %s: %s", peer_name, e)
+            return False
 
     def send_to_all(self, message: dict):
         """Send an encrypted message to all connected peers."""
@@ -195,17 +200,41 @@ class FlowPresenceServer:
             # Send our node_id back
             conn.sendall(self.node_id)
 
-            # Try to find matching AES key - try all peer keys
+            # Try to find matching AES key by attempting decryption of the
+            # first message with each known peer key. AESGCM auth tag ensures
+            # only the correct key succeeds.
             with self._keys_lock:
                 keys_snapshot = dict(self.peer_aes_keys)
 
+            if not keys_snapshot:
+                logger.warning("No peer keys configured, rejecting %s", addr[0])
+                conn.close()
+                return
+
+            # Read first message to identify which peer key works
+            first_data = _recv_framed(conn)
+            if first_data is None:
+                logger.debug("Peer disconnected before first message from %s", addr[0])
+                conn.close()
+                return
+
+            first_parsed = parse_encrypted_packet(first_data)
+            if not first_parsed:
+                logger.debug("Non-packet first message from %s", addr[0])
+                conn.close()
+                return
+
+            _, first_nonce, first_tag, first_ciphertext = first_parsed
+            first_message = None
             for name, key in keys_snapshot.items():
-                # Accept the first key that matches any known peer
-                # (we don't have node_id -> peer_name mapping yet,
-                # so we accept the connection and figure out the peer from traffic)
-                peer_name = name
-                aes_key = key
-                break
+                try:
+                    plaintext = decrypt_payload(key, first_nonce, first_tag, first_ciphertext)
+                    first_message = json.loads(plaintext.decode("utf-8"))
+                    peer_name = name
+                    aes_key = key
+                    break
+                except Exception:
+                    continue
 
             if not aes_key:
                 logger.warning("No matching AES key for peer %s from %s", nid_hex[:16], addr[0])
@@ -215,9 +244,13 @@ class FlowPresenceServer:
             # Register connection
             with self._conn_lock:
                 self.active_connections[nid_hex] = (conn, peer_name, aes_key)
-            self._node_to_name[nid_hex] = peer_name
+                self._node_to_name[nid_hex] = peer_name
 
             logger.info("Presence channel established with %s (%s)", peer_name, addr[0])
+
+            # Deliver the first message
+            if first_message and self.on_message:
+                self.on_message(peer_name, first_message)
 
             # Message loop
             while self.running:
@@ -250,7 +283,7 @@ class FlowPresenceServer:
             if nid_hex:
                 with self._conn_lock:
                     self.active_connections.pop(nid_hex, None)
-                self._node_to_name.pop(nid_hex, None)
+                    self._node_to_name.pop(nid_hex, None)
             conn.close()
             logger.info("Presence connection from %s closed", addr[0])
 

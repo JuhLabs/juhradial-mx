@@ -1,6 +1,9 @@
 """Clipboard helpers for Flow (supports Wayland and X11)"""
 
+import logging
 import subprocess
+
+logger = logging.getLogger("juhradial.flow.clipboard")
 
 
 def get_clipboard() -> str:
@@ -17,7 +20,7 @@ def get_clipboard() -> str:
     except FileNotFoundError:
         pass
     except subprocess.TimeoutExpired:
-        print("[Flow] wl-paste timed out")
+        logger.warning("wl-paste timed out")
 
     try:
         result = subprocess.run(
@@ -31,7 +34,7 @@ def get_clipboard() -> str:
     except FileNotFoundError:
         pass
     except subprocess.TimeoutExpired:
-        print("[Flow] xclip timed out")
+        logger.warning("xclip timed out")
 
     return ""
 
@@ -50,7 +53,7 @@ def set_clipboard(content: str) -> bool:
     except FileNotFoundError:
         pass
     except subprocess.TimeoutExpired:
-        print("[Flow] wl-copy timed out")
+        logger.warning("wl-copy timed out")
 
     try:
         result = subprocess.run(
@@ -64,6 +67,6 @@ def set_clipboard(content: str) -> bool:
     except FileNotFoundError:
         pass
     except subprocess.TimeoutExpired:
-        print("[Flow] xclip timed out")
+        logger.warning("xclip timed out")
 
     return False

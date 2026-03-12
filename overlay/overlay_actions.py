@@ -249,8 +249,22 @@ def _get_assets_dir():
     return next((d for d in search_dirs if os.path.isdir(d)), search_dirs[0])
 
 
+def _svg_to_pixmap(path, size=64):
+    """Pre-render SVG to QPixmap at fixed size (avoids huge buffer allocations)."""
+    from PyQt6.QtGui import QPixmap, QPainter, QImage
+    renderer = QSvgRenderer(path)
+    if not renderer.isValid():
+        return None
+    img = QImage(size, size, QImage.Format.Format_ARGB32_Premultiplied)
+    img.fill(0)
+    p = QPainter(img)
+    renderer.render(p)
+    p.end()
+    return QPixmap.fromImage(img)
+
+
 def load_ai_icons():
-    """Load SVG icons for AI submenu items."""
+    """Load SVG icons for AI submenu items (pre-rendered to QPixmap)."""
     global AI_ICONS
     assets_dir = _get_assets_dir()
 
@@ -264,9 +278,9 @@ def load_ai_icons():
     for name, filename in icon_files.items():
         path = os.path.join(assets_dir, filename)
         if os.path.exists(path):
-            renderer = QSvgRenderer(path)
-            if renderer.isValid():
-                AI_ICONS[name] = renderer
+            pixmap = _svg_to_pixmap(path)
+            if pixmap:
+                AI_ICONS[name] = pixmap
                 print(f"Loaded AI icon: {name}")
             else:
                 print(f"Failed to load AI icon: {path}")
@@ -275,7 +289,7 @@ def load_ai_icons():
 
 
 def load_os_icons():
-    """Load SVG icons for OS Easy-Switch submenu items."""
+    """Load SVG icons for OS Easy-Switch submenu items (pre-rendered to QPixmap)."""
     global OS_ICONS
     assets_dir = _get_assets_dir()
 
@@ -292,9 +306,9 @@ def load_os_icons():
     for name, filename in icon_files.items():
         path = os.path.join(assets_dir, filename)
         if os.path.exists(path):
-            renderer = QSvgRenderer(path)
-            if renderer.isValid():
-                OS_ICONS[name] = renderer
+            pixmap = _svg_to_pixmap(path)
+            if pixmap:
+                OS_ICONS[name] = pixmap
                 print(f"Loaded OS icon: {name}")
             else:
                 print(f"Failed to load OS icon: {path}")

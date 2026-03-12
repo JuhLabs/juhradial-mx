@@ -315,8 +315,10 @@ class JuhFlowBridge:
             logger.info("JuhFlow peer connected: %s (%s, %s)",
                         peer_hostname, peer_platform, addr[0])
 
-            # Message loop (encrypted from here on)
-            conn.settimeout(30.0)
+            # Message loop (encrypted from here on).
+            # Use long timeout - user may be on Mac for minutes.
+            # socket.timeout is caught in run() and just retries.
+            conn.settimeout(120.0)
             peer.run()
 
         except Exception as e:
@@ -469,6 +471,11 @@ class PeerConnection:
                 if self.on_message:
                     self.on_message(self.peer_id, msg)
 
+            except socket.timeout:
+                # No data within timeout period - connection is still alive,
+                # just idle. Keep waiting (Linux sends heartbeats to Mac,
+                # but Mac may not send any back while user is on that side).
+                continue
             except Exception as e:
                 if not self._closed:
                     logger.debug("Peer %s recv error: %s", self.hostname, e)

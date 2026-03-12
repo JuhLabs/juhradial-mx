@@ -154,9 +154,9 @@ class LogiFlowDiscoveryResponder:
 
             self.listen_thread = threading.Thread(target=self._listen_loop, daemon=True)
             self.listen_thread.start()
-            print(f"[Flow] Logi discovery listener on UDP 0.0.0.0:{LOGI_DISCOVERY_PORT}")
+            logger.info("Logi discovery listener on UDP 0.0.0.0:%d", LOGI_DISCOVERY_PORT)
         except Exception as e:
-            print(f"[Flow] Failed to start Logi discovery listener: {e}")
+            logger.error("Failed to start Logi discovery listener: %s", e)
 
     def _start_broadcaster(self):
         """Start the UDP broadcast sender"""
@@ -167,9 +167,9 @@ class LogiFlowDiscoveryResponder:
 
             self.broadcast_thread = threading.Thread(target=self._broadcast_loop, daemon=True)
             self.broadcast_thread.start()
-            print(f"[Flow] Logi discovery broadcaster (interval: {DISCOVERY_BROADCAST_INTERVAL}s)")
+            logger.info("Logi discovery broadcaster (interval: %ds)", DISCOVERY_BROADCAST_INTERVAL)
         except Exception as e:
-            print(f"[Flow] Failed to start Logi discovery broadcaster: {e}")
+            logger.error("Failed to start Logi discovery broadcaster: %s", e)
 
     def _listen_loop(self):
         """Main loop listening for discovery requests"""
@@ -337,25 +337,9 @@ class LogiFlowDiscoveryResponder:
             logger.debug("Failed to send response to %s: %s", addr, e)
 
     def _log_incoming_packet(self, data: bytes, addr: tuple):
-        """Log full packet details for protocol analysis"""
-        print(f"\n[Flow Discovery] === INCOMING UDP PACKET ===")
-        print(f"[Flow Discovery] From: {addr[0]}:{addr[1]}")
-        print(f"[Flow Discovery] Size: {len(data)} bytes")
-        print(f"[Flow Discovery] Raw hex:")
-        print(_hex_dump(data, "[Flow Discovery]"))
-
-        try:
-            text = data.decode('utf-8')
-            print(f"[Flow Discovery] UTF-8: {text}")
-            try:
-                parsed = json.loads(text)
-                print(f"[Flow Discovery] JSON: {json.dumps(parsed, indent=2)}")
-            except json.JSONDecodeError:
-                pass
-        except UnicodeDecodeError:
-            print(f"[Flow Discovery] (not valid UTF-8)")
-
-        print(f"[Flow Discovery] === END PACKET ===\n")
+        """Log packet details at DEBUG level for protocol analysis."""
+        logger.debug("Unknown UDP packet from %s:%d (%d bytes): %s",
+                      addr[0], addr[1], len(data), data[:64].hex())
 
     def get_discovered_peers(self) -> Dict[str, dict]:
         """Return discovered peers (prunes stale entries > 30s)"""

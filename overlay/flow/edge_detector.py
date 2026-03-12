@@ -50,6 +50,8 @@ class ScreenEdgeDetector:
 
         # Config cache
         self._extend_edge_zone = False
+        self._flow_direction = "right"
+        self._flow_monitor = ""  # "" = any monitor, "DP-3" = specific
         self._config_mtime: float = 0.0
 
     def set_enabled(self, enabled: bool):
@@ -65,10 +67,12 @@ class ScreenEdgeDetector:
         """Start the polling thread."""
         if self._running:
             return
+        self._reload_config()  # Load direction/monitor before first poll
         self._running = True
         self._thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._thread.start()
-        logger.info("Edge detector started (poll: %dms)", EDGE_POLL_INTERVAL_MS)
+        logger.info("Edge detector started (poll: %dms, direction: %s, monitor: %s)",
+                     EDGE_POLL_INTERVAL_MS, self._flow_direction, self._flow_monitor)
 
     def stop(self):
         """Stop the polling thread."""
@@ -94,9 +98,12 @@ class ScreenEdgeDetector:
                 if mtime != self._config_mtime:
                     self._config_mtime = mtime
                     cfg = json.loads(cfg_path.read_text())
-                    self._extend_edge_zone = cfg.get("flow", {}).get(
+                    flow = cfg.get("flow", {})
+                    self._extend_edge_zone = flow.get(
                         "extend_edge_zone", False
                     )
+                    self._flow_direction = flow.get("direction", "right")
+                    self._flow_monitor = flow.get("monitor", "")
         except Exception:
             pass
 
@@ -163,15 +170,38 @@ class ScreenEdgeDetector:
         sw = screen["width"]
         sh = screen["height"]
 
-        # Detect which edge (if any) the cursor is at
+        # Filter by configured monitor: only trigger on the monitor where
+        # the indicator is placed, not on every monitor's edge.
+        if self._flow_monitor:
+            try:
+                from PyQt6.QtWidgets import QApplication
+                app = QApplication.instance()
+                if app:
+                    monitor_matched = False
+                    for s in app.screens():
+                        if s.name() == self._flow_monitor:
+                            g = s.geometry()
+                            # Check cursor is on this specific monitor
+                            if (g.x() == sx and g.y() == sy
+                                    and g.width() == sw and g.height() == sh):
+                                monitor_matched = True
+                            break
+                    if not monitor_matched:
+                        self._reset_dwell()
+                        return
+            except Exception:
+                pass
+
+        # Only check the configured flow direction edge, not all four edges.
         edge = None
-        if cx <= sx + EDGE_THRESHOLD_PX:
+        d = self._flow_direction
+        if d == "left" and cx <= sx + EDGE_THRESHOLD_PX:
             edge = "left"
-        elif cx >= sx + sw - EDGE_THRESHOLD_PX - 1:
+        elif d == "right" and cx >= sx + sw - EDGE_THRESHOLD_PX - 1:
             edge = "right"
-        elif cy <= sy + EDGE_THRESHOLD_PX:
+        elif d == "top" and cy <= sy + EDGE_THRESHOLD_PX:
             edge = "top"
-        elif cy >= sy + sh - EDGE_THRESHOLD_PX - 1:
+        elif d == "bottom" and cy >= sy + sh - EDGE_THRESHOLD_PX - 1:
             edge = "bottom"
 
         if edge is None:
