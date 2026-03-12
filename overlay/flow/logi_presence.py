@@ -208,20 +208,17 @@ class FlowPresenceServer:
 
             if not keys_snapshot:
                 logger.warning("No peer keys configured, rejecting %s", addr[0])
-                conn.close()
                 return
 
             # Read first message to identify which peer key works
             first_data = _recv_framed(conn)
             if first_data is None:
                 logger.debug("Peer disconnected before first message from %s", addr[0])
-                conn.close()
                 return
 
             first_parsed = parse_encrypted_packet(first_data)
             if not first_parsed:
                 logger.debug("Non-packet first message from %s", addr[0])
-                conn.close()
                 return
 
             _, first_nonce, first_tag, first_ciphertext = first_parsed
@@ -238,7 +235,6 @@ class FlowPresenceServer:
 
             if not aes_key:
                 logger.warning("No matching AES key for peer %s from %s", nid_hex[:16], addr[0])
-                conn.close()
                 return
 
             # Register connection

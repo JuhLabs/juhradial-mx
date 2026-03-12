@@ -963,10 +963,7 @@ class RadialMenuPaintingMixin:
                     item_x - icon_size / 2, item_y - icon_size / 2, icon_size, icon_size
                 )
                 icon = all_icons[icon_name]
-                if hasattr(icon, 'render'):
-                    icon.render(p, icon_rect)
-                else:
-                    p.drawPixmap(icon_rect.toRect(), icon)
+                p.drawPixmap(icon_rect.toRect(), icon)
             else:
                 # Fallback to drawn icon
                 icon_color = QColor(overlay_actions.COLORS["text"]) if is_highlighted else QColor(overlay_actions.COLORS["subtext1"])

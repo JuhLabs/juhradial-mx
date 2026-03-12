@@ -181,32 +181,32 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
 
                 Also switches the MX Master back to this Linux host.
                 """
-                print(f"[BRIDGE] Edge hit from peer {peer_id}: {msg}")
+                logger.info("Bridge edge hit from peer %s: %s", peer_id, msg)
                 if _handoff_manager:
                     # Switch MX Master back to Linux host channel.
                     # Try local D-Bus first (works if device already reconnected),
                     # AND send device_switch to Mac so it switches on its side too.
-                    _handoff_manager._switch_host_to_linux()
+                    _handoff_manager.switch_host_to_linux()
 
                     # Ask Mac companion to switch the MX from its side
                     # (it has the device connected, so CHANGE_HOST works there)
                     if _juhflow_bridge:
-                        cfg = _handoff_manager._get_flow_config()
+                        cfg = _handoff_manager.get_flow_config()
                         local_host = cfg.get("local_host_index", 0)
                         _juhflow_bridge.send_device_switch(
                             "mx_master", int(local_host),
                         )
-                        print(f"[BRIDGE] Sent device_switch(host={local_host}) to Mac")
+                        logger.info("Sent device_switch(host=%s) to Mac", local_host)
 
                     edge = msg.get("edge", "right")
                     rel = msg.get("relative_position", 0.5)
-                    _handoff_manager._handle_cursor_handoff(peer_id, {
+                    _handoff_manager.handle_cursor_handoff(peer_id, {
                         "type": "cursor_handoff",
                         "edge": edge,
                         "relative_position": rel,
                     })
                 else:
-                    print("[BRIDGE] WARNING: no handoff manager!")
+                    logger.warning("No handoff manager for bridge edge hit")
                     if _edge_detector:
                         _edge_detector.suppress_for(1000)
 
