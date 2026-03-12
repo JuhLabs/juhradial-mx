@@ -69,6 +69,11 @@ impl TriggerMap {
     pub fn is_empty(&self) -> bool {
         self.bindings.is_empty()
     }
+
+    /// Get all registered evdev key codes (for HID++ button divert)
+    pub fn evdev_codes(&self) -> Vec<u16> {
+        self.bindings.keys().copied().collect()
+    }
 }
 
 impl Default for TriggerMap {

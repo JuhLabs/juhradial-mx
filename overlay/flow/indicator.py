@@ -34,14 +34,16 @@ class FlowEdgeIndicator(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Use Window (not Tool) to ensure visibility on KDE Wayland.
+        # Tool windows may not be mapped without a parent on KDE Wayland.
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Tool
             | Qt.WindowType.BypassWindowManagerHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setMouseTracking(True)
         self.setWindowTitle("JuhFlow Indicator")
 
@@ -177,8 +179,12 @@ class FlowEdgeIndicator(QWidget):
             return
 
         screen = self._get_monitor_geometry()
-        sx, sy = screen["x"], screen["y"]
-        sw, sh = screen["width"], screen["height"]
+        if not screen:
+            return
+        sx = screen.get("x") or 0
+        sy = screen.get("y") or 0
+        sw = screen.get("width") or 1920
+        sh = screen.get("height") or 1080
 
         # Window is image size + glow padding on all sides
         img_w, img_h = pm.width(), pm.height()
@@ -235,17 +241,27 @@ class FlowEdgeIndicator(QWidget):
         try:
             from . import get_juhflow_bridge
             bridge = get_juhflow_bridge()
-            if bridge and bridge.get_peers():
+            if bridge is None:
+                logger.debug("_check_peers: bridge is None (not initialized)")
+                return
+            peers = bridge.get_peers()
+            if peers:
                 import time
                 self._last_peer_seen = time.time()
-                peers = bridge.get_peers()
                 platform = peers[0].get("platform", "") if peers else ""
                 self._peer_platform = platform
                 self._read_direction()
                 if not self._visible_target:
-                    logger.info("Peer detected (%s), showing indicator", platform)
+                    logger.info("Peer detected (%s), showing on %s edge",
+                                platform, self._direction)
                     self.show_indicator()
+                    logger.debug("Indicator visible=%s, opacity=%.2f, "
+                                 "pos=(%d,%d), size=%dx%d",
+                                 self.isVisible(), self._opacity,
+                                 self.x(), self.y(),
+                                 self.width(), self.height())
             else:
+                logger.debug("_check_peers: bridge active but no peers connected")
                 # Grace period - don't hide during handoff
                 import time
                 if time.time() - self._last_peer_seen > self._grace_period:

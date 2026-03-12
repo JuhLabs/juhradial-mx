@@ -28,11 +28,12 @@ from PyQt6.QtCore import (
     QEasingCurve,
     QTimer,
 )
-from PyQt6.QtGui import QPainter, QBrush, QIcon, QPixmap
+from PyQt6.QtGui import QPainter, QBrush, QIcon, QPixmap, QRegion
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface
 
 from overlay_constants import (
     MENU_RADIUS,
+    SHADOW_OFFSET,
     CENTER_ZONE_RADIUS,
     WINDOW_SIZE,
     IS_HYPRLAND,
@@ -68,13 +69,22 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Popup  # Popup receives mouse input properly
-            | Qt.WindowType.BypassWindowManagerHint  # Skip WM decorations
+            | Qt.WindowType.Popup
+            | Qt.WindowType.BypassWindowManagerHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
         self.setFixedSize(WINDOW_SIZE, WINDOW_SIZE)
         self.setMouseTracking(True)
+
+        # Pre-set circular mask on KDE so the very first frame is shaped
+        if IS_KDE:
+            half_win = WINDOW_SIZE // 2
+            r = half_win
+            self.setMask(QRegion(
+                half_win - r, half_win - r, r * 2, r * 2,
+                QRegion.RegionType.Ellipse,
+            ))
         self.setWindowTitle("JuhRadial MX")  # For window rule matching (Hyprland, etc.)
 
         self.highlighted_slice = -1
@@ -233,16 +243,13 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             x, y = qpos.x(), qpos.y()
             _log(f"KDE X11: QCursor position ({x}, {y})")
 
-        # On KDE Wayland, XWayland returns stale cursor coordinates (same
-        # problem as COSMIC) because KWin only updates XWayland pointer
-        # position when the cursor is over an XWayland surface. Use the
-        # synced approach which maps a temporary fullscreen X11 window to
-        # force a fresh XQueryPointer reading.
+        # On KDE Wayland, the daemon's KWin script provides accurate
+        # workspace.cursorPos coordinates via D-Bus (ShowMenuAtCursor).
+        # Trust those instead of re-querying via XWayland, which can
+        # return slightly offset positions (e.g., cursor hotspot shift
+        # when hovering browser links).
         elif IS_KDE and _HAS_XWAYLAND:
-            fresh_pos = get_cursor_position_xwayland_synced()
-            if fresh_pos:
-                x, y = fresh_pos
-                _log(f"KDE Wayland sync: using position ({x}, {y})")
+            _log(f"KDE Wayland: trusting KWin position ({x}, {y})")
 
         # On COSMIC, XWayland doesn't track the cursor unless it's over an
         # XWayland window.  Use a dedicated raw X11 sync window (truly
@@ -305,6 +312,18 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.setWindowOpacity(0.0)
         self.move(x - half, y - half)
 
+        # On KDE Plasma, XWayland windows show a frozen wallpaper rectangle
+        # behind transparent areas (KWin caches the wallpaper). Two fixes:
+        # 1) Circular mask - removes rectangular corners from the window
+        # 2) Position micro-oscillation in _tick_animations forces KWin to
+        #    re-composite the wallpaper behind this window every frame
+        # Set mask BEFORE show() so the first frame is already shaped.
+        if IS_KDE:
+            self._kde_base_x = x - half
+            self._kde_base_y = y - half
+            self._kde_frame = 0
+            self._update_kde_mask()
+
         self.show()
         self.raise_()
         self.activateWindow()
@@ -362,6 +381,21 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 f"[HAPTIC] ERROR: daemon_iface is INVALID - cannot send haptic signal"
             )
 
+    def _update_kde_mask(self):
+        """Set circular window mask on KDE to eliminate rectangular artifact."""
+        if not IS_KDE:
+            return
+        half_win = WINDOW_SIZE // 2
+        # Use the full inscribed circle of the window. This clips the
+        # rectangular corners (prevents KWin wallpaper cache artifact)
+        # while being large enough to contain all rendered content
+        # including hover glow, shadows, and submenu items.
+        r = half_win
+        self.setMask(QRegion(
+            half_win - r, half_win - r, r * 2, r * 2,
+            QRegion.RegionType.Ellipse,
+        ))
+
     def _tick_animations(self):
         """Update animation state for smooth hover transitions."""
         dirty = False
@@ -400,8 +434,20 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         if dirty:
             self.update()
         elif self._anim_timer.isActive():
-            # All animations settled - stop timer to save CPU
-            self._anim_timer.stop()
+            if IS_KDE:
+                # Keep timer alive on KDE for position oscillation below
+                self.update()
+            else:
+                # All animations settled - stop timer to save CPU
+                self._anim_timer.stop()
+
+        # On KDE Plasma, micro-oscillate window position by 1px each frame.
+        # This forces KWin to re-composite the wallpaper behind the window,
+        # preventing the frozen/cached rectangle on animated shader wallpapers.
+        if IS_KDE and hasattr(self, '_kde_base_x'):
+            self._kde_frame += 1
+            offset = self._kde_frame % 2
+            self.move(self._kde_base_x + offset, self._kde_base_y)
 
     @pyqtSlot()
     def on_hide(self):
@@ -520,6 +566,10 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
 
     def _finish_hide(self):
         """Reset state and hide the menu."""
+        # On KDE, make window invisible BEFORE stopping the oscillation timer.
+        # Otherwise KWin gets one frame to show the cached wallpaper rectangle.
+        if IS_KDE:
+            self.setWindowOpacity(0.0)
         self._anim_timer.stop()
         self.submenu_active = False
         self.submenu_slice = -1
@@ -528,6 +578,8 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.flash_progress = 0.0
         self.show_time = None  # Prevent stale duration in on_hide
         self.hide()
+        if IS_KDE:
+            self.clearMask()
 
     def _execute_action(self, action):
         label, cmd_type, cmd = action[0], action[1], action[2]
@@ -573,6 +625,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 self.submenu_slice = self.highlighted_slice
                 self.highlighted_subitem = -1
                 self.submenu_progress = 0.0
+                self._update_kde_mask()
                 if not self._anim_timer.isActive():
                     self._anim_timer.start()
                 self.update()
@@ -688,6 +741,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 self.submenu_active = False
                 self.submenu_slice = -1
                 self.highlighted_subitem = -1
+                self._update_kde_mask()
 
         if new_slice >= 0 and new_slice != self.highlighted_slice:
             action = overlay_actions.ACTIONS[new_slice]
@@ -696,6 +750,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 self.submenu_slice = new_slice
                 self.highlighted_subitem = -1
                 self.submenu_progress = 0.0
+                self._update_kde_mask()
                 if not self._anim_timer.isActive():
                     self._anim_timer.start()
 
@@ -773,6 +828,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 self.submenu_active = False
                 self.submenu_slice = -1
                 self.highlighted_subitem = -1
+                self._update_kde_mask()
 
         if new_slice >= 0 and new_slice != self.highlighted_slice:
             action = overlay_actions.ACTIONS[new_slice]
@@ -781,6 +837,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 self.submenu_slice = new_slice
                 self.highlighted_subitem = -1
                 self.submenu_progress = 0.0
+                self._update_kde_mask()
                 if not self._anim_timer.isActive():
                     self._anim_timer.start()
 

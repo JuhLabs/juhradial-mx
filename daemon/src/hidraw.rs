@@ -63,6 +63,30 @@ pub struct HidrawHandler {
     /// Feature index for REPROG_CONTROLS_V4 (discovered at runtime)
     /// Reserved for future HID++ feature discovery
     _reprog_feature_index: Option<u8>,
+    /// CIDs diverted for macros (not gesture buttons)
+    macro_cids: Vec<u16>,
+    /// Track which macro CID is currently pressed (for release detection)
+    active_macro_cid: Option<u16>,
+}
+
+/// Map HID++ CID to evdev key code for macro trigger forwarding
+pub fn cid_to_evdev_keycode(cid: u16) -> Option<u16> {
+    match cid {
+        button_cid::BACK_BUTTON => Some(0x113),    // BTN_SIDE
+        button_cid::FORWARD_BUTTON => Some(0x114), // BTN_EXTRA
+        button_cid::MIDDLE_BUTTON => Some(0x112),  // BTN_MIDDLE
+        _ => None,
+    }
+}
+
+/// Map evdev key code to HID++ CID (reverse of cid_to_evdev_keycode)
+pub fn evdev_keycode_to_cid(keycode: u16) -> Option<u16> {
+    match keycode {
+        0x113 => Some(button_cid::BACK_BUTTON),    // BTN_SIDE -> Back
+        0x114 => Some(button_cid::FORWARD_BUTTON), // BTN_EXTRA -> Forward
+        0x112 => Some(button_cid::MIDDLE_BUTTON),  // BTN_MIDDLE -> Middle
+        _ => None,
+    }
 }
 
 impl HidrawHandler {
@@ -75,7 +99,14 @@ impl HidrawHandler {
             device: None,
             _device_index: 0x02, // Default for Bolt receiver
             _reprog_feature_index: None,
+            macro_cids: Vec::new(),
+            active_macro_cid: None,
         }
+    }
+
+    /// Register CIDs that are diverted for macro triggers (not gesture buttons)
+    pub fn set_macro_cids(&mut self, cids: Vec<u16>) {
+        self.macro_cids = cids;
     }
 
     /// Find the Logitech hidraw device for HID++ button events
@@ -308,10 +339,38 @@ impl HidrawHandler {
 
         if cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC {
             self.handle_gesture_button(true).await;
+        } else if self.macro_cids.contains(&cid) {
+            // Diverted macro button pressed - forward as MacroTriggered
+            if let Some(key_code) = cid_to_evdev_keycode(cid) {
+                tracing::info!(
+                    cid = cid,
+                    key_code = format!("0x{:04X}", key_code),
+                    "Macro button pressed (diverted)"
+                );
+                self.active_macro_cid = Some(cid);
+                let _ = self.event_tx.send(GestureEvent::MacroTriggered {
+                    key_code,
+                    pressed: true,
+                }).await;
+            }
         } else if cid == 0 {
-            // All buttons released - check if we had a gesture button press
+            // All buttons released
             if self.press_time.is_some() {
                 self.handle_gesture_button(false).await;
+            }
+            if let Some(macro_cid) = self.active_macro_cid.take() {
+                // Forward release event for the macro button
+                if let Some(key_code) = cid_to_evdev_keycode(macro_cid) {
+                    tracing::info!(
+                        cid = macro_cid,
+                        key_code = format!("0x{:04X}", key_code),
+                        "Macro button released (diverted)"
+                    );
+                    let _ = self.event_tx.send(GestureEvent::MacroTriggered {
+                        key_code,
+                        pressed: false,
+                    }).await;
+                }
             }
         }
     }

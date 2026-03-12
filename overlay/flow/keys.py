@@ -8,6 +8,7 @@ Keys stored in ~/.config/juhradial/flow_keys/ (mode 0o700).
 import json
 import logging
 import os
+import re
 
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 
@@ -20,6 +21,20 @@ logger = logging.getLogger("juhradial.flow.keys")
 def _sanitize_log(value) -> str:
     """Strip newlines and control characters to prevent log injection."""
     return ''.join(c if c >= ' ' and c != '\x7f' else '?' for c in str(value))
+
+
+def _sanitize_peer_name(name: str) -> str:
+    """Sanitize peer name for safe use as a filename component.
+
+    Only allows alphanumeric, dash, underscore, dot, and space.
+    Prevents path traversal via '..' or slashes.
+    """
+    sanitized = re.sub(r'[^A-Za-z0-9_\-. ]', '_', name)
+    # Remove leading/trailing dots and spaces to avoid hidden files
+    sanitized = sanitized.strip('. ')
+    if not sanitized:
+        sanitized = "unnamed_peer"
+    return sanitized
 
 
 def get_keys_dir():
@@ -103,7 +118,8 @@ def derive_and_store_peer_key(peer_name, peer_pubkey_hex, ip, port):
 
     FLOW_PEERS_DIR.mkdir(parents=True, exist_ok=True)
     os.chmod(FLOW_PEERS_DIR, 0o700)
-    peer_file = FLOW_PEERS_DIR / f"{peer_name}.json"
+    safe_name = _sanitize_peer_name(peer_name)
+    peer_file = FLOW_PEERS_DIR / f"{safe_name}.json"
     peer_data = {
         "name": peer_name,
         "public_key": peer_pubkey_hex,
@@ -119,7 +135,8 @@ def derive_and_store_peer_key(peer_name, peer_pubkey_hex, ip, port):
 
 def load_peer_key(peer_name):
     """Load a peer's AES key and info. Returns dict or None."""
-    peer_file = FLOW_PEERS_DIR / f"{peer_name}.json"
+    safe_name = _sanitize_peer_name(peer_name)
+    peer_file = FLOW_PEERS_DIR / f"{safe_name}.json"
     if not peer_file.exists():
         return None
     try:
@@ -148,7 +165,8 @@ def get_all_peers():
 
 def delete_peer_key(peer_name):
     """Delete a peer's key file. Returns True if deleted."""
-    peer_file = FLOW_PEERS_DIR / f"{peer_name}.json"
+    safe_name = _sanitize_peer_name(peer_name)
+    peer_file = FLOW_PEERS_DIR / f"{safe_name}.json"
     if peer_file.exists():
         peer_file.unlink()
         logger.info("Deleted peer key for %s", peer_name)

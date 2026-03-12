@@ -339,7 +339,7 @@ class FlowDiscoveryMixin:
     def add_discovered_computer(
         self, name, ip, port, software="Unknown", service_type=""
     ):
-        """Called by ServiceListener when a computer is found"""
+        """Called by ServiceListener when a computer is found (may be called from background thread)."""
         # Don't add ourselves
         try:
             my_hostname = socket.gethostname()
@@ -358,14 +358,21 @@ class FlowDiscoveryMixin:
         ]:
             clean_name = clean_name.replace(suffix, "")
 
-        self.discovered_computers[name] = {
+        entry = {
             "name": clean_name,
             "ip": ip,
             "port": port,
             "software": software,
             "service_type": service_type,
         }
+        # Use GLib.idle_add to safely mutate from any thread
+        GLib.idle_add(self._store_discovered, name, entry)
         logger.info("Discovered: %s at %s:%s (Software: %s)", clean_name, ip, port, software)
+
+    def _store_discovered(self, name, entry):
+        """Store a discovered computer entry (runs on GTK main thread)."""
+        self.discovered_computers[name] = entry
+        return False  # Don't repeat
 
     def _update_computers_list(self, computers):
         """Update the list of detected computers"""

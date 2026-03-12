@@ -13,6 +13,7 @@
 //! Listens for EV_KEY events on the gesture button and emits
 //! `GestureEvent::Pressed` and `GestureEvent::Released` accordingly.
 
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::time::Instant;
 use tokio::sync::mpsc;
@@ -92,6 +93,10 @@ pub struct EvdevHandler {
     generic_mode: bool,
     /// Last time we checked config file for trigger button changes
     last_config_check: Instant,
+    /// Key codes to suppress from reaching the OS (macro-bound buttons).
+    /// When non-empty, the device is grabbed (EVIOCGRAB) and events are
+    /// forwarded through a virtual device, except for suppressed keys.
+    suppressed_keys: HashSet<u16>,
 }
 
 impl EvdevHandler {
@@ -108,6 +113,7 @@ impl EvdevHandler {
             trigger_button: GESTURE_BUTTON_CODES[0],
             generic_mode: false,
             last_config_check: Instant::now(),
+            suppressed_keys: HashSet::new(),
         }
     }
 
@@ -124,7 +130,15 @@ impl EvdevHandler {
             trigger_button: trigger_button.unwrap_or(GENERIC_TRIGGER_BUTTON),
             generic_mode: true,
             last_config_check: Instant::now(),
+            suppressed_keys: HashSet::new(),
         }
+    }
+
+    /// Set which key codes should be suppressed (eaten) from the OS.
+    /// When non-empty, the evdev device will be grabbed exclusively and
+    /// events forwarded via a virtual device, minus the suppressed keys.
+    pub fn set_suppressed_keys(&mut self, keys: HashSet<u16>) {
+        self.suppressed_keys = keys;
     }
 
     /// Update the trigger button (e.g. after config reload)
@@ -273,9 +287,20 @@ impl EvdevHandler {
             return Err(EvdevError::DeviceNotFound);
         }
 
-        let entries = fs::read_dir(&input_dir).map_err(EvdevError::IoError)?;
+        // Sort entries numerically so event4 is checked before event25.
+        // Physical mice typically have lower event numbers than virtual devices.
+        let mut sorted_entries: Vec<_> = fs::read_dir(&input_dir)
+            .map_err(EvdevError::IoError)?
+            .flatten()
+            .collect();
+        sorted_entries.sort_by_key(|e| {
+            e.file_name()
+                .to_str()
+                .and_then(|n| n.strip_prefix("event").and_then(|num| num.parse::<u32>().ok()))
+                .unwrap_or(u32::MAX)
+        });
 
-        for entry in entries.flatten() {
+        for entry in sorted_entries {
             let path = entry.path();
             let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
@@ -289,6 +314,18 @@ impl EvdevHandler {
                 Ok(d) => d,
                 Err(_) => continue,
             };
+
+            // Skip virtual devices (ydotool, uinput, etc.) - they have no physical path
+            let phys = device.physical_path().unwrap_or("");
+            if phys.is_empty() {
+                let dev_name = device.name().unwrap_or("?");
+                tracing::debug!(
+                    path = %path.display(),
+                    name = %dev_name,
+                    "Skipping virtual device (no physical path)"
+                );
+                continue;
+            }
 
             // Check for mouse capabilities: EV_REL with REL_X and REL_Y
             let has_rel = device.supported_events().contains(EventType::RELATIVE);
@@ -325,6 +362,7 @@ impl EvdevHandler {
                 name = %name,
                 vendor = format!("0x{:04X}", vendor_id),
                 product = format!("0x{:04X}", product_id),
+                phys = %phys,
                 "Found generic mouse"
             );
 
@@ -443,7 +481,7 @@ impl EvdevHandler {
     /// Run the event loop on Linux
     #[cfg(target_os = "linux")]
     async fn run_event_loop(&mut self) -> Result<(), EvdevError> {
-        use evdev::{Device, EventType, RelativeAxisCode};
+        use evdev::{Device, EventType, RelativeAxisCode, uinput::VirtualDevice as UinputDevice};
 
         // Find the device based on mode
         let device_info = if self.generic_mode {
@@ -454,7 +492,7 @@ impl EvdevHandler {
         self.device_path = Some(device_info.path.clone());
 
         // Open the device for reading
-        let device = Device::open(&device_info.path).map_err(|e| {
+        let mut device = Device::open(&device_info.path).map_err(|e| {
             if e.kind() == std::io::ErrorKind::PermissionDenied {
                 tracing::error!(
                     "Permission denied opening {:?}. Make sure udev rules are installed \
@@ -475,6 +513,44 @@ impl EvdevHandler {
             mode_label
         );
 
+        // If we have macro-bound buttons to suppress, grab the device
+        // exclusively and forward non-suppressed events via a virtual device.
+        // This prevents the OS from seeing macro-bound button presses (e.g.,
+        // Back button won't trigger browser-back when a macro is assigned).
+        let mut virtual_device = None;
+        if !self.suppressed_keys.is_empty() {
+            let vdev_result = (|| -> Result<_, std::io::Error> {
+                let mut builder = UinputDevice::builder()?
+                    .name("JuhRadial Virtual Mouse");
+                if let Some(keys) = device.supported_keys() {
+                    builder = builder.with_keys(keys)?;
+                }
+                if let Some(rel) = device.supported_relative_axes() {
+                    builder = builder.with_relative_axes(rel)?;
+                }
+                let vdev = builder.build()?;
+                device.grab()?;
+                Ok(vdev)
+            })();
+
+            match vdev_result {
+                Ok(vdev) => {
+                    tracing::info!(
+                        suppressed = ?self.suppressed_keys,
+                        "Device grabbed - macro buttons will be suppressed from OS"
+                    );
+                    virtual_device = Some(vdev);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to grab device for button suppression: {} \
+                         (macro buttons will still reach the OS)",
+                        e
+                    );
+                }
+            }
+        }
+
         // Create async event stream using into_event_stream()
         let mut events = device.into_event_stream()
             .map_err(EvdevError::IoError)?;
@@ -482,6 +558,19 @@ impl EvdevHandler {
         loop {
             match events.next_event().await {
                 Ok(event) => {
+                    // Determine if this event should be suppressed from the OS.
+                    // Only suppress KEY press/release (value 0 or 1) for macro-bound buttons.
+                    let is_suppressed_key = event.event_type() == EventType::KEY
+                        && self.suppressed_keys.contains(&event.code())
+                        && (event.value() == 0 || event.value() == 1);
+
+                    // Forward non-suppressed events to the virtual device
+                    if !is_suppressed_key {
+                        if let Some(ref mut vdev) = virtual_device {
+                            let _ = vdev.emit(&[event]);
+                        }
+                    }
+
                     match event.event_type() {
                         EventType::KEY => {
                             let key_code = event.code();

@@ -1,6 +1,9 @@
 """Token and linked computers managers for Flow"""
 
+import hmac
 import json
+import os
+import threading
 import time
 import uuid
 from typing import Optional, Dict
@@ -14,6 +17,7 @@ class FlowTokenManager:
     def __init__(self):
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         self.tokens: Dict[str, str] = {}
+        self._lock = threading.Lock()
         self._load_tokens()
 
     def _load_tokens(self):
@@ -25,27 +29,33 @@ class FlowTokenManager:
                 self.tokens = {}
 
     def _save_tokens(self):
-        with open(TOKENS_FILE, 'w', encoding='utf-8') as f:
+        # Atomic write: write to temp file then rename
+        tmp = str(TOKENS_FILE) + ".tmp"
+        with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(self.tokens, f)
+        os.replace(tmp, TOKENS_FILE)
 
     def create_token(self, name: str) -> str:
-        token = str(uuid.uuid4())
-        self.tokens[name] = token
-        self._save_tokens()
-        return token
+        with self._lock:
+            token = str(uuid.uuid4())
+            self.tokens[name] = token
+            self._save_tokens()
+            return token
 
     def verify_token(self, token: str) -> Optional[str]:
-        for name, stored_token in self.tokens.items():
-            if stored_token == token:
-                return name
-        return None
+        with self._lock:
+            for name, stored_token in self.tokens.items():
+                if hmac.compare_digest(stored_token, token):
+                    return name
+            return None
 
     def revoke_token(self, name: str) -> bool:
-        if name in self.tokens:
-            del self.tokens[name]
-            self._save_tokens()
-            return True
-        return False
+        with self._lock:
+            if name in self.tokens:
+                del self.tokens[name]
+                self._save_tokens()
+                return True
+            return False
 
 
 class LinkedComputersManager:
