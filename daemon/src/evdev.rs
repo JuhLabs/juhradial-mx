@@ -661,22 +661,25 @@ impl EvdevHandler {
                 self.cursor_x = 0;
                 self.cursor_y = 0;
 
-                // Check for Hyprland - use direct cursor query (no KWin script)
-                if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
-                    tracing::info!("Gesture button pressed - using Hyprland cursor query");
-                    let pos = crate::cursor::get_cursor_position();
-                    tracing::info!(x = pos.x, y = pos.y, "Cursor position from Hyprland");
-                    let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
-                } else {
-                    // KDE/other - try KWin script first for multi-monitor accuracy
+                // Desktop-aware cursor query:
+                // - KDE: KWin script for accurate multi-monitor Wayland cursor
+                // - Others (GNOME, Hyprland, Sway, COSMIC): direct query cascade
+                let is_kde = std::env::var("XDG_CURRENT_DESKTOP")
+                    .map(|d| { let u = d.to_uppercase(); u.contains("KDE") || u.contains("PLASMA") })
+                    .unwrap_or(false);
+
+                if is_kde {
                     tracing::info!("Gesture button pressed - triggering KWin cursor query");
                     if !Self::trigger_kwin_cursor_script() {
-                        // Fallback to get_cursor_position if KWin script fails
                         let pos = crate::cursor::get_cursor_position();
                         tracing::warn!(x = pos.x, y = pos.y, "KWin script failed, using fallback");
                         let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
                     }
                     // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus directly
+                } else {
+                    let pos = crate::cursor::get_cursor_position();
+                    tracing::info!(x = pos.x, y = pos.y, "Gesture button pressed - cursor query");
+                    let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
                 }
             }
             0 => {

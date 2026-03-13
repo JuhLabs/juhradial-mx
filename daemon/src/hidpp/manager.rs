@@ -32,6 +32,11 @@ impl Default for ConnectionState {
 /// Reconnection cooldown in milliseconds (5 seconds)
 const RECONNECT_COOLDOWN_MS: u64 = 5000;
 
+/// Cooldown after a successful host switch (disabled - 0ms).
+/// Previously suppressed reconnection to prevent loops, but this caused
+/// lag in Flow handoffs. The reconnect loop is now handled differently.
+const HOST_SWITCH_COOLDOWN_MS: u64 = 0;
+
 /// Default slice debounce time (milliseconds)
 const DEFAULT_SLICE_DEBOUNCE_MS: u64 = 20;
 
@@ -66,6 +71,8 @@ pub struct HapticManager {
     pub(crate) last_slice_index: Option<u8>,
     /// Pre-allocated short message buffer for low-latency sends
     pub(crate) _short_msg_buffer: [u8; 7],
+    /// Timestamp of last successful host switch (suppresses reconnection)
+    last_host_switch_ms: u64,
 }
 
 impl HapticManager {
@@ -85,6 +92,7 @@ impl HapticManager {
             last_slice_change_ms: 0,
             last_slice_index: None,
             _short_msg_buffer: [0u8; 7],
+            last_host_switch_ms: 0,
         }
     }
 
@@ -111,6 +119,7 @@ impl HapticManager {
             last_slice_change_ms: 0,
             last_slice_index: None,
             _short_msg_buffer: [0u8; 7],
+            last_host_switch_ms: 0,
         }
     }
 
@@ -221,6 +230,14 @@ impl HapticManager {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() as u64;
+
+        // After a host switch, the device leaves this receiver (expected).
+        // Don't spam reconnect attempts during the host switch cooldown.
+        if self.last_host_switch_ms > 0
+            && now.saturating_sub(self.last_host_switch_ms) < HOST_SWITCH_COOLDOWN_MS
+        {
+            return false;
+        }
 
         // Check if cooldown has passed
         if now.saturating_sub(self.last_disconnect_ms) < RECONNECT_COOLDOWN_MS {
@@ -688,12 +705,30 @@ impl HapticManager {
     // =========================================================================
 
     /// Query battery status from the device
+    ///
+    /// On IO error (stale fd), forces reconnect and retries once.
     pub fn query_battery(&mut self) -> Result<(u8, bool), HapticError> {
         if self.device.is_none() {
             let _ = self.connect();
         }
         match self.device.as_mut() {
-            Some(device) => device.query_battery(),
+            Some(device) => {
+                match device.query_battery() {
+                    Ok(v) => Ok(v),
+                    Err(HapticError::IoError(_)) | Err(HapticError::CommunicationError) => {
+                        self.handle_disconnect();
+                        if let Ok(true) = self.connect() {
+                            match self.device.as_mut() {
+                                Some(dev) => dev.query_battery(),
+                                None => Err(HapticError::DeviceNotFound),
+                            }
+                        } else {
+                            Err(HapticError::DeviceNotFound)
+                        }
+                    }
+                    Err(e) => Err(e),
+                }
+            }
             None => {
                 tracing::debug!("Cannot query battery: device not connected");
                 Err(HapticError::DeviceNotFound)
@@ -733,12 +768,57 @@ impl HapticManager {
     }
 
     /// Switch to a different paired host (Easy-Switch)
+    ///
+    /// If the first attempt fails (e.g. stale fd after a host switch round-trip),
+    /// forces a reconnect with a fresh hidraw fd and retries once.
     pub fn set_current_host(&mut self, host_index: u8) -> Result<(), String> {
         if self.device.is_none() {
             let _ = self.connect();
         }
         match self.device.as_mut() {
-            Some(device) => device.set_current_host(host_index),
+            Some(device) => {
+                match device.set_current_host(host_index) {
+                    Ok(()) => {
+                        // Record host switch time - suppress reconnection for a while.
+                        // After CHANGE_HOST, the device leaves this receiver (expected).
+                        let now = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis() as u64;
+                        self.last_host_switch_ms = now;
+                        Ok(())
+                    }
+                    Err(e) => {
+                        // Device fd may be stale after a host switch round-trip.
+                        // The HidrawHandler reconnects independently but the
+                        // manager's HidppDevice still holds the old fd.
+                        // Force reconnect and retry once.
+                        tracing::info!(
+                            error = %e,
+                            "SetHost failed, forcing reconnect and retry"
+                        );
+                        self.handle_disconnect();
+                        if let Ok(true) = self.connect() {
+                            match self.device.as_mut() {
+                                Some(dev) => {
+                                    let result = dev.set_current_host(host_index);
+                                    if result.is_ok() {
+                                        let now = SystemTime::now()
+                                            .duration_since(UNIX_EPOCH)
+                                            .unwrap()
+                                            .as_millis() as u64;
+                                        self.last_host_switch_ms = now;
+                                    }
+                                    result
+                                }
+                                None => Err("No device after reconnect".to_string()),
+                            }
+                        } else {
+                            Err(e)
+                        }
+                    }
+                }
+            }
             None => Err("No device connected".to_string()),
         }
     }

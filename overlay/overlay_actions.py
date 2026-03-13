@@ -345,7 +345,7 @@ def open_settings():
             )
             import time
             time.sleep(0.15)
-    except Exception:
+    except (subprocess.SubprocessError, OSError):
         pass  # Settings process may not be running
 
     subprocess.Popen(
@@ -371,7 +371,7 @@ def get_media_state():
             capture_output=True, text=True, timeout=0.2,
         )
         MEDIA_PLAYING = result.stdout.strip() == "Playing"
-    except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+    except (subprocess.SubprocessError, OSError):
         MEDIA_PLAYING = False
 
 
@@ -404,6 +404,6 @@ def load_minimal_mode():
             with open(config_path, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
             return bool(cfg.get("radial", {}).get("minimal_mode", False))
-    except Exception:
-        pass  # Config file may not exist yet
+    except (OSError, ValueError, KeyError):
+        pass  # Config file missing or malformed
     return False

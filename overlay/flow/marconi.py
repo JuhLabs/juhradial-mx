@@ -498,7 +498,7 @@ def parse_udp_beacon(data, source_addr=None):
         result["data"] = msg
         return result
     except (UnicodeDecodeError, ValueError):
-        pass
+        pass  # Not valid JSON/UTF-8, fall through to binary format detection
 
     # Check for FrameHeader format (encrypted beacon)
     if len(data) >= FRAME_HEADER_SIZE:
@@ -519,7 +519,7 @@ def parse_udp_beacon(data, source_addr=None):
                     result["mac_length"] = mac_len
                 return result
         except struct.error:
-            pass
+            pass  # Malformed frame header, fall through to unknown binary format
 
     # Unknown binary format - dump structure hints
     result["format"] = "binary"

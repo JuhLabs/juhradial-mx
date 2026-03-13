@@ -381,18 +381,26 @@ impl HidrawHandler {
             // Button pressed
             self.press_time = Some(Instant::now());
 
-            // Trigger KWin script to get accurate cursor position and show menu
-            // This works correctly on Plasma 6 Wayland with multiple monitors
-            tracing::info!("Gesture button PRESSED - triggering KWin cursor query");
+            // Desktop-aware cursor query:
+            // - KDE: KWin script for accurate multi-monitor Wayland cursor
+            // - Others (GNOME, Hyprland, Sway, COSMIC): direct query cascade
+            let is_kde = std::env::var("XDG_CURRENT_DESKTOP")
+                .map(|d| { let u = d.to_uppercase(); u.contains("KDE") || u.contains("PLASMA") })
+                .unwrap_or(false);
 
-            if !Self::trigger_kwin_cursor_script() {
-                // Fallback to direct cursor query if KWin script fails
+            if is_kde {
+                tracing::info!("Gesture button PRESSED - triggering KWin cursor query");
+                if !Self::trigger_kwin_cursor_script() {
+                    let (x, y) = Self::get_cursor_position();
+                    tracing::warn!(x, y, "KWin script failed, using fallback cursor position");
+                    let _ = self.event_tx.send(GestureEvent::Pressed { x, y }).await;
+                }
+                // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus
+            } else {
                 let (x, y) = Self::get_cursor_position();
-                tracing::warn!(x, y, "KWin script failed, using fallback cursor position");
+                tracing::info!(x, y, "Gesture button PRESSED - cursor query");
                 let _ = self.event_tx.send(GestureEvent::Pressed { x, y }).await;
             }
-            // If KWin script succeeded, it will call ShowMenuAtCursor via D-Bus
-            // which handles showing the menu with correct coordinates
         } else {
             // Button released
             let duration_ms = self

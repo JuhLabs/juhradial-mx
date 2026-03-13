@@ -10,6 +10,12 @@ from .constants import LOGI_FLOW_PORT
 
 logger = logging.getLogger("juhradial.flow.logi_server")
 
+
+def _sanitize_log(value) -> str:
+    """Strip newlines and control characters to prevent log injection."""
+    return ''.join(c if c >= ' ' and c != '\x7f' else '?' for c in str(value))
+
+
 # Maximum request body size (64 KB - sufficient for JSON control messages)
 MAX_CONTENT_LENGTH = 65_536
 
@@ -25,7 +31,7 @@ class LogiFlowRequestHandler(BaseHTTPRequestHandler):
         logger.debug("HTTP %s", args[0])
 
     def do_GET(self):
-        logger.debug("GET %s from %s", self.path, self.client_address[0])
+        logger.debug("GET %s from %s", _sanitize_log(self.path), _sanitize_log(self.client_address[0]))
 
         response = json.dumps({
             'hostname': socket.gethostname(),
@@ -45,14 +51,14 @@ class LogiFlowRequestHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers.get('Content-Length', 0))
         if content_length > MAX_CONTENT_LENGTH:
             logger.warning("Request body too large: %d bytes from %s",
-                           content_length, self.client_address[0])
+                           content_length, _sanitize_log(self.client_address[0]))
             self.send_response(413)
             self.end_headers()
             return
 
         body = self.rfile.read(content_length) if content_length > 0 else b''
         logger.debug("POST %s from %s (%d bytes)",
-                      self.path, self.client_address[0], len(body))
+                      _sanitize_log(self.path), _sanitize_log(self.client_address[0]), len(body))
 
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
@@ -64,7 +70,7 @@ class LogiFlowRequestHandler(BaseHTTPRequestHandler):
         self.do_POST()
 
     def do_OPTIONS(self):
-        logger.debug("OPTIONS %s from %s", self.path, self.client_address[0])
+        logger.debug("OPTIONS %s from %s", _sanitize_log(self.path), _sanitize_log(self.client_address[0]))
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')

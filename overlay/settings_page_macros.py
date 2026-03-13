@@ -77,10 +77,24 @@ class MacrosPage(Gtk.ScrolledWindow):
         imp_label = Gtk.Label(label=_("Import"))
         import_btn_content.append(imp_label)
         import_btn.set_child(import_btn_content)
+        import_btn.set_tooltip_text(
+            _("Import a .json macro file.\n"
+              "Format: {name, actions: [{type, key/ms/text, delay_after_ms}], repeat_mode}\n"
+              "Action types: key_down, key_up, delay, text, mouse_click, scroll")
+        )
         import_btn.connect("clicked", self._on_import_macro)
         action_bar.append(import_btn)
 
         content.append(action_bar)
+
+        # Import format hint
+        hint = Gtk.Label(
+            label=_("Tip: Export a macro to see the JSON format, then edit and re-import."),
+        )
+        hint.add_css_class("dim-label")
+        hint.add_css_class("caption")
+        hint.set_halign(Gtk.Align.START)
+        content.append(hint)
 
         # Macro list container
         self._list_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -288,7 +302,7 @@ class MacrosPage(Gtk.ScrolledWindow):
             transient_for=self._parent_window,
             modal=True,
             heading=_("Delete Macro?"),
-            body=_('Are you sure you want to delete "{}"?\nThis cannot be undone.').format(macro_name),
+            body=_('Are you sure you want to delete "%s"?\nThis cannot be undone.') % macro_name,
         )
         dialog.add_response("cancel", _("Cancel"))
         dialog.add_response("delete", _("Delete"))

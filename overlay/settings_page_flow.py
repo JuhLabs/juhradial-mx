@@ -328,7 +328,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                         if detector:
                             detector.set_enabled(True)
                     except Exception:
-                        pass  # Edge detector may not be available on all compositors
+                        logger.debug("Edge detector not available on this compositor")
 
                 logger.info("Server started")
             else:
@@ -353,7 +353,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                 if _flow_indicator:
                     _flow_indicator.configure(direction)
             except Exception:
-                pass  # Indicator may not be running
+                logger.debug("Flow indicator not running")
 
     def _on_edge_toggled(self, switch, state):
         """Handle edge trigger toggle"""
@@ -413,7 +413,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
             if time.time() - status.get("updated_at", 0) < 10:
                 peers = status.get("peers", [])
         except (FileNotFoundError, ValueError):
-            pass
+            logger.debug("Flow status file not available")
         # Fallback: try in-process bridge (works if settings started flow)
         if not peers and FLOW_MODULE_AVAILABLE:
             try:
@@ -422,7 +422,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                 if bridge:
                     peers = bridge.get_peers()
             except Exception:
-                pass  # Bridge may not be available in separate process
+                logger.debug("JuhFlow bridge not available in separate process")
 
         if peers:
             name = peers[0].get("hostname", "Mac")
@@ -493,6 +493,6 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                         "height": geom.height,
                     })
         except Exception:
-            pass  # GDK display may be unavailable in headless/test environments
+            logger.debug("GDK display unavailable for monitor enumeration")
         return result
 

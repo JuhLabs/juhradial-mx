@@ -18,7 +18,6 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, Gdk, Adw, GLib
 
 from i18n import _
-from settings_theme import COLORS
 from settings_macro_storage import (
     new_macro_template,
     save_macro,
@@ -30,6 +29,17 @@ from settings_macro_actions import ActionPalette
 from settings_macro_recorder import MacroRecorderDialog
 
 logger = logging.getLogger(__name__)
+
+
+def _mouse_button_name(btn_num):
+    """Human-readable name for a GDK mouse button number."""
+    names = {
+        1: _("Left Click"), 2: _("Middle Click"), 3: _("Right Click"),
+        4: _("Side (Button 4)"), 5: _("Extra (Button 5)"),
+        8: _("Back"), 9: _("Forward"), 10: _("Button 10"), 11: _("Button 11"),
+    }
+    return names.get(btn_num, _("Mouse Button %d") % btn_num)
+
 
 # Repeat modes for the dropdown
 REPEAT_MODES = [
@@ -260,7 +270,7 @@ class MacroEditorDialog(Adw.Window):
         self._delay_spin.set_size_request(80, -1)
         delay_control.append(self._delay_spin)
 
-        ms_label = Gtk.Label(label="ms")
+        ms_label = Gtk.Label(label=_("ms"))
         ms_label.add_css_class("dim-label")
         delay_control.append(ms_label)
 
@@ -579,9 +589,7 @@ class MacroEditorDialog(Adw.Window):
 
         def on_click(gesture, n_press, x, y):
             btn_num = gesture.get_current_button()
-            btn_names = {1: "Left Click", 2: "Middle Click", 3: "Right Click",
-                         8: "Back", 9: "Forward"}
-            name = btn_names.get(btn_num, f"Button {btn_num}")
+            name = _mouse_button_name(btn_num)
             self._macro["assigned_trigger"] = f"mouse:{btn_num}"
             self._bind_display.set_label(name)
             dialog.close()
@@ -606,8 +614,6 @@ class MacroEditorDialog(Adw.Window):
             self._bind_display.set_label(trigger[4:])
         elif trigger.startswith("mouse:"):
             btn_num = int(trigger[6:])
-            names = {1: "Left Click", 2: "Middle Click", 3: "Right Click",
-                     8: "Back", 9: "Forward"}
-            self._bind_display.set_label(names.get(btn_num, f"Button {btn_num}"))
+            self._bind_display.set_label(_mouse_button_name(btn_num))
         else:
             self._bind_display.set_label(trigger)

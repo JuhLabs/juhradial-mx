@@ -154,7 +154,7 @@ class FlowDiscoveryMixin:
                     "service_type": "juhflow_bridge",
                 })
             return peers
-        except Exception:
+        except (ImportError, RuntimeError, AttributeError):
             return []  # Bridge may not be initialized
 
     def _get_bridge_peer_ips(self):
@@ -166,7 +166,7 @@ class FlowDiscoveryMixin:
             bridge = get_juhflow_bridge()
             if bridge:
                 return {p.get("ip", "") for p in bridge.get_peers()}
-        except Exception:
+        except (ImportError, RuntimeError, AttributeError):
             pass  # Bridge may not be initialized
         return set()
 

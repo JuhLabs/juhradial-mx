@@ -107,6 +107,18 @@ class SettingsPage(Gtk.ScrolledWindow):
                 from i18n import reload_language
 
                 reload_language()
+                # Notify overlay process to reload translations immediately
+                try:
+                    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+                    bus.emit_signal(
+                        None,  # broadcast
+                        "/org/kde/juhradialmx/Settings",
+                        "org.kde.juhradialmx.Settings",
+                        "LanguageChanged",
+                        GLib.Variant("(s)", (lang_keys[idx],)),
+                    )
+                except GLib.Error:
+                    pass
                 app = self.get_root().get_application()
                 if app:
                     # hold() prevents app from quitting when last window closes

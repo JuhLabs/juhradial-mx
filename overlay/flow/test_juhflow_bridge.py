@@ -105,7 +105,7 @@ class SimulatedMacClient:
             try:
                 self._sock.close()
             except OSError:
-                pass
+                pass  # Socket already closed
             self._sock = None
 
 

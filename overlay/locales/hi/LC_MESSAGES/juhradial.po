@@ -1543,16 +1543,16 @@ msgstr ""
 "Use the palette below or Record to add actions."
 
 msgid "BUTTONS"
-msgstr "BUTTONS"
+msgstr "बटन"
 
 msgid "POINT & SCROLL"
-msgstr "POINT & SCROLL"
+msgstr "पॉइंटर और स्क्रॉल"
 
 msgid "HAPTIC FEEDBACK"
-msgstr "HAPTIC FEEDBACK"
+msgstr "हैप्टिक फीडबैक"
 
 msgid "DEVICES"
-msgstr "DEVICES"
+msgstr "डिवाइस"
 
 msgid "EASY-SWITCH"
 msgstr "EASY-SWITCH"
@@ -1561,10 +1561,10 @@ msgid "FLOW"
 msgstr "FLOW"
 
 msgid "MACROS"
-msgstr "MACROS"
+msgstr "मैक्रो"
 
 msgid "GAMING"
-msgstr "GAMING"
+msgstr "गेमिंग"
 
 msgid "SETTINGS"
-msgstr "SETTINGS"
+msgstr "सेटिंग्स"

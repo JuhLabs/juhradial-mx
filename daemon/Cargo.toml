@@ -1,6 +1,6 @@
 [package]
 name = "juhradiald"
-version = "0.3.5"
+version = "0.3.1"
 edition = "2021"
 description = "JuhRadial MX daemon - Radial menu for Logitech MX Master 4 on Linux"
 license = "GPL-3.0"

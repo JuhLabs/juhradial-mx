@@ -1545,16 +1545,16 @@ msgstr ""
 "Use the palette below or Record to add actions."
 
 msgid "BUTTONS"
-msgstr "BUTTONS"
+msgstr "أزرار"
 
 msgid "POINT & SCROLL"
-msgstr "POINT & SCROLL"
+msgstr "المؤشر والتمرير"
 
 msgid "HAPTIC FEEDBACK"
-msgstr "HAPTIC FEEDBACK"
+msgstr "ردود فعل لمسية"
 
 msgid "DEVICES"
-msgstr "DEVICES"
+msgstr "الأجهزة"
 
 msgid "EASY-SWITCH"
 msgstr "EASY-SWITCH"
@@ -1563,10 +1563,10 @@ msgid "FLOW"
 msgstr "FLOW"
 
 msgid "MACROS"
-msgstr "MACROS"
+msgstr "وحدات ماكرو"
 
 msgid "GAMING"
-msgstr "GAMING"
+msgstr "ألعاب"
 
 msgid "SETTINGS"
-msgstr "SETTINGS"
+msgstr "الإعدادات"

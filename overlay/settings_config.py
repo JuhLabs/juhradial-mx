@@ -534,5 +534,5 @@ def _detect_non_logitech_mouse():
             if "logitech" not in lower and "logi" not in lower:
                 return current_name
     except (FileNotFoundError, subprocess.SubprocessError):
-        pass
+        pass  # libinput may not be installed or may timeout
     return None

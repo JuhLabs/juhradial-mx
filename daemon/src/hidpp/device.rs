@@ -1520,14 +1520,16 @@ impl HidppDevice {
 
         let mut host_names = Vec::new();
 
-        // Get name for each host slot
+        // Get name for each host slot.
+        // Device may report max capacity (e.g. 8) but only 3 slots are real.
+        // Break on first failed slot to avoid noisy HID++ error log spam.
         for host_idx in 0..num_hosts {
             // Function 0x01: getHostDescriptor - get status and name length
             let resp = match self.hidpp_request(hosts_info_index, 0x01, &[host_idx, 0, 0]) {
                 Some(r) => r,
                 None => {
-                    host_names.push(String::new());
-                    continue;
+                    // Non-existent slot - no more valid hosts
+                    break;
                 }
             };
 

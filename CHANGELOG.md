@@ -5,6 +5,42 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1-beta] - 2026-03-13
+
+### Added
+
+- **Macro system** - Full macro engine with key sequences, delays, text typing, and WhileHolding repeat loops. Configurable per-button via Settings > Macros page with a visual timeline editor.
+- **Gaming mode** - Bind any mouse button (side buttons, extra buttons) to macros via evdev. Works with SteelSeries, Razer, Corsair, and any mouse with extra buttons. Capture dialog detects the exact button you press.
+- **Splash screen** - Animated startup screen with radial wheel image and 3-layer pulsing text glow effect.
+- **Custom sidebar navigation icons** - 9 hand-designed PNG icons for settings navigation (Buttons, Point & Scroll, Haptic Feedback, Devices, Easy-Switch, Flow, Macros, Gaming, Settings).
+- **53 new translation strings** across all 19 supported languages - navigation sidebar, macro UI, gaming mode, import tooltips, confirmation dialogs, and more.
+
+### Fixed
+
+- **Removed logid/LogiOps dependency** - Daemon handles HID++ communication directly. No more external logid process, no more logid.cfg. One less thing to install and configure. Fixes device detection issues on many distros.
+- **Device name shows actual mouse name** - HID++ device name query returns "MX Master 4" instead of "Logitech USB Receiver Mouse". Fixes [#13](https://github.com/JuhLabs/juhradial-mx/issues/13).
+- **DPI controls work reliably** - Proper device matching by HID++ feature detection instead of string name matching. Fixes [#13](https://github.com/JuhLabs/juhradial-mx/issues/13).
+- **Settings window fits on screen** - Window sizing respects display bounds. Fixes [#13](https://github.com/JuhLabs/juhradial-mx/issues/13).
+- **Gesture button no longer leaks to OS** - BTN_BACK (MX gesture button) is suppressed from reaching applications even with no macro bound.
+- **Radial wheel stays open on GNOME** - Uses Tool window type instead of Popup to prevent Mutter from auto-dismissing on focus change.
+- **Flow indicator crash on GNOME** - Fixed undefined `_()` call in indicator.py that prevented the Flow edge indicator from ever showing.
+- **Navigation sidebar now translates** - Language change signal properly refreshes sidebar labels (root cause: settings_constants using no-op lambda instead of real `_()`).
+- **Multi-distro compatibility** - Fixed IS_SWAY detection, ydotool dependency, input group check, log path, and uinput permission hint across Fedora/Ubuntu/Arch/openSUSE.
+- **Event batching and timer cleanup** - evdev uinput batches events until SYN_REPORT, all GLib timers properly cancelled on shutdown.
+- **Thread safety** - Fixed QApplication.instance() access from non-main threads on KDE Wayland.
+- **CodeQL empty-except warnings** - Added specific exception types to all bare except blocks across the codebase.
+
+### Changed
+
+- **Flow edge detection tuned** - Dwell time 100ms to 350ms, velocity threshold 3000 to 8000 px/s, cooldown 1000 to 1500ms, indicator zone 500 to 350px. Prevents accidental triggers and clipboard overwrites.
+- **Process names** - Overlay shows as `juhradial-overlay` and settings as `juhradial-settings` in system monitors (via prctl).
+- **Host switch cooldown removed** - Easy-Switch host switching is now instant (0ms cooldown).
+- **CodeQL upgraded to v4** - CI workflow uses latest CodeQL action.
+
+### Security
+
+- **Resolved all CodeQL code scanning alerts** - Fixed 30 bare `except:` blocks with proper exception types across overlay, flow, and settings code.
+
 ## [0.3.0-beta] - 2026-03-07
 
 ### Added
@@ -58,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Generic mouse support** is now available in v0.3.0-beta. Any mouse with extra buttons works via evdev.
 - **First-launch setup wizard** is planned for a future release.
-- Looking ahead to v0.3.5: exploring Logitech MX Keys S keyboard support (brightness control, hotkey layout customization) via the existing HID++ 2.0 protocol layer.
+- Looking ahead: exploring Logitech MX Keys S keyboard support (brightness control, hotkey layout customization) via the existing HID++ 2.0 protocol layer.
 
 ## [0.2.11] - 2026-02-19
 
@@ -233,6 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Native Wayland** - Full support for KDE Plasma 6 and Hyprland
 - Support for MX Master 4, MX Master 3S, and MX Master 3
 
+[0.3.1-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.3.0-beta...v0.3.1-beta
+[0.3.0-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.9...v0.3.0-beta
 [0.2.6]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.5...v0.2.6
 [0.2.7]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.6...v0.2.7
 [0.2.9]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.8...v0.2.9
