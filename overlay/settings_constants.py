@@ -420,10 +420,10 @@ def translate_radial_label(label, action_id=None):
     return label
 
 
-# Initialize with the real translation function from i18n
-try:
-    from i18n import _  # noqa: E402 - must be at module bottom to avoid circular import
-    refresh_translations(_)
-except ImportError:
-    # Fallback: no-op if i18n not available (shouldn't happen in normal use)
+# Initialize translations - use sys.modules to break circular import with i18n
+import sys as _sys
+_i18n = _sys.modules.get('i18n')
+if _i18n and hasattr(_i18n, '_'):
+    refresh_translations(_i18n._)
+else:
     refresh_translations(lambda x: x)

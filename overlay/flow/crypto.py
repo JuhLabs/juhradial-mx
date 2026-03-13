@@ -131,7 +131,7 @@ def parse_encrypted_packet(data):
     try:
         node_id = data[0:32]
         version = struct.unpack(">H", data[32:34])[0]
-        _payload_len = struct.unpack(">H", data[34:36])[0]
+        # data[34:36] is payload_len (validated indirectly via expected_total)
         nonce_len = struct.unpack(">H", data[36:38])[0]
         # reserved = data[38:40]
         ct_len = struct.unpack(">H", data[40:42])[0]

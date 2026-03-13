@@ -117,8 +117,8 @@ class SettingsPage(Gtk.ScrolledWindow):
                         "LanguageChanged",
                         GLib.Variant("(s)", (lang_keys[idx],)),
                     )
-                except GLib.Error:
-                    pass
+                except GLib.Error as e:
+                    logger.debug("LanguageChanged D-Bus signal failed: %s", e)
                 app = self.get_root().get_application()
                 if app:
                     # hold() prevents app from quitting when last window closes

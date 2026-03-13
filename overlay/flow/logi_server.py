@@ -28,7 +28,7 @@ class LogiFlowRequestHandler(BaseHTTPRequestHandler):
     """Handle Logi Options+ Flow requests on port 59866"""
 
     def log_message(self, format, *args):
-        logger.debug("HTTP %s", args[0])
+        logger.debug("HTTP %s", _sanitize_log(args[0]) if args else "")
 
     def do_GET(self):
         logger.debug("GET %s from %s", _sanitize_log(self.path), _sanitize_log(self.client_address[0]))
