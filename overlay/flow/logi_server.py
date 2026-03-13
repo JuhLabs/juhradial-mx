@@ -13,7 +13,7 @@ logger = logging.getLogger("juhradial.flow.logi_server")
 
 def _sanitize_log(value) -> str:
     """Strip newlines and control characters to prevent log injection."""
-    return ''.join(c if c >= ' ' and c != '\x7f' else '?' for c in str(value))
+    return str(value).replace('\n', '?').replace('\r', '?').replace('\x00', '?')
 
 
 # Maximum request body size (64 KB - sufficient for JSON control messages)
