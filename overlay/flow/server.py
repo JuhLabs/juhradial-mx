@@ -33,7 +33,7 @@ class FlowRequestHandler(BaseHTTPRequestHandler):
     server: 'FlowServer'
 
     def log_message(self, format, *args):
-        logger.debug(args[0])
+        logger.debug("%s", _sanitize_log(args[0]) if args else "")
 
     def _get_auth_token(self) -> Optional[str]:
         auth_header = self.headers.get('Authorization', '')

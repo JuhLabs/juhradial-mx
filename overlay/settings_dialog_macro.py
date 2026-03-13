@@ -15,14 +15,12 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, Gdk, Adw, GLib
+from gi.repository import Gtk, Gdk, Adw
 
 from i18n import _
 from settings_macro_storage import (
     new_macro_template,
     save_macro,
-    REPEAT_MODE_LABELS,
-    REPEAT_MODE_ICONS,
 )
 from settings_macro_timeline import MacroTimeline
 from settings_macro_actions import ActionPalette

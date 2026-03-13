@@ -19,7 +19,7 @@ def get_clipboard() -> str:
         if result.returncode == 0:
             return result.stdout
     except FileNotFoundError:
-        pass
+        logger.debug("wl-paste not found, trying xclip")
     except subprocess.TimeoutExpired:
         logger.warning("wl-paste timed out")
 
@@ -33,7 +33,7 @@ def get_clipboard() -> str:
         if result.returncode == 0:
             return result.stdout
     except FileNotFoundError:
-        pass
+        logger.debug("xclip not found")
     except subprocess.TimeoutExpired:
         logger.warning("xclip timed out")
 
@@ -68,7 +68,7 @@ def _try_set_clipboard(content: str) -> bool:
         if result.returncode == 0:
             return True
     except FileNotFoundError:
-        pass
+        logger.debug("wl-copy not found, trying xclip")
     except subprocess.TimeoutExpired:
         logger.warning("wl-copy timed out")
 
@@ -82,7 +82,7 @@ def _try_set_clipboard(content: str) -> bool:
         if result.returncode == 0:
             return True
     except FileNotFoundError:
-        pass
+        logger.debug("xclip not found")
     except subprocess.TimeoutExpired:
         logger.warning("xclip timed out")
 

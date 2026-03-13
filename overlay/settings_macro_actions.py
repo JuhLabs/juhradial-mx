@@ -16,10 +16,9 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, Gdk, GLib, Adw
+from gi.repository import Gtk, Gdk, Adw
 
 from i18n import _
-from settings_theme import COLORS
 from settings_macro_storage import new_action
 
 logger = logging.getLogger(__name__)

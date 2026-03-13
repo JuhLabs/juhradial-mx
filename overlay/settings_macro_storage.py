@@ -164,8 +164,8 @@ def save_macro(macro: dict) -> bool:
         # Clean up temp file if it exists
         try:
             tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        except OSError as cleanup_err:
+            logger.debug("Temp file cleanup failed: %s", cleanup_err)
         return False
 
 

@@ -342,14 +342,14 @@ class MacroRecorderDialog(Adw.Window):
                 self._dbus_proxy.call_sync(
                     "StopMacroRecording", None, Gio.DBusCallFlags.NONE, 500, None
                 )
-            except GLib.Error:
-                pass
+            except GLib.Error as e:
+                logger.debug("StopMacroRecording D-Bus call failed: %s", e)
         if self._signal_sub_id is not None:
             try:
                 bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
                 bus.signal_unsubscribe(self._signal_sub_id)
-            except GLib.Error:
-                pass
+            except GLib.Error as e:
+                logger.debug("D-Bus signal unsubscribe failed: %s", e)
             self._signal_sub_id = None
 
     def _on_dbus_event(self, connection, sender, path, interface, signal, params, user_data):

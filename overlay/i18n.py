@@ -111,10 +111,7 @@ def reload_language():
             except (TypeError, AttributeError):
                 pass  # Module dict not accessible, skip
 
-    try:
-        # Lazy import to break circular dependency (settings_constants imports from i18n)
-        from settings_constants import refresh_translations
-
-        refresh_translations(_)
-    except ImportError:
-        pass  # settings_constants may not be available
+    # Use sys.modules to break circular import with settings_constants
+    sc = sys.modules.get('settings_constants')
+    if sc and hasattr(sc, 'refresh_translations'):
+        sc.refresh_translations(_)
