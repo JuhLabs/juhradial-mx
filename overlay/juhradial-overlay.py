@@ -20,7 +20,7 @@ try:
     _libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
     _libc.prctl(15, b"juhradial-overlay", 0, 0, 0)  # PR_SET_NAME = 15
 except (OSError, AttributeError):
-    pass  # prctl not available on this platform
+    _libc = None
 
 # Force XWayland platform - required for window positioning on Wayland
 # (Native Wayland doesn't allow apps to position their own windows)
@@ -119,7 +119,7 @@ class SplashScreen(QWidget):
             from themes import get_radial_image
             wheel_name = get_radial_image()
         except (ImportError, AttributeError, ValueError):
-            pass  # themes module unavailable, use fallback wheel
+            wheel_name = None
 
         # Search: theme wheel -> fallback to radialwheel3 (neon, looks great on dark)
         wheel_candidates = []

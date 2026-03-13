@@ -43,6 +43,66 @@
   <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
+## Installation
+
+> [!IMPORTANT]
+> **One-Line Install (Recommended)** - Detects your distro, installs dependencies, builds from source, and configures everything.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash
+```
+
+<details>
+<summary><strong>Manual Install - Fedora</strong></summary>
+
+```bash
+# 1. Install dependencies
+sudo dnf install rust cargo python3-pyqt6 qt6-qtsvg \
+    python3-gobject gtk4 libadwaita dbus-devel hidapi-devel
+
+# 2. Clone and build
+git clone https://github.com/JuhLabs/juhradial-mx.git
+cd juhradial-mx
+cd daemon && cargo build --release && cd ..
+
+# 3. Run
+./scripts/juhradial-mx.sh
+```
+
+</details>
+
+<details>
+<summary><strong>Manual Install - Arch Linux</strong></summary>
+
+```bash
+# 1. Install dependencies
+sudo pacman -S rust python-pyqt6 qt6-svg python-gobject gtk4 libadwaita
+
+# 2. Clone and build
+git clone https://github.com/JuhLabs/juhradial-mx.git
+cd juhradial-mx
+cd daemon && cargo build --release && cd ..
+
+# 3. Run
+./scripts/juhradial-mx.sh
+```
+
+</details>
+
+<details>
+<summary><strong>Requirements</strong></summary>
+
+- **Wayland compositor** (GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway) or **X11**
+- **Rust** (for building the daemon)
+- **Python 3** with PyQt6 and GTK4/Adwaita
+- **XWayland** (for overlay window positioning on Wayland)
+
+</details>
+
+<div align="center">
+  <img src="assets/github/separator.png" width="80%" alt="">
+</div>
+
 ## Screenshots
 
 <div align="center">
@@ -65,12 +125,6 @@
       <td colspan="3" align="center">
         <img src="assets/screenshots/Settings.png" width="500" alt="Settings Dashboard">
         <br><em>Settings Dashboard</em>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="3" align="center">
-        <img src="assets/screenshots/settingsscroll.png" width="500" alt="Settings - DPI & Scroll">
-        <br><em>DPI & Scroll Configuration</em>
       </td>
     </tr>
   </table>
@@ -187,66 +241,6 @@ Move your cursor seamlessly between your Linux and Mac machines. Encrypted, peer
     </tr>
   </table>
 </div>
-
-<div align="center">
-  <img src="assets/github/separator.png" width="80%" alt="">
-</div>
-
-## Installation
-
-> [!IMPORTANT]
-> **One-Line Install (Recommended)** - Detects your distro, installs dependencies, builds from source, and configures everything.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash
-```
-
-<details>
-<summary><strong>Manual Install - Fedora</strong></summary>
-
-```bash
-# 1. Install dependencies
-sudo dnf install rust cargo python3-pyqt6 qt6-qtsvg \
-    python3-gobject gtk4 libadwaita dbus-devel hidapi-devel
-
-# 2. Clone and build
-git clone https://github.com/JuhLabs/juhradial-mx.git
-cd juhradial-mx
-cd daemon && cargo build --release && cd ..
-
-# 3. Run
-./scripts/juhradial-mx.sh
-```
-
-</details>
-
-<details>
-<summary><strong>Manual Install - Arch Linux</strong></summary>
-
-```bash
-# 1. Install dependencies
-sudo pacman -S rust python-pyqt6 qt6-svg python-gobject gtk4 libadwaita
-
-# 2. Clone and build
-git clone https://github.com/JuhLabs/juhradial-mx.git
-cd juhradial-mx
-cd daemon && cargo build --release && cd ..
-
-# 3. Run
-./scripts/juhradial-mx.sh
-```
-
-</details>
-
-<details>
-<summary><strong>Requirements</strong></summary>
-
-- **Wayland compositor** (GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway) or **X11**
-- **Rust** (for building the daemon)
-- **Python 3** with PyQt6 and GTK4/Adwaita
-- **XWayland** (for overlay window positioning on Wayland)
-
-</details>
 
 <div align="center">
   <img src="assets/github/separator.png" width="80%" alt="">
