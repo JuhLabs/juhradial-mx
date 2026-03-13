@@ -34,13 +34,27 @@ class FlowEdgeIndicator(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Use Window (not Tool) to ensure visibility on KDE Wayland.
-        # Tool windows may not be mapped without a parent on KDE Wayland.
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.BypassWindowManagerHint
-        )
+        # Desktop-aware window flags:
+        # - KDE Wayland: BypassWindowManagerHint works correctly
+        # - GNOME/Mutter: BypassWindowManagerHint is ignored on XWayland;
+        #   use Tool + WindowStaysOnTopHint which Mutter respects
+        try:
+            from overlay_constants import IS_GNOME
+        except ImportError:
+            IS_GNOME = "GNOME" in os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+
+        if IS_GNOME:
+            self.setWindowFlags(
+                Qt.WindowType.FramelessWindowHint
+                | Qt.WindowType.WindowStaysOnTopHint
+                | Qt.WindowType.Tool
+            )
+        else:
+            self.setWindowFlags(
+                Qt.WindowType.FramelessWindowHint
+                | Qt.WindowType.WindowStaysOnTopHint
+                | Qt.WindowType.BypassWindowManagerHint
+            )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
@@ -56,6 +70,10 @@ class FlowEdgeIndicator(QWidget):
         self._grace_period = 8.0    # seconds to keep showing after peers disappear
         self._hidden_by_config = False  # user chose to hide indicator
         self._monitor_name = ""  # "" = auto (cursor-based), "DP-1" etc = specific
+
+        # KDE screen edge action suppression
+        self._kde_saved_edge_action = None  # original value to restore
+        self._kde_edge_suppressed = False
 
         # Load indicator image
         self._pixmap = None
@@ -208,6 +226,120 @@ class FlowEdgeIndicator(QWidget):
         self.setFixedSize(win_w, win_h)
         self.move(int(cx), int(cy))
 
+    # -- KDE screen edge suppression --
+    # KDE ElectricBorder enum: Top=0, TopRight=1, Right=2, BottomRight=3,
+    # Bottom=4, BottomLeft=5, Left=6, TopLeft=7, None=8
+    _DIRECTION_TO_KDE_BORDER_ID = {
+        "right": "2",
+        "left": "6",
+        "top": "0",
+        "bottom": "4",
+    }
+    _DIRECTION_TO_KDE_EDGE_KEY = {
+        "right": "Right",
+        "left": "Left",
+        "top": "Top",
+        "bottom": "Bottom",
+    }
+
+    def _suppress_kde_edge(self):
+        """Disable KDE's screen edge actions for the flow edge.
+
+        KDE effects (cube, overview, etc.) use [Effect-*] BorderActivate
+        keys with numeric border IDs. We scan all effect groups, save any
+        that use our edge's border ID, and remove that ID temporarily.
+        Also handles [ElectricBorders] for simple edge actions.
+        """
+        if self._kde_edge_suppressed:
+            return
+        border_id = self._DIRECTION_TO_KDE_BORDER_ID.get(self._direction)
+        edge_key = self._DIRECTION_TO_KDE_EDGE_KEY.get(self._direction)
+        if not border_id:
+            return
+        try:
+            import configparser
+            import subprocess
+            kwinrc = Path.home() / ".config" / "kwinrc"
+            if not kwinrc.exists():
+                return
+
+            cfg = configparser.ConfigParser(strict=False)
+            cfg.read(str(kwinrc))
+
+            saved = []  # [(group, key, original_value)]
+            changed = False
+
+            # Scan all [Effect-*] groups for BorderActivate containing our border ID
+            for section in cfg.sections():
+                if not section.startswith("Effect-"):
+                    continue
+                for key in ("BorderActivate", "BorderActivate2", "BorderActivate3"):
+                    if cfg.has_option(section, key):
+                        val = cfg.get(section, key)
+                        ids = [x.strip() for x in val.split(",")]
+                        if border_id in ids:
+                            saved.append((section, key, val))
+                            new_ids = [x for x in ids if x != border_id]
+                            new_val = ",".join(new_ids) if new_ids else ""
+                            subprocess.run(
+                                ["kwriteconfig6", "--file", "kwinrc",
+                                 "--group", section, "--key", key, new_val],
+                                timeout=3,
+                            )
+                            changed = True
+                            logger.info("Suppressed KDE %s %s: %s -> %s",
+                                        section, key, val, new_val)
+
+            # Also check [ElectricBorders] for simple edge actions
+            if edge_key and cfg.has_option("ElectricBorders", edge_key):
+                val = cfg.get("ElectricBorders", edge_key)
+                if val and val != "None":
+                    saved.append(("ElectricBorders", edge_key, val))
+                    subprocess.run(
+                        ["kwriteconfig6", "--file", "kwinrc",
+                         "--group", "ElectricBorders", "--key", edge_key, "None"],
+                        timeout=3,
+                    )
+                    changed = True
+
+            if changed:
+                subprocess.Popen(
+                    ["dbus-send", "--session", "--type=method_call",
+                     "--dest=org.kde.KWin", "/KWin",
+                     "org.kde.KWin.reconfigure"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+
+            self._kde_saved_edge_action = saved if saved else None
+            self._kde_edge_suppressed = bool(saved)
+        except Exception as e:
+            logger.debug("KDE edge suppression failed: %s", e)
+
+    def _restore_kde_edge(self):
+        """Restore all KDE screen edge actions that were suppressed."""
+        if not self._kde_edge_suppressed or not self._kde_saved_edge_action:
+            self._kde_edge_suppressed = False
+            return
+        try:
+            import subprocess
+            for group, key, original_val in self._kde_saved_edge_action:
+                subprocess.run(
+                    ["kwriteconfig6", "--file", "kwinrc",
+                     "--group", group, "--key", key, original_val],
+                    timeout=3,
+                )
+                logger.info("Restored KDE %s %s: %s", group, key, original_val)
+            subprocess.Popen(
+                ["dbus-send", "--session", "--type=method_call",
+                 "--dest=org.kde.KWin", "/KWin",
+                 "org.kde.KWin.reconfigure"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        except Exception as e:
+            logger.debug("KDE edge restore failed: %s", e)
+        self._kde_edge_suppressed = False
+        self._kde_saved_edge_action = None
+
     def show_indicator(self):
         """Fade in the indicator."""
         if self._visible_target:
@@ -223,6 +355,7 @@ class FlowEdgeIndicator(QWidget):
         self._fade_anim.setEndValue(1.0)
         self._fade_anim.start()
         self._breath_anim.start()
+        self._suppress_kde_edge()
         logger.info("Flow indicator shown on %s edge", self._direction)
 
     def hide_indicator(self):
@@ -235,6 +368,7 @@ class FlowEdgeIndicator(QWidget):
         self._fade_anim.setEndValue(0.0)
         self._fade_anim.start()
         self._breath_anim.stop()
+        self._restore_kde_edge()
 
     def _check_peers(self):
         """Poll bridge for connected peers."""
@@ -287,7 +421,12 @@ class FlowEdgeIndicator(QWidget):
 
                 reposition = False
                 if d != self._direction:
+                    # Direction changed - restore old edge, suppress new one
+                    if self._kde_edge_suppressed:
+                        self._restore_kde_edge()
                     self._direction = d
+                    if self._visible_target:
+                        self._suppress_kde_edge()
                     reposition = True
                 if monitor != self._monitor_name:
                     self._monitor_name = monitor

@@ -39,16 +39,21 @@ INSTALL_MODE="install"  # "install" or "upgrade"
 
 # ── Output helpers ───────────────────────────────────────────────────
 print_banner() {
+    local BCYAN='\033[1;96m'
     echo ""
-    echo -e "${CYAN}${BOLD}"
-    echo "        ╭──────────────────────────────────────────╮"
-    echo "        │                                          │"
-    echo -e "        │   ${WHITE}JuhRadial MX${CYAN}  ·  Installer             │"
-    echo "        │                                          │"
-    echo -e "        │   ${RESET}${DIM}Radial menu for MX Master on Linux${RESET}${CYAN}${BOLD}   │"
-    echo "        │                                          │"
-    echo "        ╰──────────────────────────────────────────╯"
+    echo -e "${BCYAN}"
+    cat << 'BANNER'
+    ___       _    ______          _ _       _  ___  ____  __
+   |_  |     | |   | ___ \        | (_)     | | |  \/  \ \ / /
+     | |_   _| |__ | |_/ /__ _  __| |_  __ _| | | .  . |\ V /
+     | | | | | '_ \|    // _` |/ _` | |/ _` | | | |\/| |/   \
+ /\__/ | |_| | | | | |\ | (_| | (_| | | (_| | | | |  | / /^\ \
+ \____/ \__,_|_| |_\_| \_\__,_|\__,_|_|\__,_|_| \_|  |_\/   \/
+BANNER
     echo -e "${RESET}"
+    echo -e "                       ${CYAN}· Installer${RESET}"
+    echo -e "             ${DIM}Radial menu for MX Master on Linux${RESET}"
+    echo ""
 }
 
 step() {
@@ -500,6 +505,9 @@ install_files() {
     # Install generic mouse icon
     sudo cp assets/genericmouse.png /usr/share/juhradial/assets/ 2>/dev/null || true
 
+    # Install sidebar navigation icons
+    sudo cp assets/nav-*.png /usr/share/juhradial/assets/ 2>/dev/null || true
+
     # Install launcher scripts
     sudo install -Dm755 scripts/juhradial-mx.sh "$BIN_DIR/juhradial-mx"
     sudo install -Dm755 scripts/juhradial-settings.sh "$BIN_DIR/juhradial-settings"
@@ -590,7 +598,14 @@ configure_gnome() {
             log_dim "Extension installed but could not enable automatically"
     fi
 
-    log_warning "Log out and back in for the extension to load (Wayland requires session restart)"
+    # Check if extension is already active (update scenario) - no restart needed
+    local ext_state
+    ext_state=$(gnome-extensions info "$EXT_UUID" 2>/dev/null | grep -oP '(?<=State: )\S+' || true)
+    if [ "$ext_state" = "ACTIVE" ]; then
+        log_success "Extension is active - no restart needed"
+    else
+        log_warning "Log out and back in for the extension to load (Wayland requires session restart)"
+    fi
 }
 
 # ── Desktop environment ─────────────────────────────────────────────
@@ -655,6 +670,18 @@ print_success() {
     echo ""
     echo -e "  ${GRAY}github.com/JuhLabs/juhradial-mx${RESET}"
     echo ""
+    echo -e "  ${CYAN}Enjoying JuhRadial MX?${RESET} Leave a ${YELLOW}★${RESET} on GitHub!"
+    echo -e "  ${DIM}Found a bug? Open an issue - we'd love to hear from you.${RESET}"
+    echo ""
+
+    # First-time GNOME installers need a session restart for the extension
+    if [ "$INSTALL_MODE" = "install" ] && [ "$DESKTOP_TYPE" = "gnome" ]; then
+        echo -e "  ${YELLOW}${BOLD}════════════════════════════════════════════════${RESET}"
+        echo -e "  ${YELLOW}${BOLD}  FIRST TIME INSTALLERS: LOG OUT AND BACK IN${RESET}"
+        echo -e "  ${YELLOW}${BOLD}  (or restart) to activate the GNOME extension${RESET}"
+        echo -e "  ${YELLOW}${BOLD}════════════════════════════════════════════════${RESET}"
+        echo ""
+    fi
 }
 
 # ── Main ─────────────────────────────────────────────────────────────

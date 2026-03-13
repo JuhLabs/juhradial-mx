@@ -74,15 +74,15 @@ GENERIC_BUTTONS = {}
 # SIDEBAR NAVIGATION ITEMS
 # =============================================================================
 _BASE_NAV_ITEMS = [
-    ("buttons", "BUTTONS", "input-mouse-symbolic"),
-    ("scroll", "POINT & SCROLL", "input-touchpad-symbolic"),
-    ("haptics", "HAPTIC FEEDBACK", "audio-speakers-symbolic"),
-    ("devices", "DEVICES", "computer-symbolic"),
-    ("easy_switch", "EASY-SWITCH", "network-wireless-symbolic"),
-    ("flow", "FLOW", "view-dual-symbolic"),
-    ("macros", "MACROS", "media-record-symbolic"),
-    ("gaming", "GAMING", "input-gaming-symbolic"),
-    ("settings", "SETTINGS", "emblem-system-symbolic"),
+    ("buttons", "BUTTONS", "nav-buttons.png"),
+    ("scroll", "POINT & SCROLL", "nav-scroll.png"),
+    ("haptics", "HAPTIC FEEDBACK", "nav-haptics.png"),
+    ("devices", "DEVICES", "nav-devices.png"),
+    ("easy_switch", "EASY-SWITCH", "nav-easyswitch.png"),
+    ("flow", "FLOW", "nav-flow.png"),
+    ("macros", "MACROS", "nav-macros.png"),
+    ("gaming", "GAMING", "nav-gaming.png"),
+    ("settings", "SETTINGS", "nav-settings.png"),
 ]
 
 # Default actions for each button (used for restore)
@@ -420,6 +420,10 @@ def translate_radial_label(label, action_id=None):
     return label
 
 
-# Initial call with no-op translation function
-# The real _() function will be passed later when called from i18n
-refresh_translations(lambda x: x)
+# Initialize with the real translation function from i18n
+try:
+    from i18n import _
+    refresh_translations(_)
+except ImportError:
+    # Fallback: no-op if i18n not available (shouldn't happen in normal use)
+    refresh_translations(lambda x: x)
