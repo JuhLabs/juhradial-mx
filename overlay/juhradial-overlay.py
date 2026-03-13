@@ -17,10 +17,10 @@ import ctypes.util
 # Set process name to "juhradial-overlay" so it shows properly in system monitors
 # instead of "python3". Uses prctl(PR_SET_NAME) on Linux.
 try:
-    _libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
-    _libc.prctl(15, b"juhradial-overlay", 0, 0, 0)  # PR_SET_NAME = 15
+    ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True).prctl(
+        15, b"juhradial-overlay", 0, 0, 0)  # PR_SET_NAME = 15
 except (OSError, AttributeError):
-    _libc = None
+    pass  # prctl unavailable on this platform
 
 # Force XWayland platform - required for window positioning on Wayland
 # (Native Wayland doesn't allow apps to position their own windows)
