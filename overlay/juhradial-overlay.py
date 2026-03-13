@@ -11,6 +11,16 @@ SPDX-License-Identifier: GPL-3.0
 
 import os
 import sys
+import ctypes
+import ctypes.util
+
+# Set process name to "juhradial-overlay" so it shows properly in system monitors
+# instead of "python3". Uses prctl(PR_SET_NAME) on Linux.
+try:
+    _libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+    _libc.prctl(15, b"juhradial-overlay", 0, 0, 0)  # PR_SET_NAME = 15
+except (OSError, AttributeError):
+    pass
 
 # Force XWayland platform - required for window positioning on Wayland
 # (Native Wayland doesn't allow apps to position their own windows)
@@ -27,8 +37,19 @@ from PyQt6.QtCore import (
     QPropertyAnimation,
     QEasingCurve,
     QTimer,
+    QRectF,
 )
-from PyQt6.QtGui import QPainter, QBrush, QIcon, QPixmap, QRegion
+from PyQt6.QtGui import (
+    QPainter,
+    QBrush,
+    QIcon,
+    QPixmap,
+    QRegion,
+    QColor,
+    QPen,
+    QFont,
+    QRadialGradient,
+)
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface
 
 from overlay_constants import (
@@ -57,20 +78,293 @@ from overlay_painting import RadialMenuPaintingMixin
 from i18n import _
 
 
+class SplashScreen(QWidget):
+    """Premium loading splash for JuhRadial MX startup."""
+
+    # Theme colors (Catppuccin Mocha)
+    BG = QColor(30, 30, 46)          # #1e1e2e base
+    SURFACE = QColor(69, 71, 90)     # #45475a surface1
+    TEXT = QColor(205, 214, 244)     # #cdd6f4 text
+    ACCENT = QColor(180, 190, 254)   # #b4befe lavender
+    ACCENT_DIM = QColor(137, 180, 250)  # #89b2fa blue
+    SUBTEXT = QColor(166, 173, 200)  # #a6adc8 subtext0
+
+    SPLASH_SIZE = 320
+    ARC_RADIUS = 80
+    WHEEL_SIZE = 140  # radial wheel rendered inside the spinning arc
+
+    def __init__(self):
+        super().__init__()
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setFixedSize(self.SPLASH_SIZE, self.SPLASH_SIZE)
+
+        # Center on primary screen
+        screen = QApplication.primaryScreen()
+        if screen:
+            geo = screen.geometry()
+            self.move(
+                geo.x() + (geo.width() - self.SPLASH_SIZE) // 2,
+                geo.y() + (geo.height() - self.SPLASH_SIZE) // 2,
+            )
+
+        # Load radial wheel image from user's theme (or fallback)
+        self._wheel_pixmap = None
+        wheel_name = None
+        try:
+            from themes import get_radial_image
+            wheel_name = get_radial_image()
+        except (ImportError, AttributeError, ValueError):
+            pass
+
+        # Search: theme wheel -> fallback to radialwheel3 (neon, looks great on dark)
+        wheel_candidates = []
+        if wheel_name:
+            wheel_candidates.append(wheel_name)
+        wheel_candidates.append("radialwheel3.png")  # neon fallback
+        wheel_candidates.append("radialwheel1.png")  # metallic fallback
+
+        for wname in wheel_candidates:
+            for base in [
+                os.path.join(os.path.dirname(__file__), "..", "assets", "radial-wheels"),
+                "/usr/share/juhradial/assets/radial-wheels",
+            ]:
+                wpath = os.path.join(base, wname)
+                if os.path.exists(wpath):
+                    pm = QPixmap(wpath)
+                    if not pm.isNull():
+                        self._wheel_pixmap = pm.scaled(
+                            self.WHEEL_SIZE, self.WHEEL_SIZE,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                    break
+            if self._wheel_pixmap:
+                break
+
+        # Animation state
+        self._angle = 0.0        # spinning arc angle
+        self._fade = 1.0         # fade-out progress (1.0 = visible)
+        self._pulse = 0.0        # glow pulse phase
+        self._closing = False
+        self._ready = False      # set True when app loading is done
+        self._show_time = None   # when splash was first shown
+        self._status_text = _("Loading...")
+        self._daemon_iface = None  # set externally to check daemon readiness
+
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+        self._timer.setInterval(16)  # ~60fps
+        self._timer.start()
+
+    MIN_DISPLAY_MS = 2000  # show splash for at least 2 seconds
+
+    def _tick(self):
+        import time
+
+        if self._show_time is None:
+            self._show_time = time.time()
+
+        self._angle = (self._angle + 4.0) % 360.0
+        self._pulse = (self._pulse + 0.04) % (2 * math.pi)
+
+        if self._closing:
+            self._fade -= 0.05
+            if self._fade <= 0:
+                self._fade = 0
+                self._timer.stop()
+                self.hide()
+                self.deleteLater()
+                return
+        elif self._ready:
+            # App loading done - wait for minimum display time + daemon ready
+            elapsed_ms = (time.time() - self._show_time) * 1000
+            daemon_ok = (
+                self._daemon_iface is None
+                or self._daemon_iface.isValid()
+            )
+            if elapsed_ms >= self.MIN_DISPLAY_MS and daemon_ok:
+                self._closing = True
+            elif elapsed_ms >= self.MIN_DISPLAY_MS and not daemon_ok:
+                self._status_text = _("Waiting for daemon...")
+            elif daemon_ok:
+                self._status_text = _("Ready")
+
+        self.update()
+
+    def mark_ready(self, daemon_iface=None):
+        """Mark app loading as done. Splash stays until min time + daemon ready."""
+        self._ready = True
+        self._daemon_iface = daemon_iface
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        cx = self.SPLASH_SIZE / 2
+        cy = self.SPLASH_SIZE / 2
+        opacity = self._fade
+
+        # -- Background: rounded rect with radial glow --
+        p.setOpacity(opacity * 0.95)
+        bg_rect = QRectF(20, 20, self.SPLASH_SIZE - 40, self.SPLASH_SIZE - 40)
+
+        # Subtle radial glow behind the panel
+        glow = QRadialGradient(cx, cy, self.SPLASH_SIZE * 0.5)
+        glow_alpha = int(30 + 10 * math.sin(self._pulse))
+        glow.setColorAt(0.0, QColor(self.ACCENT.red(), self.ACCENT.green(), self.ACCENT.blue(), glow_alpha))
+        glow.setColorAt(1.0, QColor(0, 0, 0, 0))
+        p.setBrush(QBrush(glow))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(QRectF(0, 0, self.SPLASH_SIZE, self.SPLASH_SIZE))
+
+        # Main panel
+        p.setOpacity(opacity)
+        p.setBrush(QBrush(self.BG))
+        border_pen = QPen(self.SURFACE)
+        border_pen.setWidth(2)
+        p.setPen(border_pen)
+        p.drawRoundedRect(bg_rect, 24, 24)
+
+        # -- Spinning arc --
+        arc_rect = QRectF(
+            cx - self.ARC_RADIUS, cy - self.ARC_RADIUS - 10,
+            self.ARC_RADIUS * 2, self.ARC_RADIUS * 2,
+        )
+
+        # Arc trail (dim)
+        trail_pen = QPen(self.SURFACE)
+        trail_pen.setWidth(3)
+        trail_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(trail_pen)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(arc_rect)
+
+        # Arc sweep with gradient
+        sweep_pen = QPen()
+        sweep_pen.setWidth(3)
+        sweep_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+
+        # Draw two arcs for a polished look
+        # Primary arc
+        sweep_pen.setColor(self.ACCENT)
+        p.setPen(sweep_pen)
+        start_angle = int(self._angle * 16)
+        p.drawArc(arc_rect, start_angle, 90 * 16)
+
+        # Secondary arc (opposite side, dimmer)
+        dim_accent = QColor(self.ACCENT_DIM)
+        dim_accent.setAlpha(120)
+        sweep_pen.setColor(dim_accent)
+        p.setPen(sweep_pen)
+        p.drawArc(arc_rect, start_angle + 180 * 16, 60 * 16)
+
+        # -- Radial wheel in center of arc --
+        wheel_cy = cy - 10  # same vertical offset as arc center
+        if self._wheel_pixmap:
+            ww = self._wheel_pixmap.width()
+            wh = self._wheel_pixmap.height()
+            # Glow behind wheel (pulsing)
+            wheel_glow = QRadialGradient(cx, wheel_cy, self.WHEEL_SIZE * 0.55)
+            wg_alpha = int(50 + 30 * math.sin(self._pulse))
+            wheel_glow.setColorAt(0.0, QColor(self.ACCENT.red(), self.ACCENT.green(), self.ACCENT.blue(), wg_alpha))
+            wheel_glow.setColorAt(0.7, QColor(self.ACCENT_DIM.red(), self.ACCENT_DIM.green(), self.ACCENT_DIM.blue(), wg_alpha // 3))
+            wheel_glow.setColorAt(1.0, QColor(0, 0, 0, 0))
+            p.setBrush(QBrush(wheel_glow))
+            p.setPen(Qt.PenStyle.NoPen)
+            glow_r = self.WHEEL_SIZE * 0.6
+            p.drawEllipse(QRectF(cx - glow_r, wheel_cy - glow_r, glow_r * 2, glow_r * 2))
+            # Wheel image
+            p.drawPixmap(int(cx - ww / 2), int(wheel_cy - wh / 2), self._wheel_pixmap)
+
+        # -- "JuhRadial MX" text with multi-layer glow --
+        text_y = cy + self.ARC_RADIUS + 10
+        title_font = QFont("Sans", 16, QFont.Weight.Bold)
+        p.setFont(title_font)
+
+        pulse_val = math.sin(self._pulse)
+
+        # Layer 1: Wide soft glow (large offsets, low alpha)
+        wide_alpha = int(25 + 15 * pulse_val)
+        wide_color = QColor(self.ACCENT.red(), self.ACCENT.green(), self.ACCENT.blue(), wide_alpha)
+        p.setPen(wide_color)
+        for dx, dy in [(-3, 0), (3, 0), (0, -3), (0, 3), (-2, -2), (2, -2), (-2, 2), (2, 2)]:
+            p.drawText(
+                QRectF(dx, text_y + dy, self.SPLASH_SIZE, 30),
+                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
+                "JuhRadial MX",
+            )
+
+        # Layer 2: Medium glow
+        med_alpha = int(50 + 30 * pulse_val)
+        med_color = QColor(self.ACCENT.red(), self.ACCENT.green(), self.ACCENT.blue(), med_alpha)
+        p.setPen(med_color)
+        for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2), (-1, -1), (1, -1), (-1, 1), (1, 1)]:
+            p.drawText(
+                QRectF(dx, text_y + dy, self.SPLASH_SIZE, 30),
+                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
+                "JuhRadial MX",
+            )
+
+        # Layer 3: Tight bright glow
+        tight_alpha = int(80 + 40 * pulse_val)
+        tight_color = QColor(self.ACCENT.red(), self.ACCENT.green(), self.ACCENT.blue(), tight_alpha)
+        p.setPen(tight_color)
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            p.drawText(
+                QRectF(dx, text_y + dy, self.SPLASH_SIZE, 30),
+                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
+                "JuhRadial MX",
+            )
+
+        # Main text (bright white on top)
+        p.setPen(self.TEXT)
+        p.drawText(
+            QRectF(0, text_y, self.SPLASH_SIZE, 30),
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
+            "JuhRadial MX",
+        )
+
+        # -- Subtitle (dynamic status) --
+        sub_font = QFont("Sans", 9)
+        p.setFont(sub_font)
+        p.setPen(self.SUBTEXT)
+        p.drawText(
+            QRectF(0, text_y + 28, self.SPLASH_SIZE, 20),
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
+            self._status_text,
+        )
+
+        p.end()
+
+
 class RadialMenu(RadialMenuPaintingMixin, QWidget):
     # Tap threshold in milliseconds - below this is considered a "tap" (toggle mode)
     TAP_THRESHOLD_MS = 250
 
     def __init__(self):
         super().__init__()
-        # Use Popup for menu-like behavior (receives mouse input)
-        # ToolTip doesn't receive clicks on Hyprland/XWayland
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Popup
-            | Qt.WindowType.BypassWindowManagerHint
-        )
+        # Window flags depend on compositor:
+        # - GNOME: Popup gets auto-dismissed when focus shifts. Use Tool instead.
+        # - KDE/Hyprland/others: Popup works fine and receives mouse input.
+        if IS_GNOME:
+            self.setWindowFlags(
+                Qt.WindowType.FramelessWindowHint
+                | Qt.WindowType.WindowStaysOnTopHint
+                | Qt.WindowType.Tool
+                | Qt.WindowType.BypassWindowManagerHint
+            )
+        else:
+            self.setWindowFlags(
+                Qt.WindowType.FramelessWindowHint
+                | Qt.WindowType.WindowStaysOnTopHint
+                | Qt.WindowType.Popup
+                | Qt.WindowType.BypassWindowManagerHint
+            )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
         self.setFixedSize(WINDOW_SIZE, WINDOW_SIZE)
@@ -141,6 +435,16 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self.on_cursor_moved,
         )
 
+        # Listen for language changes from settings process
+        bus.connect(
+            "",  # any sender
+            "/org/kde/juhradialmx/Settings",
+            "org.kde.juhradialmx.Settings",
+            "LanguageChanged",
+            "s",
+            self._on_language_changed,
+        )
+
         # D-Bus interface for calling daemon methods (haptic feedback)
         self.daemon_iface = QDBusInterface(
             "org.kde.juhradialmx",
@@ -191,6 +495,17 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             print(f"    {directions[i]:12} -> {action[0]}", flush=True)
         print("\n" + "=" * 60 + "\n", flush=True)
 
+    @pyqtSlot(str)
+    def _on_language_changed(self, lang):
+        """Reload translations immediately when settings changes language."""
+        print(f"OVERLAY: Language changed to '{lang}' - reloading translations")
+        from i18n import setup_i18n
+
+        global _
+        _ = setup_i18n()
+        overlay_actions._ = _
+        overlay_actions.ACTIONS = overlay_actions.load_actions_from_config()
+
     @pyqtSlot(int, int)
     def on_show(self, x, y):
         import time
@@ -200,6 +515,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
 
         global _
         _ = setup_i18n()
+        overlay_actions._ = _
 
         # Reload actions, theme, and translations from config each time menu is shown
         # This ensures changes from settings are picked up immediately
@@ -954,12 +1270,21 @@ if __name__ == "__main__":
     app.setApplicationName("JuhRadial MX")
     app.setDesktopFileName("juhradial-mx")
 
+    # Show splash screen immediately (before heavy loading)
+    splash = SplashScreen()
+    splash.show()
+    app.processEvents()
+
     # Load submenu icons and 3D radial image (requires QApplication)
     overlay_actions.load_ai_icons()
+    app.processEvents()
     overlay_actions.load_os_icons()
+    app.processEvents()
     overlay_actions.load_radial_image()
+    app.processEvents()
 
     w = RadialMenu()
+    app.processEvents()
     app.tray = create_tray_icon(app, w)
 
     # Start Flow server if enabled in config
@@ -975,9 +1300,15 @@ if __name__ == "__main__":
         if _cfg.get("flow", {}).get("enabled", False):
             from flow import start_flow_server
             start_flow_server()
-            print("[Flow] Auto-started from config", flush=True)
+            _log("[Flow] Auto-started from config")
     except Exception as e:
-        print(f"[Flow] Auto-start failed: {e}", flush=True)
+        _log(f"[Flow] Auto-start failed: {e}")
+        import traceback
+        _log(traceback.format_exc())
+
+    # Mark loading done - splash waits for min display time + daemon D-Bus ready
+    splash.mark_ready(daemon_iface=w.daemon_iface)
+
     print("System tray icon active - right-click for menu", flush=True)
     ret = app.exec()
     sys.exit(ret)

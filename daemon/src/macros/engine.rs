@@ -23,19 +23,27 @@ pub use super::triggers::SharedTriggerMap;
 ///
 /// Reuses the same fallback pattern from actions.rs:
 /// try xdotool first (X11), then ydotool (Wayland).
+/// Uses .status() to wait for completion, preventing zombie processes
+/// and ensuring actions execute in strict order.
 fn synthesize_key(action: &str, key: &str) {
     // Try xdotool first
     let result = Command::new("xdotool")
         .args([action, key])
-        .spawn();
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
 
     match result {
-        Ok(_) => {}
-        Err(_) => {
+        Ok(status) if status.success() => {}
+        _ => {
             // Fallback to ydotool
             let _ = Command::new("ydotool")
                 .args([action, key])
-                .spawn();
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
         }
     }
 }
@@ -45,12 +53,21 @@ fn synthesize_mouse(action: &str, button: u8) {
     let button_str = button.to_string();
     let result = Command::new("xdotool")
         .args([action, &button_str])
-        .spawn();
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
 
-    if result.is_err() {
-        let _ = Command::new("ydotool")
-            .args([action, &button_str])
-            .spawn();
+    match result {
+        Ok(status) if status.success() => {}
+        _ => {
+            let _ = Command::new("ydotool")
+                .args([action, &button_str])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+        }
     }
 }
 
@@ -58,12 +75,21 @@ fn synthesize_mouse(action: &str, button: u8) {
 fn synthesize_text(text: &str) {
     let result = Command::new("xdotool")
         .args(["type", "--", text])
-        .spawn();
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
 
-    if result.is_err() {
-        let _ = Command::new("ydotool")
-            .args(["type", "--", text])
-            .spawn();
+    match result {
+        Ok(status) if status.success() => {}
+        _ => {
+            let _ = Command::new("ydotool")
+                .args(["type", "--", text])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+        }
     }
 }
 
@@ -74,13 +100,22 @@ fn synthesize_scroll(amount: i32) {
 
     let result = Command::new("xdotool")
         .args(["click", "--repeat", &clicks, direction])
-        .spawn();
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
 
-    if result.is_err() {
-        // ydotool uses different scroll interface
-        let _ = Command::new("ydotool")
-            .args(["click", direction])
-            .spawn();
+    match result {
+        Ok(status) if status.success() => {}
+        _ => {
+            // ydotool uses different scroll interface
+            let _ = Command::new("ydotool")
+                .args(["click", direction])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+        }
     }
 }
 
@@ -304,6 +339,63 @@ impl Drop for MacroEngine {
 // Playback Thread
 // ============================================================================
 
+/// Release all keys/buttons that the macro may have pressed.
+/// Called after interrupted playback to prevent stuck keys from OS auto-repeat.
+fn release_stuck_keys(actions: &[MacroAction]) {
+    let mut held_keys: Vec<String> = Vec::new();
+    let mut held_mouse: Vec<String> = Vec::new();
+
+    // Scan the action list to find all KeyDown/MouseDown that could be held
+    for action in actions {
+        match action {
+            MacroAction::KeyDown(key) => {
+                if !held_keys.contains(key) {
+                    held_keys.push(key.clone());
+                }
+            }
+            MacroAction::KeyUp(key) => {
+                held_keys.retain(|k| k != key);
+            }
+            MacroAction::MouseDown(btn) => {
+                if !held_mouse.contains(btn) {
+                    held_mouse.push(btn.clone());
+                }
+            }
+            MacroAction::MouseUp(btn) => {
+                held_mouse.retain(|b| b != btn);
+            }
+            _ => {}
+        }
+    }
+
+    // Release everything that might be stuck (union of all downs in the list)
+    // We release ALL keys mentioned in any KeyDown, not just the delta,
+    // because we don't know which iteration point we interrupted at.
+    let all_keys: Vec<String> = actions.iter().filter_map(|a| {
+        if let MacroAction::KeyDown(key) = a { Some(key.clone()) } else { None }
+    }).collect();
+    let all_mouse: Vec<String> = actions.iter().filter_map(|a| {
+        if let MacroAction::MouseDown(btn) = a { Some(btn.clone()) } else { None }
+    }).collect();
+
+    for key in &all_keys {
+        tracing::debug!(key = %key, "Releasing stuck key after macro stop");
+        synthesize_key("keyup", key);
+    }
+    for btn in &all_mouse {
+        tracing::debug!(button = %btn, "Releasing stuck mouse button after macro stop");
+        synthesize_mouse("mouseup", mouse_button_to_number(btn));
+    }
+
+    if !all_keys.is_empty() || !all_mouse.is_empty() {
+        tracing::info!(
+            keys = all_keys.len(),
+            buttons = all_mouse.len(),
+            "Released stuck keys/buttons after macro interruption"
+        );
+    }
+}
+
 /// Run macro playback in the dedicated thread
 ///
 /// Dispatches to the correct playback strategy based on repeat mode.
@@ -314,10 +406,22 @@ fn run_playback(config: MacroConfig, stop: Arc<AtomicBool>) {
         }
 
         RepeatMode::WhileHolding | RepeatMode::Toggle => {
-            // Loop until stop signal
+            // Loop until stop signal, with minimum inter-iteration delay
+            // to prevent CPU spinning and process flooding when actions
+            // have no/short delays.
             while !stop.load(Ordering::Relaxed) {
                 execute_actions_once(&config.actions, &config, &stop);
+                // Throttle: 50ms between iterations, checking stop every 5ms
+                // so button release is detected within ~5ms.
+                let mut remaining = Duration::from_millis(50);
+                let tick = Duration::from_millis(5);
+                while remaining > Duration::ZERO && !stop.load(Ordering::Relaxed) {
+                    thread::sleep(remaining.min(tick));
+                    remaining = remaining.saturating_sub(tick);
+                }
             }
+            // Loop was interrupted mid-iteration - release any stuck keys
+            release_stuck_keys(&config.actions);
         }
 
         RepeatMode::RepeatN => {

@@ -1554,16 +1554,16 @@ msgstr ""
 "Use the palette below or Record to add actions."
 
 msgid "BUTTONS"
-msgstr "BUTTONS"
+msgstr "BOUTONS"
 
 msgid "POINT & SCROLL"
-msgstr "POINT & SCROLL"
+msgstr "POINTEUR ET DÉFILEMENT"
 
 msgid "HAPTIC FEEDBACK"
-msgstr "HAPTIC FEEDBACK"
+msgstr "RETOUR HAPTIQUE"
 
 msgid "DEVICES"
-msgstr "DEVICES"
+msgstr "APPAREILS"
 
 msgid "EASY-SWITCH"
 msgstr "EASY-SWITCH"
@@ -1575,7 +1575,7 @@ msgid "MACROS"
 msgstr "MACROS"
 
 msgid "GAMING"
-msgstr "GAMING"
+msgstr "JEUX"
 
 msgid "SETTINGS"
-msgstr "SETTINGS"
+msgstr "PARAMÈTRES"

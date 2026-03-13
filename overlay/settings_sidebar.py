@@ -24,8 +24,16 @@ class SidebarMixin:
     """Mixin providing sidebar creation and related methods for SettingsWindow."""
 
     def _create_sidebar(self):
-        sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        # Outer container holds scrollable content + fixed exit button
+        sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         sidebar.add_css_class("sidebar")
+
+        # Scrollable area for nav buttons + credits (fits any screen height)
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_vexpand(True)
+
+        inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 
         self.nav_buttons = {}
 
@@ -35,18 +43,18 @@ class SidebarMixin:
         for item_id, label, icon in visible_nav:
             btn = NavButton(item_id, label, icon, on_click=self._on_nav_clicked)
             self.nav_buttons[item_id] = btn
-            sidebar.append(btn)
+            inner.append(btn)
 
         # Spacer to push credits to bottom
         spacer = Gtk.Box()
         spacer.set_vexpand(True)
-        sidebar.append(spacer)
+        inner.append(spacer)
 
         # Separator
         sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         sep.set_margin_top(12)
         sep.set_margin_bottom(8)
-        sidebar.append(sep)
+        inner.append(sep)
 
         # Credits section with gradient card
         credits_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -120,13 +128,17 @@ class SidebarMixin:
         donate_btn.connect("clicked", self._on_donate_clicked)
         credits_box.append(donate_btn)
 
-        sidebar.append(credits_box)
+        inner.append(credits_box)
 
-        # Exit button - kills daemon, overlay, and settings
+        scroll.set_child(inner)
+        sidebar.append(scroll)
+
+        # Exit button - fixed at bottom, always visible (outside scroll)
         exit_btn = Gtk.Button()
         exit_btn.add_css_class("destructive-action")
         exit_btn.set_margin_start(8)
         exit_btn.set_margin_end(8)
+        exit_btn.set_margin_top(4)
         exit_btn.set_margin_bottom(12)
         exit_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         exit_box.set_halign(Gtk.Align.CENTER)

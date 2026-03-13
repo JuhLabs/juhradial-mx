@@ -82,7 +82,7 @@ class LogiFlowDiscoveryResponder:
             s.close()
             self.broadcast_addr = self._get_broadcast_addr()
         except OSError:
-            pass
+            pass  # Network unavailable, keep defaults
 
     def _get_broadcast_addr(self) -> str:
         """Get the real broadcast address for our network interface.
@@ -141,7 +141,7 @@ class LogiFlowDiscoveryResponder:
                 try:
                     sock.close()
                 except OSError:
-                    pass
+                    pass  # Socket already closed
 
     def _start_listener(self):
         """Start the UDP listener socket"""
@@ -149,6 +149,7 @@ class LogiFlowDiscoveryResponder:
             self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            # CodeQL: intentional - discovery requires binding to all interfaces
             self.listen_sock.bind(('0.0.0.0', LOGI_DISCOVERY_PORT))  # nosec B104 - LAN broadcast receiver, must bind all interfaces
             self.listen_sock.settimeout(1.0)
 
@@ -254,7 +255,7 @@ class LogiFlowDiscoveryResponder:
                 plaintext = decrypt_payload(aes_key, nonce, tag, ciphertext)
                 return peer_name, plaintext
             except Exception:
-                continue
+                continue  # Wrong key for this peer, try next
         return None
 
     def _broadcast_loop(self):

@@ -101,6 +101,7 @@ class FlowPresenceServer:
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # CodeQL: intentional - discovery requires binding to all interfaces
             self.sock.bind(("", LOGI_PRESENCE_PORT))  # nosec B104 - accepts LAN peer connections, must bind all interfaces
             self.sock.listen(5)
             self.sock.settimeout(1.0)
@@ -119,13 +120,13 @@ class FlowPresenceServer:
                 try:
                     conn.close()
                 except OSError:
-                    pass
+                    pass  # Connection already closed
             self.active_connections.clear()
         if self.sock:
             try:
                 self.sock.close()
             except OSError:
-                pass
+                pass  # Server socket already closed
 
     def send_to_peer(self, peer_name: str, message: dict):
         """Send an encrypted message to a connected peer."""
@@ -231,7 +232,7 @@ class FlowPresenceServer:
                     aes_key = key
                     break
                 except Exception:
-                    continue
+                    continue  # Wrong key for this peer, try next
 
             if not aes_key:
                 logger.warning("No matching AES key for peer %s from %s", nid_hex[:16], addr[0])
@@ -315,7 +316,7 @@ class FlowPresenceClient:
             try:
                 self.sock.close()
             except OSError:
-                pass
+                pass  # Socket already closed
 
     def send_message(self, message: dict) -> bool:
         """Encrypt and send a message to the peer."""
@@ -390,7 +391,7 @@ class FlowPresenceClient:
                     try:
                         self.sock.close()
                     except OSError:
-                        pass
+                        pass  # Socket already closed
                     self.sock = None
 
             if not self.running:

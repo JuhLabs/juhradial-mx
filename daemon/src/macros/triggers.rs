@@ -104,21 +104,20 @@ pub fn parse_trigger(trigger: &str) -> Option<u16> {
 /// Handles both Wayland and X11 numbering:
 /// - Wayland: 4 = BTN_SIDE, 5 = BTN_EXTRA (direct mapping)
 /// - X11: 8 = BTN_SIDE, 9 = BTN_EXTRA (skips scroll buttons 4-7)
+///
+/// Gaming mice (SteelSeries, Razer, etc.) may have many extra buttons
+/// that map to higher GDK numbers. This handles all of them.
 fn gdk_button_to_evdev(button: u32) -> Option<u16> {
     match button {
         1 => Some(0x110), // BTN_LEFT
         2 => Some(0x112), // BTN_MIDDLE
         3 => Some(0x111), // BTN_RIGHT
-        // Wayland direct mapping
-        4 => Some(0x113), // BTN_SIDE
-        5 => Some(0x114), // BTN_EXTRA
-        6 => Some(0x115), // BTN_FORWARD
-        7 => Some(0x116), // BTN_BACK
-        // X11 mapping (offset by scroll buttons 4-7)
-        8 => Some(0x113), // BTN_SIDE
-        9 => Some(0x114), // BTN_EXTRA
-        10 => Some(0x115), // BTN_FORWARD
-        11 => Some(0x116), // BTN_BACK
+        // Wayland direct mapping: button 4+ -> BTN_SIDE (0x113) + offset
+        // Covers BTN_SIDE, BTN_EXTRA, BTN_FORWARD, BTN_BACK, BTN_TASK, etc.
+        4..=7 => Some(0x113 + (button - 4) as u16),
+        // X11 mapping: button 8+ -> BTN_SIDE (0x113) + offset
+        // (scroll buttons 4-7 are consumed by GDK, never reach GestureClick)
+        8.. => Some(0x113 + (button - 8) as u16),
         _ => None,
     }
 }
@@ -132,12 +131,23 @@ mod tests {
     fn test_parse_mouse_trigger_wayland() {
         assert_eq!(parse_trigger("mouse:4"), Some(0x113)); // BTN_SIDE
         assert_eq!(parse_trigger("mouse:5"), Some(0x114)); // BTN_EXTRA
+        assert_eq!(parse_trigger("mouse:6"), Some(0x115)); // BTN_FORWARD
+        assert_eq!(parse_trigger("mouse:7"), Some(0x116)); // BTN_BACK
     }
 
     #[test]
     fn test_parse_mouse_trigger_x11() {
         assert_eq!(parse_trigger("mouse:8"), Some(0x113)); // BTN_SIDE
         assert_eq!(parse_trigger("mouse:9"), Some(0x114)); // BTN_EXTRA
+        assert_eq!(parse_trigger("mouse:10"), Some(0x115)); // BTN_FORWARD
+        assert_eq!(parse_trigger("mouse:11"), Some(0x116)); // BTN_BACK
+    }
+
+    #[test]
+    fn test_parse_mouse_trigger_gaming_extra() {
+        // Gaming mice (SteelSeries, Razer) with extra buttons
+        assert_eq!(parse_trigger("mouse:12"), Some(0x117)); // BTN_TASK (X11)
+        assert_eq!(parse_trigger("mouse:13"), Some(0x118)); // Extra gaming button
     }
 
     #[test]

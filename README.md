@@ -6,7 +6,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.3.0--beta-cyan.svg" alt="Version 0.3.0-beta">
+      <img src="https://img.shields.io/badge/version-0.3.1--beta-cyan.svg" alt="Version 0.3.1-beta">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
@@ -35,7 +35,7 @@
 <br>
 
 > [!TIP]
-> **New in [v0.3.0-beta](CHANGELOG.md):** JuhFlow cross-computer control (Linux-Mac), clickable DPI/sensitivity input, generic mouse support for any mouse, code quality overhaul with 15+ fixes, and a cleaner project structure. [Update now](#installation).
+> **New in [v0.3.1-beta](CHANGELOG.md):** Macro system with visual timeline editor, gaming mode for any mouse, custom sidebar icons, splash screen, 53 new translations, removed logid dependency, and 30+ bug fixes including GNOME radial wheel persistence and multi-distro compatibility. [Update now](#installation).
 >
 > **Mac users:** Want to try JuhFlow cross-computer control? [Download JuhFlow.dmg](https://github.com/JuhLabs/juhradial-mx/raw/master/juhflow/JuhFlow.dmg) (signed & notarized) - install it on your Mac, then enable Flow in JuhRadial MX Settings on Linux. Both machines auto-discover each other on your local network.
 
@@ -96,7 +96,7 @@
   <tr>
     <td>
       <h3><img src="assets/github/gear.png" width="24" alt=""> Settings Dashboard</h3>
-      Modern GTK4/Adwaita settings with clickable DPI/sensitivity controls, button remapping, theme picker, and Easy-Switch device management.
+      Modern GTK4/Adwaita settings with macro editor, gaming mode, DPI/sensitivity controls, button remapping, theme picker, and Easy-Switch device management.
     </td>
     <td>
       <h3><img src="assets/github/mouse.png" width="24" alt=""> Multi-Device</h3>
@@ -105,14 +105,14 @@
   </tr>
   <tr>
     <td>
-      <strong>AI Quick Access</strong> - Claude, ChatGPT, Gemini, Perplexity in a submenu<br>
-      <strong>Multiple Themes</strong> - JuhRadial MX, Catppuccin, Nord, Dracula, Solarized & more<br>
+      <strong>Macros</strong> - Key sequences, delays, text typing, WhileHolding loops<br>
+      <strong>Gaming Mode</strong> - Bind any mouse button to macros via evdev<br>
       <strong>Battery Monitoring</strong> - Real-time status with instant charging detection via HID++
     </td>
     <td>
-      <strong>DPI Control</strong> - Click to type exact DPI (400-8000) or drag the slider<br>
+      <strong>AI Quick Access</strong> - Claude, ChatGPT, Gemini, Perplexity in a submenu<br>
       <strong>Native Wayland</strong> - GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway & more<br>
-      <strong>Multi-Monitor</strong> - Correct cursor positioning across 1-4+ monitors with HiDPI
+      <strong>Multiple Themes</strong> - JuhRadial MX, Catppuccin, Nord, Dracula, Solarized & more
     </td>
   </tr>
 </table>
@@ -339,7 +339,7 @@ windowrulev2 = noanim, title:^(JuhRadial MX)$
 
 | Problem | Solution |
 |---------|----------|
-| Menu doesn't appear | Check daemon: `systemctl --user status juhradialmx` |
+| Menu doesn't appear | Check daemon is running: `pgrep juhradiald` or restart via the desktop launcher |
 | Menu at top-left corner | Log out/in to load GNOME extension, or run `gnome-extensions enable juhradial-cursor@dev.juhlabs.com` |
 | Mouse not detected | Check HID permissions: ensure your user is in the `input` group |
 | Build fails | Install dev packages: `hidapi-devel`, `dbus-devel` |
@@ -391,6 +391,7 @@ juhradial-mx/
 +-- daemon/              # Rust daemon (HID++ listener, D-Bus, cursor detection)
 +-- overlay/             # Python UI (overlay + GTK4 settings)
 |   +-- flow/            # JuhFlow multi-computer control
+|   +-- locales/         # Translations (19 languages)
 +-- juhflow/             # JuhFlow Mac companion app (Swift + Python)
 +-- gnome-extension/     # GNOME Shell cursor helper extension
 +-- scripts/             # Launcher scripts

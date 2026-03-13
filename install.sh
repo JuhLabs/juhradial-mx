@@ -213,7 +213,7 @@ check_existing_install() {
         INSTALL_MODE="upgrade"
         # Try to read current version from the installed copy
         if [ -f "$INSTALL_DIR/CHANGELOG.md" ]; then
-            INSTALLED_VERSION=$(grep -m1 -oP '## \[?\Kv[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/CHANGELOG.md" 2>/dev/null || echo "")
+            INSTALLED_VERSION=$(grep -m1 -oP '## \[?\K[0-9]+\.[0-9]+\.[0-9]+[^]\s]*' "$INSTALL_DIR/CHANGELOG.md" 2>/dev/null || echo "")
         fi
     fi
 }
@@ -260,7 +260,7 @@ print_system_info() {
             echo -e "  ${DIM}Desktop${RESET}      ${GREEN}${DESKTOP_LABEL}${RESET}"
             ;;
         gnome|cosmic|cinnamon|xfce|budgie|river|niri|wayfire|i3)
-            echo -e "  ${DIM}Desktop${RESET}      ${WHITE}${DESKTOP_LABEL}${RESET} ${GRAY}— community supported${RESET}"
+            echo -e "  ${DIM}Desktop${RESET}      ${GREEN}${DESKTOP_LABEL}${RESET}"
             ;;
         *)
             echo -e "  ${DIM}Desktop${RESET}      ${YELLOW}${DESKTOP_LABEL}${RESET} ${GRAY}— works best on KDE/Hyprland${RESET}"
@@ -633,7 +633,7 @@ print_success() {
     # Read new version from the freshly fetched source
     local new_version=""
     if [ -f "$INSTALL_DIR/CHANGELOG.md" ]; then
-        new_version=$(grep -m1 -oP '## \[?\Kv[0-9]+\.[0-9]+\.[0-9]+' "$INSTALL_DIR/CHANGELOG.md" 2>/dev/null || echo "")
+        new_version=$(grep -m1 -oP '## \[?\K[0-9]+\.[0-9]+\.[0-9]+[^]\s]*' "$INSTALL_DIR/CHANGELOG.md" 2>/dev/null || echo "")
     fi
 
     local version_display=""

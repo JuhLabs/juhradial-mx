@@ -269,7 +269,7 @@ class FlowHandoffManager:
         msg_type = message.get("type", "")
 
         if msg_type == MSG_CURSOR_HANDOFF:
-            self._handle_cursor_handoff(peer_name, message)
+            self.handle_cursor_handoff(peer_name, message)
         elif msg_type == MSG_CLIPBOARD_SYNC:
             self._handle_clipboard_sync(peer_name, message)
         # Heartbeats are silently ignored
@@ -283,10 +283,12 @@ class FlowHandoffManager:
         relative_pos = message.get("relative_position", 0.5)
         logger.info("Handoff received from %s: rel=%.2f", peer_name, relative_pos)
 
-        # Suppress edge detector to prevent bounce-back.
+        # Suppress edge detector during cursor warp sequence to prevent bounce-back.
+        # Warps run for 3s (6 x 0.5s), then we clear suppression after 3.5s.
+        # 5s ceiling as safety fallback in case the clear timer doesn't fire.
         if self.edge_detector:
-            self.edge_detector.suppress_for(15000)
-            logger.debug("Edge detector suppressed for 15s")
+            self.edge_detector.suppress_for(5000)
+            logger.debug("Edge detector suppressed (cleared after warps complete)")
 
         try:
             from overlay.overlay_cursor import warp_cursor
@@ -333,6 +335,18 @@ class FlowHandoffManager:
             t.daemon = True
             t.start()
             new_timers.append(t)
+
+        # Clear suppression 0.5s after last warp so user can transfer again
+        def _end_suppression():
+            if self.edge_detector:
+                self.edge_detector._suppress_until = 0.0
+                logger.debug("Edge suppression cleared (warps complete)")
+
+        end_timer = threading.Timer(3.5, _end_suppression)
+        end_timer.daemon = True
+        end_timer.start()
+        new_timers.append(end_timer)
+
         with self._warp_lock:
             self._warp_timers = new_timers
 

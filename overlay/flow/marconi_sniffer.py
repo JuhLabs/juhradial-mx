@@ -52,6 +52,7 @@ def listen_udp(ports, duration=60, broadcast_addr="255.255.255.255"):
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            # CodeQL: intentional - discovery requires binding to all interfaces
             sock.bind(('0.0.0.0', port))  # nosec B104 - LAN broadcast receiver, must bind all interfaces
             sock.settimeout(1.0)
             socks.append((sock, port))

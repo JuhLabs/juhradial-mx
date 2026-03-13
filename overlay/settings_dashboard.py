@@ -8,11 +8,20 @@ All UI components are imported from settings_* modules.
 SPDX-License-Identifier: GPL-3.0
 """
 
+import ctypes
+import ctypes.util
 import gi
 import logging
 import sys
 import signal
 from pathlib import Path
+
+# Set process name to "juhradial-settings" for system monitors
+try:
+    _libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+    _libc.prctl(15, b"juhradial-settings", 0, 0, 0)  # PR_SET_NAME = 15
+except (OSError, AttributeError):
+    pass  # prctl may not be available on all platforms
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +105,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                     geom = mon.get_geometry()
                     w = max(WINDOW_MIN_WIDTH, min(int(geom.width * 0.70), 2400))
                     h = max(WINDOW_MIN_HEIGHT, min(int(geom.height * 0.75), 1200))
-        except Exception:
+        except (AttributeError, ValueError):
             pass  # GDK monitor detection can fail in headless or early init
         self.set_default_size(w, h)
         self.set_size_request(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)

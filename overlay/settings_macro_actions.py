@@ -353,7 +353,7 @@ class DelayInputDialog(Adw.MessageDialog):
         spin.connect("value-changed", lambda s: setattr(self, "delay_ms", int(s.get_value())))
         content.append(spin)
 
-        ms_label = Gtk.Label(label="ms")
+        ms_label = Gtk.Label(label=_("ms"))
         ms_label.add_css_class("heading")
         content.append(ms_label)
 

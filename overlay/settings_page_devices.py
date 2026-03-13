@@ -290,7 +290,7 @@ class DevicesPage(Gtk.ScrolledWindow):
                             text = uevent.read_text(errors="ignore")
                             if "MOUSE" in text.upper() or "POINTER" in text.upper():
                                 return _("Bluetooth")
-        except Exception:
+        except OSError:
             pass  # HID sysfs scan can fail on some systems
         return _("USB")
 

@@ -2,6 +2,7 @@
 
 import logging
 import subprocess
+import time
 
 logger = logging.getLogger("juhradial.flow.clipboard")
 
@@ -39,8 +40,24 @@ def get_clipboard() -> str:
     return ""
 
 
-def set_clipboard(content: str) -> bool:
-    """Set clipboard contents (supports Wayland and X11)"""
+def set_clipboard(content: str, retries: int = 3) -> bool:
+    """Set clipboard contents (supports Wayland and X11).
+
+    Retries on failure since wl-copy can race with Wayland seat changes
+    during Flow device switches.
+    """
+    for attempt in range(retries):
+        if _try_set_clipboard(content):
+            return True
+        if attempt < retries - 1:
+            time.sleep(0.3)
+            logger.debug("Clipboard set retry %d/%d", attempt + 2, retries)
+    logger.warning("Clipboard set failed after %d attempts", retries)
+    return False
+
+
+def _try_set_clipboard(content: str) -> bool:
+    """Single attempt to set clipboard."""
     try:
         result = subprocess.run(
             ["wl-copy"],

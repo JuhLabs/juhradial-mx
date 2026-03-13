@@ -13,7 +13,7 @@ SPDX-License-Identifier: GPL-3.0
 import os
 import subprocess
 
-from overlay_constants import IS_HYPRLAND, IS_GNOME, IS_SWAY, _HAS_XWAYLAND
+from overlay_constants import IS_HYPRLAND, IS_GNOME, _HAS_XWAYLAND
 
 # =============================================================================
 # HYPRLAND CURSOR DETECTION
@@ -212,7 +212,7 @@ def get_cursor_position_gnome():
                 x = result.get_child_value(0).get_int32()
                 y = result.get_child_value(1).get_int32()
                 return (x, y)
-        except Exception:
+        except (GLib.Error, TypeError, ValueError, AttributeError):
             pass  # D-Bus call can fail if extension is not installed
         return None
 
@@ -521,7 +521,7 @@ def warp_cursor(x: int, y: int) -> bool:
             if result.returncode == 0:
                 return True
         except (FileNotFoundError, subprocess.SubprocessError):
-            pass
+            pass  # hyprctl not available or failed
 
     # ydotool works on most Wayland compositors (needs ydotoold running)
     try:
@@ -532,7 +532,7 @@ def warp_cursor(x: int, y: int) -> bool:
         if result.returncode == 0:
             return True
     except (FileNotFoundError, subprocess.SubprocessError):
-        pass
+        pass  # ydotool not available or failed
 
     # XWarpPointer via libX11 (works on X11/XWayland)
     if _HAS_XWAYLAND and _init_xlib():
@@ -587,7 +587,7 @@ def get_screen_geometry(cursor_pos=None):
                         "x": geom.x(), "y": geom.y(),
                         "width": geom.width(), "height": geom.height(),
                     }
-    except Exception:
+    except (ImportError, AttributeError, RuntimeError):
         pass  # Qt screen geometry may not be available on all compositors
 
     return {"x": 0, "y": 0, "width": 1920, "height": 1080}

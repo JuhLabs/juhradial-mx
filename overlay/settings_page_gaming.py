@@ -290,7 +290,7 @@ class GamingPage(Gtk.ScrolledWindow):
         )
         row.append(dpi_spin)
 
-        dpi_label = Gtk.Label(label="DPI")
+        dpi_label = Gtk.Label(label=_("DPI"))
         dpi_label.add_css_class("dim-label")
         row.append(dpi_label)
 

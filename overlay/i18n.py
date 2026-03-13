@@ -112,6 +112,7 @@ def reload_language():
                 pass  # Module dict not accessible, skip
 
     try:
+        # Lazy import to break circular dependency (settings_constants imports from i18n)
         from settings_constants import refresh_translations
 
         refresh_translations(_)

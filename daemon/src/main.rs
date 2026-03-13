@@ -29,6 +29,65 @@ use std::sync::{Arc, Mutex};
 /// Device polling interval when device is not found (2 seconds)
 const DEVICE_POLL_INTERVAL_SECS: u64 = 2;
 
+/// Spawn a background thread that watches /dev/input/ for device hotplug events
+/// using inotify. Returns a Notify that fires when event* devices appear or disappear.
+/// This allows evdev loops to re-scan immediately instead of waiting for the 2s poll.
+fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
+    let hotplug = Arc::new(tokio::sync::Notify::new());
+    let hotplug_tx = hotplug.clone();
+
+    std::thread::spawn(move || {
+        use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+        use std::sync::mpsc::channel;
+
+        let (tx, rx) = channel();
+        let config = Config::default().with_poll_interval(Duration::from_millis(200));
+
+        let mut watcher = match RecommendedWatcher::new(tx, config) {
+            Ok(w) => w,
+            Err(e) => {
+                warn!("Device hotplug watcher init failed: {} - falling back to polling", e);
+                return;
+            }
+        };
+
+        let input_dir = std::path::PathBuf::from("/dev/input");
+        if let Err(e) = watcher.watch(&input_dir, RecursiveMode::NonRecursive) {
+            warn!("Failed to watch /dev/input/: {} - falling back to polling", e);
+            return;
+        }
+
+        info!("Device hotplug watcher active on /dev/input/");
+
+        loop {
+            match rx.recv() {
+                Ok(Ok(event)) => {
+                    // Only care about event* files (input devices)
+                    let is_event_device = event.paths.iter().any(|p| {
+                        p.file_name()
+                            .and_then(|n| n.to_str())
+                            .map(|n| n.starts_with("event"))
+                            .unwrap_or(false)
+                    });
+                    if is_event_device {
+                        info!("Device hotplug detected: {:?}", event.kind);
+                        hotplug_tx.notify_waiters();
+                    }
+                }
+                Ok(Err(e)) => {
+                    warn!("Device watcher error: {}", e);
+                }
+                Err(_) => {
+                    // Channel closed
+                    break;
+                }
+            }
+        }
+    });
+
+    hotplug
+}
+
 /// JuhRadial MX Daemon - Radial menu for Logitech MX Master 4
 #[derive(Parser, Debug)]
 #[command(name = "juhradiald")]
@@ -299,20 +358,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         run_hidraw_loop(hidraw_tx, mx4_hidraw_path, macro_cids).await
     });
 
+    // Start inotify watcher on /dev/input/ for instant device hotplug detection.
+    // Shared across both evdev loops so they re-scan immediately on device changes.
+    let hotplug_notify = spawn_device_hotplug_watcher();
+
     // Spawn evdev handlers:
     // - MX evdev loop: fallback for standard MX input events (when HID++ divert unavailable)
     // - Generic evdev loop: handles non-Logitech mice (e.g., SteelSeries)
     // Both run simultaneously so either mouse can trigger the radial wheel.
     let evdev_tx = event_tx.clone();
-    let suppressed_for_mx = macro_evdev_codes.clone();
+    // Always suppress gesture button (BTN_BACK = 0x116) on MX evdev path
+    // so it doesn't leak to the OS as "browser back" / "open last file".
+    // Also suppress any macro-bound buttons.
+    let mut suppressed_for_mx = macro_evdev_codes.clone();
+    for &code in juhradiald::evdev::GESTURE_BUTTON_CODES {
+        suppressed_for_mx.insert(code);
+    }
+    let hotplug_for_mx = hotplug_notify.clone();
     let evdev_handle = tokio::spawn(async move {
-        run_evdev_loop(evdev_tx, suppressed_for_mx).await
+        run_evdev_loop(evdev_tx, suppressed_for_mx, hotplug_for_mx).await
     });
 
     let generic_evdev_tx = event_tx.clone();
     let suppressed_for_generic = macro_evdev_codes.clone();
+    let hotplug_for_generic = hotplug_notify.clone();
     let generic_evdev_handle = tokio::spawn(async move {
-        run_generic_evdev_loop(generic_evdev_tx, suppressed_for_generic).await
+        run_generic_evdev_loop(generic_evdev_tx, suppressed_for_generic, hotplug_for_generic).await
     });
 
     // Get screen bounds for edge clamping (query once at startup)
@@ -476,7 +547,12 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, preferred_path: O
 /// - Initial device detection
 /// - Polling for device when not found (2-second intervals)
 /// - Reconnection after device disconnect
-async fn run_evdev_loop(event_tx: mpsc::Sender<GestureEvent>, suppressed_keys: HashSet<u16>) {
+/// - Instant re-scan on device hotplug (via inotify)
+async fn run_evdev_loop(
+    event_tx: mpsc::Sender<GestureEvent>,
+    suppressed_keys: HashSet<u16>,
+    hotplug: Arc<tokio::sync::Notify>,
+) {
     let mut handler = EvdevHandler::new(event_tx.clone());
     handler.set_suppressed_keys(suppressed_keys);
 
@@ -520,8 +596,13 @@ async fn run_evdev_loop(event_tx: mpsc::Sender<GestureEvent>, suppressed_keys: H
             }
         }
 
-        // Wait before polling again
-        sleep(Duration::from_secs(DEVICE_POLL_INTERVAL_SECS)).await;
+        // Wait for either poll interval OR instant hotplug notification
+        tokio::select! {
+            _ = sleep(Duration::from_secs(DEVICE_POLL_INTERVAL_SECS)) => {}
+            _ = hotplug.notified() => {
+                info!("Device hotplug detected, re-scanning MX devices immediately");
+            }
+        }
     }
 }
 
@@ -564,7 +645,11 @@ fn read_device_mode_from_config() -> String {
 ///
 /// Same as run_evdev_loop but uses find_any_mouse() and configurable trigger button.
 /// This is the fallback when no Logitech MX device is found.
-async fn run_generic_evdev_loop(event_tx: mpsc::Sender<GestureEvent>, suppressed_keys: HashSet<u16>) {
+async fn run_generic_evdev_loop(
+    event_tx: mpsc::Sender<GestureEvent>,
+    suppressed_keys: HashSet<u16>,
+    hotplug: Arc<tokio::sync::Notify>,
+) {
     let trigger = read_trigger_button_from_config();
     if let Some(code) = trigger {
         info!("Generic trigger button from config: {:#x}", code);
@@ -616,8 +701,13 @@ async fn run_generic_evdev_loop(event_tx: mpsc::Sender<GestureEvent>, suppressed
             }
         }
 
-        // Wait before polling again
-        sleep(Duration::from_secs(DEVICE_POLL_INTERVAL_SECS)).await;
+        // Wait for either poll interval OR instant hotplug notification
+        tokio::select! {
+            _ = sleep(Duration::from_secs(DEVICE_POLL_INTERVAL_SECS)) => {}
+            _ = hotplug.notified() => {
+                info!("Device hotplug detected, re-scanning generic mice immediately");
+            }
+        }
     }
 }
 

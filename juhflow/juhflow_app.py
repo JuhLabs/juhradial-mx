@@ -517,6 +517,7 @@ class DiscoveryListener:
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # CodeQL: intentional - discovery requires binding to all interfaces
             sock.bind(('0.0.0.0', DISCOVERY_PORT))  # nosec B104 - LAN broadcast receiver, must bind all interfaces
             sock.settimeout(1.0)
         except OSError as e:

@@ -183,20 +183,18 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
                 """
                 logger.info("Bridge edge hit from peer %s: %s", peer_id, msg)
                 if _handoff_manager:
-                    # Switch MX Master back to Linux host channel.
-                    # Try local D-Bus first (works if device already reconnected),
-                    # AND send device_switch to Mac so it switches on its side too.
-                    _handoff_manager.switch_host_to_linux()
-
-                    # Ask Mac companion to switch the MX from its side
-                    # (it has the device connected, so CHANGE_HOST works there)
+                    # Ask Mac companion to switch the MX from its side.
+                    # CHANGE_HOST only works from the host that currently has
+                    # the device connected - calling SetHost locally is futile
+                    # (device is on Mac's receiver) and causes a reconnect loop.
                     if _juhflow_bridge:
                         cfg = _handoff_manager.get_flow_config()
                         local_host = cfg.get("local_host_index", 0)
+                        local_channel = int(local_host) + 1  # 0-based -> 1-based
                         _juhflow_bridge.send_device_switch(
-                            "mx_master", int(local_host),
+                            "mx_master", local_channel,
                         )
-                        logger.info("Sent device_switch(host=%s) to Mac", local_host)
+                        logger.info("Sent device_switch(channel=%d) to Mac", local_channel)
 
                     edge = msg.get("edge", "right")
                     rel = msg.get("relative_position", 0.5)
@@ -211,11 +209,21 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
                         _edge_detector.suppress_for(1000)
 
             def _on_bridge_clipboard(peer_id, msg):
-                """Forward clipboard from JuhFlow peer."""
+                """Forward clipboard from JuhFlow peer.
+
+                Delays set by 1.5s to let MX Master reconnect to Linux Bolt
+                receiver after host switch - wl-copy can fail during seat transition.
+                """
                 content = msg.get("content", "")
                 if content:
-                    from .clipboard import set_clipboard
-                    set_clipboard(content)
+                    import threading as _thr
+
+                    def _delayed_set():
+                        from .clipboard import set_clipboard
+                        set_clipboard(content)
+                        logger.debug("Bridge clipboard set (%d chars)", len(content))
+
+                    _thr.Timer(1.5, _delayed_set).start()
 
             _juhflow_bridge = JuhFlowBridge(
                 on_edge_hit=_on_bridge_edge_hit,
