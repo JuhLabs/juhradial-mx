@@ -1219,3 +1219,354 @@ msgstr ""
 #: overlay/settings_widgets.py:231
 msgid "MX Master 4"
 msgstr "MX Master 4"
+
+msgid "Macros"
+msgstr "매크로"
+
+msgid "Create and manage macro sequences"
+msgstr "매크로 시퀀스 생성 및 관리"
+
+msgid "New Macro"
+msgstr "새 매크로"
+
+msgid "Import"
+msgstr "가져오기"
+
+msgid "Saved Macros"
+msgstr "저장된 매크로"
+
+msgid "No Macros"
+msgstr "매크로 없음"
+
+msgid "Duplicate"
+msgstr "복제"
+
+msgid "Delete"
+msgstr "삭제"
+
+msgid "Delete Macro?"
+msgstr "매크로를 삭제하시겠습니까?"
+
+msgid "Import Macro"
+msgstr "매크로 가져오기"
+
+msgid "JSON files"
+msgstr "JSON 파일"
+
+msgid "Imported Macro"
+msgstr "가져온 매크로"
+
+msgid "Untitled"
+msgstr "제목 없음"
+
+msgid "Edit Macro"
+msgstr "매크로 편집"
+
+msgid "Untitled Macro"
+msgstr "제목 없는 매크로"
+
+msgid "Macro Details"
+msgstr "매크로 세부 정보"
+
+msgid "Name"
+msgstr "이름"
+
+msgid "Macro name"
+msgstr "매크로 이름"
+
+msgid "Description"
+msgstr "설명"
+
+msgid "Optional description"
+msgstr "선택 설명"
+
+msgid "Repeat Mode"
+msgstr "반복 모드"
+
+msgid "How the macro repeats when triggered"
+msgstr "트리거 시 매크로 반복 방법"
+
+msgid "Repeat Count"
+msgstr "반복 횟수"
+
+msgid "Trigger"
+msgstr "트리거"
+
+msgid "This button will trigger the macro"
+msgstr "이 버튼이 매크로를 실행합니다"
+
+msgid "Bind"
+msgstr "바인딩"
+
+msgid "Bind Trigger"
+msgstr "트리거 바인딩"
+
+msgid "Not bound"
+msgstr "바인딩 안됨"
+
+msgid "Remove binding"
+msgstr "바인딩 제거"
+
+msgid "Press any mouse button or key..."
+msgstr "마우스 버튼이나 키를 누르세요..."
+
+msgid "Waiting..."
+msgstr "대기 중..."
+
+msgid "Playback"
+msgstr "재생"
+
+msgid "Auto-insert delay between actions"
+msgstr "동작 간 자동 지연 삽입"
+
+msgid "Standard Delay"
+msgstr "표준 지연"
+
+msgid "ADD ACTION"
+msgstr "동작 추가"
+
+msgid "Keystroke"
+msgstr "키 입력"
+
+msgid "Record a key press and release"
+msgstr "키 누름 및 해제 기록"
+
+msgid "Delay"
+msgstr "지연"
+
+msgid "Add Delay"
+msgstr "지연 추가"
+
+msgid "Add a delay between actions"
+msgstr "동작 간 지연 추가"
+
+msgid "Text"
+msgstr "텍스트"
+
+msgid "Type Text"
+msgstr "텍스트 입력"
+
+msgid "Type a string of text"
+msgstr "텍스트 문자열 입력"
+
+msgid "Mouse"
+msgstr "마우스"
+
+msgid "Mouse Action"
+msgstr "마우스 동작"
+
+msgid "Add a mouse button action"
+msgstr "마우스 버튼 동작 추가"
+
+msgid "Scroll"
+msgstr "스크롤"
+
+msgid "Scroll Action"
+msgstr "스크롤 동작"
+
+msgid "Add a scroll action"
+msgstr "스크롤 동작 추가"
+
+msgid "Clear All"
+msgstr "모두 지우기"
+
+msgid "Record"
+msgstr "녹음"
+
+msgid "Press Any Key"
+msgstr "아무 키나 누르세요"
+
+msgid "Enter delay duration in milliseconds."
+msgstr "지연 시간을 밀리초로 입력하세요."
+
+msgid "Enter text to type in the macro."
+msgstr "매크로에서 입력할 텍스트를 입력하세요."
+
+msgid "Enter text..."
+msgstr "텍스트 입력..."
+
+msgid "Button"
+msgstr "버튼"
+
+msgid "Click"
+msgstr "클릭"
+
+msgid "Choose button and action type."
+msgstr "버튼과 동작 유형을 선택하세요."
+
+msgid "Direction"
+msgstr "방향"
+
+msgid "Up"
+msgstr "위"
+
+msgid "Down"
+msgstr "아래"
+
+msgid "Amount (clicks)"
+msgstr "양 (클릭)"
+
+msgid "Choose scroll direction and amount."
+msgstr "스크롤 방향과 양을 선택하세요."
+
+msgid "Add"
+msgstr "추가"
+
+msgid "Mode"
+msgstr "모드"
+
+msgid "{} actions - {}"
+msgstr "{} 동작 - {}"
+
+msgid "Once"
+msgstr "한 번"
+
+msgid "While Holding"
+msgstr "누르고 있는 동안"
+
+msgid "Toggle On/Off"
+msgstr "토글 켜기/끄기"
+
+msgid "Repeat N Times"
+msgstr "N회 반복"
+
+msgid "Sequence"
+msgstr "시퀀스"
+
+msgid "Gaming Mode"
+msgstr "게이밍 모드"
+
+msgid "Optimize your mouse for gaming"
+msgstr "게임을 위해 마우스 최적화"
+
+msgid "Enable Gaming Mode"
+msgstr "게이밍 모드 활성화"
+
+msgid "Activate gaming-optimized settings"
+msgstr "게이밍 최적화 설정 활성화"
+
+msgid "Suppress Overlay"
+msgstr "오버레이 억제"
+
+msgid "Prevent radial menu from appearing during gaming"
+msgstr "게임 중 방사형 메뉴 표시 방지"
+
+msgid "DPI Profiles"
+msgstr "DPI 프로파일"
+
+msgid "Active Profile"
+msgstr "활성 프로파일"
+
+msgid "Currently active DPI preset"
+msgstr "현재 활성 DPI 프리셋"
+
+msgid "Manage Macros"
+msgstr "매크로 관리"
+
+msgid "Create, edit, and assign macro sequences"
+msgstr "매크로 시퀀스 생성, 편집 및 할당"
+
+msgid "About Gaming Mode"
+msgstr "게이밍 모드에 대해"
+
+msgid "Precision"
+msgstr "정밀"
+
+msgid "Normal"
+msgstr "보통"
+
+msgid "Profile"
+msgstr "프로파일"
+
+msgid "Button 10"
+msgstr "버튼 10"
+
+msgid "Button 11"
+msgstr "버튼 11"
+
+#. Import macro tooltip
+msgid ""
+"Import a .json macro file.\n"
+"Format: {name, actions: [{type, key/ms/text, delay_after_ms}], repeat_mode}\n"
+"Action types: key_down, key_up, delay, text, mouse_click, scroll"
+msgstr ""
+"Import a .json macro file.\n"
+"Format: {name, actions: [{type, key/ms/text, delay_after_ms}], repeat_mode}\n"
+"Action types: key_down, key_up, delay, text, mouse_click, scroll"
+
+#. Empty macros state description
+msgid ""
+"Create your first macro to automate key sequences,\n"
+"mouse actions, and more."
+msgstr ""
+"Create your first macro to automate key sequences,\n"
+"mouse actions, and more."
+
+#. Delete macro confirmation
+msgid ""
+"Are you sure you want to delete \"%s\"?\n"
+"This cannot be undone."
+msgstr ""
+"Are you sure you want to delete \"%s\"?\n"
+"This cannot be undone."
+
+#. Key capture dialog body
+msgid ""
+"Press the key you want to add to the macro.\n"
+"Press Escape to cancel."
+msgstr ""
+"Press the key you want to add to the macro.\n"
+"Press Escape to cancel."
+
+#. Gaming mode info card
+msgid ""
+"Gaming mode optimizes your mouse for gaming by switching to a dedicated "
+"DPI profile and optionally suppressing the radial menu overlay to prevent "
+"accidental activation.\n"
+"\n"
+"DPI profiles let you quickly switch between precision (low DPI), normal "
+"(medium DPI), and fast (high DPI) sensitivities. Macros allow you to "
+"record and replay complex input sequences."
+msgstr ""
+"Gaming mode optimizes your mouse for gaming by switching to a dedicated "
+"DPI profile and optionally suppressing the radial menu overlay to prevent "
+"accidental activation.\n"
+"\n"
+"DPI profiles let you quickly switch between precision (low DPI), normal "
+"(medium DPI), and fast (high DPI) sensitivities. Macros allow you to "
+"record and replay complex input sequences."
+
+#. Timeline empty state
+msgid ""
+"No actions yet.\n"
+"Use the palette below or Record to add actions."
+msgstr ""
+"No actions yet.\n"
+"Use the palette below or Record to add actions."
+
+msgid "BUTTONS"
+msgstr "BUTTONS"
+
+msgid "POINT & SCROLL"
+msgstr "POINT & SCROLL"
+
+msgid "HAPTIC FEEDBACK"
+msgstr "HAPTIC FEEDBACK"
+
+msgid "DEVICES"
+msgstr "DEVICES"
+
+msgid "EASY-SWITCH"
+msgstr "EASY-SWITCH"
+
+msgid "FLOW"
+msgstr "FLOW"
+
+msgid "MACROS"
+msgstr "MACROS"
+
+msgid "GAMING"
+msgstr "GAMING"
+
+msgid "SETTINGS"
+msgstr "SETTINGS"

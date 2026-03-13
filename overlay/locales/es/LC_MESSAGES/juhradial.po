@@ -1224,3 +1224,354 @@ msgstr ""
 #: overlay/settings_widgets.py:231
 msgid "MX Master 4"
 msgstr "MX Master 4"
+
+msgid "Macros"
+msgstr "Macros"
+
+msgid "Create and manage macro sequences"
+msgstr "Crear y gestionar secuencias de macros"
+
+msgid "New Macro"
+msgstr "Nuevo macro"
+
+msgid "Import"
+msgstr "Importar"
+
+msgid "Saved Macros"
+msgstr "Macros guardados"
+
+msgid "No Macros"
+msgstr "Sin macros"
+
+msgid "Duplicate"
+msgstr "Duplicar"
+
+msgid "Delete"
+msgstr "Eliminar"
+
+msgid "Delete Macro?"
+msgstr "¿Eliminar macro?"
+
+msgid "Import Macro"
+msgstr "Importar macro"
+
+msgid "JSON files"
+msgstr "Archivos JSON"
+
+msgid "Imported Macro"
+msgstr "Macro importado"
+
+msgid "Untitled"
+msgstr "Sin título"
+
+msgid "Edit Macro"
+msgstr "Editar macro"
+
+msgid "Untitled Macro"
+msgstr "Macro sin título"
+
+msgid "Macro Details"
+msgstr "Detalles del macro"
+
+msgid "Name"
+msgstr "Nombre"
+
+msgid "Macro name"
+msgstr "Nombre del macro"
+
+msgid "Description"
+msgstr "Descripción"
+
+msgid "Optional description"
+msgstr "Descripción opcional"
+
+msgid "Repeat Mode"
+msgstr "Modo de repetición"
+
+msgid "How the macro repeats when triggered"
+msgstr "Cómo se repite el macro al activarlo"
+
+msgid "Repeat Count"
+msgstr "Cantidad de repeticiones"
+
+msgid "Trigger"
+msgstr "Disparador"
+
+msgid "This button will trigger the macro"
+msgstr "Este botón activará el macro"
+
+msgid "Bind"
+msgstr "Vincular"
+
+msgid "Bind Trigger"
+msgstr "Vincular disparador"
+
+msgid "Not bound"
+msgstr "Sin vincular"
+
+msgid "Remove binding"
+msgstr "Quitar vínculo"
+
+msgid "Press any mouse button or key..."
+msgstr "Presione cualquier botón del ratón o tecla..."
+
+msgid "Waiting..."
+msgstr "Esperando..."
+
+msgid "Playback"
+msgstr "Reproducción"
+
+msgid "Auto-insert delay between actions"
+msgstr "Insertar retraso automático entre acciones"
+
+msgid "Standard Delay"
+msgstr "Retraso estándar"
+
+msgid "ADD ACTION"
+msgstr "AÑADIR ACCIÓN"
+
+msgid "Keystroke"
+msgstr "Pulsación de tecla"
+
+msgid "Record a key press and release"
+msgstr "Grabar presión y liberación de tecla"
+
+msgid "Delay"
+msgstr "Retraso"
+
+msgid "Add Delay"
+msgstr "Añadir retraso"
+
+msgid "Add a delay between actions"
+msgstr "Añadir un retraso entre acciones"
+
+msgid "Text"
+msgstr "Texto"
+
+msgid "Type Text"
+msgstr "Escribir texto"
+
+msgid "Type a string of text"
+msgstr "Escribir una cadena de texto"
+
+msgid "Mouse"
+msgstr "Ratón"
+
+msgid "Mouse Action"
+msgstr "Acción del ratón"
+
+msgid "Add a mouse button action"
+msgstr "Añadir acción de botón de ratón"
+
+msgid "Scroll"
+msgstr "Desplazar"
+
+msgid "Scroll Action"
+msgstr "Acción de desplazamiento"
+
+msgid "Add a scroll action"
+msgstr "Añadir acción de desplazamiento"
+
+msgid "Clear All"
+msgstr "Borrar todo"
+
+msgid "Record"
+msgstr "Grabar"
+
+msgid "Press Any Key"
+msgstr "Presione cualquier tecla"
+
+msgid "Enter delay duration in milliseconds."
+msgstr "Ingrese la duración del retraso en milisegundos."
+
+msgid "Enter text to type in the macro."
+msgstr "Ingrese el texto a escribir en el macro."
+
+msgid "Enter text..."
+msgstr "Ingrese texto..."
+
+msgid "Button"
+msgstr "Botón"
+
+msgid "Click"
+msgstr "Clic"
+
+msgid "Choose button and action type."
+msgstr "Elija el botón y tipo de acción."
+
+msgid "Direction"
+msgstr "Dirección"
+
+msgid "Up"
+msgstr "Arriba"
+
+msgid "Down"
+msgstr "Abajo"
+
+msgid "Amount (clicks)"
+msgstr "Cantidad (clics)"
+
+msgid "Choose scroll direction and amount."
+msgstr "Elija dirección y cantidad de desplazamiento."
+
+msgid "Add"
+msgstr "Añadir"
+
+msgid "Mode"
+msgstr "Modo"
+
+msgid "{} actions - {}"
+msgstr "{} acciones - {}"
+
+msgid "Once"
+msgstr "Una vez"
+
+msgid "While Holding"
+msgstr "Mientras se mantiene"
+
+msgid "Toggle On/Off"
+msgstr "Activar/Desactivar"
+
+msgid "Repeat N Times"
+msgstr "Repetir N veces"
+
+msgid "Sequence"
+msgstr "Secuencia"
+
+msgid "Gaming Mode"
+msgstr "Modo Gaming"
+
+msgid "Optimize your mouse for gaming"
+msgstr "Optimiza tu ratón para juegos"
+
+msgid "Enable Gaming Mode"
+msgstr "Activar modo gaming"
+
+msgid "Activate gaming-optimized settings"
+msgstr "Activar ajustes optimizados para gaming"
+
+msgid "Suppress Overlay"
+msgstr "Suprimir superposición"
+
+msgid "Prevent radial menu from appearing during gaming"
+msgstr "Evitar que el menú radial aparezca durante el juego"
+
+msgid "DPI Profiles"
+msgstr "Perfiles de DPI"
+
+msgid "Active Profile"
+msgstr "Perfil activo"
+
+msgid "Currently active DPI preset"
+msgstr "Preajuste de DPI activo actualmente"
+
+msgid "Manage Macros"
+msgstr "Gestionar macros"
+
+msgid "Create, edit, and assign macro sequences"
+msgstr "Crear, editar y asignar secuencias de macros"
+
+msgid "About Gaming Mode"
+msgstr "Acerca del modo gaming"
+
+msgid "Precision"
+msgstr "Precisión"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Profile"
+msgstr "Perfil"
+
+msgid "Button 10"
+msgstr "Botón 10"
+
+msgid "Button 11"
+msgstr "Botón 11"
+
+#. Import macro tooltip
+msgid ""
+"Import a .json macro file.\n"
+"Format: {name, actions: [{type, key/ms/text, delay_after_ms}], repeat_mode}\n"
+"Action types: key_down, key_up, delay, text, mouse_click, scroll"
+msgstr ""
+"Import a .json macro file.\n"
+"Format: {name, actions: [{type, key/ms/text, delay_after_ms}], repeat_mode}\n"
+"Action types: key_down, key_up, delay, text, mouse_click, scroll"
+
+#. Empty macros state description
+msgid ""
+"Create your first macro to automate key sequences,\n"
+"mouse actions, and more."
+msgstr ""
+"Create your first macro to automate key sequences,\n"
+"mouse actions, and more."
+
+#. Delete macro confirmation
+msgid ""
+"Are you sure you want to delete \"%s\"?\n"
+"This cannot be undone."
+msgstr ""
+"Are you sure you want to delete \"%s\"?\n"
+"This cannot be undone."
+
+#. Key capture dialog body
+msgid ""
+"Press the key you want to add to the macro.\n"
+"Press Escape to cancel."
+msgstr ""
+"Press the key you want to add to the macro.\n"
+"Press Escape to cancel."
+
+#. Gaming mode info card
+msgid ""
+"Gaming mode optimizes your mouse for gaming by switching to a dedicated "
+"DPI profile and optionally suppressing the radial menu overlay to prevent "
+"accidental activation.\n"
+"\n"
+"DPI profiles let you quickly switch between precision (low DPI), normal "
+"(medium DPI), and fast (high DPI) sensitivities. Macros allow you to "
+"record and replay complex input sequences."
+msgstr ""
+"Gaming mode optimizes your mouse for gaming by switching to a dedicated "
+"DPI profile and optionally suppressing the radial menu overlay to prevent "
+"accidental activation.\n"
+"\n"
+"DPI profiles let you quickly switch between precision (low DPI), normal "
+"(medium DPI), and fast (high DPI) sensitivities. Macros allow you to "
+"record and replay complex input sequences."
+
+#. Timeline empty state
+msgid ""
+"No actions yet.\n"
+"Use the palette below or Record to add actions."
+msgstr ""
+"No actions yet.\n"
+"Use the palette below or Record to add actions."
+
+msgid "BUTTONS"
+msgstr "BUTTONS"
+
+msgid "POINT & SCROLL"
+msgstr "POINT & SCROLL"
+
+msgid "HAPTIC FEEDBACK"
+msgstr "HAPTIC FEEDBACK"
+
+msgid "DEVICES"
+msgstr "DEVICES"
+
+msgid "EASY-SWITCH"
+msgstr "EASY-SWITCH"
+
+msgid "FLOW"
+msgstr "FLOW"
+
+msgid "MACROS"
+msgstr "MACROS"
+
+msgid "GAMING"
+msgstr "GAMING"
+
+msgid "SETTINGS"
+msgstr "SETTINGS"

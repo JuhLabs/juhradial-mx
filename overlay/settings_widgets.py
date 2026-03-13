@@ -47,6 +47,19 @@ def _rounded_rect(cr, x, y, w, h, r):
     cr.close_path()
 
 
+def _resolve_nav_icon(filename):
+    """Resolve a nav icon PNG path (dev or installed)."""
+    from pathlib import Path
+    candidates = [
+        Path(__file__).parent.parent / "assets" / filename,
+        Path("/usr/share/juhradial/assets") / filename,
+    ]
+    for p in candidates:
+        if p.exists():
+            return str(p)
+    return None
+
+
 class NavButton(Gtk.Button):
     """Sidebar navigation button with themed icon badge"""
 
@@ -57,16 +70,28 @@ class NavButton(Gtk.Button):
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
 
-        # Icon in a themed badge circle
-        icon_badge = Gtk.Box()
-        icon_badge.add_css_class('nav-icon-badge')
-        icon_badge.set_valign(Gtk.Align.CENTER)
-        icon_badge.set_halign(Gtk.Align.CENTER)
-        icon = Gtk.Image.new_from_icon_name(icon_name)
-        icon.set_pixel_size(18)
-        icon.add_css_class('nav-icon')
-        icon_badge.append(icon)
-        box.append(icon_badge)
+        # Custom PNG icon replaces the badge entirely;
+        # symbolic icons keep the old badge wrapper
+        if icon_name.endswith(".png"):
+            icon_path = _resolve_nav_icon(icon_name)
+            if icon_path:
+                icon = Gtk.Image.new_from_file(icon_path)
+            else:
+                icon = Gtk.Image.new_from_icon_name("image-missing")
+            icon.set_pixel_size(48)
+            icon.add_css_class('nav-icon-img')
+            icon.set_valign(Gtk.Align.CENTER)
+            box.append(icon)
+        else:
+            icon_badge = Gtk.Box()
+            icon_badge.add_css_class('nav-icon-badge')
+            icon_badge.set_valign(Gtk.Align.CENTER)
+            icon_badge.set_halign(Gtk.Align.CENTER)
+            icon = Gtk.Image.new_from_icon_name(icon_name)
+            icon.set_pixel_size(18)
+            icon.add_css_class('nav-icon')
+            icon_badge.append(icon)
+            box.append(icon_badge)
 
         label_widget = Gtk.Label(label=label)
         label_widget.set_halign(Gtk.Align.START)
