@@ -354,8 +354,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn the HID++ hidraw handler (reads button events directly from mouse)
     // Pass the MX Master 4's hidraw path so it uses the correct Bolt receiver
     let hidraw_tx = event_tx.clone();
+    let hidraw_config = shared_config.clone();
     let hidraw_handle = tokio::spawn(async move {
-        run_hidraw_loop(hidraw_tx, mx4_hidraw_path, macro_cids).await
+        run_hidraw_loop(hidraw_tx, mx4_hidraw_path, macro_cids, hidraw_config).await
     });
 
     // Start inotify watcher on /dev/input/ for instant device hotplug detection.
@@ -375,15 +376,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         suppressed_for_mx.insert(code);
     }
     let hotplug_for_mx = hotplug_notify.clone();
+    let evdev_config = shared_config.clone();
     let evdev_handle = tokio::spawn(async move {
-        run_evdev_loop(evdev_tx, suppressed_for_mx, hotplug_for_mx).await
+        run_evdev_loop(evdev_tx, suppressed_for_mx, hotplug_for_mx, evdev_config).await
     });
 
     let generic_evdev_tx = event_tx.clone();
     let suppressed_for_generic = macro_evdev_codes.clone();
     let hotplug_for_generic = hotplug_notify.clone();
+    let generic_evdev_config = shared_config.clone();
     let generic_evdev_handle = tokio::spawn(async move {
-        run_generic_evdev_loop(generic_evdev_tx, suppressed_for_generic, hotplug_for_generic).await
+        run_generic_evdev_loop(generic_evdev_tx, suppressed_for_generic, hotplug_for_generic, generic_evdev_config).await
     });
 
     // Get screen bounds for edge clamping (query once at startup)
@@ -491,9 +494,10 @@ fn list_logitech_devices() {
 ///
 /// When buttons are diverted via HID++ configuration, they send HID++ notifications
 /// instead of evdev events. This handler reads from the hidraw device.
-async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, preferred_path: Option<std::path::PathBuf>, macro_cids: Vec<u16>) {
+async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, preferred_path: Option<std::path::PathBuf>, macro_cids: Vec<u16>, shared_config: juhradiald::config::SharedConfig) {
     let mut handler = HidrawHandler::new(event_tx);
     handler.set_macro_cids(macro_cids);
+    handler.set_shared_config(shared_config);
 
     loop {
         // Try to open - use preferred path from HidppDevice if available
@@ -552,9 +556,11 @@ async fn run_evdev_loop(
     event_tx: mpsc::Sender<GestureEvent>,
     suppressed_keys: HashSet<u16>,
     hotplug: Arc<tokio::sync::Notify>,
+    shared_config: juhradiald::config::SharedConfig,
 ) {
     let mut handler = EvdevHandler::new(event_tx.clone());
     handler.set_suppressed_keys(suppressed_keys);
+    handler.set_shared_config(shared_config);
 
     loop {
         // Try to find and connect to the device
@@ -649,6 +655,7 @@ async fn run_generic_evdev_loop(
     event_tx: mpsc::Sender<GestureEvent>,
     suppressed_keys: HashSet<u16>,
     hotplug: Arc<tokio::sync::Notify>,
+    shared_config: juhradiald::config::SharedConfig,
 ) {
     let trigger = read_trigger_button_from_config();
     if let Some(code) = trigger {
@@ -656,6 +663,7 @@ async fn run_generic_evdev_loop(
     }
     let mut handler = EvdevHandler::new_generic(event_tx.clone(), trigger);
     handler.set_suppressed_keys(suppressed_keys);
+    handler.set_shared_config(shared_config);
 
     loop {
         // Re-read trigger button from config on each reconnect cycle
@@ -796,6 +804,26 @@ async fn process_gesture_events(
                             Err(e) => error!("Failed to lock macro engine: {}", e),
                         }
                     }
+                }
+            }
+            GestureEvent::ButtonActionEvent { action, pressed } => {
+                if pressed {
+                    info!(%action, "Button action triggered");
+                    match juhradiald::actions::execute_button_action(action).await {
+                        Ok(true) => {
+                            // Action was handled directly
+                        }
+                        Ok(false) => {
+                            // Should not happen (RadialMenu goes through Pressed path)
+                            warn!("ButtonActionEvent with radial_menu - unexpected");
+                        }
+                        Err(e) => {
+                            error!(%action, error = %e, "Failed to execute button action");
+                        }
+                    }
+                } else {
+                    // Button released for non-radial action - no HideMenu needed
+                    tracing::debug!(%action, "Button action released (no-op)");
                 }
             }
         }

@@ -211,19 +211,89 @@ impl ActionExecutor {
     }
 
     async fn execute_dbus(call: &DBusCall) -> Result<(), ActionError> {
-        // TODO: Make D-Bus method call via zbus
         tracing::info!(
-            service = call.service,
-            method = call.method,
+            service = %call.service,
+            path = %call.path,
+            interface = %call.interface,
+            method = %call.method,
             "Executing D-Bus call"
         );
-        Ok(())
+
+        // Build dbus-send arguments
+        let mut args = vec![
+            "--session".to_string(),
+            "--print-reply".to_string(),
+            format!("--dest={}", call.service),
+            call.path.clone(),
+            format!("{}.{}", call.interface, call.method),
+        ];
+
+        // Append typed arguments
+        for arg in &call.args {
+            match arg {
+                serde_json::Value::String(s) => args.push(format!("string:{}", s)),
+                serde_json::Value::Bool(b) => args.push(format!("boolean:{}", b)),
+                serde_json::Value::Number(n) => {
+                    if let Some(i) = n.as_i64() {
+                        args.push(format!("int32:{}", i));
+                    } else if let Some(f) = n.as_f64() {
+                        args.push(format!("double:{}", f));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let result = Command::new("dbus-send")
+            .args(&args)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+
+        match result {
+            Ok(status) if status.success() => Ok(()),
+            Ok(status) => {
+                tracing::warn!(exit_code = ?status.code(), "dbus-send exited with error");
+                Err(ActionError::ExecutionFailed("dbus-send failed".to_string()))
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to execute dbus-send");
+                Err(ActionError::ExecutionFailed(format!("dbus-send: {}", e)))
+            }
+        }
     }
 
     async fn execute_kwin(script: &str) -> Result<(), ActionError> {
-        // TODO: Invoke KWin script via D-Bus
         tracing::info!(script, "Executing KWin script");
-        Ok(())
+
+        // Use dbus-send to invoke kglobalaccel shortcut
+        // This is more reliable than loading KWin scripts for simple actions
+        let result = Command::new("dbus-send")
+            .args([
+                "--session",
+                "--print-reply",
+                "--dest=org.kde.kglobalaccel",
+                "/component/kwin",
+                "org.kde.kglobalaccel.Component.invokeShortcut",
+                &format!("string:{}", script),
+            ])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+
+        match result {
+            Ok(status) if status.success() => Ok(()),
+            Ok(_) => {
+                tracing::warn!("kglobalaccel invokeShortcut failed for: {}", script);
+                Err(ActionError::ExecutionFailed(format!("KWin shortcut '{}' failed", script)))
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to invoke KWin shortcut");
+                Err(ActionError::ExecutionFailed(format!("KWin: {}", e)))
+            }
+        }
     }
 }
 
@@ -306,6 +376,210 @@ pub fn get_default_actions() -> [Action; 8] {
             icon: Some("❌".to_string()),
         },
     ]
+}
+
+// ============================================================================
+// Button Action Dispatch
+// ============================================================================
+
+use crate::config::ButtonAction;
+
+/// Detect current desktop environment
+pub fn detect_desktop() -> &'static str {
+    std::env::var("XDG_CURRENT_DESKTOP")
+        .map(|d| {
+            let u = d.to_uppercase();
+            if u.contains("KDE") || u.contains("PLASMA") {
+                "kde"
+            } else if u.contains("GNOME") {
+                "gnome"
+            } else if u.contains("HYPRLAND") {
+                "hyprland"
+            } else if u.contains("SWAY") {
+                "sway"
+            } else if u.contains("COSMIC") {
+                "cosmic"
+            } else {
+                "unknown"
+            }
+        })
+        .unwrap_or("unknown")
+}
+
+/// Execute a button action directly.
+/// Returns Ok(true) if the action was handled, Ok(false) if it should use the
+/// radial menu flow (caller handles ShowMenu/HideMenu).
+pub async fn execute_button_action(action: ButtonAction) -> Result<bool, ActionError> {
+    match action {
+        ButtonAction::RadialMenu => {
+            // Caller handles the radial menu show/hide flow
+            Ok(false)
+        }
+        ButtonAction::VirtualDesktops => {
+            execute_virtual_desktops().await?;
+            Ok(true)
+        }
+        ButtonAction::None => Ok(true),
+        ButtonAction::Smartshift => {
+            tracing::warn!("SmartShift button action not yet implemented (requires HID++ write)");
+            Ok(true)
+        }
+        ButtonAction::Custom => {
+            tracing::warn!("Custom button action not yet implemented");
+            Ok(true)
+        }
+        // All other actions map to keyboard shortcuts
+        _ => {
+            let shortcut = button_action_to_shortcut(action);
+            if let Some(keys) = shortcut {
+                let act = Action {
+                    action_type: ActionType::Shortcut(keys.to_string()),
+                    label: None,
+                    icon: None,
+                };
+                ActionExecutor::execute(&act).await?;
+            }
+            Ok(true)
+        }
+    }
+}
+
+/// Execute virtual desktops overview toggle (desktop-specific)
+async fn execute_virtual_desktops() -> Result<(), ActionError> {
+    let desktop = detect_desktop();
+    tracing::info!(desktop, "Triggering virtual desktops overview");
+
+    match desktop {
+        "gnome" => {
+            // Toggle GNOME Activities overview via OverviewActive property
+            let result = Command::new("dbus-send")
+                .args([
+                    "--session",
+                    "--print-reply",
+                    "--dest=org.gnome.Shell",
+                    "/org/gnome/Shell",
+                    "org.freedesktop.DBus.Properties.Get",
+                    "string:org.gnome.Shell",
+                    "string:OverviewActive",
+                ])
+                .output();
+
+            // Check current state and toggle
+            let currently_active = match result {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    stdout.contains("true")
+                }
+                Err(_) => false,
+            };
+
+            let new_state = if currently_active { "false" } else { "true" };
+            let set_result = Command::new("dbus-send")
+                .args([
+                    "--session",
+                    "--print-reply",
+                    "--dest=org.gnome.Shell",
+                    "/org/gnome/Shell",
+                    "org.freedesktop.DBus.Properties.Set",
+                    "string:org.gnome.Shell",
+                    "string:OverviewActive",
+                    &format!("variant:boolean:{}", new_state),
+                ])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+
+            match set_result {
+                Ok(status) if status.success() => Ok(()),
+                _ => {
+                    // Fallback: try Shell.Eval
+                    tracing::debug!("OverviewActive property failed, trying Shell.Eval fallback");
+                    let eval_result = Command::new("dbus-send")
+                        .args([
+                            "--session",
+                            "--print-reply",
+                            "--dest=org.gnome.Shell",
+                            "/org/gnome/Shell",
+                            "org.gnome.Shell.Eval",
+                            "string:Main.overview.toggle();",
+                        ])
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .status();
+
+                    match eval_result {
+                        Ok(status) if status.success() => Ok(()),
+                        _ => Err(ActionError::ExecutionFailed(
+                            "Failed to toggle GNOME overview".to_string(),
+                        )),
+                    }
+                }
+            }
+        }
+        "kde" => {
+            // Toggle KDE Overview via kglobalaccel shortcut invocation
+            ActionExecutor::execute_kwin("Overview").await
+        }
+        "hyprland" => {
+            // Try Hyprspace overview plugin first, fall back to workspace switch
+            let result = Command::new("hyprctl")
+                .args(["dispatch", "overview:toggle"])
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+
+            match result {
+                Ok(status) if status.success() => Ok(()),
+                _ => {
+                    tracing::debug!("Hyprspace not available, using Super key for overview");
+                    let act = Action {
+                        action_type: ActionType::Shortcut("super".to_string()),
+                        label: None,
+                        icon: None,
+                    };
+                    ActionExecutor::execute(&act).await
+                }
+            }
+        }
+        "sway" => {
+            // Sway has no native overview - synthesize Super key
+            let act = Action {
+                action_type: ActionType::Shortcut("super".to_string()),
+                label: None,
+                icon: None,
+            };
+            ActionExecutor::execute(&act).await
+        }
+        _ => {
+            tracing::warn!(desktop, "Virtual desktops not supported on this desktop environment");
+            Ok(())
+        }
+    }
+}
+
+/// Map a ButtonAction to the keyboard shortcut it should synthesize
+fn button_action_to_shortcut(action: ButtonAction) -> Option<&'static str> {
+    match action {
+        ButtonAction::MiddleClick => Some("button2"),
+        ButtonAction::Back => Some("alt+Left"),
+        ButtonAction::Forward => Some("alt+Right"),
+        ButtonAction::Copy => Some("ctrl+c"),
+        ButtonAction::Paste => Some("ctrl+v"),
+        ButtonAction::Undo => Some("ctrl+z"),
+        ButtonAction::Redo => Some("ctrl+shift+z"),
+        ButtonAction::Screenshot => Some("Print"),
+        ButtonAction::VolumeUp => Some("XF86AudioRaiseVolume"),
+        ButtonAction::VolumeDown => Some("XF86AudioLowerVolume"),
+        ButtonAction::PlayPause => Some("XF86AudioPlay"),
+        ButtonAction::Mute => Some("XF86AudioMute"),
+        ButtonAction::ZoomIn => Some("ctrl+plus"),
+        ButtonAction::ZoomOut => Some("ctrl+minus"),
+        ButtonAction::ScrollLeftRight => None, // Handled by hardware, not keyboard shortcut
+        _ => None,
+    }
 }
 
 #[cfg(test)]

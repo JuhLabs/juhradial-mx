@@ -26,6 +26,58 @@ from settings_constants import (
 
 logger = logging.getLogger(__name__)
 
+# Grouped action layout for the dialog.
+# Order matters - most-used groups first. Actions within each group
+# are displayed in the order listed here.
+_ACTION_GROUPS = [
+    ("COMMON", [
+        "radial_menu",
+        "virtual_desktops",
+        "none",
+    ]),
+    ("NAVIGATION", [
+        "back",
+        "forward",
+        "middle_click",
+    ]),
+    ("CLIPBOARD", [
+        "copy",
+        "paste",
+        "undo",
+        "redo",
+    ]),
+    ("MEDIA", [
+        "play_pause",
+        "volume_up",
+        "volume_down",
+        "mute",
+    ]),
+    ("SYSTEM", [
+        "screenshot",
+        "zoom_in",
+        "zoom_out",
+    ]),
+    ("MOUSE", [
+        "smartshift",
+        "scroll_left_right",
+    ]),
+    ("OTHER", [
+        "custom",
+    ]),
+]
+
+# Translated group names (called at dialog build time so _ is live)
+def _group_label(key):
+    return {
+        "COMMON": _("Common"),
+        "NAVIGATION": _("Navigation"),
+        "CLIPBOARD": _("Clipboard"),
+        "MEDIA": _("Media"),
+        "SYSTEM": _("System"),
+        "MOUSE": _("Mouse"),
+        "OTHER": _("Other"),
+    }.get(key, key)
+
 
 class ButtonConfigDialog(Adw.Window):
     """Dialog for configuring a mouse button action"""
@@ -35,10 +87,14 @@ class ButtonConfigDialog(Adw.Window):
         self.button_id = button_id
         self.button_info = button_info
         self.selected_action = None
+        self._all_rows = []
         self.set_transient_for(parent)
         self.set_modal(True)
         self.set_title(_("Configure {}").format(button_info["name"]))
-        self.set_default_size(420, 550)
+        self.set_default_size(420, 620)
+
+        # Build action lookup from BUTTON_ACTIONS constant
+        action_map = {aid: aname for aid, aname in BUTTON_ACTIONS}
 
         # Main content
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -95,63 +151,76 @@ class ButtonConfigDialog(Adw.Window):
 
         content.append(info_box)
 
-        # Separator
-        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        sep.set_margin_top(8)
-        content.append(sep)
-
-        # Scrollable action list
+        # Scrollable grouped action list
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled.set_vexpand(True)
 
-        self.list_box = Gtk.ListBox()
-        self.list_box.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self.list_box.add_css_class("boxed-list")
-        self.list_box.set_margin_start(16)
-        self.list_box.set_margin_end(16)
-        self.list_box.set_margin_top(16)
-        self.list_box.set_margin_bottom(16)
+        groups_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        groups_box.set_margin_start(16)
+        groups_box.set_margin_end(16)
+        groups_box.set_margin_top(12)
+        groups_box.set_margin_bottom(16)
 
         # Find current action
         current_action = button_info.get("action", "")
 
-        for action_id, action_name in BUTTON_ACTIONS:
-            row = Adw.ActionRow()
-            row.set_title(action_name)
-            row.set_activatable(True)
-            row.action_id = action_id
-            row.action_name = action_name
+        for group_key, action_ids in _ACTION_GROUPS:
+            # Filter to actions that exist in BUTTON_ACTIONS
+            group_actions = [
+                (aid, action_map[aid]) for aid in action_ids if aid in action_map
+            ]
+            if not group_actions:
+                continue
 
-            # Radio-style indicator
-            radio = Gtk.CheckButton()
-            radio.set_active(action_name == current_action)
-            radio.set_sensitive(False)  # Visual only
-            row.add_prefix(radio)
-            row.radio = radio
+            group = Adw.PreferencesGroup()
+            group.set_title(_group_label(group_key))
 
-            if action_name == current_action:
-                self.selected_action = (action_id, action_name)
-                self.list_box.select_row(row)
+            for action_id, action_name in group_actions:
+                row = Adw.ActionRow()
+                row.set_title(action_name)
+                row.set_activatable(True)
+                row.action_id = action_id
+                row.action_name = action_name
 
-            self.list_box.append(row)
+                # Checkmark indicator (GNOME HIG pattern)
+                check_icon = Gtk.Image.new_from_icon_name(
+                    "object-select-symbolic"
+                )
+                check_icon.set_pixel_size(16)
+                check_icon.add_css_class("accent")
+                check_icon.set_visible(action_name == current_action)
+                row.add_suffix(check_icon)
+                row.check_icon = check_icon
 
-        self.list_box.connect("row-selected", self._on_row_selected)
-        scrolled.set_child(self.list_box)
+                if action_name == current_action:
+                    self.selected_action = (action_id, action_name)
+
+                self._all_rows.append(row)
+                group.add(row)
+
+            # Each group gets its own list box via PreferencesGroup
+            groups_box.append(group)
+
+        # Connect click handling on all rows
+        for row in self._all_rows:
+            row.connect("activated", self._on_row_activated)
+
+        scrolled.set_child(groups_box)
         content.append(scrolled)
 
         self.set_content(content)
 
-    def _on_row_selected(self, list_box, row):
-        if row is None:
-            return
+    def _on_row_activated(self, row):
+        """Handle row click - update checkmark and selection"""
+        # Clear all checkmarks
+        for r in self._all_rows:
+            if hasattr(r, "check_icon"):
+                r.check_icon.set_visible(False)
 
-        # Update radio buttons visually
-        child = list_box.get_first_child()
-        while child:
-            if hasattr(child, "radio"):
-                child.radio.set_active(child == row)
-            child = child.get_next_sibling()
+        # Show checkmark on selected row
+        if hasattr(row, "check_icon"):
+            row.check_icon.set_visible(True)
 
         if hasattr(row, "action_id"):
             self.selected_action = (row.action_id, row.action_name)
@@ -160,13 +229,10 @@ class ButtonConfigDialog(Adw.Window):
         """Restore button to default action"""
         default_action = DEFAULT_BUTTON_ACTIONS.get(self.button_id, "Middle Click")
 
-        # Find and select the default action row
-        child = self.list_box.get_first_child()
-        while child:
-            if hasattr(child, "action_name") and child.action_name == default_action:
-                self.list_box.select_row(child)
+        for row in self._all_rows:
+            if hasattr(row, "action_name") and row.action_name == default_action:
+                self._on_row_activated(row)
                 break
-            child = child.get_next_sibling()
 
     def _on_save(self, button):
         if self.selected_action:

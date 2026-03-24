@@ -52,6 +52,8 @@ pub enum GestureEvent {
     CursorMoved { x: i32, y: i32 },
     /// A non-gesture button was pressed/released (for macro trigger detection)
     MacroTriggered { key_code: u16, pressed: bool },
+    /// A config-driven button action (non-radial-menu) was triggered
+    ButtonActionEvent { action: crate::config::ButtonAction, pressed: bool },
 }
 
 /// Information about a detected input device
@@ -97,6 +99,10 @@ pub struct EvdevHandler {
     /// When non-empty, the device is grabbed (EVIOCGRAB) and events are
     /// forwarded through a virtual device, except for suppressed keys.
     suppressed_keys: HashSet<u16>,
+    /// Shared configuration for button action lookup
+    shared_config: Option<crate::config::SharedConfig>,
+    /// The action triggered on button press (for release handling)
+    active_button_action: Option<crate::config::ButtonAction>,
 }
 
 impl EvdevHandler {
@@ -114,6 +120,8 @@ impl EvdevHandler {
             generic_mode: false,
             last_config_check: Instant::now(),
             suppressed_keys: HashSet::new(),
+            shared_config: None,
+            active_button_action: None,
         }
     }
 
@@ -131,7 +139,14 @@ impl EvdevHandler {
             generic_mode: true,
             last_config_check: Instant::now(),
             suppressed_keys: HashSet::new(),
+            shared_config: None,
+            active_button_action: None,
         }
+    }
+
+    /// Set the shared configuration for button action lookup
+    pub fn set_shared_config(&mut self, config: crate::config::SharedConfig) {
+        self.shared_config = Some(config);
     }
 
     /// Set which key codes should be suppressed (eaten) from the OS.
@@ -650,36 +665,59 @@ impl EvdevHandler {
         }
     }
 
+    /// Get the configured action for the gesture/thumb button from shared config.
+    /// For evdev path, the trigger button maps to "gesture" config key
+    /// (since evdev only sees the physical button, not the HID++ CID).
+    fn get_evdev_button_action(&self) -> crate::config::ButtonAction {
+        if let Some(ref config) = self.shared_config {
+            if let Ok(cfg) = config.read() {
+                // evdev trigger button corresponds to "gesture" in the config
+                // (the thumb/haptic button is only distinguishable via HID++)
+                return cfg.buttons.gesture;
+            }
+        }
+        // Default fallback
+        crate::config::ButtonAction::RadialMenu
+    }
+
     /// Handle a gesture button event
     async fn handle_gesture_event(&mut self, value: i32) {
         match value {
             1 => {
-                // Button pressed - get cursor position
+                // Button pressed - check configured action
+                let action = self.get_evdev_button_action();
+                self.active_button_action = Some(action);
                 self.press_time = Some(Instant::now());
-                self.menu_active = true;
-                // Initialize relative cursor tracking (0,0 = menu center)
-                self.cursor_x = 0;
-                self.cursor_y = 0;
 
-                // Desktop-aware cursor query:
-                // - KDE: KWin script for accurate multi-monitor Wayland cursor
-                // - Others (GNOME, Hyprland, Sway, COSMIC): direct query cascade
-                let is_kde = std::env::var("XDG_CURRENT_DESKTOP")
-                    .map(|d| { let u = d.to_uppercase(); u.contains("KDE") || u.contains("PLASMA") })
-                    .unwrap_or(false);
+                if action == crate::config::ButtonAction::RadialMenu {
+                    // Radial menu flow: need cursor position
+                    self.menu_active = true;
+                    self.cursor_x = 0;
+                    self.cursor_y = 0;
 
-                if is_kde {
-                    tracing::info!("Gesture button pressed - triggering KWin cursor query");
-                    if !Self::trigger_kwin_cursor_script() {
+                    let is_kde = std::env::var("XDG_CURRENT_DESKTOP")
+                        .map(|d| { let u = d.to_uppercase(); u.contains("KDE") || u.contains("PLASMA") })
+                        .unwrap_or(false);
+
+                    if is_kde {
+                        tracing::info!("Gesture button pressed (radial_menu) - triggering KWin cursor query");
+                        if !Self::trigger_kwin_cursor_script() {
+                            let pos = crate::cursor::get_cursor_position();
+                            tracing::warn!(x = pos.x, y = pos.y, "KWin script failed, using fallback");
+                            let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
+                        }
+                    } else {
                         let pos = crate::cursor::get_cursor_position();
-                        tracing::warn!(x = pos.x, y = pos.y, "KWin script failed, using fallback");
+                        tracing::info!(x = pos.x, y = pos.y, "Gesture button pressed (radial_menu) - cursor query");
                         let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
                     }
-                    // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus directly
                 } else {
-                    let pos = crate::cursor::get_cursor_position();
-                    tracing::info!(x = pos.x, y = pos.y, "Gesture button pressed - cursor query");
-                    let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
+                    // Non-radial action: dispatch via event channel
+                    tracing::info!(%action, "Gesture button pressed - non-radial action");
+                    let _ = self.event_tx.send(GestureEvent::ButtonActionEvent {
+                        action,
+                        pressed: true,
+                    }).await;
                 }
             }
             0 => {
@@ -689,12 +727,22 @@ impl EvdevHandler {
                     .press_time
                     .map(|t| t.elapsed().as_millis() as u64)
                     .unwrap_or(0);
-
                 self.press_time = None;
 
-                tracing::info!(duration_ms, "Gesture button released");
-
-                let _ = self.event_tx.send(GestureEvent::Released { duration_ms }).await;
+                let active_action = self.active_button_action.take();
+                match active_action {
+                    Some(crate::config::ButtonAction::RadialMenu) | None => {
+                        tracing::info!(duration_ms, "Gesture button released (radial_menu)");
+                        let _ = self.event_tx.send(GestureEvent::Released { duration_ms }).await;
+                    }
+                    Some(action) => {
+                        tracing::info!(duration_ms, %action, "Gesture button released (non-radial)");
+                        let _ = self.event_tx.send(GestureEvent::ButtonActionEvent {
+                            action,
+                            pressed: false,
+                        }).await;
+                    }
+                }
             }
             _ => {
                 // Repeat events (value=2) are ignored
