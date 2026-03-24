@@ -81,12 +81,12 @@ from i18n import _
 class SplashScreen(QWidget):
     """Premium loading splash for JuhRadial MX startup."""
 
-    # Theme colors (Catppuccin Mocha)
+    # Theme colors - warm silver/chrome palette for premium feel
     BG = QColor(30, 30, 46)          # #1e1e2e base
     SURFACE = QColor(69, 71, 90)     # #45475a surface1
-    TEXT = QColor(205, 214, 244)     # #cdd6f4 text
-    ACCENT = QColor(180, 190, 254)   # #b4befe lavender
-    ACCENT_DIM = QColor(137, 180, 250)  # #89b2fa blue
+    TEXT = QColor(220, 224, 232)     # warm white
+    ACCENT = QColor(200, 205, 218)   # silver/chrome accent
+    ACCENT_DIM = QColor(160, 168, 190)  # dimmer silver
     SUBTEXT = QColor(166, 173, 200)  # #a6adc8 subtext0
 
     SPLASH_SIZE = 320
@@ -121,12 +121,12 @@ class SplashScreen(QWidget):
         except (ImportError, AttributeError, ValueError):
             wheel_name = None
 
-        # Search: theme wheel -> fallback to radialwheel3 (neon, looks great on dark)
+        # Search: theme wheel -> fallback to chrome metallic (premium, theme-neutral)
         wheel_candidates = []
         if wheel_name:
             wheel_candidates.append(wheel_name)
+        wheel_candidates.append("radialwheel1.png")  # chrome metallic (default)
         wheel_candidates.append("radialwheel3.png")  # neon fallback
-        wheel_candidates.append("radialwheel1.png")  # metallic fallback
 
         for wname in wheel_candidates:
             for base in [
@@ -148,6 +148,7 @@ class SplashScreen(QWidget):
 
         # Animation state
         self._angle = 0.0        # spinning arc angle
+        self._wheel_angle = 0.0  # slow wheel rotation for chrome light-catch
         self._fade = 1.0         # fade-out progress (1.0 = visible)
         self._pulse = 0.0        # glow pulse phase
         self._closing = False
@@ -169,8 +170,9 @@ class SplashScreen(QWidget):
         if self._show_time is None:
             self._show_time = time.time()
 
-        self._angle = (self._angle + 4.0) % 360.0
-        self._pulse = (self._pulse + 0.04) % (2 * math.pi)
+        self._angle = (self._angle + 2.0) % 360.0        # slower arc spin
+        self._wheel_angle = (self._wheel_angle + 0.3) % 360.0  # subtle wheel rotation
+        self._pulse = (self._pulse + 0.03) % (2 * math.pi)     # slower pulse
 
         if self._closing:
             self._fade -= 0.05
@@ -268,30 +270,33 @@ class SplashScreen(QWidget):
         if self._wheel_pixmap:
             ww = self._wheel_pixmap.width()
             wh = self._wheel_pixmap.height()
-            # Glow behind wheel (pulsing)
+            # Warm glow behind wheel (pulsing)
             wheel_glow = QRadialGradient(cx, wheel_cy, self.WHEEL_SIZE * 0.55)
-            wg_alpha = int(50 + 30 * math.sin(self._pulse))
-            wheel_glow.setColorAt(0.0, QColor(self.ACCENT.red(), self.ACCENT.green(), self.ACCENT.blue(), wg_alpha))
-            wheel_glow.setColorAt(0.7, QColor(self.ACCENT_DIM.red(), self.ACCENT_DIM.green(), self.ACCENT_DIM.blue(), wg_alpha // 3))
+            wg_alpha = int(35 + 20 * math.sin(self._pulse))
+            wheel_glow.setColorAt(0.0, QColor(220, 215, 200, wg_alpha))  # warm white
+            wheel_glow.setColorAt(0.6, QColor(180, 175, 165, wg_alpha // 3))  # warm dim
             wheel_glow.setColorAt(1.0, QColor(0, 0, 0, 0))
             p.setBrush(QBrush(wheel_glow))
             p.setPen(Qt.PenStyle.NoPen)
             glow_r = self.WHEEL_SIZE * 0.6
             p.drawEllipse(QRectF(cx - glow_r, wheel_cy - glow_r, glow_r * 2, glow_r * 2))
-            # Wheel image
-            p.drawPixmap(int(cx - ww / 2), int(wheel_cy - wh / 2), self._wheel_pixmap)
+            # Wheel image with subtle slow rotation (chrome light-catch effect)
+            p.save()
+            p.translate(cx, wheel_cy)
+            p.rotate(self._wheel_angle)
+            p.drawPixmap(int(-ww / 2), int(-wh / 2), self._wheel_pixmap)
+            p.restore()
 
-        # -- "JuhRadial MX" text with multi-layer glow --
+        # -- "JuhRadial MX" text with warm amber glow (matches chrome wheel red rim) --
         text_y = cy + self.ARC_RADIUS + 10
         title_font = QFont("Sans", 16, QFont.Weight.Bold)
         p.setFont(title_font)
 
         pulse_val = math.sin(self._pulse)
 
-        # Layer 1: Wide soft glow (large offsets, low alpha)
-        wide_alpha = int(25 + 15 * pulse_val)
-        wide_color = QColor(self.ACCENT.red(), self.ACCENT.green(), self.ACCENT.blue(), wide_alpha)
-        p.setPen(wide_color)
+        # Layer 1: Wide soft glow - warm amber/red
+        wide_alpha = int(20 + 12 * pulse_val)
+        p.setPen(QColor(200, 100, 80, wide_alpha))
         for dx, dy in [(-3, 0), (3, 0), (0, -3), (0, 3), (-2, -2), (2, -2), (-2, 2), (2, 2)]:
             p.drawText(
                 QRectF(dx, text_y + dy, self.SPLASH_SIZE, 30),
@@ -299,21 +304,19 @@ class SplashScreen(QWidget):
                 "JuhRadial MX",
             )
 
-        # Layer 2: Medium glow
-        med_alpha = int(50 + 30 * pulse_val)
-        med_color = QColor(self.ACCENT.red(), self.ACCENT.green(), self.ACCENT.blue(), med_alpha)
-        p.setPen(med_color)
-        for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2), (-1, -1), (1, -1), (-1, 1), (1, 1)]:
+        # Layer 2: Medium glow - warm red
+        med_alpha = int(35 + 20 * pulse_val)
+        p.setPen(QColor(190, 80, 60, med_alpha))
+        for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
             p.drawText(
                 QRectF(dx, text_y + dy, self.SPLASH_SIZE, 30),
                 Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
                 "JuhRadial MX",
             )
 
-        # Layer 3: Tight bright glow
-        tight_alpha = int(80 + 40 * pulse_val)
-        tight_color = QColor(self.ACCENT.red(), self.ACCENT.green(), self.ACCENT.blue(), tight_alpha)
-        p.setPen(tight_color)
+        # Layer 3: Tight glow - subtle warm accent
+        tight_alpha = int(50 + 25 * pulse_val)
+        p.setPen(QColor(180, 70, 55, tight_alpha))
         for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
             p.drawText(
                 QRectF(dx, text_y + dy, self.SPLASH_SIZE, 30),
@@ -321,7 +324,7 @@ class SplashScreen(QWidget):
                 "JuhRadial MX",
             )
 
-        # Main text (bright white on top)
+        # Main text (crisp white on top)
         p.setPen(self.TEXT)
         p.drawText(
             QRectF(0, text_y, self.SPLASH_SIZE, 30),

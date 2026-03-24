@@ -67,6 +67,10 @@ pub struct HidrawHandler {
     macro_cids: Vec<u16>,
     /// Track which macro CID is currently pressed (for release detection)
     active_macro_cid: Option<u16>,
+    /// Shared configuration for button action lookup
+    shared_config: Option<crate::config::SharedConfig>,
+    /// The action that was triggered on button press (for release handling)
+    active_button_action: Option<crate::config::ButtonAction>,
 }
 
 /// Map HID++ CID to evdev key code for macro trigger forwarding
@@ -101,12 +105,34 @@ impl HidrawHandler {
             _reprog_feature_index: None,
             macro_cids: Vec::new(),
             active_macro_cid: None,
+            shared_config: None,
+            active_button_action: None,
         }
     }
 
     /// Register CIDs that are diverted for macro triggers (not gesture buttons)
     pub fn set_macro_cids(&mut self, cids: Vec<u16>) {
         self.macro_cids = cids;
+    }
+
+    /// Set the shared configuration for button action lookup
+    pub fn set_shared_config(&mut self, config: crate::config::SharedConfig) {
+        self.shared_config = Some(config);
+    }
+
+    /// Look up the configured action for a CID from shared config
+    fn get_action_for_cid(&self, cid: u16) -> crate::config::ButtonAction {
+        if let Some(ref config) = self.shared_config {
+            if let Ok(cfg) = config.read() {
+                return cfg.action_for_cid(cid);
+            }
+        }
+        // Fallback: gesture/haptic buttons default to radial menu
+        match cid {
+            button_cid::GESTURE_BUTTON => crate::config::ButtonAction::VirtualDesktops,
+            button_cid::HAPTIC => crate::config::ButtonAction::RadialMenu,
+            _ => crate::config::ButtonAction::None,
+        }
     }
 
     /// Find the Logitech hidraw device for HID++ button events
@@ -338,7 +364,23 @@ impl HidrawHandler {
         }
 
         if cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC {
-            self.handle_gesture_button(true).await;
+            // Look up configured action for this button
+            let action = self.get_action_for_cid(cid);
+            tracing::info!(cid, %action, "Button pressed - config action lookup");
+
+            if action == crate::config::ButtonAction::RadialMenu {
+                // Radial menu flow: cursor query + ShowMenu via existing path
+                self.active_button_action = Some(action);
+                self.handle_gesture_button(true).await;
+            } else {
+                // Non-radial action: dispatch immediately via event channel
+                self.active_button_action = Some(action);
+                self.press_time = Some(Instant::now());
+                let _ = self.event_tx.send(GestureEvent::ButtonActionEvent {
+                    action,
+                    pressed: true,
+                }).await;
+            }
         } else if self.macro_cids.contains(&cid) {
             // Diverted macro button pressed - forward as MacroTriggered
             if let Some(key_code) = cid_to_evdev_keycode(cid) {
@@ -356,7 +398,26 @@ impl HidrawHandler {
         } else if cid == 0 {
             // All buttons released
             if self.press_time.is_some() {
-                self.handle_gesture_button(false).await;
+                let active_action = self.active_button_action.take();
+                match active_action {
+                    Some(crate::config::ButtonAction::RadialMenu) | None => {
+                        // Radial menu: send release to hide menu
+                        self.handle_gesture_button(false).await;
+                    }
+                    Some(action) => {
+                        // Non-radial action: send release event (no HideMenu)
+                        let duration_ms = self
+                            .press_time
+                            .map(|t| t.elapsed().as_millis() as u64)
+                            .unwrap_or(0);
+                        self.press_time = None;
+                        tracing::info!(duration_ms, %action, "Button released (non-radial action)");
+                        let _ = self.event_tx.send(GestureEvent::ButtonActionEvent {
+                            action,
+                            pressed: false,
+                        }).await;
+                    }
+                }
             }
             if let Some(macro_cid) = self.active_macro_cid.take() {
                 // Forward release event for the macro button
