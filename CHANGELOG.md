@@ -5,6 +5,24 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2-beta] - 2026-03-24
+
+### Fixed
+
+- **Daemon now respects button config** - Gesture and thumb buttons dispatch their configured action instead of always opening the radial menu. Fixes [#14](https://github.com/JuhLabs/juhradial-mx/issues/14).
+- **Button config dialog redesigned** - Actions grouped into categories (Common, Navigation, Clipboard, Media, System, Mouse) with GNOME HIG checkmark selection pattern.
+
+### Added
+
+- **Config-driven button actions** - 20 assignable actions including Virtual Desktops overview (GNOME, KDE, Hyprland, Sway), keyboard shortcuts (Copy, Paste, Undo, etc.), media controls, and more.
+- **Desktop-specific overview toggle** - Virtual Desktops action uses native APIs per desktop: GNOME OverviewActive, KDE kglobalaccel, Hyprland dispatch, Sway fallback.
+- **D-Bus and KWin action executors** - Previously stubbed execute_dbus() and execute_kwin() now fully functional.
+
+### Changed
+
+- **Default button assignments** - Fresh installs default to gesture=Virtual Desktops, thumb=Radial Menu (matching Settings UI defaults).
+- **Splash screen redesign** - Chrome metallic wheel, warm amber text glow, subtle wheel rotation, slower arc spin for premium feel.
+
 ## [0.3.1-beta] - 2026-03-13
 
 ### Added
