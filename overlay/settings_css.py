@@ -20,9 +20,7 @@ def generate_css(COLORS):
     accent = COLORS.get('accent', '#00d4ff')
     ar, ag, ab = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
     accent_06 = f'rgba({ar}, {ag}, {ab}, 0.06)'
-    accent_10 = f'rgba({ar}, {ag}, {ab}, 0.10)'
     accent_15 = f'rgba({ar}, {ag}, {ab}, 0.15)'
-    accent_25 = f'rgba({ar}, {ag}, {ab}, 0.25)'
     accent_40 = f'rgba({ar}, {ag}, {ab}, 0.40)'
 
     # Theme-specific tokens.
@@ -32,7 +30,6 @@ def generate_css(COLORS):
         rail_bg           = COLORS['mantle']
         panel_bg          = COLORS['mantle']
         panel_bg_quiet    = COLORS['crust']
-        panel_bg_hover    = COLORS['surface0']
         row_bg            = 'transparent'
         row_bg_hover      = 'rgba(255, 255, 255, 0.03)'
         row_bg_active     = 'rgba(255, 255, 255, 0.05)'
@@ -57,7 +54,6 @@ def generate_css(COLORS):
         rail_bg           = '#F2F1EC'
         panel_bg          = '#FFFFFF'
         panel_bg_quiet    = '#F7F6F2'
-        panel_bg_hover    = '#F2F1EC'
         row_bg            = 'transparent'
         row_bg_hover      = 'rgba(0, 0, 0, 0.03)'
         row_bg_active     = 'rgba(0, 0, 0, 0.05)'
