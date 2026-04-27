@@ -17,7 +17,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _
-from settings_widgets import SettingsCard, PageHeader, InfoCard
+from settings_widgets import GeneratedAssetHero, SettingsCard, PageHeader, InfoCard, LoadingState
 from settings_config import config
 
 logger = logging.getLogger(__name__)
@@ -80,6 +80,9 @@ class EasySwitchPage(Gtk.ScrolledWindow):
             _("Switch between paired computers"),
         )
         content.append(header)
+        content.append(
+            GeneratedAssetHero("settings-generated/easyswitch.png", max_height=190)
+        )
 
         # Action buttons below header
         actions_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -104,7 +107,12 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         self.slots_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self.slots_box.set_margin_top(8)
         self.slots_box.set_margin_bottom(8)
-        self.slots_card.append(self.slots_box)
+        self.slots_loader = LoadingState(
+            on_retry=self._on_refresh_clicked_no_btn,
+            loading_text=_("Loading paired computers..."),
+            spinner_size=24,
+        )
+        self.slots_card.append(self.slots_loader)
 
         content.append(self.slots_card)
 
@@ -336,20 +344,26 @@ class EasySwitchPage(Gtk.ScrolledWindow):
 
             # Update UI with slots
             self._update_slot_display()
+            self.slots_loader.set_loaded(self.slots_box)
 
         except Exception as e:
             logger.error("Failed to connect to D-Bus: %s", e)
-            # Show error state
-            error_label = Gtk.Label(label=_("Could not connect to daemon"))
-            error_label.add_css_class("dim-label")
-            self.slots_box.append(error_label)
+            self.slots_loader.set_error(
+                _("Could not reach daemon — is it running?"), retry=True
+            )
 
         return False  # Don't repeat
 
     def _on_refresh_clicked(self, _button):
         """Refresh host information from daemon"""
         self.daemon_proxy = None
-        self._load_host_info()
+        self.slots_loader.set_loading()
+        GLib.idle_add(self._load_host_info)
+
+    def _on_refresh_clicked_no_btn(self):
+        """Retry callback variant for the inline LoadingState button."""
+        self.daemon_proxy = None
+        GLib.idle_add(self._load_host_info)
 
     def _update_slot_display(self):
         """Update the slot display with host information"""

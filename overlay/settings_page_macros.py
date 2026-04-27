@@ -77,24 +77,23 @@ class MacrosPage(Gtk.ScrolledWindow):
         imp_label = Gtk.Label(label=_("Import"))
         import_btn_content.append(imp_label)
         import_btn.set_child(import_btn_content)
-        import_btn.set_tooltip_text(
-            _("Import a .json macro file.\n"
-              "Format: {name, actions: [{type, key/ms/text, delay_after_ms}], repeat_mode}\n"
-              "Action types: key_down, key_up, delay, text, mouse_click, scroll")
-        )
+        import_btn.set_tooltip_text(_("Import a .json macro file"))
         import_btn.connect("clicked", self._on_import_macro)
         action_bar.append(import_btn)
 
         content.append(action_bar)
 
-        # Import format hint
-        hint = Gtk.Label(
+        # Import format hint — only shown once at least one macro exists,
+        # since "export to see the format" requires having something to
+        # export. Stored on self so _refresh_list can toggle visibility.
+        self._format_hint = Gtk.Label(
             label=_("Tip: Export a macro to see the JSON format, then edit and re-import."),
         )
-        hint.add_css_class("dim-label")
-        hint.add_css_class("caption")
-        hint.set_halign(Gtk.Align.START)
-        content.append(hint)
+        self._format_hint.add_css_class("dim-label")
+        self._format_hint.add_css_class("caption")
+        self._format_hint.set_halign(Gtk.Align.START)
+        self._format_hint.set_visible(False)
+        content.append(self._format_hint)
 
         # Macro list container
         self._list_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -131,8 +130,12 @@ class MacrosPage(Gtk.ScrolledWindow):
         macros = load_all_macros()
 
         if not macros:
+            self._format_hint.set_visible(False)
             self._show_empty_state()
             return
+
+        # At least one macro exists — surface the JSON-format tip.
+        self._format_hint.set_visible(True)
 
         # Card title
         title = Gtk.Label(label=_("Saved Macros"))
@@ -247,16 +250,10 @@ class MacrosPage(Gtk.ScrolledWindow):
 
         row.append(btn_box)
 
-        # Arrow/edit button
-        edit_btn = Gtk.Button()
-        edit_btn.set_child(Gtk.Image.new_from_icon_name("go-next-symbolic"))
-        edit_btn.add_css_class("button-arrow")
-        edit_btn.add_css_class("flat")
-        edit_btn.set_valign(Gtk.Align.CENTER)
-        edit_btn.connect("clicked", lambda _, m=macro: self._on_edit_macro(m))
-        row.append(edit_btn)
-
-        # Make entire row clickable
+        # Make entire row clickable — the row click opens the editor, so
+        # we don't need a dedicated arrow button at the end (the duplicate
+        # / delete buttons are the only per-row actions that need explicit
+        # affordances).
         click = Gtk.GestureClick()
         click.connect("released", lambda g, n, x, y, m=macro: self._on_edit_macro(m))
         row.add_controller(click)

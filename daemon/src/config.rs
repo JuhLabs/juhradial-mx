@@ -42,10 +42,18 @@ pub struct HapticEventConfig {
     pub invalid: String,
 }
 
-fn default_menu_appear() -> String { "damp_state_change".to_string() }
-fn default_slice_change() -> String { "subtle_collision".to_string() }
-fn default_confirm() -> String { "sharp_state_change".to_string() }
-fn default_invalid() -> String { "angry_alert".to_string() }
+fn default_menu_appear() -> String {
+    "damp_state_change".to_string()
+}
+fn default_slice_change() -> String {
+    "subtle_collision".to_string()
+}
+fn default_confirm() -> String {
+    "sharp_state_change".to_string()
+}
+fn default_invalid() -> String {
+    "angry_alert".to_string()
+}
 
 impl Default for HapticEventConfig {
     fn default() -> Self {
@@ -95,11 +103,21 @@ pub struct HapticConfig {
     pub reentry_debounce_ms: u64,
 }
 
-fn default_true() -> bool { true }
-fn default_pattern() -> String { "subtle_collision".to_string() }
-fn default_debounce() -> u64 { 20 }
-fn default_slice_debounce() -> u64 { 20 }
-fn default_reentry_debounce() -> u64 { 50 }
+fn default_true() -> bool {
+    true
+}
+fn default_pattern() -> String {
+    "subtle_collision".to_string()
+}
+fn default_debounce() -> u64 {
+    20
+}
+fn default_slice_debounce() -> u64 {
+    20
+}
+fn default_reentry_debounce() -> u64 {
+    50
+}
 
 impl Default for HapticConfig {
     fn default() -> Self {
@@ -184,13 +202,27 @@ impl std::fmt::Display for ButtonAction {
     }
 }
 
-fn default_gesture_action() -> ButtonAction { ButtonAction::VirtualDesktops }
-fn default_thumb_action() -> ButtonAction { ButtonAction::RadialMenu }
-fn default_middle_action() -> ButtonAction { ButtonAction::MiddleClick }
-fn default_shift_wheel_action() -> ButtonAction { ButtonAction::Smartshift }
-fn default_forward_action() -> ButtonAction { ButtonAction::Forward }
-fn default_back_action() -> ButtonAction { ButtonAction::Back }
-fn default_horizontal_scroll_action() -> ButtonAction { ButtonAction::ScrollLeftRight }
+fn default_gesture_action() -> ButtonAction {
+    ButtonAction::VirtualDesktops
+}
+fn default_thumb_action() -> ButtonAction {
+    ButtonAction::RadialMenu
+}
+fn default_middle_action() -> ButtonAction {
+    ButtonAction::MiddleClick
+}
+fn default_shift_wheel_action() -> ButtonAction {
+    ButtonAction::Smartshift
+}
+fn default_forward_action() -> ButtonAction {
+    ButtonAction::Forward
+}
+fn default_back_action() -> ButtonAction {
+    ButtonAction::Back
+}
+fn default_horizontal_scroll_action() -> ButtonAction {
+    ButtonAction::ScrollLeftRight
+}
 
 /// Per-button action assignments.
 /// Matches the "buttons" section in config.json written by Settings UI.
@@ -309,8 +341,10 @@ impl Config {
         // If file doesn't exist, return defaults
         if !path.exists() {
             tracing::info!(path = %path.display(), "Config file not found, using defaults");
-            let mut config = Self::default();
-            config.config_path = Some(path.to_path_buf());
+            let config = Self {
+                config_path: Some(path.to_path_buf()),
+                ..Self::default()
+            };
             return Ok(config);
         }
 
@@ -673,7 +707,10 @@ mod tests {
     #[test]
     fn test_button_action_display() {
         assert_eq!(format!("{}", ButtonAction::RadialMenu), "radial_menu");
-        assert_eq!(format!("{}", ButtonAction::VirtualDesktops), "virtual_desktops");
+        assert_eq!(
+            format!("{}", ButtonAction::VirtualDesktops),
+            "virtual_desktops"
+        );
         assert_eq!(format!("{}", ButtonAction::MiddleClick), "middle_click");
         assert_eq!(format!("{}", ButtonAction::None), "none");
     }
@@ -683,12 +720,30 @@ mod tests {
         let config = Config::default();
         use crate::hidraw::button_cid;
 
-        assert_eq!(config.action_for_cid(button_cid::GESTURE_BUTTON), ButtonAction::VirtualDesktops);
-        assert_eq!(config.action_for_cid(button_cid::HAPTIC), ButtonAction::RadialMenu);
-        assert_eq!(config.action_for_cid(button_cid::MIDDLE_BUTTON), ButtonAction::MiddleClick);
-        assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Back);
-        assert_eq!(config.action_for_cid(button_cid::FORWARD_BUTTON), ButtonAction::Forward);
-        assert_eq!(config.action_for_cid(button_cid::SMART_SHIFT), ButtonAction::Smartshift);
+        assert_eq!(
+            config.action_for_cid(button_cid::GESTURE_BUTTON),
+            ButtonAction::VirtualDesktops
+        );
+        assert_eq!(
+            config.action_for_cid(button_cid::HAPTIC),
+            ButtonAction::RadialMenu
+        );
+        assert_eq!(
+            config.action_for_cid(button_cid::MIDDLE_BUTTON),
+            ButtonAction::MiddleClick
+        );
+        assert_eq!(
+            config.action_for_cid(button_cid::BACK_BUTTON),
+            ButtonAction::Back
+        );
+        assert_eq!(
+            config.action_for_cid(button_cid::FORWARD_BUTTON),
+            ButtonAction::Forward
+        );
+        assert_eq!(
+            config.action_for_cid(button_cid::SMART_SHIFT),
+            ButtonAction::Smartshift
+        );
         assert_eq!(config.action_for_cid(9999), ButtonAction::None); // Unknown CID
     }
 }

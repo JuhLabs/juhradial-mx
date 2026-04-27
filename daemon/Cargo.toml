@@ -5,7 +5,7 @@ edition = "2021"
 description = "JuhRadial MX daemon - Radial menu for Logitech MX Master 4 on Linux"
 license = "GPL-3.0"
 authors = ["Julian Hermstad"]
-repository = "https://github.com/juhhally/juhradial-mx"
+repository = "https://github.com/JuhLabs/juhradial-mx"
 
 [dependencies]
 # Async runtime

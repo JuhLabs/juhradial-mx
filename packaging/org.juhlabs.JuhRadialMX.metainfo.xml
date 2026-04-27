@@ -93,6 +93,16 @@
   </keywords>
 
   <releases>
+    <release version="0.3.2" date="2026-04-27">
+      <description>
+        <p>Official 0.3.x release with reconnect-safe Easy-Switch handling</p>
+        <ul>
+          <li>Fixed radial wheel availability after switching the MX Master away from Linux and back</li>
+          <li>Promoted config-driven button actions, JuhFlow, generic mouse support, macro triggers, and gaming mode to the stable release line</li>
+          <li>Refreshed settings artwork and GitHub branding assets</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.8" date="2026-02-14">
       <description>
         <p>Automatic logid restart on Easy-Switch device reconnect</p>

@@ -60,6 +60,7 @@ impl JuhRadialService {
     }
 
     /// Create a new D-Bus service instance with device mode info
+    #[allow(clippy::too_many_arguments)]
     pub fn new_with_device(
         battery_state: SharedBatteryState,
         config: SharedConfig,
@@ -90,10 +91,10 @@ impl JuhRadialService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use crate::battery::new_shared_state;
     use crate::config::new_shared_config;
     use crate::hidpp::new_shared_haptic_manager;
+    use std::sync::Arc;
 
     #[test]
     fn test_service_creation() {
@@ -121,10 +122,15 @@ mod tests {
         let macro_recorder = Arc::new(Mutex::new(MacroRecorder::new()));
         let trigger_map = Arc::new(std::sync::RwLock::new(TriggerMap::default()));
         let service = JuhRadialService::new_with_device(
-            battery_state, config, haptic_manager,
+            battery_state,
+            config,
+            haptic_manager,
             "generic".to_string(),
             "SteelSeries Rival 3".to_string(),
-            gaming_mode, macro_engine, macro_recorder, trigger_map,
+            gaming_mode,
+            macro_engine,
+            macro_recorder,
+            trigger_map,
         );
         assert_eq!(service.device_mode, "generic");
         assert_eq!(service.device_name, "SteelSeries Rival 3");

@@ -19,7 +19,14 @@ from gi.repository import Gtk, Gdk, Gio, GLib, Adw
 from i18n import _
 from settings_config import get_device_name, get_device_mode, get_device_name_from_daemon
 from settings_theme import COLORS
-from settings_widgets import SettingsCard, SettingRow, PageHeader, InfoCard
+from settings_widgets import (
+    GeneratedAssetHero,
+    InfoCard,
+    LoadingState,
+    PageHeader,
+    SettingRow,
+    SettingsCard,
+)
 
 
 class DevicesPage(Gtk.ScrolledWindow):
@@ -45,6 +52,9 @@ class DevicesPage(Gtk.ScrolledWindow):
             _("Connected device information"),
         )
         content.append(header)
+        content.append(
+            GeneratedAssetHero("settings-generated/control-ring.png", max_height=190)
+        )
 
         # Generic mode banner
         if self._is_generic:
@@ -137,76 +147,14 @@ class DevicesPage(Gtk.ScrolledWindow):
         sep1.set_margin_bottom(12)
         device_card.append(sep1)
 
-        # Connection status
-        if self._is_generic:
-            conn_row = SettingRow(_("Connection"), _("How your device is connected"))
-            conn_icon_box = Gtk.Box(
-                orientation=Gtk.Orientation.HORIZONTAL, spacing=8
-            )
-            # Generic mice: simple USB or Bluetooth detection
-            conn_type = self._detect_generic_connection()
-            if "Bluetooth" in conn_type:
-                conn_icon = Gtk.Image.new_from_icon_name("bluetooth-symbolic")
-            else:
-                conn_icon = Gtk.Image.new_from_icon_name("usb-symbolic")
-            conn_icon.add_css_class("accent-color")
-            conn_icon_box.append(conn_icon)
-            conn_label = Gtk.Label(label=conn_type)
-            conn_icon_box.append(conn_label)
-            conn_row.set_control(conn_icon_box)
-            device_card.append(conn_row)
-        else:
-            connection_type = self._get_connection_type()
-            conn_row = SettingRow(
-                _("Connection"), _("How your device is connected")
-            )
-            conn_icon_box = Gtk.Box(
-                orientation=Gtk.Orientation.HORIZONTAL, spacing=8
-            )
-
-            if "Bluetooth" in connection_type:
-                conn_icon = Gtk.Image.new_from_icon_name("bluetooth-symbolic")
-            elif "USB" in connection_type:
-                conn_icon = Gtk.Image.new_from_icon_name("usb-symbolic")
-            else:
-                conn_icon = Gtk.Image.new_from_icon_name(
-                    "network-wireless-symbolic"
-                )
-
-            conn_icon.add_css_class("accent-color")
-            conn_icon_box.append(conn_icon)
-
-            conn_label = Gtk.Label(label=connection_type)
-            conn_icon_box.append(conn_label)
-            conn_row.set_control(conn_icon_box)
-            device_card.append(conn_row)
-
-        # Battery section - only for Logitech (HID++ battery reporting)
-        if not self._is_generic:
-            # Separator
-            sep2 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-            sep2.set_margin_top(12)
-            sep2.set_margin_bottom(12)
-            device_card.append(sep2)
-
-            # Battery level
-            battery_info = self._get_battery_info()
-            battery_row = SettingRow(
-                _("Battery Level"), _("Current battery status")
-            )
-            battery_box = Gtk.Box(
-                orientation=Gtk.Orientation.HORIZONTAL, spacing=8
-            )
-
-            battery_icon = Gtk.Image.new_from_icon_name("battery-good-symbolic")
-            battery_icon.add_css_class("battery-icon")
-            battery_box.append(battery_icon)
-
-            battery_label = Gtk.Label(label=battery_info)
-            battery_label.add_css_class("battery-indicator")
-            battery_box.append(battery_label)
-            battery_row.set_control(battery_box)
-            device_card.append(battery_row)
+        # Connection + battery loaded asynchronously
+        self._dynamic_loader = LoadingState(
+            on_retry=self._load_dynamic_info,
+            loading_text=_("Loading device info..."),
+            spinner_size=24,
+        )
+        device_card.append(self._dynamic_loader)
+        GLib.idle_add(self._load_dynamic_info)
 
         # Separator
         sep3 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
@@ -268,6 +216,88 @@ class DevicesPage(Gtk.ScrolledWindow):
         clamp.set_child(content)
         self.set_child(clamp)
 
+    def _build_dynamic_rows(self, connection_type, battery_info):
+        """Build the connection + (optionally) battery rows for the loaded state."""
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+
+        conn_row = SettingRow(_("Connection"), _("How your device is connected"))
+        conn_icon_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        if "Bluetooth" in connection_type:
+            conn_icon = Gtk.Image.new_from_icon_name("bluetooth-symbolic")
+        elif "USB" in connection_type:
+            conn_icon = Gtk.Image.new_from_icon_name("usb-symbolic")
+        else:
+            conn_icon = Gtk.Image.new_from_icon_name("network-wireless-symbolic")
+        conn_icon.add_css_class("accent-color")
+        conn_icon_box.append(conn_icon)
+        conn_label = Gtk.Label(label=connection_type)
+        conn_icon_box.append(conn_label)
+        conn_row.set_control(conn_icon_box)
+        box.append(conn_row)
+
+        if not self._is_generic and battery_info is not None:
+            sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+            sep.set_margin_top(12)
+            sep.set_margin_bottom(12)
+            box.append(sep)
+
+            battery_row = SettingRow(_("Battery Level"), _("Current battery status"))
+            battery_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            battery_icon = Gtk.Image.new_from_icon_name("battery-good-symbolic")
+            battery_icon.add_css_class("battery-icon")
+            battery_box.append(battery_icon)
+            battery_label = Gtk.Label(label=battery_info)
+            battery_label.add_css_class("battery-indicator")
+            battery_box.append(battery_label)
+            battery_row.set_control(battery_box)
+            box.append(battery_row)
+
+        return box
+
+    def _load_dynamic_info(self):
+        """Populate the LoadingState with connection + battery info via D-Bus."""
+        try:
+            if self._is_generic:
+                connection_type = self._detect_generic_connection()
+                battery_info = None
+            else:
+                bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+                proxy = Gio.DBusProxy.new_sync(
+                    bus,
+                    Gio.DBusProxyFlags.NONE,
+                    None,
+                    "org.kde.juhradialmx",
+                    "/org/kde/juhradialmx/Daemon",
+                    "org.kde.juhradialmx.Daemon",
+                    None,
+                )
+                # Connection
+                connection_type = _("USB Receiver")
+                try:
+                    res = proxy.call_sync(
+                        "GetBatteryStatus", None, Gio.DBusCallFlags.NONE, 500, None
+                    )
+                    if res:
+                        connection_type = _("USB Receiver / Bluetooth")
+                        percentage, charging = res.unpack()
+                        if percentage > 0:
+                            status = _("Charging") if charging else _("Discharging")
+                            battery_info = f"{percentage}% ({status})"
+                        else:
+                            battery_info = _("Unavailable")
+                    else:
+                        battery_info = _("Unavailable")
+                except GLib.Error as e:
+                    raise RuntimeError(str(e)) from e
+
+            content = self._build_dynamic_rows(connection_type, battery_info)
+            self._dynamic_loader.set_loaded(content)
+        except Exception:
+            self._dynamic_loader.set_error(
+                _("Could not reach daemon — is it running?"), retry=True
+            )
+        return False
+
     def _detect_generic_connection(self):
         """Detect connection type for a generic (non-Logitech) mouse.
 
@@ -293,54 +323,3 @@ class DevicesPage(Gtk.ScrolledWindow):
         except OSError:
             pass  # HID sysfs scan can fail on some systems
         return _("USB")
-
-    def _get_connection_type(self):
-        """Get connection type from daemon or detect"""
-        try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.kde.juhradialmx",
-                "/org/kde/juhradialmx/Daemon",
-                "org.kde.juhradialmx.Daemon",
-                None,
-            )
-            # Try to get battery status as indicator of connection
-            result = proxy.call_sync(
-                "GetBatteryStatus", None, Gio.DBusCallFlags.NONE, 500, None
-            )
-            if result:
-                return _("USB Receiver / Bluetooth")
-        except GLib.Error:
-            pass  # Daemon may not be running
-        return _("USB Receiver")
-
-    def _get_battery_info(self):
-        """Get battery info from daemon"""
-        try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.kde.juhradialmx",
-                "/org/kde/juhradialmx/Daemon",
-                "org.kde.juhradialmx.Daemon",
-                None,
-            )
-            result = proxy.call_sync(
-                "GetBatteryStatus", None, Gio.DBusCallFlags.NONE, 500, None
-            )
-            if result:
-                percentage, charging = result.unpack()
-                if percentage > 0:
-                    status = _("Charging") if charging else _("Discharging")
-                    return f"{percentage}% ({status})"
-                else:
-                    # 0% usually means battery info unavailable
-                    return _("Unavailable")
-        except GLib.Error:
-            pass  # Daemon may not be running
-        return _("Unavailable")

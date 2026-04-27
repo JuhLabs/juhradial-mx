@@ -2,7 +2,7 @@
 # Build: rpmbuild -ba juhradial-mx.spec
 
 Name:           juhradial-mx
-Version:        0.2.5
+Version:        0.3.2
 Release:        1%{?dist}
 Summary:        Beautiful radial menu for Logitech MX Master mice on Linux
 
@@ -119,10 +119,7 @@ install -Dm644 packaging/udev/99-logitech-hidpp.rules %{buildroot}%{_udevrulesdi
 %{_userunitdir}/juhradialmx-daemon.service
 %{_udevrulesdir}/99-logitech-hidpp.rules
 %changelog
-* Fri Dec 13 2024 JuhLabs (Julian Hermstad) <juhlabs@example.com> - 1.0.0-1
-- Initial release
-- Glassmorphic radial menu overlay
-- Battery status monitoring via HID++
-- Settings dashboard with mouse visualization
-- DPI and scroll wheel configuration
-- KDE Plasma 6 integration
+* Mon Apr 27 2026 JuhLabs (Julian Hermstad) <julianhermstad@icloud.com> - 0.3.2-1
+- Promote 0.3.x release line with reconnect-safe Easy-Switch handling
+- Add generated settings artwork to installed assets
+- Refresh GitHub/desktop branding for official release

@@ -133,10 +133,7 @@ fn get_cursor_via_hyprland() -> Option<CursorPosition> {
     }
 
     // Fallback to subprocess
-    let output = Command::new("hyprctl")
-        .arg("cursorpos")
-        .output()
-        .ok()?;
+    let output = Command::new("hyprctl").arg("cursorpos").output().ok()?;
 
     if !output.status.success() {
         return None;
@@ -161,12 +158,17 @@ fn get_cursor_via_hyprland_socket(sig: &str) -> Option<CursorPosition> {
     use std::os::unix::net::UnixStream;
     use std::time::Duration;
 
-    let xdg_runtime = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
+    let xdg_runtime =
+        std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/run/user/1000".to_string());
     let socket_path = format!("{}/hypr/{}/.socket.sock", xdg_runtime, sig);
 
     let mut stream = UnixStream::connect(&socket_path).ok()?;
-    stream.set_read_timeout(Some(Duration::from_millis(50))).ok()?;
-    stream.set_write_timeout(Some(Duration::from_millis(50))).ok()?;
+    stream
+        .set_read_timeout(Some(Duration::from_millis(50)))
+        .ok()?;
+    stream
+        .set_write_timeout(Some(Duration::from_millis(50)))
+        .ok()?;
 
     stream.write_all(b"cursorpos").ok()?;
 
@@ -421,7 +423,11 @@ fn get_cursor_via_xwayland() -> Option<CursorPosition> {
         libc::dlclose(lib);
 
         if result != 0 {
-            tracing::debug!(x = root_x, y = root_y, "Got cursor position via XWayland XQueryPointer");
+            tracing::debug!(
+                x = root_x,
+                y = root_y,
+                "Got cursor position via XWayland XQueryPointer"
+            );
             Some(CursorPosition::new(root_x, root_y))
         } else {
             None
@@ -528,10 +534,7 @@ fn get_screen_via_hyprland() -> Option<ScreenBounds> {
             Some(v) => v as i32,
             None => continue,
         };
-        let scale = monitor
-            .get("scale")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(1.0);
+        let scale = monitor.get("scale").and_then(|v| v.as_f64()).unwrap_or(1.0);
 
         // Hyprland reports x/y in logical coords but width/height in physical pixels.
         // Divide by scale to get logical dimensions that match the cursor coordinate space.
@@ -543,8 +546,15 @@ fn get_screen_via_hyprland() -> Option<ScreenBounds> {
     }
 
     if max_x > 0 && max_y > 0 {
-        tracing::debug!(width = max_x, height = max_y, "Got screen bounds via Hyprland");
-        return Some(ScreenBounds { width: max_x, height: max_y });
+        tracing::debug!(
+            width = max_x,
+            height = max_y,
+            "Got screen bounds via Hyprland"
+        );
+        return Some(ScreenBounds {
+            width: max_x,
+            height: max_y,
+        });
     }
 
     None
@@ -552,9 +562,7 @@ fn get_screen_via_hyprland() -> Option<ScreenBounds> {
 
 /// Query screen bounds via xrandr (for multi-monitor support)
 fn get_screen_via_xrandr() -> Option<ScreenBounds> {
-    let output = Command::new("xrandr")
-        .output()
-        .ok()?;
+    let output = Command::new("xrandr").output().ok()?;
 
     if !output.status.success() {
         return None;
@@ -568,7 +576,11 @@ fn get_screen_via_xrandr() -> Option<ScreenBounds> {
             // Parse "current 4480 x 1440"
             if let Some(current_pos) = line.find("current") {
                 let after_current = &line[current_pos + 8..];
-                let parts: Vec<&str> = after_current.split(',').next()?.split_whitespace().collect();
+                let parts: Vec<&str> = after_current
+                    .split(',')
+                    .next()?
+                    .split_whitespace()
+                    .collect();
                 if parts.len() >= 3 && parts[1] == "x" {
                     let width = parts[0].parse().ok()?;
                     let height = parts[2].parse().ok()?;
@@ -594,7 +606,7 @@ fn get_screen_via_xdotool() -> Option<ScreenBounds> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let parts: Vec<&str> = stdout.trim().split_whitespace().collect();
+    let parts: Vec<&str> = stdout.split_whitespace().collect();
 
     if parts.len() >= 2 {
         let width = parts[0].parse().ok()?;
@@ -619,7 +631,10 @@ mod tests {
     #[test]
     fn test_edge_clamping_center() {
         // Cursor in center of screen should not be clamped
-        let bounds = ScreenBounds { width: 1920, height: 1080 };
+        let bounds = ScreenBounds {
+            width: 1920,
+            height: 1080,
+        };
         let pos = CursorPosition::new(960, 540);
         let clamped = pos.clamp_to_screen(&bounds);
 
@@ -630,7 +645,10 @@ mod tests {
     #[test]
     fn test_edge_clamping_top_left() {
         // Cursor at (0, 0) should be clamped to minimum valid position
-        let bounds = ScreenBounds { width: 1920, height: 1080 };
+        let bounds = ScreenBounds {
+            width: 1920,
+            height: 1080,
+        };
         let pos = CursorPosition::new(0, 0);
         let clamped = pos.clamp_to_screen(&bounds);
 
@@ -642,7 +660,10 @@ mod tests {
     #[test]
     fn test_edge_clamping_bottom_right() {
         // Cursor at bottom-right corner should be clamped
-        let bounds = ScreenBounds { width: 1920, height: 1080 };
+        let bounds = ScreenBounds {
+            width: 1920,
+            height: 1080,
+        };
         let pos = CursorPosition::new(1920, 1080);
         let clamped = pos.clamp_to_screen(&bounds);
 
@@ -655,7 +676,10 @@ mod tests {
     #[test]
     fn test_edge_clamping_near_edge() {
         // Cursor 10px from left edge should be clamped
-        let bounds = ScreenBounds { width: 1920, height: 1080 };
+        let bounds = ScreenBounds {
+            width: 1920,
+            height: 1080,
+        };
         let pos = CursorPosition::new(10, 540);
         let clamped = pos.clamp_to_screen(&bounds);
 

@@ -3,21 +3,22 @@
 //! A daemon for Linux that provides radial menu functionality for the
 //! Logitech MX Master 4 mouse via evdev input and KWin overlay.
 
-use std::collections::HashSet;
 use clap::Parser;
+use std::collections::HashSet;
+use std::path::PathBuf;
 use tokio::sync::mpsc;
-use tokio::time::{sleep, Duration};
-use tracing::{info, warn, error, Level};
+use tokio::time::{Duration, sleep};
+use tracing::{Level, debug, error, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use juhradiald::{
     battery::{new_shared_state, start_battery_updater_shared},
     config::load_shared_config,
-    cursor::{get_screen_bounds, ScreenBounds},
-    dbus::{init_dbus_service_with_device, DBUS_PATH, DBUS_NAME},
-    evdev::{EvdevHandler, EvdevError, GestureEvent},
+    dbus::{DBUS_NAME, DBUS_PATH, init_dbus_service_with_device},
+    evdev::{EvdevError, EvdevHandler, GestureEvent},
     gaming::new_shared_gaming_mode,
-    hidraw::{HidrawHandler, HidrawError},
+    hidpp::SharedHapticManager,
+    hidraw::{HidrawError, HidrawHandler},
     macros::{MacroEngine, MacroRecorder, TriggerMap},
     new_shared_haptic_manager,
     profiles::ProfileManager,
@@ -26,19 +27,40 @@ use juhradiald::{
 
 use std::sync::{Arc, Mutex};
 
-/// Device polling interval when device is not found (2 seconds)
-const DEVICE_POLL_INTERVAL_SECS: u64 = 2;
+/// Fallback poll interval when no device is found (60 seconds).
+///
+/// The inotify hotplug watcher on `/dev/input/` wakes the loops the instant a
+/// new event* device appears, so the timer is purely a safety net for hotplug
+/// failure modes. The previous 2-second cadence opened every evdev node on
+/// every tick (including the MX mouse currently streaming events through
+/// another task), causing visible cursor stutter every 2 seconds. 60 seconds
+/// matches the cost of a missed hotplug — barely perceptible — without
+/// generating periodic contention on active input devices.
+const DEVICE_POLL_INTERVAL_SECS: u64 = 60;
+
+/// Poll interval while the HID++ listener is disconnected.
+///
+/// This path only runs after the listener has lost the mouse or before it has
+/// found one, so a shorter cadence does not reintroduce the steady-state evdev
+/// scanning stutter that `DEVICE_POLL_INTERVAL_SECS` avoids.
+const HIDRAW_RECONNECT_POLL_INTERVAL_SECS: u64 = 5;
 
 /// Spawn a background thread that watches /dev/input/ for device hotplug events
 /// using inotify. Returns a Notify that fires when event* devices appear or disappear.
 /// This allows evdev loops to re-scan immediately instead of waiting for the 2s poll.
+///
+/// Only reacts to Create/Remove events (actual device plug/unplug). Access events
+/// (e.g. Close(Write)) are filtered out to prevent a feedback loop where our own
+/// device scanning triggers inotify events that cause more scanning. A 500ms
+/// debounce window coalesces rapid events from USB hubs into a single notification.
 fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
     let hotplug = Arc::new(tokio::sync::Notify::new());
     let hotplug_tx = hotplug.clone();
 
     std::thread::spawn(move || {
-        use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+        use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
         use std::sync::mpsc::channel;
+        use std::time::Instant;
 
         let (tx, rx) = channel();
         let config = Config::default().with_poll_interval(Duration::from_millis(200));
@@ -46,33 +68,63 @@ fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
         let mut watcher = match RecommendedWatcher::new(tx, config) {
             Ok(w) => w,
             Err(e) => {
-                warn!("Device hotplug watcher init failed: {} - falling back to polling", e);
+                warn!(
+                    "Device hotplug watcher init failed: {} - falling back to polling",
+                    e
+                );
                 return;
             }
         };
 
         let input_dir = std::path::PathBuf::from("/dev/input");
         if let Err(e) = watcher.watch(&input_dir, RecursiveMode::NonRecursive) {
-            warn!("Failed to watch /dev/input/: {} - falling back to polling", e);
+            warn!(
+                "Failed to watch /dev/input/: {} - falling back to polling",
+                e
+            );
             return;
         }
 
         info!("Device hotplug watcher active on /dev/input/");
 
+        let mut last_notify = Instant::now() - Duration::from_secs(1);
+        let debounce = Duration::from_millis(500);
+
         loop {
             match rx.recv() {
                 Ok(Ok(event)) => {
-                    // Only care about event* files (input devices)
+                    // Only react to actual device creation/removal - NOT access events.
+                    // Our own scanning opens /dev/input/event* files, which generates
+                    // Access(Close(Write)) inotify events. If we react to those, we
+                    // enter an infinite scan loop (~50ms cycle) that saturates the
+                    // input subsystem and can block other devices (see issue #15).
+                    let is_hotplug =
+                        matches!(event.kind, EventKind::Create(_) | EventKind::Remove(_));
+                    if !is_hotplug {
+                        continue;
+                    }
+
                     let is_event_device = event.paths.iter().any(|p| {
                         p.file_name()
                             .and_then(|n| n.to_str())
                             .map(|n| n.starts_with("event"))
                             .unwrap_or(false)
                     });
-                    if is_event_device {
-                        info!("Device hotplug detected: {:?}", event.kind);
-                        hotplug_tx.notify_waiters();
+                    if !is_event_device {
+                        continue;
                     }
+
+                    // Debounce: coalesce rapid events (e.g. USB hub enumerating
+                    // multiple devices) into a single scan notification.
+                    let now = Instant::now();
+                    if now.duration_since(last_notify) < debounce {
+                        debug!("Device hotplug debounced: {:?}", event.kind);
+                        continue;
+                    }
+                    last_notify = now;
+
+                    info!("Device hotplug detected: {:?}", event.kind);
+                    hotplug_tx.notify_waiters();
                 }
                 Ok(Err(e)) => {
                     warn!("Device watcher error: {}", e);
@@ -111,10 +163,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     // Initialize logging
-    let level = if args.verbose { Level::DEBUG } else { Level::INFO };
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(level)
-        .finish();
+    let level = if args.verbose {
+        Level::DEBUG
+    } else {
+        Level::INFO
+    };
+    let subscriber = FmtSubscriber::builder().with_max_level(level).finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
     info!("JuhRadial MX Daemon starting...");
@@ -146,27 +200,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let haptic_config = shared_config.read().unwrap().haptics.clone();
     let haptic_manager = new_shared_haptic_manager(&haptic_config);
 
-    // Try to connect to MX Master 4 for haptic feedback and divert gesture buttons
-    // Also capture the device path so HidrawHandler uses the same Bolt receiver
+    // Try to connect to MX Master 4 for haptic feedback and divert gesture buttons.
+    // HID++ probing does blocking hidraw I/O with std::thread::sleep — running it
+    // directly on the tokio runtime stalls every other task (evdev, hidraw, dbus)
+    // for up to ~1.5s on cold start. spawn_blocking moves it onto the blocking
+    // thread pool so the runtime keeps servicing input events during startup.
     let mx4_hidraw_path;
     let mx4_device_name: Option<String>;
     {
-        let mut manager = haptic_manager.lock().unwrap();
-        match manager.connect() {
+        let manager_for_probe = haptic_manager.clone();
+        let probe = tokio::task::spawn_blocking(move || {
+            let mut manager = manager_for_probe.lock().unwrap();
+            let connect_result = manager.connect();
+            // Divert immediately while we still hold the lock so we don't race
+            // the battery updater on the same hidraw fd.
+            let divert_result = if matches!(connect_result, Ok(true)) {
+                Some(manager.divert_buttons())
+            } else {
+                None
+            };
+            let path = manager.device_path();
+            let name = manager.get_device_name_string();
+            (connect_result, divert_result, path, name)
+        })
+        .await
+        .expect("HID++ probe task panicked");
+
+        match probe.0 {
             Ok(true) => {
                 info!("Haptic feedback connected to MX Master 4");
-                // Divert gesture buttons so we receive HID++ notifications
-                match manager.divert_buttons() {
-                    Ok(n) if n > 0 => info!(count = n, "Gesture buttons diverted via HID++"),
-                    Ok(_) => warn!("No gesture buttons found to divert - thumb button may not work"),
-                    Err(e) => warn!("Button divert failed (non-fatal): {}", e),
+                match probe.1 {
+                    Some(Ok(n)) if n > 0 => info!(count = n, "Gesture buttons diverted via HID++"),
+                    Some(Ok(_)) => {
+                        warn!("No gesture buttons found to divert - thumb button may not work")
+                    }
+                    Some(Err(e)) => warn!("Button divert failed (non-fatal): {}", e),
+                    None => {}
                 }
             }
             Ok(false) => info!("No MX Master 4 found for haptics (optional)"),
             Err(e) => warn!("Haptic connection error (non-fatal): {}", e),
         }
-        mx4_hidraw_path = manager.device_path();
-        mx4_device_name = manager.get_device_name_string();
+        mx4_hidraw_path = probe.2;
+        mx4_device_name = probe.3;
         if let Some(ref path) = mx4_hidraw_path {
             info!(path = %path.display(), "MX Master 4 hidraw path for event listener");
         }
@@ -227,7 +303,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-
     // Initialize gaming mode and macro subsystem
     let gaming_mode = new_shared_gaming_mode(haptic_manager.clone());
     let macro_engine = Arc::new(Mutex::new(MacroEngine::new()));
@@ -238,46 +313,62 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let macro_cids: Vec<u16>;
     let macro_evdev_codes: HashSet<u16>;
     {
-        let mut map = trigger_map.write().unwrap();
-        map.reload();
-        info!(count = map.len(), "Macro triggers loaded at startup");
+        // Pull what we need out of the trigger map, then drop the write lock
+        // before we await on the blocking divert task — clippy's
+        // `await_holding_lock` lint is correct: a std RwLock guard is poisoned
+        // territory across an await.
+        let pending_cids: Vec<(u16, u16)>;
+        {
+            let mut map = trigger_map.write().unwrap();
+            map.reload();
+            info!(count = map.len(), "Macro triggers loaded at startup");
+            macro_evdev_codes = map.evdev_codes().into_iter().collect();
+            pending_cids = map
+                .evdev_codes()
+                .into_iter()
+                .filter_map(|code| {
+                    juhradiald::hidraw::evdev_keycode_to_cid(code).map(|cid| (code, cid))
+                })
+                .collect();
+        }
 
-        // Collect evdev codes for button suppression in evdev handler
-        macro_evdev_codes = map.evdev_codes().into_iter().collect();
-
-        // Divert macro-triggered buttons via HID++ so the OS doesn't process them.
-        // Map evdev key codes (from trigger map) to HID++ CIDs and divert each one.
-        let mut cids = Vec::new();
-        for evdev_code in map.evdev_codes() {
-            if let Some(cid) = juhradiald::hidraw::evdev_keycode_to_cid(evdev_code) {
-                let mut mgr = haptic_manager.lock().unwrap();
-                match mgr.divert_single_button(cid) {
-                    Ok(true) => {
-                        info!(
-                            evdev_code = format!("0x{:04X}", evdev_code),
-                            cid = format!("0x{:04X}", cid),
-                            "Macro button diverted via HID++"
-                        );
-                        cids.push(cid);
-                    }
-                    Ok(false) => {
-                        warn!(
+        macro_cids = if pending_cids.is_empty() {
+            Vec::new()
+        } else {
+            // Each divert sends an HID++ long_request and polls 10ms × up to 1s
+            // for the response. Run on the blocking pool so the runtime keeps
+            // servicing input events while macros are being registered.
+            let manager_for_divert = haptic_manager.clone();
+            tokio::task::spawn_blocking(move || {
+                let mut mgr = manager_for_divert.lock().unwrap();
+                let mut cids = Vec::new();
+                for (evdev_code, cid) in pending_cids {
+                    match mgr.divert_single_button(cid) {
+                        Ok(true) => {
+                            info!(
+                                evdev_code = format!("0x{:04X}", evdev_code),
+                                cid = format!("0x{:04X}", cid),
+                                "Macro button diverted via HID++"
+                            );
+                            cids.push(cid);
+                        }
+                        Ok(false) => warn!(
                             evdev_code = format!("0x{:04X}", evdev_code),
                             cid = format!("0x{:04X}", cid),
                             "Could not divert macro button (not found or not divertable)"
-                        );
-                    }
-                    Err(e) => {
-                        warn!(
+                        ),
+                        Err(e) => warn!(
                             evdev_code = format!("0x{:04X}", evdev_code),
                             error = %e,
                             "Failed to divert macro button"
-                        );
+                        ),
                     }
                 }
-            }
-        }
-        macro_cids = cids;
+                cids
+            })
+            .await
+            .expect("macro divert task panicked")
+        };
     }
 
     // Clone trigger_map and macro_engine for event processing (macro trigger detection)
@@ -296,9 +387,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         macro_engine,
         macro_recorder,
         trigger_map,
-    ).await {
+    )
+    .await
+    {
         Ok(conn) => {
-            info!("D-Bus service initialized successfully (mode={}, device={})", device_mode, device_name);
+            info!(
+                "D-Bus service initialized successfully (mode={}, device={})",
+                device_mode, device_name
+            );
             conn
         }
         Err(e) => {
@@ -306,6 +402,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err(e.into());
         }
     };
+
+    let haptic_manager_for_hidraw = haptic_manager_for_battery.clone();
 
     // Spawn battery status updater (shares HidppDevice with haptic via SharedHapticManager)
     let battery_handle = tokio::spawn(async move {
@@ -331,10 +429,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Log current profile
     let current = profile_manager.current();
-    info!(
-        profile = current.name,
-        "Active profile loaded"
-    );
+    info!(profile = current.name, "Active profile loaded");
 
     // Initialize window tracker for per-app profiles (Story 3.2)
     let window_tracker = WindowTracker::new().await;
@@ -348,20 +443,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _window_tracker = window_tracker;
     let _profile_manager = profile_manager;
 
-    // Create channel for gesture events
-    let (event_tx, mut event_rx) = mpsc::channel::<GestureEvent>(32);
-
-    // Spawn the HID++ hidraw handler (reads button events directly from mouse)
-    // Pass the MX Master 4's hidraw path so it uses the correct Bolt receiver
-    let hidraw_tx = event_tx.clone();
-    let hidraw_config = shared_config.clone();
-    let hidraw_handle = tokio::spawn(async move {
-        run_hidraw_loop(hidraw_tx, mx4_hidraw_path, macro_cids, hidraw_config).await
-    });
-
     // Start inotify watcher on /dev/input/ for instant device hotplug detection.
     // Shared across both evdev loops so they re-scan immediately on device changes.
     let hotplug_notify = spawn_device_hotplug_watcher();
+
+    // Create channel for gesture events
+    let (event_tx, mut event_rx) = mpsc::channel::<GestureEvent>(32);
+
+    // Spawn the HID++ hidraw handler (reads button events directly from mouse).
+    // Button divert is volatile and is reset by Easy-Switch host changes, so
+    // this loop owns re-applying diverts whenever the mouse hotplugs/reconnects.
+    let hidraw_tx = event_tx.clone();
+    let hidraw_config = shared_config.clone();
+    let hidraw_hotplug = hotplug_notify.clone();
+    let hidraw_handle = tokio::spawn(async move {
+        run_hidraw_loop(
+            hidraw_tx,
+            mx4_hidraw_path,
+            macro_cids,
+            hidraw_config,
+            hidraw_hotplug,
+            haptic_manager_for_hidraw,
+        )
+        .await
+    });
 
     // Spawn evdev handlers:
     // - MX evdev loop: fallback for standard MX input events (when HID++ divert unavailable)
@@ -386,22 +491,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hotplug_for_generic = hotplug_notify.clone();
     let generic_evdev_config = shared_config.clone();
     let generic_evdev_handle = tokio::spawn(async move {
-        run_generic_evdev_loop(generic_evdev_tx, suppressed_for_generic, hotplug_for_generic, generic_evdev_config).await
+        run_generic_evdev_loop(
+            generic_evdev_tx,
+            suppressed_for_generic,
+            hotplug_for_generic,
+            generic_evdev_config,
+        )
+        .await
     });
-
-    // Get screen bounds for edge clamping (query once at startup)
-    let screen_bounds = get_screen_bounds();
-    info!("Screen bounds: {}x{}", screen_bounds.width, screen_bounds.height);
 
     // Spawn event processing task with D-Bus connection
     let event_handle = tokio::spawn(async move {
         process_gesture_events(
             &mut event_rx,
             &dbus_connection,
-            &screen_bounds,
             trigger_map_for_events,
             macro_engine_for_events,
-        ).await
+        )
+        .await
     });
 
     // TODO: Initialize remaining components
@@ -456,7 +563,11 @@ fn list_logitech_devices() {
         println!("Found {} Logitech device(s):\n", devices.len());
 
         for (i, device) in devices.iter().enumerate() {
-            let mx_marker = if device.is_mx_master_4 { " [MX Master 4]" } else { "" };
+            let mx_marker = if device.is_mx_master_4 {
+                " [MX Master 4]"
+            } else {
+                ""
+            };
             println!("{}. {}{}", i + 1, device.name, mx_marker);
             println!("   Path:    {:?}", device.path);
             println!("   Vendor:  0x{:04X}", device.vendor_id);
@@ -490,46 +601,147 @@ fn list_logitech_devices() {
     }
 }
 
-/// Run the HID++ hidraw event loop for diverted buttons
+/// Reconnect HID++ and re-apply volatile button diverts.
 ///
-/// When buttons are diverted via HID++ configuration, they send HID++ notifications
-/// instead of evdev events. This handler reads from the hidraw device.
-async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, preferred_path: Option<std::path::PathBuf>, macro_cids: Vec<u16>, shared_config: juhradiald::config::SharedConfig) {
+/// Easy-Switch host changes reset temporary REPROG_CONTROLS_V4 diverts, so the
+/// daemon must apply them again after the mouse returns to this machine.
+async fn refresh_hidpp_button_diverts(
+    haptic_manager: SharedHapticManager,
+    macro_cids: Vec<u16>,
+) -> Option<PathBuf> {
+    match tokio::task::spawn_blocking(move || {
+        let mut manager = haptic_manager.lock().unwrap();
+        match manager.connect() {
+            Ok(true) => {
+                match manager.divert_buttons() {
+                    Ok(n) if n > 0 => info!(count = n, "HID++ gesture buttons diverted"),
+                    Ok(_) => warn!("No HID++ gesture buttons found to divert"),
+                    Err(e) => warn!(error = %e, "Failed to divert HID++ gesture buttons"),
+                }
+
+                for &cid in &macro_cids {
+                    match manager.divert_single_button(cid) {
+                        Ok(true) => debug!(
+                            cid = format!("0x{:04X}", cid),
+                            "HID++ macro button diverted"
+                        ),
+                        Ok(false) => debug!(
+                            cid = format!("0x{:04X}", cid),
+                            "HID++ macro button not divertable on this device"
+                        ),
+                        Err(e) => warn!(
+                            cid = format!("0x{:04X}", cid),
+                            error = %e,
+                            "Failed to divert HID++ macro button"
+                        ),
+                    }
+                }
+
+                manager.device_path()
+            }
+            Ok(false) => {
+                debug!("No MX Master HID++ device available for button divert");
+                None
+            }
+            Err(e) => {
+                warn!(error = %e, "HID++ reconnect failed while refreshing button divert");
+                None
+            }
+        }
+    })
+    .await
+    {
+        Ok(path) => path,
+        Err(e) => {
+            error!("HID++ button divert refresh task panicked: {:?}", e);
+            None
+        }
+    }
+}
+
+async fn run_hidraw_loop(
+    event_tx: mpsc::Sender<GestureEvent>,
+    mut preferred_path: Option<PathBuf>,
+    macro_cids: Vec<u16>,
+    shared_config: juhradiald::config::SharedConfig,
+    hotplug: Arc<tokio::sync::Notify>,
+    haptic_manager: SharedHapticManager,
+) {
     let mut handler = HidrawHandler::new(event_tx);
+    let macro_cids_for_divert = macro_cids.clone();
     handler.set_macro_cids(macro_cids);
     handler.set_shared_config(shared_config);
 
     loop {
+        if let Some(path) =
+            refresh_hidpp_button_diverts(haptic_manager.clone(), macro_cids_for_divert.clone())
+                .await
+        {
+            preferred_path = Some(path);
+        }
+
         // Try to open - use preferred path from HidppDevice if available
         // This ensures we listen on the same Bolt receiver where buttons were diverted
         let open_result = if let Some(ref path) = preferred_path {
-            handler.open_path(path)
+            match handler.open_path(path) {
+                Ok(()) => Ok(()),
+                Err(HidrawError::DeviceNotFound) => {
+                    warn!(
+                        path = %path.display(),
+                        "Preferred hidraw path disappeared, falling back to auto-detect"
+                    );
+                    preferred_path = None;
+                    handler.open()
+                }
+                Err(e) => Err(e),
+            }
         } else {
             handler.open()
         };
+
+        let mut retry_immediately = false;
         match open_result {
             Ok(()) => {
+                if let Some(path) = handler.device_path() {
+                    preferred_path = Some(path);
+                }
                 info!("HID++ hidraw handler connected");
 
-                // Run the event loop until error
-                match handler.start().await {
-                    Ok(()) => {
+                // Run the event loop until error, or until input hotplug tells
+                // us the mouse may have returned from another Easy-Switch host.
+                let start_result = tokio::select! {
+                    result = handler.start() => Some(result),
+                    _ = hotplug.notified() => None,
+                };
+                handler.close();
+
+                match start_result {
+                    Some(Ok(())) => {
                         info!("HID++ event loop ended normally");
                     }
-                    Err(HidrawError::DeviceNotFound) => {
+                    Some(Err(HidrawError::DeviceNotFound)) => {
                         warn!("HID++ device disconnected, will poll for reconnection...");
                     }
-                    Err(HidrawError::PermissionDenied) => {
-                        error!("Permission denied for hidraw device. Ensure udev rules are installed.");
+                    Some(Err(HidrawError::PermissionDenied)) => {
+                        error!(
+                            "Permission denied for hidraw device. Ensure udev rules are installed."
+                        );
                     }
-                    Err(HidrawError::IoError(e)) => {
+                    Some(Err(HidrawError::IoError(e))) => {
                         error!("HID++ I/O error: {}. Will retry...", e);
+                    }
+                    None => {
+                        info!("Device hotplug detected, refreshing HID++ button listener");
+                        retry_immediately = true;
                     }
                 }
             }
             Err(HidrawError::DeviceNotFound) => {
                 // Device not found, this is expected during polling
-                info!("Waiting for Bolt receiver hidraw device... (polling every {}s)", DEVICE_POLL_INTERVAL_SECS);
+                info!(
+                    "Waiting for Bolt receiver hidraw device... (polling every {}s)",
+                    HIDRAW_RECONNECT_POLL_INTERVAL_SECS
+                );
             }
             Err(HidrawError::PermissionDenied) => {
                 error!("Permission denied accessing hidraw devices.");
@@ -540,8 +752,17 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, preferred_path: O
             }
         }
 
-        // Wait before polling again
-        sleep(Duration::from_secs(DEVICE_POLL_INTERVAL_SECS)).await;
+        if retry_immediately {
+            continue;
+        }
+
+        // Wait for either the shorter HID++ reconnect poll or device hotplug.
+        tokio::select! {
+            _ = sleep(Duration::from_secs(HIDRAW_RECONNECT_POLL_INTERVAL_SECS)) => {}
+            _ = hotplug.notified() => {
+                debug!("Device hotplug detected, re-scanning HID++ devices");
+            }
+        }
     }
 }
 
@@ -562,10 +783,13 @@ async fn run_evdev_loop(
     handler.set_suppressed_keys(suppressed_keys);
     handler.set_shared_config(shared_config);
 
+    let mut logged_waiting = false;
+
     loop {
         // Try to find and connect to the device
         match EvdevHandler::find_device() {
             Ok(device_info) => {
+                logged_waiting = false;
                 info!(
                     "Detected MX Master 4 at {:?} ({})",
                     device_info.path, device_info.name
@@ -578,6 +802,7 @@ async fn run_evdev_loop(
                     }
                     Err(EvdevError::DeviceNotFound) => {
                         warn!("Device disconnected, will poll for reconnection...");
+                        logged_waiting = false;
                     }
                     Err(EvdevError::PermissionDenied) => {
                         error!("Permission denied. Ensure udev rules are installed.");
@@ -590,8 +815,10 @@ async fn run_evdev_loop(
                 }
             }
             Err(EvdevError::DeviceNotFound) => {
-                // Device not found, this is expected during polling
-                info!("Waiting for MX Master 4... (polling every {}s)", DEVICE_POLL_INTERVAL_SECS);
+                if !logged_waiting {
+                    info!("MX Master 4 not found via evdev - polling in background");
+                    logged_waiting = true;
+                }
             }
             Err(EvdevError::PermissionDenied) => {
                 error!("Permission denied accessing input devices.");
@@ -606,7 +833,8 @@ async fn run_evdev_loop(
         tokio::select! {
             _ = sleep(Duration::from_secs(DEVICE_POLL_INTERVAL_SECS)) => {}
             _ = hotplug.notified() => {
-                info!("Device hotplug detected, re-scanning MX devices immediately");
+                debug!("Device hotplug detected, re-scanning MX devices");
+                logged_waiting = false;
             }
         }
     }
@@ -615,11 +843,12 @@ async fn run_evdev_loop(
 /// Read generic_trigger_button from ~/.config/juhradial/config.json
 fn read_trigger_button_from_config() -> Option<u16> {
     let home = std::env::var("HOME").ok()?;
-    let path = std::path::PathBuf::from(home)
-        .join(".config/juhradial/config.json");
+    let path = std::path::PathBuf::from(home).join(".config/juhradial/config.json");
     let data = std::fs::read_to_string(&path).ok()?;
     let json: serde_json::Value = serde_json::from_str(&data).ok()?;
-    json.get("generic_trigger_button")?.as_u64().map(|v| v as u16)
+    json.get("generic_trigger_button")?
+        .as_u64()
+        .map(|v| v as u16)
 }
 
 /// Read device_mode from ~/.config/juhradial/config.json
@@ -631,8 +860,7 @@ fn read_device_mode_from_config() -> String {
         Ok(h) => h,
         Err(_) => return "auto".to_string(),
     };
-    let path = std::path::PathBuf::from(home)
-        .join(".config/juhradial/config.json");
+    let path = std::path::PathBuf::from(home).join(".config/juhradial/config.json");
     let data = match std::fs::read_to_string(&path) {
         Ok(d) => d,
         Err(_) => return "auto".to_string(),
@@ -665,6 +893,8 @@ async fn run_generic_evdev_loop(
     handler.set_suppressed_keys(suppressed_keys);
     handler.set_shared_config(shared_config);
 
+    let mut logged_waiting = false;
+
     loop {
         // Re-read trigger button from config on each reconnect cycle
         // so rebinds in settings take effect without daemon restart
@@ -675,6 +905,7 @@ async fn run_generic_evdev_loop(
         // Try to find any generic mouse
         match EvdevHandler::find_any_mouse() {
             Ok(device_info) => {
+                logged_waiting = false;
                 info!(
                     "Detected generic mouse at {:?} ({})",
                     device_info.path, device_info.name
@@ -687,6 +918,7 @@ async fn run_generic_evdev_loop(
                     }
                     Err(EvdevError::DeviceNotFound) => {
                         warn!("Generic mouse disconnected, will poll for reconnection...");
+                        logged_waiting = false;
                     }
                     Err(EvdevError::PermissionDenied) => {
                         error!("Permission denied. Ensure udev rules are installed.");
@@ -698,7 +930,11 @@ async fn run_generic_evdev_loop(
                 }
             }
             Err(EvdevError::DeviceNotFound) => {
-                info!("Waiting for generic mouse... (polling every {}s)", DEVICE_POLL_INTERVAL_SECS);
+                // Only log once to avoid spamming every 2s when no generic mouse exists
+                if !logged_waiting {
+                    info!("No generic mouse found - polling in background");
+                    logged_waiting = true;
+                }
             }
             Err(EvdevError::PermissionDenied) => {
                 error!("Permission denied accessing input devices.");
@@ -713,7 +949,8 @@ async fn run_generic_evdev_loop(
         tokio::select! {
             _ = sleep(Duration::from_secs(DEVICE_POLL_INTERVAL_SECS)) => {}
             _ = hotplug.notified() => {
-                info!("Device hotplug detected, re-scanning generic mice immediately");
+                debug!("Device hotplug detected, re-scanning generic mice immediately");
+                logged_waiting = false; // Re-log status after hotplug
             }
         }
     }
@@ -727,7 +964,6 @@ async fn run_generic_evdev_loop(
 async fn process_gesture_events(
     event_rx: &mut mpsc::Receiver<GestureEvent>,
     dbus_connection: &zbus::Connection,
-    _screen_bounds: &ScreenBounds,
     trigger_map: Arc<std::sync::RwLock<juhradiald::macros::TriggerMap>>,
     macro_engine: Arc<Mutex<juhradiald::macros::MacroEngine>>,
 ) {
@@ -865,13 +1101,15 @@ async fn emit_hide_menu(
     connection: &zbus::Connection,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Emit signal directly (no parameters)
-    connection.emit_signal(
-        None::<&str>,  // destination (None = broadcast)
-        DBUS_PATH,
-        "org.kde.juhradialmx.Daemon",
-        "HideMenu",
-        &(),
-    ).await?;
+    connection
+        .emit_signal(
+            None::<&str>, // destination (None = broadcast)
+            DBUS_PATH,
+            "org.kde.juhradialmx.Daemon",
+            "HideMenu",
+            &(),
+        )
+        .await?;
 
     info!("HideMenu signal emitted");
     Ok(())
@@ -887,13 +1125,15 @@ async fn emit_cursor_moved(
     y: i32,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Emit signal directly without going through a method
-    connection.emit_signal(
-        None::<&str>,  // destination (None = broadcast)
-        DBUS_PATH,
-        "org.kde.juhradialmx.Daemon",
-        "CursorMoved",
-        &(x, y),
-    ).await?;
+    connection
+        .emit_signal(
+            None::<&str>, // destination (None = broadcast)
+            DBUS_PATH,
+            "org.kde.juhradialmx.Daemon",
+            "CursorMoved",
+            &(x, y),
+        )
+        .await?;
 
     Ok(())
 }
@@ -901,12 +1141,14 @@ async fn emit_cursor_moved(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use juhradiald::cursor::{ScreenBounds, CursorPosition, EDGE_MARGIN, MENU_RADIUS};
+    use juhradiald::cursor::{CursorPosition, EDGE_MARGIN, MENU_RADIUS, ScreenBounds};
 
     #[test]
     fn test_device_poll_interval() {
-        // Verify poll interval is 2 seconds as specified in AC2
-        assert_eq!(DEVICE_POLL_INTERVAL_SECS, 2);
+        // Steady-state input scans stay infrequent; hidraw reconnects use the
+        // shorter cadence after Easy-Switch or hotplug events.
+        assert_eq!(DEVICE_POLL_INTERVAL_SECS, 60);
+        assert_eq!(HIDRAW_RECONNECT_POLL_INTERVAL_SECS, 5);
     }
 
     #[test]
@@ -935,14 +1177,18 @@ mod tests {
         let (tx, mut rx) = mpsc::channel::<GestureEvent>(8);
 
         // Send press event
-        tx.send(GestureEvent::Pressed { x: 100, y: 200 }).await.unwrap();
+        tx.send(GestureEvent::Pressed { x: 100, y: 200 })
+            .await
+            .unwrap();
 
         // Receive and verify
         let event = rx.recv().await.unwrap();
         assert!(matches!(event, GestureEvent::Pressed { x: 100, y: 200 }));
 
         // Send release event
-        tx.send(GestureEvent::Released { duration_ms: 500 }).await.unwrap();
+        tx.send(GestureEvent::Released { duration_ms: 500 })
+            .await
+            .unwrap();
 
         let event = rx.recv().await.unwrap();
         assert!(matches!(event, GestureEvent::Released { duration_ms: 500 }));
@@ -955,8 +1201,17 @@ mod tests {
 
         // Simulate 5 rapid press/release cycles
         for i in 0..5 {
-            tx.send(GestureEvent::Pressed { x: i * 10, y: i * 10 }).await.unwrap();
-            tx.send(GestureEvent::Released { duration_ms: 50 + (i as u64 * 10) }).await.unwrap();
+            tx.send(GestureEvent::Pressed {
+                x: i * 10,
+                y: i * 10,
+            })
+            .await
+            .unwrap();
+            tx.send(GestureEvent::Released {
+                duration_ms: 50 + (i as u64 * 10),
+            })
+            .await
+            .unwrap();
         }
 
         // Verify all 10 events are received in order
@@ -965,7 +1220,9 @@ mod tests {
             assert!(matches!(press, GestureEvent::Pressed { x, y } if x == i * 10 && y == i * 10));
 
             let release = rx.recv().await.unwrap();
-            assert!(matches!(release, GestureEvent::Released { duration_ms } if duration_ms == 50 + (i as u64 * 10)));
+            assert!(
+                matches!(release, GestureEvent::Released { duration_ms } if duration_ms == 50 + (i as u64 * 10))
+            );
         }
 
         // Ensure no more events
@@ -975,29 +1232,35 @@ mod tests {
     // Story 2.3: Edge clamping tests
     #[test]
     fn test_edge_clamping_integration() {
-        let bounds = ScreenBounds { width: 1920, height: 1080 };
+        let bounds = ScreenBounds {
+            width: 1920,
+            height: 1080,
+        };
 
         // Test near left edge
         let pos = CursorPosition::new(50, 540);
         let clamped = pos.clamp_to_screen(&bounds);
-        assert_eq!(clamped.x, EDGE_MARGIN + MENU_RADIUS); // 160
+        assert_eq!(clamped.x, EDGE_MARGIN + MENU_RADIUS); // 170
 
         // Test near top edge
         let pos = CursorPosition::new(960, 30);
         let clamped = pos.clamp_to_screen(&bounds);
-        assert_eq!(clamped.y, EDGE_MARGIN + MENU_RADIUS); // 160
+        assert_eq!(clamped.y, EDGE_MARGIN + MENU_RADIUS); // 170
 
         // Test bottom-right corner
         let pos = CursorPosition::new(1900, 1060);
         let clamped = pos.clamp_to_screen(&bounds);
-        assert_eq!(clamped.x, 1920 - EDGE_MARGIN - MENU_RADIUS); // 1760
-        assert_eq!(clamped.y, 1080 - EDGE_MARGIN - MENU_RADIUS); // 920
+        assert_eq!(clamped.x, 1920 - EDGE_MARGIN - MENU_RADIUS); // 1750
+        assert_eq!(clamped.y, 1080 - EDGE_MARGIN - MENU_RADIUS); // 910
     }
 
     #[test]
     fn test_cursor_position_within_bounds() {
         // Cursor in safe area should not be modified
-        let bounds = ScreenBounds { width: 1920, height: 1080 };
+        let bounds = ScreenBounds {
+            width: 1920,
+            height: 1080,
+        };
         let pos = CursorPosition::new(500, 500);
         let clamped = pos.clamp_to_screen(&bounds);
         assert_eq!(clamped.x, 500);

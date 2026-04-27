@@ -12,6 +12,7 @@ use super::types::MacroConfig;
 pub type SharedTriggerMap = Arc<RwLock<TriggerMap>>;
 
 /// Maps evdev button codes to macro IDs
+#[derive(Default)]
 pub struct TriggerMap {
     /// evdev_code -> macro_id
     bindings: HashMap<u16, String>,
@@ -73,14 +74,6 @@ impl TriggerMap {
     /// Get all registered evdev key codes (for HID++ button divert)
     pub fn evdev_codes(&self) -> Vec<u16> {
         self.bindings.keys().copied().collect()
-    }
-}
-
-impl Default for TriggerMap {
-    fn default() -> Self {
-        Self {
-            bindings: HashMap::new(),
-        }
     }
 }
 

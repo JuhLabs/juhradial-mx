@@ -2,8 +2,13 @@
 """Measure segment positions: outer edge from alpha, use ring_inner as inner edge."""
 
 import math
+import sys
+
 import numpy as np
 from PIL import Image
+
+sys.path.insert(0, ".")
+
 from overlay.themes import THEMES
 
 WHEELS = sorted(

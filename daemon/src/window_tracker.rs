@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use zbus::{proxy, Connection, Result as ZbusResult};
+use zbus::{Connection, Result as ZbusResult, proxy};
 
 /// KWin D-Bus service name (for future KWin integration)
 #[allow(dead_code)]
@@ -22,21 +22,12 @@ const KWIN_PATH: &str = "/KWin";
 const KWIN_SCRIPTING_PATH: &str = "/Scripting";
 
 /// Window tracker state
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct WindowInfo {
     /// Window resource class (e.g., "firefox", "konsole")
     pub resource_class: String,
     /// Window caption/title (optional)
     pub caption: Option<String>,
-}
-
-impl Default for WindowInfo {
-    fn default() -> Self {
-        Self {
-            resource_class: String::new(),
-            caption: None,
-        }
-    }
 }
 
 /// Tracks the currently focused window via KWin D-Bus
@@ -150,7 +141,10 @@ impl WindowTracker {
         }
 
         // Query the window's resource class
-        let resource_class = match self.query_window_resource_class(connection, &client_id).await {
+        let resource_class = match self
+            .query_window_resource_class(connection, &client_id)
+            .await
+        {
             Some(class) => class,
             None => {
                 tracing::debug!("Failed to get resource class for client {}", client_id);
