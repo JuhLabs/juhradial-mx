@@ -18,7 +18,7 @@ from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _
 from settings_config import config
-from settings_widgets import SettingsCard, SettingRow, PageHeader
+from settings_widgets import GeneratedAssetHero, SettingsCard, SettingRow, PageHeader
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,9 @@ class HapticsPage(Gtk.ScrolledWindow):
             _("Configure vibration patterns for the radial menu"),
         )
         content.append(header)
+        content.append(
+            GeneratedAssetHero("settings-generated/haptics.png", max_height=210)
+        )
 
         card = SettingsCard(_("Haptic Feedback"))
 
@@ -146,27 +149,32 @@ class HapticsPage(Gtk.ScrolledWindow):
         return False
 
     def _create_pattern_dropdown(self, current_value, on_change_callback):
-        """Create a dropdown for selecting haptic patterns"""
-        dropdown = Gtk.ComboBoxText()
+        """Create a Gtk.DropDown for selecting haptic patterns. Uses the
+        modern dropdown widget (matches the rest of the app under the new
+        CSS) rather than the legacy ComboBoxText."""
+        labels = [display_name for _id, display_name, _desc in self.HAPTIC_PATTERNS]
+        dropdown = Gtk.DropDown.new_from_strings(labels)
 
+        # Find current index, default to 0 if not found
         current_index = 0
-        for i, (pattern_id, display_name, _) in enumerate(self.HAPTIC_PATTERNS):
-            dropdown.append(pattern_id, display_name)
+        for i, (pattern_id, _name, _desc) in enumerate(self.HAPTIC_PATTERNS):
             if pattern_id == current_value:
                 current_index = i
+                break
+        dropdown.set_selected(current_index)
 
-        dropdown.set_active(current_index)
         dropdown.connect(
-            "changed", lambda d: self._on_pattern_selected(d, on_change_callback)
+            "notify::selected",
+            lambda d, _p: self._on_pattern_selected(d, on_change_callback),
         )
-
         return dropdown
 
     def _on_pattern_selected(self, dropdown, callback):
         """Handle pattern selection - save and apply instantly"""
-        pattern = dropdown.get_active_id()
-        if not pattern:
+        idx = dropdown.get_selected()
+        if idx >= len(self.HAPTIC_PATTERNS):
             return
+        pattern = self.HAPTIC_PATTERNS[idx][0]
 
         # Save to config (in-memory)
         callback(pattern)
@@ -195,9 +203,9 @@ class HapticsPage(Gtk.ScrolledWindow):
                 pattern_index = i
                 break
 
-        # Update each dropdown's visual selection
+        # Update each dropdown's visual selection (Gtk.DropDown uses set_selected)
         for key, dropdown in self.event_dropdowns.items():
-            dropdown.set_active(pattern_index)
+            dropdown.set_selected(pattern_index)
 
         # Save config to file so daemon can read it
         config.save(show_toast=False)

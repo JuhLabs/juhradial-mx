@@ -139,18 +139,27 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
         self._juhflow_status_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=6
         )
+        # Inline spinner shown until the first poll completes
+        self._juhflow_initial_spinner = Gtk.Spinner()
+        self._juhflow_initial_spinner.set_size_request(16, 16)
+        self._juhflow_initial_spinner.start()
+        self._juhflow_status_box.append(self._juhflow_initial_spinner)
         self._juhflow_dot = Gtk.Box()
         self._juhflow_dot.set_size_request(8, 8)
         self._juhflow_dot.add_css_class("connection-dot")
+        self._juhflow_dot.set_visible(False)
         self._juhflow_status_box.append(self._juhflow_dot)
-        self._juhflow_label = Gtk.Label(label=_("Checking..."))
+        self._juhflow_label = Gtk.Label(label="")
         self._juhflow_label.add_css_class("caption")
+        self._juhflow_label.set_visible(False)
         self._juhflow_status_box.append(self._juhflow_label)
+        self._juhflow_first_poll_done = False
         self._juhflow_control_box.append(self._juhflow_status_box)
 
         self._juhflow_connect_btn = Gtk.Button(label=_("Connect"))
         self._juhflow_connect_btn.add_css_class("suggested-action")
         self._juhflow_connect_btn.add_css_class("caption")
+        self._juhflow_connect_btn.set_visible(False)
         self._juhflow_connect_btn.connect("clicked", self._on_juhflow_connect)
         self._juhflow_control_box.append(self._juhflow_connect_btn)
 
@@ -423,6 +432,14 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
                     peers = bridge.get_peers()
             except Exception:
                 logger.debug("JuhFlow bridge not available in separate process")
+
+        # First poll: hide spinner and reveal real status widgets
+        if not self._juhflow_first_poll_done:
+            self._juhflow_first_poll_done = True
+            self._juhflow_initial_spinner.stop()
+            self._juhflow_initial_spinner.set_visible(False)
+            self._juhflow_dot.set_visible(True)
+            self._juhflow_label.set_visible(True)
 
         if peers:
             name = peers[0].get("hostname", "Mac")

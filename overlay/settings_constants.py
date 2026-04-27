@@ -74,15 +74,15 @@ GENERIC_BUTTONS = {}
 # SIDEBAR NAVIGATION ITEMS
 # =============================================================================
 _BASE_NAV_ITEMS = [
-    ("buttons", "BUTTONS", "nav-buttons.png"),
-    ("scroll", "POINT & SCROLL", "nav-scroll.png"),
-    ("haptics", "HAPTIC FEEDBACK", "nav-haptics.png"),
-    ("devices", "DEVICES", "nav-devices.png"),
-    ("easy_switch", "EASY-SWITCH", "nav-easyswitch.png"),
-    ("flow", "FLOW", "nav-flow.png"),
-    ("macros", "MACROS", "nav-macros.png"),
-    ("gaming", "GAMING", "nav-gaming.png"),
-    ("settings", "SETTINGS", "nav-settings.png"),
+    ("buttons", "BUTTONS", "input-mouse-symbolic"),
+    ("scroll", "POINT & SCROLL", "view-list-symbolic"),
+    ("haptics", "HAPTIC FEEDBACK", "audio-volume-medium-symbolic"),
+    ("devices", "DEVICES", "computer-symbolic"),
+    ("easy_switch", "EASY-SWITCH", "network-wireless-symbolic"),
+    ("flow", "FLOW", "view-dual-symbolic"),
+    ("macros", "MACROS", "applications-development-symbolic"),
+    ("gaming", "GAMING", "input-gaming-symbolic"),
+    ("settings", "SETTINGS", "emblem-system-symbolic"),
 ]
 
 # Default actions for each button (used for restore)

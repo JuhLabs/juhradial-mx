@@ -25,13 +25,21 @@ pub async fn init_dbus_service(
     let macro_recorder = Arc::new(Mutex::new(MacroRecorder::new()));
     let trigger_map = Arc::new(std::sync::RwLock::new(TriggerMap::default()));
     init_dbus_service_with_device(
-        battery_state, config, haptic_manager,
-        "logitech".to_string(), "Unknown".to_string(),
-        gaming_mode, macro_engine, macro_recorder, trigger_map,
-    ).await
+        battery_state,
+        config,
+        haptic_manager,
+        "logitech".to_string(),
+        "Unknown".to_string(),
+        gaming_mode,
+        macro_engine,
+        macro_recorder,
+        trigger_map,
+    )
+    .await
 }
 
 /// Initialize and run the D-Bus service with device mode information
+#[allow(clippy::too_many_arguments)]
 pub async fn init_dbus_service_with_device(
     battery_state: SharedBatteryState,
     config: SharedConfig,
@@ -44,8 +52,15 @@ pub async fn init_dbus_service_with_device(
     trigger_map: SharedTriggerMap,
 ) -> zbus::Result<zbus::Connection> {
     let service = JuhRadialService::new_with_device(
-        battery_state, config, haptic_manager, device_mode, device_name,
-        gaming_mode, macro_engine, macro_recorder, trigger_map,
+        battery_state,
+        config,
+        haptic_manager,
+        device_mode,
+        device_name,
+        gaming_mode,
+        macro_engine,
+        macro_recorder,
+        trigger_map,
     );
 
     let connection = zbus::connection::Builder::session()?

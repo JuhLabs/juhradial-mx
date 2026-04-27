@@ -12,6 +12,7 @@ import logging
 import math
 import os
 import time
+from pathlib import Path
 
 import gi
 gi.require_version('Gtk', '4.0')
@@ -47,17 +48,21 @@ def _rounded_rect(cr, x, y, w, h, r):
     cr.close_path()
 
 
-def _resolve_nav_icon(filename):
-    """Resolve a nav icon PNG path (dev or installed)."""
-    from pathlib import Path
+def _resolve_asset_path(relative_path):
+    """Resolve a bundled asset path (dev or installed)."""
     candidates = [
-        Path(__file__).parent.parent / "assets" / filename,
-        Path("/usr/share/juhradial/assets") / filename,
+        Path(__file__).parent.parent / "assets" / relative_path,
+        Path("/usr/share/juhradial/assets") / relative_path,
     ]
     for p in candidates:
         if p.exists():
             return str(p)
     return None
+
+
+def _resolve_nav_icon(filename):
+    """Resolve a nav icon PNG path (dev or installed)."""
+    return _resolve_asset_path(filename)
 
 
 class NavButton(Gtk.Button):
@@ -70,8 +75,9 @@ class NavButton(Gtk.Button):
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
 
-        # Custom PNG icon replaces the badge entirely;
-        # symbolic icons keep the old badge wrapper
+        # Custom PNG icon replaces the badge entirely.
+        # Symbolic icon names render bare with .nav-icon-img so Workbench CSS
+        # handles opacity, hover, and theme tinting.
         if icon_name.endswith(".png"):
             icon_path = _resolve_nav_icon(icon_name)
             if icon_path:
@@ -83,15 +89,11 @@ class NavButton(Gtk.Button):
             icon.set_valign(Gtk.Align.CENTER)
             box.append(icon)
         else:
-            icon_badge = Gtk.Box()
-            icon_badge.add_css_class('nav-icon-badge')
-            icon_badge.set_valign(Gtk.Align.CENTER)
-            icon_badge.set_halign(Gtk.Align.CENTER)
             icon = Gtk.Image.new_from_icon_name(icon_name)
-            icon.set_pixel_size(18)
-            icon.add_css_class('nav-icon')
-            icon_badge.append(icon)
-            box.append(icon_badge)
+            icon.set_pixel_size(20)
+            icon.add_css_class('nav-icon-img')
+            icon.set_valign(Gtk.Align.CENTER)
+            box.append(icon)
 
         label_widget = Gtk.Label(label=label)
         label_widget.set_halign(Gtk.Align.START)
@@ -604,6 +606,41 @@ class PageHeader(Gtk.Box):
         self.append(subtitle_label)
 
 
+class GeneratedAssetHero(Gtk.Box):
+    """Transparent generated image panel for high-value settings pages."""
+
+    def __init__(self, asset_path, max_height=180, max_width=-1):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.add_css_class("generated-asset-hero")
+        self.set_hexpand(True)
+
+        resolved_path = _resolve_asset_path(asset_path)
+        if not resolved_path:
+            self.set_visible(False)
+            return
+
+        picture = self._create_picture(resolved_path, max_width, max_height)
+        picture.set_halign(Gtk.Align.CENTER)
+        picture.set_valign(Gtk.Align.CENTER)
+        picture.set_can_shrink(True)
+        picture.add_css_class("generated-asset-image")
+        self.append(picture)
+
+    def _create_picture(self, resolved_path, max_width, max_height):
+        try:
+            from gi.repository import GdkPixbuf
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                resolved_path, max_width, max_height, True
+            )
+            texture = Gdk.Texture.new_for_pixbuf(pixbuf)
+            return Gtk.Picture.new_for_paintable(texture)
+        except Exception:
+            logging.debug(
+                "GeneratedAssetHero failed to scale %s", resolved_path, exc_info=True
+            )
+            return Gtk.Picture.new_for_filename(resolved_path)
+
+
 class SettingsCard(Gtk.Box):
     """A styled settings card"""
 
@@ -662,3 +699,80 @@ class InfoCard(Gtk.Box):
         title_label.set_halign(Gtk.Align.START)
         title_label.add_css_class('card-title')
         self.append(title_label)
+
+
+class LoadingState(Gtk.Box):
+    """3-state container: loading / loaded / error.
+
+    Use:
+        ls = LoadingState(on_retry=callback)
+        ls.set_loading()              # spinner + "Loading..."
+        ls.set_loaded(content_widget) # swap to actual content
+        ls.set_error(msg, retry=True) # show error + retry button
+    """
+
+    def __init__(self, on_retry=None, loading_text=None, spinner_size=24):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self._on_retry = on_retry
+        text = _("Loading...") if loading_text is None else loading_text
+
+        self._stack = Gtk.Stack()
+        self._stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self._stack.set_transition_duration(150)
+
+        loading_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        loading_box.set_halign(Gtk.Align.CENTER)
+        loading_box.set_margin_top(16)
+        loading_box.set_margin_bottom(16)
+        spinner = Gtk.Spinner()
+        spinner.set_size_request(spinner_size, spinner_size)
+        spinner.start()
+        loading_box.append(spinner)
+        if text:
+            lbl = Gtk.Label(label=text)
+            lbl.add_css_class("dim-label")
+            loading_box.append(lbl)
+        self._stack.add_named(loading_box, "loading")
+
+        self._loaded_holder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self._stack.add_named(self._loaded_holder, "loaded")
+
+        error_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        error_box.set_halign(Gtk.Align.CENTER)
+        error_box.set_margin_top(16)
+        error_box.set_margin_bottom(16)
+        warn = Gtk.Image.new_from_icon_name("dialog-warning-symbolic")
+        warn.set_pixel_size(24)
+        error_box.append(warn)
+        self._error_label = Gtk.Label(label="")
+        self._error_label.set_wrap(True)
+        self._error_label.set_justify(Gtk.Justification.CENTER)
+        self._error_label.add_css_class("dim-label")
+        error_box.append(self._error_label)
+        self._retry_btn = Gtk.Button(label=_("Retry"))
+        self._retry_btn.set_halign(Gtk.Align.CENTER)
+        self._retry_btn.connect("clicked", self._on_retry_clicked)
+        error_box.append(self._retry_btn)
+        self._stack.add_named(error_box, "error")
+
+        self.append(self._stack)
+        self._stack.set_visible_child_name("loading")
+
+    def _on_retry_clicked(self, _btn):
+        if self._on_retry:
+            self.set_loading()
+            self._on_retry()
+
+    def set_loading(self):
+        self._stack.set_visible_child_name("loading")
+
+    def set_loaded(self, widget):
+        while child := self._loaded_holder.get_first_child():
+            self._loaded_holder.remove(child)
+        self._loaded_holder.append(widget)
+        self._stack.set_visible_child_name("loaded")
+
+    def set_error(self, msg, retry=True):
+        self._error_label.set_label(msg)
+        self._retry_btn.set_visible(bool(retry and self._on_retry))
+        self._stack.set_visible_child_name("error")

@@ -1,65 +1,74 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="JuhRadial MX logo">
   <defs>
-    <!-- Gradient for main circle -->
-    <radialGradient id="bgGrad" cx="50%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#45475a"/>
-      <stop offset="100%" stop-color="#1e1e2e"/>
+    <linearGradient id="panel" x1="38" y1="24" x2="218" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#11191c"/>
+      <stop offset="0.56" stop-color="#070b0d"/>
+      <stop offset="1" stop-color="#030506"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="54" y1="42" x2="207" y2="211" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f4d49b"/>
+      <stop offset="0.42" stop-color="#c9944c"/>
+      <stop offset="1" stop-color="#7a552b"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="53" y1="203" x2="212" y2="55" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6de5f2"/>
+      <stop offset="1" stop-color="#2b8392"/>
+    </linearGradient>
+    <radialGradient id="mouse" cx="44%" cy="30%" r="76%">
+      <stop offset="0" stop-color="#3d474c"/>
+      <stop offset="0.55" stop-color="#141b1f"/>
+      <stop offset="1" stop-color="#050708"/>
     </radialGradient>
-    <!-- Glow effect -->
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
-    <!-- Shadow -->
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="2" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.5"/>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000000" flood-opacity="0.48"/>
     </filter>
   </defs>
 
-  <!-- Background shadow -->
-  <circle cx="128" cy="132" r="100" fill="#000" opacity="0.3" filter="url(#shadow)"/>
+  <rect x="18" y="18" width="220" height="220" rx="52" fill="url(#panel)" stroke="#253236" stroke-width="2"/>
+  <circle cx="128" cy="128" r="88" fill="#061014" stroke="#1c2b2f" stroke-width="2"/>
 
-  <!-- Main outer ring -->
-  <circle cx="128" cy="128" r="100" fill="url(#bgGrad)" stroke="#585b70" stroke-width="3"/>
-
-  <!-- Slice dividers (8 slices) -->
-  <g stroke="#6c7086" stroke-width="1.5" opacity="0.6">
-    <line x1="128" y1="38" x2="128" y2="88"/>
-    <line x1="128" y1="168" x2="128" y2="218"/>
-    <line x1="38" y1="128" x2="88" y2="128"/>
-    <line x1="168" y1="128" x2="218" y2="128"/>
-    <line x1="64" y1="64" x2="98" y2="98"/>
-    <line x1="158" y1="158" x2="192" y2="192"/>
-    <line x1="192" y1="64" x2="158" y2="98"/>
-    <line x1="64" y1="192" x2="98" y2="158"/>
+  <g fill="none" stroke-linecap="round" filter="url(#softGlow)">
+    <path d="M128 40a88 88 0 0 1 62.2 25.8" stroke="url(#brass)" stroke-width="8"/>
+    <path d="M202.2 80.8A88 88 0 0 1 216 128" stroke="#74ddea" stroke-width="8"/>
+    <path d="M216 128a88 88 0 0 1-24.4 60.8" stroke="url(#brass)" stroke-width="8"/>
+    <path d="M175.2 202.2A88 88 0 0 1 128 216" stroke="url(#cyan)" stroke-width="8"/>
+    <path d="M128 216a88 88 0 0 1-62.2-25.8" stroke="url(#brass)" stroke-width="8"/>
+    <path d="M53.8 175.2A88 88 0 0 1 40 128" stroke="#74ddea" stroke-width="8"/>
+    <path d="M40 128a88 88 0 0 1 24.4-60.8" stroke="url(#brass)" stroke-width="8"/>
+    <path d="M80.8 53.8A88 88 0 0 1 128 40" stroke="url(#cyan)" stroke-width="8"/>
   </g>
 
-  <!-- Center circle -->
-  <circle cx="128" cy="128" r="40" fill="#313244" stroke="#585b70" stroke-width="2"/>
-
-  <!-- Inner accent ring -->
-  <circle cx="128" cy="128" r="32" fill="none" stroke="#cba6f7" stroke-width="2" opacity="0.7"/>
-
-  <!-- MX text in center -->
-  <text x="128" y="136" font-family="sans-serif" font-size="24" font-weight="bold"
-        fill="#cdd6f4" text-anchor="middle">MX</text>
-
-  <!-- Accent dots on slices (representing icons) -->
-  <g filter="url(#glow)">
-    <circle cx="128" cy="58" r="8" fill="#a6e3a1"/>
-    <circle cx="178" cy="78" r="8" fill="#f9e2af"/>
-    <circle cx="198" cy="128" r="8" fill="#f38ba8"/>
-    <circle cx="178" cy="178" r="8" fill="#cba6f7"/>
-    <circle cx="128" cy="198" r="8" fill="#89b4fa"/>
-    <circle cx="78" cy="178" r="8" fill="#f5c2e7"/>
-    <circle cx="58" cy="128" r="8" fill="#74c7ec"/>
-    <circle cx="78" cy="78" r="8" fill="#94e2d5"/>
+  <g stroke="#a87f43" stroke-width="1.6" opacity="0.58">
+    <line x1="128" y1="44" x2="128" y2="66"/>
+    <line x1="128" y1="190" x2="128" y2="212"/>
+    <line x1="44" y1="128" x2="66" y2="128"/>
+    <line x1="190" y1="128" x2="212" y2="128"/>
+    <line x1="68.6" y1="68.6" x2="84.1" y2="84.1"/>
+    <line x1="171.9" y1="171.9" x2="187.4" y2="187.4"/>
+    <line x1="187.4" y1="68.6" x2="171.9" y2="84.1"/>
+    <line x1="68.6" y1="187.4" x2="84.1" y2="171.9"/>
   </g>
 
-  <!-- Outer glow ring -->
-  <circle cx="128" cy="128" r="105" fill="none" stroke="#cba6f7" stroke-width="1" opacity="0.3"/>
+  <g filter="url(#shadow)">
+    <path d="M103 79c-19 14-28 42-24 76 4 37 26 59 54 56 31-3 48-31 45-74-3-42-24-66-55-66-8 0-15 3-20 8z" fill="url(#mouse)" stroke="#c9944c" stroke-width="2"/>
+    <path d="M128 74v48" stroke="#d6c4a0" stroke-width="2.4" stroke-linecap="round"/>
+    <rect x="118" y="83" width="20" height="37" rx="10" fill="#10171a" stroke="#74ddea" stroke-width="2"/>
+    <path d="M94 139c17 9 49 10 72 0" fill="none" stroke="#2f3f43" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="128" cy="101" r="4" fill="#c9944c"/>
+  </g>
+
+  <g filter="url(#softGlow)">
+    <circle cx="128" cy="34" r="4" fill="#f4d49b"/>
+    <circle cx="222" cy="128" r="4" fill="#74ddea"/>
+    <circle cx="128" cy="222" r="4" fill="#f4d49b"/>
+    <circle cx="34" cy="128" r="4" fill="#74ddea"/>
+  </g>
 </svg>

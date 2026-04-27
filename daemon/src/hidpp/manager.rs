@@ -11,9 +11,10 @@ use super::error::HapticError;
 use super::patterns::*;
 
 /// Connection state for graceful fallback handling
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ConnectionState {
     /// No connection attempted yet
+    #[default]
     NotConnected,
     /// Successfully connected to device
     Connected,
@@ -23,19 +24,8 @@ pub enum ConnectionState {
     Cooldown,
 }
 
-impl Default for ConnectionState {
-    fn default() -> Self {
-        ConnectionState::NotConnected
-    }
-}
-
 /// Reconnection cooldown in milliseconds (5 seconds)
 const RECONNECT_COOLDOWN_MS: u64 = 5000;
-
-/// Cooldown after a successful host switch (disabled - 0ms).
-/// Previously suppressed reconnection to prevent loops, but this caused
-/// lag in Flow handoffs. The reconnect loop is now handled differently.
-const HOST_SWITCH_COOLDOWN_MS: u64 = 0;
 
 /// Default slice debounce time (milliseconds)
 const DEFAULT_SLICE_DEBOUNCE_MS: u64 = 20;
@@ -231,14 +221,6 @@ impl HapticManager {
             .unwrap()
             .as_millis() as u64;
 
-        // After a host switch, the device leaves this receiver (expected).
-        // Don't spam reconnect attempts during the host switch cooldown.
-        if self.last_host_switch_ms > 0
-            && now.saturating_sub(self.last_host_switch_ms) < HOST_SWITCH_COOLDOWN_MS
-        {
-            return false;
-        }
-
         // Check if cooldown has passed
         if now.saturating_sub(self.last_disconnect_ms) < RECONNECT_COOLDOWN_MS {
             self.connection_state = ConnectionState::Cooldown;
@@ -253,9 +235,13 @@ impl HapticManager {
                 tracing::info!("Haptic device reconnected successfully");
                 // Re-divert buttons after reconnect (divert is volatile)
                 match self.divert_buttons() {
-                    Ok(n) if n > 0 => tracing::info!(count = n, "Re-diverted buttons after reconnect"),
+                    Ok(n) if n > 0 => {
+                        tracing::info!(count = n, "Re-diverted buttons after reconnect")
+                    }
                     Ok(_) => tracing::debug!("No buttons to re-divert after reconnect"),
-                    Err(e) => tracing::warn!(error = %e, "Failed to re-divert buttons after reconnect"),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to re-divert buttons after reconnect")
+                    }
                 }
                 true
             }
@@ -366,7 +352,11 @@ impl HapticManager {
         let device = match &mut self.device {
             Some(d) if d.haptic_supported() || d.mx4_haptic_supported() => d,
             Some(d) => {
-                tracing::debug!(haptic = d.haptic_supported(), mx4_haptic = d.mx4_haptic_supported(), "Device exists but no haptic support");
+                tracing::debug!(
+                    haptic = d.haptic_supported(),
+                    mx4_haptic = d.mx4_haptic_supported(),
+                    "Device exists but no haptic support"
+                );
                 return Ok(());
             }
             None => {
@@ -382,7 +372,12 @@ impl HapticManager {
             .as_millis() as u64;
 
         if now.saturating_sub(self.last_pulse_ms) < self.debounce_ms {
-            tracing::debug!(last_pulse_ms = self.last_pulse_ms, now = now, debounce_ms = self.debounce_ms, "Debounce - skipping");
+            tracing::debug!(
+                last_pulse_ms = self.last_pulse_ms,
+                now = now,
+                debounce_ms = self.debounce_ms,
+                "Debounce - skipping"
+            );
             return Ok(());
         }
 
@@ -519,10 +514,7 @@ impl HapticManager {
             return false;
         }
 
-        tracing::trace!(
-            slice = slice_index,
-            "Slice change haptic emitted"
-        );
+        tracing::trace!(slice = slice_index, "Slice change haptic emitted");
         true
     }
 
@@ -581,7 +573,10 @@ impl HapticManager {
         if self.device.is_none() {
             let _ = self.connect();
         }
-        self.device.as_ref().map(|d| d.dpi_supported()).unwrap_or(false)
+        self.device
+            .as_ref()
+            .map(|d| d.dpi_supported())
+            .unwrap_or(false)
     }
 
     /// Get current DPI value
@@ -623,7 +618,10 @@ impl HapticManager {
         if self.device.is_none() {
             let _ = self.connect();
         }
-        self.device.as_ref().map(|d| d.smartshift_supported()).unwrap_or(false)
+        self.device
+            .as_ref()
+            .map(|d| d.smartshift_supported())
+            .unwrap_or(false)
     }
 
     /// Get SmartShift configuration
@@ -645,7 +643,9 @@ impl HapticManager {
             let _ = self.connect();
         }
         match self.device.as_mut() {
-            Some(device) => device.set_smartshift(wheel_mode, auto_disengage, auto_disengage_default),
+            Some(device) => {
+                device.set_smartshift(wheel_mode, auto_disengage, auto_disengage_default)
+            }
             None => {
                 tracing::warn!("Cannot set SmartShift: device not connected");
                 Err(HapticError::DeviceNotFound)
@@ -655,11 +655,12 @@ impl HapticManager {
 
     /// Get SmartShift configuration (simplified API for DBus)
     pub fn get_smart_shift(&mut self) -> Option<(bool, u8)> {
-        self.get_smartshift().map(|(wheel_mode, auto_disengage, _default)| {
-            let enabled = wheel_mode == 1;
-            let threshold = 255u8.saturating_sub(auto_disengage);
-            (enabled, threshold)
-        })
+        self.get_smartshift()
+            .map(|(wheel_mode, auto_disengage, _default)| {
+                let enabled = wheel_mode == 1;
+                let threshold = 255u8.saturating_sub(auto_disengage);
+                (enabled, threshold)
+            })
     }
 
     /// Set SmartShift configuration (simplified API for DBus)
@@ -712,23 +713,21 @@ impl HapticManager {
             let _ = self.connect();
         }
         match self.device.as_mut() {
-            Some(device) => {
-                match device.query_battery() {
-                    Ok(v) => Ok(v),
-                    Err(HapticError::IoError(_)) | Err(HapticError::CommunicationError) => {
-                        self.handle_disconnect();
-                        if let Ok(true) = self.connect() {
-                            match self.device.as_mut() {
-                                Some(dev) => dev.query_battery(),
-                                None => Err(HapticError::DeviceNotFound),
-                            }
-                        } else {
-                            Err(HapticError::DeviceNotFound)
+            Some(device) => match device.query_battery() {
+                Ok(v) => Ok(v),
+                Err(HapticError::IoError(_)) | Err(HapticError::CommunicationError) => {
+                    self.handle_disconnect();
+                    if let Ok(true) = self.connect() {
+                        match self.device.as_mut() {
+                            Some(dev) => dev.query_battery(),
+                            None => Err(HapticError::DeviceNotFound),
                         }
+                    } else {
+                        Err(HapticError::DeviceNotFound)
                     }
-                    Err(e) => Err(e),
                 }
-            }
+                Err(e) => Err(e),
+            },
             None => {
                 tracing::debug!("Cannot query battery: device not connected");
                 Err(HapticError::DeviceNotFound)
@@ -738,7 +737,10 @@ impl HapticManager {
 
     /// Check if battery feature is supported
     pub fn battery_supported(&self) -> bool {
-        self.device.as_ref().map(|d| d.battery_supported()).unwrap_or(false)
+        self.device
+            .as_ref()
+            .map(|d| d.battery_supported())
+            .unwrap_or(false)
     }
 
     // =========================================================================
@@ -806,7 +808,8 @@ impl HapticManager {
                                         let now = SystemTime::now()
                                             .duration_since(UNIX_EPOCH)
                                             .unwrap()
-                                            .as_millis() as u64;
+                                            .as_millis()
+                                            as u64;
                                         self.last_host_switch_ms = now;
                                     }
                                     result

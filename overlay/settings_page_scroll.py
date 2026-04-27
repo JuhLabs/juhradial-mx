@@ -56,12 +56,13 @@ class DPIVisualSlider(Gtk.Box):
         self._dpi_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
         self._dpi_stack.set_transition_duration(150)
 
-        # Page 1: styled label (default view)
+        # Page 1: styled label (default view).
+        # The numeric value is overwritten by ScrollPage right after construction
+        # via set_dpi(); the placeholder here is just a sane default so the
+        # label has correct sizing/markup before the real value arrives.
         self.dpi_label = Gtk.Label()
         self.dpi_label.add_css_class("title-1")
-        self.dpi_label.set_markup(
-            f'<span size="xx-large" weight="bold" color="{COLORS["mauve"]}">1600</span>'
-        )
+        self._render_dpi_label(1600)
         self.dpi_label.set_cursor_from_name("pointer")
         self.dpi_label.set_tooltip_text(_("Click to type a value"))
         label_click = Gtk.GestureClick()
@@ -128,16 +129,29 @@ class DPIVisualSlider(Gtk.Box):
         self.append(preset_box)
 
     def set_dpi(self, dpi):
+        # Always sync the label too. If `dpi` equals the scale's current value,
+        # `set_value` won't fire `value-changed`, so `_on_value_changed` would
+        # never run and the markup would stay at its placeholder. Render
+        # explicitly here to guarantee the visible label matches the config.
+        self._render_dpi_label(int(dpi))
         self.scale.set_value(dpi)
 
     def get_dpi(self):
         return int(self.scale.get_value())
 
+    def _render_dpi_label(self, dpi):
+        # Use the current theme's accent color, not a hardcoded mauve. Falls
+        # back to text color if accent isn't set. The Workbench register uses
+        # the accent only for state — this is the one place where a value is
+        # the state (the live DPI), so accent is appropriate.
+        accent = COLORS.get("accent", COLORS.get("text", "#000"))
+        self.dpi_label.set_markup(
+            f'<span size="xx-large" weight="bold" color="{accent}">{int(dpi)}</span>'
+        )
+
     def _on_value_changed(self, scale):
         dpi = int(scale.get_value())
-        self.dpi_label.set_markup(
-            f'<span size="xx-large" weight="bold" color="{COLORS["mauve"]}">{dpi}</span>'
-        )
+        self._render_dpi_label(dpi)
         if self.on_change:
             self.on_change(dpi)
 
@@ -263,9 +277,17 @@ class ScrollPage(Gtk.ScrolledWindow):
         pointer_card = SettingsCard(_("Pointer Speed"))
 
         self.dpi_slider = DPIVisualSlider(on_change=self._on_dpi_changed)
-        saved_speed = config.get("pointer", "speed", default=10)
-        initial_dpi = 400 + (saved_speed - 1) * 400
-        self.dpi_slider.set_dpi(min(initial_dpi, 8000))
+        # Prefer the raw DPI key. Fall back to the legacy "speed" slot
+        # (1..20 -> 400..8000 DPI) so existing configs from before the
+        # pointer.dpi key existed keep working without resetting to the
+        # default. Once the user touches the slider, both keys get rewritten
+        # and pointer.dpi becomes the source of truth on subsequent loads.
+        saved_dpi = config.get("pointer", "dpi", default=None)
+        if saved_dpi is None:
+            saved_speed = config.get("pointer", "speed", default=10)
+            saved_dpi = 400 + (saved_speed - 1) * 400
+        initial_dpi = max(400, min(8000, int(saved_dpi)))
+        self.dpi_slider.set_dpi(initial_dpi)
         pointer_card.append(self.dpi_slider)
 
         sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
@@ -549,9 +571,12 @@ class ScrollPage(Gtk.ScrolledWindow):
     # Pointer speed
     # ------------------------------------------------------------------
     def _on_dpi_changed(self, dpi):
+        # pointer.dpi is the source of truth (raw 400..8000 DPI).
+        # pointer.speed is kept in sync as a 1..20 slot for backwards
+        # compatibility with any reader that still expects the old format.
         speed = max(1, min(20, (dpi - 400) // 400 + 1))
         config.set("pointer", "speed", speed)
-        config.set("pointer", "dpi", dpi)
+        config.set("pointer", "dpi", dpi, auto_save=True)
         # In generic mode, skip HID++ DPI - only use gsettings/libinput
         if not self._is_generic:
             self._apply_dpi_to_device(dpi)

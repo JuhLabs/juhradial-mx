@@ -2,7 +2,12 @@
 """Visualize icon placement on each 3D radial wheel - large output for detail."""
 
 import math
+import sys
+from pathlib import Path
+
 from PIL import Image, ImageDraw
+
+sys.path.insert(0, ".")
 
 from overlay.themes import THEMES
 
@@ -15,6 +20,8 @@ WHEELS = sorted(
 )
 RESAMPLE = Image.Resampling.LANCZOS
 OUT_SIZE = 800  # large output for clear visibility
+OUT_DIR = Path("GeneratedImages")
+OUT_DIR.mkdir(exist_ok=True)
 
 for theme_key in WHEELS:
     theme = THEMES[theme_key]
@@ -111,7 +118,7 @@ for theme_key in WHEELS:
                 pts.append((lx * cos_a - ly * sin_a + ix, lx * sin_a + ly * cos_a + iy))
             draw.polygon(pts, outline=(255, 255, 0), width=3)
 
-    out = f"GeneratedImages/place_{theme_key}.png"
+    out = OUT_DIR / f"place_{theme_key}.png"
     img.save(out)
     print(
         f"{theme_key}: radius={params['icon_radius']}, ring={params['ring_inner']}-{params['ring_outer']}, shape={shape}"

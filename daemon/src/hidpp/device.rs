@@ -136,7 +136,10 @@ impl HidppDevice {
             );
         }
 
-        candidates.into_iter().map(|(path, _, conn_type)| (path, conn_type)).collect()
+        candidates
+            .into_iter()
+            .map(|(path, _, conn_type)| (path, conn_type))
+            .collect()
     }
 
     /// Attempt to open and initialize an MX Master 4 device
@@ -380,7 +383,10 @@ impl HidppDevice {
                         }
                         // Legacy error check (0x8F)
                         if response[2] == 0x8F {
-                            tracing::debug!("HID++ legacy error response: {:02X?}", &response[..len]);
+                            tracing::debug!(
+                                "HID++ legacy error response: {:02X?}",
+                                &response[..len]
+                            );
                             return None;
                         }
                         // Log non-matching responses for debugging
@@ -411,7 +417,11 @@ impl HidppDevice {
 
             attempts += 1;
             if attempts > 100 {
-                tracing::debug!(feature_index, function, "HID++ request timeout after 100 attempts");
+                tracing::debug!(
+                    feature_index,
+                    function,
+                    "HID++ request timeout after 100 attempts"
+                );
                 return None;
             }
 
@@ -421,7 +431,12 @@ impl HidppDevice {
 
     /// Send a long HID++ message (20 bytes) - fire and forget
     #[allow(dead_code)]
-    fn hidpp_send_long(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Result<(), std::io::Error> {
+    fn hidpp_send_long(
+        &mut self,
+        feature_index: u8,
+        function: u8,
+        params: &[u8],
+    ) -> Result<(), std::io::Error> {
         // Drain any pending data first
         self.drain_buffer();
 
@@ -450,7 +465,12 @@ impl HidppDevice {
     ///
     /// Used for commands that need more than 3 parameter bytes
     /// (e.g. setCidReporting which needs 5 bytes).
-    fn hidpp_long_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Option<Vec<u8>> {
+    fn hidpp_long_request(
+        &mut self,
+        feature_index: u8,
+        function: u8,
+        params: &[u8],
+    ) -> Option<Vec<u8>> {
         // Drain any pending data first
         self.drain_buffer();
 
@@ -582,8 +602,8 @@ impl HidppDevice {
 
                 // SAFETY CHECK: Log blocklisted features but DO NOT store them
                 if blocklisted_features::is_blocklisted(feature_id) {
-                    let reason = blocklisted_features::blocklist_reason(feature_id)
-                        .unwrap_or("Unknown");
+                    let reason =
+                        blocklisted_features::blocklist_reason(feature_id).unwrap_or("Unknown");
                     tracing::debug!(
                         feature_id = format!("0x{:04X}", feature_id),
                         reason = reason,
@@ -759,7 +779,10 @@ impl HidppDevice {
             }
         };
 
-        tracing::info!(feature_index, "Diverting gesture buttons via REPROG_CONTROLS_V4");
+        tracing::info!(
+            feature_index,
+            "Diverting gesture buttons via REPROG_CONTROLS_V4"
+        );
 
         // Function 0: getCount() - get number of remappable controls
         let count = match self.hidpp_request(feature_index, 0x00, &[]) {
@@ -774,7 +797,7 @@ impl HidppDevice {
 
         // Target CIDs to divert
         const GESTURE_BUTTON_CID: u16 = 0x00C3; // 195
-        const HAPTIC_BUTTON_CID: u16 = 0x01A0;  // 416
+        const HAPTIC_BUTTON_CID: u16 = 0x01A0; // 416
 
         let mut diverted = 0u8;
 
@@ -804,10 +827,7 @@ impl HidppDevice {
 
             // Check if this is one of our target buttons AND it's divertable
             if (cid == GESTURE_BUTTON_CID || cid == HAPTIC_BUTTON_CID) && divertable {
-                tracing::info!(
-                    cid = format!("0x{:04X}", cid),
-                    "Diverting button"
-                );
+                tracing::info!(cid = format!("0x{:04X}", cid), "Diverting button");
 
                 // Function 3: setCidReporting - MUST use long report (5 param bytes)
                 //
@@ -849,7 +869,10 @@ impl HidppDevice {
         }
 
         if diverted > 0 {
-            tracing::info!(count = diverted, "Gesture buttons diverted - HID++ notifications enabled");
+            tracing::info!(
+                count = diverted,
+                "Gesture buttons diverted - HID++ notifications enabled"
+            );
         } else {
             tracing::warn!("No gesture buttons found to divert. Button detection may not work.");
         }
@@ -1023,9 +1046,9 @@ impl HidppDevice {
         // - 0x4E: (function 0x04 << 4) | sw_id 0x0E
         // - waveform: the haptic pattern ID
 
-        const MX4_HAPTIC_FEATURE_INDEX: u8 = 0x0B;  // Feature index 11
-        const MX4_HAPTIC_FUNCTION: u8 = 0x04;       // Function ID for haptic play
-        const MX4_HAPTIC_SW_ID: u8 = 0x0E;          // Software ID used by mx4notifications
+        const MX4_HAPTIC_FEATURE_INDEX: u8 = 0x0B; // Feature index 11
+        const MX4_HAPTIC_FUNCTION: u8 = 0x04; // Function ID for haptic play
+        const MX4_HAPTIC_SW_ID: u8 = 0x0E; // Software ID used by mx4notifications
 
         self.drain_buffer();
 
@@ -1037,12 +1060,11 @@ impl HidppDevice {
         request[4] = pattern.to_id();
         // request[5] and request[6] remain 0
 
-        tracing::debug!(
-            "Sending MX4 haptic packet: {:02X?}",
-            &request
-        );
+        tracing::debug!("Sending MX4 haptic packet: {:02X?}", &request);
 
-        self.device.write_all(&request).map_err(HapticError::IoError)?;
+        self.device
+            .write_all(&request)
+            .map_err(HapticError::IoError)?;
 
         Ok(())
     }
@@ -1053,7 +1075,11 @@ impl HidppDevice {
     ///
     /// This method ONLY sends volatile/runtime commands.
     /// It does NOT write to onboard memory.
-    pub fn send_haptic_pulse(&mut self, intensity: u8, duration_ms: u16) -> Result<(), HapticError> {
+    pub fn send_haptic_pulse(
+        &mut self,
+        intensity: u8,
+        duration_ms: u16,
+    ) -> Result<(), HapticError> {
         let feature_index = match self.haptic_feature_index {
             Some(idx) => idx,
             None => {
@@ -1100,17 +1126,18 @@ impl HidppDevice {
         // sensorIdx = 0 for the primary (and usually only) sensor
         let params = [0x00, 0x00, 0x00]; // sensorIdx = 0
 
-        self.hidpp_request(feature_index, 0x02, &params).and_then(|resp| {
-            if resp.len() >= 7 {
-                // Response: [report_type, device_idx, feature_idx, fn_sw_id, sensor_idx, dpi_msb, dpi_lsb, ...]
-                let dpi = ((resp[5] as u16) << 8) | (resp[6] as u16);
-                tracing::debug!(dpi, "Got current DPI");
-                Some(dpi)
-            } else {
-                tracing::warn!("Invalid getSensorDpi response length: {}", resp.len());
-                None
-            }
-        })
+        self.hidpp_request(feature_index, 0x02, &params)
+            .and_then(|resp| {
+                if resp.len() >= 7 {
+                    // Response: [report_type, device_idx, feature_idx, fn_sw_id, sensor_idx, dpi_msb, dpi_lsb, ...]
+                    let dpi = ((resp[5] as u16) << 8) | (resp[6] as u16);
+                    tracing::debug!(dpi, "Got current DPI");
+                    Some(dpi)
+                } else {
+                    tracing::warn!("Invalid getSensorDpi response length: {}", resp.len());
+                    None
+                }
+            })
     }
 
     /// Set sensor DPI
@@ -1134,9 +1161,9 @@ impl HidppDevice {
         // Function [3] setSensorDpi(sensorIdx, dpi) -> sensorIdx, dpi
         // sensorIdx = 0 for the primary sensor
         let params = [
-            0x00,                    // sensorIdx = 0
-            (dpi >> 8) as u8,        // dpi MSB
-            (dpi & 0xFF) as u8,      // dpi LSB
+            0x00,               // sensorIdx = 0
+            (dpi >> 8) as u8,   // dpi MSB
+            (dpi & 0xFF) as u8, // dpi LSB
         ];
 
         match self.hidpp_request(feature_index, 0x03, &params) {
@@ -1167,36 +1194,37 @@ impl HidppDevice {
         // Function [1] getSensorDpiList(sensorIdx) -> sensorIdx, dpiList
         let params = [0x00, 0x00, 0x00]; // sensorIdx = 0
 
-        self.hidpp_request(feature_index, 0x01, &params).and_then(|resp| {
-            if resp.len() < 6 {
-                return None;
-            }
-
-            let mut dpi_list = Vec::new();
-            // Response starts at byte 5 (after report_type, device_idx, feature_idx, fn_sw_id, sensor_idx)
-            let data = &resp[5..];
-
-            // Parse pairs of bytes as DPI values
-            let mut i = 0;
-            while i + 1 < data.len() {
-                let dpi = ((data[i] as u16) << 8) | (data[i + 1] as u16);
-                if dpi == 0 {
-                    break; // End of list
+        self.hidpp_request(feature_index, 0x01, &params)
+            .and_then(|resp| {
+                if resp.len() < 6 {
+                    return None;
                 }
-                // Check for hyphen value (0xE000+ range indicates step value)
-                if dpi >= 0xE000 {
-                    // This is a step indicator, skip it for now
-                    // In a range format: [low, -step, high, 0]
+
+                let mut dpi_list = Vec::new();
+                // Response starts at byte 5 (after report_type, device_idx, feature_idx, fn_sw_id, sensor_idx)
+                let data = &resp[5..];
+
+                // Parse pairs of bytes as DPI values
+                let mut i = 0;
+                while i + 1 < data.len() {
+                    let dpi = ((data[i] as u16) << 8) | (data[i + 1] as u16);
+                    if dpi == 0 {
+                        break; // End of list
+                    }
+                    // Check for hyphen value (0xE000+ range indicates step value)
+                    if dpi >= 0xE000 {
+                        // This is a step indicator, skip it for now
+                        // In a range format: [low, -step, high, 0]
+                        i += 2;
+                        continue;
+                    }
+                    dpi_list.push(dpi);
                     i += 2;
-                    continue;
                 }
-                dpi_list.push(dpi);
-                i += 2;
-            }
 
-            tracing::debug!(dpi_list = ?dpi_list, "Got DPI list");
-            Some(dpi_list)
-        })
+                tracing::debug!(dpi_list = ?dpi_list, "Got DPI list");
+                Some(dpi_list)
+            })
     }
 
     // =========================================================================
@@ -1217,7 +1245,7 @@ impl HidppDevice {
     /// - wheel_mode: 1 = Freespin, 2 = Ratchet
     /// - auto_disengage: Threshold for automatic ratchet disengagement (1-254 = N/4 turns/sec, 255 = always engaged)
     /// - auto_disengage_default: Default threshold stored in device
-    /// None if SmartShift is not supported
+    /// - None if SmartShift is not supported
     pub fn get_smartshift(&mut self) -> Option<(u8, u8, u8)> {
         let feature_index = self.smartshift_feature_index?;
 
@@ -1226,25 +1254,29 @@ impl HidppDevice {
         // Function [0] getRatchetControlMode() -> wheelMode, autoDisengage, autoDisengageDefault
         let params = [0x00, 0x00, 0x00];
 
-        self.hidpp_request(feature_index, 0x00, &params).and_then(|resp| {
-            if resp.len() >= 7 {
-                // Response: [report_type, device_idx, feature_idx, fn_sw_id, wheel_mode, auto_disengage, auto_disengage_default, ...]
-                let wheel_mode = resp[4];
-                let auto_disengage = resp[5];
-                let auto_disengage_default = resp[6];
+        self.hidpp_request(feature_index, 0x00, &params)
+            .and_then(|resp| {
+                if resp.len() >= 7 {
+                    // Response: [report_type, device_idx, feature_idx, fn_sw_id, wheel_mode, auto_disengage, auto_disengage_default, ...]
+                    let wheel_mode = resp[4];
+                    let auto_disengage = resp[5];
+                    let auto_disengage_default = resp[6];
 
-                tracing::debug!(
-                    wheel_mode,
-                    auto_disengage,
-                    auto_disengage_default,
-                    "Got SmartShift config"
-                );
-                Some((wheel_mode, auto_disengage, auto_disengage_default))
-            } else {
-                tracing::warn!("Invalid getRatchetControlMode response length: {}", resp.len());
-                None
-            }
-        })
+                    tracing::debug!(
+                        wheel_mode,
+                        auto_disengage,
+                        auto_disengage_default,
+                        "Got SmartShift config"
+                    );
+                    Some((wheel_mode, auto_disengage, auto_disengage_default))
+                } else {
+                    tracing::warn!(
+                        "Invalid getRatchetControlMode response length: {}",
+                        resp.len()
+                    );
+                    None
+                }
+            })
     }
 
     /// Set SmartShift configuration
@@ -1299,7 +1331,10 @@ impl HidppDevice {
                 Ok(())
             }
             Some(resp) => {
-                tracing::warn!("Invalid setRatchetControlMode response length: {}", resp.len());
+                tracing::warn!(
+                    "Invalid setRatchetControlMode response length: {}",
+                    resp.len()
+                );
                 Err(HapticError::IoError(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
                     "Invalid SmartShift response",
@@ -1307,8 +1342,7 @@ impl HidppDevice {
             }
             None => {
                 tracing::warn!("Failed to set SmartShift config");
-                Err(HapticError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Err(HapticError::IoError(std::io::Error::other(
                     "Failed to set SmartShift",
                 )))
             }
@@ -1324,26 +1358,21 @@ impl HidppDevice {
         // Function [1] getMode() -> mode byte
         let params = [0x00, 0x00, 0x00];
 
-        self.hidpp_request(feature_index, 0x01, &params).and_then(|resp| {
-            if resp.len() >= 5 {
-                let mode = resp[4];
-                let target = (mode & 0x01) != 0;
-                let hires = (mode & 0x02) != 0;
-                let invert = (mode & 0x04) != 0;
+        self.hidpp_request(feature_index, 0x01, &params)
+            .and_then(|resp| {
+                if resp.len() >= 5 {
+                    let mode = resp[4];
+                    let target = (mode & 0x01) != 0;
+                    let hires = (mode & 0x02) != 0;
+                    let invert = (mode & 0x04) != 0;
 
-                tracing::debug!(
-                    mode,
-                    hires,
-                    invert,
-                    target,
-                    "Got HiResScroll mode"
-                );
-                Some((hires, invert, target))
-            } else {
-                tracing::warn!("Invalid getMode response length: {}", resp.len());
-                None
-            }
-        })
+                    tracing::debug!(mode, hires, invert, target, "Got HiResScroll mode");
+                    Some((hires, invert, target))
+                } else {
+                    tracing::warn!("Invalid getMode response length: {}", resp.len());
+                    None
+                }
+            })
     }
 
     /// Set HiResScroll mode configuration
@@ -1388,10 +1417,7 @@ impl HidppDevice {
         match self.hidpp_request(feature_index, 0x02, &params) {
             Some(resp) if resp.len() >= 5 => {
                 let returned_mode = resp[4];
-                tracing::debug!(
-                    returned_mode,
-                    "HiResScroll mode set successfully"
-                );
+                tracing::debug!(returned_mode, "HiResScroll mode set successfully");
                 Ok(())
             }
             Some(resp) => {
@@ -1403,8 +1429,7 @@ impl HidppDevice {
             }
             None => {
                 tracing::warn!("Failed to set HiResScroll mode");
-                Err(HapticError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Err(HapticError::IoError(std::io::Error::other(
                     "Failed to set HiResScroll",
                 )))
             }
@@ -1440,7 +1465,7 @@ impl HidppDevice {
                 if self.is_unified_battery && resp.len() >= 8 {
                     let percentage = resp[4];
                     let charging_status = resp[7];
-                    let charging = charging_status >= 1 && charging_status <= 3;
+                    let charging = (1..=3).contains(&charging_status);
 
                     tracing::debug!(
                         percentage,
@@ -1453,7 +1478,7 @@ impl HidppDevice {
                 } else if resp.len() >= 7 {
                     let percentage = resp[4];
                     let charging_status = resp[6];
-                    let charging = charging_status >= 1 && charging_status <= 4;
+                    let charging = (1..=4).contains(&charging_status);
 
                     tracing::debug!(
                         percentage,
@@ -1464,7 +1489,9 @@ impl HidppDevice {
 
                     Ok((percentage, charging))
                 } else {
-                    Err(HapticError::ProtocolError("Invalid battery response".into()))
+                    Err(HapticError::ProtocolError(
+                        "Invalid battery response".into(),
+                    ))
                 }
             }
             None => {
@@ -1550,7 +1577,8 @@ impl HidppDevice {
             let mut offset = 0u8;
 
             while (offset as usize) < name_len {
-                let resp = match self.hidpp_request(hosts_info_index, 0x03, &[host_idx, offset, 0]) {
+                let resp = match self.hidpp_request(hosts_info_index, 0x03, &[host_idx, offset, 0])
+                {
                     Some(r) => r,
                     None => break,
                 };
@@ -1603,12 +1631,16 @@ impl HidppDevice {
     /// Switch to a different paired host (Easy-Switch)
     pub fn set_current_host(&mut self, host_index: u8) -> Result<(), String> {
         // Query CHANGE_HOST feature (0x1814)
-        let change_host_index = self.get_feature_index(features::CHANGE_HOST)
+        let change_host_index = self
+            .get_feature_index(features::CHANGE_HOST)
             .ok_or_else(|| "CHANGE_HOST feature (0x1814) not supported".to_string())?;
 
         // Validate host_index (typically 0, 1, or 2)
         if host_index > 2 {
-            return Err(format!("Invalid host_index: {}. Must be 0, 1, or 2", host_index));
+            return Err(format!(
+                "Invalid host_index: {}. Must be 0, 1, or 2",
+                host_index
+            ));
         }
 
         tracing::info!(host_index, "Switching to Easy-Switch host slot");
@@ -1624,7 +1656,10 @@ impl HidppDevice {
             None => {
                 // Note: The device may disconnect before sending a response
                 // when switching hosts, so a missing response might still mean success
-                tracing::warn!(host_index, "No response from host switch command (device may have disconnected)");
+                tracing::warn!(
+                    host_index,
+                    "No response from host switch command (device may have disconnected)"
+                );
                 Ok(())
             }
         }

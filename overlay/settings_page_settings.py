@@ -206,63 +206,22 @@ class SettingsPage(Gtk.ScrolledWindow):
 
         content.append(app_card)
 
-        # Device info - fetch from daemon if available (quieter styling)
-        info_card = InfoCard(_("Device Information"))
+        # Device Information used to live here — moved to the Devices tab
+        # where it actually belongs. Settings is for application preferences.
 
-        # Try to get actual device info from daemon
-        device_name = get_device_name()
-        connection_type = _("Not available")
-        battery_level = _("Not available")
-
-        try:
-            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-            proxy = Gio.DBusProxy.new_sync(
-                bus,
-                Gio.DBusProxyFlags.NONE,
-                None,
-                "org.kde.juhradialmx",
-                "/org/kde/juhradialmx/Daemon",
-                "org.kde.juhradialmx.Daemon",
-                None,
-            )
-            # Get battery status
-            result = proxy.call_sync(
-                "GetBatteryStatus", None, Gio.DBusCallFlags.NONE, 500, None
-            )
-            if result:
-                percentage, charging = result.unpack()
-                if percentage > 0:
-                    status = _("Charging") if charging else _("Discharging")
-                    battery_level = f"{percentage}% ({status})"
-                    connection_type = _("Connected")
-        except GLib.Error:
-            pass  # Daemon may not be running
-
-        info_items = [
-            (_("Device"), device_name),
-            (_("Battery"), battery_level),
-            (_("Status"), connection_type),
-        ]
-
-        for label, value in info_items:
-            row = SettingRow(label, value)
-            info_card.append(row)
-
-        content.append(info_card)
-
-        # Danger zone
-        danger_card = SettingsCard(_("Reset"))
-
+        # Restore defaults — kept as a single flat row at the bottom of the
+        # page rather than its own one-row card. The CSS treats danger-btn
+        # as the destructive affordance; that's enough chrome on its own.
         reset_row = SettingRow(
-            _("Restore Defaults"), _("Reset all settings to factory defaults")
+            _("Restore Defaults"),
+            _("Reset all settings to factory defaults"),
         )
         reset_btn = Gtk.Button(label=_("Reset"))
         reset_btn.add_css_class("danger-btn")
         reset_btn.connect("clicked", self._on_reset_clicked)
         reset_row.set_control(reset_btn)
-        danger_card.append(reset_row)
-
-        content.append(danger_card)
+        reset_row.set_margin_top(16)
+        content.append(reset_row)
 
         # Wrap in Adw.Clamp for responsive centering
         clamp = Adw.Clamp()

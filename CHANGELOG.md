@@ -5,6 +5,20 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-04-27
+
+### Fixed
+
+- **Easy-Switch reconnect reliability** - Returning the MX Master to Linux after switching to another host no longer leaves the radial wheel unavailable.
+- **Evdev fallback button mapping** - If HID++ volatile diverts are cleared by host switching, the physical thumb/radial control now falls back to the configured `buttons.thumb` action instead of the gesture action.
+- **HID++ event stability** - Removed the periodic connected-state HID++ refresh that could make radial presses unreliable.
+- **Installer asset sync** - Generated settings artwork is copied during install and development sync.
+
+### Changed
+
+- **Official release promotion** - Promotes the v0.3.2 beta feature set to the stable release line.
+- **README artwork refresh** - Replaced the GitHub hero/social preview artwork with new product visuals.
+
 ## [0.3.2-beta] - 2026-03-24
 
 ### Fixed
@@ -287,6 +301,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Native Wayland** - Full support for KDE Plasma 6 and Hyprland
 - Support for MX Master 4, MX Master 3S, and MX Master 3
 
+[0.3.2]: https://github.com/JuhLabs/juhradial-mx/compare/v0.3.2-beta...v0.3.2
+[0.3.2-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.3.1-beta...v0.3.2-beta
 [0.3.1-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.3.0-beta...v0.3.1-beta
 [0.3.0-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.9...v0.3.0-beta
 [0.2.6]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.5...v0.2.6

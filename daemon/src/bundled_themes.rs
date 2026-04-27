@@ -69,7 +69,7 @@ pub const BUNDLED_THEME_INFO: &[BundledThemeInfo] = &[
 pub fn get_bundled_theme(name: &str) -> Option<Theme> {
     let name_lower = name.to_lowercase();
     // Normalize separators: convert spaces and underscores to dashes
-    let normalized = name_lower.replace(' ', "-").replace('_', "-");
+    let normalized = name_lower.replace([' ', '_'], "-");
 
     let json = match normalized.as_str() {
         "catppuccin-mocha" => Some(CATPPUCCIN_MOCHA_JSON),
@@ -88,8 +88,7 @@ pub fn get_bundled_theme(name: &str) -> Option<Theme> {
 /// # Panics
 /// Panics if the default theme fails to parse (this would be a bug).
 pub fn get_default_theme() -> Theme {
-    get_bundled_theme(DEFAULT_THEME_NAME)
-        .expect("Default bundled theme must be valid")
+    get_bundled_theme(DEFAULT_THEME_NAME).expect("Default bundled theme must be valid")
 }
 
 /// List all bundled theme names.
@@ -120,9 +119,9 @@ pub fn is_bundled_theme(name: &str) -> bool {
 /// Theme info if found
 pub fn get_bundled_theme_info(name: &str) -> Option<&'static BundledThemeInfo> {
     let name_lower = name.to_lowercase();
-    BUNDLED_THEME_INFO.iter().find(|info| {
-        info.name.to_lowercase() == name_lower
-    })
+    BUNDLED_THEME_INFO
+        .iter()
+        .find(|info| info.name.to_lowercase() == name_lower)
 }
 
 #[cfg(test)]
@@ -238,25 +237,61 @@ mod tests {
 
         // Colors from UX spec
         assert_eq!(theme.colors.base, "#1e1e2e", "Base should match UX spec");
-        assert_eq!(theme.colors.surface, "#313244", "Surface should match UX spec");
+        assert_eq!(
+            theme.colors.surface, "#313244",
+            "Surface should match UX spec"
+        );
         assert_eq!(theme.colors.text, "#cdd6f4", "Text should match UX spec");
-        assert_eq!(theme.colors.text_secondary, "#bac2de", "Text secondary should match");
-        assert_eq!(theme.colors.accent, "#b4befe", "Accent (lavender) should match UX spec");
-        assert_eq!(theme.colors.accent_secondary, "#89b4fa", "Accent secondary should match");
-        assert_eq!(theme.colors.success, "#a6e3a1", "Success should match UX spec");
-        assert_eq!(theme.colors.warning, "#fab387", "Warning should match UX spec");
+        assert_eq!(
+            theme.colors.text_secondary, "#bac2de",
+            "Text secondary should match"
+        );
+        assert_eq!(
+            theme.colors.accent, "#b4befe",
+            "Accent (lavender) should match UX spec"
+        );
+        assert_eq!(
+            theme.colors.accent_secondary, "#89b4fa",
+            "Accent secondary should match"
+        );
+        assert_eq!(
+            theme.colors.success, "#a6e3a1",
+            "Success should match UX spec"
+        );
+        assert_eq!(
+            theme.colors.warning, "#fab387",
+            "Warning should match UX spec"
+        );
         assert_eq!(theme.colors.error, "#f38ba8", "Error should match UX spec");
         assert_eq!(theme.colors.border, "#585b70", "Border should match");
         assert_eq!(theme.colors.shadow, "#11111b", "Shadow should match");
 
         // Glassmorphism from UX spec
-        assert_eq!(theme.glassmorphism.blur_radius, 24, "Blur radius should be 24px");
-        assert!((theme.glassmorphism.background_opacity - 0.75).abs() < 0.01, "Background opacity should be 75%");
-        assert!((theme.glassmorphism.saturation - 1.8).abs() < 0.01, "Saturation should be 180%");
-        assert!((theme.glassmorphism.border_opacity - 0.15).abs() < 0.01, "Border opacity should be 15%");
-        assert!((theme.glassmorphism.noise_opacity - 0.04).abs() < 0.01, "Noise opacity should be 4%");
+        assert_eq!(
+            theme.glassmorphism.blur_radius, 24,
+            "Blur radius should be 24px"
+        );
+        assert!(
+            (theme.glassmorphism.background_opacity - 0.75).abs() < 0.01,
+            "Background opacity should be 75%"
+        );
+        assert!(
+            (theme.glassmorphism.saturation - 1.8).abs() < 0.01,
+            "Saturation should be 180%"
+        );
+        assert!(
+            (theme.glassmorphism.border_opacity - 0.15).abs() < 0.01,
+            "Border opacity should be 15%"
+        );
+        assert!(
+            (theme.glassmorphism.noise_opacity - 0.04).abs() < 0.01,
+            "Noise opacity should be 4%"
+        );
 
         // Animation from UX spec
-        assert!((theme.animation.glow_intensity - 1.0).abs() < 0.01, "Glow intensity should be 1.0");
+        assert!(
+            (theme.animation.glow_intensity - 1.0).abs() < 0.01,
+            "Glow intensity should be 1.0"
+        );
     }
 }

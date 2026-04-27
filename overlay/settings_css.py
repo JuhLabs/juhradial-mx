@@ -1,784 +1,123 @@
 #!/usr/bin/env python3
 """
-JuhRadial MX - CSS Stylesheet
+JuhRadial MX - Settings CSS
 
-Adaptive CSS generation for the settings dashboard.
-Supports dark and light themes with dynamic accent colors.
+Design system: "Workbench" — settings as a precision instrument.
+- One accent, used only for state (never decoration).
+- Solid surfaces, hairline 1px borders.
+- No gradients, no transforms, no glow halos.
+- Monospace for numeric values.
+- 120-150ms transitions, color/border/opacity only.
+- Light and dark themes designed independently.
 
 SPDX-License-Identifier: GPL-3.0
 """
 
 
 def generate_css(COLORS):
-    """Generate CSS with current theme colors - call when theme changes"""
     is_dark = COLORS.get('is_dark', True)
 
-    # Parse accent colors to RGB for dynamic opacity values
     accent = COLORS.get('accent', '#00d4ff')
-    accent2 = COLORS.get('accent2', '#0abdc6')
     ar, ag, ab = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
-    a2r, a2g, a2b = int(accent2[1:3], 16), int(accent2[3:5], 16), int(accent2[5:7], 16)
-
-    # Dynamic accent opacity variants
-    accent_08 = f'rgba({ar}, {ag}, {ab}, 0.08)'
-    accent_10 = f'rgba({ar}, {ag}, {ab}, 0.1)'
-    accent_12 = f'rgba({ar}, {ag}, {ab}, 0.12)'
+    accent_06 = f'rgba({ar}, {ag}, {ab}, 0.06)'
+    accent_10 = f'rgba({ar}, {ag}, {ab}, 0.10)'
     accent_15 = f'rgba({ar}, {ag}, {ab}, 0.15)'
-    accent_20 = f'rgba({ar}, {ag}, {ab}, 0.2)'
     accent_25 = f'rgba({ar}, {ag}, {ab}, 0.25)'
-    accent_30 = f'rgba({ar}, {ag}, {ab}, 0.3)'
-    accent_35 = f'rgba({ar}, {ag}, {ab}, 0.35)'
-    accent_40 = f'rgba({ar}, {ag}, {ab}, 0.4)'
-    accent_50 = f'rgba({ar}, {ag}, {ab}, 0.5)'
+    accent_40 = f'rgba({ar}, {ag}, {ab}, 0.40)'
 
-    # Dynamic accent2 opacity variants
-    accent2_05 = f'rgba({a2r}, {a2g}, {a2b}, 0.05)'
-    accent2_08 = f'rgba({a2r}, {a2g}, {a2b}, 0.08)'
-    accent2_10 = f'rgba({a2r}, {a2g}, {a2b}, 0.1)'
-    accent2_12 = f'rgba({a2r}, {a2g}, {a2b}, 0.12)'
-    accent2_15 = f'rgba({a2r}, {a2g}, {a2b}, 0.15)'
-
-    # Theme-aware color adjustments
+    # Theme-specific tokens.
     if is_dark:
-        # Dark theme: use dark backgrounds with light accents
-        shadow_color = 'rgba(0, 0, 0, 0.4)'
-        shadow_color_strong = 'rgba(0, 0, 0, 0.5)'
-        hover_bg = f"linear-gradient(135deg, {COLORS['surface1']} 0%, {COLORS['surface0']} 100%)"
-        card_bg = f"linear-gradient(135deg, {COLORS['surface0']} 0%, {COLORS['base']} 100%)"
-        border_subtle = 'rgba(255, 255, 255, 0.1)'
-        border_very_subtle = 'rgba(255, 255, 255, 0.05)'
-        border_faint = 'rgba(255, 255, 255, 0.03)'
-        text_on_accent = COLORS['crust']
-        elevated_bg = f"linear-gradient(135deg, rgba(26, 29, 36, 0.95) 0%, rgba(18, 20, 24, 0.9) 100%)"
-        elevated_bg_hover = f"linear-gradient(135deg, rgba(36, 40, 50, 0.5) 0%, rgba(26, 29, 36, 0.3) 100%)"
-        tooltip_bg = 'linear-gradient(135deg, rgba(26, 29, 36, 0.98) 0%, rgba(18, 20, 24, 0.95) 100%)'
+        # Dark — graphite/obsidian. The mouse render is the only luminous thing.
+        win_bg            = COLORS['crust']
+        rail_bg           = COLORS['mantle']
+        panel_bg          = COLORS['mantle']
+        panel_bg_quiet    = COLORS['crust']
+        panel_bg_hover    = COLORS['surface0']
+        row_bg            = 'transparent'
+        row_bg_hover      = 'rgba(255, 255, 255, 0.03)'
+        row_bg_active     = 'rgba(255, 255, 255, 0.05)'
+        hairline          = 'rgba(255, 255, 255, 0.07)'
+        hairline_strong   = 'rgba(255, 255, 255, 0.12)'
+        hairline_faint    = 'rgba(255, 255, 255, 0.04)'
+        text_strong       = COLORS['text']
+        text_dim          = COLORS['subtext0']
+        text_faint        = COLORS['overlay0']
+        text_on_accent    = COLORS['crust']
+        focus_ring        = accent_40
+        scrollbar_track   = 'transparent'
+        scrollbar_thumb   = 'rgba(255, 255, 255, 0.12)'
+        scrollbar_thumb_h = 'rgba(255, 255, 255, 0.22)'
+        chip_bg           = 'rgba(255, 255, 255, 0.04)'
+        chip_border       = 'rgba(255, 255, 255, 0.08)'
+        success           = COLORS['green']
+        danger            = COLORS['red']
     else:
-        # Light theme: use light backgrounds with darker accents
-        shadow_color = 'rgba(0, 0, 0, 0.1)'
-        shadow_color_strong = 'rgba(0, 0, 0, 0.15)'
-        hover_bg = f"linear-gradient(135deg, {COLORS['surface0']} 0%, {COLORS['surface1']} 100%)"
-        card_bg = f"linear-gradient(135deg, {COLORS['base']} 0%, {COLORS['mantle']} 100%)"
-        border_subtle = 'rgba(0, 0, 0, 0.1)'
-        border_very_subtle = 'rgba(0, 0, 0, 0.06)'
-        border_faint = 'rgba(0, 0, 0, 0.04)'
-        text_on_accent = '#ffffff'
-        elevated_bg = f"linear-gradient(135deg, {COLORS['base']} 0%, {COLORS['surface0']} 100%)"
-        elevated_bg_hover = f"linear-gradient(135deg, {COLORS['surface0']} 0%, {COLORS['surface1']} 100%)"
-        tooltip_bg = f"linear-gradient(135deg, {COLORS['surface0']} 0%, {COLORS['mantle']} 100%)"
+        # Light — warm off-white, graphite text. Not a flipped dark.
+        win_bg            = '#FAFAF7'
+        rail_bg           = '#F2F1EC'
+        panel_bg          = '#FFFFFF'
+        panel_bg_quiet    = '#F7F6F2'
+        panel_bg_hover    = '#F2F1EC'
+        row_bg            = 'transparent'
+        row_bg_hover      = 'rgba(0, 0, 0, 0.03)'
+        row_bg_active     = 'rgba(0, 0, 0, 0.05)'
+        hairline          = 'rgba(0, 0, 0, 0.10)'
+        hairline_strong   = 'rgba(0, 0, 0, 0.18)'
+        hairline_faint    = 'rgba(0, 0, 0, 0.05)'
+        text_strong       = '#16181C'
+        text_dim          = '#54585F'
+        text_faint        = '#8B8F97'
+        text_on_accent    = '#FFFFFF'
+        focus_ring        = accent_40
+        scrollbar_track   = 'transparent'
+        scrollbar_thumb   = 'rgba(0, 0, 0, 0.18)'
+        scrollbar_thumb_h = 'rgba(0, 0, 0, 0.30)'
+        chip_bg           = 'rgba(0, 0, 0, 0.04)'
+        chip_border       = 'rgba(0, 0, 0, 0.08)'
+        success           = '#1F9D55'
+        danger            = '#C33A3A'
+
+    # Type stacks. GTK falls through gracefully if a family is missing.
+    sans = '"Inter", "Geist", "SF Pro Text", -apple-system, "Segoe UI", system-ui, sans-serif'
+    mono = '"Geist Mono", "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", monospace'
 
     return f"""
-/* ============================================
-   MAIN WINDOW
-   ============================================ */
+/* =========================================================================
+   ROOT — global typography defaults
+   ========================================================================= */
+window {{
+    font-family: {sans};
+    color: {text_strong};
+}}
+
 window.settings-window {{
-    background: linear-gradient(180deg, {COLORS['crust']} 0%, {COLORS['mantle']} 100%);
+    background: {win_bg};
 }}
 
-.add-app-btn {{
-    background: {COLORS['surface0']};
-    color: {COLORS['accent']};
-    border: 1px solid {COLORS['accent']};
-    border-radius: 10px;
-    padding: 10px 20px;
-    font-weight: 600;
-    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+label {{
+    color: {text_strong};
 }}
 
-.add-app-btn:hover {{
-    background: {COLORS['accent']};
-    color: {text_on_accent};
-    box-shadow: 0 4px 20px {COLORS['accent_glow']};
-    transform: translateY(-1px);
+.dim-label, label.dim-label {{
+    color: {text_dim};
 }}
 
-/* ============================================
-   SIDEBAR NAVIGATION - Sleek & Modern
-   ============================================ */
-.sidebar {{
-    background: {COLORS['mantle']};
-    padding: 16px 10px 12px 10px;
-    min-width: 230px;
-    border-right: 1px solid {border_subtle};
-    border-radius: 14px;
-    box-shadow: 4px 0 24px {shadow_color};
-}}
-
-.nav-item {{
-    padding: 16px 18px;
-    border-radius: 12px;
-    margin: 4px 0;
-    color: {COLORS['subtext0']};
-    font-weight: 600;
-    font-size: 13px;
-    letter-spacing: 0.3px;
-    transition: background 200ms ease, color 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
-    border: 1px solid transparent;
-}}
-
-.nav-item:hover {{
-    background: {hover_bg};
-    color: {COLORS['text']};
-    border-color: {COLORS['accent_glow_light']};
-    box-shadow: 0 4px 16px {shadow_color};
-}}
-
-.nav-item.active {{
-    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
-    color: {text_on_accent};
-    box-shadow: 0 4px 20px {COLORS['accent_glow']};
-    border-color: transparent;
-}}
-
-.nav-item.active:hover {{
-    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
-    color: {text_on_accent};
-    border-color: transparent;
-    box-shadow: 0 6px 28px {COLORS['accent_glow']};
-}}
-
-/* Nav icon badge - themed accent circle behind icons */
-.nav-icon-badge {{
-    background: linear-gradient(135deg, {accent_15} 0%, {accent2_10} 100%);
-    border-radius: 10px;
-    padding: 8px;
-    min-width: 34px;
-    min-height: 34px;
-    border: 1px solid {accent_20};
-    transition: all 200ms ease;
-}}
-
-.nav-icon {{
-    color: {COLORS['accent']};
-    transition: color 200ms ease;
-}}
-
-.nav-item.active .nav-icon-badge {{
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.15);
-}}
-
-.nav-item.active .nav-icon {{
-    color: {text_on_accent};
-}}
-
-.nav-item:hover .nav-icon-badge {{
-    background: linear-gradient(135deg, {accent_25} 0%, {accent2_15} 100%);
-    border-color: {accent_30};
-}}
-
-.nav-item.active:hover .nav-icon-badge {{
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.15);
-}}
-
-/* Page header icon */
-.page-header-icon {{
-    color: {COLORS['accent']};
-    opacity: 0.9;
-}}
-
-/* ============================================
-   SETTINGS CARDS - Glassmorphism Effect
-   ============================================ */
-.settings-card {{
-    background: {card_bg};
-    border-radius: 16px;
-    padding: 24px;
-    margin: 14px;
-    border: 1px solid {border_subtle};
-    box-shadow: 0 8px 32px {shadow_color};
-    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-.settings-card:hover {{
-    border-color: {COLORS['accent_glow_light']};
-    box-shadow: 0 12px 40px {shadow_color_strong};
-    transform: translateY(-2px);
-}}
-
-/* Info card - quieter variant for read-only/informational sections */
-.info-card {{
-    background: {elevated_bg};
-    border-color: {border_faint};
-    box-shadow: 0 4px 16px {shadow_color};
-}}
-
-.info-card:hover {{
-    transform: none;
-    border-color: {border_very_subtle};
-    box-shadow: 0 4px 16px {shadow_color};
-}}
-
-.info-card .card-title {{
-    font-size: 14px;
-    font-weight: 600;
-    color: {COLORS['subtext0']};
-    letter-spacing: 0.8px;
-}}
-
-.card-title {{
-    font-size: 17px;
-    font-weight: 700;
-    color: {COLORS['text']};
-    margin-bottom: 18px;
-    letter-spacing: 0.5px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid {border_subtle};
-}}
-
-/* ============================================
-   SETTINGS ROWS - Interactive List Items
-   ============================================ */
-.setting-row {{
-    padding: 14px 12px;
-    border-radius: 10px;
-    margin: 4px 0;
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid transparent;
-}}
-
-.setting-row:hover {{
-    background: {hover_bg};
-    border-color: {border_subtle};
-    transform: translateX(4px);
-}}
-
-.setting-label {{
-    color: {COLORS['text']};
-    font-size: 14px;
-    font-weight: 500;
-}}
-
-.setting-value {{
-    color: {COLORS['subtext0']};
-    font-size: 13px;
-}}
-
-/* ============================================
-   STATUS BAR - Premium Bottom Bar
-   ============================================ */
-.status-bar {{
-    background: {COLORS['crust']};
-    padding: 14px 28px;
-    border-top: 1px solid {border_subtle};
-    box-shadow: 0 -4px 24px {shadow_color};
-}}
-
-.battery-icon {{
-    color: {COLORS['green']};
-    opacity: 0.9;
-}}
-
-.battery-indicator {{
-    color: {COLORS['green']};
-    font-weight: 600;
-}}
-
-.connection-icon {{
-    color: {COLORS['accent']};
-    opacity: 0.8;
-}}
-
-.connection-status {{
-    color: {COLORS['subtext1']};
-    font-size: 13px;
-    font-weight: 500;
-}}
-
-.connection-dot {{
-    min-width: 10px;
-    min-height: 10px;
-    border-radius: 50%;
-    background: {COLORS['subtext0']};
-}}
-
-.connection-dot.connected {{
-    background: {COLORS['green']};
-    box-shadow: 0 0 6px rgba(0, 230, 118, 0.5);
-}}
-
-.connection-dot.disconnected {{
-    background: {COLORS['surface2']};
-}}
-
-/* ============================================
-   SWITCHES - Modern Toggle Design
-   ============================================ */
-switch {{
-    background: linear-gradient(135deg, {COLORS['surface1']} 0%, {COLORS['surface2']} 100%);
-    border-radius: 16px;
-    min-width: 52px;
-    min-height: 28px;
-    border: 1px solid {border_very_subtle};
-    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-switch:hover {{
-    border-color: {accent_30};
-}}
-
-switch:checked {{
-    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
-    box-shadow: 0 2px 12px {accent_40};
-    border-color: transparent;
-}}
-
-switch slider {{
-    background: linear-gradient(135deg, {COLORS['text']} 0%, {COLORS['subtext1']} 100%);
-    border-radius: 14px;
-    min-width: 24px;
-    min-height: 24px;
-    margin: 2px;
-    box-shadow: 0 2px 8px {shadow_color};
-    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-switch:checked slider {{
-    background: {COLORS['text']};
-    box-shadow: 0 2px 8px {shadow_color_strong};
-}}
-
-/* ============================================
-   SCALES/SLIDERS - Premium Slider Design
-   ============================================ */
-scale trough {{
-    background: linear-gradient(90deg, {COLORS['surface1']} 0%, {COLORS['surface2']} 100%);
-    border-radius: 6px;
-    min-height: 8px;
-    border: 1px solid {border_faint};
-}}
-
-scale highlight {{
-    background: linear-gradient(90deg, {COLORS['accent2']} 0%, {COLORS['accent']} 100%);
-    border-radius: 6px;
-    box-shadow: 0 0 12px {accent_30};
-}}
-
-scale slider {{
-    background: linear-gradient(135deg, {COLORS['text']} 0%, {COLORS['subtext1']} 100%);
-    border-radius: 50%;
-    min-width: 22px;
-    min-height: 22px;
-    box-shadow: 0 2px 8px {shadow_color_strong};
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-    border: none;
-}}
-
-scale slider:hover {{
-    box-shadow: 0 4px 16px {accent_30}, 0 2px 8px {shadow_color_strong};
-    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
-}}
-
-/* ============================================
-   SCROLLBAR - Minimal Modern Design
-   ============================================ */
-scrollbar {{
-    background: transparent;
-}}
-
-scrollbar slider {{
-    background: linear-gradient(180deg, {COLORS['surface2']} 0%, {COLORS['overlay0']} 100%);
-    border-radius: 6px;
-    min-width: 8px;
-    transition: all 200ms ease;
-    border: 1px solid {border_faint};
-}}
-
-scrollbar slider:hover {{
-    background: linear-gradient(180deg, {COLORS['overlay0']} 0%, {COLORS['overlay1']} 100%);
-    min-width: 10px;
-}}
-
-/* ============================================
-   PRIMARY BUTTONS - Accent Gradient
-   ============================================ */
-.primary-btn {{
-    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
-    color: {text_on_accent};
-    border: none;
-    border-radius: 12px;
-    padding: 12px 24px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 16px {accent_30};
-    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-.primary-btn:hover {{
-    background: linear-gradient(135deg, {COLORS['accent2']} 0%, {COLORS['accent']} 100%);
-    box-shadow: 0 6px 24px {accent_50};
-    transform: translateY(-2px);
-}}
-
-.primary-btn:active {{
-    transform: translateY(0);
-    box-shadow: 0 2px 8px {accent_30};
-}}
-
-/* ============================================
-   DANGER BUTTONS - Warning Style
-   ============================================ */
-.danger-btn {{
-    background: transparent;
-    color: {COLORS['red']};
-    border: 2px solid rgba(255, 82, 82, 0.5);
-    border-radius: 12px;
-    padding: 12px 24px;
-    font-weight: 600;
-    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-.danger-btn:hover {{
-    background: rgba(255, 82, 82, 0.15);
-    border-color: {COLORS['red']};
-    box-shadow: 0 4px 20px rgba(255, 82, 82, 0.25);
-    transform: translateY(-2px);
-}}
-
-/* ============================================
-   SECONDARY/GHOST BUTTONS
-   ============================================ */
-.secondary-btn {{
-    background: transparent;
-    color: {COLORS['accent']};
-    border: 1px solid {accent_30};
-    border-radius: 10px;
-    padding: 10px 20px;
-    font-weight: 600;
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-.secondary-btn:hover {{
-    background: {accent_10};
-    border-color: {COLORS['accent']};
-    box-shadow: 0 4px 16px {accent_20};
-}}
-
-/* ============================================
-   DROPDOWN/COMBOBOX STYLING
-   ============================================ */
-dropdown {{
-    background: linear-gradient(135deg, {COLORS['surface0']} 0%, {COLORS['surface1']} 100%);
-    border: 1px solid {accent_15};
-    border-radius: 10px;
-    padding: 8px 16px;
-    color: {COLORS['text']};
-    transition: all 200ms ease;
-}}
-
-dropdown:hover {{
-    border-color: {accent_40};
-    box-shadow: 0 4px 16px {accent_15};
-}}
-
-dropdown popover {{
-    background: {COLORS['surface0']};
-    border: 1px solid {accent_20};
-    border-radius: 12px;
-    box-shadow: 0 8px 32px {shadow_color_strong};
-}}
-
-/* ============================================
-   ENTRY/INPUT FIELDS
-   ============================================ */
-entry {{
-    background: {COLORS['surface0']};
-    border: 1px solid {COLORS['surface1']};
-    border-radius: 10px;
-    padding: 10px 14px;
-    color: {COLORS['text']};
-    transition: all 200ms ease;
-}}
-
-entry:focus {{
-    border-color: {COLORS['accent']};
-    box-shadow: 0 0 0 3px {accent_15}, 0 4px 16px {accent_10};
-}}
-
-/* ============================================
-   TOOLTIPS
-   ============================================ */
-tooltip {{
-    background: {tooltip_bg};
-    border: 1px solid {accent_20};
-    border-radius: 10px;
-    padding: 10px 14px;
-    box-shadow: 0 8px 32px {shadow_color_strong};
-    color: {COLORS['text']};
-}}
-
-/* ============================================
-   HAPTIC PATTERN LIST ITEMS
-   ============================================ */
-.haptic-pattern-item {{
-    padding: 14px 16px;
-    border-radius: 10px;
-    margin: 4px 0;
-    background: transparent;
-    border: 1px solid transparent;
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-.haptic-pattern-item:hover {{
-    background: {accent_08};
-    border-color: {accent_15};
-}}
-
-.haptic-pattern-item.selected {{
-    background: linear-gradient(135deg, {accent_15} 0%, {accent2_10} 100%);
-    border-color: {COLORS['accent']};
-    box-shadow: 0 4px 16px {accent_20};
-}}
-
-/* ============================================
-   EASY-SWITCH SHORTCUTS CARD
-   ============================================ */
-.easyswitch-shortcuts-card {{
-    background: {elevated_bg};
-    border-radius: 12px;
-    padding: 12px 16px;
-    margin: 8px 0;
-    border: 1px solid {accent_08};
-    box-shadow: 0 4px 16px {shadow_color};
-}}
-
-.easyswitch-row {{
-    padding: 4px 0;
-}}
-
-.easyswitch-icon-box {{
-    background: linear-gradient(135deg, {accent_20} 0%, {accent2_15} 100%);
-    border-radius: 10px;
-    padding: 10px;
-    min-width: 42px;
-    min-height: 42px;
-    border: 1px solid {accent_20};
-}}
-
-.easyswitch-icon {{
-    color: {COLORS['accent']};
-}}
-
-.easyswitch-title {{
-    font-size: 14px;
-    font-weight: 600;
-    color: {COLORS['text']};
-    letter-spacing: 0.3px;
-}}
-
-.easyswitch-desc {{
-    font-size: 12px;
-    color: {COLORS['subtext0']};
-    opacity: 0.85;
-}}
-
-/* ============================================
-   BUTTON ASSIGNMENT UI - Premium Design
-   ============================================ */
-.button-assignment-card {{
-    background: {elevated_bg};
-    border-radius: 16px;
-    padding: 16px;
-    margin: 8px 0;
-    border: 1px solid {accent_08};
-    box-shadow: 0 8px 32px {shadow_color_strong};
-}}
-
-.button-assignment-header {{
-    font-size: 15px;
-    font-weight: 700;
-    color: {COLORS['accent']};
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid {accent_15};
-}}
-
-.button-row {{
-    background: {elevated_bg_hover};
-    border-radius: 12px;
-    padding: 10px 14px;
-    margin: 4px 0;
-    border: 1px solid {border_faint};
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}}
-
-.button-row:hover {{
-    background: linear-gradient(135deg, {accent_12} 0%, {accent2_08} 100%);
-    border-color: {accent_25};
-    transform: translateX(4px);
-    box-shadow: 0 4px 16px {accent_15};
-}}
-
-.button-icon-box {{
-    background: linear-gradient(135deg, {accent_20} 0%, {accent2_15} 100%);
-    border-radius: 10px;
-    padding: 10px;
-    min-width: 42px;
-    min-height: 42px;
-    border: 1px solid {accent_20};
-}}
-
-.button-icon {{
-    color: {COLORS['accent']};
-}}
-
-.button-name {{
-    font-size: 15px;
-    font-weight: 600;
-    color: {COLORS['text']};
-    letter-spacing: 0.3px;
-}}
-
-.button-action {{
-    font-size: 13px;
-    font-weight: 500;
-    color: {COLORS['accent']};
-    padding: 4px 10px;
-    background: {accent_10};
-    border-radius: 6px;
-    border: 1px solid {accent_20};
-}}
-
-.button-arrow {{
-    color: {COLORS['subtext0']};
-    padding: 8px;
-    border-radius: 8px;
-    transition: all 200ms ease;
-}}
-
-.button-arrow:hover {{
-    background: {accent_15};
-    color: {COLORS['accent']};
-}}
-
-/* Radial Menu Card - Featured Style */
-.radial-menu-card {{
-    background: linear-gradient(135deg, {accent_08} 0%, {accent2_05} 100%);
-    border-radius: 16px;
-    padding: 18px;
-    margin: 12px 0 8px 0;
-    border: 1px solid {accent_20};
-    box-shadow: 0 8px 32px {accent_10}, 0 4px 16px {shadow_color};
-}}
-
-.radial-menu-card:hover {{
-    border-color: {accent_35};
-    box-shadow: 0 12px 40px {accent_15}, 0 6px 20px {shadow_color_strong};
-}}
-
-.radial-icon-large {{
-    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
-    border-radius: 14px;
-    padding: 16px;
-    min-width: 56px;
-    min-height: 56px;
-    box-shadow: 0 4px 16px {accent_35};
-}}
-
-.radial-icon-large image {{
-    color: {text_on_accent};
-}}
-
-.radial-title {{
-    font-size: 18px;
-    font-weight: 700;
-    color: {COLORS['text']};
-    letter-spacing: 0.5px;
-}}
-
-.radial-subtitle {{
-    font-size: 13px;
-    color: {COLORS['subtext1']};
-    margin-top: 4px;
-}}
-
-/* Slice Row Styling */
-.slice-row {{
-    background: {COLORS['surface0']};
-    border-radius: 8px;
-    padding: 10px 12px;
-    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid transparent;
-}}
-
-.slice-row:hover {{
-    background: {COLORS['surface1']};
-    border-color: {accent_20};
-}}
-
-.slice-icon {{
-    color: {COLORS['subtext1']};
-    opacity: 0.8;
-}}
-
-.slice-label {{
-    font-size: 13px;
-    font-weight: 500;
-    color: {COLORS['text']};
-}}
-
-.slice-edit-btn {{
-    opacity: 0.5;
-    transition: opacity 200ms;
-}}
-
-.slice-row:hover .slice-edit-btn {{
-    opacity: 1;
-}}
-
-/* Color Picker Buttons */
-.color-btn-green {{ background: #00e676; border-radius: 8px; border: 2px solid transparent; }}
-.color-btn-green:checked {{ border-color: white; box-shadow: 0 0 8px #00e676; }}
-.color-btn-yellow {{ background: #ffd54f; border-radius: 8px; border: 2px solid transparent; }}
-.color-btn-yellow:checked {{ border-color: white; box-shadow: 0 0 8px #ffd54f; }}
-.color-btn-red {{ background: #ff5252; border-radius: 8px; border: 2px solid transparent; }}
-.color-btn-red:checked {{ border-color: white; box-shadow: 0 0 8px #ff5252; }}
-.color-btn-mauve {{ background: #b388ff; border-radius: 8px; border: 2px solid transparent; }}
-.color-btn-mauve:checked {{ border-color: white; box-shadow: 0 0 8px #b388ff; }}
-.color-btn-blue {{ background: #4a9eff; border-radius: 8px; border: 2px solid transparent; }}
-.color-btn-blue:checked {{ border-color: white; box-shadow: 0 0 8px #4a9eff; }}
-.color-btn-pink {{ background: #ff80ab; border-radius: 8px; border: 2px solid transparent; }}
-.color-btn-pink:checked {{ border-color: white; box-shadow: 0 0 8px #ff80ab; }}
-.color-btn-sapphire {{ background: #00b4d8; border-radius: 8px; border: 2px solid transparent; }}
-.color-btn-sapphire:checked {{ border-color: white; box-shadow: 0 0 8px #00b4d8; }}
-.color-btn-teal {{ background: #0abdc6; border-radius: 8px; border: 2px solid transparent; }}
-.color-btn-teal:checked {{ border-color: white; box-shadow: 0 0 8px #0abdc6; }}
-
-/* Preset Action Buttons */
-.preset-btn {{
-    background: {COLORS['surface0']};
-    border: 1px solid {COLORS['surface2']};
-    border-radius: 8px;
-    padding: 8px 12px;
-    transition: all 200ms;
-}}
-
-.preset-btn:hover {{
-    background: {COLORS['surface1']};
-    border-color: {COLORS['accent']};
-}}
-
-/* Section Header */
-.section-header {{
-    font-size: 12px;
-    font-weight: 600;
-    color: {COLORS['subtext0']};
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-    margin-top: 8px;
-}}
+/* Built-in Adwaita typography classes — keep readable but neutral */
+.title-1 {{ font-size: 22px; font-weight: 600; letter-spacing: -0.2px; color: {text_strong}; }}
+.title-2 {{ font-size: 18px; font-weight: 600; letter-spacing: -0.1px; color: {text_strong}; }}
+.title-3 {{ font-size: 15px; font-weight: 600; color: {text_strong}; }}
+.heading {{ font-size: 14px; font-weight: 600; color: {text_strong}; letter-spacing: 0.2px; }}
+.caption {{ font-size: 11px; color: {text_dim}; letter-spacing: 0.4px; }}
 
-/* ============================================
-   PREMIUM HEADER STYLING
-   ============================================ */
+/* =========================================================================
+   HEADER — product mark, device status, primary action
+   Quiet. The header should not compete with the workbench below it.
+   ========================================================================= */
 .app-title {{
-    font-size: 22px;
-    font-weight: 800;
-    color: {COLORS['text']};
-    letter-spacing: 0.5px;
+    font-size: 16px;
+    font-weight: 600;
+    color: {text_strong};
+    letter-spacing: -0.1px;
 }}
 
 .app-title-accent {{
@@ -786,76 +125,972 @@ tooltip {{
 }}
 
 .app-subtitle {{
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
-    color: {COLORS['subtext0']};
-    letter-spacing: 1px;
+    color: {text_faint};
+    letter-spacing: 1.4px;
     text-transform: uppercase;
-    margin-top: 2px;
 }}
 
 .logo-container {{
-    background: linear-gradient(135deg, {accent_15} 0%, {accent2_10} 100%);
-    border-radius: 12px;
-    padding: 8px;
-    border: 1px solid {accent_20};
-    box-shadow: 0 4px 16px {accent_15};
-}}
-
-.device-badge {{
-    background: linear-gradient(135deg, rgba(0, 230, 118, 0.15) 0%, rgba(0, 200, 100, 0.1) 100%);
-    border: 1px solid rgba(0, 230, 118, 0.3);
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 11px;
-    font-weight: 600;
-    color: {COLORS['green']};
-    letter-spacing: 0.5px;
+    background: transparent;
+    border-radius: 6px;
+    padding: 2px;
+    border: none;
+    box-shadow: none;
 }}
 
 .header-divider {{
-    background: linear-gradient(90deg, {accent_40} 0%, {accent_10} 100%);
-    min-width: 2px;
-    min-height: 36px;
-    border-radius: 1px;
-    margin: 0 16px;
+    background: {hairline};
+    min-width: 1px;
+    min-height: 20px;
+    margin: 0 14px;
+    border-radius: 0;
 }}
 
-/* ============================================
-   DONATE CARD - Gradient background
-   ============================================ */
-.donate-card {{
-    background: linear-gradient(160deg, {accent_08} 0%, {accent2_12} 100%);
-    border-radius: 12px;
-    border: 1px solid {accent_15};
-    padding: 12px;
+/* Device badge — compact pill, success color reserved for "actually connected" */
+.device-badge {{
+    background: transparent;
+    border: 1px solid {hairline_strong};
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-family: {mono};
+    font-size: 10px;
+    font-weight: 600;
+    color: {text_dim};
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
 }}
 
-/* ============================================
-   DONATE BUTTON - Theme-Colored
-   ============================================ */
-.donate-btn {{
-    background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent2']} 100%);
-    color: {text_on_accent};
+/* =========================================================================
+   SIDEBAR — left rail. Text + icon. Active state is a 2px accent rail.
+   No card-y badges. No gradients. Typography carries hierarchy.
+   ========================================================================= */
+.sidebar {{
+    background: {rail_bg};
+    padding: 18px 8px 12px 8px;
+    min-width: 220px;
+    border-right: 1px solid {hairline};
+    border-radius: 0;
+    box-shadow: none;
+}}
+
+.nav-item {{
+    padding: 10px 14px 10px 16px;
+    margin: 1px 4px;
+    border-radius: 6px;
+    color: {text_dim};
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    transition: background 120ms ease, color 120ms ease;
+}}
+
+.nav-item:hover {{
+    background: {row_bg_hover};
+    color: {text_strong};
+}}
+
+.nav-item.active {{
+    background: {row_bg_active};
+    color: {text_strong};
+    /* 2px accent indicator on left edge */
+    border-left: 2px solid {COLORS['accent']};
+    padding-left: 14px;
+}}
+
+.nav-item.active:hover {{
+    background: {row_bg_active};
+    color: {text_strong};
+}}
+
+/* PNG nav icons — desaturate slightly so color doesn't carry meaning */
+.nav-icon-img {{
+    opacity: 0.78;
+    transition: opacity 120ms ease;
+}}
+
+.nav-item:hover .nav-icon-img {{ opacity: 1; }}
+.nav-item.active .nav-icon-img {{ opacity: 1; }}
+
+/* Symbolic icon fallback — no badge, just the glyph */
+.nav-icon-badge {{
+    background: transparent;
+    border: none;
+    padding: 4px;
+    min-width: 24px;
+    min-height: 24px;
+    box-shadow: none;
+}}
+
+.nav-icon {{
+    color: {text_dim};
+    transition: color 120ms ease;
+}}
+
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {{
+    color: {text_strong};
+}}
+
+/* Page header icon (top of each page) */
+.page-header-icon {{
+    color: {text_dim};
+    opacity: 0.85;
+}}
+
+/* Generated transparent assets — visual depth lives in the artwork, not chrome. */
+.generated-asset-hero {{
+    background: {panel_bg_quiet};
+    border: 1px solid {hairline};
     border-radius: 10px;
-    padding: 10px 16px;
+    padding: 10px 12px;
+    margin: 0 10px 4px 10px;
+    box-shadow: none;
+}}
+
+.generated-asset-image {{
+    opacity: 0.96;
+}}
+
+.radial-menu-card .generated-asset-hero {{
+    background: {panel_bg};
+    border-color: {hairline_faint};
+    padding: 8px;
+    margin: -2px 0 14px 0;
+}}
+
+/* =========================================================================
+   PANELS — settings-card and info-card.
+   Solid surfaces, 1px hairlines, generous padding, no shadow.
+   ========================================================================= */
+.settings-card {{
+    background: {panel_bg};
+    border: 1px solid {hairline};
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 10px;
+    box-shadow: none;
+    transition: border-color 120ms ease, background 120ms ease;
+}}
+
+.settings-card:hover {{
+    border-color: {hairline_strong};
+    box-shadow: none;
+}}
+
+.info-card {{
+    background: {panel_bg_quiet};
+    border: 1px solid {hairline_faint};
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 10px;
+    box-shadow: none;
+}}
+
+.info-card:hover {{
+    border-color: {hairline};
+    background: {panel_bg_quiet};
+}}
+
+.info-card .card-title {{
+    font-size: 11px;
+    font-weight: 600;
+    color: {text_dim};
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    border-bottom: none;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}}
+
+.card-title {{
+    font-size: 15px;
+    font-weight: 600;
+    color: {text_strong};
+    letter-spacing: -0.1px;
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid {hairline};
+}}
+
+/* Section header — small caps tracking, used to group rows inside a panel */
+.section-header {{
+    font-size: 10px;
+    font-weight: 600;
+    color: {text_faint};
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    margin: 14px 0 8px 0;
+}}
+
+/* =========================================================================
+   ROWS — high-density list items. Replace boxy cards.
+   Label · value · chevron pattern.
+   ========================================================================= */
+.setting-row {{
+    padding: 10px 12px;
+    margin: 0;
+    border-radius: 6px;
+    background: {row_bg};
+    border: 1px solid transparent;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+.setting-row:hover {{
+    background: {row_bg_hover};
+    border-color: {hairline};
+}}
+
+.setting-label {{
+    color: {text_strong};
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+}}
+
+.setting-value {{
+    color: {text_dim};
+    font-family: {mono};
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+}}
+
+/* Boxed list (Adwaita) — keep visual rhythm with our panels */
+.boxed-list {{
+    background: {panel_bg};
+    border: 1px solid {hairline};
+    border-radius: 10px;
+}}
+
+/* =========================================================================
+   STATUS BAR — minimal foot. Battery, connection, version.
+   ========================================================================= */
+.status-bar {{
+    background: {win_bg};
+    padding: 10px 22px;
+    border-top: 1px solid {hairline};
+    box-shadow: none;
+}}
+
+.battery-icon {{
+    color: {text_dim};
+    opacity: 0.9;
+}}
+
+.battery-indicator {{
+    color: {text_strong};
+    font-family: {mono};
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+}}
+
+.connection-icon {{
+    color: {text_dim};
+    opacity: 0.85;
+}}
+
+.connection-status {{
+    color: {text_dim};
+    font-size: 12px;
+    font-weight: 500;
+}}
+
+.connection-dot {{
+    min-width: 6px;
+    min-height: 6px;
+    border-radius: 50%;
+    background: {text_faint};
+}}
+
+.connection-dot.connected {{
+    background: {success};
+    box-shadow: none;
+}}
+
+.connection-dot.disconnected {{
+    background: {danger};
+}}
+
+/* =========================================================================
+   SWITCH — sharp pill. State carried by accent fill.
+   ========================================================================= */
+switch {{
+    background: {chip_bg};
+    border: 1px solid {chip_border};
+    border-radius: 14px;
+    min-width: 48px;
+    min-height: 26px;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+switch:hover {{
+    border-color: {hairline_strong};
+}}
+
+switch:checked {{
+    background: {COLORS['accent']};
+    border-color: {COLORS['accent']};
+    box-shadow: none;
+}}
+
+switch slider {{
+    background: {text_strong};
+    border-radius: 11px;
+    min-width: 20px;
+    min-height: 20px;
+    box-shadow: none;
+    transition: none;
+}}
+
+switch:checked slider {{
+    background: {text_on_accent};
+    box-shadow: none;
+}}
+
+/* =========================================================================
+   SCALES / SLIDERS — thin track, simple thumb.
+   ========================================================================= */
+scale {{
+    padding: 4px 0;
+    min-height: 22px;
+}}
+
+scale trough {{
+    background: {chip_bg};
+    border: 1px solid {chip_border};
+    border-radius: 3px;
+    min-height: 6px;
+}}
+
+scale highlight {{
+    background: {COLORS['accent']};
+    border-radius: 3px;
+    box-shadow: none;
+}}
+
+scale slider {{
+    background: {text_strong};
+    border-radius: 50%;
+    min-width: 20px;
+    min-height: 20px;
+    box-shadow: none;
+    transition: background 120ms ease;
+}}
+
+scale slider:hover {{
+    background: {COLORS['accent']};
+}}
+
+/* =========================================================================
+   SCROLLBAR — invisible until needed.
+   ========================================================================= */
+scrollbar {{
+    background: {scrollbar_track};
+    border: none;
+}}
+
+scrollbar slider {{
+    background: {scrollbar_thumb};
+    border: none;
+    border-radius: 4px;
+    min-width: 6px;
+    min-height: 6px;
+    transition: background 120ms ease, min-width 120ms ease;
+}}
+
+scrollbar slider:hover {{
+    background: {scrollbar_thumb_h};
+    min-width: 8px;
+}}
+
+/* =========================================================================
+   BUTTONS — primary, secondary, danger, add-app, donate.
+   No gradient. Accent is the primary fill. Hover: subtle tone shift.
+   ========================================================================= */
+.primary-btn, button.suggested-action {{
+    background: {COLORS['accent']};
+    color: {text_on_accent};
+    border: 1px solid {COLORS['accent']};
+    border-radius: 6px;
+    padding: 9px 16px;
     font-weight: 600;
     font-size: 13px;
+    letter-spacing: 0;
+    box-shadow: none;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+.primary-btn:hover, button.suggested-action:hover {{
+    background: {COLORS['accent']};
+    border-color: {COLORS['accent']};
+    box-shadow: 0 0 0 3px {accent_15};
+}}
+
+.primary-btn:active, button.suggested-action:active {{
+    box-shadow: none;
+    opacity: 0.9;
+}}
+
+.secondary-btn {{
+    background: transparent;
+    color: {text_strong};
+    border: 1px solid {hairline_strong};
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 500;
+    font-size: 13px;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+.secondary-btn:hover {{
+    background: {row_bg_hover};
+    border-color: {COLORS['accent']};
+    color: {text_strong};
+    box-shadow: none;
+}}
+
+.danger-btn, button.destructive-action {{
+    background: transparent;
+    color: {danger};
+    border: 1px solid {hairline_strong};
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 500;
+    font-size: 13px;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+.danger-btn:hover, button.destructive-action:hover {{
+    background: rgba(195, 58, 58, 0.08);
+    border-color: {danger};
+    color: {danger};
+    box-shadow: none;
+}}
+
+.add-app-btn {{
+    background: transparent;
+    color: {text_strong};
+    border: 1px solid {hairline_strong};
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 500;
+    font-size: 13px;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+.add-app-btn:hover {{
+    background: {row_bg_hover};
+    border-color: {COLORS['accent']};
+    color: {text_strong};
+    box-shadow: none;
+}}
+
+button.flat {{
+    background: transparent;
     border: none;
-    box-shadow: 0 4px 16px {COLORS['accent_glow']};
-    transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    color: {text_strong};
+    border-radius: 6px;
+    padding: 6px 10px;
+    transition: background 120ms ease;
+}}
+
+button.flat:hover {{
+    background: {row_bg_hover};
+}}
+
+button.circular {{
+    background: transparent;
+    border: 1px solid {hairline};
+    border-radius: 999px;
+    color: {text_dim};
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}}
+
+button.circular:hover {{
+    background: {row_bg_hover};
+    border-color: {hairline_strong};
+    color: {text_strong};
+}}
+
+/* =========================================================================
+   DROPDOWN, ENTRY, TOOLTIP
+   ========================================================================= */
+dropdown {{
+    background: {panel_bg};
+    border: 1px solid {hairline_strong};
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: {text_strong};
+    font-size: 13px;
+    transition: border-color 120ms ease, background 120ms ease;
+}}
+
+dropdown:hover {{
+    border-color: {COLORS['accent']};
+    box-shadow: none;
+}}
+
+dropdown popover {{
+    background: {panel_bg};
+    border: 1px solid {hairline_strong};
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    padding: 4px;
+}}
+
+dropdown popover listview row {{
+    padding: 8px 12px;
+    border-radius: 4px;
+    color: {text_strong};
+    font-size: 13px;
+}}
+
+dropdown popover listview row:hover {{
+    background: {row_bg_hover};
+}}
+
+dropdown popover listview row:selected {{
+    background: {accent_15};
+    color: {text_strong};
+}}
+
+entry {{
+    background: {panel_bg};
+    border: 1px solid {hairline_strong};
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: {text_strong};
+    font-size: 13px;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+}}
+
+entry:focus {{
+    border-color: {COLORS['accent']};
+    box-shadow: 0 0 0 3px {accent_15};
+}}
+
+tooltip {{
+    background: {panel_bg};
+    border: 1px solid {hairline_strong};
+    border-radius: 6px;
+    padding: 6px 10px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+    color: {text_strong};
+    font-size: 12px;
+}}
+
+/* Linked button group (e.g. segmented controls) */
+.linked > * {{
+    border-radius: 0;
+}}
+
+.linked > *:first-child {{ border-top-left-radius: 6px; border-bottom-left-radius: 6px; }}
+.linked > *:last-child {{ border-top-right-radius: 6px; border-bottom-right-radius: 6px; }}
+
+/* =========================================================================
+   BUTTON ASSIGNMENTS — the primary content of the BUTTONS tab.
+   This is the table users live in. Make it feel like a real table:
+   tight, scannable, mono values, subtle dividers.
+   ========================================================================= */
+.button-assignment-card {{
+    background: {panel_bg};
+    border: 1px solid {hairline};
+    border-radius: 10px;
+    padding: 8px;
+    margin: 6px 0;
+    box-shadow: none;
+}}
+
+.button-assignment-header {{
+    font-size: 10px;
+    font-weight: 600;
+    color: {text_faint};
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    padding: 12px 12px 8px 12px;
+    margin: 0;
+    border-bottom: 1px solid {hairline_faint};
+}}
+
+.button-row {{
+    background: transparent;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin: 1px 0;
+    border: 1px solid transparent;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+.button-row:hover {{
+    background: {row_bg_hover};
+    border-color: {hairline};
+    box-shadow: none;
+}}
+
+.button-icon-box {{
+    background: transparent;
+    border-radius: 6px;
+    padding: 6px;
+    min-width: 28px;
+    min-height: 28px;
+    border: 1px solid {hairline};
+}}
+
+.button-icon {{
+    color: {text_dim};
+}}
+
+.button-row:hover .button-icon {{
+    color: {text_strong};
+}}
+
+.button-name {{
+    font-size: 13px;
+    font-weight: 500;
+    color: {text_strong};
+    letter-spacing: 0;
+}}
+
+.button-action {{
+    font-family: {mono};
+    font-size: 11px;
+    font-weight: 500;
+    color: {text_dim};
+    padding: 3px 8px;
+    background: {chip_bg};
+    border-radius: 4px;
+    border: 1px solid {chip_border};
+    letter-spacing: 0;
+}}
+
+.button-arrow {{
+    color: {text_faint};
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 120ms ease, background 120ms ease;
+}}
+
+.button-row:hover .button-arrow {{
+    color: {text_strong};
+}}
+
+.button-arrow:hover {{
+    background: {row_bg_active};
+    color: {text_strong};
+}}
+
+/* =========================================================================
+   RADIAL MENU CARD — the "Actions Ring" preview at the top of BUTTONS.
+   Quieter than before. Featured but not a billboard.
+   ========================================================================= */
+.radial-menu-card {{
+    background: {panel_bg_quiet};
+    border: 1px solid {hairline};
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 6px 0;
+    box-shadow: none;
+    transition: border-color 120ms ease;
+}}
+
+.radial-menu-card:hover {{
+    border-color: {hairline_strong};
+    box-shadow: none;
+}}
+
+.radial-icon-large {{
+    background: transparent;
+    border: 1px solid {COLORS['accent']};
+    border-radius: 8px;
+    padding: 10px;
+    min-width: 40px;
+    min-height: 40px;
+    box-shadow: none;
+}}
+
+.radial-icon-large image {{
+    color: {COLORS['accent']};
+}}
+
+.radial-title {{
+    font-size: 14px;
+    font-weight: 600;
+    color: {text_strong};
+    letter-spacing: -0.1px;
+}}
+
+.radial-subtitle {{
+    font-size: 12px;
+    color: {text_dim};
+    margin-top: 2px;
+}}
+
+/* Slice rows inside the radial action editor */
+.slice-row {{
+    background: transparent;
+    border-radius: 6px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+.slice-row:hover {{
+    background: {row_bg_hover};
+    border-color: {hairline};
+}}
+
+.slice-icon {{
+    color: {text_dim};
+    opacity: 0.9;
+}}
+
+.slice-label {{
+    font-size: 13px;
+    font-weight: 500;
+    color: {text_strong};
+}}
+
+.slice-edit-btn {{
+    opacity: 0;
+    transition: opacity 120ms ease;
+}}
+
+.slice-row:hover .slice-edit-btn {{
+    opacity: 1;
+}}
+
+/* Color picker swatches for slice colors */
+.color-btn-green   {{ background: #1F9D55; border-radius: 6px; border: 2px solid transparent; min-width: 22px; min-height: 22px; }}
+.color-btn-yellow  {{ background: #E0A800; border-radius: 6px; border: 2px solid transparent; min-width: 22px; min-height: 22px; }}
+.color-btn-red     {{ background: #C33A3A; border-radius: 6px; border: 2px solid transparent; min-width: 22px; min-height: 22px; }}
+.color-btn-mauve   {{ background: #8E6BD1; border-radius: 6px; border: 2px solid transparent; min-width: 22px; min-height: 22px; }}
+.color-btn-blue    {{ background: #3D80D6; border-radius: 6px; border: 2px solid transparent; min-width: 22px; min-height: 22px; }}
+.color-btn-pink    {{ background: #D86891; border-radius: 6px; border: 2px solid transparent; min-width: 22px; min-height: 22px; }}
+.color-btn-sapphire{{ background: #2D8FB3; border-radius: 6px; border: 2px solid transparent; min-width: 22px; min-height: 22px; }}
+.color-btn-teal    {{ background: #2A9D9A; border-radius: 6px; border: 2px solid transparent; min-width: 22px; min-height: 22px; }}
+
+.color-btn-green:checked,
+.color-btn-yellow:checked,
+.color-btn-red:checked,
+.color-btn-mauve:checked,
+.color-btn-blue:checked,
+.color-btn-pink:checked,
+.color-btn-sapphire:checked,
+.color-btn-teal:checked {{
+    border-color: {text_strong};
+    box-shadow: 0 0 0 2px {win_bg} inset;
+}}
+
+/* Preset / palette action buttons */
+.preset-btn, .palette-action-btn {{
+    background: transparent;
+    border: 1px solid {hairline};
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: {text_strong};
+    font-size: 12px;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+.preset-btn:hover, .palette-action-btn:hover {{
+    background: {row_bg_hover};
+    border-color: {COLORS['accent']};
+}}
+
+/* =========================================================================
+   EASY-SWITCH — keyboard shortcut hints. Mono so the keys read like keys.
+   ========================================================================= */
+.easyswitch-shortcuts-card {{
+    background: {panel_bg_quiet};
+    border: 1px solid {hairline};
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 6px 0;
+    box-shadow: none;
+}}
+
+.easyswitch-row {{
+    padding: 6px 0;
+    border-bottom: 1px solid {hairline_faint};
+}}
+
+.easyswitch-row:last-child {{
+    border-bottom: none;
+}}
+
+.easyswitch-icon-box {{
+    background: transparent;
+    border: 1px solid {hairline};
+    border-radius: 6px;
+    padding: 6px;
+    min-width: 32px;
+    min-height: 32px;
+}}
+
+.easyswitch-icon {{
+    color: {text_dim};
+}}
+
+.easyswitch-title {{
+    font-size: 13px;
+    font-weight: 500;
+    color: {text_strong};
+    letter-spacing: 0;
+}}
+
+.easyswitch-desc {{
+    font-size: 11px;
+    color: {text_dim};
+    font-family: {mono};
+}}
+
+/* =========================================================================
+   HAPTIC PATTERN ROWS — a list. The selected row gets the accent rail.
+   ========================================================================= */
+.haptic-pattern-item {{
+    padding: 10px 12px;
+    margin: 1px 0;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+.haptic-pattern-item:hover {{
+    background: {row_bg_hover};
+    border-color: {hairline};
+}}
+
+.haptic-pattern-item.selected {{
+    background: {accent_06};
+    border-left: 2px solid {COLORS['accent']};
+    border-top: 1px solid {hairline};
+    border-right: 1px solid {hairline};
+    border-bottom: 1px solid {hairline};
+    padding-left: 10px;
+}}
+
+/* =========================================================================
+   MACRO TIMELINE — frames in a strip. Selection: accent rail.
+   ========================================================================= */
+.timeline-row {{
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    transition: background 120ms ease, border-color 120ms ease;
+}}
+
+.timeline-row:hover {{
+    background: {row_bg_hover};
+    border-color: {hairline};
+}}
+
+.timeline-row-selected {{
+    background: {accent_06};
+    border-left: 2px solid {COLORS['accent']};
+    border-top: 1px solid {hairline};
+    border-right: 1px solid {hairline};
+    border-bottom: 1px solid {hairline};
+    padding-left: 10px;
+}}
+
+/* =========================================================================
+   DONATE — sidebar bottom card. Quiet, but humanly warm.
+   ========================================================================= */
+.donate-card {{
+    background: {panel_bg_quiet};
+    border: 1px solid {hairline};
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: none;
+}}
+
+.donate-btn {{
+    background: transparent;
+    color: {text_strong};
+    border: 1px solid {hairline_strong};
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 500;
+    font-size: 12px;
+    box-shadow: none;
+    transition: background 120ms ease, border-color 120ms ease;
 }}
 
 .donate-btn:hover {{
-    box-shadow: 0 6px 24px {COLORS['accent_glow']};
-    transform: translateY(-1px);
+    background: {row_bg_hover};
+    border-color: {COLORS['accent']};
+    color: {text_strong};
+    box-shadow: none;
 }}
 
-/* ============================================
-   DONATE HEART - Container for Cairo-drawn heart
-   ============================================ */
 .donate-heart {{
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 32px;
+    min-height: 32px;
+}}
+
+/* =========================================================================
+   STATUS / SEMANTIC TINTS — keep Adwaita's success/warning/accent muted,
+   so a green or red label is information, not an alarm.
+   ========================================================================= */
+.success {{
+    color: {success};
+}}
+
+.warning {{
+    color: #C9851B;
+}}
+
+.accent, .accent-color {{
+    color: {COLORS['accent']};
+}}
+
+/* Generic badge — small uppercase pill */
+.badge {{
+    background: {chip_bg};
+    border: 1px solid {chip_border};
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: {text_dim};
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+}}
+
+/* Generic catch-all card class (libadwaita .card) */
+.card {{
+    background: {panel_bg};
+    border: 1px solid {hairline};
+    border-radius: 10px;
+}}
+
+/* Generic background helper */
+.background {{
+    background: {win_bg};
+}}
+
+/* =========================================================================
+   FOCUS — visible on every interactive widget when keyboard-navigated.
+   Power users keyboard-navigate settings.
+   ========================================================================= */
+button:focus-visible,
+.nav-item:focus-visible,
+.button-row:focus-visible,
+.setting-row:focus-visible,
+.haptic-pattern-item:focus-visible,
+.timeline-row:focus-visible,
+.preset-btn:focus-visible,
+.add-app-btn:focus-visible,
+dropdown:focus-visible {{
+    outline: none;
+    box-shadow: 0 0 0 2px {focus_ring};
 }}
 """

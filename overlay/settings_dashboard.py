@@ -254,8 +254,10 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
             self._setup_upower_signals()
             # Start battery update timer (2 seconds for responsive charging status)
             self._battery_timer_id = GLib.timeout_add_seconds(2, self._update_battery)
-            # Initial battery update
-            GLib.idle_add(self._update_battery)
+            # Initial battery update — one-shot via idle. Same `and False`
+            # guard as in _on_upower_device_added; without it the idle
+            # callback re-fires every loop tick.
+            GLib.idle_add(lambda: self._update_battery() and False)
 
         # Pause timers when window is hidden, resume when shown
         self.connect("notify::visible", self._on_visibility_changed)
@@ -403,8 +405,12 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         self, connection, sender, path, interface, signal, params, user_data
     ):
         """Handle UPower device added/removed - charger connected/disconnected"""
-        # Immediate battery update when a device is added/removed
-        GLib.idle_add(self._update_battery)
+        # Immediate battery update when a device is added/removed.
+        # _update_battery returns True to keep its 2s timer running, so we
+        # wrap with `and False` to make this one-shot in the idle queue
+        # (otherwise the idle callback re-fires on every loop tick = tight
+        # loop with thousands of D-Bus calls per second when daemon is down).
+        GLib.idle_add(lambda: self._update_battery() and False)
 
     def _update_battery(self):
         """Fetch battery status from daemon via D-Bus"""

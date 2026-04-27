@@ -198,7 +198,12 @@ impl BatteryHandler {
     }
 
     /// Send a HID++ request and read the response
-    fn hidpp_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Result<Vec<u8>, BatteryError> {
+    fn hidpp_request(
+        &mut self,
+        feature_index: u8,
+        function: u8,
+        params: &[u8],
+    ) -> Result<Vec<u8>, BatteryError> {
         let device = self.device.as_mut().ok_or(BatteryError::DeviceNotFound)?;
 
         // Drain any pending data first to avoid stale responses
@@ -261,9 +266,13 @@ impl BatteryHandler {
                             return Ok(response[..len].to_vec());
                         }
                         // Check for error response (0x8F = error report)
-                        if response[2] == 0x8F || (response[2] == feature_index && response[4] == 0x05) {
+                        if response[2] == 0x8F
+                            || (response[2] == feature_index && response[4] == 0x05)
+                        {
                             tracing::debug!("HID++ error response: {:02X?}", &response[..len]);
-                            return Err(BatteryError::ProtocolError("Device returned error".into()));
+                            return Err(BatteryError::ProtocolError(
+                                "Device returned error".into(),
+                            ));
                         }
                         // Ignore unrelated notifications (button events, etc)
                     }
@@ -322,22 +331,22 @@ impl BatteryHandler {
                     self.battery_feature_index = Some(index);
                     self.is_unified_battery = true;
                 }
-                Err(_) => {
-                    match self.get_feature_index(FEATURE_BATTERY_STATUS) {
-                        Ok(index) => {
-                            tracing::info!(index, "Found BATTERY_STATUS feature");
-                            self.battery_feature_index = Some(index);
-                            self.is_unified_battery = false;
-                        }
-                        Err(e) => {
-                            return Err(e);
-                        }
+                Err(_) => match self.get_feature_index(FEATURE_BATTERY_STATUS) {
+                    Ok(index) => {
+                        tracing::info!(index, "Found BATTERY_STATUS feature");
+                        self.battery_feature_index = Some(index);
+                        self.is_unified_battery = false;
                     }
-                }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                },
             }
         }
 
-        let feature_index = self.battery_feature_index.ok_or(BatteryError::FeatureNotSupported)?;
+        let feature_index = self
+            .battery_feature_index
+            .ok_or(BatteryError::FeatureNotSupported)?;
 
         // Query battery status
         // UNIFIED_BATTERY (0x1004): function 1 = get_status
@@ -364,7 +373,7 @@ impl BatteryHandler {
             let charging_status = response[7]; // Charging status is at byte 7 for UNIFIED_BATTERY
 
             // UNIFIED_BATTERY charging_status: 0=discharging, 1=charging, 2=charging_slow, 3=charging_complete, 5=invalid
-            let charging = charging_status >= 1 && charging_status <= 3;
+            let charging = (1..=3).contains(&charging_status);
 
             tracing::debug!(
                 percentage,
@@ -379,7 +388,7 @@ impl BatteryHandler {
             let charging_status = response[6];
 
             // BATTERY_STATUS status: 0=discharging, 1-4=various charging states
-            let charging = charging_status >= 1 && charging_status <= 4;
+            let charging = (1..=4).contains(&charging_status);
 
             tracing::debug!(
                 percentage,
@@ -390,7 +399,9 @@ impl BatteryHandler {
 
             Ok((percentage, charging))
         } else {
-            Err(BatteryError::ProtocolError("Invalid battery response".into()))
+            Err(BatteryError::ProtocolError(
+                "Invalid battery response".into(),
+            ))
         }
     }
 
@@ -441,7 +452,6 @@ impl std::fmt::Display for BatteryError {
 
 impl std::error::Error for BatteryError {}
 
-
 /// Start a periodic battery update task (legacy - uses its own hidraw handle)
 #[deprecated(note = "Use start_battery_updater_shared instead to share hidraw with haptic")]
 pub async fn start_battery_updater(state: SharedBatteryState) {
@@ -477,7 +487,9 @@ pub async fn start_battery_updater(state: SharedBatteryState) {
                 if consecutive_errors <= 3 {
                     tracing::warn!(error = %e, "Failed to query battery");
                 } else if consecutive_errors == 4 {
-                    tracing::info!("Battery queries failing repeatedly - suppressing further warnings");
+                    tracing::info!(
+                        "Battery queries failing repeatedly - suppressing further warnings"
+                    );
                 }
             }
         }
@@ -549,7 +561,9 @@ pub async fn start_battery_updater_shared(
                 if consecutive_errors <= 3 {
                     tracing::warn!(error = %e, "Failed to query battery (shared)");
                 } else if consecutive_errors == 4 {
-                    tracing::info!("Battery queries failing repeatedly - suppressing further warnings");
+                    tracing::info!(
+                        "Battery queries failing repeatedly - suppressing further warnings"
+                    );
                 }
             }
         }

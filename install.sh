@@ -508,6 +508,14 @@ install_files() {
     # Install sidebar navigation icons
     sudo cp assets/nav-*.png /usr/share/juhradial/assets/ 2>/dev/null || true
 
+    # Install generated settings artwork
+    if [ -d assets/settings-generated ]; then
+        sudo mkdir -p /usr/share/juhradial/assets/settings-generated
+        sudo cp assets/settings-generated/control-ring.png /usr/share/juhradial/assets/settings-generated/ 2>/dev/null || true
+        sudo cp assets/settings-generated/easyswitch.png /usr/share/juhradial/assets/settings-generated/ 2>/dev/null || true
+        sudo cp assets/settings-generated/haptics.png /usr/share/juhradial/assets/settings-generated/ 2>/dev/null || true
+    fi
+
     # Install launcher scripts
     sudo install -Dm755 scripts/juhradial-mx.sh "$BIN_DIR/juhradial-mx"
     sudo install -Dm755 scripts/juhradial-settings.sh "$BIN_DIR/juhradial-settings"

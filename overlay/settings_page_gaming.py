@@ -24,12 +24,25 @@ from settings_widgets import SettingsCard, SettingRow, PageHeader, InfoCard
 
 logger = logging.getLogger(__name__)
 
-# Default DPI profile presets
+# Default DPI profile presets. Names are stored as ID-style strings and
+# translated at render time via PROFILE_NAME_LABELS so non-English locales
+# don't see "Precision" / "Normal" / "Fast" hardcoded.
 DEFAULT_DPI_PROFILES = [
     {"name": "Precision", "dpi": 400, "color": "blue"},
     {"name": "Normal", "dpi": 1000, "color": "green"},
     {"name": "Fast", "dpi": 3200, "color": "red"},
 ]
+
+
+def _translated_default_name(name):
+    """Translate the built-in default profile names. Custom (user-edited)
+    names pass through unchanged."""
+    builtin = {
+        "Precision": _("Precision"),
+        "Normal": _("Normal"),
+        "Fast": _("Fast"),
+    }
+    return builtin.get(name, name)
 
 DPI_PROFILE_COLORS = {
     "blue": COLORS.get("blue", "#89b4fa"),
@@ -86,19 +99,23 @@ class GamingPage(Gtk.ScrolledWindow):
         sep1.set_margin_bottom(8)
         toggle_card.append(sep1)
 
-        # Suppress overlay toggle
-        overlay_row = SettingRow(
-            _("Suppress Overlay"),
-            _("Prevent radial menu from appearing during gaming"),
+        # Show overlay during gaming. Polarity is the inverse of the on-disk
+        # `suppress_overlay` flag — that's the daemon's vocabulary, but a
+        # positive frame ("show / don't show") is far easier for the user
+        # than a negative frame ("suppress / don't suppress"). We translate
+        # at the boundary, on read and on write.
+        show_overlay_row = SettingRow(
+            _("Show Radial Menu"),
+            _("Allow the radial menu to open while Gaming Mode is on"),
         )
         self._overlay_switch = Gtk.Switch()
         self._overlay_switch.set_valign(Gtk.Align.CENTER)
         self._overlay_switch.set_active(
-            config.get("gaming", "suppress_overlay", default=True)
+            not config.get("gaming", "suppress_overlay", default=True)
         )
         self._overlay_switch.connect("state-set", self._on_overlay_toggled)
-        overlay_row.set_control(self._overlay_switch)
-        toggle_card.append(overlay_row)
+        show_overlay_row.set_control(self._overlay_switch)
+        toggle_card.append(show_overlay_row)
 
         content.append(toggle_card)
 
@@ -117,7 +134,7 @@ class GamingPage(Gtk.ScrolledWindow):
 
         profile_names = Gtk.StringList()
         for p in profiles:
-            profile_names.append(_(p.get("name", "Profile")))
+            profile_names.append(_translated_default_name(p.get("name", _("Profile"))))
 
         self._profile_dropdown = Gtk.DropDown(model=profile_names)
         self._profile_dropdown.set_selected(active_idx)
@@ -274,11 +291,14 @@ class GamingPage(Gtk.ScrolledWindow):
         spacer.set_hexpand(True)
         row.append(spacer)
 
-        # DPI value with spin button
+        # DPI value with spin button. Upper bound matches MX Master 4's
+        # 8000 DPI ceiling — setting higher silently fails on the device.
+        # If the daemon ever reports a higher cap (other models), expose
+        # this from D-Bus and wire it up here.
         dpi_adj = Gtk.Adjustment(
             value=profile.get("dpi", 800),
             lower=100,
-            upper=25600,
+            upper=8000,
             step_increment=50,
             page_increment=200,
         )
@@ -308,8 +328,9 @@ class GamingPage(Gtk.ScrolledWindow):
         return False
 
     def _on_overlay_toggled(self, switch, state):
-        """Handle overlay suppression toggle."""
-        config.set("gaming", "suppress_overlay", state)
+        """Handle the show-overlay toggle. The on-disk key is the inverse
+        (`suppress_overlay`), so flip the polarity here."""
+        config.set("gaming", "suppress_overlay", not state)
         config.save()
         return False
 

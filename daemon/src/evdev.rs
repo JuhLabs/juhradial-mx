@@ -53,7 +53,10 @@ pub enum GestureEvent {
     /// A non-gesture button was pressed/released (for macro trigger detection)
     MacroTriggered { key_code: u16, pressed: bool },
     /// A config-driven button action (non-radial-menu) was triggered
-    ButtonActionEvent { action: crate::config::ButtonAction, pressed: bool },
+    ButtonActionEvent {
+        action: crate::config::ButtonAction,
+        pressed: bool,
+    },
 }
 
 /// Information about a detected input device
@@ -172,8 +175,7 @@ impl EvdevHandler {
             Ok(h) => h,
             Err(_) => return,
         };
-        let path = std::path::PathBuf::from(home)
-            .join(".config/juhradial/config.json");
+        let path = std::path::PathBuf::from(home).join(".config/juhradial/config.json");
         let data = match std::fs::read_to_string(&path) {
             Ok(d) => d,
             Err(_) => return,
@@ -233,7 +235,10 @@ impl EvdevHandler {
         sorted_entries.sort_by_key(|e| {
             e.file_name()
                 .to_str()
-                .and_then(|n| n.strip_prefix("event").and_then(|num| num.parse::<u32>().ok()))
+                .and_then(|n| {
+                    n.strip_prefix("event")
+                        .and_then(|num| num.parse::<u32>().ok())
+                })
                 .unwrap_or(u32::MAX)
         });
 
@@ -293,8 +298,8 @@ impl EvdevHandler {
     /// Scan all input devices for any mouse on Linux
     #[cfg(target_os = "linux")]
     fn scan_generic_mouse() -> Result<DeviceInfo, EvdevError> {
-        use std::fs;
         use evdev::{Device, EventType, RelativeAxisCode};
+        use std::fs;
 
         let input_dir = PathBuf::from("/dev/input");
         if !input_dir.exists() {
@@ -311,7 +316,10 @@ impl EvdevHandler {
         sorted_entries.sort_by_key(|e| {
             e.file_name()
                 .to_str()
-                .and_then(|n| n.strip_prefix("event").and_then(|num| num.parse::<u32>().ok()))
+                .and_then(|n| {
+                    n.strip_prefix("event")
+                        .and_then(|num| num.parse::<u32>().ok())
+                })
                 .unwrap_or(u32::MAX)
         });
 
@@ -348,9 +356,12 @@ impl EvdevHandler {
                 continue;
             }
 
-            let has_rel_axes = device.supported_relative_axes().map(|axes| {
-                axes.contains(RelativeAxisCode::REL_X) && axes.contains(RelativeAxisCode::REL_Y)
-            }).unwrap_or(false);
+            let has_rel_axes = device
+                .supported_relative_axes()
+                .map(|axes| {
+                    axes.contains(RelativeAxisCode::REL_X) && axes.contains(RelativeAxisCode::REL_Y)
+                })
+                .unwrap_or(false);
 
             if !has_rel_axes {
                 continue;
@@ -422,10 +433,12 @@ impl EvdevHandler {
         // This filters out touchpad devices that have same vendor/product ID
         // BTN_SIDE = 0x113 (275), BTN_EXTRA = 0x114 (276)
         let supported_keys = device.supported_keys();
-        let has_gesture_buttons = supported_keys.map(|keys| {
-            // Check by raw key codes
-            keys.iter().any(|k| k.code() == 0x113 || k.code() == 0x114)
-        }).unwrap_or(false);
+        let has_gesture_buttons = supported_keys
+            .map(|keys| {
+                // Check by raw key codes
+                keys.iter().any(|k| k.code() == 0x113 || k.code() == 0x114)
+            })
+            .unwrap_or(false);
 
         // Only consider devices with gesture buttons as MX Master 4
         let is_mx_master_4 = MX_MASTER_4_PRODUCT_IDS.contains(&product_id) && has_gesture_buttons;
@@ -535,8 +548,7 @@ impl EvdevHandler {
         let mut virtual_device = None;
         if !self.suppressed_keys.is_empty() {
             let vdev_result = (|| -> Result<_, std::io::Error> {
-                let mut builder = UinputDevice::builder()?
-                    .name("JuhRadial Virtual Mouse");
+                let mut builder = UinputDevice::builder()?.name("JuhRadial Virtual Mouse");
                 if let Some(keys) = device.supported_keys() {
                     builder = builder.with_keys(keys)?;
                 }
@@ -568,8 +580,7 @@ impl EvdevHandler {
         }
 
         // Create async event stream using into_event_stream()
-        let mut events = device.into_event_stream()
-            .map_err(EvdevError::IoError)?;
+        let mut events = device.into_event_stream().map_err(EvdevError::IoError)?;
 
         // Buffer for batching events between SYN_REPORT frames.
         // Physical mice group REL_X + REL_Y + SYN_REPORT into one report.
@@ -618,10 +629,13 @@ impl EvdevHandler {
                                 // Forward non-primary, non-gesture buttons for macro trigger detection
                                 let value = event.value();
                                 if value == 0 || value == 1 {
-                                    let _ = self.event_tx.send(GestureEvent::MacroTriggered {
-                                        key_code,
-                                        pressed: value == 1,
-                                    }).await;
+                                    let _ = self
+                                        .event_tx
+                                        .send(GestureEvent::MacroTriggered {
+                                            key_code,
+                                            pressed: value == 1,
+                                        })
+                                        .await;
                                 }
                             }
                         }
@@ -634,17 +648,23 @@ impl EvdevHandler {
                                 match code {
                                     RelativeAxisCode::REL_X => {
                                         self.cursor_x += value;
-                                        let _ = self.event_tx.send(GestureEvent::CursorMoved {
-                                            x: self.cursor_x,
-                                            y: self.cursor_y,
-                                        }).await;
+                                        let _ = self
+                                            .event_tx
+                                            .send(GestureEvent::CursorMoved {
+                                                x: self.cursor_x,
+                                                y: self.cursor_y,
+                                            })
+                                            .await;
                                     }
                                     RelativeAxisCode::REL_Y => {
                                         self.cursor_y += value;
-                                        let _ = self.event_tx.send(GestureEvent::CursorMoved {
-                                            x: self.cursor_x,
-                                            y: self.cursor_y,
-                                        }).await;
+                                        let _ = self
+                                            .event_tx
+                                            .send(GestureEvent::CursorMoved {
+                                                x: self.cursor_x,
+                                                y: self.cursor_y,
+                                            })
+                                            .await;
                                     }
                                     _ => {}
                                 }
@@ -665,15 +685,20 @@ impl EvdevHandler {
         }
     }
 
-    /// Get the configured action for the gesture/thumb button from shared config.
-    /// For evdev path, the trigger button maps to "gesture" config key
-    /// (since evdev only sees the physical button, not the HID++ CID).
+    /// Get the configured action for the evdev trigger button.
+    ///
+    /// On MX Master 4, the radial thumb button normally arrives through HID++
+    /// as CID 0x01A0 and maps to `buttons.thumb`. If Easy-Switch clears HID++
+    /// volatile divert, that same physical control falls back to evdev 0x116,
+    /// so this fallback path must use the thumb action as well.
     fn get_evdev_button_action(&self) -> crate::config::ButtonAction {
+        if self.generic_mode {
+            return crate::config::ButtonAction::RadialMenu;
+        }
+
         if let Some(ref config) = self.shared_config {
             if let Ok(cfg) = config.read() {
-                // evdev trigger button corresponds to "gesture" in the config
-                // (the thumb/haptic button is only distinguishable via HID++)
-                return cfg.buttons.gesture;
+                return cfg.buttons.thumb;
             }
         }
         // Default fallback
@@ -696,28 +721,50 @@ impl EvdevHandler {
                     self.cursor_y = 0;
 
                     let is_kde = std::env::var("XDG_CURRENT_DESKTOP")
-                        .map(|d| { let u = d.to_uppercase(); u.contains("KDE") || u.contains("PLASMA") })
+                        .map(|d| {
+                            let u = d.to_uppercase();
+                            u.contains("KDE") || u.contains("PLASMA")
+                        })
                         .unwrap_or(false);
 
                     if is_kde {
-                        tracing::info!("Gesture button pressed (radial_menu) - triggering KWin cursor query");
+                        tracing::info!(
+                            "Gesture button pressed (radial_menu) - triggering KWin cursor query"
+                        );
                         if !Self::trigger_kwin_cursor_script() {
                             let pos = crate::cursor::get_cursor_position();
-                            tracing::warn!(x = pos.x, y = pos.y, "KWin script failed, using fallback");
-                            let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
+                            tracing::warn!(
+                                x = pos.x,
+                                y = pos.y,
+                                "KWin script failed, using fallback"
+                            );
+                            let _ = self
+                                .event_tx
+                                .send(GestureEvent::Pressed { x: pos.x, y: pos.y })
+                                .await;
                         }
                     } else {
                         let pos = crate::cursor::get_cursor_position();
-                        tracing::info!(x = pos.x, y = pos.y, "Gesture button pressed (radial_menu) - cursor query");
-                        let _ = self.event_tx.send(GestureEvent::Pressed { x: pos.x, y: pos.y }).await;
+                        tracing::info!(
+                            x = pos.x,
+                            y = pos.y,
+                            "Gesture button pressed (radial_menu) - cursor query"
+                        );
+                        let _ = self
+                            .event_tx
+                            .send(GestureEvent::Pressed { x: pos.x, y: pos.y })
+                            .await;
                     }
                 } else {
                     // Non-radial action: dispatch via event channel
                     tracing::info!(%action, "Gesture button pressed - non-radial action");
-                    let _ = self.event_tx.send(GestureEvent::ButtonActionEvent {
-                        action,
-                        pressed: true,
-                    }).await;
+                    let _ = self
+                        .event_tx
+                        .send(GestureEvent::ButtonActionEvent {
+                            action,
+                            pressed: true,
+                        })
+                        .await;
                 }
             }
             0 => {
@@ -733,14 +780,20 @@ impl EvdevHandler {
                 match active_action {
                     Some(crate::config::ButtonAction::RadialMenu) | None => {
                         tracing::info!(duration_ms, "Gesture button released (radial_menu)");
-                        let _ = self.event_tx.send(GestureEvent::Released { duration_ms }).await;
+                        let _ = self
+                            .event_tx
+                            .send(GestureEvent::Released { duration_ms })
+                            .await;
                     }
                     Some(action) => {
                         tracing::info!(duration_ms, %action, "Gesture button released (non-radial)");
-                        let _ = self.event_tx.send(GestureEvent::ButtonActionEvent {
-                            action,
-                            pressed: false,
-                        }).await;
+                        let _ = self
+                            .event_tx
+                            .send(GestureEvent::ButtonActionEvent {
+                                action,
+                                pressed: false,
+                            })
+                            .await;
                     }
                 }
             }
@@ -754,8 +807,8 @@ impl EvdevHandler {
     ///
     /// This works correctly on Plasma 6 Wayland with multiple monitors.
     fn trigger_kwin_cursor_script() -> bool {
-        use std::process::Command;
         use std::io::Write;
+        use std::process::Command;
         use tempfile::Builder;
 
         // Create KWin script that calls ShowMenuAtCursor with true cursor position
@@ -942,6 +995,46 @@ mod tests {
 
         assert_eq!(e1, e2);
         assert_ne!(e1, e3);
+    }
+
+    #[test]
+    fn test_mx_evdev_fallback_uses_thumb_action() {
+        let (tx, _rx) = mpsc::channel(1);
+        let mut handler = EvdevHandler::new(tx);
+        let config = crate::config::Config {
+            buttons: crate::config::ButtonsConfig {
+                gesture: crate::config::ButtonAction::VirtualDesktops,
+                thumb: crate::config::ButtonAction::RadialMenu,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        handler.set_shared_config(std::sync::Arc::new(std::sync::RwLock::new(config)));
+
+        assert_eq!(
+            handler.get_evdev_button_action(),
+            crate::config::ButtonAction::RadialMenu
+        );
+    }
+
+    #[test]
+    fn test_generic_evdev_trigger_opens_radial_menu() {
+        let (tx, _rx) = mpsc::channel(1);
+        let mut handler = EvdevHandler::new_generic(tx, None);
+        let config = crate::config::Config {
+            buttons: crate::config::ButtonsConfig {
+                gesture: crate::config::ButtonAction::VirtualDesktops,
+                thumb: crate::config::ButtonAction::VirtualDesktops,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        handler.set_shared_config(std::sync::Arc::new(std::sync::RwLock::new(config)));
+
+        assert_eq!(
+            handler.get_evdev_button_action(),
+            crate::config::ButtonAction::RadialMenu
+        );
     }
 
     #[test]

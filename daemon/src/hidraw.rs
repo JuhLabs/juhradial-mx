@@ -235,6 +235,8 @@ impl HidrawHandler {
                         path
                     );
                     HidrawError::PermissionDenied
+                } else if e.kind() == io::ErrorKind::NotFound {
+                    HidrawError::DeviceNotFound
                 } else {
                     HidrawError::IoError(e)
                 }
@@ -273,8 +275,12 @@ impl HidrawHandler {
                     // Short read, ignore
                 }
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    // No data available, sleep briefly and retry
-                    tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+                    // No data available — sleep before retry. The previous 1ms
+                    // poll generated 1000 wakeups/sec on an idle mouse, which
+                    // contended with the evdev forwarding task on the same
+                    // tokio runtime. 10ms still keeps button latency well below
+                    // the ~50ms human-perceptible threshold for click-to-action.
+                    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
                 }
                 Err(e) => {
                     tracing::error!(error = %e, "Error reading hidraw device");
@@ -376,10 +382,13 @@ impl HidrawHandler {
                 // Non-radial action: dispatch immediately via event channel
                 self.active_button_action = Some(action);
                 self.press_time = Some(Instant::now());
-                let _ = self.event_tx.send(GestureEvent::ButtonActionEvent {
-                    action,
-                    pressed: true,
-                }).await;
+                let _ = self
+                    .event_tx
+                    .send(GestureEvent::ButtonActionEvent {
+                        action,
+                        pressed: true,
+                    })
+                    .await;
             }
         } else if self.macro_cids.contains(&cid) {
             // Diverted macro button pressed - forward as MacroTriggered
@@ -390,10 +399,13 @@ impl HidrawHandler {
                     "Macro button pressed (diverted)"
                 );
                 self.active_macro_cid = Some(cid);
-                let _ = self.event_tx.send(GestureEvent::MacroTriggered {
-                    key_code,
-                    pressed: true,
-                }).await;
+                let _ = self
+                    .event_tx
+                    .send(GestureEvent::MacroTriggered {
+                        key_code,
+                        pressed: true,
+                    })
+                    .await;
             }
         } else if cid == 0 {
             // All buttons released
@@ -412,10 +424,13 @@ impl HidrawHandler {
                             .unwrap_or(0);
                         self.press_time = None;
                         tracing::info!(duration_ms, %action, "Button released (non-radial action)");
-                        let _ = self.event_tx.send(GestureEvent::ButtonActionEvent {
-                            action,
-                            pressed: false,
-                        }).await;
+                        let _ = self
+                            .event_tx
+                            .send(GestureEvent::ButtonActionEvent {
+                                action,
+                                pressed: false,
+                            })
+                            .await;
                     }
                 }
             }
@@ -427,10 +442,13 @@ impl HidrawHandler {
                         key_code = format!("0x{:04X}", key_code),
                         "Macro button released (diverted)"
                     );
-                    let _ = self.event_tx.send(GestureEvent::MacroTriggered {
-                        key_code,
-                        pressed: false,
-                    }).await;
+                    let _ = self
+                        .event_tx
+                        .send(GestureEvent::MacroTriggered {
+                            key_code,
+                            pressed: false,
+                        })
+                        .await;
                 }
             }
         }
@@ -446,7 +464,10 @@ impl HidrawHandler {
             // - KDE: KWin script for accurate multi-monitor Wayland cursor
             // - Others (GNOME, Hyprland, Sway, COSMIC): direct query cascade
             let is_kde = std::env::var("XDG_CURRENT_DESKTOP")
-                .map(|d| { let u = d.to_uppercase(); u.contains("KDE") || u.contains("PLASMA") })
+                .map(|d| {
+                    let u = d.to_uppercase();
+                    u.contains("KDE") || u.contains("PLASMA")
+                })
                 .unwrap_or(false);
 
             if is_kde {
@@ -473,7 +494,10 @@ impl HidrawHandler {
 
             tracing::info!(duration_ms, "Gesture button RELEASED");
 
-            let _ = self.event_tx.send(GestureEvent::Released { duration_ms }).await;
+            let _ = self
+                .event_tx
+                .send(GestureEvent::Released { duration_ms })
+                .await;
         }
     }
 
@@ -488,16 +512,36 @@ impl HidrawHandler {
     /// This method works correctly on Plasma 6 Wayland with multiple monitors,
     /// unlike xdotool/XWayland which clamps cursor to a single screen.
     fn trigger_kwin_cursor_script() -> bool {
-        use std::process::Command;
         use std::io::Write;
+        use std::process::Command;
         use tempfile::Builder;
 
-        // Create KWin script that calls ShowMenuAtCursor with true cursor position
+        // Create KWin script that calls ShowMenuAtCursor with cursor position
+        // converted from KWin logical coords to Qt XCB (XWayland) coords.
+        // On HiDPI screens, KWin logical coords differ from XWayland coords
+        // by the per-screen scale factor. We find which screen contains the
+        // cursor and multiply the local offset by that screen's DPR.
         let script = r#"
 var pos = workspace.cursorPos;
+var dpr = 1.0;
+var sx = 0, sy = 0;
+var screens = workspace.screens;
+if (screens) {
+    for (var i = 0; i < screens.length; i++) {
+        var geo = screens[i].geometry;
+        if (pos.x >= geo.x && pos.x < geo.x + geo.width &&
+            pos.y >= geo.y && pos.y < geo.y + geo.height) {
+            dpr = screens[i].devicePixelRatio;
+            sx = geo.x;
+            sy = geo.y;
+            break;
+        }
+    }
+}
 callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
          "org.kde.juhradialmx.Daemon", "ShowMenuAtCursor",
-         pos.x, pos.y);
+         sx + Math.round((pos.x - sx) * dpr),
+         sy + Math.round((pos.y - sy) * dpr));
 "#;
 
         // Create a temporary file with .js suffix securely
@@ -581,6 +625,20 @@ callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
     pub fn is_connected(&self) -> bool {
         self.device.is_some()
     }
+
+    /// Get the currently opened hidraw path.
+    pub fn device_path(&self) -> Option<PathBuf> {
+        self.device_path.clone()
+    }
+
+    /// Close the current hidraw handle and clear transient press state.
+    pub fn close(&mut self) {
+        self.device = None;
+        self.device_path = None;
+        self.press_time = None;
+        self.active_macro_cid = None;
+        self.active_button_action = None;
+    }
 }
 
 /// Hidraw error type
@@ -598,10 +656,9 @@ impl std::fmt::Display for HidrawError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             HidrawError::DeviceNotFound => write!(f, "Logitech hidraw device not found"),
-            HidrawError::PermissionDenied => write!(
-                f,
-                "Permission denied. Ensure udev rules are installed."
-            ),
+            HidrawError::PermissionDenied => {
+                write!(f, "Permission denied. Ensure udev rules are installed.")
+            }
             HidrawError::IoError(e) => write!(f, "I/O error: {}", e),
         }
     }
@@ -625,5 +682,33 @@ mod tests {
     fn test_hidpp_constants() {
         assert_eq!(HIDPP_SHORT, 0x10);
         assert_eq!(HIDPP_LONG, 0x11);
+    }
+
+    #[test]
+    fn test_missing_hidraw_path_maps_to_device_not_found() {
+        let (tx, _rx) = mpsc::channel(1);
+        let mut handler = HidrawHandler::new(tx);
+        let missing_path =
+            std::env::temp_dir().join(format!("juhradial-missing-hidraw-{}", std::process::id()));
+
+        let result = handler.open_path(&missing_path);
+
+        assert!(matches!(result, Err(HidrawError::DeviceNotFound)));
+    }
+
+    #[test]
+    fn test_hidraw_close_resets_connection_state() {
+        let temp_file = tempfile::NamedTempFile::new().unwrap();
+        let (tx, _rx) = mpsc::channel(1);
+        let mut handler = HidrawHandler::new(tx);
+
+        handler.open_path(temp_file.path()).unwrap();
+        assert!(handler.is_connected());
+        assert_eq!(handler.device_path(), Some(temp_file.path().to_path_buf()));
+
+        handler.close();
+
+        assert!(!handler.is_connected());
+        assert_eq!(handler.device_path(), None);
     }
 }

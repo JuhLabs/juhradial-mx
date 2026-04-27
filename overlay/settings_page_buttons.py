@@ -19,6 +19,7 @@ from i18n import _
 from settings_config import ConfigManager
 from settings_constants import MOUSE_BUTTONS, translate_radial_label
 from settings_dialogs import SliceConfigDialog
+from settings_widgets import GeneratedAssetHero
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +117,9 @@ class ButtonsPage(Gtk.ScrolledWindow):
 
         header_row.append(radial_text)
         radial_card.append(header_row)
+        radial_card.append(
+            GeneratedAssetHero("settings-generated/control-ring.png", max_height=158)
+        )
 
         # Slices container - 2 columns of 4 slices
         slices_grid = Gtk.Grid()
