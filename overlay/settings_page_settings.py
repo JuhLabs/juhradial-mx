@@ -19,7 +19,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, Gdk, GLib, Gio, Adw
 
 from i18n import _, SUPPORTED_LANGUAGES
-from settings_config import ConfigManager, config, get_device_name
+from settings_config import ConfigManager, config
 from settings_constants import (
     SUPPORTED_DES,
     DE_COMMAND_MAP,
@@ -27,7 +27,7 @@ from settings_constants import (
     get_de_key,
 )
 import settings_theme
-from settings_widgets import SettingsCard, SettingRow, PageHeader, InfoCard
+from settings_widgets import SettingsCard, SettingRow, PageHeader
 from themes import get_theme_list
 
 logger = logging.getLogger(__name__)
