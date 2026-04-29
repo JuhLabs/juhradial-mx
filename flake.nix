@@ -15,6 +15,18 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
 
+          gtkRuntimeLibs = with pkgs; [
+            glib
+            gtk4
+            libadwaita
+            gtk4-layer-shell
+            (lib.getLib pango)
+            gdk-pixbuf
+            graphene
+            gobject-introspection
+            harfbuzz
+          ];
+
           # Python environment with both PyQt6 (overlay) and PyGObject (settings)
           pythonEnv = pkgs.python3.withPackages (ps: with ps; [
             pyqt6
@@ -56,13 +68,10 @@
               gobject-introspection
             ];
 
-            buildInputs = with pkgs; [
-              gtk4
-              libadwaita
-              gtk4-layer-shell
+            buildInputs = gtkRuntimeLibs ++ (with pkgs; [
               qt6.qtbase
               qt6.qtsvg
-            ];
+            ]);
 
             dontBuild = true;
             dontWrapQtApps = true;
@@ -147,8 +156,7 @@
 
             # Wrap launcher scripts with GTK/Qt environment variables
             postFixup = let
-              gtkLibs = with pkgs; [ glib gtk4 libadwaita gtk4-layer-shell pango gdk-pixbuf ];
-              typelibPath = pkgs.lib.makeSearchPath "lib/girepository-1.0" gtkLibs;
+              typelibPath = pkgs.lib.makeSearchPath "lib/girepository-1.0" gtkRuntimeLibs;
               qtPluginPath = pkgs.lib.makeSearchPath "lib/qt-6/plugins" [ pkgs.qt6.qtbase pkgs.qt6.qtsvg ];
             in ''
               wrapProgram $out/bin/juhradial-mx \
@@ -212,7 +220,7 @@
               rustc cargo pkg-config
               dbus systemd
               (python3.withPackages (ps: with ps; [ pyqt6 pygobject3 ]))
-              gtk4 libadwaita gtk4-layer-shell
+              gtk4 libadwaita gtk4-layer-shell graphene harfbuzz
               qt6.qtbase qt6.qtsvg
               gobject-introspection
             ];
