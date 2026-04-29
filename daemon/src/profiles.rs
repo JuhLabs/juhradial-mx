@@ -10,7 +10,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use crate::actions::{Action, get_default_actions};
+use crate::actions::{get_default_actions, Action};
 
 /// Current schema version for profiles.json
 pub const SCHEMA_VERSION: u32 = 1;
@@ -146,7 +146,10 @@ pub fn validate_icon_reference(icon: &str) -> bool {
     }
 
     // Check if it's a system icon name (letters, numbers, hyphens)
-    if icon.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+    if icon
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
         return true;
     }
 
@@ -191,8 +194,10 @@ pub fn get_profiles_path() -> PathBuf {
 
 /// Ensure config directory exists (Story 3.1: Task 2.4)
 pub fn ensure_config_dir() -> Result<PathBuf, ProfileError> {
-    let config_dir = get_config_dir();
+    ensure_config_dir_at(get_config_dir())
+}
 
+fn ensure_config_dir_at(config_dir: PathBuf) -> Result<PathBuf, ProfileError> {
     if !config_dir.exists() {
         fs::create_dir_all(&config_dir).map_err(ProfileError::IoError)?;
         tracing::info!("Created config directory: {:?}", config_dir);
@@ -645,17 +650,17 @@ mod tests {
 
     #[test]
     fn test_ensure_config_dir() {
-        // Test that ensure_config_dir creates directory if it doesn't exist
-        // Note: This test uses the real config path - in CI, use temp dir override
-        let config_dir = get_config_dir();
+        let temp_dir = TempDir::new().unwrap();
+        let config_dir = temp_dir.path().join(CONFIG_DIR_NAME);
 
-        // Call ensure_config_dir - should succeed (creates if needed or uses existing)
-        let result = ensure_config_dir();
+        let result = ensure_config_dir_at(config_dir.clone());
         assert!(result.is_ok(), "ensure_config_dir should succeed");
 
-        // Verify the directory now exists
         let returned_path = result.unwrap();
-        assert!(returned_path.exists(), "Config directory should exist after ensure_config_dir");
+        assert!(
+            returned_path.exists(),
+            "Config directory should exist after ensure_config_dir"
+        );
         assert_eq!(returned_path, config_dir);
     }
 
