@@ -22,6 +22,10 @@ After=graphical-session.target
 Wants=graphical-session.target
 PartOf=graphical-session.target
 
+# Limit restart attempts to prevent infinite restart loops
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
 # D-Bus session is required for communication with KWin
 Requires=dbus.socket
 
@@ -32,10 +36,6 @@ ExecStart=/usr/local/bin/juhradiald
 # on-abnormal = non-clean signals, watchdog, timeout — NOT SIGTERM/clean exit.
 Restart=on-abnormal
 RestartSec=5s
-
-# Limit restart attempts to prevent infinite restart loops
-StartLimitIntervalSec=60
-StartLimitBurst=5
 
 # Disable watchdog to prevent systemd drop-ins (e.g. 10-timeout-abort.conf
 # on Fedora) from killing the daemon when it doesn't send sd_notify heartbeats.

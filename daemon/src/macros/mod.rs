@@ -29,7 +29,7 @@ pub use dpi::{DpiManager, DpiProfile};
 pub use engine::MacroEngine;
 pub use recorder::MacroRecorder;
 pub use storage::{delete_macro, load_all_macros, load_macro, save_macro};
-pub use triggers::{TriggerMap, SharedTriggerMap};
+pub use triggers::{SharedTriggerMap, TriggerMap};
 pub use types::{
     events_to_actions, MacroAction, MacroConfig, MacroEvent, PlaybackState, RepeatMode,
     SequenceActions,

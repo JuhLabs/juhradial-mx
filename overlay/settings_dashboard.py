@@ -277,7 +277,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
             # Resume timers
             if not self._is_generic and not self._battery_timer_id:
                 self._battery_timer_id = GLib.timeout_add_seconds(2, self._update_battery)
-                GLib.idle_add(self._update_battery)
+                GLib.idle_add(lambda: self._update_battery() and False)
             if hasattr(self, "_heart_timer") and not self._heart_timer:
                 self._heart_timer = GLib.timeout_add(30, self._tick_heart)
         else:
@@ -399,7 +399,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                 # Check if this is a battery device property change
                 if "UPower" in interface_name or "Device" in interface_name:
                     # Schedule immediate battery update on main thread
-                    GLib.idle_add(self._update_battery)
+                    GLib.idle_add(lambda: self._update_battery() and False)
 
     def _on_upower_device_event(
         self, connection, sender, path, interface, signal, params, user_data

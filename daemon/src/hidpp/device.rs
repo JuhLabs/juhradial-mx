@@ -16,6 +16,10 @@ use super::patterns::Mx4HapticPattern;
 
 /// Software ID for HID++ message tracking
 const SOFTWARE_ID: u8 = 0x01;
+/// Default request poll attempts (attempt * 10ms)
+const HIDPP_DEFAULT_MAX_ATTEMPTS: u32 = 100;
+/// Faster probe timeout used during initial device discovery
+const HIDPP_DISCOVERY_MAX_ATTEMPTS: u32 = 20;
 
 /// HID++ device wrapper for communication with MX Master 4
 ///
@@ -58,6 +62,9 @@ pub struct HidppDevice {
     reprog_controls_feature_index: Option<u8>,
     /// Path to the hidraw device we connected to
     device_path: PathBuf,
+    /// Whether this device only responds to long HID++ reports (0x11) and not short (0x10).
+    /// Set when long-format ping validation succeeds but short-format fails (e.g. Bolt/BT devices).
+    use_long_reports: bool,
 }
 
 impl HidppDevice {
@@ -72,7 +79,9 @@ impl HidppDevice {
             return Vec::new();
         }
 
-        let mut candidates: Vec<(PathBuf, String, ConnectionType)> = Vec::new();
+        // Candidate tuple:
+        // (dev_path, uevent_text, connection_type, is_mx_master_like, is_mouse_like)
+        let mut candidates: Vec<(PathBuf, String, ConnectionType, bool, bool)> = Vec::new();
 
         let entries = match std::fs::read_dir(&hidraw_dir) {
             Ok(e) => e,
@@ -99,46 +108,77 @@ impl HidppDevice {
                 } else if uevent.contains("C52B") || uevent.contains("c52b") {
                     // Unifying receiver
                     ConnectionType::Unifying
-                } else if uevent.contains("B034") || uevent.contains("b034") {
+                } else if uevent.contains("B034")
+                    || uevent.contains("b034")
+                    || uevent.contains("B042")
+                    || uevent.contains("b042")
+                {
                     // MX Master 4 direct USB
                     ConnectionType::Usb
                 } else {
-                    // Other Logitech device - check if interface 2
-                    if uevent.contains("input2") {
-                        ConnectionType::Bluetooth
-                    } else {
-                        continue;
-                    }
+                    // Other Logitech HID interface. Some kernels/receivers do not
+                    // expose the expected product marker in uevent; keep it as a
+                    // candidate and probe both direct and receiver indices later.
+                    ConnectionType::Bluetooth
                 };
 
                 if let Some(name) = path.file_name() {
                     let dev_path = PathBuf::from("/dev").join(name);
-                    candidates.push((dev_path, uevent, connection_type));
+                    let uevent_lc = uevent.to_ascii_lowercase();
+                    let is_mx_master_like = uevent_lc.contains("hid_name=mx master")
+                        || uevent_lc.contains("p0000b042")
+                        || uevent_lc.contains("p0000b034")
+                        || uevent_lc.contains("p0000b035");
+                    let is_mouse_like = is_mx_master_like
+                        || uevent_lc.contains("hid_name=") && uevent_lc.contains("mouse");
+
+                    candidates.push((
+                        dev_path,
+                        uevent,
+                        connection_type,
+                        is_mx_master_like,
+                        is_mouse_like,
+                    ));
                 }
             }
         }
 
-        // Sort: interface 2 devices first (preferred for HID++)
+        // Sort order:
+        // 1) Explicit MX Master candidates first
+        // 2) Mouse-like HID names before keyboard/other Logitech HIDs
+        // 3) interface2 preference (legacy heuristic)
         candidates.sort_by(|a, b| {
+            let mx_cmp = b.3.cmp(&a.3);
+            if mx_cmp != std::cmp::Ordering::Equal {
+                return mx_cmp;
+            }
+
+            let mouse_cmp = b.4.cmp(&a.4);
+            if mouse_cmp != std::cmp::Ordering::Equal {
+                return mouse_cmp;
+            }
+
             let a_is_input2 = a.1.contains("input2");
             let b_is_input2 = b.1.contains("input2");
             b_is_input2.cmp(&a_is_input2)
         });
 
         // Log all candidates
-        for (dev_path, uevent, conn_type) in &candidates {
+        for (dev_path, uevent, conn_type, is_mx_master_like, is_mouse_like) in &candidates {
             let is_input2 = uevent.contains("input2");
             tracing::debug!(
                 path = %dev_path.display(),
                 connection = %conn_type,
                 is_input2,
+                is_mx_master_like,
+                is_mouse_like,
                 "Found Logitech HID++ candidate"
             );
         }
 
         candidates
             .into_iter()
-            .map(|(path, _, conn_type)| (path, conn_type))
+            .map(|(path, _, conn_type, _, _)| (path, conn_type))
             .collect()
     }
 
@@ -167,10 +207,14 @@ impl HidppDevice {
             // Determine device indices to try based on connection type
             // Bolt receivers can have the mouse on any slot (1-6), so try them all
             let indices_to_try: Vec<u8> = match connection_type {
-                ConnectionType::Usb => vec![0xFF],
-                ConnectionType::Bolt => vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
-                ConnectionType::Unifying => vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
-                ConnectionType::Bluetooth => vec![0xFF],
+                // Some direct-connected variants (especially BT stacks exposing
+                // B042) may answer on a receiver-style slot instead of 0xFF.
+                ConnectionType::Usb => vec![0xFF, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
+                ConnectionType::Bolt => vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0xFF],
+                ConnectionType::Unifying => vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0xFF],
+                // For unknown Logitech interfaces, probe both direct-device and
+                // receiver slots to avoid false negatives.
+                ConnectionType::Bluetooth => vec![0xFF, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
             };
 
             // Open the device with read/write and non-blocking
@@ -224,6 +268,7 @@ impl HidppDevice {
                     reprog_controls_supported: false,
                     reprog_controls_feature_index: None,
                     device_path: device_path.clone(),
+                    use_long_reports: false,
                 };
 
                 // Try HID++ validation with retry for sleeping devices
@@ -300,6 +345,32 @@ impl HidppDevice {
     ///
     /// Uses polling with timeout (same approach as battery module).
     fn hidpp_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Option<Vec<u8>> {
+        self.hidpp_request_with_attempts(
+            feature_index,
+            function,
+            params,
+            HIDPP_DEFAULT_MAX_ATTEMPTS,
+        )
+    }
+
+    /// Send a HID++ request with a caller-defined timeout budget.
+    fn hidpp_request_with_attempts(
+        &mut self,
+        feature_index: u8,
+        function: u8,
+        params: &[u8],
+        max_attempts: u32,
+    ) -> Option<Vec<u8>> {
+        // Delegate to long format if this device only responds to long reports
+        if self.use_long_reports {
+            return self.hidpp_long_request_with_attempts(
+                feature_index,
+                function,
+                params,
+                max_attempts,
+            );
+        }
+
         // Drain any pending data first
         self.drain_buffer();
 
@@ -351,7 +422,7 @@ impl HidppDevice {
                         if response[1] == self.device_index
                             && response[2] == feature_index
                             && resp_function == function
-                            && resp_sw_id == SOFTWARE_ID
+                            && (resp_sw_id == SOFTWARE_ID || resp_sw_id == 0x00)
                         {
                             tracing::debug!("HID++ request matched! Returning response");
                             return Some(response[..len].to_vec());
@@ -416,11 +487,12 @@ impl HidppDevice {
             }
 
             attempts += 1;
-            if attempts > 100 {
+            if attempts > max_attempts {
                 tracing::debug!(
                     feature_index,
                     function,
-                    "HID++ request timeout after 100 attempts"
+                    max_attempts,
+                    "HID++ request timeout"
                 );
                 return None;
             }
@@ -471,6 +543,22 @@ impl HidppDevice {
         function: u8,
         params: &[u8],
     ) -> Option<Vec<u8>> {
+        self.hidpp_long_request_with_attempts(
+            feature_index,
+            function,
+            params,
+            HIDPP_DEFAULT_MAX_ATTEMPTS,
+        )
+    }
+
+    /// Send a long HID++ request with a caller-defined timeout budget.
+    fn hidpp_long_request_with_attempts(
+        &mut self,
+        feature_index: u8,
+        function: u8,
+        params: &[u8],
+        max_attempts: u32,
+    ) -> Option<Vec<u8>> {
         // Drain any pending data first
         self.drain_buffer();
 
@@ -513,7 +601,7 @@ impl HidppDevice {
                         && response[1] == self.device_index
                         && response[2] == feature_index
                         && resp_function == function
-                        && resp_sw_id == SOFTWARE_ID
+                        && (resp_sw_id == SOFTWARE_ID || resp_sw_id == 0x00)
                     {
                         tracing::debug!("HID++ long request matched: {:02X?}", &response[..len]);
                         return Some(response[..len].to_vec());
@@ -539,8 +627,13 @@ impl HidppDevice {
             }
 
             attempts += 1;
-            if attempts > 100 {
-                tracing::debug!(feature_index, function, "HID++ long request timeout");
+            if attempts > max_attempts {
+                tracing::debug!(
+                    feature_index,
+                    function,
+                    max_attempts,
+                    "HID++ long request timeout"
+                );
                 return None;
             }
 
@@ -554,10 +647,30 @@ impl HidppDevice {
         // Ping echoes back the data byte and returns protocol version
         let params = [0x00, 0x00, 0xAA]; // 0xAA is ping data to echo
 
-        if let Some(response) = self.hidpp_request(0x00, 0x01, &params) {
-            // Check if ping data was echoed (byte 6 should be 0xAA)
-            if response.len() >= 7 && response[6] == 0xAA {
-                tracing::debug!("HID++ 2.0 validated, ping echoed successfully");
+        if let Some(response) =
+            self.hidpp_request_with_attempts(0x00, 0x01, &params, HIDPP_DISCOVERY_MAX_ATTEMPTS)
+        {
+            // Some receivers/firmware variants answer ping without echoing the
+            // exact payload byte. If we got a correctly matched HID++ response,
+            // treat the endpoint as valid and let feature enumeration decide if
+            // it is the target mouse.
+            if response.len() >= 4 {
+                tracing::debug!("HID++ validated via ping response");
+                return true;
+            }
+        }
+
+        // Some Bluetooth/Bolt stacks only respond to long HID++ reports (0x11).
+        // If short fails but long succeeds, mark this device so all future
+        // requests use the long format.
+        if let Some(response) =
+            self.hidpp_long_request_with_attempts(0x00, 0x01, &params, HIDPP_DISCOVERY_MAX_ATTEMPTS)
+        {
+            if response.len() >= 4 {
+                tracing::debug!(
+                    "HID++ validated via long ping response (switching to long-only mode)"
+                );
+                self.use_long_reports = true;
                 return true;
             }
         }

@@ -80,8 +80,9 @@ package() {
     # Install icon
     install -Dm644 assets/juhradial-mx.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/juhradial-mx.svg"
 
-    # Install systemd user service
+    # Install systemd user services
     install -Dm644 packaging/systemd/juhradialmx-daemon.service "$pkgdir/usr/lib/systemd/user/juhradialmx-daemon.service"
+    install -Dm644 packaging/systemd/juhradialmx-overlay.service "$pkgdir/usr/lib/systemd/user/juhradialmx-overlay.service"
 
     # Install udev rules
     install -Dm644 packaging/udev/99-logitech-hidpp.rules "$pkgdir/usr/lib/udev/rules.d/99-logitech-hidpp.rules"
@@ -96,8 +97,7 @@ package() {
 
 post_install() {
     echo ">>> To start JuhRadial MX:"
-    echo "    systemctl --user enable --now juhradialmx-daemon"
-    echo "    juhradial-mx"
+    echo "    systemctl --user enable --now juhradialmx-daemon juhradialmx-overlay"
     echo ""
     echo ">>> Or find 'JuhRadial MX' in your application menu"
 }

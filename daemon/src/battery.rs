@@ -525,7 +525,11 @@ pub async fn start_battery_updater_shared(
             let mut s = state.write().await;
             s.available = false;
             s.error = Some(format!("{}", e));
-            tracing::warn!(error = %e, "Failed initial battery query");
+            if matches!(&e, crate::hidpp::HapticError::DeviceNotFound) {
+                tracing::info!(error = %e, "Battery unavailable: HID++ device not connected yet");
+            } else {
+                tracing::warn!(error = %e, "Failed initial battery query");
+            }
         }
     }
 
@@ -557,8 +561,20 @@ pub async fn start_battery_updater_shared(
                 s.available = false;
                 s.error = Some(format!("{}", e));
 
-                // Only log warning for first few errors, then go quiet
-                if consecutive_errors <= 3 {
+                // DeviceNotFound is expected while optional HID++ path is unavailable.
+                // Keep logs informational and non-spammy in that case.
+                if matches!(&e, crate::hidpp::HapticError::DeviceNotFound) {
+                    if consecutive_errors == 1 {
+                        tracing::info!(
+                            error = %e,
+                            "Battery unavailable: HID++ device not connected"
+                        );
+                    } else if consecutive_errors == 4 {
+                        tracing::info!(
+                            "Battery queries failing repeatedly - suppressing further warnings"
+                        );
+                    }
+                } else if consecutive_errors <= 3 {
                     tracing::warn!(error = %e, "Failed to query battery (shared)");
                 } else if consecutive_errors == 4 {
                     tracing::info!(

@@ -112,7 +112,10 @@ impl DpiManager {
     }
 
     /// Restore the saved DPI (call when leaving gaming mode)
-    pub fn restore_saved_dpi(&mut self, haptic_manager: &SharedHapticManager) -> Result<(), DpiError> {
+    pub fn restore_saved_dpi(
+        &mut self,
+        haptic_manager: &SharedHapticManager,
+    ) -> Result<(), DpiError> {
         if let Some(dpi) = self.saved_dpi.take() {
             tracing::info!(dpi, "Restoring saved DPI");
             set_dpi(haptic_manager, dpi)
@@ -123,7 +126,10 @@ impl DpiManager {
     }
 
     /// Cycle to the next DPI profile and apply it
-    pub fn cycle_next(&mut self, haptic_manager: &SharedHapticManager) -> Result<&DpiProfile, DpiError> {
+    pub fn cycle_next(
+        &mut self,
+        haptic_manager: &SharedHapticManager,
+    ) -> Result<&DpiProfile, DpiError> {
         if self.profiles.is_empty() {
             return Err(DpiError::NoProfile);
         }
@@ -149,7 +155,9 @@ impl Default for DpiManager {
 pub fn set_dpi(haptic_manager: &SharedHapticManager, dpi: u16) -> Result<(), DpiError> {
     match haptic_manager.lock() {
         Ok(mut manager) => {
-            manager.set_dpi(dpi).map_err(|e| DpiError::DeviceError(format!("{}", e)))?;
+            manager
+                .set_dpi(dpi)
+                .map_err(|e| DpiError::DeviceError(format!("{}", e)))?;
             tracing::info!(dpi, "DPI set on device");
             Ok(())
         }
@@ -244,10 +252,7 @@ mod tests {
 
     #[test]
     fn test_dpi_manager_custom_profiles() {
-        let profiles = vec![
-            DpiProfile::new("Low", 400),
-            DpiProfile::new("High", 3200),
-        ];
+        let profiles = vec![DpiProfile::new("Low", 400), DpiProfile::new("High", 3200)];
         let manager = DpiManager::with_profiles(profiles);
         assert_eq!(manager.profiles().len(), 2);
         assert_eq!(manager.active_profile().unwrap().dpi, 400);

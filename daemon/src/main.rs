@@ -7,14 +7,14 @@ use clap::Parser;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tokio::sync::mpsc;
-use tokio::time::{Duration, sleep};
-use tracing::{Level, debug, error, info, warn};
+use tokio::time::{sleep, timeout, Duration};
+use tracing::{debug, error, info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use juhradiald::{
     battery::{new_shared_state, start_battery_updater_shared},
     config::load_shared_config,
-    dbus::{DBUS_NAME, DBUS_PATH, init_dbus_service_with_device},
+    dbus::{init_dbus_service_with_device, DBUS_NAME, DBUS_PATH},
     evdev::{EvdevError, EvdevHandler, GestureEvent},
     gaming::new_shared_gaming_mode,
     hidpp::SharedHapticManager,
@@ -205,11 +205,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // directly on the tokio runtime stalls every other task (evdev, hidraw, dbus)
     // for up to ~1.5s on cold start. spawn_blocking moves it onto the blocking
     // thread pool so the runtime keeps servicing input events during startup.
-    let mx4_hidraw_path;
-    let mx4_device_name: Option<String>;
+    let mut mx4_hidraw_path: Option<PathBuf> = None;
+    let mut mx4_device_name: Option<String> = None;
     {
         let manager_for_probe = haptic_manager.clone();
-        let probe = tokio::task::spawn_blocking(move || {
+        let probe_task = tokio::task::spawn_blocking(move || {
             let mut manager = manager_for_probe.lock().unwrap();
             let connect_result = manager.connect();
             // Divert immediately while we still hold the lock so we don't race
@@ -222,32 +222,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let path = manager.device_path();
             let name = manager.get_device_name_string();
             (connect_result, divert_result, path, name)
-        })
-        .await
-        .expect("HID++ probe task panicked");
+        });
 
-        match probe.0 {
-            Ok(true) => {
-                info!("Haptic feedback connected to MX Master 4");
-                match probe.1 {
-                    Some(Ok(n)) if n > 0 => info!(count = n, "Gesture buttons diverted via HID++"),
-                    Some(Ok(_)) => {
-                        warn!("No gesture buttons found to divert - thumb button may not work")
+        match timeout(Duration::from_secs(3), probe_task).await {
+            Ok(joined) => {
+                let probe = joined.expect("HID++ probe task panicked");
+                match probe.0 {
+                    Ok(true) => {
+                        info!("Haptic feedback connected to MX Master 4");
+                        match probe.1 {
+                            Some(Ok(n)) if n > 0 => {
+                                info!(count = n, "Gesture buttons diverted via HID++")
+                            }
+                            Some(Ok(_)) => {
+                                warn!("No gesture buttons found to divert - thumb button may not work")
+                            }
+                            Some(Err(e)) => warn!("Button divert failed (non-fatal): {}", e),
+                            None => {}
+                        }
                     }
-                    Some(Err(e)) => warn!("Button divert failed (non-fatal): {}", e),
-                    None => {}
+                    Ok(false) => info!("No MX Master 4 found for haptics (optional)"),
+                    Err(e) => warn!("Haptic connection error (non-fatal): {}", e),
+                }
+                mx4_hidraw_path = probe.2;
+                mx4_device_name = probe.3;
+                if let Some(ref path) = mx4_hidraw_path {
+                    info!(path = %path.display(), "MX Master 4 hidraw path for event listener");
+                }
+                if let Some(ref name) = mx4_device_name {
+                    info!(name = %name, "HID++ device name");
                 }
             }
-            Ok(false) => info!("No MX Master 4 found for haptics (optional)"),
-            Err(e) => warn!("Haptic connection error (non-fatal): {}", e),
-        }
-        mx4_hidraw_path = probe.2;
-        mx4_device_name = probe.3;
-        if let Some(ref path) = mx4_hidraw_path {
-            info!(path = %path.display(), "MX Master 4 hidraw path for event listener");
-        }
-        if let Some(ref name) = mx4_device_name {
-            info!(name = %name, "HID++ device name");
+            Err(_) => {
+                info!(
+                    "HID++ startup probe timed out after 3s; continuing and retrying in background"
+                );
+            }
         }
     }
 
@@ -470,34 +480,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Spawn evdev handlers:
     // - MX evdev loop: fallback for standard MX input events (when HID++ divert unavailable)
-    // - Generic evdev loop: handles non-Logitech mice (e.g., SteelSeries)
-    // Both run simultaneously so either mouse can trigger the radial wheel.
+    // - Generic evdev loop: enabled only when active mode is generic
     let evdev_tx = event_tx.clone();
-    // Always suppress gesture button (BTN_BACK = 0x116) on MX evdev path
-    // so it doesn't leak to the OS as "browser back" / "open last file".
-    // Also suppress any macro-bound buttons.
-    let mut suppressed_for_mx = macro_evdev_codes.clone();
-    for &code in juhradiald::evdev::GESTURE_BUTTON_CODES {
-        suppressed_for_mx.insert(code);
-    }
+    // Suppress only macro-bound buttons. Avoid forced gesture-button suppression
+    // because EVIOCGRAB + uinput forwarding can freeze pointer movement on some
+    // hardware/compositor combinations.
+    let suppressed_for_mx = macro_evdev_codes.clone();
     let hotplug_for_mx = hotplug_notify.clone();
     let evdev_config = shared_config.clone();
     let evdev_handle = tokio::spawn(async move {
         run_evdev_loop(evdev_tx, suppressed_for_mx, hotplug_for_mx, evdev_config).await
     });
 
+    let generic_enabled = device_mode == "generic";
     let generic_evdev_tx = event_tx.clone();
     let suppressed_for_generic = macro_evdev_codes.clone();
     let hotplug_for_generic = hotplug_notify.clone();
     let generic_evdev_config = shared_config.clone();
     let generic_evdev_handle = tokio::spawn(async move {
-        run_generic_evdev_loop(
-            generic_evdev_tx,
-            suppressed_for_generic,
-            hotplug_for_generic,
-            generic_evdev_config,
-        )
-        .await
+        if generic_enabled {
+            run_generic_evdev_loop(
+                generic_evdev_tx,
+                suppressed_for_generic,
+                hotplug_for_generic,
+                generic_evdev_config,
+            )
+            .await;
+        } else {
+            info!("Generic evdev loop disabled (active mode is logitech)");
+            std::future::pending::<()>().await;
+        }
     });
 
     // Spawn event processing task with D-Bus connection
@@ -1141,7 +1153,7 @@ async fn emit_cursor_moved(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use juhradiald::cursor::{CursorPosition, EDGE_MARGIN, MENU_RADIUS, ScreenBounds};
+    use juhradiald::cursor::{CursorPosition, ScreenBounds, EDGE_MARGIN, MENU_RADIUS};
 
     #[test]
     fn test_device_poll_interval() {

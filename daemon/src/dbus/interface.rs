@@ -3,11 +3,13 @@
 //! All methods, signals, and properties for org.kde.juhradialmx.Daemon.
 //! This must be a single `#[interface]` impl block per zbus requirements.
 
-use zbus::{interface, object_server::SignalEmitter, fdo};
+use super::service::JuhRadialService;
 use crate::config::Config;
 use crate::hidpp::HapticEvent;
 use crate::macros::events_to_actions;
-use super::service::JuhRadialService;
+use std::sync::mpsc;
+use std::time::Duration;
+use zbus::{fdo, interface, object_server::SignalEmitter};
 
 #[interface(name = "org.kde.juhradialmx.Daemon")]
 impl JuhRadialService {
@@ -103,17 +105,24 @@ impl JuhRadialService {
             }
         };
 
-        tracing::debug!("Attempting to lock haptic_manager");
-        match self.haptic_manager.lock() {
-            Ok(mut manager) => {
-                tracing::debug!("Lock acquired, calling emit()");
-                match manager.emit(haptic_event) {
-                    Ok(()) => tracing::info!("Haptic emit succeeded"),
-                    Err(e) => tracing::warn!(error = %e, "Haptic emit failed"),
-                }
+        let manager = self.haptic_manager.clone();
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let result = match manager.lock() {
+                Ok(mut mgr) => mgr.emit(haptic_event).map_err(|e| format!("{}", e)),
+                Err(e) => Err(format!("Lock error: {}", e)),
+            };
+            let _ = tx.send(result);
+        });
+
+        match rx.recv_timeout(Duration::from_millis(400)) {
+            Ok(Ok(())) => tracing::info!("Haptic emit succeeded"),
+            Ok(Err(msg)) => tracing::warn!(error = %msg, "Haptic emit failed"),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                tracing::warn!(event, "TriggerHaptic timed out waiting for HID++ lock");
             }
-            Err(e) => {
-                tracing::error!(error = %e, "Failed to lock haptic manager");
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                tracing::warn!("TriggerHaptic worker disconnected before reply");
             }
         }
 
@@ -164,7 +173,10 @@ impl JuhRadialService {
                     }
                     Err(e) => {
                         tracing::error!(error = %e, "Failed to lock haptic manager for update");
-                        return Err(fdo::Error::Failed(format!("Haptic manager lock error: {}", e)));
+                        return Err(fdo::Error::Failed(format!(
+                            "Haptic manager lock error: {}",
+                            e
+                        )));
                     }
                 }
 
@@ -216,22 +228,39 @@ impl JuhRadialService {
     async fn set_dpi(&self, dpi: u16) -> fdo::Result<()> {
         tracing::info!(dpi, "SetDpi called");
 
-        match self.haptic_manager.lock() {
-            Ok(mut manager) => {
-                match manager.set_dpi(dpi) {
-                    Ok(()) => {
-                        tracing::info!(dpi, "DPI set successfully");
-                        Ok(())
-                    }
-                    Err(e) => {
-                        tracing::error!(error = %e, dpi, "Failed to set DPI");
-                        Err(fdo::Error::Failed(format!("Failed to set DPI: {}", e)))
-                    }
+        let manager = self.haptic_manager.clone();
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let result = match manager.lock() {
+                Ok(mut mgr) => mgr.set_dpi(dpi).map_err(|e| format!("{}", e)),
+                Err(e) => Err(format!("Lock error: {}", e)),
+            };
+            let _ = tx.send(result);
+        });
+
+        match rx.recv_timeout(Duration::from_secs(2)) {
+            Ok(Ok(())) => {
+                tracing::info!(dpi, "DPI set successfully");
+                Ok(())
+            }
+            Ok(Err(msg)) => {
+                // HID++ is optional in some Bluetooth setups; avoid surfacing
+                // a hard D-Bus error when the device is simply not connected.
+                if msg.to_ascii_lowercase().contains("not connected") {
+                    tracing::info!(error = %msg, dpi, "SetDpi skipped: HID++ device not connected");
+                    Ok(())
+                } else {
+                    tracing::error!(error = %msg, dpi, "Failed to set DPI");
+                    Err(fdo::Error::Failed(format!("Failed to set DPI: {}", msg)))
                 }
             }
-            Err(e) => {
-                tracing::error!(error = %e, "Failed to lock haptic manager for set_dpi");
-                Err(fdo::Error::Failed(format!("Lock error: {}", e)))
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                tracing::warn!(dpi, "SetDpi timed out waiting for HID++ response");
+                Ok(())
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                tracing::error!("SetDpi worker disconnected before reply");
+                Ok(())
             }
         }
     }
@@ -252,16 +281,14 @@ impl JuhRadialService {
 
     async fn get_smart_shift(&self) -> fdo::Result<(bool, u8)> {
         match self.haptic_manager.lock() {
-            Ok(mut manager) => {
-                match manager.get_smartshift() {
-                    Some((_wheel_mode, auto_disengage, _auto_disengage_default)) => {
-                        let enabled = auto_disengage > 0;
-                        let threshold = if enabled { auto_disengage } else { 30 };
-                        Ok((enabled, threshold))
-                    }
-                    None => Ok((false, 0))
+            Ok(mut manager) => match manager.get_smartshift() {
+                Some((_wheel_mode, auto_disengage, _auto_disengage_default)) => {
+                    let enabled = auto_disengage > 0;
+                    let threshold = if enabled { auto_disengage } else { 30 };
+                    Ok((enabled, threshold))
                 }
-            }
+                None => Ok((false, 0)),
+            },
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock haptic manager for get_smart_shift");
                 Ok((false, 0))
@@ -285,7 +312,10 @@ impl JuhRadialService {
                     }
                     Err(e) => {
                         tracing::error!(error = %e, enabled, threshold, "Failed to set SmartShift");
-                        Err(fdo::Error::Failed(format!("Failed to set SmartShift: {}", e)))
+                        Err(fdo::Error::Failed(format!(
+                            "Failed to set SmartShift: {}",
+                            e
+                        )))
                     }
                 }
             }
@@ -312,12 +342,10 @@ impl JuhRadialService {
 
     async fn get_hiresscroll_mode(&self) -> fdo::Result<(bool, bool, bool)> {
         match self.haptic_manager.lock() {
-            Ok(mut manager) => {
-                match manager.get_hiresscroll_mode() {
-                    Some((hires, invert, target)) => Ok((hires, invert, target)),
-                    None => Ok((true, false, false))
-                }
-            }
+            Ok(mut manager) => match manager.get_hiresscroll_mode() {
+                Some((hires, invert, target)) => Ok((hires, invert, target)),
+                None => Ok((true, false, false)),
+            },
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock haptic manager for get_hiresscroll_mode");
                 Ok((true, false, false))
@@ -325,22 +353,28 @@ impl JuhRadialService {
         }
     }
 
-    async fn set_hiresscroll_mode(&self, hires: bool, invert: bool, target: bool) -> fdo::Result<()> {
+    async fn set_hiresscroll_mode(
+        &self,
+        hires: bool,
+        invert: bool,
+        target: bool,
+    ) -> fdo::Result<()> {
         tracing::info!(hires, invert, target, "SetHiResScrollMode called");
 
         match self.haptic_manager.lock() {
-            Ok(mut manager) => {
-                match manager.set_hiresscroll_mode(hires, invert, target) {
-                    Ok(()) => {
-                        tracing::info!(hires, invert, target, "HiResScroll mode set successfully");
-                        Ok(())
-                    }
-                    Err(e) => {
-                        tracing::error!(error = %e, hires, invert, target, "Failed to set HiResScroll mode");
-                        Err(fdo::Error::Failed(format!("Failed to set HiResScroll mode: {}", e)))
-                    }
+            Ok(mut manager) => match manager.set_hiresscroll_mode(hires, invert, target) {
+                Ok(()) => {
+                    tracing::info!(hires, invert, target, "HiResScroll mode set successfully");
+                    Ok(())
                 }
-            }
+                Err(e) => {
+                    tracing::error!(error = %e, hires, invert, target, "Failed to set HiResScroll mode");
+                    Err(fdo::Error::Failed(format!(
+                        "Failed to set HiResScroll mode: {}",
+                        e
+                    )))
+                }
+            },
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock haptic manager for set_hiresscroll_mode");
                 Err(fdo::Error::Failed(format!("Lock error: {}", e)))
@@ -368,18 +402,20 @@ impl JuhRadialService {
 
     async fn get_easy_switch_info(&self) -> fdo::Result<(u8, u8)> {
         match self.haptic_manager.lock() {
-            Ok(mut manager) => {
-                match manager.get_easy_switch_info() {
-                    Some((num, current)) => {
-                        tracing::info!(num_hosts = num, current_host = current, "Easy-Switch info retrieved");
-                        Ok((num, current))
-                    }
-                    None => {
-                        tracing::debug!("Easy-Switch not supported or unavailable");
-                        Ok((0, 0))
-                    }
+            Ok(mut manager) => match manager.get_easy_switch_info() {
+                Some((num, current)) => {
+                    tracing::info!(
+                        num_hosts = num,
+                        current_host = current,
+                        "Easy-Switch info retrieved"
+                    );
+                    Ok((num, current))
                 }
-            }
+                None => {
+                    tracing::debug!("Easy-Switch not supported or unavailable");
+                    Ok((0, 0))
+                }
+            },
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock haptic manager for get_easy_switch_info");
                 Ok((0, 0))
@@ -389,18 +425,16 @@ impl JuhRadialService {
 
     async fn set_host(&self, host_index: u8) -> fdo::Result<bool> {
         match self.haptic_manager.lock() {
-            Ok(mut manager) => {
-                match manager.set_current_host(host_index) {
-                    Ok(()) => {
-                        tracing::info!(host_index, "Switched to Easy-Switch host");
-                        Ok(true)
-                    }
-                    Err(e) => {
-                        tracing::error!(error = %e, host_index, "Failed to switch host");
-                        Ok(false)
-                    }
+            Ok(mut manager) => match manager.set_current_host(host_index) {
+                Ok(()) => {
+                    tracing::info!(host_index, "Switched to Easy-Switch host");
+                    Ok(true)
                 }
-            }
+                Err(e) => {
+                    tracing::error!(error = %e, host_index, "Failed to switch host");
+                    Ok(false)
+                }
+            },
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock haptic manager for set_host");
                 Ok(false)
@@ -416,18 +450,16 @@ impl JuhRadialService {
         tracing::info!("StartMacroRecording called");
 
         match self.macro_recorder.lock() {
-            Ok(mut recorder) => {
-                match recorder.start() {
-                    Ok(()) => {
-                        tracing::info!("Macro recording started");
-                        Ok(())
-                    }
-                    Err(e) => {
-                        tracing::error!(error = %e, "Failed to start recording");
-                        Err(fdo::Error::Failed(format!("Recording failed: {}", e)))
-                    }
+            Ok(mut recorder) => match recorder.start() {
+                Ok(()) => {
+                    tracing::info!("Macro recording started");
+                    Ok(())
                 }
-            }
+                Err(e) => {
+                    tracing::error!(error = %e, "Failed to start recording");
+                    Err(fdo::Error::Failed(format!("Recording failed: {}", e)))
+                }
+            },
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock macro recorder");
                 Err(fdo::Error::Failed(format!("Lock error: {}", e)))
@@ -476,7 +508,9 @@ impl JuhRadialService {
 
         let macro_id = config.id.clone();
         {
-            let mut engine = self.macro_engine.lock()
+            let mut engine = self
+                .macro_engine
+                .lock()
                 .map_err(|e| fdo::Error::Failed(format!("Lock error: {}", e)))?;
             engine.execute(config);
         }
@@ -497,7 +531,9 @@ impl JuhRadialService {
 
         let macro_id = config.id.clone();
         {
-            let mut engine = self.macro_engine.lock()
+            let mut engine = self
+                .macro_engine
+                .lock()
                 .map_err(|e| fdo::Error::Failed(format!("Lock error: {}", e)))?;
             engine.execute(config);
         }
@@ -513,7 +549,9 @@ impl JuhRadialService {
         tracing::info!("StopMacro called");
 
         {
-            let mut engine = self.macro_engine.lock()
+            let mut engine = self
+                .macro_engine
+                .lock()
                 .map_err(|e| fdo::Error::Failed(format!("Lock error: {}", e)))?;
             engine.stop();
         }
@@ -549,8 +587,7 @@ impl JuhRadialService {
             .map_err(|e| fdo::Error::Failed(format!("Failed to load macros: {}", e)))?;
 
         let list: Vec<&crate::macros::MacroConfig> = macros.values().collect();
-        serde_json::to_string(&list)
-            .map_err(|e| fdo::Error::Failed(format!("JSON error: {}", e)))
+        serde_json::to_string(&list).map_err(|e| fdo::Error::Failed(format!("JSON error: {}", e)))
     }
 
     async fn is_macro_running(&self) -> fdo::Result<bool> {
@@ -599,7 +636,9 @@ impl JuhRadialService {
         tracing::info!(enabled, "SetGamingMode called");
 
         {
-            let mut gm = self.gaming_mode.write()
+            let mut gm = self
+                .gaming_mode
+                .write()
                 .map_err(|e| fdo::Error::Failed(format!("Lock error: {}", e)))?;
             if enabled {
                 gm.enable();

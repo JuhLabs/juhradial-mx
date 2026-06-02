@@ -24,6 +24,7 @@ pub const LOGITECH_VENDOR_ID: u16 = 0x046D;
 /// Known MX Master 4 product IDs (varies by connection type)
 pub const MX_MASTER_4_PRODUCT_IDS: &[u16] = &[
     0xB034, // USB receiver
+    0xB042, // Newer USB/Bluetooth variant seen on Linux evdev
     0xB035, // Bluetooth
     0x4082, // Bolt receiver (variant)
     0xC548, // Unifying receiver (fallback)
@@ -31,6 +32,9 @@ pub const MX_MASTER_4_PRODUCT_IDS: &[u16] = &[
 
 /// Gesture button key code (MX Master 4 haptic thumb button)
 pub const GESTURE_BUTTON_CODES: &[u16] = &[
+    0x113, // BTN_SIDE - common thumb/gesture mapping on some MX firmware paths
+    0x114, // BTN_EXTRA - alternate side-button mapping
+    0x115, // BTN_FORWARD - alternate mapping on some stacks
     0x116, // BTN_BACK - this is the haptic/gesture button on MX Master 4
 ];
 
@@ -429,19 +433,21 @@ impl EvdevHandler {
             return Ok(None);
         }
 
-        // Check if this device has the gesture button keys (BTN_SIDE or BTN_EXTRA)
-        // This filters out touchpad devices that have same vendor/product ID
-        // BTN_SIDE = 0x113 (275), BTN_EXTRA = 0x114 (276)
+        // Check if this device exposes at least one configured gesture button key.
+        // This filters out non-mouse Logitech devices that may share product IDs.
         let supported_keys = device.supported_keys();
         let has_gesture_buttons = supported_keys
             .map(|keys| {
-                // Check by raw key codes
-                keys.iter().any(|k| k.code() == 0x113 || k.code() == 0x114)
+                keys.iter()
+                    .any(|k| GESTURE_BUTTON_CODES.contains(&k.code()))
             })
             .unwrap_or(false);
 
-        // Only consider devices with gesture buttons as MX Master 4
-        let is_mx_master_4 = MX_MASTER_4_PRODUCT_IDS.contains(&product_id) && has_gesture_buttons;
+        // Prefer strict key-capability match, but fall back to product+name for
+        // connection variants where the gesture key is remapped by firmware.
+        let looks_like_mx_by_name = name.to_ascii_lowercase().contains("mx master");
+        let is_mx_master_4 = MX_MASTER_4_PRODUCT_IDS.contains(&product_id)
+            && (has_gesture_buttons || looks_like_mx_by_name);
 
         if is_mx_master_4 {
             tracing::debug!(
@@ -509,7 +515,7 @@ impl EvdevHandler {
     /// Run the event loop on Linux
     #[cfg(target_os = "linux")]
     async fn run_event_loop(&mut self) -> Result<(), EvdevError> {
-        use evdev::{Device, EventType, RelativeAxisCode, uinput::VirtualDevice as UinputDevice};
+        use evdev::{uinput::VirtualDevice as UinputDevice, Device, EventType, RelativeAxisCode};
 
         // Find the device based on mode
         let device_info = if self.generic_mode {
@@ -604,10 +610,19 @@ impl EvdevHandler {
                     if let Some(ref mut vdev) = virtual_device {
                         if event.event_type() == EventType::SYNCHRONIZATION {
                             if !event_batch.is_empty() {
-                                let _ = vdev.emit(&event_batch);
+                                if let Err(e) = vdev.emit(&event_batch) {
+                                    tracing::warn!(
+                                        error = %e,
+                                        batch_len = event_batch.len(),
+                                        "Failed to forward grabbed input batch to virtual device"
+                                    );
+                                }
                                 event_batch.clear();
                             }
-                        } else if !is_suppressed_key {
+                        } else if !is_suppressed_key
+                            && (event.event_type() == EventType::KEY
+                                || event.event_type() == EventType::RELATIVE)
+                        {
                             event_batch.push(event);
                         }
                     }
@@ -624,7 +639,7 @@ impl EvdevHandler {
                                 GESTURE_BUTTON_CODES.contains(&key_code)
                             };
                             if is_trigger {
-                                self.handle_gesture_event(event.value()).await;
+                                self.handle_gesture_event(key_code, event.value()).await;
                             } else if !PRIMARY_BUTTONS.contains(&key_code) {
                                 // Forward non-primary, non-gesture buttons for macro trigger detection
                                 let value = event.value();
@@ -639,35 +654,33 @@ impl EvdevHandler {
                                 }
                             }
                         }
-                        EventType::RELATIVE => {
+                        EventType::RELATIVE if self.menu_active => {
                             // Track mouse movement while menu is active
-                            if self.menu_active {
-                                let code = RelativeAxisCode(event.code());
-                                let value = event.value();
+                            let code = RelativeAxisCode(event.code());
+                            let value = event.value();
 
-                                match code {
-                                    RelativeAxisCode::REL_X => {
-                                        self.cursor_x += value;
-                                        let _ = self
-                                            .event_tx
-                                            .send(GestureEvent::CursorMoved {
-                                                x: self.cursor_x,
-                                                y: self.cursor_y,
-                                            })
-                                            .await;
-                                    }
-                                    RelativeAxisCode::REL_Y => {
-                                        self.cursor_y += value;
-                                        let _ = self
-                                            .event_tx
-                                            .send(GestureEvent::CursorMoved {
-                                                x: self.cursor_x,
-                                                y: self.cursor_y,
-                                            })
-                                            .await;
-                                    }
-                                    _ => {}
+                            match code {
+                                RelativeAxisCode::REL_X => {
+                                    self.cursor_x += value;
+                                    let _ = self
+                                        .event_tx
+                                        .send(GestureEvent::CursorMoved {
+                                            x: self.cursor_x,
+                                            y: self.cursor_y,
+                                        })
+                                        .await;
                                 }
+                                RelativeAxisCode::REL_Y => {
+                                    self.cursor_y += value;
+                                    let _ = self
+                                        .event_tx
+                                        .send(GestureEvent::CursorMoved {
+                                            x: self.cursor_x,
+                                            y: self.cursor_y,
+                                        })
+                                        .await;
+                                }
+                                _ => {}
                             }
                         }
                         _ => {}
@@ -685,32 +698,40 @@ impl EvdevHandler {
         }
     }
 
-    /// Get the configured action for the evdev trigger button.
+    /// Get the configured action for a given evdev side-button code.
     ///
     /// On MX Master 4, the radial thumb button normally arrives through HID++
-    /// as CID 0x01A0 and maps to `buttons.thumb`. If Easy-Switch clears HID++
-    /// volatile divert, that same physical control falls back to evdev 0x116,
-    /// so this fallback path must use the thumb action as well.
-    fn get_evdev_button_action(&self) -> crate::config::ButtonAction {
+    /// as CID 0x01A0 and maps to `buttons.thumb`. If HID++ divert is lost,
+    /// button events may fall back to evdev; in that case we map by key code
+    /// so the gesture side buttons keep using `buttons.gesture`.
+    fn get_evdev_button_action_for_code(&self, key_code: u16) -> crate::config::ButtonAction {
         if self.generic_mode {
             return crate::config::ButtonAction::RadialMenu;
         }
 
         if let Some(ref config) = self.shared_config {
             if let Ok(cfg) = config.read() {
-                return cfg.buttons.thumb;
+                return match key_code {
+                    0x116 => cfg.buttons.thumb,           // BTN_BACK (thumb/haptic)
+                    0x113..=0x115 => cfg.buttons.gesture, // Other side mappings
+                    _ => cfg.buttons.thumb,
+                };
             }
         }
-        // Default fallback
-        crate::config::ButtonAction::RadialMenu
+        // Default fallback if config is unavailable.
+        match key_code {
+            0x116 => crate::config::ButtonAction::RadialMenu,
+            0x113..=0x115 => crate::config::ButtonAction::VirtualDesktops,
+            _ => crate::config::ButtonAction::RadialMenu,
+        }
     }
 
     /// Handle a gesture button event
-    async fn handle_gesture_event(&mut self, value: i32) {
+    async fn handle_gesture_event(&mut self, key_code: u16, value: i32) {
         match value {
             1 => {
                 // Button pressed - check configured action
-                let action = self.get_evdev_button_action();
+                let action = self.get_evdev_button_action_for_code(key_code);
                 self.active_button_action = Some(action);
                 self.press_time = Some(Instant::now());
 
@@ -972,12 +993,17 @@ mod tests {
     fn test_mx_master_4_product_ids() {
         assert!(!MX_MASTER_4_PRODUCT_IDS.is_empty());
         assert!(MX_MASTER_4_PRODUCT_IDS.contains(&0xB034));
+        assert!(MX_MASTER_4_PRODUCT_IDS.contains(&0xB042));
     }
 
     #[test]
     fn test_gesture_button_codes() {
         assert!(!GESTURE_BUTTON_CODES.is_empty());
-        // BTN_BACK - haptic/gesture button on MX Master 4
+        // Accept multiple firmware/input-stack mappings for the MX thumb button.
+        assert!(GESTURE_BUTTON_CODES.contains(&0x113));
+        assert!(GESTURE_BUTTON_CODES.contains(&0x114));
+        assert!(GESTURE_BUTTON_CODES.contains(&0x115));
+        // BTN_BACK - classic haptic/gesture mapping on MX Master.
         assert!(GESTURE_BUTTON_CODES.contains(&0x116));
     }
 
@@ -998,7 +1024,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mx_evdev_fallback_uses_thumb_action() {
+    fn test_mx_evdev_thumb_and_gesture_are_distinct() {
         let (tx, _rx) = mpsc::channel(1);
         let mut handler = EvdevHandler::new(tx);
         let config = crate::config::Config {
@@ -1012,8 +1038,12 @@ mod tests {
         handler.set_shared_config(std::sync::Arc::new(std::sync::RwLock::new(config)));
 
         assert_eq!(
-            handler.get_evdev_button_action(),
+            handler.get_evdev_button_action_for_code(0x116),
             crate::config::ButtonAction::RadialMenu
+        );
+        assert_eq!(
+            handler.get_evdev_button_action_for_code(0x113),
+            crate::config::ButtonAction::VirtualDesktops
         );
     }
 
@@ -1032,7 +1062,7 @@ mod tests {
         handler.set_shared_config(std::sync::Arc::new(std::sync::RwLock::new(config)));
 
         assert_eq!(
-            handler.get_evdev_button_action(),
+            handler.get_evdev_button_action_for_code(0x113),
             crate::config::ButtonAction::RadialMenu
         );
     }

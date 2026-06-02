@@ -9,6 +9,8 @@ pub const LOGITECH_VENDOR_ID: u16 = 0x046D;
 pub mod product_ids {
     /// MX Master 4 via USB
     pub const MX_MASTER_4_USB: u16 = 0xB034;
+    /// MX Master 4 via USB/Bluetooth variant seen on newer firmware
+    pub const MX_MASTER_4_USB_ALT: u16 = 0xB042;
     /// MX Master 4 via Bolt receiver
     pub const MX_MASTER_4_BOLT: u16 = 0xC548;
     /// Bolt receiver itself

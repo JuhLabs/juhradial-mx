@@ -1,0 +1,26 @@
+# JuhRadial MX Overlay - systemd user service
+#
+# Starts the overlay process that renders the radial menu UI and listens
+# for D-Bus signals from the daemon.
+
+[Unit]
+Description=JuhRadial MX Overlay
+After=graphical-session.target juhradialmx-daemon.service
+Wants=graphical-session.target juhradialmx-daemon.service
+PartOf=graphical-session.target
+
+# D-Bus session is required for communication with the daemon
+Requires=dbus.socket
+
+[Service]
+Type=simple
+ExecStart=/bin/sh -lc 'if [ -f /usr/share/juhradial/juhradial-overlay.py ]; then exec /usr/bin/python3 /usr/share/juhradial/juhradial-overlay.py; elif [ -f /usr/share/juhradial/overlay/juhradial-overlay.py ]; then exec /usr/bin/python3 /usr/share/juhradial/overlay/juhradial-overlay.py; elif [ -f /opt/juhradial-mx/overlay/juhradial-overlay.py ]; then exec /usr/bin/python3 /opt/juhradial-mx/overlay/juhradial-overlay.py; else echo "juhradial overlay script not found" >&2; exit 1; fi'
+Restart=on-failure
+RestartSec=3s
+
+# Keep resources modest for the UI helper process
+MemoryMax=200M
+CPUQuota=50%
+
+[Install]
+WantedBy=default.target
