@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use super::types::{MacroAction, MacroConfig, PlaybackState, RepeatMode, mouse_button_to_number};
+use super::types::{mouse_button_to_number, MacroAction, MacroConfig, PlaybackState, RepeatMode};
 
 // Re-export for main.rs convenience
 pub use super::triggers::SharedTriggerMap;
@@ -140,7 +140,11 @@ fn execute_action(action: &MacroAction) {
         MacroAction::Delay(_) => {} // Handled by the timing loop
         MacroAction::Text(text) => synthesize_text(text),
         MacroAction::Scroll { direction, amount } => {
-            let sign = if direction == "down" || direction == "left" { -1 } else { 1 };
+            let sign = if direction == "down" || direction == "left" {
+                -1
+            } else {
+                1
+            };
             synthesize_scroll(sign * amount);
         }
     }
@@ -163,11 +167,7 @@ fn effective_delay(action: &MacroAction, config: &MacroConfig) -> Duration {
 }
 
 /// Execute a list of actions once, checking the stop signal between each
-fn execute_actions_once(
-    actions: &[MacroAction],
-    config: &MacroConfig,
-    stop_signal: &AtomicBool,
-) {
+fn execute_actions_once(actions: &[MacroAction], config: &MacroConfig, stop_signal: &AtomicBool) {
     for action in actions {
         if stop_signal.load(Ordering::Relaxed) {
             return;
@@ -371,12 +371,26 @@ fn release_stuck_keys(actions: &[MacroAction]) {
     // Release everything that might be stuck (union of all downs in the list)
     // We release ALL keys mentioned in any KeyDown, not just the delta,
     // because we don't know which iteration point we interrupted at.
-    let all_keys: Vec<String> = actions.iter().filter_map(|a| {
-        if let MacroAction::KeyDown(key) = a { Some(key.clone()) } else { None }
-    }).collect();
-    let all_mouse: Vec<String> = actions.iter().filter_map(|a| {
-        if let MacroAction::MouseDown(btn) = a { Some(btn.clone()) } else { None }
-    }).collect();
+    let all_keys: Vec<String> = actions
+        .iter()
+        .filter_map(|a| {
+            if let MacroAction::KeyDown(key) = a {
+                Some(key.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    let all_mouse: Vec<String> = actions
+        .iter()
+        .filter_map(|a| {
+            if let MacroAction::MouseDown(btn) = a {
+                Some(btn.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
 
     for key in &all_keys {
         tracing::debug!(key = %key, "Releasing stuck key after macro stop");
@@ -454,7 +468,9 @@ fn run_playback(config: MacroConfig, stop: Arc<AtomicBool>) {
                 let no_stop = AtomicBool::new(false);
                 execute_actions_once(&seq.release, &config, &no_stop);
             } else {
-                tracing::warn!("Sequence mode but no sequence_actions defined, falling back to Once");
+                tracing::warn!(
+                    "Sequence mode but no sequence_actions defined, falling back to Once"
+                );
                 execute_actions_once(&config.actions, &config, &stop);
             }
         }
@@ -479,10 +495,7 @@ mod tests {
             description: String::new(),
             repeat_mode: RepeatMode::Once,
             repeat_count: 3,
-            actions: vec![
-                MacroAction::Delay(10),
-                MacroAction::Delay(10),
-            ],
+            actions: vec![MacroAction::Delay(10), MacroAction::Delay(10)],
             sequence_actions: None,
             standard_delay_ms: 5,
             use_standard_delay: false,

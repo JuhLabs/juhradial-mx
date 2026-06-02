@@ -528,9 +528,45 @@ install_files() {
     sudo install -Dm644 assets/juhradial-mx.svg /usr/share/icons/hicolor/scalable/apps/juhradial-mx.svg
     log_success "Desktop integration"
 
-    # Install systemd service
+    # Install systemd services
     mkdir -p "$SYSTEMD_USER_DIR"
-    cp packaging/systemd/juhradialmx-daemon.service "$SYSTEMD_USER_DIR/"
+
+    # Daemon unit is required
+    if [ -f packaging/systemd/juhradialmx-daemon.service ]; then
+        cp packaging/systemd/juhradialmx-daemon.service "$SYSTEMD_USER_DIR/"
+    else
+        log_error "Missing required file: packaging/systemd/juhradialmx-daemon.service"
+        exit 1
+    fi
+
+    # Overlay unit may be missing in older source snapshots; generate fallback
+    # unit instead of aborting installation.
+    if [ -f packaging/systemd/juhradialmx-overlay.service ]; then
+        cp packaging/systemd/juhradialmx-overlay.service "$SYSTEMD_USER_DIR/"
+    else
+        log_warning "Overlay unit file not found in source - generating fallback service"
+        cat > "$SYSTEMD_USER_DIR/juhradialmx-overlay.service" << 'EOF'
+# JuhRadial MX Overlay - systemd user service
+
+[Unit]
+Description=JuhRadial MX Overlay
+After=graphical-session.target juhradialmx-daemon.service
+Wants=graphical-session.target juhradialmx-daemon.service
+PartOf=graphical-session.target
+Requires=dbus.socket
+
+[Service]
+Type=simple
+ExecStart=/bin/sh -lc 'if [ -f /usr/share/juhradial/juhradial-overlay.py ]; then exec /usr/bin/python3 /usr/share/juhradial/juhradial-overlay.py; elif [ -f /usr/share/juhradial/overlay/juhradial-overlay.py ]; then exec /usr/bin/python3 /usr/share/juhradial/overlay/juhradial-overlay.py; elif [ -f /opt/juhradial-mx/overlay/juhradial-overlay.py ]; then exec /usr/bin/python3 /opt/juhradial-mx/overlay/juhradial-overlay.py; else echo "juhradial overlay script not found" >&2; exit 1; fi'
+Restart=on-failure
+RestartSec=3s
+MemoryMax=200M
+CPUQuota=50%
+
+[Install]
+WantedBy=default.target
+EOF
+    fi
 
     # Install/update udev rules (always update to fix security issues in older versions)
     if [ -f packaging/udev/99-juhradialmx.rules ]; then
@@ -566,14 +602,17 @@ enable_service() {
 
     systemctl --user daemon-reload || log_warning "Failed to reload user systemd"
     systemctl --user enable juhradialmx-daemon || log_warning "Failed to enable service"
+    systemctl --user enable juhradialmx-overlay || log_warning "Failed to enable overlay service"
 
     # Restart on upgrade, start on fresh install
     if [ "$INSTALL_MODE" = "upgrade" ]; then
         systemctl --user restart juhradialmx-daemon || log_warning "Failed to restart service"
-        log_success "Service restarted"
+        systemctl --user restart juhradialmx-overlay || log_warning "Failed to restart overlay service"
+        log_success "Services restarted"
     else
         systemctl --user start juhradialmx-daemon || log_warning "Failed to start service"
-        log_success "Service enabled and started"
+        systemctl --user start juhradialmx-overlay || log_warning "Failed to start overlay service"
+        log_success "Services enabled and started"
     fi
 }
 
@@ -673,8 +712,8 @@ print_success() {
     echo ""
     echo -e "  ${BOLD}Useful commands${RESET}"
     echo -e "  ${GRAY}$(printf '%.0s─' {1..48})${RESET}"
-    echo -e "  ${DIM}Status${RESET}   systemctl --user status juhradialmx-daemon"
-    echo -e "  ${DIM}Logs${RESET}     journalctl --user -u juhradialmx-daemon -f"
+    echo -e "  ${DIM}Status${RESET}   systemctl --user status juhradialmx-daemon juhradialmx-overlay"
+    echo -e "  ${DIM}Logs${RESET}     journalctl --user -u juhradialmx-daemon -u juhradialmx-overlay -f"
     echo ""
     echo -e "  ${GRAY}github.com/JuhLabs/juhradial-mx${RESET}"
     echo ""

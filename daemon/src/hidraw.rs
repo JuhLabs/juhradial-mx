@@ -169,7 +169,11 @@ impl HidrawHandler {
                 } else if uevent.contains("C52B") || uevent.contains("c52b") {
                     // Unifying receiver
                     2
-                } else if uevent.contains("B034") || uevent.contains("b034") {
+                } else if uevent.contains("B034")
+                    || uevent.contains("b034")
+                    || uevent.contains("B042")
+                    || uevent.contains("b042")
+                {
                     // MX Master 4 direct USB
                     2
                 } else {
@@ -185,7 +189,7 @@ impl HidrawHandler {
         }
 
         // Sort by priority (highest first)
-        candidates.sort_by(|a, b| b.2.cmp(&a.2));
+        candidates.sort_by_key(|b| std::cmp::Reverse(b.2));
 
         // Prefer interface 2 (input2) which is typically used for HID++ communication
         let max_priority = candidates.first().map(|(_, _, p)| *p).unwrap_or(0);

@@ -21,39 +21,89 @@ fn evdev_code_to_key_name(code: u16) -> Option<String> {
     // Common key codes from linux/input-event-codes.h
     let name = match code {
         1 => "Escape",
-        2 => "1", 3 => "2", 4 => "3", 5 => "4", 6 => "5",
-        7 => "6", 8 => "7", 9 => "8", 10 => "9", 11 => "0",
-        12 => "minus", 13 => "equal",
-        14 => "BackSpace", 15 => "Tab",
-        16 => "q", 17 => "w", 18 => "e", 19 => "r", 20 => "t",
-        21 => "y", 22 => "u", 23 => "i", 24 => "o", 25 => "p",
-        26 => "bracketleft", 27 => "bracketright",
+        2 => "1",
+        3 => "2",
+        4 => "3",
+        5 => "4",
+        6 => "5",
+        7 => "6",
+        8 => "7",
+        9 => "8",
+        10 => "9",
+        11 => "0",
+        12 => "minus",
+        13 => "equal",
+        14 => "BackSpace",
+        15 => "Tab",
+        16 => "q",
+        17 => "w",
+        18 => "e",
+        19 => "r",
+        20 => "t",
+        21 => "y",
+        22 => "u",
+        23 => "i",
+        24 => "o",
+        25 => "p",
+        26 => "bracketleft",
+        27 => "bracketright",
         28 => "Return",
         29 => "ctrl",
-        30 => "a", 31 => "s", 32 => "d", 33 => "f", 34 => "g",
-        35 => "h", 36 => "j", 37 => "k", 38 => "l",
-        39 => "semicolon", 40 => "apostrophe", 41 => "grave",
+        30 => "a",
+        31 => "s",
+        32 => "d",
+        33 => "f",
+        34 => "g",
+        35 => "h",
+        36 => "j",
+        37 => "k",
+        38 => "l",
+        39 => "semicolon",
+        40 => "apostrophe",
+        41 => "grave",
         42 => "shift",
         43 => "backslash",
-        44 => "z", 45 => "x", 46 => "c", 47 => "v", 48 => "b",
-        49 => "n", 50 => "m",
-        51 => "comma", 52 => "period", 53 => "slash",
+        44 => "z",
+        45 => "x",
+        46 => "c",
+        47 => "v",
+        48 => "b",
+        49 => "n",
+        50 => "m",
+        51 => "comma",
+        52 => "period",
+        53 => "slash",
         54 => "shift", // Right shift
         56 => "alt",
         57 => "space",
         58 => "Caps_Lock",
         // F-keys
-        59 => "F1", 60 => "F2", 61 => "F3", 62 => "F4",
-        63 => "F5", 64 => "F6", 65 => "F7", 66 => "F8",
-        67 => "F9", 68 => "F10", 87 => "F11", 88 => "F12",
+        59 => "F1",
+        60 => "F2",
+        61 => "F3",
+        62 => "F4",
+        63 => "F5",
+        64 => "F6",
+        65 => "F7",
+        66 => "F8",
+        67 => "F9",
+        68 => "F10",
+        87 => "F11",
+        88 => "F12",
         // Navigation
-        102 => "Home", 103 => "Up", 104 => "Page_Up",
-        105 => "Left", 106 => "Right",
-        107 => "End", 108 => "Down", 109 => "Page_Down",
-        110 => "Insert", 111 => "Delete",
+        102 => "Home",
+        103 => "Up",
+        104 => "Page_Up",
+        105 => "Left",
+        106 => "Right",
+        107 => "End",
+        108 => "Down",
+        109 => "Page_Down",
+        110 => "Insert",
+        111 => "Delete",
         // Modifiers (right side)
-        97 => "ctrl",  // Right ctrl
-        100 => "alt",  // Right alt
+        97 => "ctrl",   // Right ctrl
+        100 => "alt",   // Right alt
         125 => "super", // Left super
         126 => "super", // Right super
         _ => return None,
@@ -204,11 +254,9 @@ fn record_events(
             }
 
             // Use tokio::select with a timeout to check the recording flag periodically
-            let event_result = tokio::time::timeout(
-                std::time::Duration::from_millis(100),
-                events.next_event(),
-            )
-            .await;
+            let event_result =
+                tokio::time::timeout(std::time::Duration::from_millis(100), events.next_event())
+                    .await;
 
             match event_result {
                 Ok(Ok(event)) => {
@@ -300,9 +348,10 @@ fn find_keyboard_device() -> Result<std::path::PathBuf, RecorderError> {
         }
 
         // Verify it has actual keyboard keys (not just mouse buttons)
-        let has_keyboard_keys = device.supported_keys().map(|keys| {
-            keys.contains(KeyCode::KEY_A) && keys.contains(KeyCode::KEY_Z)
-        }).unwrap_or(false);
+        let has_keyboard_keys = device
+            .supported_keys()
+            .map(|keys| keys.contains(KeyCode::KEY_A) && keys.contains(KeyCode::KEY_Z))
+            .unwrap_or(false);
 
         if has_keyboard_keys {
             return Ok(path);
@@ -319,7 +368,9 @@ fn record_events(
     _state: Arc<Mutex<RecorderState>>,
 ) -> Result<(), RecorderError> {
     tracing::warn!("Macro recording is only supported on Linux");
-    Err(RecorderError::DeviceError("Not supported on this platform".to_string()))
+    Err(RecorderError::DeviceError(
+        "Not supported on this platform".to_string(),
+    ))
 }
 
 // ============================================================================

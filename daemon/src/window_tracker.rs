@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use zbus::{Connection, Result as ZbusResult, proxy};
+use zbus::{proxy, Connection, Result as ZbusResult};
 
 /// KWin D-Bus service name (for future KWin integration)
 #[allow(dead_code)]

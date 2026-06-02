@@ -89,8 +89,9 @@ install -Dm644 packaging/juhradial-mx.desktop %{buildroot}%{_datadir}/applicatio
 # Install icon
 install -Dm644 assets/juhradial-mx.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/juhradial-mx.svg
 
-# Install systemd user service
+# Install systemd user services
 install -Dm644 packaging/systemd/juhradialmx-daemon.service %{buildroot}%{_userunitdir}/juhradialmx-daemon.service
+install -Dm644 packaging/systemd/juhradialmx-overlay.service %{buildroot}%{_userunitdir}/juhradialmx-overlay.service
 
 # Install udev rules
 install -Dm644 packaging/udev/99-logitech-hidpp.rules %{buildroot}%{_udevrulesdir}/99-logitech-hidpp.rules
@@ -117,6 +118,7 @@ install -Dm644 packaging/udev/99-logitech-hidpp.rules %{buildroot}%{_udevrulesdi
 %{_datadir}/applications/juhradial-mx.desktop
 %{_datadir}/icons/hicolor/scalable/apps/juhradial-mx.svg
 %{_userunitdir}/juhradialmx-daemon.service
+%{_userunitdir}/juhradialmx-overlay.service
 %{_udevrulesdir}/99-logitech-hidpp.rules
 %changelog
 * Mon Apr 27 2026 JuhLabs (Julian Hermstad) <julianhermstad@icloud.com> - 0.3.2-1
