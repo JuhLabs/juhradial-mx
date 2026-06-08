@@ -25,6 +25,7 @@ pub const LOGITECH_VENDOR_ID: u16 = 0x046D;
 pub const MX_MASTER_4_PRODUCT_IDS: &[u16] = &[
     0xB034, // USB receiver
     0xB035, // Bluetooth
+    0xB042, // Bluetooth (variant reported by some MX Master 4 units)
     0x4082, // Bolt receiver (variant)
     0xC548, // Unifying receiver (fallback)
 ];
