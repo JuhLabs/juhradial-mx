@@ -102,6 +102,12 @@ impl HidppDevice {
                 } else if uevent.contains("B034") || uevent.contains("b034") {
                     // MX Master 4 direct USB
                     ConnectionType::Usb
+                } else if uevent.contains("HID_ID=0005") {
+                    // Direct Bluetooth connection. The kernel exposes a virtual
+                    // uhid device whose uevent has no "input2" interface marker;
+                    // detect it by the HID bus id (0005 = Bluetooth). This covers
+                    // MX Master 4 units that pair over BT as e.g. PID B042.
+                    ConnectionType::Bluetooth
                 } else {
                     // Other Logitech device - check if interface 2
                     if uevent.contains("input2") {
@@ -300,6 +306,15 @@ impl HidppDevice {
     ///
     /// Uses polling with timeout (same approach as battery module).
     fn hidpp_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Option<Vec<u8>> {
+        // Bluetooth-connected devices do not expose the short (0x10) HID++
+        // report — their HID descriptor only contains the long (0x11) report.
+        // Writing a short report there is dropped and never answered, so route
+        // every short request through the long path. This makes HID++
+        // validation, feature enumeration and haptics work over Bluetooth.
+        if self.connection_type == ConnectionType::Bluetooth {
+            return self.hidpp_long_request(feature_index, function, params);
+        }
+
         // Drain any pending data first
         self.drain_buffer();
 
@@ -1051,6 +1066,32 @@ impl HidppDevice {
         const MX4_HAPTIC_SW_ID: u8 = 0x0E; // Software ID used by mx4notifications
 
         self.drain_buffer();
+
+        // Bluetooth devices only expose the long (0x11) report, so send the
+        // haptic command as a 20-byte long report there. The short-report path
+        // below is left untouched for USB/Bolt where it is already verified.
+        // On Bluetooth the 0x0B feature index can differ, so prefer the index
+        // discovered during feature enumeration (falling back to 0x0B).
+        if self.connection_type == ConnectionType::Bluetooth {
+            let feature_index = self
+                .mx4_haptic_feature_index
+                .unwrap_or(MX4_HAPTIC_FEATURE_INDEX);
+
+            let mut request = [0u8; 20];
+            request[0] = report_type::LONG;
+            request[1] = self.device_index;
+            request[2] = feature_index;
+            request[3] = (MX4_HAPTIC_FUNCTION << 4) | MX4_HAPTIC_SW_ID;
+            request[4] = pattern.to_id();
+
+            tracing::debug!("Sending MX4 haptic packet (long/BT): {:02X?}", &request);
+
+            self.device
+                .write_all(&request)
+                .map_err(HapticError::IoError)?;
+
+            return Ok(());
+        }
 
         let mut request = [0u8; 7];
         request[0] = report_type::SHORT;
