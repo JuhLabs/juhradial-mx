@@ -45,6 +45,14 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c548", MODE="06
 SUBSYSTEM=="input", ATTRS{idVendor}=="046d", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", TAG+="uaccess"
 
+# Bluetooth-connected MX Master 4 (and other Logitech HID devices)
+# Over Bluetooth the kernel creates a virtual uhid device with NO parent
+# exposing idVendor/idProduct, so the ATTRS{idVendor} rules above never match.
+# These devices are named "<bus>:<VID>:<PID>.<n>", e.g. 0005:046D:B042.0003
+# (bus 0005 = Bluetooth, 0003 = USB). Match the parent device name instead.
+SUBSYSTEM=="hidraw", KERNELS=="0005:046D:*", MODE="0660", GROUP="input", TAG+="uaccess"
+SUBSYSTEM=="hidraw", KERNELS=="0003:046D:*", MODE="0660", GROUP="input", TAG+="uaccess"
+
 # Auto-restart JuhRadial MX daemon when a Logitech HID device appears (e.g. Easy-Switch)
 # The daemon monitors hidraw devices, so when a mouse reconnects after being
 # on another computer, the daemon picks it up automatically via udev events.
