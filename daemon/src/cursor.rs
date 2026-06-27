@@ -5,6 +5,38 @@
 
 use std::process::Command;
 
+/// KWin script that reads the live cursor position, converts it from KWin
+/// logical coordinates into the Qt point space used by the XWayland overlay,
+/// and calls ShowMenuAtCursor.
+///
+/// KWin reports `workspace.cursorPos` in logical pixels. The overlay runs on
+/// the xcb (XWayland) platform where Qt high-DPI scaling is on, so its
+/// `QWidget.move()` expects point-space coordinates (point = logical / dpr).
+/// Dividing by the cursor screen's devicePixelRatio keeps the menu under the
+/// cursor at fractional scaling on Plasma 6. At 100% scaling dpr is 1.0 and
+/// this is the identity. Uniform scale (single or multi-monitor) is handled;
+/// mixed per-monitor scale factors are only approximate.
+pub const KWIN_SHOW_MENU_SCRIPT: &str = r#"
+var pos = workspace.cursorPos;
+var dpr = 1.0;
+var screens = workspace.screens;
+if (screens) {
+    for (var i = 0; i < screens.length; i++) {
+        var geo = screens[i].geometry;
+        if (pos.x >= geo.x && pos.x < geo.x + geo.width &&
+            pos.y >= geo.y && pos.y < geo.y + geo.height) {
+            var d = Number(screens[i].devicePixelRatio);
+            dpr = d > 0 ? d : 1.0;
+            break;
+        }
+    }
+}
+callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
+         "org.kde.juhradialmx.Daemon", "ShowMenuAtCursor",
+         Math.round(pos.x / dpr),
+         Math.round(pos.y / dpr));
+"#;
+
 /// Menu diameter in pixels (used for edge clamping)
 pub const MENU_DIAMETER: i32 = 280;
 
