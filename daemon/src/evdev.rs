@@ -812,13 +812,10 @@ impl EvdevHandler {
         use std::process::Command;
         use tempfile::Builder;
 
-        // Create KWin script that calls ShowMenuAtCursor with true cursor position
-        let script = r#"
-var pos = workspace.cursorPos;
-callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
-         "org.kde.juhradialmx.Daemon", "ShowMenuAtCursor",
-         pos.x, pos.y);
-"#;
+        // Shared cursor->menu script: converts the KWin logical cursor into the
+        // overlay's Qt point space (point = logical / devicePixelRatio). Defined
+        // once in cursor.rs so the fractional-scaling math has a single home.
+        let script = crate::cursor::KWIN_SHOW_MENU_SCRIPT;
 
         // Create a temporary file with .js suffix securely
         let mut temp_file = match Builder::new().suffix(".js").tempfile() {

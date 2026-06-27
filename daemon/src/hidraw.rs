@@ -516,33 +516,10 @@ impl HidrawHandler {
         use std::process::Command;
         use tempfile::Builder;
 
-        // Create KWin script that calls ShowMenuAtCursor with cursor position
-        // converted from KWin logical coords to Qt XCB (XWayland) coords.
-        // On HiDPI screens, KWin logical coords differ from XWayland coords
-        // by the per-screen scale factor. We find which screen contains the
-        // cursor and multiply the local offset by that screen's DPR.
-        let script = r#"
-var pos = workspace.cursorPos;
-var dpr = 1.0;
-var sx = 0, sy = 0;
-var screens = workspace.screens;
-if (screens) {
-    for (var i = 0; i < screens.length; i++) {
-        var geo = screens[i].geometry;
-        if (pos.x >= geo.x && pos.x < geo.x + geo.width &&
-            pos.y >= geo.y && pos.y < geo.y + geo.height) {
-            dpr = screens[i].devicePixelRatio;
-            sx = geo.x;
-            sy = geo.y;
-            break;
-        }
-    }
-}
-callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
-         "org.kde.juhradialmx.Daemon", "ShowMenuAtCursor",
-         sx + Math.round((pos.x - sx) * dpr),
-         sy + Math.round((pos.y - sy) * dpr));
-"#;
+        // Shared cursor->menu script: converts the KWin logical cursor into the
+        // overlay's Qt point space (point = logical / devicePixelRatio). Defined
+        // once in cursor.rs so the fractional-scaling math has a single home.
+        let script = crate::cursor::KWIN_SHOW_MENU_SCRIPT;
 
         // Create a temporary file with .js suffix securely
         let mut temp_file = match Builder::new().suffix(".js").tempfile() {
