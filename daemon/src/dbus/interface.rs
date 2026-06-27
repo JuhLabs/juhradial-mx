@@ -172,16 +172,23 @@ impl JuhRadialService {
                 // Re-apply non-gesture button diverts so a newly reassigned
                 // button takes effect immediately, and a button returned to its
                 // native default has its divert cleared, without a reconnect.
-                let manager = self.haptic_manager.clone();
-                tokio::task::spawn_blocking(move || {
-                    if let Ok(mut mgr) = manager.lock() {
+                // Done synchronously under the manager lock to match the other
+                // device calls in this interface (this runs on the zbus executor,
+                // not a Tokio runtime, so spawn_blocking is not available). The
+                // HID++ calls are quick when the device is connected and return
+                // immediately when it is not.
+                match self.haptic_manager.lock() {
+                    Ok(mut manager) => {
                         let remapped: std::collections::HashSet<u16> =
                             remapped_cids.into_iter().collect();
                         for cid in Config::managed_button_cids() {
-                            let _ = mgr.set_button_divert(cid, remapped.contains(&cid));
+                            let _ = manager.set_button_divert(cid, remapped.contains(&cid));
                         }
                     }
-                });
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to lock haptic manager for button divert");
+                    }
+                }
 
                 Ok(())
             }
