@@ -133,6 +133,7 @@ impl JuhRadialService {
         match Config::load_default() {
             Ok(new_config) => {
                 let haptic_config = new_config.haptics.clone();
+                let remapped_cids = new_config.remapped_button_cids();
 
                 match self.config.write() {
                     Ok(mut config) => {
@@ -167,6 +168,20 @@ impl JuhRadialService {
                         return Err(fdo::Error::Failed(format!("Haptic manager lock error: {}", e)));
                     }
                 }
+
+                // Re-apply non-gesture button diverts so a newly reassigned
+                // button takes effect immediately, and a button returned to its
+                // native default has its divert cleared, without a reconnect.
+                let manager = self.haptic_manager.clone();
+                tokio::task::spawn_blocking(move || {
+                    if let Ok(mut mgr) = manager.lock() {
+                        let remapped: std::collections::HashSet<u16> =
+                            remapped_cids.into_iter().collect();
+                        for cid in Config::managed_button_cids() {
+                            let _ = mgr.set_button_divert(cid, remapped.contains(&cid));
+                        }
+                    }
+                });
 
                 Ok(())
             }

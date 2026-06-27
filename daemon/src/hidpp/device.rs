@@ -900,6 +900,18 @@ impl HidppDevice {
     /// This prevents the OS from seeing the button event. Instead, it arrives
     /// as a HID++ notification that the hidraw handler forwards as MacroTriggered.
     pub fn divert_single_button(&mut self, cid: u16) -> Result<bool, HapticError> {
+        self.set_button_divert(cid, true)
+    }
+
+    /// Enable or disable the volatile HID++ divert for a single control by CID.
+    ///
+    /// With `divert` true the button's events arrive as HID++ notifications
+    /// instead of normal input; with `divert` false the divert is cleared and
+    /// the button returns to its native hardware behaviour. The divert is
+    /// volatile and is reset by the device on disconnect / Easy-Switch host
+    /// change. Returns `Ok(true)` when the control was found and the request
+    /// succeeded, `Ok(false)` when the CID is absent or not divertable.
+    pub fn set_button_divert(&mut self, cid: u16, divert: bool) -> Result<bool, HapticError> {
         let feature_index = match self.reprog_controls_feature_index {
             Some(idx) => idx,
             None => return Ok(false),
@@ -922,7 +934,9 @@ impl HidppDevice {
             let divertable = (flags & 0x20) != 0;
 
             if found_cid == cid && divertable {
-                let divert_flags: u8 = 0x03; // TemporaryDiverted | ChangeTemporaryDivert
+                // ChangeTemporaryDivert (0x02) is the change gate; OR in
+                // TemporaryDiverted (0x01) to enable, leave it clear to disable.
+                let divert_flags: u8 = if divert { 0x03 } else { 0x02 };
                 let params: &[u8] = &[
                     (cid >> 8) as u8,
                     (cid & 0xFF) as u8,
@@ -934,8 +948,9 @@ impl HidppDevice {
                 if let Some(resp) = self.hidpp_long_request(feature_index, 0x03, params) {
                     tracing::info!(
                         cid = format!("0x{:04X}", cid),
+                        divert,
                         response = format!("{:02X?}", &resp[4..resp.len().min(9)]),
-                        "Macro button diverted"
+                        "Button divert updated"
                     );
                     return Ok(true);
                 }
