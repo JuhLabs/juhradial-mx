@@ -387,7 +387,7 @@ install_deps_opensuse() {
     sudo zypper install -y \
         rust cargo \
         python3 python3-pip \
-        python3-qt6 python3-qt6-svg \
+        python3-PyQt6 \
         python3-gobject gtk4 libadwaita-devel \
         python3-cryptography \
         dbus-1-devel systemd-devel \
