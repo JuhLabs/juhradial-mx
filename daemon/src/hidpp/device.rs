@@ -534,8 +534,16 @@ impl HidppDevice {
                         return Some(response[..len].to_vec());
                     }
 
-                    // Check for error response
-                    if response[2] == 0xFF {
+                    // Check for error response. A HID++ 2.0 error is a report
+                    // (0x10/0x11) for our device index with 0xFF in byte 2.
+                    // Gate on report type + device index so unrelated input
+                    // reports (e.g. mouse motion whose byte 2 can be 0xFF) are
+                    // not misread as protocol errors, which would abort feature
+                    // enumeration while the mouse is moving.
+                    if (response[0] == report_type::SHORT || response[0] == report_type::LONG)
+                        && response[1] == self.device_index
+                        && response[2] == 0xFF
+                    {
                         let error_code = response[5];
                         tracing::warn!(
                             error_code,
