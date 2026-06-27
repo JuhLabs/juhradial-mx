@@ -608,6 +608,7 @@ fn list_logitech_devices() {
 async fn refresh_hidpp_button_diverts(
     haptic_manager: SharedHapticManager,
     macro_cids: Vec<u16>,
+    remapped_cids: Vec<u16>,
 ) -> Option<PathBuf> {
     match tokio::task::spawn_blocking(move || {
         let mut manager = haptic_manager.lock().unwrap();
@@ -633,6 +634,26 @@ async fn refresh_hidpp_button_diverts(
                             cid = format!("0x{:04X}", cid),
                             error = %e,
                             "Failed to divert HID++ macro button"
+                        ),
+                    }
+                }
+
+                // Divert buttons the user reassigned away from their native
+                // default so the daemon can apply the configured action.
+                for &cid in &remapped_cids {
+                    match manager.divert_single_button(cid) {
+                        Ok(true) => info!(
+                            cid = format!("0x{:04X}", cid),
+                            "HID++ reassigned button diverted"
+                        ),
+                        Ok(false) => debug!(
+                            cid = format!("0x{:04X}", cid),
+                            "Reassigned button not divertable on this device"
+                        ),
+                        Err(e) => warn!(
+                            cid = format!("0x{:04X}", cid),
+                            error = %e,
+                            "Failed to divert HID++ reassigned button"
                         ),
                     }
                 }
@@ -669,13 +690,23 @@ async fn run_hidraw_loop(
 ) {
     let mut handler = HidrawHandler::new(event_tx);
     let macro_cids_for_divert = macro_cids.clone();
+    let config_for_divert = shared_config.clone();
     handler.set_macro_cids(macro_cids);
     handler.set_shared_config(shared_config);
 
     loop {
-        if let Some(path) =
-            refresh_hidpp_button_diverts(haptic_manager.clone(), macro_cids_for_divert.clone())
-                .await
+        // Re-read the reassigned buttons each cycle so a config change is
+        // picked up on the next reconnect (live changes go through ReloadConfig).
+        let remapped_cids = config_for_divert
+            .read()
+            .map(|c| c.remapped_button_cids())
+            .unwrap_or_default();
+        if let Some(path) = refresh_hidpp_button_diverts(
+            haptic_manager.clone(),
+            macro_cids_for_divert.clone(),
+            remapped_cids,
+        )
+        .await
         {
             preferred_path = Some(path);
         }

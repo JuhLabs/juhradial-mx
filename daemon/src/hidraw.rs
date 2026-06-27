@@ -135,6 +135,22 @@ impl HidrawHandler {
         }
     }
 
+    /// Whether a diverted CID should be dispatched as a configured button
+    /// action. Gesture and haptic buttons always are; the other reprogrammable
+    /// buttons (back/forward/middle/shift-wheel) only when the user reassigned
+    /// them away from their native default, which matches what divert applies.
+    fn is_action_button(&self, cid: u16) -> bool {
+        if cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC {
+            return true;
+        }
+        if let Some(ref config) = self.shared_config {
+            if let Ok(cfg) = config.read() {
+                return cfg.remapped_button_cids().contains(&cid);
+            }
+        }
+        false
+    }
+
     /// Find the Logitech hidraw device for HID++ button events
     ///
     /// Supports multiple receiver types:
@@ -350,8 +366,9 @@ impl HidrawHandler {
         // A CID of 0 means all buttons released
         let pressed = cid != 0;
 
-        // Check if this is the gesture button OR haptic button (both can trigger radial menu)
-        let is_known = cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC || cid == 0;
+        // Whether this CID maps to a configured action (gesture/haptic, or a
+        // reassigned back/forward/middle/shift-wheel) or is the release marker.
+        let is_known = self.is_action_button(cid) || cid == 0;
 
         if is_known {
             tracing::info!(
@@ -369,7 +386,7 @@ impl HidrawHandler {
             );
         }
 
-        if cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC {
+        if self.is_action_button(cid) {
             // Look up configured action for this button
             let action = self.get_action_for_cid(cid);
             tracing::info!(cid, %action, "Button pressed - config action lookup");

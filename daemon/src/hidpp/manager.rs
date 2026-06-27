@@ -190,6 +190,14 @@ impl HapticManager {
         }
     }
 
+    /// Enable or disable the volatile divert for a single button by CID.
+    pub fn set_button_divert(&mut self, cid: u16, divert: bool) -> Result<bool, HapticError> {
+        match &mut self.device {
+            Some(device) => device.set_button_divert(cid, divert),
+            None => Ok(false),
+        }
+    }
+
     /// Handle device disconnection gracefully
     fn handle_disconnect(&mut self) {
         let now = SystemTime::now()

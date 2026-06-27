@@ -429,6 +429,41 @@ impl Config {
             _ => ButtonAction::None,
         }
     }
+
+    /// CIDs of the non-gesture buttons (back, forward, middle, shift-wheel) the
+    /// user has reassigned away from their native default. Only these are
+    /// HID++-diverted so the daemon can apply the chosen action; buttons left at
+    /// their native default are not diverted and keep hardware behaviour intact.
+    pub fn remapped_button_cids(&self) -> Vec<u16> {
+        use crate::hidraw::button_cid;
+        let mut cids = Vec::new();
+        if self.buttons.back != ButtonAction::Back {
+            cids.push(button_cid::BACK_BUTTON);
+        }
+        if self.buttons.forward != ButtonAction::Forward {
+            cids.push(button_cid::FORWARD_BUTTON);
+        }
+        if self.buttons.middle != ButtonAction::MiddleClick {
+            cids.push(button_cid::MIDDLE_BUTTON);
+        }
+        if self.buttons.shift_wheel != ButtonAction::Smartshift {
+            cids.push(button_cid::SMART_SHIFT);
+        }
+        cids
+    }
+
+    /// The full set of non-gesture button CIDs the daemon may divert. Used on
+    /// config reload to clear the divert for any button returned to its native
+    /// default so its hardware behaviour comes back without a reconnect.
+    pub fn managed_button_cids() -> [u16; 4] {
+        use crate::hidraw::button_cid;
+        [
+            button_cid::BACK_BUTTON,
+            button_cid::FORWARD_BUTTON,
+            button_cid::MIDDLE_BUTTON,
+            button_cid::SMART_SHIFT,
+        ]
+    }
 }
 
 // ============================================================================
@@ -745,5 +780,31 @@ mod tests {
             ButtonAction::Smartshift
         );
         assert_eq!(config.action_for_cid(9999), ButtonAction::None); // Unknown CID
+    }
+
+    #[test]
+    fn test_remapped_button_cids() {
+        use crate::hidraw::button_cid;
+
+        // Defaults are all native, so nothing is diverted.
+        assert!(Config::default().remapped_button_cids().is_empty());
+
+        // Reassigning non-gesture buttons away from their default marks them.
+        let mut config = Config::default();
+        config.buttons.back = ButtonAction::PlayPause;
+        config.buttons.middle = ButtonAction::None;
+        let cids = config.remapped_button_cids();
+        assert!(cids.contains(&button_cid::BACK_BUTTON));
+        assert!(cids.contains(&button_cid::MIDDLE_BUTTON));
+        assert!(!cids.contains(&button_cid::FORWARD_BUTTON));
+        assert!(!cids.contains(&button_cid::SMART_SHIFT));
+
+        // Returning a button to its native default clears it.
+        config.buttons.back = ButtonAction::Back;
+        assert!(
+            !config
+                .remapped_button_cids()
+                .contains(&button_cid::BACK_BUTTON)
+        );
     }
 }
