@@ -447,8 +447,34 @@ clone_repo() {
 }
 
 # ── Build ────────────────────────────────────────────────────────────
+
+# Minimum cargo minor version (1.MIN) able to build the daemon: the committed
+# Cargo.lock is format v4 (needs cargo >= 1.78) and the toml_edit dependency
+# needs rustc >= 1.76. Distro toolchains are frequently older (Ubuntu 24.04
+# ships 1.75), so bootstrap rustup when the active cargo is too old or missing.
+MIN_CARGO_MINOR=78
+ensure_rust_toolchain() {
+    if command -v cargo &> /dev/null; then
+        local ver major minor
+        ver="$(cargo --version 2>/dev/null | awk '{print $2}')"
+        major="${ver%%.*}"
+        minor="$(printf '%s' "$ver" | cut -d. -f2)"
+        if [ "${major:-0}" -gt 1 ] || { [ "${major:-0}" -eq 1 ] && [ "${minor:-0}" -ge "$MIN_CARGO_MINOR" ]; }; then
+            return 0
+        fi
+        log_warning "cargo $ver is too old to build (need >= 1.$MIN_CARGO_MINOR); installing rustup"
+    else
+        log_info "Rust toolchain not found; installing rustup"
+    fi
+
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+    # shellcheck source=/dev/null
+    . "$HOME/.cargo/env"
+}
+
 build_project() {
     step "Building daemon"
+    ensure_rust_toolchain
     log_info "Compiling Rust daemon..."
     cd "$INSTALL_DIR"
 
