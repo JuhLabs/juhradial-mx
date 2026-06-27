@@ -251,6 +251,7 @@ Move your cursor seamlessly between your Linux and Mac machines. Encrypted, peer
 | **Hyprland** | IPC socket | **Fully supported** |
 | **COSMIC** (Fedora, Pop!_OS) | XWayland sync | **Fully supported** |
 | **Sway / wlroots** | XWayland fallback | Supported |
+| **Niri** | XWayland (limited) | Partial - see [Niri Setup](#niri-setup) |
 | **X11** (any DE) | xdotool | Supported |
 
 </div>
@@ -337,6 +338,25 @@ sed -i "s|Exec=.*|Exec=$(pwd)/scripts/juhradial-mx.sh|" ~/.config/autostart/juhr
   <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
+## Niri Setup
+
+Niri is a scrolling-tiling Wayland compositor with no built-in XWayland (it uses xwayland-satellite) and no IPC for the cursor position. Because of that, the overlay cannot yet place the radial menu exactly at the cursor on Niri, and by default the menu window may not become visible at all. Full cursor-anchored support via `wlr-layer-shell` is in progress (tracked in [#22](https://github.com/JuhLabs/juhradial-mx/issues/22)).
+
+**Workaround (makes the menu visible, centered rather than at the cursor):** add a window rule to your `~/.config/niri/config.kdl` so the overlay opens as a floating window:
+
+```kdl
+window-rule {
+    match title="JuhRadial MX"
+    open-floating true
+}
+```
+
+The menu then appears as a floating window (at Niri's default floating position) and is fully usable; it just does not follow the cursor yet. Reload your Niri config after editing.
+
+<div align="center">
+  <img src="assets/github/separator.png" width="80%" alt="">
+</div>
+
 ## Hyprland Setup
 
 **Automatic:** The installer detects Hyprland and configures window rules automatically.
@@ -372,6 +392,7 @@ windowrulev2 = noanim, title:^(JuhRadial MX)$
 | Mouse not detected | Check HID permissions: ensure your user is in the `input` group |
 | Build fails | Install dev packages: `hidapi-devel`, `dbus-devel` |
 | Hyprland: Menu hidden | Add window rules from Hyprland Setup section above |
+| Niri: Menu doesn't appear | See [Niri Setup](#niri-setup); cursor-anchored placement is in progress ([#22](https://github.com/JuhLabs/juhradial-mx/issues/22)) |
 
 <details>
 <summary><strong>Debug Mode</strong></summary>
