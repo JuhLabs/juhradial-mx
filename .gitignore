@@ -50,3 +50,6 @@ assets/settings-generated/
 /readme-preview-full.png
 /readme-preview-v2.png
 /screenshotdashboard.png
+
+# MkDocs build output
+site/
