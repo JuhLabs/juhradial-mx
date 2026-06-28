@@ -18,6 +18,45 @@ from typing import Optional, Dict, Any, List, Tuple
 # =============================================================================
 THEMES = {
     # =========================================================================
+    # PHOSPHOR - Default identity: obsidian instrument, one charged mint trace
+    # =========================================================================
+    "phosphor": {
+        "name": "PHOSPHOR",
+        "description": "Obsidian instrument lit by a single charged mint trace",
+        "is_dark": True,
+        "radial_image": None,
+        "colors": {
+            # Base colors - obsidian depth ramp
+            "crust": "#04060a",  # Deepest background
+            "mantle": "#080b11",  # Sidebar/panels
+            "base": "#0c1019",  # Main content
+            "surface0": "#11161f",  # Cards/elevated
+            "surface1": "#161d28",  # Hover states
+            "surface2": "#1e2733",  # Active states
+            "overlay0": "#29333f",  # Muted elements
+            "overlay1": "#47535f",  # Placeholder text
+            # Text colors
+            "text": "#f3f8fb",  # Primary text
+            "subtext1": "#a4b1c0",  # Secondary text
+            "subtext0": "#6c7a8a",  # Muted text
+            # Accent colors - the one charged trace
+            "accent": "#4fefc9",  # Primary accent - phosphor mint
+            "accent2": "#36c9ff",  # Secondary accent - cyan
+            "accent_dim": "#2bae92",  # Dimmed accent
+            # Semantic colors
+            "green": "#3fe08a",  # Success
+            "yellow": "#ffc75a",  # Warning
+            "red": "#ff5c6e",  # Error/danger
+            "blue": "#36c9ff",  # Info
+            "mauve": "#9b8cff",  # Purple accent
+            "pink": "#ff80ab",  # Pink accent
+            "peach": "#ffab40",  # Orange accent
+            "teal": "#36c9ff",  # Teal
+            "sapphire": "#36c9ff",  # Ocean blue
+            "lavender": "#4fefc9",  # Maps to accent
+        },
+    },
+    # =========================================================================
     # JUHRADIAL MX - Premium Default Theme (Vibrant Teal/Cyan)
     # This is the flagship theme matching the premium UI design
     # =========================================================================
@@ -476,7 +515,7 @@ THEMES = {
 }
 
 # Default theme
-DEFAULT_THEME = "juhradial-mx"
+DEFAULT_THEME = "phosphor"
 
 
 def load_theme_name() -> str:

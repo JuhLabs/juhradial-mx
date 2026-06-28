@@ -12,6 +12,7 @@ import ctypes
 import ctypes.util
 import gi
 import logging
+import os
 import sys
 import signal
 from pathlib import Path
@@ -46,7 +47,7 @@ from settings_theme import (
 
 # Layer 2: Constants + Widgets
 from settings_constants import MOUSE_BUTTONS, GENERIC_BUTTONS
-from settings_widgets import MouseVisualization, GenericMouseVisualization
+from settings_widgets import MouseVisualization, GenericMouseVisualization, _resolve_asset_path
 
 # Layer 3: Dialogs
 from settings_dialogs import (
@@ -132,6 +133,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         self.battery_label = None
         self.battery_icon = None
         self._battery_available = True  # Set to False if daemon doesn't support battery
+        self._low_batt_notified = False  # one desktop notification per low-battery episode
 
         # Create proper header bar with window controls
         headerbar = Adw.HeaderBar()
@@ -140,7 +142,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
 
         # Add logo and title to header bar (left-aligned above sidebar)
         title_box = self._create_title_widget()
-        headerbar.set_title_widget(Gtk.Box())  # Empty title to prevent default
+        headerbar.set_title_widget(self._create_search_widget())
         headerbar.pack_start(title_box)
 
         # Add application button to header bar
@@ -204,13 +206,9 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         content_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         content_box.set_vexpand(True)
 
-        # Sidebar
+        # Sidebar (carries its own hairline border-right; no extra separator)
         sidebar = self._create_sidebar()
         content_box.append(sidebar)
-
-        # Separator
-        sep = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
-        content_box.append(sep)
 
         # Main content with mouse visualization and settings
         self.content_stack = Gtk.Stack()
@@ -412,6 +410,28 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         # loop with thousands of D-Bus calls per second when daemon is down).
         GLib.idle_add(lambda: self._update_battery() and False)
 
+    def _maybe_notify_low_battery(self, percentage, is_charging):
+        """Fire one desktop notification when the mouse battery gets low.
+
+        Resets once charging or comfortably above the threshold, so a single
+        low episode notifies exactly once (no spam from the 2s poll)."""
+        LOW = 15
+        if is_charging or percentage > LOW + 5:
+            self._low_batt_notified = False
+            return
+        if percentage <= LOW and not self._low_batt_notified:
+            self._low_batt_notified = True
+            try:
+                app = self.get_application() or Gio.Application.get_default()
+                if app is not None:
+                    notif = Gio.Notification.new(_("JuhRadial MX"))
+                    notif.set_body(_("Mouse battery low: %d%%") % percentage)
+                    notif.set_priority(Gio.NotificationPriority.HIGH)
+                    notif.set_icon(Gio.ThemedIcon.new("battery-caution-symbolic"))
+                    app.send_notification("juhradial-low-battery", notif)
+            except Exception as e:
+                logger.debug("low-battery notify failed: %s", e)
+
     def _update_battery(self):
         """Fetch battery status from daemon via D-Bus"""
         if not self._battery_available:
@@ -437,6 +457,8 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                     if self.battery_icon:
                         self.battery_icon.set_from_icon_name("battery-missing-symbolic")
                     return True
+
+                self._maybe_notify_low_battery(percentage, is_charging)
 
                 # Show charging indicator in label with ⚡ symbol
                 if is_charging:
@@ -476,6 +498,117 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
 
         return True  # Keep timer running
 
+    def _create_search_widget(self):
+        """Header search box: type to find a setting, click a result to jump."""
+        self._search_index = [
+            (_("Button Assignments"), "buttons", "button remap middle back forward shift wheel click"),
+            (_("Actions Ring"), "buttons", "radial menu slices gestures wheel"),
+            (_("Scroll Speed"), "scroll", "scroll wheel lines sensitivity"),
+            (_("SmartShift"), "scroll", "ratchet free spin scroll wheel"),
+            (_("Smooth Scrolling"), "scroll", "high resolution hires scroll"),
+            (_("Natural Scrolling"), "scroll", "invert scroll direction"),
+            (_("Thumb Wheel"), "scroll", "thumbwheel volume zoom horizontal scroll"),
+            (_("Haptic Feedback"), "haptics", "vibration actuator waveform pattern pulse"),
+            (_("Battery"), "devices", "charge level power"),
+            (_("DPI"), "devices", "pointer speed sensitivity resolution"),
+            (_("Device Info"), "devices", "model firmware connection"),
+            (_("Easy-Switch"), "easy_switch", "host paired computers switch bluetooth"),
+            (_("Flow"), "flow", "multi computer share clipboard cross"),
+            (_("Macros"), "macros", "automation record keystrokes sequence"),
+            (_("Gaming Mode"), "gaming", "dpi presets sniper performance"),
+            (_("Theme"), "settings", "appearance color dark light radial wheel"),
+            (_("Tray Icon"), "settings", "system tray"),
+            (_("Start at Login"), "settings", "autostart startup boot"),
+            (_("Language"), "settings", "locale translation"),
+        ]
+        self._page_titles = {
+            "buttons": _("Buttons"), "scroll": _("Point & Scroll"),
+            "haptics": _("Haptics"), "devices": _("Devices"),
+            "easy_switch": _("Easy-Switch"), "flow": _("Flow"),
+            "macros": _("Macros"), "gaming": _("Gaming"), "settings": _("Settings"),
+        }
+        entry = Gtk.SearchEntry()
+        entry.set_placeholder_text(_("Search settings"))
+        entry.add_css_class("header-search")
+        entry.set_max_width_chars(34)
+        entry.set_width_chars(24)
+        self._search_entry = entry
+
+        self._search_listbox = Gtk.ListBox()
+        self._search_listbox.add_css_class("search-results")
+        self._search_listbox.connect("row-activated", self._on_search_result)
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_max_content_height(340)
+        scroller.set_propagate_natural_height(True)
+        scroller.set_child(self._search_listbox)
+
+        # autohide False so typing keeps focus; we pop it down on empty/select/esc.
+        self._search_popover = Gtk.Popover()
+        self._search_popover.set_autohide(False)
+        self._search_popover.set_has_arrow(False)
+        self._search_popover.set_position(Gtk.PositionType.BOTTOM)
+        self._search_popover.set_parent(entry)
+        self._search_popover.set_child(scroller)
+
+        entry.connect("search-changed", self._on_search_changed)
+        entry.connect("stop-search", lambda e: self._search_popover.popdown())
+        return entry
+
+    def _on_search_changed(self, entry):
+        query = entry.get_text().strip().lower()
+        child = self._search_listbox.get_first_child()
+        while child is not None:
+            nxt = child.get_next_sibling()
+            self._search_listbox.remove(child)
+            child = nxt
+        if not query:
+            self._search_popover.popdown()
+            return
+        # Only offer results whose page exists in the current device mode
+        # (haptics/easy_switch/flow are absent in generic-mouse mode).
+        matches = [
+            item for item in self._search_index
+            if (query in item[0].lower() or query in item[2])
+            and self.content_stack.get_child_by_name(item[1]) is not None
+        ]
+        for label, page_id, _kw in matches[:10]:
+            row = Gtk.ListBoxRow()
+            row._page_id = page_id
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+            box.set_margin_top(7)
+            box.set_margin_bottom(7)
+            box.set_margin_start(12)
+            box.set_margin_end(12)
+            name = Gtk.Label(label=label)
+            name.set_halign(Gtk.Align.START)
+            page = Gtk.Label(label=self._page_titles.get(page_id, page_id))
+            page.add_css_class("dim-label")
+            page.set_hexpand(True)
+            page.set_halign(Gtk.Align.END)
+            box.append(name)
+            box.append(page)
+            row.set_child(box)
+            self._search_listbox.append(row)
+        if not matches:
+            row = Gtk.ListBoxRow()
+            row._page_id = None
+            row.set_selectable(False)
+            empty = Gtk.Label(label=_("No matching settings"))
+            empty.add_css_class("dim-label")
+            empty.set_margin_top(10)
+            empty.set_margin_bottom(10)
+            row.set_child(empty)
+            self._search_listbox.append(row)
+        self._search_popover.popup()
+
+    def _on_search_result(self, _listbox, row):
+        page_id = getattr(row, "_page_id", None)
+        if page_id:
+            self._on_nav_clicked(page_id)
+        self._search_popover.popdown()
+        self._search_entry.set_text("")
+
     def _create_title_widget(self):
         """Create the premium title widget with logo, app name, and device badge"""
         # Main container
@@ -487,11 +620,13 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         logo_container.add_css_class("logo-container")
         logo_container.set_valign(Gtk.Align.CENTER)
 
-        # 3D radial wheel icon drawn with Cairo gradients
-        logo_widget = Gtk.DrawingArea()
-        logo_widget.set_content_width(34)
-        logo_widget.set_content_height(34)
-        logo_widget.set_draw_func(self._draw_logo_icon)
+        # Main brand logo (the radial-wheel mark)
+        logo_path = _resolve_asset_path("juhradial-mx.svg")
+        if logo_path:
+            logo_widget = Gtk.Image.new_from_file(logo_path)
+        else:
+            logo_widget = Gtk.Image.new_from_icon_name("image-missing")
+        logo_widget.set_pixel_size(40)
         logo_widget.set_valign(Gtk.Align.CENTER)
         logo_container.append(logo_widget)
 
@@ -504,12 +639,11 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         # App title with accent color on "MX" (uses CSS classes for dynamic theming)
         title_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         title_row.set_halign(Gtk.Align.START)
-        title_juh = Gtk.Label()
-        title_juh.set_markup('<span weight="800" size="large">JuhRadial</span>')
+        title_juh = Gtk.Label(label="JuhRadial")
         title_juh.add_css_class("app-title")
         title_row.append(title_juh)
-        title_mx = Gtk.Label()
-        title_mx.set_markup('<span weight="800" size="large">MX</span>')
+        title_mx = Gtk.Label(label="MX")
+        title_mx.add_css_class("app-title")
         title_mx.add_css_class("app-title-accent")
         title_row.append(title_mx)
         text_box.append(title_row)
@@ -537,71 +671,6 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         title_box.append(device_badge)
 
         return title_box
-
-    def _draw_logo_icon(self, area, cr, width, height):
-        """Draw a 3D radial wheel icon using Cairo gradients."""
-        import math
-        import cairo
-
-        cx, cy = width / 2, height / 2
-        r_outer = min(width, height) / 2 - 1
-        r_inner = r_outer * 0.38
-
-        # Parse accent color
-        accent = COLORS.get("accent", "#00d4ff")
-        ar = int(accent[1:3], 16) / 255
-        ag = int(accent[3:5], 16) / 255
-        ab = int(accent[5:7], 16) / 255
-
-        # Outer ring - 3D metallic gradient
-        ring_grad = cairo.RadialGradient(cx - 4, cy - 4, r_inner, cx, cy, r_outer)
-        ring_grad.add_color_stop_rgba(0.0, ar * 1.4, ag * 1.4, ab * 1.4, 0.95)
-        ring_grad.add_color_stop_rgba(0.5, ar * 0.7, ag * 0.7, ab * 0.7, 0.9)
-        ring_grad.add_color_stop_rgba(1.0, ar * 0.3, ag * 0.3, ab * 0.3, 0.85)
-
-        cr.arc(cx, cy, r_outer, 0, math.pi * 2)
-        cr.arc_negative(cx, cy, r_inner + 1, math.pi * 2, 0)
-        cr.set_source(ring_grad)
-        cr.fill()
-
-        # Segment lines (radial spokes) - 6 segments
-        cr.set_line_width(0.8)
-        cr.set_source_rgba(0, 0, 0, 0.35)
-        for i in range(6):
-            angle = i * math.pi / 3 - math.pi / 6
-            x1 = cx + r_inner * math.cos(angle)
-            y1 = cy + r_inner * math.sin(angle)
-            x2 = cx + r_outer * math.cos(angle)
-            y2 = cy + r_outer * math.sin(angle)
-            cr.move_to(x1, y1)
-            cr.line_to(x2, y2)
-        cr.stroke()
-
-        # Top highlight arc (3D shine)
-        cr.save()
-        cr.arc(cx, cy, r_outer, 0, math.pi * 2)
-        cr.clip()
-        shine = cairo.LinearGradient(cx, cy - r_outer, cx, cy)
-        shine.add_color_stop_rgba(0.0, 1, 1, 1, 0.25)
-        shine.add_color_stop_rgba(1.0, 1, 1, 1, 0.0)
-        cr.rectangle(0, 0, width, height / 2)
-        cr.set_source(shine)
-        cr.fill()
-        cr.restore()
-
-        # Inner circle - dark recessed center with 3D depth
-        center_grad = cairo.RadialGradient(cx - 1.5, cy - 1.5, 0, cx, cy, r_inner)
-        center_grad.add_color_stop_rgba(0.0, 0.25, 0.25, 0.3, 1.0)
-        center_grad.add_color_stop_rgba(0.7, 0.1, 0.1, 0.15, 1.0)
-        center_grad.add_color_stop_rgba(1.0, ar * 0.4, ag * 0.4, ab * 0.4, 0.8)
-        cr.arc(cx, cy, r_inner, 0, math.pi * 2)
-        cr.set_source(center_grad)
-        cr.fill()
-
-        # Center dot - tiny bright highlight
-        cr.arc(cx - 1, cy - 1, 2, 0, math.pi * 2)
-        cr.set_source_rgba(1, 1, 1, 0.4)
-        cr.fill()
 
     def _on_add_application(self, button):
         """Open dialog to add per-application profile"""
@@ -648,6 +717,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         if self._is_generic:
             # Generic mode: generic mouse photo + buttons config
             buttons_page = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            buttons_page.add_css_class("mouse-stage")
 
             generic_viz = GenericMouseVisualization(
                 on_button_click=self._on_generic_button_click
@@ -668,6 +738,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         else:
             # Logitech mode: mouse visualization + buttons config
             buttons_page = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            buttons_page.add_css_class("mouse-stage")
 
             mouse_viz = MouseVisualization(on_button_click=self._on_mouse_button_click)
             mouse_viz.set_hexpand(True)
@@ -713,9 +784,12 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         # Battery section - hide for generic mice (no HID++ battery reporting)
         if not self._is_generic:
             battery_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            battery_box.add_css_class("battery-pill")
+            battery_box.set_valign(Gtk.Align.CENTER)
 
             # Battery icon (left of percentage)
             self.battery_icon = Gtk.Image.new_from_icon_name("battery-good-symbolic")
+            self.battery_icon.set_pixel_size(20)
             self.battery_icon.add_css_class("battery-icon")
             battery_box.append(self.battery_icon)
 
@@ -825,6 +899,9 @@ class SettingsApp(Adw.Application):
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
+        # Keep a single provider so live theme switches update in place
+        sys.modules["settings_theme"].CSS_PROVIDER = css_provider
+
     def do_activate(self):
         # Single-instance logic: check if window already exists
         windows = self.get_windows()
@@ -836,6 +913,36 @@ class SettingsApp(Adw.Application):
         # No window exists - create new one
         win = SettingsWindow(self)
         win.present()
+
+        # Dev-only: render the window to a PNG and quit (set JUH_SHOT=/path).
+        # WM-independent capture; used only for design verification screenshots.
+        shot = os.environ.get("JUH_SHOT")
+        if shot:
+            shot_page = os.environ.get("JUH_SHOT_PAGE")
+            if shot_page:
+                try:
+                    win._on_nav_clicked(shot_page)
+                except Exception as e:
+                    logger.error("self-shot nav failed: %s", e)
+            def _grab():
+                try:
+                    from gi.repository import Graphene
+                    w = win.get_width() or WINDOW_WIDTH
+                    h = win.get_height() or WINDOW_HEIGHT
+                    paintable = Gtk.WidgetPaintable.new(win)
+                    snapshot = Gtk.Snapshot()
+                    paintable.snapshot(snapshot, w, h)
+                    node = snapshot.to_node()
+                    renderer = win.get_renderer()
+                    if node is not None and renderer is not None:
+                        tex = renderer.render_texture(node, Graphene.Rect().init(0, 0, w, h))
+                        tex.save_to_png(shot)
+                        logger.info("self-shot saved: %s", shot)
+                except Exception as e:
+                    logger.error("self-shot failed: %s", e)
+                self.quit()
+                return False
+            GLib.timeout_add(1200, _grab)
 
     def do_shutdown(self):
         """Clean up all resources on application exit"""

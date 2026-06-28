@@ -12,7 +12,7 @@ use tracing::{Level, debug, error, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use juhradiald::{
-    battery::{new_shared_state, start_battery_updater_shared},
+    battery::{new_shared_state, start_battery_updater_shared, SharedBatteryState},
     config::load_shared_config,
     dbus::{DBUS_NAME, DBUS_PATH, init_dbus_service_with_device},
     evdev::{EvdevError, EvdevHandler, GestureEvent},
@@ -21,11 +21,12 @@ use juhradiald::{
     hidraw::{HidrawError, HidrawHandler},
     macros::{MacroEngine, MacroRecorder, TriggerMap},
     new_shared_haptic_manager,
-    profiles::ProfileManager,
+    profiles::{ProfileManager, SharedHardwareProfiles},
     window_tracker::WindowTracker,
 };
 
-use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, RwLock};
 
 /// Fallback poll interval when no device is found (60 seconds).
 ///
@@ -376,6 +377,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let trigger_map_for_events = trigger_map.clone();
     let macro_engine_for_events = macro_engine.clone();
 
+    // Active-window channel for per-app hardware profiles. The D-Bus service
+    // (KWin script path) and the WindowTracker (Hyprland/X11 paths) both push
+    // resource classes here; a single consumer applies matching profiles.
+    let (active_window_tx, active_window_rx) =
+        tokio::sync::mpsc::unbounded_channel::<String>();
+    // Clone the haptic manager for the profile consumer before it is moved into
+    // the D-Bus service below.
+    let haptic_manager_for_profiles = haptic_manager_for_battery.clone();
+
+    // Shared per-app hardware profile map. Created empty here, populated once
+    // profiles.json is loaded below, and refreshed by `ReloadConfig` whenever
+    // the settings UI saves. Both the D-Bus service and the focus-change
+    // consumer hold a clone, so a UI save reaches the consumer without restart.
+    let hardware_profiles: SharedHardwareProfiles = Arc::new(RwLock::new(HashMap::new()));
+
     // Initialize D-Bus service with battery state, config, haptic manager, device info, and macro state
     let dbus_connection = match init_dbus_service_with_device(
         battery_state.clone(),
@@ -387,6 +403,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         macro_engine,
         macro_recorder,
         trigger_map,
+        active_window_tx.clone(),
+        hardware_profiles.clone(),
     )
     .await
     {
@@ -404,6 +422,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let haptic_manager_for_hidraw = haptic_manager_for_battery.clone();
+
+    // Live battery notifications update the same shared state the active poller
+    // writes, so GetBatteryStatus reflects them even when the active query fails.
+    let battery_state_for_events = battery_state.clone();
 
     // Spawn battery status updater (shares HidppDevice with haptic via SharedHapticManager)
     let battery_handle = tokio::spawn(async move {
@@ -431,17 +453,73 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let current = profile_manager.current();
     info!(profile = current.name, "Active profile loaded");
 
-    // Initialize window tracker for per-app profiles (Story 3.2)
-    let window_tracker = WindowTracker::new().await;
-    if window_tracker.is_available() {
-        info!("Window tracking enabled for per-app profiles");
-    } else {
-        warn!("Window tracking unavailable - using default profile only");
+    // Seed the shared hardware map from the freshly loaded profiles so the
+    // focus-change consumer and ReloadConfig share one source of truth.
+    match hardware_profiles.write() {
+        Ok(mut map) => *map = profile_manager.hardware_profiles(),
+        Err(e) => error!(error = %e, "Failed to seed shared hardware profiles"),
     }
 
-    // Store for later use in Story 3.3 (window-based profile switching)
-    let _window_tracker = window_tracker;
-    let _profile_manager = profile_manager;
+    // Initialize window tracker for per-app HARDWARE profiles (Story 3.2/3.3).
+    // The tracker pushes focused-window resource classes; the consumer below
+    // applies any matching HardwareProfile via volatile HID++ setters.
+    let window_tracker = WindowTracker::new();
+    if window_tracker.is_available() {
+        info!(desktop = window_tracker.desktop(), "Window tracking enabled for per-app hardware profiles");
+        let watch_tx = active_window_tx.clone();
+        tokio::spawn(async move { window_tracker.watch(watch_tx).await });
+    } else {
+        warn!("Window tracking unavailable - per-app hardware profiles inactive");
+    }
+
+    // Consumer: on each focus change, look up and apply the per-app hardware
+    // profile (volatile only). No-op when no profile matches, so the default
+    // (empty hardware map) leaves device state untouched.
+    {
+        let mut active_window_rx = active_window_rx;
+        let hw_manager = haptic_manager_for_profiles;
+        // Read the live shared map (refreshed by ReloadConfig) instead of a
+        // one-time snapshot, so UI saves take effect without a daemon restart.
+        let hw_profiles = hardware_profiles.clone();
+        if !hw_profiles.read().map(|m| m.is_empty()).unwrap_or(true) {
+            info!("Per-app hardware profiles configured; focus-change application active");
+        }
+        tokio::spawn(async move {
+            let mut current_class = String::new();
+            while let Some(class) = active_window_rx.recv().await {
+                if class == current_class {
+                    continue;
+                }
+                current_class = class.clone();
+                // Lookup is case-insensitive: keys are lowercased at load, so
+                // lowercase the incoming class (window-tracker sources vary).
+                let hw = {
+                    let map = match hw_profiles.read() {
+                        Ok(map) => map,
+                        Err(e) => {
+                            error!(error = %e, "Failed to read shared hardware profiles");
+                            continue;
+                        }
+                    };
+                    match map.get(&class.to_lowercase()) {
+                        Some(hw) => hw.clone(),
+                        None => continue,
+                    }
+                };
+                info!(class = %class, "Applying per-app hardware profile");
+                let mgr = hw_manager.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    match mgr.lock() {
+                        Ok(mut m) => {
+                            juhradiald::profiles::apply_hardware_profile(&hw, &mut m)
+                        }
+                        Err(e) => error!(error = %e, "Failed to lock haptic manager for hardware profile"),
+                    }
+                })
+                .await;
+            }
+        });
+    }
 
     // Start inotify watcher on /dev/input/ for instant device hotplug detection.
     // Shared across both evdev loops so they re-scan immediately on device changes.
@@ -507,6 +585,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &dbus_connection,
             trigger_map_for_events,
             macro_engine_for_events,
+            battery_state_for_events,
         )
         .await
     });
@@ -608,6 +687,7 @@ fn list_logitech_devices() {
 async fn refresh_hidpp_button_diverts(
     haptic_manager: SharedHapticManager,
     macro_cids: Vec<u16>,
+    remapped_cids: Vec<u16>,
 ) -> Option<PathBuf> {
     match tokio::task::spawn_blocking(move || {
         let mut manager = haptic_manager.lock().unwrap();
@@ -637,6 +717,26 @@ async fn refresh_hidpp_button_diverts(
                     }
                 }
 
+                // Divert buttons the user reassigned away from their native
+                // default so the daemon can apply the configured action.
+                for &cid in &remapped_cids {
+                    match manager.divert_single_button(cid) {
+                        Ok(true) => info!(
+                            cid = format!("0x{:04X}", cid),
+                            "HID++ reassigned button diverted"
+                        ),
+                        Ok(false) => debug!(
+                            cid = format!("0x{:04X}", cid),
+                            "Reassigned button not divertable on this device"
+                        ),
+                        Err(e) => warn!(
+                            cid = format!("0x{:04X}", cid),
+                            error = %e,
+                            "Failed to divert HID++ reassigned button"
+                        ),
+                    }
+                }
+
                 manager.device_path()
             }
             Ok(false) => {
@@ -659,6 +759,59 @@ async fn refresh_hidpp_button_diverts(
     }
 }
 
+/// Apply thumb-wheel divert from config and return the ThumbWheel feature index.
+///
+/// Like button divert, thumb-wheel reporting (HID++ 0x2150) is volatile and is
+/// reset by Easy-Switch host changes, so it is re-applied on every (re)connect.
+/// The returned feature index lets the hidraw reader disambiguate diverted
+/// rotation notifications from diverted button events.
+async fn apply_thumbwheel_reporting(
+    haptic_manager: SharedHapticManager,
+    shared_config: juhradiald::config::SharedConfig,
+) -> Option<u8> {
+    match tokio::task::spawn_blocking(move || {
+        let tw = shared_config
+            .read()
+            .map(|c| c.thumbwheel.clone())
+            .unwrap_or_default();
+        let mut manager = haptic_manager.lock().unwrap();
+        if !manager.thumbwheel_supported() {
+            return None;
+        }
+        // Direction inversion is applied in software by the hidraw reader, so
+        // the device divert is enabled with hardware inversion off.
+        match manager.set_thumbwheel_reporting(tw.is_diverted(), false) {
+            Ok(()) => info!(diverted = tw.is_diverted(), "Thumb-wheel reporting applied"),
+            Err(e) => warn!(error = %e, "Failed to apply thumb-wheel reporting"),
+        }
+        manager.thumbwheel_feature_index()
+    })
+    .await
+    {
+        Ok(idx) => idx,
+        Err(e) => {
+            error!("Thumb-wheel reporting task panicked: {:?}", e);
+            None
+        }
+    }
+}
+
+/// Read the discovered notification feature indices (battery/host/DPI/ratchet)
+/// so the hidraw reader can decode live hardware-state events. Runs on a
+/// blocking task because the haptic manager uses a std `Mutex`.
+async fn fetch_notification_indices(
+    haptic_manager: SharedHapticManager,
+) -> juhradiald::hidpp::notifications::NotificationIndices {
+    tokio::task::spawn_blocking(move || {
+        haptic_manager
+            .lock()
+            .map(|m| m.notification_indices())
+            .unwrap_or_default()
+    })
+    .await
+    .unwrap_or_default()
+}
+
 async fn run_hidraw_loop(
     event_tx: mpsc::Sender<GestureEvent>,
     mut preferred_path: Option<PathBuf>,
@@ -669,16 +822,42 @@ async fn run_hidraw_loop(
 ) {
     let mut handler = HidrawHandler::new(event_tx);
     let macro_cids_for_divert = macro_cids.clone();
+    let config_for_thumbwheel = shared_config.clone();
+    let config_for_divert = shared_config.clone();
     handler.set_macro_cids(macro_cids);
     handler.set_shared_config(shared_config);
 
     loop {
-        if let Some(path) =
-            refresh_hidpp_button_diverts(haptic_manager.clone(), macro_cids_for_divert.clone())
-                .await
+        // Re-read the reassigned buttons each cycle so a config change is
+        // picked up on the next reconnect (live changes go through ReloadConfig).
+        let remapped_cids = config_for_divert
+            .read()
+            .map(|c| c.remapped_button_cids())
+            .unwrap_or_default();
+        if let Some(path) = refresh_hidpp_button_diverts(
+            haptic_manager.clone(),
+            macro_cids_for_divert.clone(),
+            remapped_cids,
+        )
+        .await
         {
             preferred_path = Some(path);
         }
+
+        // Re-apply thumb-wheel divert (volatile) and refresh the feature index
+        // the reader uses to route rotation notifications.
+        let tw_index = apply_thumbwheel_reporting(
+            haptic_manager.clone(),
+            config_for_thumbwheel.clone(),
+        )
+        .await;
+        handler.set_thumbwheel_feature_index(tw_index);
+
+        // Refresh notification feature indices for live hardware readback. Like
+        // diverts, these are cheap to re-fetch on every (re)connect and keep the
+        // reader correct across hotplug/host-switch re-enumeration.
+        let note_indices = fetch_notification_indices(haptic_manager.clone()).await;
+        handler.set_notification_indices(note_indices);
 
         // Try to open - use preferred path from HidppDevice if available
         // This ensures we listen on the same Bolt receiver where buttons were diverted
@@ -966,6 +1145,7 @@ async fn process_gesture_events(
     dbus_connection: &zbus::Connection,
     trigger_map: Arc<std::sync::RwLock<juhradiald::macros::TriggerMap>>,
     macro_engine: Arc<Mutex<juhradiald::macros::MacroEngine>>,
+    battery_state: SharedBatteryState,
 ) {
     while let Some(event) = event_rx.recv().await {
         match event {
@@ -1062,8 +1242,68 @@ async fn process_gesture_events(
                     tracing::debug!(%action, "Button action released (no-op)");
                 }
             }
+            GestureEvent::ThumbwheelScroll { clicks } => {
+                tracing::debug!(clicks, "Thumb-wheel horizontal scroll");
+                if let Err(e) = juhradiald::actions::execute_horizontal_scroll(clicks).await {
+                    error!(clicks, error = %e, "Failed to inject horizontal scroll");
+                }
+            }
+            GestureEvent::Hardware(note) => {
+                if let Err(e) = emit_hardware_notification(dbus_connection, &battery_state, note).await {
+                    tracing::warn!(?note, error = %e, "Failed to emit hardware notification signal");
+                }
+            }
         }
     }
+}
+
+/// Emit the D-Bus change signal for a decoded live hardware notification.
+///
+/// Broadcast directly on the connection (empty destination) so any subscribed
+/// client receives it, mirroring the HideMenu/CursorMoved emit pattern.
+async fn emit_hardware_notification(
+    connection: &zbus::Connection,
+    battery_state: &SharedBatteryState,
+    note: juhradiald::hidpp::notifications::HardwareNotification,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use juhradiald::hidpp::notifications::HardwareNotification as HN;
+    let iface = "org.kde.juhradialmx.Daemon";
+    match note {
+        HN::BatteryChanged { percent, status } => {
+            info!(percent, status, "Battery changed (notification)");
+            // Cache so GetBatteryStatus reports the live value even while the
+            // active poll is failing (e.g. shared hidraw handle churning).
+            {
+                let mut s = battery_state.write().await;
+                s.percentage = percent;
+                s.charging = matches!(status, "charging" | "full");
+                s.available = true;
+                s.error = None;
+            }
+            connection
+                .emit_signal(None::<&str>, DBUS_PATH, iface, "BatteryChanged", &(percent, status))
+                .await?;
+        }
+        HN::RatchetChanged { ratchet } => {
+            info!(ratchet, "Ratchet changed (notification)");
+            connection
+                .emit_signal(None::<&str>, DBUS_PATH, iface, "RatchetChanged", &(ratchet,))
+                .await?;
+        }
+        HN::HostChanged { host } => {
+            info!(host, "Easy-Switch host changed (notification)");
+            connection
+                .emit_signal(None::<&str>, DBUS_PATH, iface, "HostChanged", &(host,))
+                .await?;
+        }
+        HN::DpiChanged { dpi } => {
+            info!(dpi, "DPI changed (notification)");
+            connection
+                .emit_signal(None::<&str>, DBUS_PATH, iface, "DpiChanged", &(dpi,))
+                .await?;
+        }
+    }
+    Ok(())
 }
 
 /// Emit MenuRequested signal via D-Bus

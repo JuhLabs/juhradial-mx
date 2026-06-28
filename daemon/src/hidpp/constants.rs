@@ -63,6 +63,26 @@ pub mod features {
     /// Functions: [0] getRatchetControlMode, [1] setRatchetControlMode
     pub const SMARTSHIFT_LEGACY: u16 = 0x2110;
 
+    /// HiResWheel - High-resolution vertical wheel (0x2121)
+    ///
+    /// READ-ONLY here: used only to learn the feature index so the hidraw
+    /// reader can decode the device-originated `ratchetSwitchChanged` event
+    /// (free-spin vs ratchet). We never write to this feature.
+    pub const HIRES_WHEEL: u16 = 0x2121;
+
+    /// ThumbWheel - Horizontal thumb wheel on MX Master 3/3S/4 (0x2150)
+    ///
+    /// Used ONLY for runtime divert of the thumb wheel so rotation arrives as
+    /// HID++ notifications. setThumbwheelReporting is VOLATILE - it resets on
+    /// disconnect/host switch, exactly like REPROG_CONTROLS_V4 divert.
+    ///
+    /// Functions we use:
+    /// - [0] getThumbwheelInfo() - native resolution + capabilities (READ-ONLY)
+    /// - [1] setThumbwheelReporting(reporting, invert) - enable divert (volatile)
+    ///
+    /// Event [0] thumbwheelEvent carries the signed rotation delta while diverted.
+    pub const THUMB_WHEEL: u16 = 0x2150;
+
     /// Change Host - Easy-Switch device slot switching (READ-ONLY safe)
     /// Functions: [0] getHostInfo (returns numHosts, currentHost), [1] setHost(slot)
     /// Used for reading current Easy-Switch status - we only use function 0
@@ -152,7 +172,9 @@ pub mod allowed_features {
         features::MX_MASTER_4_HAPTIC,
         features::MX4_HAPTIC_ALT,
         features::ADJUSTABLE_DPI,
+        features::HIRES_WHEEL,
         features::REPROG_CONTROLS_V4,
+        features::THUMB_WHEEL,
     ];
 
     /// Check if a feature ID is explicitly allowed

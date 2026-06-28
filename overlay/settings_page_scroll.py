@@ -20,7 +20,6 @@ from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _
 from settings_config import config, disable_scroll_on_scale, get_device_mode
-from settings_theme import COLORS
 from settings_widgets import SettingsCard, SettingRow, PageHeader
 
 logger = logging.getLogger(__name__)
@@ -61,7 +60,7 @@ class DPIVisualSlider(Gtk.Box):
         # via set_dpi(); the placeholder here is just a sane default so the
         # label has correct sizing/markup before the real value arrives.
         self.dpi_label = Gtk.Label()
-        self.dpi_label.add_css_class("title-1")
+        self.dpi_label.add_css_class("dpi-value")
         self._render_dpi_label(1600)
         self.dpi_label.set_cursor_from_name("pointer")
         self.dpi_label.set_tooltip_text(_("Click to type a value"))
@@ -122,7 +121,7 @@ class DPIVisualSlider(Gtk.Box):
 
         for dpi in [800, 1600, 3200, 4000]:
             btn = Gtk.Button(label=str(dpi))
-            btn.add_css_class("flat")
+            btn.add_css_class("preset-btn")
             btn.connect("clicked", lambda b, d=dpi: self.set_dpi(d))
             preset_box.append(btn)
 
@@ -140,14 +139,9 @@ class DPIVisualSlider(Gtk.Box):
         return int(self.scale.get_value())
 
     def _render_dpi_label(self, dpi):
-        # Use the current theme's accent color, not a hardcoded mauve. Falls
-        # back to text color if accent isn't set. The Workbench register uses
-        # the accent only for state — this is the one place where a value is
-        # the state (the live DPI), so accent is appropriate.
-        accent = COLORS.get("accent", COLORS.get("text", "#000"))
-        self.dpi_label.set_markup(
-            f'<span size="xx-large" weight="bold" color="{accent}">{int(dpi)}</span>'
-        )
+        # Typography lives in the .dpi-value CSS class (mono, accent, halo) so
+        # every theme styles the readout — no inline markup.
+        self.dpi_label.set_text(str(int(dpi)))
 
     def _on_value_changed(self, scale):
         dpi = int(scale.get_value())
@@ -459,36 +453,58 @@ class ScrollPage(Gtk.ScrolledWindow):
         # ---- THUMB WHEEL ---- (Logitech only - MX Master has thumb wheel)
         self._thumb_card = SettingsCard(_("Thumb Wheel"))
 
-        thumb_speed_row = SettingRow(
-            _("Speed"), _("Horizontal scroll sensitivity")
+        # Action selector: Off / Volume / Horizontal scroll / Zoom.
+        # Maps to config.thumbwheel.mode (daemon ThumbwheelMode, snake_case).
+        thumb_mode_row = SettingRow(
+            _("Action"), _("What rotating the thumb wheel does")
         )
-        thumb_scale = Gtk.Scale.new_with_range(
-            Gtk.Orientation.HORIZONTAL, 1, 10, 1
-        )
-        thumb_scale.set_value(config.get("thumbwheel", "speed", default=5))
-        thumb_scale.set_size_request(200, -1)
-        thumb_scale.set_draw_value(False)
-        thumb_scale.connect(
-            "value-changed",
-            lambda s: config.set("thumbwheel", "speed", int(s.get_value())),
-        )
-        disable_scroll_on_scale(thumb_scale)
-        thumb_speed_row.set_control(thumb_scale)
-        self._thumb_card.append(thumb_speed_row)
+        self._thumb_mode_combo = Gtk.ComboBoxText()
+        self._thumb_mode_combo.append("off", _("Off"))
+        self._thumb_mode_combo.append("volume", _("Volume"))
+        self._thumb_mode_combo.append("scroll", _("Horizontal scroll"))
+        self._thumb_mode_combo.append("zoom", _("Zoom"))
+        current_thumb_mode = config.get("thumbwheel", "mode", default="off")
+        self._thumb_mode_combo.set_active_id(current_thumb_mode)
+        self._thumb_mode_combo.connect("changed", self._on_thumb_mode_changed)
+        thumb_mode_row.set_control(self._thumb_mode_combo)
+        self._thumb_card.append(thumb_mode_row)
 
-        thumb_invert_row = SettingRow(
-            _("Invert Direction"), _("Reverse thumb wheel scroll direction")
+        # Invert direction
+        self._thumb_invert_row = SettingRow(
+            _("Invert Direction"), _("Reverse thumb wheel rotation direction")
         )
-        thumb_invert = Gtk.Switch()
-        thumb_invert.set_active(
+        self._thumb_invert = Gtk.Switch()
+        self._thumb_invert.set_valign(Gtk.Align.CENTER)
+        self._thumb_invert.set_active(
             config.get("thumbwheel", "invert", default=False)
         )
-        thumb_invert.connect(
-            "state-set",
-            lambda s, state: config.set("thumbwheel", "invert", state) or False,
+        self._thumb_invert.connect("state-set", self._on_thumb_invert_changed)
+        self._thumb_invert_row.set_control(self._thumb_invert)
+        self._thumb_card.append(self._thumb_invert_row)
+
+        # Speed (repeats per rotation notification, 1..8)
+        self._thumb_speed_row = SettingRow(
+            _("Speed"), _("Response per rotation notch")
         )
-        thumb_invert_row.set_control(thumb_invert)
-        self._thumb_card.append(thumb_invert_row)
+        self._thumb_speed_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 1, 8, 1
+        )
+        self._thumb_speed_scale.set_value(
+            config.get("thumbwheel", "speed", default=1)
+        )
+        self._thumb_speed_scale.set_size_request(200, -1)
+        self._thumb_speed_scale.set_draw_value(False)
+        # Coalesce continuous slider drags into a single daemon apply.
+        self._thumb_speed_debounce = 0
+        self._thumb_speed_scale.connect(
+            "value-changed", self._on_thumb_speed_changed
+        )
+        disable_scroll_on_scale(self._thumb_speed_scale)
+        self._thumb_speed_row.set_control(self._thumb_speed_scale)
+        self._thumb_card.append(self._thumb_speed_row)
+
+        # "Off" has no direction/speed to tune
+        self._update_thumb_dependents(current_thumb_mode)
 
         content.append(self._thumb_card)
 
@@ -717,6 +733,88 @@ None,      Down, Button5, {lines}
                 )
             except (FileNotFoundError, subprocess.SubprocessError, OSError):
                 pass
+
+    # ------------------------------------------------------------------
+    # Thumb wheel
+    # ------------------------------------------------------------------
+    def _on_thumb_mode_changed(self, combo):
+        mode = combo.get_active_id() or "off"
+        config.set("thumbwheel", "mode", mode, auto_save=True)
+        self._update_thumb_dependents(mode)
+        if not self._is_generic:
+            self._apply_thumbwheel()
+
+    def _on_thumb_invert_changed(self, switch, state):
+        config.set("thumbwheel", "invert", state, auto_save=True)
+        if not self._is_generic:
+            self._apply_thumbwheel()
+        return False
+
+    def _on_thumb_speed_changed(self, scale):
+        config.set("thumbwheel", "speed", int(scale.get_value()), auto_save=True)
+        if self._is_generic:
+            return
+        # The slider fires value-changed continuously while dragging. Debounce so
+        # the daemon is hit once when the drag settles instead of per tick. Speed
+        # reaches the daemon purely via config (ReloadConfig); it needs no HID++
+        # divert command, so SetThumbwheelReporting is intentionally skipped here.
+        if self._thumb_speed_debounce:
+            GLib.source_remove(self._thumb_speed_debounce)
+        self._thumb_speed_debounce = GLib.timeout_add(
+            300, self._apply_thumb_speed_debounced
+        )
+
+    def _apply_thumb_speed_debounced(self):
+        """Coalesced speed apply: reload config only (no redundant divert)."""
+        self._thumb_speed_debounce = 0
+        proxy = self._get_dbus_proxy()
+        if proxy:
+            try:
+                proxy.call_sync(
+                    "ReloadConfig", None,
+                    Gio.DBusCallFlags.NONE, 2000, None,
+                )
+            except GLib.Error as e:
+                logger.error("D-Bus error reloading config: %s", e.message)
+        return False  # one-shot
+
+    def _update_thumb_dependents(self, mode):
+        """Direction and speed only matter when the wheel is diverted."""
+        active = mode != "off"
+        self._thumb_invert_row.set_sensitive(active)
+        self._thumb_speed_row.set_sensitive(active)
+
+    def _apply_thumbwheel(self):
+        """Push thumb-wheel config to the daemon.
+
+        SetThumbwheelReporting toggles the HID++ divert (and invert) at the
+        hardware immediately; ReloadConfig then makes the daemon re-read
+        mode/speed, which it resolves from the shared config on each rotation.
+        If the direct method is unavailable, ReloadConfig alone applies it.
+        """
+        proxy = self._get_dbus_proxy()
+        if not proxy:
+            return
+        mode = config.get("thumbwheel", "mode", default="off")
+        invert = config.get("thumbwheel", "invert", default=False)
+        divert = mode != "off"
+        try:
+            proxy.call_sync(
+                "SetThumbwheelReporting",
+                GLib.Variant("(bb)", (divert, invert)),
+                Gio.DBusCallFlags.NONE, 2000, None,
+            )
+        except GLib.Error as e:
+            logger.error(
+                "D-Bus error setting thumb-wheel reporting: %s", e.message
+            )
+        try:
+            proxy.call_sync(
+                "ReloadConfig", None,
+                Gio.DBusCallFlags.NONE, 2000, None,
+            )
+        except GLib.Error as e:
+            logger.error("D-Bus error reloading config: %s", e.message)
 
     # ------------------------------------------------------------------
     # D-Bus device methods

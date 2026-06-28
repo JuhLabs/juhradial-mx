@@ -36,7 +36,7 @@
           # Rust daemon - handles evdev input and D-Bus signaling
           juhradiald = pkgs.rustPlatform.buildRustPackage {
             pname = "juhradiald";
-            version = "0.3.2";
+            version = "0.3.0-beta";
 
             src = ./.;
             cargoRoot = "daemon";
@@ -60,7 +60,7 @@
 
           default = pkgs.stdenv.mkDerivation {
             pname = "juhradial-mx";
-            version = "0.3.2";
+            version = "0.3.0-beta";
             src = ./.;
 
             nativeBuildInputs = with pkgs; [
@@ -99,10 +99,6 @@
               if [ -d assets/devices ]; then
                 mkdir -p $out/share/juhradial/assets/devices
                 cp assets/devices/*.png assets/devices/*.svg $out/share/juhradial/assets/devices/ 2>/dev/null || true
-              fi
-              if [ -d assets/settings-generated ]; then
-                mkdir -p $out/share/juhradial/assets/settings-generated
-                cp assets/settings-generated/*.png $out/share/juhradial/assets/settings-generated/
               fi
               cp assets/ai-*.svg $out/share/juhradial/assets/ 2>/dev/null || true
 

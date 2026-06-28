@@ -19,6 +19,7 @@ pub mod device;
 pub mod error;
 pub mod manager;
 pub mod messages;
+pub mod notifications;
 pub mod patterns;
 pub mod safety;
 

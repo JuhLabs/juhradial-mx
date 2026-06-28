@@ -174,7 +174,7 @@ class GamingPage(Gtk.ScrolledWindow):
         macro_icon_box = Gtk.Box()
         macro_icon_box.add_css_class("button-icon-box")
         macro_icon_box.set_valign(Gtk.Align.CENTER)
-        macro_icon = Gtk.Image.new_from_icon_name("applications-science-symbolic")
+        macro_icon = Gtk.Image.new_from_icon_name("input-keyboard-symbolic")
         macro_icon.set_pixel_size(20)
         macro_icon.add_css_class("button-icon")
         macro_icon_box.append(macro_icon)
@@ -260,7 +260,7 @@ class GamingPage(Gtk.ScrolledWindow):
 
         # Color dot
         color_dot = Gtk.DrawingArea()
-        color_dot.set_size_request(12, 12)
+        color_dot.set_size_request(16, 16)
         color_dot.set_valign(Gtk.Align.CENTER)
 
         r = int(color_hex[1:3], 16) / 255.0
@@ -268,8 +268,12 @@ class GamingPage(Gtk.ScrolledWindow):
         b = int(color_hex[5:7], 16) / 255.0
 
         def draw_dot(area, cr, w, h, _r=r, _g=g, _b=b):
+            # Soft halo + core: profile dots read as status LEDs, not paint
+            cr.set_source_rgba(_r, _g, _b, 0.22)
+            cr.arc(w / 2, h / 2, 7.5, 0, 2 * 3.14159)
+            cr.fill()
             cr.set_source_rgb(_r, _g, _b)
-            cr.arc(w / 2, h / 2, 5, 0, 2 * 3.14159)
+            cr.arc(w / 2, h / 2, 4.5, 0, 2 * 3.14159)
             cr.fill()
 
         color_dot.set_draw_func(draw_dot)

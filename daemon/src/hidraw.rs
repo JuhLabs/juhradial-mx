@@ -71,6 +71,12 @@ pub struct HidrawHandler {
     shared_config: Option<crate::config::SharedConfig>,
     /// The action that was triggered on button press (for release handling)
     active_button_action: Option<crate::config::ButtonAction>,
+    /// ThumbWheel feature index (0x2150), used to disambiguate diverted
+    /// thumb-wheel rotation notifications from diverted button events.
+    thumbwheel_feature_index: Option<u8>,
+    /// Feature indices for device-originated hardware notifications (battery,
+    /// host, DPI, ratchet), used for live hardware readback.
+    notification_indices: crate::hidpp::notifications::NotificationIndices,
 }
 
 /// Map HID++ CID to evdev key code for macro trigger forwarding
@@ -107,12 +113,29 @@ impl HidrawHandler {
             active_macro_cid: None,
             shared_config: None,
             active_button_action: None,
+            thumbwheel_feature_index: None,
+            notification_indices: Default::default(),
         }
     }
 
     /// Register CIDs that are diverted for macro triggers (not gesture buttons)
     pub fn set_macro_cids(&mut self, cids: Vec<u16>) {
         self.macro_cids = cids;
+    }
+
+    /// Register the ThumbWheel feature index so diverted rotation notifications
+    /// can be told apart from diverted button events (both use function id 0).
+    pub fn set_thumbwheel_feature_index(&mut self, index: Option<u8>) {
+        self.thumbwheel_feature_index = index;
+    }
+
+    /// Register the feature indices used to decode device-originated hardware
+    /// notifications (battery, host, DPI, ratchet) for live readback.
+    pub fn set_notification_indices(
+        &mut self,
+        indices: crate::hidpp::notifications::NotificationIndices,
+    ) {
+        self.notification_indices = indices;
     }
 
     /// Set the shared configuration for button action lookup
@@ -133,6 +156,22 @@ impl HidrawHandler {
             button_cid::HAPTIC => crate::config::ButtonAction::RadialMenu,
             _ => crate::config::ButtonAction::None,
         }
+    }
+
+    /// Whether a diverted CID should be dispatched as a configured button
+    /// action. Gesture and haptic buttons always are; the other reprogrammable
+    /// buttons (back/forward/middle/shift-wheel) only when the user reassigned
+    /// them away from their native default, which matches what divert applies.
+    fn is_action_button(&self, cid: u16) -> bool {
+        if cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC {
+            return true;
+        }
+        if let Some(ref config) = self.shared_config {
+            if let Ok(cfg) = config.read() {
+                return cfg.remapped_button_cids().contains(&cid);
+            }
+        }
+        false
     }
 
     /// Find the Logitech hidraw device for HID++ button events
@@ -185,7 +224,7 @@ impl HidrawHandler {
         }
 
         // Sort by priority (highest first)
-        candidates.sort_by(|a, b| b.2.cmp(&a.2));
+        candidates.sort_by_key(|c| std::cmp::Reverse(c.2));
 
         // Prefer interface 2 (input2) which is typically used for HID++ communication
         let max_priority = candidates.first().map(|(_, _, p)| *p).unwrap_or(0);
@@ -325,11 +364,89 @@ impl HidrawHandler {
             "HID++ report received"
         );
 
+        // Live hardware readback: a report whose function/software-id low nibble
+        // is zero is a SPONTANEOUS device event (not a response to a method we
+        // issued). Route it by feature index to the notification decoder and, if
+        // it decodes, surface it as a Hardware event and stop. Diverted button
+        // and thumb-wheel events also have sw_id 0 but live on different feature
+        // indices, so they fall through to their existing handlers below.
+        if (function_sw_id & 0x0F) == 0 {
+            if let Some(note) = self.notification_indices.route(feature_index, data) {
+                tracing::debug!(?note, "Hardware notification decoded");
+                let _ = self.event_tx.send(GestureEvent::Hardware(note)).await;
+                return;
+            }
+
+            // Diverted thumb-wheel rotation events are spontaneous (sw_id 0) and
+            // arrive on the ThumbWheel feature index (0x2150). Gating on sw_id
+            // here is essential: the SetThumbwheelReporting *response* lands on
+            // the same feature index with a non-zero sw_id, and must NOT be read
+            // as a rotation (that fired a phantom volume/zoom the instant the
+            // mode was enabled).
+            if let Some(tw_idx) = self.thumbwheel_feature_index {
+                if feature_index == tw_idx {
+                    self.handle_thumbwheel_event(data).await;
+                    return;
+                }
+            }
+        }
+
         // Check for diverted button event (feature 0x1B04, function 0x00)
         // The feature index varies per device, so we check function_id.
         // We also validate the CID in handle_button_event to ignore unknown buttons.
         if function_id == DIVERTED_BUTTONS_EVENT {
             self.handle_button_event(data).await;
+        }
+    }
+
+    /// Handle a diverted thumb-wheel rotation notification.
+    ///
+    /// The HID++ ThumbWheel (0x2150) rotation event carries a signed 16-bit
+    /// rotation delta in bytes 4-5 (big endian). The delta is mapped to an
+    /// action (volume / horizontal scroll / zoom) per the `thumbwheel` config
+    /// section.
+    async fn handle_thumbwheel_event(&self, data: &[u8]) {
+        if data.len() < 6 {
+            return;
+        }
+
+        // Rotation delta: signed 16-bit, big endian.
+        let delta = i16::from_be_bytes([data[4], data[5]]);
+        if delta == 0 {
+            return; // Status-only event (rotation start/stop), no movement.
+        }
+
+        let cfg = match self.shared_config.as_ref().and_then(|c| c.read().ok()) {
+            Some(c) => c.thumbwheel.clone(),
+            None => return,
+        };
+
+        let output = match cfg.resolve(delta) {
+            Some(o) => o,
+            None => return, // Off or zero.
+        };
+        let repeats = cfg.repeats();
+
+        tracing::debug!(delta, ?output, repeats, "ThumbWheel rotation");
+
+        match output {
+            crate::config::ThumbwheelOutput::Button(action) => {
+                // Emit one press per repeat; non-radial actions dispatch directly.
+                for _ in 0..repeats {
+                    let _ = self
+                        .event_tx
+                        .send(GestureEvent::ButtonActionEvent { action, pressed: true })
+                        .await;
+                }
+            }
+            crate::config::ThumbwheelOutput::HorizontalScroll(dir) => {
+                let _ = self
+                    .event_tx
+                    .send(GestureEvent::ThumbwheelScroll {
+                        clicks: dir * repeats as i32,
+                    })
+                    .await;
+            }
         }
     }
 
@@ -350,8 +467,9 @@ impl HidrawHandler {
         // A CID of 0 means all buttons released
         let pressed = cid != 0;
 
-        // Check if this is the gesture button OR haptic button (both can trigger radial menu)
-        let is_known = cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC || cid == 0;
+        // Whether this CID maps to a configured action (gesture/haptic, or a
+        // reassigned back/forward/middle/shift-wheel) or is the release marker.
+        let is_known = self.is_action_button(cid) || cid == 0;
 
         if is_known {
             tracing::info!(
@@ -369,7 +487,7 @@ impl HidrawHandler {
             );
         }
 
-        if cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC {
+        if self.is_action_button(cid) {
             // Look up configured action for this button
             let action = self.get_action_for_cid(cid);
             tracing::info!(cid, %action, "Button pressed - config action lookup");
@@ -516,33 +634,7 @@ impl HidrawHandler {
         use std::process::Command;
         use tempfile::Builder;
 
-        // Create KWin script that calls ShowMenuAtCursor with cursor position
-        // converted from KWin logical coords to Qt XCB (XWayland) coords.
-        // On HiDPI screens, KWin logical coords differ from XWayland coords
-        // by the per-screen scale factor. We find which screen contains the
-        // cursor and multiply the local offset by that screen's DPR.
-        let script = r#"
-var pos = workspace.cursorPos;
-var dpr = 1.0;
-var sx = 0, sy = 0;
-var screens = workspace.screens;
-if (screens) {
-    for (var i = 0; i < screens.length; i++) {
-        var geo = screens[i].geometry;
-        if (pos.x >= geo.x && pos.x < geo.x + geo.width &&
-            pos.y >= geo.y && pos.y < geo.y + geo.height) {
-            dpr = screens[i].devicePixelRatio;
-            sx = geo.x;
-            sy = geo.y;
-            break;
-        }
-    }
-}
-callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
-         "org.kde.juhradialmx.Daemon", "ShowMenuAtCursor",
-         sx + Math.round((pos.x - sx) * dpr),
-         sy + Math.round((pos.y - sy) * dpr));
-"#;
+        let script = crate::cursor::KWIN_CURSOR_SCRIPT;
 
         // Create a temporary file with .js suffix securely
         let mut temp_file = match Builder::new().suffix(".js").tempfile() {

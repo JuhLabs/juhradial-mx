@@ -5,7 +5,7 @@
 
 use zbus::{interface, object_server::SignalEmitter, fdo};
 use crate::config::Config;
-use crate::hidpp::HapticEvent;
+use crate::hidpp::{HapticEvent, Mx4HapticPattern};
 use crate::macros::events_to_actions;
 use super::service::JuhRadialService;
 
@@ -55,6 +55,35 @@ impl JuhRadialService {
         Ok(())
     }
 
+    /// Execute a desktop-portable preset by its snake_case id.
+    ///
+    /// Resolution/execution reuses the async preset path, but the KWin/dbus arms
+    /// block on `dbus-send`. This method runs on the zbus executor, so the work
+    /// is driven on a dedicated std thread with its own current-thread runtime to
+    /// keep the executor responsive (never `spawn_blocking` here).
+    async fn execute_preset(&self, name: String) -> fdo::Result<()> {
+        tracing::info!(name = %name, "ExecutePreset called");
+        let preset = crate::presets::Preset::from_name(&name)
+            .ok_or_else(|| fdo::Error::InvalidArgs(format!("Unknown preset: {}", name)))?;
+
+        std::thread::spawn(move || {
+            let rt = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+                Ok(rt) => rt,
+                Err(e) => {
+                    tracing::error!(error = %e, "Failed to build runtime for preset execution");
+                    return;
+                }
+            };
+            rt.block_on(async move {
+                if let Err(e) = crate::presets::execute_preset(preset).await {
+                    tracing::warn!(error = %e, preset = preset.as_str(), "Preset execution failed");
+                }
+            });
+        });
+
+        Ok(())
+    }
+
     // =========================================================================
     // MENU SIGNALS
     // =========================================================================
@@ -73,6 +102,26 @@ impl JuhRadialService {
 
     #[zbus(signal)]
     async fn cursor_moved(emitter: &SignalEmitter<'_>, x: i32, y: i32) -> zbus::Result<()>;
+
+    // =========================================================================
+    // LIVE HARDWARE READBACK SIGNALS
+    //
+    // Pushed from the hidraw notification path (see process_gesture_events) when
+    // the device reports a spontaneous state change. Declared here so clients can
+    // introspect them; the daemon broadcasts them directly on the connection.
+    // =========================================================================
+
+    #[zbus(signal)]
+    async fn battery_changed(emitter: &SignalEmitter<'_>, percent: u8, status: String) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    async fn ratchet_changed(emitter: &SignalEmitter<'_>, ratchet: bool) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    async fn host_changed(emitter: &SignalEmitter<'_>, host: u8) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    async fn dpi_changed(emitter: &SignalEmitter<'_>, dpi: u16) -> zbus::Result<()>;
 
     // =========================================================================
     // HAPTIC / PROFILE / CONFIG METHODS
@@ -120,6 +169,25 @@ impl JuhRadialService {
         Ok(())
     }
 
+    /// Play a specific haptic waveform by name (settings "Test pulse").
+    ///
+    /// Unlike TriggerHaptic (which takes a UX event and plays its configured
+    /// pattern), this plays the exact named MX4 waveform so the haptics page
+    /// can audition a selected preset.
+    async fn trigger_haptic_pattern(&self, name: &str) -> fdo::Result<()> {
+        tracing::info!(name, "TriggerHapticPattern D-Bus method called");
+        let pattern = Mx4HapticPattern::from_name(name);
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => {
+                if let Err(e) = manager.pulse_pattern(pattern) {
+                    tracing::warn!(error = %e, "Haptic test pattern failed");
+                }
+            }
+            Err(e) => tracing::error!(error = %e, "Failed to lock haptic manager"),
+        }
+        Ok(())
+    }
+
     /// Set the active profile
     async fn set_profile(&self, name: &str) -> fdo::Result<()> {
         tracing::info!(name, "SetProfile called");
@@ -133,6 +201,8 @@ impl JuhRadialService {
         match Config::load_default() {
             Ok(new_config) => {
                 let haptic_config = new_config.haptics.clone();
+                let thumbwheel_config = new_config.thumbwheel.clone();
+                let remapped_cids = new_config.remapped_button_cids();
 
                 match self.config.write() {
                     Ok(mut config) => {
@@ -161,10 +231,50 @@ impl JuhRadialService {
                             invalid = %haptic_config.per_event.invalid,
                             "Haptic manager updated with new patterns"
                         );
+
+                        // Re-apply volatile thumb-wheel divert from the new
+                        // config. Inversion is software-side (hidraw reader), so
+                        // only the divert state is pushed to the device here.
+                        if manager.thumbwheel_supported() {
+                            match manager.set_thumbwheel_reporting(thumbwheel_config.is_diverted(), false) {
+                                Ok(()) => tracing::info!(
+                                    diverted = thumbwheel_config.is_diverted(),
+                                    "Thumb-wheel reporting re-applied on reload"
+                                ),
+                                Err(e) => tracing::warn!(error = %e, "Failed to re-apply thumb-wheel reporting"),
+                            }
+                        }
+
+                        // Re-apply non-gesture button diverts so a newly
+                        // reassigned button takes effect immediately, and a
+                        // button returned to its native default has its divert
+                        // cleared, without a reconnect. Done under the manager
+                        // lock on the zbus executor (no Tokio runtime here, so
+                        // spawn_blocking is unavailable). The HID++ calls are
+                        // quick when connected and return immediately when not.
+                        let remapped: std::collections::HashSet<u16> =
+                            remapped_cids.into_iter().collect();
+                        for cid in Config::managed_button_cids() {
+                            let _ = manager.set_button_divert(cid, remapped.contains(&cid));
+                        }
                     }
                     Err(e) => {
                         tracing::error!(error = %e, "Failed to lock haptic manager for update");
                         return Err(fdo::Error::Failed(format!("Haptic manager lock error: {}", e)));
+                    }
+                }
+
+                // Refresh the shared per-app hardware profile map from
+                // profiles.json so a UI save takes effect without a daemon
+                // restart. The focus-change consumer reads this map directly.
+                let hardware = crate::profiles::load_hardware_profiles();
+                match self.hardware_profiles.write() {
+                    Ok(mut map) => {
+                        tracing::info!(count = hardware.len(), "Per-app hardware profiles reloaded");
+                        *map = hardware;
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, "Failed to lock hardware profiles for reload");
                     }
                 }
 
@@ -175,6 +285,18 @@ impl JuhRadialService {
                 Err(fdo::Error::Failed(format!("Config reload failed: {}", e)))
             }
         }
+    }
+
+    /// Called by the persistent KWin active-window script to report the focused
+    /// window's resource class. Forwarded to the per-app hardware-profile
+    /// consumer. The send is synchronous and never blocks the zbus executor.
+    async fn report_active_window(&self, class: String) -> fdo::Result<()> {
+        let class = class.to_lowercase();
+        tracing::debug!(class = %class, "ReportActiveWindow called");
+        if self.active_window_tx.send(class).is_err() {
+            tracing::trace!("Active-window channel closed; no profile consumer");
+        }
+        Ok(())
     }
 
     /// Called by KWin script to report cursor position and show menu
@@ -192,7 +314,10 @@ impl JuhRadialService {
     /// Get battery status from the device
     async fn get_battery_status(&self) -> fdo::Result<(u8, bool)> {
         let state = self.battery_state.read().await;
-        if state.available {
+        // Report the last-known value when available, and also when a live
+        // notification has populated a non-zero percentage even though the
+        // active poll later failed (it clears `available` but keeps the cache).
+        if state.available || state.percentage > 0 {
             Ok((state.percentage, state.charging))
         } else {
             Ok((0, false))
@@ -344,6 +469,50 @@ impl JuhRadialService {
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock haptic manager for set_hiresscroll_mode");
                 Err(fdo::Error::Failed(format!("Lock error: {}", e)))
+            }
+        }
+    }
+
+    // =========================================================================
+    // THUMB-WHEEL METHODS
+    // =========================================================================
+
+    /// Enable/disable thumb-wheel divert (HID++ ThumbWheel 0x2150).
+    ///
+    /// This runs on the zbus executor, NOT tokio, so it locks the haptic
+    /// manager and issues the volatile HID++ command inline (mirroring SetDpi).
+    /// `divert` routes rotation to HID++ notifications; `invert` requests the
+    /// device to flip reported direction.
+    async fn set_thumbwheel_reporting(&self, divert: bool, invert: bool) -> fdo::Result<()> {
+        tracing::info!(divert, invert, "SetThumbwheelReporting called");
+
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => match manager.set_thumbwheel_reporting(divert, invert) {
+                Ok(()) => {
+                    tracing::info!(divert, invert, "Thumb-wheel reporting set");
+                    Ok(())
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, divert, invert, "Failed to set thumb-wheel reporting");
+                    Err(fdo::Error::Failed(format!(
+                        "Failed to set thumb-wheel reporting: {}",
+                        e
+                    )))
+                }
+            },
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for set_thumbwheel_reporting");
+                Err(fdo::Error::Failed(format!("Lock error: {}", e)))
+            }
+        }
+    }
+
+    async fn thumbwheel_supported(&self) -> fdo::Result<bool> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => Ok(manager.thumbwheel_supported()),
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for thumbwheel_supported");
+                Ok(false)
             }
         }
     }

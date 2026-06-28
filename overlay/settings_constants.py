@@ -116,6 +116,13 @@ _BASE_BUTTON_ACTIONS = [
     ("virtual_desktops", "Virtual Desktops"),
     ("zoom_in", "Zoom In"),
     ("zoom_out", "Zoom Out"),
+    ("show_desktop", "Show Desktop"),
+    ("switch_desktop_left", "Switch Desktop Left"),
+    ("switch_desktop_right", "Switch Desktop Right"),
+    ("task_switcher", "Task Switcher"),
+    ("close_window", "Close Window"),
+    ("lock_screen", "Lock Screen"),
+    ("calculator", "Calculator"),
     ("none", "Do Nothing"),
     ("custom", "Custom Action..."),
 ]

@@ -40,6 +40,13 @@ _ACTION_GROUPS = [
         "forward",
         "middle_click",
     ]),
+    ("DESKTOP", [
+        "show_desktop",
+        "switch_desktop_left",
+        "switch_desktop_right",
+        "task_switcher",
+        "close_window",
+    ]),
     ("CLIPBOARD", [
         "copy",
         "paste",
@@ -56,6 +63,8 @@ _ACTION_GROUPS = [
         "screenshot",
         "zoom_in",
         "zoom_out",
+        "lock_screen",
+        "calculator",
     ]),
     ("MOUSE", [
         "smartshift",
@@ -66,11 +75,25 @@ _ACTION_GROUPS = [
     ]),
 ]
 
+# Icon names for the DE-portable preset actions (freedesktop symbolic names).
+# Only the preset rows carry a prefix icon; other rows are left unchanged.
+_ACTION_ICONS = {
+    "show_desktop": "user-desktop-symbolic",
+    "switch_desktop_left": "go-previous-symbolic",
+    "switch_desktop_right": "go-next-symbolic",
+    "task_switcher": "view-app-grid-symbolic",
+    "close_window": "window-close-symbolic",
+    "lock_screen": "system-lock-screen-symbolic",
+    "calculator": "accessories-calculator-symbolic",
+}
+
+
 # Translated group names (called at dialog build time so _ is live)
 def _group_label(key):
     return {
         "COMMON": _("Common"),
         "NAVIGATION": _("Navigation"),
+        "DESKTOP": _("Desktop & Windows"),
         "CLIPBOARD": _("Clipboard"),
         "MEDIA": _("Media"),
         "SYSTEM": _("System"),
@@ -182,6 +205,13 @@ class ButtonConfigDialog(Adw.Window):
                 row.set_activatable(True)
                 row.action_id = action_id
                 row.action_name = action_name
+
+                # Prefix icon for the DE-portable preset actions
+                prefix_icon_name = _ACTION_ICONS.get(action_id)
+                if prefix_icon_name:
+                    prefix_icon = Gtk.Image.new_from_icon_name(prefix_icon_name)
+                    prefix_icon.set_pixel_size(16)
+                    row.add_prefix(prefix_icon)
 
                 # Checkmark indicator (GNOME HIG pattern)
                 check_icon = Gtk.Image.new_from_icon_name(

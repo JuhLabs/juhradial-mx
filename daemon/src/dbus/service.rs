@@ -7,6 +7,7 @@ use crate::config::SharedConfig;
 use crate::gaming::SharedGamingMode;
 use crate::hidpp::SharedHapticManager;
 use crate::macros::{MacroEngine, MacroRecorder, SharedTriggerMap, TriggerMap};
+use crate::profiles::SharedHardwareProfiles;
 
 /// JuhRadial MX D-Bus service
 ///
@@ -34,6 +35,13 @@ pub struct JuhRadialService {
     pub(crate) macro_recorder: Arc<Mutex<MacroRecorder>>,
     /// Macro trigger map (evdev button code -> macro ID)
     pub(crate) trigger_map: SharedTriggerMap,
+    /// Sink for active-window resource classes reported by the KWin script
+    /// (`ReportActiveWindow`). The consumer applies per-app hardware profiles.
+    pub(crate) active_window_tx: tokio::sync::mpsc::UnboundedSender<String>,
+    /// Shared per-app hardware profile map. `ReloadConfig` refreshes it from
+    /// profiles.json so UI saves take effect without a daemon restart; the
+    /// focus-change consumer reads it on each active-window change.
+    pub(crate) hardware_profiles: SharedHardwareProfiles,
 }
 
 impl JuhRadialService {
@@ -44,6 +52,9 @@ impl JuhRadialService {
         haptic_manager: SharedHapticManager,
     ) -> Self {
         let gaming_mode = crate::gaming::new_shared_gaming_mode(haptic_manager.clone());
+        // No window-profile consumer on this simple path: drop the receiver so
+        // ReportActiveWindow becomes a no-op.
+        let (active_window_tx, _aw_rx) = tokio::sync::mpsc::unbounded_channel();
         Self {
             current_profile: "default".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
@@ -56,6 +67,8 @@ impl JuhRadialService {
             macro_engine: Arc::new(Mutex::new(MacroEngine::new())),
             macro_recorder: Arc::new(Mutex::new(MacroRecorder::new())),
             trigger_map: Arc::new(std::sync::RwLock::new(TriggerMap::default())),
+            active_window_tx,
+            hardware_profiles: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
         }
     }
 
@@ -71,6 +84,8 @@ impl JuhRadialService {
         macro_engine: Arc<Mutex<MacroEngine>>,
         macro_recorder: Arc<Mutex<MacroRecorder>>,
         trigger_map: SharedTriggerMap,
+        active_window_tx: tokio::sync::mpsc::UnboundedSender<String>,
+        hardware_profiles: SharedHardwareProfiles,
     ) -> Self {
         Self {
             current_profile: "default".to_string(),
@@ -84,6 +99,8 @@ impl JuhRadialService {
             macro_engine,
             macro_recorder,
             trigger_map,
+            active_window_tx,
+            hardware_profiles,
         }
     }
 }
@@ -121,6 +138,8 @@ mod tests {
         let macro_engine = Arc::new(Mutex::new(MacroEngine::new()));
         let macro_recorder = Arc::new(Mutex::new(MacroRecorder::new()));
         let trigger_map = Arc::new(std::sync::RwLock::new(TriggerMap::default()));
+        let (active_window_tx, _aw_rx) = tokio::sync::mpsc::unbounded_channel();
+        let hardware_profiles = Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
         let service = JuhRadialService::new_with_device(
             battery_state,
             config,
@@ -131,6 +150,8 @@ mod tests {
             macro_engine,
             macro_recorder,
             trigger_map,
+            active_window_tx,
+            hardware_profiles,
         );
         assert_eq!(service.device_mode, "generic");
         assert_eq!(service.device_name, "SteelSeries Rival 3");

@@ -6,7 +6,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.3.2-cyan.svg" alt="Version 0.3.2">
+      <img src="https://img.shields.io/badge/version-0.4.0-cyan.svg" alt="Version 0.4.0">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
@@ -35,42 +35,9 @@
 <br>
 
 > [!TIP]
-> **Current official release: [v0.3.2](CHANGELOG.md).** Promotes the 0.3.x beta line with config-driven button actions, JuhFlow, generic mouse mode, refreshed settings artwork, and a reconnect fix for MX Master Easy-Switch.
+> **New in [v0.4.0](CHANGELOG.md):** Thumb-wheel actions (volume, zoom, horizontal scroll), per-application profiles that switch DPI/buttons/scroll on focus, portable system actions on any button, live device state, and a settings search box. Plus reliable Wayland action injection via uinput and fixes for fractional-scaling menu position (#25), button reassignments (#26), and building on Ubuntu 24.04 (#23) and openSUSE Tumbleweed (#24). [Update now](#installation).
 >
 > **Mac users:** Want to try JuhFlow cross-computer control? [Download JuhFlow.dmg](https://github.com/JuhLabs/juhradial-mx/raw/master/juhflow/JuhFlow.dmg) (signed & notarized) - install it on your Mac, then enable Flow in JuhRadial MX Settings on Linux. Both machines auto-discover each other on your local network.
-
-<div align="center">
-  <img src="assets/github/separator.png" width="80%" alt="">
-</div>
-
-## Release Highlights
-
-<div align="center">
-  <img src="assets/github/hero-v3.png" width="100%" alt="JuhRadial MX control center">
-</div>
-
-<table>
-  <tr>
-    <td width="50%">
-      <strong>Reconnect-safe radial button</strong><br>
-      Easy-Switch host changes no longer leave the radial wheel stuck after returning to Linux. The daemon re-applies HID++ diverts and the evdev fallback maps the MX thumb/radial control correctly.
-    </td>
-    <td width="50%">
-      <strong>Official 0.3.x release</strong><br>
-      Button remapping, generic mouse support, JuhFlow, macro triggers, gaming mode, and multi-desktop cursor detection are now bundled into the stable release line.
-    </td>
-  </tr>
-  <tr>
-    <td>
-      <strong>Settings dashboard refresh</strong><br>
-      Buttons, Devices, Easy-Switch, and Haptics pages now use generated product artwork while preserving the clean GTK4/Adwaita layout.
-    </td>
-    <td>
-      <strong>Installer cleanup</strong><br>
-      Generated settings assets are installed with the app, and the development sync script no longer depends on a machine-specific source path.
-    </td>
-  </tr>
-</table>
 
 <div align="center">
   <img src="assets/github/separator.png" width="80%" alt="">
@@ -187,18 +154,29 @@ cd daemon && cargo build --release && cd ..
     </td>
     <td>
       <h3><img src="assets/github/mouse.png" width="24" alt=""> Multi-Device</h3>
-      Easy-Switch host switching with real-time paired device names via HID++. Reconnects cleanly after switching away and back. Generic mouse mode supports any mouse with evdev.
+      Easy-Switch host switching with real-time paired device names via HID++. Generic mouse mode supports any mouse with evdev.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h3><img src="assets/github/mouse.png" width="24" alt=""> Thumb Wheel & Per-App Profiles</h3>
+      Bind the side thumb-wheel to volume, zoom, or horizontal scroll. DPI, buttons, and scroll switch automatically per application as you change focus.
+    </td>
+    <td>
+      <h3><img src="assets/github/gear.png" width="24" alt=""> Live Control</h3>
+      Battery, DPI, scroll ratchet, and the active Easy-Switch host update in real time, and a header search box jumps straight to any setting.
     </td>
   </tr>
   <tr>
     <td>
       <strong>Macros</strong> - Key sequences, delays, text typing, WhileHolding loops<br>
       <strong>Gaming Mode</strong> - Bind any mouse button to macros via evdev<br>
+      <strong>System Actions</strong> - Show Desktop, Switch Desktop, Lock, Calculator and more on any button<br>
       <strong>Battery Monitoring</strong> - Real-time status with instant charging detection via HID++
     </td>
     <td>
       <strong>AI Quick Access</strong> - Claude, ChatGPT, Gemini, Perplexity in a submenu<br>
-      <strong>Native Wayland</strong> - GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway & more<br>
+      <strong>Native Wayland</strong> - GNOME, KDE Plasma 6, Hyprland, COSMIC, Sway, niri & more<br>
       <strong>Multiple Themes</strong> - JuhRadial MX, Catppuccin, Nord, Dracula, Solarized & more
     </td>
   </tr>
@@ -251,6 +229,7 @@ Move your cursor seamlessly between your Linux and Mac machines. Encrypted, peer
 | **Hyprland** | IPC socket | **Fully supported** |
 | **COSMIC** (Fedora, Pop!_OS) | XWayland sync | **Fully supported** |
 | **Sway / wlroots** | XWayland fallback | Supported |
+| **niri** | XWayland (xwayland-satellite) | Supported |
 | **X11** (any DE) | xdotool | Supported |
 
 </div>
@@ -367,7 +346,6 @@ windowrulev2 = noanim, title:^(JuhRadial MX)$
 | Problem | Solution |
 |---------|----------|
 | Menu doesn't appear | Check daemon is running: `pgrep juhradiald` or restart via the desktop launcher |
-| Menu stops after Easy-Switch | Update to v0.3.2 or newer, then restart JuhRadial MX so the HID++ reconnect and evdev fallback fixes are active |
 | Menu at top-left corner | Log out/in to load GNOME extension, or run `gnome-extensions enable juhradial-cursor@dev.juhlabs.com` |
 | Mouse not detected | Check HID permissions: ensure your user is in the `input` group |
 | Build fails | Install dev packages: `hidapi-devel`, `dbus-devel` |

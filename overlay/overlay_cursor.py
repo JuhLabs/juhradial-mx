@@ -246,6 +246,7 @@ _xlib = None
 _xdisplay = None
 _xroot = None
 _sync_window = None
+_sync_window_size = None
 
 
 def _init_xlib():
@@ -358,6 +359,14 @@ def _xquery_pointer():
     return None
 
 
+def _xdisplay_size():
+    """Return current X display size for screen 0."""
+    return (
+        _xlib.XDisplayWidth(_xdisplay, 0),
+        _xlib.XDisplayHeight(_xdisplay, 0),
+    )
+
+
 def get_cursor_position_xwayland():
     """Get cursor position via XWayland using Xlib XQueryPointer.
 
@@ -397,10 +406,13 @@ def get_cursor_position_xwayland_synced():
     if not _init_xlib():
         return None
 
-    global _sync_window
+    global _sync_window, _sync_window_size
+    w, h = _xdisplay_size()
+    if _sync_window is not None and _sync_window_size != (w, h):
+        _xlib.XDestroyWindow(_xdisplay, _sync_window)
+        _sync_window = None
+
     if _sync_window is None:
-        w = _xlib.XDisplayWidth(_xdisplay, 0)
-        h = _xlib.XDisplayHeight(_xdisplay, 0)
 
         # X11 constants
         TrueColor = 4
@@ -436,6 +448,7 @@ def get_cursor_position_xwayland_synced():
             _sync_window = _xlib.XCreateSimpleWindow(
                 _xdisplay, _xroot, 0, 0, w, h, 0, 0, 0
             )
+        _sync_window_size = (w, h)
         _xlib.XFlush(_xdisplay)
 
     # Capture stale reading BEFORE mapping the sync window
@@ -480,25 +493,68 @@ def get_cursor_position_xwayland_synced():
 
 
 def get_cursor_pos():
-    """Get cursor position - uses hyprctl on Hyprland, GNOME extension on GNOME, XWayland, or QCursor."""
+    """Get cursor position in Qt coordinate space (matching QWidget.move()).
+
+    Uses QCursor.pos() as the primary source on most compositors because it
+    returns coordinates in Qt's own space, correctly handling HiDPI scaling
+    and devicePixelRatio. Falls back to compositor-specific methods when
+    QCursor returns (0,0) - which happens on Wayland when no XWayland window
+    is visible.
+
+    Hyprland is the exception: hyprctl returns logical coords that already
+    match Qt's coordinate space.
+    """
     if IS_HYPRLAND:
         pos = get_cursor_position_hyprland()
         if pos:
             return pos
+    # QCursor.pos() is the most reliable source for Qt coordinate space.
+    # On KDE/GNOME Wayland with HiDPI, XWayland raw coords differ from
+    # Qt logical coords by the devicePixelRatio. QCursor handles this.
+    pos = get_cursor_position_qt()
+    if pos:
+        return pos
+    # QCursor returns (0,0) when no XWayland window is visible.
+    # Fall back to compositor-specific methods.
     if IS_GNOME:
         pos = get_cursor_position_gnome()
         if pos:
             return pos
-    # XWayland fallback (works on Sway, COSMIC, and other Wayland compositors).
-    # Sway has excellent XWayland integration so XQueryPointer is accurate.
     if _HAS_XWAYLAND:
         pos = get_cursor_position_xwayland()
         if pos:
             return pos
-    # Fallback to Qt (works on X11/KDE)
-    from PyQt6.QtGui import QCursor
-    qpos = QCursor.pos()
-    return (qpos.x(), qpos.y())
+    return (0, 0)
+
+
+def get_cursor_position_qt():
+    """Get cursor position in Qt's current screen coordinate space.
+
+    Returns None if Qt reports the common Wayland no-window fallback (0,0), or
+    if the coordinate is outside every known Qt screen.
+    """
+    try:
+        from PyQt6.QtGui import QCursor
+        from PyQt6.QtWidgets import QApplication
+
+        qpos = QCursor.pos()
+        x, y = qpos.x(), qpos.y()
+        if x == 0 and y == 0:
+            return None
+
+        app = QApplication.instance()
+        if not app:
+            return (x, y)
+
+        for screen in app.screens():
+            geom = screen.geometry()
+            if (geom.x() <= x < geom.x() + geom.width() and
+                    geom.y() <= y < geom.y() + geom.height()):
+                return (x, y)
+    except (ImportError, AttributeError, RuntimeError):
+        pass  # Qt cursor position unavailable; fall through to None
+
+    return None
 
 
 # =============================================================================

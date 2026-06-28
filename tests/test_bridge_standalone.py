@@ -7,7 +7,7 @@ Usage (Linux):
     python3 test_bridge_standalone.py
 
 Usage (Mac):
-    python3 juhflow/juhflow_app.py --ip 192.168.68.74 --cli
+    python3 juhflow/juhflow_app.py --ip 192.168.1.42 --cli
 
 What it does:
     1. Starts the JuhFlow bridge server on TCP 59872

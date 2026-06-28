@@ -88,7 +88,7 @@ class FlowServiceListener:
 
             # Clean up name - remove service suffix
             clean_name = name.split("._")[0] if "._" in name else name
-            # Remove MAC address prefix if present (e.g., "8E46296F5480@MacBook M4")
+            # Remove MAC address prefix if present (e.g., "AABBCCDDEEFF@HostName")
             if "@" in clean_name:
                 clean_name = clean_name.split("@")[1]
 

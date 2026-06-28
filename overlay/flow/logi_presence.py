@@ -101,7 +101,7 @@ class FlowPresenceServer:
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            # CodeQL: intentional - discovery requires binding to all interfaces
+            # codeql[py/bind-socket-all-network-interfaces] LAN discovery/peer service: binding all interfaces is required and intentional
             self.sock.bind(("", LOGI_PRESENCE_PORT))  # nosec B104 - accepts LAN peer connections, must bind all interfaces
             self.sock.listen(5)
             self.sock.settimeout(1.0)

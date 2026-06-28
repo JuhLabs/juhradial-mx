@@ -77,6 +77,7 @@ impl TriggerMap {
     }
 }
 
+
 /// Parse a trigger string into an evdev button code
 ///
 /// Trigger formats from the Python settings UI:

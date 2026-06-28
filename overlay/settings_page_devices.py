@@ -20,7 +20,6 @@ from i18n import _
 from settings_config import get_device_name, get_device_mode, get_device_name_from_daemon
 from settings_theme import COLORS
 from settings_widgets import (
-    GeneratedAssetHero,
     InfoCard,
     LoadingState,
     PageHeader,
@@ -39,6 +38,13 @@ class DevicesPage(Gtk.ScrolledWindow):
         self._device_mode = get_device_mode()
         self._is_generic = self._device_mode == "generic"
 
+        # Live hardware state (UI-D): populated by daemon signals, primed by
+        # the pull getters. Empty until the live card is built (non-generic).
+        self._live_subs = []
+        self._live_bus = None
+        self._live_labels = {}
+        self._live_dot = None
+
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
         content.set_margin_top(24)
         content.set_margin_bottom(24)
@@ -52,9 +58,6 @@ class DevicesPage(Gtk.ScrolledWindow):
             _("Connected device information"),
         )
         content.append(header)
-        content.append(
-            GeneratedAssetHero("settings-generated/control-ring.png", max_height=190)
-        )
 
         # Generic mode banner
         if self._is_generic:
@@ -170,6 +173,13 @@ class DevicesPage(Gtk.ScrolledWindow):
         device_card.append(fw_row)
 
         content.append(device_card)
+
+        # Live hardware state card (HID++ only): battery, ratchet, host, DPI
+        # reflected live from daemon signals (see _on_map).
+        if not self._is_generic:
+            content.append(self._build_live_card())
+            self.connect("map", self._on_map)
+            self.connect("unmap", self._on_unmap)
 
         # Additional Info Card (quieter styling)
         info_card = InfoCard(_("Device Management"))
@@ -297,6 +307,170 @@ class DevicesPage(Gtk.ScrolledWindow):
                 _("Could not reach daemon — is it running?"), retry=True
             )
         return False
+
+    # ---------------------------------------------------------- live state (UI-D)
+    def _build_live_card(self):
+        """Card reflecting live HID++ state pushed by the daemon."""
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        card.add_css_class("settings-card")
+        card.set_hexpand(True)
+
+        head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        title = Gtk.Label(label=_("LIVE STATE  ·  HARDWARE"))
+        title.set_halign(Gtk.Align.START)
+        title.set_hexpand(True)
+        title.add_css_class("section-eyebrow")
+        head.append(title)
+
+        self._live_dot = Gtk.Box()
+        self._live_dot.add_css_class("connection-dot")
+        self._live_dot.add_css_class("disconnected")
+        self._live_dot.set_valign(Gtk.Align.CENTER)
+        head.append(self._live_dot)
+
+        badge = Gtk.Label(label=_("LIVE"))
+        badge.add_css_class("live-badge")
+        head.append(badge)
+        card.append(head)
+
+        readouts = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        readouts.set_homogeneous(True)
+        self._live_labels["battery"] = self._make_readout(readouts, _("BATTERY"))
+        self._live_labels["ratchet"] = self._make_readout(readouts, _("WHEEL"))
+        self._live_labels["host"] = self._make_readout(readouts, _("HOST"))
+        self._live_labels["dpi"] = self._make_readout(readouts, _("DPI"))
+        card.append(readouts)
+
+        return card
+
+    def _make_readout(self, parent, label_text):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        lbl = Gtk.Label(label=label_text)
+        lbl.set_halign(Gtk.Align.START)
+        lbl.add_css_class("haptic-readout-label")
+        box.append(lbl)
+        val = Gtk.Label(label="--")
+        val.set_halign(Gtk.Align.START)
+        val.add_css_class("haptic-readout-num")
+        box.append(val)
+        parent.append(box)
+        return val
+
+    def _on_map(self, *_a):
+        if self._live_subs:
+            return
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        except Exception:
+            return
+        # Empty sender so a daemon restart does not silence us (see CLAUDE.md).
+        for signal, handler in (
+            ("BatteryChanged", self._on_battery_signal),
+            ("RatchetChanged", self._on_ratchet_signal),
+            ("HostChanged", self._on_host_signal),
+            ("DpiChanged", self._on_dpi_signal),
+        ):
+            self._live_subs.append(bus.signal_subscribe(
+                None, "org.kde.juhradialmx.Daemon", signal,
+                "/org/kde/juhradialmx/Daemon", None, Gio.DBusSignalFlags.NONE,
+                handler, None,
+            ))
+        self._live_bus = bus
+        GLib.idle_add(self._prime_live)
+
+    def _on_unmap(self, *_a):
+        if self._live_bus is not None:
+            for sid in self._live_subs:
+                self._live_bus.signal_unsubscribe(sid)
+        self._live_subs = []
+
+    def _set_live_connected(self):
+        if self._live_dot is not None:
+            self._live_dot.remove_css_class("disconnected")
+            self._live_dot.add_css_class("connected")
+
+    def _prime_live(self):
+        """Pull initial values so the readouts are populated before any signal.
+
+        Ratchet/free-spin has no pull getter, so it stays '--' until a
+        RatchetChanged signal arrives.
+        """
+        try:
+            bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            proxy = Gio.DBusProxy.new_sync(
+                bus, Gio.DBusProxyFlags.NONE, None,
+                "org.kde.juhradialmx",
+                "/org/kde/juhradialmx/Daemon",
+                "org.kde.juhradialmx.Daemon",
+                None,
+            )
+        except Exception:
+            return False
+
+        any_value = False
+        try:
+            res = proxy.call_sync(
+                "GetBatteryStatus", None, Gio.DBusCallFlags.NONE, 500, None
+            )
+            percent, charging = res.unpack()
+            if percent > 0:
+                self._set_battery(percent, _("charging") if charging else "")
+                any_value = True
+        except GLib.GError:
+            # daemon unavailable or method missing; leave this live field empty
+            pass
+        try:
+            res = proxy.call_sync("GetDpi", None, Gio.DBusCallFlags.NONE, 500, None)
+            (dpi,) = res.unpack()
+            if dpi > 0:
+                self._live_labels["dpi"].set_label(str(dpi))
+                any_value = True
+        except GLib.GError:
+            # daemon unavailable or method missing; leave this live field empty
+            pass
+        try:
+            res = proxy.call_sync(
+                "GetEasySwitchInfo", None, Gio.DBusCallFlags.NONE, 500, None
+            )
+            num_hosts, current = res.unpack()
+            if num_hosts > 0:
+                self._live_labels["host"].set_label(str(current + 1))
+                any_value = True
+        except GLib.GError:
+            # daemon unavailable or method missing; leave this live field empty
+            pass
+
+        if any_value:
+            self._set_live_connected()
+        return False
+
+    def _set_battery(self, percent, status):
+        text = f"{percent}%"
+        if status:
+            text = f"{text} · {status}"
+        self._live_labels["battery"].set_label(text)
+
+    def _on_battery_signal(self, _c, _s, _p, _i, _sig, params, _u):
+        percent, status = params.unpack()
+        self._set_battery(percent, status)
+        self._set_live_connected()
+
+    def _on_ratchet_signal(self, _c, _s, _p, _i, _sig, params, _u):
+        (ratchet,) = params.unpack()
+        self._live_labels["ratchet"].set_label(
+            _("RATCHET") if ratchet else _("FREE-SPIN")
+        )
+        self._set_live_connected()
+
+    def _on_host_signal(self, _c, _s, _p, _i, _sig, params, _u):
+        (host,) = params.unpack()
+        self._live_labels["host"].set_label(str(host + 1))
+        self._set_live_connected()
+
+    def _on_dpi_signal(self, _c, _s, _p, _i, _sig, params, _u):
+        (dpi,) = params.unpack()
+        self._live_labels["dpi"].set_label(str(dpi))
+        self._set_live_connected()
 
     def _detect_generic_connection(self):
         """Detect connection type for a generic (non-Logitech) mouse.

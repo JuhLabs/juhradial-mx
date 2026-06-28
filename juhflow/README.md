@@ -143,7 +143,7 @@ Also needs `blueutil` (Homebrew): `brew install blueutil`
 open JuhFlow.app
 
 # Via CLI
-.venv/bin/python3 juhflow_app.py --ip 192.168.68.74 --cli --direction left --mac-channel 2 --linux-channel 1
+.venv/bin/python3 juhflow_app.py --ip 192.168.1.42 --cli --direction left --mac-channel 2 --linux-channel 1
 ```
 
 ## Key Design Decisions

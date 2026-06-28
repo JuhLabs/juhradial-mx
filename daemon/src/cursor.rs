@@ -5,8 +5,28 @@
 
 use std::process::Command;
 
-/// Menu diameter in pixels (used for edge clamping)
-pub const MENU_DIAMETER: i32 = 280;
+/// KWin JavaScript used by KDE Wayland input paths to show the menu at the
+/// cursor in the coordinate space expected by the XWayland/Qt overlay.
+///
+/// KWin reports `workspace.cursorPos` in logical pixels, which is the same
+/// device-independent space the overlay's `QWidget.move()` uses (Qt point space
+/// on the xcb/XWayland platform), so the position is passed through unchanged.
+///
+/// Earlier builds applied a devicePixelRatio correction here: multiplying
+/// overshot the cursor down-right at fractional scaling, and dividing overshot
+/// up-left, with the error growing proportional to distance from the origin in
+/// each case. Identity (no scaling) is what lands the menu on the cursor on
+/// Plasma 6 Wayland; at 100% scaling all three are equivalent.
+pub const KWIN_CURSOR_SCRIPT: &str = r#"
+var pos = workspace.cursorPos;
+callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
+         "org.kde.juhradialmx.Daemon", "ShowMenuAtCursor",
+         Math.round(pos.x),
+         Math.round(pos.y));
+"#;
+
+/// Menu diameter in pixels (matches overlay MENU_RADIUS * 2)
+pub const MENU_DIAMETER: i32 = 300;
 
 /// Minimum margin from screen edges in pixels
 pub const EDGE_MARGIN: i32 = 20;
@@ -83,10 +103,9 @@ pub fn get_cursor_position() -> CursorPosition {
         return pos;
     }
 
-    // Try KWin scripting (works correctly on Plasma 6 Wayland multi-monitor)
-    if let Some(pos) = get_cursor_via_kwin_script() {
-        return pos;
-    }
+    // KWin scripting is handled by hidraw.rs trigger_kwin_cursor_script()
+    // which calls ShowMenuAtCursor via D-Bus asynchronously. This fallback
+    // path is only reached when that async path isn't used.
 
     // Try KWin D-Bus property (older Plasma versions)
     if let Some(pos) = get_cursor_via_kwin_dbus() {
@@ -185,75 +204,6 @@ fn get_cursor_via_hyprland_socket(sig: &str) -> Option<CursorPosition> {
         return Some(CursorPosition::new(x, y));
     }
 
-    None
-}
-
-/// Query cursor position via KWin scripting (for Plasma 6 Wayland)
-///
-/// This method uses KWin's JavaScript scripting API to get the true cursor position,
-/// which works correctly across multiple monitors on Wayland.
-/// The script calls back to our daemon via D-Bus with the position.
-fn get_cursor_via_kwin_script() -> Option<CursorPosition> {
-    use std::io::Write;
-    use tempfile::Builder;
-
-    // Create KWin script that calls our D-Bus method with cursor position
-    let script = r#"
-var pos = workspace.cursorPos;
-callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
-         "org.kde.juhradialmx.Daemon", "ReportCursorPosition",
-         pos.x, pos.y);
-"#;
-
-    // Create a temporary file with .js suffix securely
-    let mut temp_file = Builder::new().suffix(".js").tempfile().ok()?;
-
-    // Write script to temp file
-    if write!(temp_file, "{}", script).is_err() {
-        return None;
-    }
-
-    // Get the path as a string
-    let script_path = temp_file.path().to_string_lossy();
-
-    // Load script via D-Bus
-    let load_output = Command::new("dbus-send")
-        .args([
-            "--session",
-            "--print-reply",
-            "--dest=org.kde.KWin",
-            "/Scripting",
-            "org.kde.kwin.Scripting.loadScript",
-            &format!("string:{}", script_path),
-        ])
-        .output()
-        .ok()?;
-
-    if !load_output.status.success() {
-        return None;
-    }
-
-    // Parse script ID from output
-    let stdout = String::from_utf8_lossy(&load_output.stdout);
-    let script_id: i32 = stdout
-        .lines()
-        .find(|line| line.contains("int32"))
-        .and_then(|line| line.split_whitespace().last())
-        .and_then(|s| s.parse().ok())?;
-
-    // Run the script
-    let _ = Command::new("dbus-send")
-        .args([
-            "--session",
-            "--print-reply",
-            "--dest=org.kde.KWin",
-            &format!("/Scripting/Script{}", script_id),
-            "org.kde.kwin.Script.run",
-        ])
-        .output();
-
-    // The script will call ReportCursorPosition which is handled by the daemon
-    // For now, we can't easily get the result synchronously, so fall back to other methods
     None
 }
 
@@ -652,7 +602,7 @@ mod tests {
         let pos = CursorPosition::new(0, 0);
         let clamped = pos.clamp_to_screen(&bounds);
 
-        // min_x = EDGE_MARGIN + MENU_RADIUS = 20 + 140 = 160
+        // min_x = EDGE_MARGIN + MENU_RADIUS = 20 + 150 = 170
         assert_eq!(clamped.x, EDGE_MARGIN + MENU_RADIUS);
         assert_eq!(clamped.y, EDGE_MARGIN + MENU_RADIUS);
     }
@@ -667,8 +617,8 @@ mod tests {
         let pos = CursorPosition::new(1920, 1080);
         let clamped = pos.clamp_to_screen(&bounds);
 
-        // max_x = width - EDGE_MARGIN - MENU_RADIUS = 1920 - 20 - 140 = 1760
-        // max_y = height - EDGE_MARGIN - MENU_RADIUS = 1080 - 20 - 140 = 920
+        // max_x = width - EDGE_MARGIN - MENU_RADIUS = 1920 - 20 - 150 = 1750
+        // max_y = height - EDGE_MARGIN - MENU_RADIUS = 1080 - 20 - 150 = 910
         assert_eq!(clamped.x, 1920 - EDGE_MARGIN - MENU_RADIUS);
         assert_eq!(clamped.y, 1080 - EDGE_MARGIN - MENU_RADIUS);
     }
@@ -683,15 +633,28 @@ mod tests {
         let pos = CursorPosition::new(10, 540);
         let clamped = pos.clamp_to_screen(&bounds);
 
-        assert_eq!(clamped.x, EDGE_MARGIN + MENU_RADIUS); // 160
+        assert_eq!(clamped.x, EDGE_MARGIN + MENU_RADIUS); // 170
         assert_eq!(clamped.y, 540); // Y unchanged
     }
 
     #[test]
     fn test_menu_constants() {
-        assert_eq!(MENU_DIAMETER, 280);
+        assert_eq!(MENU_DIAMETER, 300);
         assert_eq!(EDGE_MARGIN, 20);
-        assert_eq!(MENU_RADIUS, 140);
+        assert_eq!(MENU_RADIUS, 150);
+    }
+
+    #[test]
+    fn test_kwin_cursor_script_passes_cursor_unscaled() {
+        // Fractional scaling fix (#25): KWin logical coords already match the
+        // overlay's Qt point space, so the cursor is passed through unchanged.
+        assert!(KWIN_CURSOR_SCRIPT.contains("Math.round(pos.x)"));
+        assert!(KWIN_CURSOR_SCRIPT.contains("Math.round(pos.y)"));
+        // Neither the multiply nor the divide dpr correction must return: both
+        // overshot (down-right and up-left respectively) at non-100% scaling.
+        assert!(!KWIN_CURSOR_SCRIPT.contains("* dpr"));
+        assert!(!KWIN_CURSOR_SCRIPT.contains("/ dpr"));
+        assert!(!KWIN_CURSOR_SCRIPT.contains("devicePixelRatio"));
     }
 
     #[test]

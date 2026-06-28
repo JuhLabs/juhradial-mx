@@ -195,6 +195,9 @@ class FlowHandoffManager:
                 peer_name = name
                 break
 
+        cfg = self.get_flow_config()
+        transfer_files = bool(cfg.get("transfer_files", False))
+
         sent = False
         if peer_name:
             # Send via presence channel (paired JuhRadialMX peers)
@@ -204,6 +207,7 @@ class FlowHandoffManager:
                 "relative_position": relative_pos,
                 "screen_width": sw,
                 "screen_height": sh,
+                "transfer_files": transfer_files,
             }
             sent = self._send_to_peer(peer_name, handoff_msg)
             if sent:
@@ -212,7 +216,6 @@ class FlowHandoffManager:
 
         # Also send to JuhFlow bridge peers (Mac/Win companion apps)
         # Only on the configured flow direction edge
-        cfg = self.get_flow_config()
         flow_direction = cfg.get("direction", "right")
         if (self.juhflow_bridge and self.juhflow_bridge.get_peers()
                 and edge == flow_direction):
@@ -236,7 +239,10 @@ class FlowHandoffManager:
     def _sync_clipboard(self, peer_name: Optional[str] = None):
         """Sync clipboard to peer via presence or bridge."""
         try:
-            from .clipboard import get_clipboard
+            from .clipboard import get_clipboard, sharing_enabled
+            # Honor flow.share_clipboard: skip outbound sync when disabled.
+            if not sharing_enabled():
+                return
             clipboard_content = get_clipboard()
             if not clipboard_content:
                 return
@@ -354,7 +360,11 @@ class FlowHandoffManager:
         """Handle incoming clipboard sync."""
         content = message.get("content", "")
         if content:
-            from .clipboard import set_clipboard
+            from .clipboard import set_clipboard, sharing_enabled
+            # Honor flow.share_clipboard: ignore inbound clipboard when disabled.
+            if not sharing_enabled():
+                logger.debug("Clipboard sharing disabled; ignoring inbound sync")
+                return
             set_clipboard(content)
             logger.info("Clipboard synced from %s (%d chars)", peer_name, len(content))
 
