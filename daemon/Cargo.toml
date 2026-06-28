@@ -30,7 +30,7 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 
 # File watching for config hot-reload
-notify = "6"
+notify = "8"
 
 # Platform directories (config, data paths)
 dirs = "6"
