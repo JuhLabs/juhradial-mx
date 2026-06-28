@@ -5,23 +5,21 @@
   <p>Radial menu, cross-computer Flow, DPI control, haptic feedback - all native on Wayland</p>
 
   <p>
+    <code>Radial Menu</code> &nbsp;&middot;&nbsp; <code>Thumb-Wheel</code> &nbsp;&middot;&nbsp; <code>Per-App Profiles</code> &nbsp;&middot;&nbsp; <code>Haptics</code> &nbsp;&middot;&nbsp; <code>Easy-Switch</code> &nbsp;&middot;&nbsp; <code>Flow</code>
+  </p>
+
+  <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
       <img src="https://img.shields.io/badge/version-0.4.0-cyan.svg" alt="Version 0.4.0">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
     </a>
-    <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/security.yml">
-      <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/security.yml/badge.svg?branch=master" alt="Security Scan">
-    </a>
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL-3.0">
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/stargazers">
       <img src="https://img.shields.io/github/stars/JuhLabs/juhradial-mx?style=flat&color=yellow" alt="GitHub Stars">
-    </a>
-    <a href="https://github.com/JuhLabs/juhradial-mx/issues">
-      <img src="https://img.shields.io/github/issues/JuhLabs/juhradial-mx?color=green" alt="Open Issues">
     </a>
   </p>
 </div>
@@ -31,6 +29,14 @@
 <div align="center">
   <img src="assets/github/githubheader.png" width="100%" alt="JuhRadial MX Banner">
 </div>
+
+<!-- DEMO GIF: record a short 3-5s clip of the radial menu (hold the gesture button,
+     drag to a slice, release), save it as assets/github/demo.gif, and uncomment:
+<div align="center">
+  <img src="assets/github/demo.gif" width="80%" alt="JuhRadial MX radial menu in action">
+  <br><em>Hold the gesture button, drag to a slice, release.</em>
+</div>
+-->
 
 <br>
 
