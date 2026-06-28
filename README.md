@@ -12,6 +12,9 @@
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
       <img src="https://img.shields.io/badge/version-0.4.0-cyan.svg" alt="Version 0.4.0">
     </a>
+    <a href="https://juhlabs.github.io/juhradial-mx/">
+      <img src="https://img.shields.io/badge/docs-juhlabs.github.io-4FEFC9.svg" alt="Documentation">
+    </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml">
       <img src="https://github.com/JuhLabs/juhradial-mx/actions/workflows/ci.yml/badge.svg?branch=master" alt="Build Status">
     </a>
@@ -42,6 +45,8 @@
 
 > [!TIP]
 > **New in [v0.4.0](CHANGELOG.md):** Thumb-wheel actions (volume, zoom, horizontal scroll), per-application profiles that switch DPI/buttons/scroll on focus, portable system actions on any button, live device state, and a settings search box. Plus reliable Wayland action injection via uinput and fixes for fractional-scaling menu position (#25), button reassignments (#26), and building on Ubuntu 24.04 (#23) and openSUSE Tumbleweed (#24). [Update now](#installation).
+>
+> **Documentation:** Full guides, configuration reference, and per-compositor notes are at **[juhlabs.github.io/juhradial-mx](https://juhlabs.github.io/juhradial-mx/)**.
 >
 > **Mac users:** Want to try JuhFlow cross-computer control? [Download JuhFlow.dmg](https://github.com/JuhLabs/juhradial-mx/raw/master/juhflow/JuhFlow.dmg) (signed & notarized) - install it on your Mac, then enable Flow in JuhRadial MX Settings on Linux. Both machines auto-discover each other on your local network.
 
