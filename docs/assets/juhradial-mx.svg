@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient for main circle -->
+    <radialGradient id="bgGrad" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#45475a"/>
+      <stop offset="100%" stop-color="#1e1e2e"/>
+    </radialGradient>
+    <!-- Glow effect -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Shadow -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background shadow -->
+  <circle cx="128" cy="132" r="100" fill="#000" opacity="0.3" filter="url(#shadow)"/>
+
+  <!-- Main outer ring -->
+  <circle cx="128" cy="128" r="100" fill="url(#bgGrad)" stroke="#585b70" stroke-width="3"/>
+
+  <!-- Slice dividers (8 slices) -->
+  <g stroke="#6c7086" stroke-width="1.5" opacity="0.6">
+    <line x1="128" y1="38" x2="128" y2="88"/>
+    <line x1="128" y1="168" x2="128" y2="218"/>
+    <line x1="38" y1="128" x2="88" y2="128"/>
+    <line x1="168" y1="128" x2="218" y2="128"/>
+    <line x1="64" y1="64" x2="98" y2="98"/>
+    <line x1="158" y1="158" x2="192" y2="192"/>
+    <line x1="192" y1="64" x2="158" y2="98"/>
+    <line x1="64" y1="192" x2="98" y2="158"/>
+  </g>
+
+  <!-- Center circle -->
+  <circle cx="128" cy="128" r="40" fill="#313244" stroke="#585b70" stroke-width="2"/>
+
+  <!-- Inner accent ring -->
+  <circle cx="128" cy="128" r="32" fill="none" stroke="#cba6f7" stroke-width="2" opacity="0.7"/>
+
+  <!-- MX text in center -->
+  <text x="128" y="136" font-family="sans-serif" font-size="24" font-weight="bold"
+        fill="#cdd6f4" text-anchor="middle">MX</text>
+
+  <!-- Accent dots on slices (representing icons) -->
+  <g filter="url(#glow)">
+    <circle cx="128" cy="58" r="8" fill="#a6e3a1"/>
+    <circle cx="178" cy="78" r="8" fill="#f9e2af"/>
+    <circle cx="198" cy="128" r="8" fill="#f38ba8"/>
+    <circle cx="178" cy="178" r="8" fill="#cba6f7"/>
+    <circle cx="128" cy="198" r="8" fill="#89b4fa"/>
+    <circle cx="78" cy="178" r="8" fill="#f5c2e7"/>
+    <circle cx="58" cy="128" r="8" fill="#74c7ec"/>
+    <circle cx="78" cy="78" r="8" fill="#94e2d5"/>
+  </g>
+
+  <!-- Outer glow ring -->
+  <circle cx="128" cy="128" r="105" fill="none" stroke="#cba6f7" stroke-width="1" opacity="0.3"/>
+</svg>
