@@ -364,6 +364,9 @@ class SettingsPage(Gtk.ScrolledWindow):
         startup_switch.connect("state-set", self._on_startup_changed)
         startup_row.set_control(startup_switch)
         app_card.append(startup_row)
+        # Heal a stale autostart entry from an older build (broken Exec path
+        # caused status=127 and the menu not launching at login on some installs).
+        self._repair_autostart_if_stale()
 
         tray_row = SettingRow(_("Show Tray Icon"), _("Display icon in system tray"))
         tray_switch = Gtk.Switch()
@@ -521,40 +524,83 @@ class SettingsPage(Gtk.ScrolledWindow):
             settings_theme.CSS_PROVIDER = provider
         logger.info("Settings CSS reloaded with new theme")
 
+    @staticmethod
+    def _autostart_file():
+        return Path.home() / ".config" / "autostart" / "juhradial-mx.desktop"
+
+    @staticmethod
+    def _resolve_launcher_path():
+        """Path to the juhradial-mx launcher, preferring one that exists.
+
+        Covers the dev checkout (scripts/juhradial-mx.sh), the curl installer
+        (/usr/local/bin) and distro packages (/usr/bin). Hardcoding a single
+        path is what produced the status=127 autostart failure when the binary
+        lived elsewhere, so probe candidates and use the first that exists.
+        """
+        script_dir = Path(__file__).resolve().parent.parent
+        candidates = [script_dir / "scripts" / "juhradial-mx.sh"]
+        resolved = shutil.which("juhradial-mx")
+        if resolved:
+            candidates.append(Path(resolved))
+        candidates += [
+            Path("/usr/local/bin/juhradial-mx"),  # curl installer
+            Path("/usr/bin/juhradial-mx"),        # Arch / RPM packages
+        ]
+        return next((p for p in candidates if p.exists()), candidates[0])
+
+    def _write_autostart(self, exec_path):
+        """Write the autostart .desktop pointing Exec at exec_path."""
+        autostart_file = self._autostart_file()
+        autostart_file.parent.mkdir(parents=True, exist_ok=True)
+        autostart_file.write_text(
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            "Name=JuhRadial MX\n"
+            "Comment=Radial menu for Logitech MX Master\n"
+            f"Exec={exec_path}\n"
+            "Icon=juhradial-mx\n"
+            "Terminal=false\n"
+            "Categories=Utility;\n"
+            "X-GNOME-Autostart-enabled=true\n",
+            encoding="utf-8",
+        )
+        logger.info("Wrote autostart: %s -> %s", autostart_file, exec_path)
+
+    def _repair_autostart_if_stale(self):
+        """Rewrite an autostart entry whose Exec target no longer exists.
+
+        Older builds wrote a fixed /usr/bin/juhradial-mx, which 404s on curl
+        installs (the launcher is in /usr/local/bin) and fails with status=127.
+        Self-heal so existing users get a working entry without re-toggling the
+        switch (issue #32). Only touches a broken entry; a valid one is left as is.
+        """
+        if not config.get("app", "start_at_login", default=True):
+            return
+        autostart_file = self._autostart_file()
+        if not autostart_file.exists():
+            return
+        try:
+            text = autostart_file.read_text(encoding="utf-8")
+        except OSError:
+            return
+        exec_line = next(
+            (ln for ln in text.splitlines() if ln.startswith("Exec=")), None
+        )
+        current = exec_line[len("Exec="):].strip() if exec_line else ""
+        # Exec may carry arguments; existence-check only the binary token.
+        current_bin = current.split()[0] if current else ""
+        if current_bin and Path(current_bin).exists():
+            return  # entry already points at a real launcher
+        self._write_autostart(self._resolve_launcher_path())
+        logger.info("Repaired stale autostart Exec (was %r)", current_bin)
+
     def _on_startup_changed(self, switch, state):
         """Handle start at login toggle"""
         config.set("app", "start_at_login", state)
-        # Create or remove autostart file
-        autostart_dir = Path.home() / ".config" / "autostart"
-        autostart_file = autostart_dir / "juhradial-mx.desktop"
-
         if state:
-            # Create autostart entry
-            autostart_dir.mkdir(parents=True, exist_ok=True)
-            # Get the script path dynamically
-            script_dir = Path(__file__).resolve().parent.parent
-            exec_path = script_dir / "scripts" / "juhradial-mx.sh"
-            # Fallback to the installed launcher if the dev script isn't present.
-            # The launcher installs to /usr/local/bin (not /usr/bin), so resolve
-            # it on PATH via shutil.which and fall back to that explicit path;
-            # writing /usr/bin/juhradial-mx gave autostart status=127.
-            if not exec_path.exists():
-                resolved = shutil.which("juhradial-mx")
-                exec_path = Path(resolved) if resolved else Path("/usr/local/bin/juhradial-mx")
-            desktop_content = f"""[Desktop Entry]
-Type=Application
-Name=JuhRadial MX
-Comment=Radial menu for Logitech MX Master
-Exec={exec_path}
-Icon=juhradial-mx
-Terminal=false
-Categories=Utility;
-X-GNOME-Autostart-enabled=true
-"""
-            autostart_file.write_text(desktop_content, encoding="utf-8")
-            logger.info("Created autostart: %s", autostart_file)
+            self._write_autostart(self._resolve_launcher_path())
         else:
-            # Remove autostart entry
+            autostart_file = self._autostart_file()
             if autostart_file.exists():
                 autostart_file.unlink()
                 logger.info("Removed autostart: %s", autostart_file)
