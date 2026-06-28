@@ -57,6 +57,7 @@ from overlay_constants import (
     CENTER_ZONE_RADIUS,
     WINDOW_SIZE,
     compute_ring_scale,
+    hyprland_menu_center,
     IS_HYPRLAND,
     IS_GNOME,
     IS_COSMIC,
@@ -69,6 +70,7 @@ from overlay_constants import (
 from overlay_cursor import (
     _refresh_monitors,
     get_monitor_at_cursor,
+    get_all_monitors_logical,
     get_cursor_position_hyprland,
     get_cursor_position_gnome,
     get_cursor_position_qt,
@@ -688,7 +690,41 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # any visible frame at the wrong location on multi-monitor setups
         self.highlighted_slice = -1
         self.setWindowOpacity(0.0)
-        self.move(x - half, y - half)
+
+        # On Hyprland, hyprctl cursorpos is in compositor-logical pixels, but
+        # QWidget.move() places windows in Qt's own coordinate space. With
+        # mixed/fractional monitor scaling these spaces differ (either Qt applies
+        # a devicePixelRatio or XWayland scales the surface), so passing logical
+        # coords straight to move() drifts the menu proportionally to its distance
+        # from the origin (issue #45). Map the cursor's fractional position within
+        # its monitor onto the matching Qt screen's geometry, which is in the same
+        # space move() uses, so the menu lands on the cursor regardless of scale
+        # or which layer applies it. When geometries match (100% scaling) this is
+        # an identity no-op. menu_center_x/y stay in logical space above because
+        # the toggle-mode hover poll compares them against get_cursor_pos()
+        # (also logical).
+        move_x, move_y = x - half, y - half
+        if IS_HYPRLAND and mon:
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            qt_screens = []
+            if app:
+                for screen in app.screens():
+                    g = screen.geometry()
+                    qt_screens.append({
+                        "x": g.x(), "y": g.y(),
+                        "width": g.width(), "height": g.height(),
+                        "name": screen.name(),
+                    })
+            cx, cy = hyprland_menu_center(
+                x, y, mon, get_all_monitors_logical(), qt_screens
+            )
+            move_x, move_y = cx - half, cy - half
+            _log(
+                f"Hyprland placement: logical ({x},{y}) -> Qt ({cx},{cy}); "
+                f"qt_screens={[(s['name'], s['width'], s['height']) for s in qt_screens]}"
+            )
+        self.move(move_x, move_y)
 
         # On KDE Plasma, XWayland windows show a frozen wallpaper rectangle
         # behind transparent areas (KWin caches the wallpaper). The circular
