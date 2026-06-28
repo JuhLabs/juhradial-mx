@@ -395,8 +395,11 @@ install_deps_opensuse() {
         ydotool \
         git make
 
-    if ! sudo zypper install -y gtk4-layer-shell; then
-        log_warning "gtk4-layer-shell not available on this repo"
+    # gtk4-layer-shell is optional: only the niri compositor needs it. openSUSE
+    # does not ship it in the default repos (it lives in devel:languages:zig), so
+    # skip it rather than warn alarmingly. niri users can add that repo first.
+    if ! sudo zypper install -y gtk4-layer-shell 2>/dev/null; then
+        log_info "Skipping gtk4-layer-shell (optional, only needed for the niri compositor; not in default openSUSE repos)"
     fi
 }
 
