@@ -387,7 +387,7 @@ install_deps_opensuse() {
     sudo zypper install -y \
         rust cargo \
         python3 python3-pip \
-        python3-qt6 python3-qt6-svg \
+        python3-PyQt6 \
         python3-gobject gtk4 libadwaita-devel \
         python3-cryptography \
         dbus-1-devel systemd-devel \
@@ -447,8 +447,34 @@ clone_repo() {
 }
 
 # ── Build ────────────────────────────────────────────────────────────
+
+# Minimum cargo minor version (1.MIN) able to build the daemon: the committed
+# Cargo.lock is format v4 (needs cargo >= 1.78) and the toml_edit dependency
+# needs rustc >= 1.76. Distro toolchains are frequently older (Ubuntu 24.04
+# ships 1.75), so bootstrap rustup when the active cargo is too old or missing.
+MIN_CARGO_MINOR=78
+ensure_rust_toolchain() {
+    if command -v cargo &> /dev/null; then
+        local ver major minor
+        ver="$(cargo --version 2>/dev/null | awk '{print $2}')"
+        major="${ver%%.*}"
+        minor="$(printf '%s' "$ver" | cut -d. -f2)"
+        if [ "${major:-0}" -gt 1 ] || { [ "${major:-0}" -eq 1 ] && [ "${minor:-0}" -ge "$MIN_CARGO_MINOR" ]; }; then
+            return 0
+        fi
+        log_warning "cargo $ver is too old to build (need >= 1.$MIN_CARGO_MINOR); installing rustup"
+    else
+        log_info "Rust toolchain not found; installing rustup"
+    fi
+
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+    # shellcheck source=/dev/null
+    . "$HOME/.cargo/env"
+}
+
 build_project() {
     step "Building daemon"
+    ensure_rust_toolchain
     log_info "Compiling Rust daemon..."
     cd "$INSTALL_DIR"
 
@@ -536,6 +562,17 @@ install_files() {
     if [ -f packaging/udev/99-juhradialmx.rules ]; then
         sudo install -Dm644 packaging/udev/99-juhradialmx.rules /etc/udev/rules.d/
         [ -f /etc/udev/rules.d/99-logitech-hidpp.rules ] && sudo rm -f /etc/udev/rules.d/99-logitech-hidpp.rules
+
+        # /dev/uinput access: ydotool (Wayland shortcut + thumb-wheel injection)
+        # and the daemon's own virtual input device both need it, but stock
+        # distros ship /dev/uinput as root:root 0600. Install the uaccess rule
+        # (grants the logged-in user) and make sure the module is loaded.
+        if [ -f packaging/udev/60-ydotool-uinput.rules ]; then
+            sudo install -Dm644 packaging/udev/60-ydotool-uinput.rules /etc/udev/rules.d/
+        fi
+        echo uinput | sudo tee /etc/modules-load.d/juhradial-uinput.conf >/dev/null
+        sudo modprobe uinput 2>/dev/null || true
+
         sudo udevadm control --reload-rules
         sudo udevadm trigger
         log_success "udev rules"
@@ -556,6 +593,51 @@ install_files() {
 }
 
 # ── Systemd service ─────────────────────────────────────────────────
+setup_ydotoold() {
+    # Keyboard-shortcut button actions and thumb-wheel actions (volume, zoom,
+    # copy, etc.) are injected through the kernel uinput device via ydotool,
+    # which is the reliable path on Wayland (xdotool cannot drive native Wayland
+    # windows). ydotool needs its background daemon, ydotoold, running.
+    if ! command -v ydotoold &> /dev/null; then
+        log_warning "ydotoold not found: shortcut/thumb-wheel actions may not work on Wayland"
+        return 0
+    fi
+    if ! command -v systemctl &> /dev/null; then
+        return 0
+    fi
+
+    # Prefer a packaged user service if the distro ships one.
+    local pkg_svc
+    pkg_svc=$(systemctl --user list-unit-files 2>/dev/null | grep -oE '^ydotool(d)?\.service' | head -1)
+    if [ -n "$pkg_svc" ]; then
+        if systemctl --user enable --now "$pkg_svc" 2>/dev/null; then
+            log_success "ydotoold enabled ($pkg_svc)"
+            return 0
+        fi
+    fi
+
+    # Otherwise install a minimal user service so it autostarts on login.
+    local unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+    mkdir -p "$unit_dir"
+    cat > "$unit_dir/ydotoold.service" <<EOF
+[Unit]
+Description=ydotool daemon (virtual input for JuhRadial MX)
+
+[Service]
+ExecStart=$(command -v ydotoold) --socket-path=%t/.ydotool_socket --socket-own=%U:%G
+Restart=always
+
+[Install]
+WantedBy=default.target
+EOF
+    systemctl --user daemon-reload 2>/dev/null
+    if systemctl --user enable --now ydotoold.service 2>/dev/null; then
+        log_success "ydotoold service installed and started"
+    else
+        log_warning "Could not start ydotoold: shortcut/thumb-wheel actions may not work on Wayland"
+    fi
+}
+
 enable_service() {
     step "Enabling service"
 
@@ -566,6 +648,9 @@ enable_service() {
 
     systemctl --user daemon-reload || log_warning "Failed to reload user systemd"
     systemctl --user enable juhradialmx-daemon || log_warning "Failed to enable service"
+
+    # ydotoold autostart (kernel-uinput injection for Wayland shortcut actions)
+    setup_ydotoold
 
     # Restart on upgrade, start on fresh install
     if [ "$INSTALL_MODE" = "upgrade" ]; then

@@ -9,6 +9,8 @@ SPDX-License-Identifier: GPL-3.0
 
 import json
 import logging
+import math
+import shutil
 from pathlib import Path
 
 import gi
@@ -16,7 +18,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, Gdk, GLib, Gio, Adw
+from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, Gio, Adw
 
 from i18n import _, SUPPORTED_LANGUAGES
 from settings_config import ConfigManager, config
@@ -27,10 +29,175 @@ from settings_constants import (
     get_de_key,
 )
 import settings_theme
-from settings_widgets import SettingsCard, SettingRow, PageHeader
+from settings_widgets import SettingsCard, SettingRow, PageHeader, _resolve_asset_path
 from themes import get_theme_list
 
 logger = logging.getLogger(__name__)
+
+
+def _hex_rgb(hex_color, default=(0.31, 0.94, 0.79)):
+    try:
+        h = hex_color.lstrip("#")
+        if len(h) == 3:
+            h = "".join(ch * 2 for ch in h)
+        return (int(h[0:2], 16) / 255, int(h[2:4], 16) / 255, int(h[4:6], 16) / 255)
+    except Exception:
+        return default
+
+
+class ThemePreview(Gtk.Box):
+    """Live preview card: an Actions Ring rendered in the selected theme's
+    colors, so users can see the theme they are choosing before applying it."""
+
+    SLICES = 8
+
+    def __init__(self, theme_key):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        self.add_css_class("settings-card")
+        self._colors = {}
+        self._name = ""
+
+        head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        eyebrow = Gtk.Label(label=_("ACTIONS RING"))
+        eyebrow.set_halign(Gtk.Align.START)
+        eyebrow.set_hexpand(True)
+        eyebrow.add_css_class("section-eyebrow")
+        head.append(eyebrow)
+        badge = Gtk.Label(label=_("%d SLICES") % self.SLICES)
+        badge.add_css_class("live-badge")
+        head.append(badge)
+        self.append(head)
+
+        self._area = Gtk.DrawingArea()
+        self._area.set_content_height(210)
+        self._area.set_hexpand(True)
+        self._area.set_draw_func(self._draw)
+        self.append(self._area)
+
+        foot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self._name_label = Gtk.Label(label="")
+        self._name_label.set_halign(Gtk.Align.START)
+        self._name_label.set_hexpand(True)
+        self._name_label.add_css_class("setting-label")
+        foot.append(self._name_label)
+        self._swatches = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self._swatches.set_valign(Gtk.Align.CENTER)
+        foot.append(self._swatches)
+        self.append(foot)
+
+        self.set_theme(theme_key)
+
+    def set_theme(self, theme_key):
+        from themes import get_theme, get_colors, get_radial_image
+        theme = get_theme(theme_key)
+        self._colors = get_colors(theme_key)
+        self._name = theme.get("name", theme_key)
+        self._name_label.set_label(_("Theme: %s") % self._name)
+        # Only the 3D themes ship bespoke wheel art (radial_image set). The menu
+        # draws every vector theme live (code slices in theme colours, no PNG),
+        # so the preview does the same in _draw_vector_ring instead of faking a
+        # chrome PNG. This makes each code theme read as its own colour, exactly
+        # like the on-device menu.
+        self._wheel = None
+        wheel_name = get_radial_image(theme_key)
+        if wheel_name:
+            path = _resolve_asset_path("radial-wheels/" + wheel_name)
+            if path:
+                try:
+                    self._wheel = GdkPixbuf.Pixbuf.new_from_file(path)
+                except Exception:
+                    self._wheel = None
+        child = self._swatches.get_first_child()
+        while child is not None:
+            nxt = child.get_next_sibling()
+            self._swatches.remove(child)
+            child = nxt
+        for key in ["accent", "accent2", "green", "yellow", "red", "mauve"]:
+            color = self._colors.get(key)
+            if not color:
+                continue
+            dot = Gtk.DrawingArea()
+            dot.set_content_width(14)
+            dot.set_content_height(14)
+            dot.set_draw_func(self._draw_swatch, color)
+            self._swatches.append(dot)
+        self._area.queue_draw()
+
+    @staticmethod
+    def _draw_swatch(area, cr, w, h, color):
+        r, g, b = _hex_rgb(color)
+        cr.arc(w / 2, h / 2, min(w, h) / 2 - 1, 0, 2 * math.pi)
+        cr.set_source_rgb(r, g, b)
+        cr.fill()
+
+    def _draw(self, area, cr, width, height):
+        if width <= 0 or height <= 0:
+            return
+        cx, cy = width / 2.0, height / 2.0
+        if self._wheel is not None:
+            # 3D theme: ship-as-is bespoke wheel art.
+            iw, ih = self._wheel.get_width(), self._wheel.get_height()
+            if iw > 0 and ih > 0:
+                scale = min(width, height) / max(iw, ih) * 0.92
+                dw, dh = iw * scale, ih * scale
+                cr.save()
+                cr.translate(cx - dw / 2.0, cy - dh / 2.0)
+                cr.scale(scale, scale)
+                Gdk.cairo_set_source_pixbuf(cr, self._wheel, 0, 0)
+                cr.paint()
+                cr.restore()
+            return
+        # Vector theme: render the same code-drawn ring the menu paints, in this
+        # theme's colours (base disc, surface slices, accent highlight + center).
+        self._draw_vector_ring(cr, cx, cy, min(width, height) / 2.0 * 0.92)
+
+    def _draw_vector_ring(self, cr, cx, cy, R):
+        # Mirrors overlay_painting.py vector mode: MENU_RADIUS=150,
+        # CENTER_ZONE_RADIUS=45, slices span [center+6 .. menu-6].
+        c = self._colors
+        ro, ri, cz = R * 0.96, R * 0.34, R * 0.30
+        br, bg, bb = _hex_rgb(c.get("base") or "#1e1e2e")
+        s0r, s0g, s0b = _hex_rgb(c.get("surface0") or "#313244")
+        s2r, s2g, s2b = _hex_rgb(c.get("surface2") or "#585b70")
+        ar, ag, ab = _hex_rgb(c.get("accent"))
+        # Backing disc + outer border
+        cr.set_source_rgba(br, bg, bb, 0.92)
+        cr.arc(cx, cy, R, 0, 2 * math.pi)
+        cr.fill()
+        cr.set_line_width(2)
+        cr.set_source_rgba(s2r, s2g, s2b, 0.6)
+        cr.arc(cx, cy, R, 0, 2 * math.pi)
+        cr.stroke()
+        # 8 slices; the top slice is highlighted in the theme accent (mirrors the
+        # menu's selection highlight), the rest are neutral surface fills.
+        for i in range(8):
+            a0 = math.radians(i * 45 - 22.5 - 90)
+            a1 = math.radians(i * 45 + 22.5 - 90)
+            cr.new_path()
+            cr.arc(cx, cy, ro, a0, a1)
+            cr.arc_negative(cx, cy, ri, a1, a0)
+            cr.close_path()
+            if i == 0:
+                cr.set_source_rgba(ar, ag, ab, 0.55)
+                cr.fill_preserve()
+                cr.set_line_width(1.5)
+                cr.set_source_rgba(ar, ag, ab, 0.9)
+            else:
+                cr.set_source_rgba(s0r, s0g, s0b, 0.55)
+                cr.fill_preserve()
+                cr.set_line_width(1.2)
+                cr.set_source_rgba(s2r, s2g, s2b, 0.5)
+            cr.stroke()
+        # Center zone + accent hub
+        cr.set_source_rgba(br, bg, bb, 0.97)
+        cr.arc(cx, cy, cz, 0, 2 * math.pi)
+        cr.fill_preserve()
+        cr.set_line_width(2)
+        cr.set_source_rgba(s2r, s2g, s2b, 0.6)
+        cr.stroke()
+        cr.set_source_rgba(ar, ag, ab, 0.9)
+        cr.arc(cx, cy, cz * 0.34, 0, 2 * math.pi)
+        cr.fill()
 
 
 class SettingsPage(Gtk.ScrolledWindow):
@@ -66,7 +233,7 @@ class SettingsPage(Gtk.ScrolledWindow):
         theme_options = Gtk.StringList.new([t[1] for t in theme_list])
         theme_dropdown.set_model(theme_options)
         # Set current theme
-        current_theme = config.get("theme", default="juhradial-mx")
+        current_theme = config.get("theme", default="phosphor")
         if current_theme in self._theme_keys:
             theme_dropdown.set_selected(self._theme_keys.index(current_theme))
         else:
@@ -74,6 +241,10 @@ class SettingsPage(Gtk.ScrolledWindow):
         theme_dropdown.connect("notify::selected", self._on_theme_changed)
         theme_row.set_control(theme_dropdown)
         appearance_card.append(theme_row)
+
+        # Live preview of the selected theme (recolors on change)
+        self._theme_preview = ThemePreview(current_theme)
+        appearance_card.append(self._theme_preview)
 
         blur_row = SettingRow(
             _("Blur Effect"), _("Enable background blur for radial menu")
@@ -276,8 +447,6 @@ class SettingsPage(Gtk.ScrolledWindow):
 
     def _on_theme_changed(self, dropdown, _):
         """Handle theme selection change - applies to both overlay and settings"""
-        import subprocess
-
         selected = dropdown.get_selected()
         if 0 <= selected < len(self._theme_keys):
             theme = self._theme_keys[selected]
@@ -285,28 +454,40 @@ class SettingsPage(Gtk.ScrolledWindow):
             config.save(show_toast=False)  # Save immediately so overlay picks it up
             logger.info("Theme changed to: %s", theme)
 
+            # Update the live preview card
+            if hasattr(self, "_theme_preview"):
+                self._theme_preview.set_theme(theme)
+
             # Reload CSS for the settings window
             self._reload_theme_css()
 
-            # Restart the overlay to apply the new theme
-            overlay_path = None
-            try:
-                # Kill the old overlay
-                subprocess.run(
-                    ["pkill", "-f", "juhradial-overlay.py"],
-                    capture_output=True,
-                    timeout=2,
-                )
-                # Start new overlay with new theme
-                overlay_path = Path(__file__).parent / "juhradial-overlay.py"
-                subprocess.Popen(
-                    ["python3", str(overlay_path)],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                logger.info("Overlay restarted with new theme")
-            except Exception as e:
-                logger.error("Could not restart overlay: %s", e)
+            # Restart the overlay (debounced) so rapid selection (e.g. keyboard
+            # navigation) coalesces into ONE restart and cannot race two overlay
+            # instances into existence.
+            if getattr(self, "_overlay_restart_id", None):
+                GLib.source_remove(self._overlay_restart_id)
+            self._overlay_restart_id = GLib.timeout_add(450, self._restart_overlay)
+
+    def _restart_overlay(self):
+        self._overlay_restart_id = None
+        import subprocess
+
+        try:
+            subprocess.run(
+                ["pkill", "-f", "[j]uhradial-overlay.py"],
+                capture_output=True,
+                timeout=2,
+            )
+            overlay_path = Path(__file__).parent / "juhradial-overlay.py"
+            subprocess.Popen(
+                ["python3", str(overlay_path)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            logger.info("Overlay restarted with new theme")
+        except Exception as e:
+            logger.error("Could not restart overlay: %s", e)
+        return False
 
     def _reload_theme_css(self):
         """Reload CSS with new theme colors"""
@@ -324,15 +505,20 @@ class SettingsPage(Gtk.ScrolledWindow):
         new_css = settings_theme._generate_css(settings_theme.COLORS)
         settings_theme.CSS = new_css
 
-        # Apply new CSS
-        css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(new_css.encode())
-
-        # Get the display and apply
-        display = Gdk.Display.get_default()
-        Gtk.StyleContext.add_provider_for_display(
-            display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
+        # Reuse the single startup provider (update in place) so repeated
+        # theme switches do not stack a new provider each time.
+        provider = getattr(settings_theme, "CSS_PROVIDER", None)
+        if provider is not None:
+            provider.load_from_data(new_css.encode())
+        else:
+            provider = Gtk.CssProvider()
+            provider.load_from_data(new_css.encode())
+            Gtk.StyleContext.add_provider_for_display(
+                Gdk.Display.get_default(),
+                provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+            )
+            settings_theme.CSS_PROVIDER = provider
         logger.info("Settings CSS reloaded with new theme")
 
     def _on_startup_changed(self, switch, state):
@@ -348,9 +534,13 @@ class SettingsPage(Gtk.ScrolledWindow):
             # Get the script path dynamically
             script_dir = Path(__file__).resolve().parent.parent
             exec_path = script_dir / "scripts" / "juhradial-mx.sh"
-            # Fallback to installed location if not found
+            # Fallback to the installed launcher if the dev script isn't present.
+            # The launcher installs to /usr/local/bin (not /usr/bin), so resolve
+            # it on PATH via shutil.which and fall back to that explicit path;
+            # writing /usr/bin/juhradial-mx gave autostart status=127.
             if not exec_path.exists():
-                exec_path = Path("/usr/bin/juhradial-mx")
+                resolved = shutil.which("juhradial-mx")
+                exec_path = Path(resolved) if resolved else Path("/usr/local/bin/juhradial-mx")
             desktop_content = f"""[Desktop Entry]
 Type=Application
 Name=JuhRadial MX

@@ -198,12 +198,7 @@ impl BatteryHandler {
     }
 
     /// Send a HID++ request and read the response
-    fn hidpp_request(
-        &mut self,
-        feature_index: u8,
-        function: u8,
-        params: &[u8],
-    ) -> Result<Vec<u8>, BatteryError> {
+    fn hidpp_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Result<Vec<u8>, BatteryError> {
         let device = self.device.as_mut().ok_or(BatteryError::DeviceNotFound)?;
 
         // Drain any pending data first to avoid stale responses
@@ -266,13 +261,9 @@ impl BatteryHandler {
                             return Ok(response[..len].to_vec());
                         }
                         // Check for error response (0x8F = error report)
-                        if response[2] == 0x8F
-                            || (response[2] == feature_index && response[4] == 0x05)
-                        {
+                        if response[2] == 0x8F || (response[2] == feature_index && response[4] == 0x05) {
                             tracing::debug!("HID++ error response: {:02X?}", &response[..len]);
-                            return Err(BatteryError::ProtocolError(
-                                "Device returned error".into(),
-                            ));
+                            return Err(BatteryError::ProtocolError("Device returned error".into()));
                         }
                         // Ignore unrelated notifications (button events, etc)
                     }
@@ -331,22 +322,22 @@ impl BatteryHandler {
                     self.battery_feature_index = Some(index);
                     self.is_unified_battery = true;
                 }
-                Err(_) => match self.get_feature_index(FEATURE_BATTERY_STATUS) {
-                    Ok(index) => {
-                        tracing::info!(index, "Found BATTERY_STATUS feature");
-                        self.battery_feature_index = Some(index);
-                        self.is_unified_battery = false;
+                Err(_) => {
+                    match self.get_feature_index(FEATURE_BATTERY_STATUS) {
+                        Ok(index) => {
+                            tracing::info!(index, "Found BATTERY_STATUS feature");
+                            self.battery_feature_index = Some(index);
+                            self.is_unified_battery = false;
+                        }
+                        Err(e) => {
+                            return Err(e);
+                        }
                     }
-                    Err(e) => {
-                        return Err(e);
-                    }
-                },
+                }
             }
         }
 
-        let feature_index = self
-            .battery_feature_index
-            .ok_or(BatteryError::FeatureNotSupported)?;
+        let feature_index = self.battery_feature_index.ok_or(BatteryError::FeatureNotSupported)?;
 
         // Query battery status
         // UNIFIED_BATTERY (0x1004): function 1 = get_status
@@ -399,9 +390,7 @@ impl BatteryHandler {
 
             Ok((percentage, charging))
         } else {
-            Err(BatteryError::ProtocolError(
-                "Invalid battery response".into(),
-            ))
+            Err(BatteryError::ProtocolError("Invalid battery response".into()))
         }
     }
 
@@ -452,6 +441,7 @@ impl std::fmt::Display for BatteryError {
 
 impl std::error::Error for BatteryError {}
 
+
 /// Start a periodic battery update task (legacy - uses its own hidraw handle)
 #[deprecated(note = "Use start_battery_updater_shared instead to share hidraw with haptic")]
 pub async fn start_battery_updater(state: SharedBatteryState) {
@@ -487,9 +477,7 @@ pub async fn start_battery_updater(state: SharedBatteryState) {
                 if consecutive_errors <= 3 {
                     tracing::warn!(error = %e, "Failed to query battery");
                 } else if consecutive_errors == 4 {
-                    tracing::info!(
-                        "Battery queries failing repeatedly - suppressing further warnings"
-                    );
+                    tracing::info!("Battery queries failing repeatedly - suppressing further warnings");
                 }
             }
         }
@@ -506,11 +494,35 @@ pub async fn start_battery_updater_shared(
 ) {
     let mut consecutive_errors = 0u32;
 
-    // Initial update - get result first, then update state (don't hold lock across await)
-    let initial_result = {
-        let mut manager = haptic_manager.lock().unwrap();
-        manager.query_battery()
-    };
+    // The HID++ battery query polls hidraw with std::thread::sleep(10ms) up to
+    // 100 times (~1s worst case). Holding a std::sync::Mutex across that
+    // blocking I/O while running on a tokio worker is the canonical recipe for
+    // task starvation. Run every query on the blocking thread pool instead.
+    async fn run_query(
+        haptic_manager: crate::hidpp::SharedHapticManager,
+    ) -> Result<(u8, bool), crate::hidpp::HapticError> {
+        tokio::task::spawn_blocking(move || {
+            let mut manager = haptic_manager.lock().unwrap();
+            manager.query_battery()
+        })
+        .await
+        .expect("battery query task panicked")
+    }
+
+    // Battery polling cadence is a tradeoff between charging-state freshness
+    // and cursor smoothness. Every HID++ write briefly pauses mouse forwarding
+    // on the receiver firmware (5-30ms), so a fast cadence produces visible
+    // cursor stutter. 60s matches Solaar's default and is well below the
+    // human "did the battery change?" threshold.
+    const POLL_INTERVAL_SECS: u64 = 60;
+    // For the first minute of uptime we tick faster so the UI populates
+    // quickly after launch, then settle to the steady cadence.
+    const WARMUP_INTERVAL_SECS: u64 = 5;
+    const WARMUP_DURATION_SECS: u64 = 60;
+
+    let started = std::time::Instant::now();
+
+    let initial_result = run_query(haptic_manager.clone()).await;
 
     match initial_result {
         Ok((percentage, charging)) => {
@@ -529,17 +541,15 @@ pub async fn start_battery_updater_shared(
         }
     }
 
-    // Update every 2 seconds for instant charging status detection
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
-
     loop {
-        interval.tick().await;
-
-        // Lock the haptic manager briefly to query battery
-        let result = {
-            let mut manager = haptic_manager.lock().unwrap();
-            manager.query_battery()
+        let cadence = if started.elapsed().as_secs() < WARMUP_DURATION_SECS {
+            WARMUP_INTERVAL_SECS
+        } else {
+            POLL_INTERVAL_SECS
         };
+        tokio::time::sleep(tokio::time::Duration::from_secs(cadence)).await;
+
+        let result = run_query(haptic_manager.clone()).await;
 
         match result {
             Ok((percentage, charging)) => {
@@ -561,9 +571,7 @@ pub async fn start_battery_updater_shared(
                 if consecutive_errors <= 3 {
                     tracing::warn!(error = %e, "Failed to query battery (shared)");
                 } else if consecutive_errors == 4 {
-                    tracing::info!(
-                        "Battery queries failing repeatedly - suppressing further warnings"
-                    );
+                    tracing::info!("Battery queries failing repeatedly - suppressing further warnings");
                 }
             }
         }

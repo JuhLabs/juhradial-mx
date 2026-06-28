@@ -50,6 +50,7 @@ class RadialMenuPaintingMixin:
 
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
 
         # Clear entire surface to fully transparent - prevents opaque rectangle
         # artifacts on KDE Plasma with shader/animated wallpapers
@@ -57,19 +58,25 @@ class RadialMenuPaintingMixin:
         p.fillRect(self.rect(), Qt.GlobalColor.transparent)
         p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
+        # Per-monitor ring scale: all drawing below stays in logical base
+        # coordinates; the painter maps them to the scaled window.
+        ring_scale = getattr(self, 'ring_scale', 1.0)
+        if ring_scale != 1.0:
+            p.scale(ring_scale, ring_scale)
+
         cx = WINDOW_SIZE / 2
         cy = WINDOW_SIZE / 2
 
-        # Menu open bloom - scale transform around center
+        # Menu open bloom - the dial locks in: scale with a hair of overshoot
+        # plus a subtle rotation settle, like a machined wheel clicking home.
         bloom = getattr(self, 'bloom_progress', 1.0)
         if bloom < 1.0:
-            t = bloom
-            # OutCubic easing for smooth deceleration
-            t = t - 1.0
-            eased = t * t * t + 1.0
-            scale = 0.92 + 0.08 * eased  # 0.92 -> 1.0
+            eased = self._ease_out_back(bloom, overshoot=1.1)
+            scale = 0.88 + 0.12 * eased  # 0.88 -> ~1.0 (tiny overshoot)
+            rot = -3.0 * (1.0 - self._ease_out_cubic(bloom))
             p.save()
             p.translate(cx, cy)
+            p.rotate(rot)
             p.scale(scale, scale)
             p.translate(-cx, -cy)
 
@@ -89,9 +96,15 @@ class RadialMenuPaintingMixin:
                     if highlights[i] > 0:
                         self._draw_3d_slice_highlight(p, cx, cy, i, highlights[i])
 
-            # Draw icons floating on the 3D image
+            # Draw icons floating on the 3D image - clockwise entrance sweep
             for i in range(8):
+                ent = self._entrance_t(i)
+                if ent <= 0:
+                    continue
+                p.save()
+                p.setOpacity(p.opacity() * ent)
                 self._draw_3d_icon(p, cx, cy, i)
+                p.restore()
         else:
             # === Vector Mode (original) ===
             if not minimal:
@@ -114,13 +127,39 @@ class RadialMenuPaintingMixin:
                 p.setBrush(Qt.BrushStyle.NoBrush)
                 p.drawEllipse(QPointF(cx, cy), MENU_RADIUS, MENU_RADIUS)
 
-                # Draw slices
+                # Draw slices - clockwise entrance sweep during the bloom
                 for i in range(8):
+                    ent = self._entrance_t(i)
+                    if ent <= 0:
+                        continue
+                    p.save()
+                    p.setOpacity(p.opacity() * ent)
                     self._draw_slice(p, cx, cy, i)
+                    p.restore()
             else:
                 # Minimal mode - draw only floating icons (no slices)
                 for i in range(8):
+                    ent = self._entrance_t(i)
+                    if ent <= 0:
+                        continue
+                    p.save()
+                    p.setOpacity(p.opacity() * ent)
                     self._draw_minimal_icon(p, cx, cy, i)
+                    p.restore()
+
+        # Radar ping on open - one accent ring expands from the center to the
+        # rim and dissolves as the dial finishes blooming. State, not loop:
+        # it runs exactly once per show and costs one stroked ellipse.
+        if bloom < 1.0:
+            ping_alpha = int(80 * (1.0 - bloom))
+            if ping_alpha > 0:
+                ping_t = self._ease_out_expo(bloom)
+                ping_r = CENTER_ZONE_RADIUS + (MENU_RADIUS + 8 - CENTER_ZONE_RADIUS) * ping_t
+                ping = QColor(overlay_actions.COLORS.get("accent", "#00d4ff"))
+                ping.setAlpha(ping_alpha)
+                p.setBrush(Qt.BrushStyle.NoBrush)
+                p.setPen(QPen(ping, 2))
+                p.drawEllipse(QPointF(cx, cy), ping_r, ping_r)
 
         # Draw submenu if active (same for both modes)
         if self.submenu_active and self.submenu_slice >= 0:
@@ -146,6 +185,7 @@ class RadialMenuPaintingMixin:
 
     def _draw_3d_slice_highlight(self, p, cx, cy, index, progress=1.0):
         """Draw a translucent highlight on a slice for 3D mode, scaled by progress."""
+        progress = self._ease_out_cubic(progress)
         params = overlay_actions.RADIAL_PARAMS or {}
         outer_r = params.get("ring_outer", MENU_RADIUS - 6)
         inner_r = params.get("ring_inner", CENTER_ZONE_RADIUS + 6)
@@ -214,6 +254,22 @@ class RadialMenuPaintingMixin:
         p.setPen(Qt.PenStyle.NoPen)
         p.drawPath(path)
 
+        # Confirm ripple - an accent arc expands outward from the chosen
+        # slice as the flash decays: "command accepted" radiating off the dial.
+        ripple_t = self._ease_out_cubic(1.0 - progress)
+        ring_r = outer_r + 18.0 * ripple_t
+        ring_alpha = int(150 * progress)
+        if ring_alpha > 0:
+            ripple = QColor(overlay_actions.COLORS.get("accent", "#00d4ff"))
+            ripple.setAlpha(ring_alpha)
+            ring_rect = QRectF(cx - ring_r, cy - ring_r, ring_r * 2, ring_r * 2)
+            arc = QPainterPath()
+            arc.arcMoveTo(ring_rect, -start_angle)
+            arc.arcTo(ring_rect, -start_angle, -45)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.setPen(QPen(ripple, 3))
+            p.drawPath(arc)
+
     def _draw_minimal_flash(self, p, cx, cy, index, progress):
         """Draw a circular white flash on an icon for minimal mode selection feedback."""
         icon_angle = math.radians(index * 45 - 90)
@@ -223,6 +279,17 @@ class RadialMenuPaintingMixin:
         p.setBrush(QBrush(QColor(255, 255, 255, int(120 * progress))))
         p.setPen(Qt.PenStyle.NoPen)
         p.drawEllipse(QPointF(icon_x, icon_y), flash_radius, flash_radius)
+
+        # Confirm ripple - accent ring expands off the selected icon
+        ripple_t = self._ease_out_cubic(1.0 - progress)
+        ring_alpha = int(150 * progress)
+        if ring_alpha > 0:
+            ripple = QColor(overlay_actions.COLORS.get("accent", "#00d4ff"))
+            ripple.setAlpha(ring_alpha)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.setPen(QPen(ripple, 3))
+            r = flash_radius + 16.0 * ripple_t
+            p.drawEllipse(QPointF(icon_x, icon_y), r, r)
 
     def _draw_badge_shape(self, p, x, y, shape, params, angle_deg, size_extra=0):
         """Draw a badge shape centered at (x,y), oriented radially outward."""
@@ -288,12 +355,17 @@ class RadialMenuPaintingMixin:
         border_w = params.get("icon_bg_border_width", 1.5)
 
         h = getattr(self, 'slice_highlights', [0.0] * 8)[index]
+        h = self._ease_out_cubic(h)
         action = overlay_actions.ACTIONS[index]
 
+        # Hovered icon pops: scales up slightly and lifts outward along
+        # its radial axis - tactile, like the key travel of a good keyboard.
+        scale = scale * (1.0 + 0.08 * h)
         angle_deg = index * 45 - 90
         icon_angle = math.radians(angle_deg)
-        icon_x = cx + icon_radius * math.cos(icon_angle)
-        icon_y = cy + icon_radius * math.sin(icon_angle)
+        lift_radius = icon_radius + 3.0 * h
+        icon_x = cx + lift_radius * math.cos(icon_angle)
+        icon_y = cy + lift_radius * math.sin(icon_angle)
 
         # Drop shadow (skip if alpha is 0)
         if shadow_alpha > 0:
@@ -359,6 +431,7 @@ class RadialMenuPaintingMixin:
 
     def _draw_slice(self, p, cx, cy, index):
         h = getattr(self, 'slice_highlights', [0.0] * 8)[index]
+        h = self._ease_out_cubic(h)
         action = overlay_actions.ACTIONS[index]
 
         start_angle = index * 45 - 22.5 - 90
@@ -416,13 +489,13 @@ class RadialMenuPaintingMixin:
             p.setPen(Qt.PenStyle.NoPen)
             p.drawPath(path)
 
-        # Icon position (center of slice)
+        # Icon position (center of slice) - hovered icon lifts outward
         icon_angle = math.radians(index * 45 - 90)
-        icon_x = cx + ICON_ZONE_RADIUS * math.cos(icon_angle)
-        icon_y = cy + ICON_ZONE_RADIUS * math.sin(icon_angle)
+        icon_x = cx + (ICON_ZONE_RADIUS + 3.0 * h) * math.cos(icon_angle)
+        icon_y = cy + (ICON_ZONE_RADIUS + 3.0 * h) * math.sin(icon_angle)
 
-        # Glow ring - fades in with highlight
-        icon_radius = 26
+        # Glow ring - fades in with highlight; icon pops slightly on hover
+        icon_radius = 26 + 2.0 * h
         if h > 0:
             glow = QColor(255, 255, 255, int(40 * h))
             p.setBrush(Qt.BrushStyle.NoBrush)
@@ -455,14 +528,15 @@ class RadialMenuPaintingMixin:
     def _draw_minimal_icon(self, p, cx, cy, index):
         """Draw a floating icon without slice background (vector minimal mode)."""
         h = getattr(self, 'slice_highlights', [0.0] * 8)[index]
+        h = self._ease_out_cubic(h)
         action = overlay_actions.ACTIONS[index]
 
-        # Icon position - same circular arrangement as normal slices
+        # Icon position - hovered icon lifts outward and pops slightly
         icon_angle = math.radians(index * 45 - 90)
-        icon_x = cx + ICON_ZONE_RADIUS * math.cos(icon_angle)
-        icon_y = cy + ICON_ZONE_RADIUS * math.sin(icon_angle)
+        icon_x = cx + (ICON_ZONE_RADIUS + 3.0 * h) * math.cos(icon_angle)
+        icon_y = cy + (ICON_ZONE_RADIUS + 3.0 * h) * math.sin(icon_angle)
 
-        icon_radius = 26
+        icon_radius = 26 + 2.0 * h
 
         # Subtle hover glow circle behind icon
         if h > 0:
@@ -870,11 +944,126 @@ class RadialMenuPaintingMixin:
             text_rect = QRectF(cx - s * 0.5, cy - s * 0.5, s, s)
             p.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "?")
 
+        elif icon_type == "next_track":
+            # Skip forward: filled play triangle + end bar
+            s = size * 0.42
+            p.setBrush(QBrush(color))
+            p.setPen(Qt.PenStyle.NoPen)
+            path = QPainterPath()
+            path.moveTo(cx - s, cy - s)
+            path.lineTo(cx - s, cy + s)
+            path.lineTo(cx + s * 0.15, cy)
+            path.closeSubpath()
+            p.drawPath(path)
+            p.drawRoundedRect(QRectF(cx + s * 0.35, cy - s, s * 0.32, s * 2), 1.5, 1.5)
+
+        elif icon_type == "prev_track":
+            # Skip backward: start bar + left-pointing triangle
+            s = size * 0.42
+            p.setBrush(QBrush(color))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawRoundedRect(QRectF(cx - s * 0.67, cy - s, s * 0.32, s * 2), 1.5, 1.5)
+            path = QPainterPath()
+            path.moveTo(cx + s, cy - s)
+            path.lineTo(cx + s, cy + s)
+            path.lineTo(cx - s * 0.15, cy)
+            path.closeSubpath()
+            p.drawPath(path)
+
+        elif icon_type in ("volume_up", "volume_down", "mute"):
+            # Speaker cone, then sound arcs (up=2, down=1) or an X (mute)
+            s = size * 0.4
+            p.setPen(QPen(color, 2.2))
+            p.setBrush(QBrush(color))
+            p.drawRect(QRectF(cx - s * 0.9, cy - s * 0.28, s * 0.35, s * 0.56))
+            cone = QPainterPath()
+            cone.moveTo(cx - s * 0.55, cy - s * 0.28)
+            cone.lineTo(cx - s * 0.1, cy - s * 0.6)
+            cone.lineTo(cx - s * 0.1, cy + s * 0.6)
+            cone.lineTo(cx - s * 0.55, cy + s * 0.28)
+            cone.closeSubpath()
+            p.drawPath(cone)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            if icon_type == "mute":
+                p.setPen(QPen(color, 2.5))
+                xs = s * 0.4
+                p.drawLine(QPointF(cx + s * 0.35, cy - xs), QPointF(cx + s * 0.85, cy + xs))
+                p.drawLine(QPointF(cx + s * 0.85, cy - xs), QPointF(cx + s * 0.35, cy + xs))
+            else:
+                radii = (s * 0.55, s * 0.85) if icon_type == "volume_up" else (s * 0.55,)
+                for r in radii:
+                    p.drawArc(QRectF(cx + s * 0.05 - r, cy - r, r * 2, r * 2), -45 * 16, 90 * 16)
+
+        elif icon_type == "terminal":
+            # Terminal window with a prompt chevron + cursor
+            w, h = size * 0.85, size * 0.7
+            p.setPen(QPen(color, 2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawRoundedRect(QRectF(cx - w / 2, cy - h / 2, w, h), 2.5, 2.5)
+            p.setPen(QPen(color, 2.2))
+            p.drawLine(QPointF(cx - w * 0.28, cy - h * 0.12), QPointF(cx - w * 0.12, cy + h * 0.02))
+            p.drawLine(QPointF(cx - w * 0.12, cy + h * 0.02), QPointF(cx - w * 0.28, cy + h * 0.16))
+            p.drawLine(QPointF(cx - w * 0.02, cy + h * 0.16), QPointF(cx + w * 0.22, cy + h * 0.16))
+
+        elif icon_type == "browser":
+            # Globe: circle + meridian ellipse + equator
+            s = size * 0.42
+            p.setPen(QPen(color, 2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawEllipse(QPointF(cx, cy), s, s)
+            p.drawEllipse(QRectF(cx - s * 0.42, cy - s, s * 0.84, s * 2))
+            p.drawLine(QPointF(cx - s, cy), QPointF(cx + s, cy))
+
+        elif icon_type == "calculator":
+            # Calculator body + screen line + 2x2 keys
+            w, h = size * 0.7, size * 0.9
+            p.setPen(QPen(color, 2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawRoundedRect(QRectF(cx - w / 2, cy - h / 2, w, h), 2.5, 2.5)
+            p.drawLine(QPointF(cx - w * 0.32, cy - h * 0.22), QPointF(cx + w * 0.32, cy - h * 0.22))
+            p.setBrush(QBrush(color))
+            p.setPen(Qt.PenStyle.NoPen)
+            for ky in (cy + h * 0.02, cy + h * 0.22):
+                for kx in (cx - w * 0.2, cx + w * 0.2):
+                    p.drawEllipse(QPointF(kx, ky), size * 0.05, size * 0.05)
+
+        else:
+            # Fallback: a small filled dot so any future mapped-but-undrawn
+            # icon id renders as a visible mark instead of blank.
+            p.setBrush(QBrush(color))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawEllipse(QPointF(cx, cy), size * 0.12, size * 0.12)
+
     @staticmethod
     def _ease_out_back(t, overshoot=1.4):
         """OutBack easing - slight overshoot then settle, creates 'droplet' feel."""
         t = t - 1.0
         return t * t * ((overshoot + 1.0) * t + overshoot) + 1.0
+
+    @staticmethod
+    def _ease_out_cubic(t):
+        """OutCubic easing - fast start, smooth deceleration."""
+        t = t - 1.0
+        return t * t * t + 1.0
+
+    @staticmethod
+    def _ease_out_expo(t):
+        """OutExpo easing - very fast start, long elegant settle."""
+        if t >= 1.0:
+            return 1.0
+        return 1.0 - 2.0 ** (-10.0 * t)
+
+    def _entrance_t(self, index):
+        """Per-slice entrance progress during the open bloom.
+
+        Slices sweep in clockwise: each is delayed slightly behind the
+        previous one, all finishing within the bloom window.
+        """
+        bloom = getattr(self, 'bloom_progress', 1.0)
+        if bloom >= 1.0:
+            return 1.0
+        t = (bloom - index * 0.03) / 0.76
+        return max(0.0, min(1.0, t))
 
     def _draw_submenu(self, p, cx, cy):
         """Draw submenu items with droplet pop-out animation."""

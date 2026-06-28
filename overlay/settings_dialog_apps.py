@@ -26,7 +26,7 @@ from settings_constants import (
     RADIAL_ACTIONS,
     find_radial_action_index,
 )
-from settings_widgets import SettingsCard
+from settings_widgets import SettingsCard, SettingRow
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +82,14 @@ class AddApplicationDialog(Adw.Window):
         running_label.set_margin_top(8)
         app_card.append(running_label)
 
+        # Search filter
+        self.app_search = Gtk.SearchEntry()
+        self.app_search.set_placeholder_text(_("Search applications…"))
+        self.app_search.set_margin_top(6)
+        self.app_search.set_margin_bottom(6)
+        self.app_search.connect("search-changed", self._on_app_search)
+        app_card.append(self.app_search)
+
         # Scrollable app list
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -90,6 +98,7 @@ class AddApplicationDialog(Adw.Window):
         self.app_list = Gtk.ListBox()
         self.app_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.app_list.add_css_class("boxed-list")
+        self.app_list.set_filter_func(self._app_filter)
 
         # Get running applications
         self._populate_running_apps()
@@ -271,6 +280,9 @@ class AddApplicationDialog(Adw.Window):
             row.set_title(app)
             row.app_name = app
 
+            # Real application icon (desktop entry / icon theme / generic)
+            row.add_prefix(self._app_icon(app))
+
             # Mark as running if detected
             if app in apps:
                 row.set_subtitle(_("Running"))
@@ -290,6 +302,43 @@ class AddApplicationDialog(Adw.Window):
             self.app_list.append(row)
 
         self.app_list.connect("row-selected", self._on_app_selected)
+
+    def _app_icon(self, app):
+        """Real application icon: desktop entry -> icon theme -> generic."""
+        from gi.repository import Gio, Gdk
+        img = None
+        try:
+            info = Gio.DesktopAppInfo.new(app + ".desktop")
+            if info is None:
+                low = app.lower()
+                for ai in Gio.AppInfo.get_all():
+                    nm = (ai.get_name() or "").lower()
+                    if nm == low or (low and low in nm):
+                        info = ai
+                        break
+            gicon = info.get_icon() if info else None
+            if gicon is not None:
+                img = Gtk.Image.new_from_gicon(gicon)
+        except Exception:
+            img = None
+        if img is None:
+            try:
+                theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+                name = app if theme.has_icon(app) else "application-x-executable"
+            except Exception:
+                name = "application-x-executable"
+            img = Gtk.Image.new_from_icon_name(name)
+        img.set_pixel_size(28)
+        return img
+
+    def _on_app_search(self, _entry):
+        self.app_list.invalidate_filter()
+
+    def _app_filter(self, row):
+        q = self.app_search.get_text().strip().lower() if hasattr(self, "app_search") else ""
+        if not q:
+            return True
+        return q in (getattr(row, "app_name", "") or "").lower()
 
     def _on_app_selected(self, list_box, row):
         """Handle app selection"""
@@ -498,6 +547,11 @@ class ApplicationProfilesGridDialog(Adw.Window):
 
         try:
             del profiles[app_name]
+            hardware = profiles.get("hardware")
+            if isinstance(hardware, dict):
+                hardware.pop(app_name, None)
+                if not hardware:
+                    profiles.pop("hardware", None)
             self._save_profiles(profiles)
             self._reload_grid()
             if hasattr(self.parent_window, "show_toast"):
@@ -521,7 +575,7 @@ class ApplicationProfilesGridDialog(Adw.Window):
         app_profiles = [
             (name, data)
             for name, data in profiles.items()
-            if name != "default" and isinstance(data, dict)
+            if name not in ("default", "hardware") and isinstance(data, dict)
         ]
         app_profiles.sort(key=lambda item: item[0].lower())
 
@@ -555,6 +609,7 @@ class AppProfileSlicesDialog(Adw.Window):
         self.set_default_size(560, 640)
 
         self.profile = self._load_profile(app_name)
+        self.hardware = self._load_hardware(app_name)
 
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
@@ -642,6 +697,8 @@ class AppProfileSlicesDialog(Adw.Window):
             row.append(dropdown)
             content.append(row)
 
+        self._build_hardware_section(content)
+
         scrolled.set_child(content)
         main_box.append(scrolled)
         self.set_content(main_box)
@@ -670,6 +727,155 @@ class AppProfileSlicesDialog(Adw.Window):
         profile["app_class"] = app_name
         profile["slices"] = slices[:8]
         return profile
+
+    def _load_hardware(self, app_name):
+        """Load this app's hardware override from profiles.json (daemon shape)."""
+        if not self.profile_path.exists():
+            return {}
+        try:
+            with open(self.profile_path, "r", encoding="utf-8") as f:
+                profiles = json.load(f)
+        except Exception:
+            return {}
+        if not isinstance(profiles, dict):
+            return {}
+        hardware = profiles.get("hardware", {})
+        if not isinstance(hardware, dict):
+            return {}
+        hw = hardware.get(app_name, {})
+        return hw if isinstance(hw, dict) else {}
+
+    def _build_hardware_section(self, content):
+        """Per-app device overrides persisted into the daemon hardware map."""
+        eyebrow = Gtk.Label(label=_("Hardware"))
+        eyebrow.set_halign(Gtk.Align.START)
+        eyebrow.set_xalign(0.0)
+        eyebrow.set_margin_top(8)
+        eyebrow.add_css_class("section-eyebrow")
+        content.append(eyebrow)
+
+        hw_desc = Gtk.Label(
+            label=_(
+                "Device settings applied while this application is focused. "
+                '"Leave unchanged" keeps the current device state.'
+            )
+        )
+        hw_desc.set_wrap(True)
+        hw_desc.set_halign(Gtk.Align.START)
+        hw_desc.set_xalign(0.0)
+        hw_desc.add_css_class("setting-desc")
+        content.append(hw_desc)
+
+        card = SettingsCard(_("Device Overrides"))
+
+        # DPI override
+        dpi_row = SettingRow(_("DPI"), _("Pointer sensitivity"))
+        dpi_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        dpi_box.set_valign(Gtk.Align.CENTER)
+        self.hw_dpi_switch = Gtk.Switch()
+        self.hw_dpi_switch.set_valign(Gtk.Align.CENTER)
+        self.hw_dpi_spin = Gtk.SpinButton.new_with_range(400, 8000, 100)
+        self.hw_dpi_spin.set_valign(Gtk.Align.CENTER)
+        dpi_val = self.hardware.get("dpi")
+        has_dpi = isinstance(dpi_val, (int, float))
+        self.hw_dpi_switch.set_active(has_dpi)
+        self.hw_dpi_spin.set_value(int(dpi_val) if has_dpi else 1600)
+        self.hw_dpi_spin.set_sensitive(has_dpi)
+        self.hw_dpi_switch.connect(
+            "notify::active",
+            lambda sw, _p: self.hw_dpi_spin.set_sensitive(sw.get_active()),
+        )
+        dpi_box.append(self.hw_dpi_switch)
+        dpi_box.append(self.hw_dpi_spin)
+        dpi_row.set_control(dpi_box)
+        card.append(dpi_row)
+
+        # SmartShift
+        ss_row = SettingRow(_("SmartShift"), _("Auto free-spin under fast flicks"))
+        self.hw_smartshift = Gtk.DropDown()
+        self.hw_smartshift.set_valign(Gtk.Align.CENTER)
+        self.hw_smartshift.set_model(
+            Gtk.StringList.new([_("Leave unchanged"), _("On"), _("Off")])
+        )
+        ss = self.hardware.get("smartshift")
+        if isinstance(ss, dict):
+            self.hw_smartshift.set_selected(1 if ss.get("enabled") else 2)
+        else:
+            self.hw_smartshift.set_selected(0)
+        ss_row.set_control(self.hw_smartshift)
+        card.append(ss_row)
+
+        # Hi-res / ratchet scroll
+        hires_row = SettingRow(_("Scroll Mode"), _("Hi-res free-spin or ratchet clicks"))
+        self.hw_hires = Gtk.DropDown()
+        self.hw_hires.set_valign(Gtk.Align.CENTER)
+        self.hw_hires.set_model(
+            Gtk.StringList.new(
+                [_("Leave unchanged"), _("Hi-res (free spin)"), _("Ratchet (clicky)")]
+            )
+        )
+        hires_val = self.hardware.get("hires")
+        if isinstance(hires_val, bool):
+            self.hw_hires.set_selected(1 if hires_val else 2)
+        else:
+            self.hw_hires.set_selected(0)
+        hires_row.set_control(self.hw_hires)
+        card.append(hires_row)
+
+        # Thumb-wheel mode
+        tw_row = SettingRow(_("Thumb-Wheel"), _("Rotation behaviour"))
+        self.hw_thumbwheel = Gtk.DropDown()
+        self.hw_thumbwheel.set_valign(Gtk.Align.CENTER)
+        self._tw_modes = [None, "off", "volume", "scroll", "zoom"]
+        self.hw_thumbwheel.set_model(
+            Gtk.StringList.new(
+                [
+                    _("Leave unchanged"),
+                    _("Off (native)"),
+                    _("Volume"),
+                    _("Horizontal scroll"),
+                    _("Zoom"),
+                ]
+            )
+        )
+        tw_val = self.hardware.get("thumbwheel")
+        self.hw_thumbwheel.set_selected(
+            self._tw_modes.index(tw_val) if tw_val in self._tw_modes else 0
+        )
+        tw_row.set_control(self.hw_thumbwheel)
+        card.append(tw_row)
+
+        content.append(card)
+
+    def _collect_hardware(self):
+        """Build the daemon HardwareProfile dict (omit 'leave unchanged' fields)."""
+        hw = {}
+
+        # Preserve per-button overrides the UI does not edit here.
+        buttons = self.hardware.get("buttons")
+        if isinstance(buttons, dict) and buttons:
+            hw["buttons"] = buttons
+
+        if self.hw_dpi_switch.get_active():
+            hw["dpi"] = int(self.hw_dpi_spin.get_value())
+
+        ss_sel = self.hw_smartshift.get_selected()
+        if ss_sel == 1:
+            hw["smartshift"] = {"enabled": True, "threshold": 50}
+        elif ss_sel == 2:
+            hw["smartshift"] = {"enabled": False, "threshold": 50}
+
+        hires_sel = self.hw_hires.get_selected()
+        if hires_sel == 1:
+            hw["hires"] = True
+        elif hires_sel == 2:
+            hw["hires"] = False
+
+        tw_mode = self._tw_modes[self.hw_thumbwheel.get_selected()]
+        if tw_mode is not None:
+            hw["thumbwheel"] = tw_mode
+
+        return hw
 
     def _on_save(self, _button):
         new_slices = []
@@ -709,6 +915,21 @@ class AppProfileSlicesDialog(Adw.Window):
             "app_class": self.app_name,
             "slices": new_slices,
         }
+
+        # Persist hardware override into the daemon hardware map keyed by app
+        # class. Empty (all "leave unchanged") removes the entry.
+        hardware = profiles.get("hardware")
+        if not isinstance(hardware, dict):
+            hardware = {}
+        hw = self._collect_hardware()
+        if hw:
+            hardware[self.app_name] = hw
+        else:
+            hardware.pop(self.app_name, None)
+        if hardware:
+            profiles["hardware"] = hardware
+        else:
+            profiles.pop("hardware", None)
 
         self.profile_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = str(self.profile_path) + ".tmp"

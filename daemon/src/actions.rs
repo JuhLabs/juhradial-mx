@@ -105,43 +105,49 @@ impl ActionExecutor {
 
         tracing::info!(keys, "Executing keyboard shortcut");
 
-        // Convert our format to xdotool format
-        // e.g., "ctrl+c" -> "ctrl+c", "ctrl+shift+z" -> "ctrl+shift+z"
-        let xdotool_keys = keys.to_lowercase();
+        let is_wayland = std::env::var_os("WAYLAND_DISPLAY").is_some()
+            || std::env::var("XDG_SESSION_TYPE")
+                .map(|s| s.eq_ignore_ascii_case("wayland"))
+                .unwrap_or(false);
 
-        // Try xdotool first (works on X11)
-        let result = Command::new("xdotool")
-            .args(["key", &xdotool_keys])
-            .spawn();
+        // On Wayland, X11 input synthesis (xdotool) does not reach native
+        // Wayland windows. Inject through the kernel uinput device via ydotool,
+        // which needs evdev key CODES (not keysym names) and is the reliable
+        // path on KDE Plasma Wayland. Unmapped chords fall through to xdotool.
+        let mut injected = false;
+        if is_wayland {
+            if let Some(codes) = Self::shortcut_to_evdev_codes(keys) {
+                injected = Self::inject_via_ydotool(&codes);
+                if !injected {
+                    tracing::warn!(keys, "ydotool injection failed; trying xdotool");
+                }
+            } else {
+                tracing::debug!(keys, "no evdev key mapping; using xdotool path");
+            }
+        }
 
-        match result {
-            Ok(mut child) => {
-                // Don't wait for completion to meet <10ms requirement
-                // Check if it started successfully
-                match child.try_wait() {
+        // X11 (or Wayland fallback): keysyms are case-sensitive (e.g.
+        // XF86AudioRaiseVolume), so pass the ORIGINAL case to xdotool.
+        if !injected {
+            match Command::new("xdotool").args(["key", keys]).spawn() {
+                Ok(mut child) => match child.try_wait() {
                     Ok(Some(status)) if !status.success() => {
                         tracing::warn!("xdotool exited with error status");
                     }
-                    Err(e) => {
-                        tracing::warn!("Error checking xdotool status: {}", e);
-                    }
+                    Err(e) => tracing::warn!("Error checking xdotool status: {}", e),
                     _ => {}
-                }
-            }
-            Err(e) => {
-                // xdotool not available, try ydotool for Wayland
-                tracing::debug!("xdotool failed: {}, trying ydotool", e);
-
-                let ydotool_result = Command::new("ydotool")
-                    .args(["key", &xdotool_keys])
-                    .spawn();
-
-                if let Err(e) = ydotool_result {
-                    tracing::error!("Both xdotool and ydotool failed: {}", e);
-                    return Err(ActionError::ExecutionFailed(format!(
-                        "Key synthesis failed: {}",
-                        e
-                    )));
+                },
+                Err(e) => {
+                    tracing::debug!("xdotool unavailable: {}, trying ydotool codes", e);
+                    let ok = Self::shortcut_to_evdev_codes(keys)
+                        .map(|c| Self::inject_via_ydotool(&c))
+                        .unwrap_or(false);
+                    if !ok {
+                        return Err(ActionError::ExecutionFailed(format!(
+                            "Key synthesis failed for: {}",
+                            keys
+                        )));
+                    }
                 }
             }
         }
@@ -161,6 +167,63 @@ impl ActionExecutor {
         }
 
         Ok(())
+    }
+
+    /// Map a shortcut string ("ctrl+plus", "XF86AudioRaiseVolume", "alt+Left")
+    /// to evdev key codes (modifiers first, main key last) for uinput injection.
+    /// Returns None for any token we do not map, so the caller can fall back to
+    /// xdotool. Codes are from linux/input-event-codes.h.
+    fn shortcut_to_evdev_codes(keys: &str) -> Option<Vec<u16>> {
+        let mut codes = Vec::new();
+        for tok in keys.split('+') {
+            let code: u16 = match tok.trim().to_ascii_lowercase().as_str() {
+                "ctrl" | "control" => 29,
+                "shift" => 42,
+                "alt" => 56,
+                "super" | "meta" | "win" => 125,
+                "a" => 30, "b" => 48, "c" => 46, "d" => 32, "e" => 18, "f" => 33,
+                "g" => 34, "h" => 35, "i" => 23, "j" => 36, "k" => 37, "l" => 38,
+                "m" => 50, "n" => 49, "o" => 24, "p" => 25, "q" => 16, "r" => 19,
+                "s" => 31, "t" => 20, "u" => 22, "v" => 47, "w" => 17, "x" => 45,
+                "y" => 21, "z" => 44,
+                "1" => 2, "2" => 3, "3" => 4, "4" => 5, "5" => 6,
+                "6" => 7, "7" => 8, "8" => 9, "9" => 10, "0" => 11,
+                "plus" | "equal" => 13,
+                "minus" => 12,
+                "kp_add" => 78,
+                "kp_subtract" => 74,
+                "left" => 105, "right" => 106, "up" => 103, "down" => 108,
+                "home" => 102, "end" => 107, "tab" => 15, "escape" | "esc" => 1,
+                "space" => 57, "return" | "enter" => 28, "delete" => 111,
+                "print" => 99,
+                "xf86audioraisevolume" => 115,
+                "xf86audiolowervolume" => 114,
+                "xf86audiomute" => 113,
+                "xf86audioplay" => 164,
+                "xf86audionext" => 163,
+                "xf86audioprev" => 165,
+                _ => return None,
+            };
+            codes.push(code);
+        }
+        if codes.is_empty() {
+            None
+        } else {
+            Some(codes)
+        }
+    }
+
+    /// Inject a key chord through the kernel uinput device via ydotool: press
+    /// every code in order, then release in reverse. ydotool uses uinput, so it
+    /// drives both X11 and Wayland (incl. KDE Plasma). Returns true if started.
+    fn inject_via_ydotool(codes: &[u16]) -> bool {
+        let mut args: Vec<String> = vec!["key".to_string()];
+        args.extend(codes.iter().map(|c| format!("{}:1", c)));
+        args.extend(codes.iter().rev().map(|c| format!("{}:0", c)));
+        match Command::new("ydotool").args(&args).spawn() {
+            Ok(mut child) => !matches!(child.try_wait(), Ok(Some(status)) if !status.success()),
+            Err(_) => false,
+        }
     }
 
     /// Execute shell command (Story 2.8)
@@ -406,6 +469,19 @@ pub fn detect_desktop() -> &'static str {
         .unwrap_or("unknown")
 }
 
+/// App-content zoom shortcut (NOT the screen magnifier, which zooms the whole
+/// desktop and is disruptive). Uses the NUMPAD +/- keys: they are
+/// layout-independent (the main-row -/= keys produce different characters on
+/// non-US layouts, e.g. Norwegian), and browsers, editors and image viewers all
+/// accept Ctrl+KP_Add / Ctrl+KP_Subtract for zoom.
+fn zoom_shortcut(zoom_in: bool) -> &'static str {
+    if zoom_in {
+        "ctrl+KP_Add"
+    } else {
+        "ctrl+KP_Subtract"
+    }
+}
+
 /// Execute a button action directly.
 /// Returns Ok(true) if the action was handled, Ok(false) if it should use the
 /// radial menu flow (caller handles ShowMenu/HideMenu).
@@ -428,6 +504,30 @@ pub async fn execute_button_action(action: ButtonAction) -> Result<bool, ActionE
             tracing::warn!("Custom button action not yet implemented");
             Ok(true)
         }
+        // Desktop-portable presets resolve per-DE (see presets.rs)
+        ButtonAction::ShowDesktop
+        | ButtonAction::SwitchDesktopLeft
+        | ButtonAction::SwitchDesktopRight
+        | ButtonAction::TaskSwitcher
+        | ButtonAction::CloseWindow
+        | ButtonAction::LockScreen
+        | ButtonAction::Calculator => {
+            if let Some(preset) = crate::presets::Preset::from_button_action(action) {
+                crate::presets::execute_preset(preset).await?;
+            }
+            Ok(true)
+        }
+        // Zoom uses layout-independent numpad Ctrl+/- (see zoom_shortcut).
+        ButtonAction::ZoomIn | ButtonAction::ZoomOut => {
+            let keys = zoom_shortcut(matches!(action, ButtonAction::ZoomIn));
+            ActionExecutor::execute(&Action {
+                action_type: ActionType::Shortcut(keys.to_string()),
+                label: None,
+                icon: None,
+            })
+            .await?;
+            Ok(true)
+        }
         // All other actions map to keyboard shortcuts
         _ => {
             let shortcut = button_action_to_shortcut(action);
@@ -442,6 +542,40 @@ pub async fn execute_button_action(action: ButtonAction) -> Result<bool, ActionE
             Ok(true)
         }
     }
+}
+
+/// Inject horizontal scroll clicks for the diverted thumb wheel.
+///
+/// Positive `clicks` scroll right, negative scroll left. Horizontal scroll on
+/// X11 is mouse buttons 6 (left) and 7 (right); xdotool synthesizes these
+/// directly, with ydotool as a Wayland fallback (consistent with the keyboard
+/// shortcut path). Non-blocking: each click is spawned, not awaited.
+pub async fn execute_horizontal_scroll(clicks: i32) -> Result<(), ActionError> {
+    if clicks == 0 {
+        return Ok(());
+    }
+    // Button 6 = scroll left, 7 = scroll right.
+    let button = if clicks > 0 { "7" } else { "6" };
+    let count = clicks.unsigned_abs().min(16);
+
+    for _ in 0..count {
+        let spawned = Command::new("xdotool")
+            .args(["click", button])
+            .spawn();
+        if let Err(e) = spawned {
+            tracing::debug!("xdotool horizontal scroll failed: {}, trying ydotool", e);
+            // ydotool click button codes: 0x06 = left scroll, 0x07 = right scroll.
+            let yd_button = if clicks > 0 { "0x07" } else { "0x06" };
+            if let Err(e2) = Command::new("ydotool").args(["click", yd_button]).spawn() {
+                tracing::error!("Both xdotool and ydotool horizontal scroll failed: {}", e2);
+                return Err(ActionError::ExecutionFailed(format!(
+                    "Horizontal scroll failed: {}",
+                    e2
+                )));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Execute virtual desktops overview toggle (desktop-specific)
@@ -575,8 +709,8 @@ fn button_action_to_shortcut(action: ButtonAction) -> Option<&'static str> {
         ButtonAction::VolumeDown => Some("XF86AudioLowerVolume"),
         ButtonAction::PlayPause => Some("XF86AudioPlay"),
         ButtonAction::Mute => Some("XF86AudioMute"),
-        ButtonAction::ZoomIn => Some("ctrl+plus"),
-        ButtonAction::ZoomOut => Some("ctrl+minus"),
+        ButtonAction::ZoomIn => Some("ctrl+KP_Add"),
+        ButtonAction::ZoomOut => Some("ctrl+KP_Subtract"),
         ButtonAction::ScrollLeftRight => None, // Handled by hardware, not keyboard shortcut
         _ => None,
     }

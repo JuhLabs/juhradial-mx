@@ -52,6 +52,7 @@ class ScreenEdgeDetector:
         self._extend_edge_zone = False
         self._flow_direction = "right"
         self._flow_monitor = ""  # "" = any monitor, "DP-3" = specific
+        self._edge_sensitivity = 50  # 0-100, scales the dwell threshold
         self._config_mtime: float = 0.0
 
         # Cached flow monitor geometry (set from main thread, avoids Qt from bg thread)
@@ -135,6 +136,7 @@ class ScreenEdgeDetector:
                     )
                     self._flow_direction = flow.get("direction", "right")
                     self._flow_monitor = flow.get("monitor", "")
+                    self._edge_sensitivity = flow.get("edge_sensitivity", 50)
         except Exception:
             pass
 
@@ -258,8 +260,11 @@ class ScreenEdgeDetector:
             self._dwell_edge = edge
             return
 
-        # Check if dwell time exceeded
-        if self._dwell_start and (now - self._dwell_start) >= EDGE_DWELL_MS / 1000.0:
+        # Check if dwell time exceeded. edge_sensitivity (0-100) scales the
+        # required dwell: 100 = quick trigger (~0.2x), 0 = deliberate (~1.8x).
+        sens = max(0, min(100, self._edge_sensitivity))
+        dwell_needed = (EDGE_DWELL_MS / 1000.0) * (1.8 - (sens / 100.0) * 1.6)
+        if self._dwell_start and (now - self._dwell_start) >= dwell_needed:
             self._last_fire_time = now
             self._reset_dwell()
 

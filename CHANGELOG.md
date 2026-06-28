@@ -5,19 +5,40 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.2] - 2026-04-27
+## [0.4.0] - 2026-06-28
+
+### Added
+
+- **Thumb-wheel actions** - Bind the side thumb-wheel to system volume, zoom, or horizontal scroll, with direction-invert and speed controls, on the Point & Scroll page.
+- **Per-application profiles** - DPI, button, and scroll settings switch automatically as you move between applications. Active-window tracking on KDE, Hyprland, and X11.
+- **Portable system actions** - Assign Show Desktop, Switch Desktop (left/right), Task Switcher, Close Window, Lock Screen, or Calculator to any button; each uses the native mechanism for your desktop (GNOME, KDE, Hyprland, Sway, COSMIC).
+- **Live device state** - Battery level, DPI, scroll ratchet, and the active Easy-Switch host now update in real time on the Devices page.
+- **Settings search** - A search box in the header finds any setting and jumps straight to its page.
+- **Low-battery notification** - A desktop notification when the mouse battery runs low.
+- **niri compositor support** - The radial menu now appears on niri.
 
 ### Fixed
 
-- **Easy-Switch reconnect reliability** - Returning the MX Master to Linux after switching to another host no longer leaves the radial wheel unavailable.
-- **Evdev fallback button mapping** - If HID++ volatile diverts are cleared by host switching, the physical thumb/radial control now falls back to the configured `buttons.thumb` action instead of the gesture action.
-- **HID++ event stability** - Removed the periodic connected-state HID++ refresh that could make radial presses unreliable.
-- **Installer asset sync** - Generated settings artwork is copied during install and development sync.
+- **Thumb-wheel actions now fire** - Corrected the HID++ thumb-wheel reporting call so wheel rotations are actually delivered and acted on.
+- **Button reassignments work on Wayland** - Volume, zoom, copy/paste, and the back/forward/middle reassignments are injected through the kernel uinput device, so they work on Wayland as well as X11. Fixes [#26](https://github.com/JuhLabs/juhradial-mx/issues/26).
+- **Correct menu position under fractional scaling** - The radial menu lands on the cursor on KDE Wayland at 125%, 150%, and other scales. Fixes [#25](https://github.com/JuhLabs/juhradial-mx/issues/25).
+- **No more menu jitter or wrong monitor after boot** - Fixes [#32](https://github.com/JuhLabs/juhradial-mx/issues/32).
+- **Button action icons no longer blank** - Changing an action keeps a proper icon. Fixes [#34](https://github.com/JuhLabs/juhradial-mx/issues/34).
+- **Builds on Ubuntu 24.04 and other current distros** - The installer bootstraps an up-to-date Rust toolchain instead of relying on an older system one. Fixes [#23](https://github.com/JuhLabs/juhradial-mx/issues/23).
+- **openSUSE Tumbleweed install** - Uses the correct PyQt6 package. Fixes [#24](https://github.com/JuhLabs/juhradial-mx/issues/24).
+- **Battery level shows reliably** - Live battery updates appear immediately instead of reading "unavailable", and charging-status labels are correct.
 
 ### Changed
 
-- **Official release promotion** - Promotes the v0.3.2 beta feature set to the stable release line.
-- **README artwork refresh** - Replaced the GitHub hero/social preview artwork with new product visuals.
+- **Themes recolor the whole interface** - Every theme drives the full palette, and the theme preview shows the actual radial wheel each theme uses.
+- **More robust zoom and horizontal scroll** - Zoom uses layout-independent keys (works on non-US keyboards); horizontal scroll uses the thumb-wheel's native hardware scrolling, so it works on every compositor.
+- **Rebuilt Haptics, Flow, and Macros pages** - Animated actuator waveform with preset-to-event syncing, a clearer Flow topology view, and a timeline macro studio.
+- **Application profile picker** - Shows real application icons and adds a search box.
+- **Smoother Wayland input** - The installer sets up ydotool autostart and uinput access so injected actions work out of the box.
+
+### Security
+
+- **Resolved code-scanning alerts** - Addressed the open CodeQL findings.
 
 ## [0.3.2-beta] - 2026-03-24
 
@@ -301,8 +322,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Native Wayland** - Full support for KDE Plasma 6 and Hyprland
 - Support for MX Master 4, MX Master 3S, and MX Master 3
 
-[0.3.2]: https://github.com/JuhLabs/juhradial-mx/compare/v0.3.2-beta...v0.3.2
-[0.3.2-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.3.1-beta...v0.3.2-beta
 [0.3.1-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.3.0-beta...v0.3.1-beta
 [0.3.0-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.9...v0.3.0-beta
 [0.2.6]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.5...v0.2.6

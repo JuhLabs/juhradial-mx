@@ -9,11 +9,16 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 
 use crate::actions::{get_default_actions, Action};
+use crate::config::{ButtonAction, ThumbwheelMode};
 
 /// Current schema version for profiles.json
-pub const SCHEMA_VERSION: u32 = 1;
+///
+/// v2 added the optional `hardware` map (per-app HardwareProfile). v1 files load
+/// unchanged: the field defaults to empty and `migrate` bumps the version.
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// Default config directory name
 const CONFIG_DIR_NAME: &str = "juhradial";
@@ -21,14 +26,38 @@ const CONFIG_DIR_NAME: &str = "juhradial";
 /// Default profiles filename
 const PROFILES_FILENAME: &str = "profiles.json";
 
+/// Shared, hot-reloadable per-app hardware profile map keyed by (lowercased)
+/// window resource class. Written by `ReloadConfig`, read by the focus-change
+/// consumer that applies a `HardwareProfile` when the active window changes.
+pub type SharedHardwareProfiles = Arc<RwLock<HashMap<String, HardwareProfile>>>;
+
+/// serde default for `ProfilesConfig::version` when a file omits it.
+///
+/// The GTK settings UI writes profiles.json in a FLAT shape (per-app keys plus a
+/// `hardware` map) with no top-level `version`/`profiles`. Defaulting both lets
+/// that file load without a parse error so the `hardware` map is still read.
+fn default_schema_version() -> u32 {
+    SCHEMA_VERSION
+}
+
 /// Top-level profiles configuration (Story 3.1: Task 1.1, 1.3)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProfilesConfig {
-    /// Schema version for future migrations
+    /// Schema version for future migrations. Defaulted so a UI-written file that
+    /// omits it still loads (see `default_schema_version`).
+    #[serde(default = "default_schema_version")]
     pub version: u32,
 
-    /// All profiles (default + application-specific)
+    /// All profiles (default + application-specific). Defaulted to empty so a
+    /// flat UI-written file (which has no `profiles` array) still loads; the
+    /// loader then inserts the built-in default profile.
+    #[serde(default)]
     pub profiles: Vec<Profile>,
+
+    /// Per-application hardware profiles, keyed by window resource class.
+    /// Added in schema v2; absent in v1 files (defaults to empty).
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub hardware: HashMap<String, HardwareProfile>,
 }
 
 impl Default for ProfilesConfig {
@@ -36,8 +65,46 @@ impl Default for ProfilesConfig {
         Self {
             version: SCHEMA_VERSION,
             profiles: vec![create_default_profile()],
+            hardware: HashMap::new(),
         }
     }
+}
+
+/// SmartShift setting for a hardware profile.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SmartshiftSetting {
+    pub enabled: bool,
+    pub threshold: u8,
+}
+
+/// Per-application HARDWARE state to apply on focus (Story 3.x).
+///
+/// Every field is optional: only the ones present are applied, and each maps to
+/// a VOLATILE HID++ setter (no onboard-memory writes). Missing fields leave the
+/// current device state untouched.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HardwareProfile {
+    /// Pointer DPI (ADJUSTABLE_DPI 0x2201).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dpi: Option<u16>,
+
+    /// SmartShift auto-disengage (HiResScroll 0x2111).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub smartshift: Option<SmartshiftSetting>,
+
+    /// HiRes/ratchet scroll mode (true = hi-res on).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hires: Option<bool>,
+
+    /// Thumb-wheel mode (divert is derived: any non-Off mode diverts).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thumbwheel: Option<ThumbwheelMode>,
+
+    /// Per-button action overrides keyed by button name (gesture/thumb/middle/
+    /// back/forward/shift_wheel). Recorded in the schema; applied via config, not
+    /// by `apply_hardware_profile` (which only touches volatile device state).
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub buttons: HashMap<String, ButtonAction>,
 }
 
 impl ProfilesConfig {
@@ -52,6 +119,23 @@ impl ProfilesConfig {
         Self {
             version: SCHEMA_VERSION,
             profiles: vec![create_default_profile()],
+            hardware: HashMap::new(),
+        }
+    }
+
+    /// Migrate an older config in place, defaulting any fields added by newer
+    /// schema versions, then stamp the current version. v1 -> v2 only needs the
+    /// `hardware` map, which serde already defaulted to empty on load.
+    pub fn migrate(&mut self) {
+        if self.version < SCHEMA_VERSION {
+            tracing::info!(
+                from = self.version,
+                to = SCHEMA_VERSION,
+                "Migrating profiles config (defaulting new hardware fields)"
+            );
+            // `hardware` is already populated (empty) by serde default; nothing
+            // else to backfill for v1 -> v2.
+            self.version = SCHEMA_VERSION;
         }
     }
 }
@@ -131,10 +215,16 @@ pub fn validate_icon_reference(icon: &str) -> bool {
         return false;
     }
 
-    // Check if it's an emoji (starts with high unicode codepoint)
+    // Check if it's an emoji or symbol character (common Unicode emoji ranges)
     let first_char = icon.chars().next().unwrap();
-    if first_char as u32 > 0x1F300 {
-        // Likely an emoji range
+    let cp = first_char as u32;
+    if cp > 0x1F000                        // Supplementary emoji (Mahjong+)
+        || (0x2190..=0x21FF).contains(&cp) // Arrows (↩, ↪)
+        || (0x2300..=0x23FF).contains(&cp) // Misc Technical (⏏, ⌨)
+        || (0x2500..=0x27BF).contains(&cp) // Box Drawing through Dingbats (✂, ❌)
+        // Supplemental Arrows, Misc Symbols (⭐)
+        || (0x2900..=0x2BFF).contains(&cp)
+    {
         return true;
     }
 
@@ -218,6 +308,9 @@ pub struct ProfileManager {
     /// Window class to profile mapping (Story 3.1: Task 3.4)
     window_mappings: HashMap<String, String>,
 
+    /// Per-application hardware profiles keyed by window resource class (v2)
+    hardware: HashMap<String, HardwareProfile>,
+
     /// Config file path (used for future save functionality)
     #[allow(dead_code)]
     config_path: PathBuf,
@@ -234,6 +327,7 @@ impl ProfileManager {
             profiles,
             current_profile: "default".to_string(),
             window_mappings: HashMap::new(),
+            hardware: HashMap::new(),
             config_path: get_profiles_path(),
         }
     }
@@ -262,17 +356,21 @@ impl ProfileManager {
         let content = fs::read_to_string(path).map_err(ProfileError::IoError)?;
 
         // Task 3.2: Deserialize JSON
-        let config: ProfilesConfig =
+        let mut config: ProfilesConfig =
             serde_json::from_str(&content).map_err(ProfileError::ParseError)?;
 
-        // Version migration check (Code Review fix)
-        if config.version != SCHEMA_VERSION {
-            tracing::warn!(
-                file_version = config.version,
-                expected_version = SCHEMA_VERSION,
-                "Profile config version mismatch - may need migration"
-            );
-        }
+        // Migrate older schema versions (defaults missing hardware fields).
+        config.migrate();
+
+        // Capture per-app hardware profiles before consuming `config.profiles`.
+        // Keys are normalized to lowercase so lookups are case-insensitive: the
+        // KWin/Hyprland/X11 window-class sources differ in case, and the D-Bus
+        // `ReportActiveWindow` path lowercases the incoming class.
+        let hardware: HashMap<String, HardwareProfile> = config
+            .hardware
+            .iter()
+            .map(|(k, v)| (k.to_lowercase(), v.clone()))
+            .collect();
 
         // Task 3.3, 3.4: Build profile map and window mappings
         let mut profiles = HashMap::new();
@@ -337,6 +435,7 @@ impl ProfileManager {
             profiles,
             current_profile: "default".to_string(),
             window_mappings,
+            hardware,
             config_path: path.to_path_buf(),
         })
     }
@@ -375,6 +474,25 @@ impl ProfileManager {
             .expect("Default profile must exist")
     }
 
+    /// Get the hardware profile for a window class, if one is configured.
+    ///
+    /// Lookup is case-insensitive: the map keys are lowercased at load time, so
+    /// the query is lowercased to match.
+    pub fn get_hardware_profile_for_window(&self, window_class: &str) -> Option<&HardwareProfile> {
+        self.hardware.get(&window_class.to_lowercase())
+    }
+
+    /// Whether any per-app hardware profiles are configured.
+    pub fn has_hardware_profiles(&self) -> bool {
+        !self.hardware.is_empty()
+    }
+
+    /// Clone the (lowercased-key) per-app hardware profile map for sharing with
+    /// the focus-change consumer behind a `SharedHardwareProfiles`.
+    pub fn hardware_profiles(&self) -> HashMap<String, HardwareProfile> {
+        self.hardware.clone()
+    }
+
     /// Get current active profile
     pub fn current(&self) -> &Profile {
         self.profiles
@@ -409,6 +527,67 @@ impl Default for ProfileManager {
     }
 }
 
+/// Apply a per-app hardware profile to the device (VOLATILE only).
+///
+/// Each present field maps to a runtime HID++ setter on the haptic manager;
+/// absent fields leave current state untouched. Failures are logged, not
+/// fatal, so one unsupported setter never blocks the rest. Per-button overrides
+/// are intentionally NOT applied here (they are config-level, not device state).
+pub fn apply_hardware_profile(profile: &HardwareProfile, manager: &mut crate::hidpp::HapticManager) {
+    if let Some(dpi) = profile.dpi {
+        match manager.set_dpi(dpi) {
+            Ok(()) => tracing::info!(dpi, "Hardware profile: DPI applied"),
+            Err(e) => tracing::warn!(error = %e, dpi, "Hardware profile: set_dpi failed"),
+        }
+    }
+
+    if let Some(ss) = profile.smartshift {
+        match manager.set_smart_shift(ss.enabled, ss.threshold) {
+            Ok(()) => tracing::info!(enabled = ss.enabled, threshold = ss.threshold, "Hardware profile: SmartShift applied"),
+            Err(e) => tracing::warn!(error = %e, "Hardware profile: set_smart_shift failed"),
+        }
+    }
+
+    if let Some(hires) = profile.hires {
+        // invert/target unchanged from device default (false) for per-app apply.
+        match manager.set_hiresscroll_mode(hires, false, false) {
+            Ok(()) => tracing::info!(hires, "Hardware profile: HiRes scroll applied"),
+            Err(e) => tracing::warn!(error = %e, "Hardware profile: set_hiresscroll_mode failed"),
+        }
+    }
+
+    if let Some(mode) = profile.thumbwheel {
+        let divert = mode != ThumbwheelMode::Off;
+        // Software handles inversion (hidraw reader), so device invert stays off.
+        match manager.set_thumbwheel_reporting(divert, false) {
+            Ok(()) => tracing::info!(?mode, divert, "Hardware profile: thumb-wheel applied"),
+            Err(e) => tracing::warn!(error = %e, "Hardware profile: set_thumbwheel_reporting failed"),
+        }
+    }
+
+    if !profile.buttons.is_empty() {
+        tracing::debug!(
+            count = profile.buttons.len(),
+            "Hardware profile has per-button overrides (applied via config, not device)"
+        );
+    }
+}
+
+/// Re-read profiles.json and return its (lowercased-key) hardware profile map.
+///
+/// Used by the `ReloadConfig` D-Bus path to refresh the shared hardware map
+/// after the settings UI saves. A read/parse failure yields an empty map rather
+/// than an error, so a transient bad file never breaks the running daemon.
+pub fn load_hardware_profiles() -> HashMap<String, HardwareProfile> {
+    match ProfileManager::load_or_create() {
+        Ok(manager) => manager.hardware_profiles(),
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to reload hardware profiles; keeping empty map");
+            HashMap::new()
+        }
+    }
+}
+
 /// Profile error type
 #[derive(Debug)]
 pub enum ProfileError {
@@ -440,6 +619,74 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    #[test]
+    fn test_v1_config_migrates_and_defaults_hardware() {
+        // A v1 file has no `hardware` map; it must load, default to empty, and
+        // be stamped to the current schema version.
+        let v1 = r#"{
+            "version": 1,
+            "profiles": [ {
+                "name": "default",
+                "slices": [null, null, null, null, null, null, null, null]
+            } ]
+        }"#;
+        let mut config: ProfilesConfig = serde_json::from_str(v1).unwrap();
+        assert!(config.hardware.is_empty());
+        config.migrate();
+        assert_eq!(config.version, SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn test_load_flat_ui_written_profiles_json() {
+        // The GTK settings UI writes a FLAT shape with NO top-level
+        // `version`/`profiles`: per-app keys plus a `hardware` map. It must load
+        // without a parse error, default to the built-in default profile, and
+        // still expose the hardware map (with case-insensitive keys).
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("profiles.json");
+        let flat = r#"{
+            "default": { "name": "default", "app_class": "default", "slices": [] },
+            "Firefox": { "name": "Firefox", "app_class": "Firefox", "slices": [] },
+            "hardware": {
+                "Firefox": { "dpi": 1200, "thumbwheel": "scroll" }
+            }
+        }"#;
+        fs::write(&config_path, flat).unwrap();
+
+        let manager = ProfileManager::load_from_path(&config_path).unwrap();
+        // Built-in default profile is always present.
+        assert_eq!(manager.current().name, "default");
+        // Hardware map loaded; lookup is case-insensitive (queried lowercase).
+        let hw = manager
+            .get_hardware_profile_for_window("firefox")
+            .expect("hardware profile for firefox must load from flat UI file");
+        assert_eq!(hw.dpi, Some(1200));
+        assert_eq!(hw.thumbwheel, Some(ThumbwheelMode::Scroll));
+        // Original-case query also resolves.
+        assert!(manager.get_hardware_profile_for_window("Firefox").is_some());
+    }
+
+    #[test]
+    fn test_hardware_profile_roundtrip() {
+        let mut config = ProfilesConfig::with_default_actions();
+        config.hardware.insert(
+            "blender".to_string(),
+            HardwareProfile {
+                dpi: Some(1600),
+                smartshift: Some(SmartshiftSetting { enabled: true, threshold: 40 }),
+                hires: Some(true),
+                thumbwheel: Some(ThumbwheelMode::Zoom),
+                buttons: HashMap::new(),
+            },
+        );
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: ProfilesConfig = serde_json::from_str(&json).unwrap();
+        let hw = parsed.hardware.get("blender").unwrap();
+        assert_eq!(hw.dpi, Some(1600));
+        assert_eq!(hw.thumbwheel, Some(ThumbwheelMode::Zoom));
+        assert_eq!(hw.smartshift, Some(SmartshiftSetting { enabled: true, threshold: 40 }));
+    }
+
     // Task 6.1: Test ProfilesConfig serialization/deserialization
     #[test]
     fn test_profiles_config_serialization() {
@@ -447,7 +694,7 @@ mod tests {
 
         // Serialize
         let json = serde_json::to_string_pretty(&config).unwrap();
-        assert!(json.contains("\"version\": 1"));
+        assert!(json.contains(&format!("\"version\": {}", SCHEMA_VERSION)));
         assert!(json.contains("\"name\": \"default\""));
         assert!(json.contains("\"slices\""));
 
@@ -576,9 +823,15 @@ mod tests {
     // Story 3.5: Test icon validation
     #[test]
     fn test_validate_icon_reference() {
-        // Valid emoji
+        // Valid emoji (supplementary range)
         assert!(validate_icon_reference("📋"));
         assert!(validate_icon_reference("🎯"));
+
+        // Valid emoji (arrows, dingbats - previously failing)
+        assert!(validate_icon_reference("↩️"));
+        assert!(validate_icon_reference("↪️"));
+        assert!(validate_icon_reference("✂️"));
+        assert!(validate_icon_reference("❌"));
 
         // Valid file paths
         assert!(validate_icon_reference("/path/to/icon.png"));

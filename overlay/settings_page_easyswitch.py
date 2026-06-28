@@ -17,7 +17,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _
-from settings_widgets import GeneratedAssetHero, SettingsCard, PageHeader, InfoCard, LoadingState
+from settings_widgets import SettingsCard, PageHeader, InfoCard, LoadingState
 from settings_config import config
 
 logger = logging.getLogger(__name__)
@@ -80,9 +80,6 @@ class EasySwitchPage(Gtk.ScrolledWindow):
             _("Switch between paired computers"),
         )
         content.append(header)
-        content.append(
-            GeneratedAssetHero("settings-generated/easyswitch.png", max_height=190)
-        )
 
         # Action buttons below header
         actions_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -172,6 +169,8 @@ class EasySwitchPage(Gtk.ScrolledWindow):
         # Slot indicator
         indicator = Gtk.Box()
         indicator.set_size_request(12, 12)
+        indicator.set_halign(Gtk.Align.CENTER)
+        indicator.set_valign(Gtk.Align.CENTER)
         indicator.add_css_class("connection-dot")
         if is_current:
             indicator.add_css_class("connected")

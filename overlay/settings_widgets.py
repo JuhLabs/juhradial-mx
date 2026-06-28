@@ -673,7 +673,7 @@ class SettingRow(Gtk.Box):
         if description:
             desc_widget = Gtk.Label(label=description)
             desc_widget.set_halign(Gtk.Align.START)
-            desc_widget.add_css_class('setting-value')
+            desc_widget.add_css_class('setting-desc')
             text_box.append(desc_widget)
 
         self.append(text_box)
@@ -743,6 +743,7 @@ class LoadingState(Gtk.Box):
         error_box.set_margin_bottom(16)
         warn = Gtk.Image.new_from_icon_name("dialog-warning-symbolic")
         warn.set_pixel_size(24)
+        warn.add_css_class("warning")
         error_box.append(warn)
         self._error_label = Gtk.Label(label="")
         self._error_label.set_wrap(True)
@@ -750,6 +751,7 @@ class LoadingState(Gtk.Box):
         self._error_label.add_css_class("dim-label")
         error_box.append(self._error_label)
         self._retry_btn = Gtk.Button(label=_("Retry"))
+        self._retry_btn.add_css_class("secondary-btn")
         self._retry_btn.set_halign(Gtk.Align.CENTER)
         self._retry_btn.connect("clicked", self._on_retry_clicked)
         error_box.append(self._retry_btn)

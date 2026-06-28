@@ -42,18 +42,10 @@ pub struct HapticEventConfig {
     pub invalid: String,
 }
 
-fn default_menu_appear() -> String {
-    "damp_state_change".to_string()
-}
-fn default_slice_change() -> String {
-    "subtle_collision".to_string()
-}
-fn default_confirm() -> String {
-    "sharp_state_change".to_string()
-}
-fn default_invalid() -> String {
-    "angry_alert".to_string()
-}
+fn default_menu_appear() -> String { "damp_state_change".to_string() }
+fn default_slice_change() -> String { "subtle_collision".to_string() }
+fn default_confirm() -> String { "sharp_state_change".to_string() }
+fn default_invalid() -> String { "angry_alert".to_string() }
 
 impl Default for HapticEventConfig {
     fn default() -> Self {
@@ -103,21 +95,11 @@ pub struct HapticConfig {
     pub reentry_debounce_ms: u64,
 }
 
-fn default_true() -> bool {
-    true
-}
-fn default_pattern() -> String {
-    "subtle_collision".to_string()
-}
-fn default_debounce() -> u64 {
-    20
-}
-fn default_slice_debounce() -> u64 {
-    20
-}
-fn default_reentry_debounce() -> u64 {
-    50
-}
+fn default_true() -> bool { true }
+fn default_pattern() -> String { "subtle_collision".to_string() }
+fn default_debounce() -> u64 { 20 }
+fn default_slice_debounce() -> u64 { 20 }
+fn default_reentry_debounce() -> u64 { 50 }
 
 impl Default for HapticConfig {
     fn default() -> Self {
@@ -171,6 +153,13 @@ pub enum ButtonAction {
     Mute,
     ZoomIn,
     ZoomOut,
+    ShowDesktop,
+    SwitchDesktopLeft,
+    SwitchDesktopRight,
+    TaskSwitcher,
+    CloseWindow,
+    LockScreen,
+    Calculator,
     None,
     Custom,
 }
@@ -196,33 +185,26 @@ impl std::fmt::Display for ButtonAction {
             ButtonAction::Mute => write!(f, "mute"),
             ButtonAction::ZoomIn => write!(f, "zoom_in"),
             ButtonAction::ZoomOut => write!(f, "zoom_out"),
+            ButtonAction::ShowDesktop => write!(f, "show_desktop"),
+            ButtonAction::SwitchDesktopLeft => write!(f, "switch_desktop_left"),
+            ButtonAction::SwitchDesktopRight => write!(f, "switch_desktop_right"),
+            ButtonAction::TaskSwitcher => write!(f, "task_switcher"),
+            ButtonAction::CloseWindow => write!(f, "close_window"),
+            ButtonAction::LockScreen => write!(f, "lock_screen"),
+            ButtonAction::Calculator => write!(f, "calculator"),
             ButtonAction::None => write!(f, "none"),
             ButtonAction::Custom => write!(f, "custom"),
         }
     }
 }
 
-fn default_gesture_action() -> ButtonAction {
-    ButtonAction::VirtualDesktops
-}
-fn default_thumb_action() -> ButtonAction {
-    ButtonAction::RadialMenu
-}
-fn default_middle_action() -> ButtonAction {
-    ButtonAction::MiddleClick
-}
-fn default_shift_wheel_action() -> ButtonAction {
-    ButtonAction::Smartshift
-}
-fn default_forward_action() -> ButtonAction {
-    ButtonAction::Forward
-}
-fn default_back_action() -> ButtonAction {
-    ButtonAction::Back
-}
-fn default_horizontal_scroll_action() -> ButtonAction {
-    ButtonAction::ScrollLeftRight
-}
+fn default_gesture_action() -> ButtonAction { ButtonAction::VirtualDesktops }
+fn default_thumb_action() -> ButtonAction { ButtonAction::RadialMenu }
+fn default_middle_action() -> ButtonAction { ButtonAction::MiddleClick }
+fn default_shift_wheel_action() -> ButtonAction { ButtonAction::Smartshift }
+fn default_forward_action() -> ButtonAction { ButtonAction::Forward }
+fn default_back_action() -> ButtonAction { ButtonAction::Back }
+fn default_horizontal_scroll_action() -> ButtonAction { ButtonAction::ScrollLeftRight }
 
 /// Per-button action assignments.
 /// Matches the "buttons" section in config.json written by Settings UI.
@@ -265,6 +247,100 @@ impl Default for ButtonsConfig {
 }
 
 // ============================================================================
+// Thumb-Wheel Configuration
+// ============================================================================
+
+/// What a thumb-wheel rotation should do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ThumbwheelMode {
+    /// Thumb wheel keeps its native behaviour (not diverted).
+    #[default]
+    Off,
+    /// Rotation adjusts system volume.
+    Volume,
+    /// Rotation scrolls horizontally.
+    Scroll,
+    /// Rotation zooms in/out (Ctrl +/-).
+    Zoom,
+}
+
+/// Resolved output of a thumb-wheel rotation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThumbwheelOutput {
+    /// Dispatch a button action (volume/zoom) `repeats` times.
+    Button(ButtonAction),
+    /// Inject `clicks` horizontal scroll clicks (sign = direction).
+    HorizontalScroll(i32),
+}
+
+/// Thumb-wheel configuration (HID++ ThumbWheel feature 0x2150).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThumbwheelConfig {
+    /// What rotation does.
+    #[serde(default)]
+    pub mode: ThumbwheelMode,
+
+    /// Invert rotation direction.
+    #[serde(default)]
+    pub invert: bool,
+
+    /// Repeats per rotation notification (1..=8). Higher = faster response.
+    #[serde(default = "default_thumbwheel_speed")]
+    pub speed: u8,
+}
+
+fn default_thumbwheel_speed() -> u8 { 1 }
+
+impl Default for ThumbwheelConfig {
+    fn default() -> Self {
+        Self {
+            mode: ThumbwheelMode::default(),
+            invert: false,
+            speed: default_thumbwheel_speed(),
+        }
+    }
+}
+
+impl ThumbwheelConfig {
+    /// Whether rotation should be diverted to HID++ notifications.
+    ///
+    /// Only Volume and Zoom need diverting (their rotations are re-injected as
+    /// actions). Horizontal Scroll is the thumb-wheel's native hardware
+    /// behaviour, so it is left un-diverted to scroll reliably on every
+    /// compositor; Off is native too.
+    pub fn is_diverted(&self) -> bool {
+        matches!(self.mode, ThumbwheelMode::Volume | ThumbwheelMode::Zoom)
+    }
+
+    /// Number of times to repeat the action per rotation notification.
+    pub fn repeats(&self) -> u8 {
+        self.speed.clamp(1, 8)
+    }
+
+    /// Resolve a raw signed thumb-wheel delta into a directional output.
+    ///
+    /// Returns `None` when the wheel is off or the delta is zero. `invert` is
+    /// applied here (software direction), so the device divert is enabled with
+    /// no hardware inversion.
+    pub fn resolve(&self, delta: i16) -> Option<ThumbwheelOutput> {
+        if delta == 0 || self.mode == ThumbwheelMode::Off {
+            return None;
+        }
+        let forward = if self.invert { delta < 0 } else { delta > 0 };
+        Some(match (self.mode, forward) {
+            (ThumbwheelMode::Volume, true) => ThumbwheelOutput::Button(ButtonAction::VolumeUp),
+            (ThumbwheelMode::Volume, false) => ThumbwheelOutput::Button(ButtonAction::VolumeDown),
+            (ThumbwheelMode::Zoom, true) => ThumbwheelOutput::Button(ButtonAction::ZoomIn),
+            (ThumbwheelMode::Zoom, false) => ThumbwheelOutput::Button(ButtonAction::ZoomOut),
+            (ThumbwheelMode::Scroll, true) => ThumbwheelOutput::HorizontalScroll(1),
+            (ThumbwheelMode::Scroll, false) => ThumbwheelOutput::HorizontalScroll(-1),
+            (ThumbwheelMode::Off, _) => unreachable!("guarded above"),
+        })
+    }
+}
+
+// ============================================================================
 // Main Configuration
 // ============================================================================
 
@@ -287,6 +363,10 @@ pub struct Config {
     #[serde(default)]
     pub buttons: ButtonsConfig,
 
+    /// Thumb-wheel behaviour (HID++ ThumbWheel 0x2150)
+    #[serde(default)]
+    pub thumbwheel: ThumbwheelConfig,
+
     /// Configuration file path (not serialized)
     #[serde(skip)]
     pub config_path: Option<PathBuf>,
@@ -303,6 +383,7 @@ impl Default for Config {
             theme: default_theme(),
             blur_enabled: true,
             buttons: ButtonsConfig::default(),
+            thumbwheel: ThumbwheelConfig::default(),
             config_path: None,
         }
     }
@@ -341,11 +422,7 @@ impl Config {
         // If file doesn't exist, return defaults
         if !path.exists() {
             tracing::info!(path = %path.display(), "Config file not found, using defaults");
-            let config = Self {
-                config_path: Some(path.to_path_buf()),
-                ..Self::default()
-            };
-            return Ok(config);
+            return Ok(Self { config_path: Some(path.to_path_buf()), ..Self::default() });
         }
 
         // Read and parse the file
@@ -428,6 +505,41 @@ impl Config {
             button_cid::SMART_SHIFT => self.buttons.shift_wheel,
             _ => ButtonAction::None,
         }
+    }
+
+    /// CIDs of the non-gesture buttons (back, forward, middle, shift-wheel) the
+    /// user has reassigned away from their native default. Only these are
+    /// HID++-diverted so the daemon can apply the chosen action; buttons left at
+    /// their native default are not diverted and keep hardware behaviour intact.
+    pub fn remapped_button_cids(&self) -> Vec<u16> {
+        use crate::hidraw::button_cid;
+        let mut cids = Vec::new();
+        if self.buttons.back != ButtonAction::Back {
+            cids.push(button_cid::BACK_BUTTON);
+        }
+        if self.buttons.forward != ButtonAction::Forward {
+            cids.push(button_cid::FORWARD_BUTTON);
+        }
+        if self.buttons.middle != ButtonAction::MiddleClick {
+            cids.push(button_cid::MIDDLE_BUTTON);
+        }
+        if self.buttons.shift_wheel != ButtonAction::Smartshift {
+            cids.push(button_cid::SMART_SHIFT);
+        }
+        cids
+    }
+
+    /// The full set of non-gesture button CIDs the daemon may divert. Used on
+    /// config reload to clear the divert for any button returned to its native
+    /// default so its hardware behaviour comes back without a reconnect.
+    pub fn managed_button_cids() -> [u16; 4] {
+        use crate::hidraw::button_cid;
+        [
+            button_cid::BACK_BUTTON,
+            button_cid::FORWARD_BUTTON,
+            button_cid::MIDDLE_BUTTON,
+            button_cid::SMART_SHIFT,
+        ]
     }
 }
 
@@ -707,12 +819,84 @@ mod tests {
     #[test]
     fn test_button_action_display() {
         assert_eq!(format!("{}", ButtonAction::RadialMenu), "radial_menu");
-        assert_eq!(
-            format!("{}", ButtonAction::VirtualDesktops),
-            "virtual_desktops"
-        );
+        assert_eq!(format!("{}", ButtonAction::VirtualDesktops), "virtual_desktops");
         assert_eq!(format!("{}", ButtonAction::MiddleClick), "middle_click");
         assert_eq!(format!("{}", ButtonAction::None), "none");
+    }
+
+    // ========================================================================
+    // Thumb-Wheel Config Tests
+    // ========================================================================
+
+    #[test]
+    fn test_thumbwheel_defaults() {
+        let tw = ThumbwheelConfig::default();
+        assert_eq!(tw.mode, ThumbwheelMode::Off);
+        assert!(!tw.invert);
+        assert_eq!(tw.speed, 1);
+        assert!(!tw.is_diverted());
+    }
+
+    #[test]
+    fn test_thumbwheel_off_resolves_none() {
+        let tw = ThumbwheelConfig::default();
+        assert_eq!(tw.resolve(100), None);
+        assert_eq!(tw.resolve(-100), None);
+    }
+
+    #[test]
+    fn test_thumbwheel_zero_delta_resolves_none() {
+        let tw = ThumbwheelConfig { mode: ThumbwheelMode::Volume, ..Default::default() };
+        assert_eq!(tw.resolve(0), None);
+    }
+
+    #[test]
+    fn test_thumbwheel_volume_direction() {
+        let tw = ThumbwheelConfig { mode: ThumbwheelMode::Volume, ..Default::default() };
+        assert_eq!(tw.resolve(5), Some(ThumbwheelOutput::Button(ButtonAction::VolumeUp)));
+        assert_eq!(tw.resolve(-5), Some(ThumbwheelOutput::Button(ButtonAction::VolumeDown)));
+        assert!(tw.is_diverted());
+    }
+
+    #[test]
+    fn test_thumbwheel_invert_flips_direction() {
+        let tw = ThumbwheelConfig { mode: ThumbwheelMode::Volume, invert: true, speed: 1 };
+        assert_eq!(tw.resolve(5), Some(ThumbwheelOutput::Button(ButtonAction::VolumeDown)));
+        assert_eq!(tw.resolve(-5), Some(ThumbwheelOutput::Button(ButtonAction::VolumeUp)));
+    }
+
+    #[test]
+    fn test_thumbwheel_zoom_and_scroll() {
+        let zoom = ThumbwheelConfig { mode: ThumbwheelMode::Zoom, ..Default::default() };
+        assert_eq!(zoom.resolve(1), Some(ThumbwheelOutput::Button(ButtonAction::ZoomIn)));
+        assert_eq!(zoom.resolve(-1), Some(ThumbwheelOutput::Button(ButtonAction::ZoomOut)));
+
+        let scroll = ThumbwheelConfig { mode: ThumbwheelMode::Scroll, ..Default::default() };
+        assert_eq!(scroll.resolve(1), Some(ThumbwheelOutput::HorizontalScroll(1)));
+        assert_eq!(scroll.resolve(-1), Some(ThumbwheelOutput::HorizontalScroll(-1)));
+    }
+
+    #[test]
+    fn test_thumbwheel_repeats_clamped() {
+        assert_eq!(ThumbwheelConfig { speed: 0, ..Default::default() }.repeats(), 1);
+        assert_eq!(ThumbwheelConfig { speed: 3, ..Default::default() }.repeats(), 3);
+        assert_eq!(ThumbwheelConfig { speed: 99, ..Default::default() }.repeats(), 8);
+    }
+
+    #[test]
+    fn test_config_thumbwheel_json_roundtrip() {
+        let json = r#"{"thumbwheel": {"mode": "volume", "invert": true, "speed": 4}}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.thumbwheel.mode, ThumbwheelMode::Volume);
+        assert!(config.thumbwheel.invert);
+        assert_eq!(config.thumbwheel.speed, 4);
+    }
+
+    #[test]
+    fn test_config_without_thumbwheel_backward_compat() {
+        let json = r#"{"theme": "catppuccin-mocha"}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.thumbwheel.mode, ThumbwheelMode::Off);
     }
 
     #[test]
@@ -720,30 +904,38 @@ mod tests {
         let config = Config::default();
         use crate::hidraw::button_cid;
 
-        assert_eq!(
-            config.action_for_cid(button_cid::GESTURE_BUTTON),
-            ButtonAction::VirtualDesktops
-        );
-        assert_eq!(
-            config.action_for_cid(button_cid::HAPTIC),
-            ButtonAction::RadialMenu
-        );
-        assert_eq!(
-            config.action_for_cid(button_cid::MIDDLE_BUTTON),
-            ButtonAction::MiddleClick
-        );
-        assert_eq!(
-            config.action_for_cid(button_cid::BACK_BUTTON),
-            ButtonAction::Back
-        );
-        assert_eq!(
-            config.action_for_cid(button_cid::FORWARD_BUTTON),
-            ButtonAction::Forward
-        );
-        assert_eq!(
-            config.action_for_cid(button_cid::SMART_SHIFT),
-            ButtonAction::Smartshift
-        );
+        assert_eq!(config.action_for_cid(button_cid::GESTURE_BUTTON), ButtonAction::VirtualDesktops);
+        assert_eq!(config.action_for_cid(button_cid::HAPTIC), ButtonAction::RadialMenu);
+        assert_eq!(config.action_for_cid(button_cid::MIDDLE_BUTTON), ButtonAction::MiddleClick);
+        assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Back);
+        assert_eq!(config.action_for_cid(button_cid::FORWARD_BUTTON), ButtonAction::Forward);
+        assert_eq!(config.action_for_cid(button_cid::SMART_SHIFT), ButtonAction::Smartshift);
         assert_eq!(config.action_for_cid(9999), ButtonAction::None); // Unknown CID
+    }
+
+    #[test]
+    fn test_remapped_button_cids() {
+        use crate::hidraw::button_cid;
+
+        // Defaults are all native, so nothing is diverted.
+        assert!(Config::default().remapped_button_cids().is_empty());
+
+        // Reassigning non-gesture buttons away from their default marks them.
+        let mut config = Config::default();
+        config.buttons.back = ButtonAction::PlayPause;
+        config.buttons.middle = ButtonAction::None;
+        let cids = config.remapped_button_cids();
+        assert!(cids.contains(&button_cid::BACK_BUTTON));
+        assert!(cids.contains(&button_cid::MIDDLE_BUTTON));
+        assert!(!cids.contains(&button_cid::FORWARD_BUTTON));
+        assert!(!cids.contains(&button_cid::SMART_SHIFT));
+
+        // Returning a button to its native default clears it.
+        config.buttons.back = ButtonAction::Back;
+        assert!(
+            !config
+                .remapped_button_cids()
+                .contains(&button_cid::BACK_BUTTON)
+        );
     }
 }

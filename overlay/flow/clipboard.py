@@ -1,10 +1,30 @@
 """Clipboard helpers for Flow (supports Wayland and X11)"""
 
+import json
 import logging
 import subprocess
 import time
+from pathlib import Path
 
 logger = logging.getLogger("juhradial.flow.clipboard")
+
+_CFG_PATH = Path.home() / ".config" / "juhradial" / "config.json"
+
+
+def sharing_enabled() -> bool:
+    """Return whether clipboard sharing is enabled (flow.share_clipboard).
+
+    Read fresh from config.json so a toggle takes effect without a restart.
+    Defaults to True to preserve prior behavior when the key is absent.
+    """
+    try:
+        if _CFG_PATH.exists():
+            flow = json.loads(_CFG_PATH.read_text()).get("flow", {})
+            return bool(flow.get("share_clipboard", True))
+    except (OSError, ValueError):
+        # missing or malformed config; default to clipboard sharing enabled
+        pass
+    return True
 
 
 def get_clipboard() -> str:

@@ -29,7 +29,7 @@ pub enum BlurMode {
 
 impl BlurMode {
     /// Parse from string (for config files)
-    pub fn from_config_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "on" | "forceon" | "force_on" | "enabled" => BlurMode::ForceOn,
             "off" | "forceoff" | "force_off" | "disabled" => BlurMode::ForceOff,
@@ -164,7 +164,11 @@ impl PerformanceMonitor {
     /// Get the current FPS estimate
     pub fn estimated_fps(&self) -> f64 {
         let avg_ms = self.average_frame_time_ms();
-        if avg_ms > 0.0 { 1000.0 / avg_ms } else { 0.0 }
+        if avg_ms > 0.0 {
+            1000.0 / avg_ms
+        } else {
+            0.0
+        }
     }
 
     /// Get the number of frames in the buffer
@@ -209,12 +213,12 @@ mod tests {
 
     #[test]
     fn test_blur_mode_from_str() {
-        assert_eq!(BlurMode::from_config_str("auto"), BlurMode::Auto);
-        assert_eq!(BlurMode::from_config_str("on"), BlurMode::ForceOn);
-        assert_eq!(BlurMode::from_config_str("off"), BlurMode::ForceOff);
-        assert_eq!(BlurMode::from_config_str("ForceOn"), BlurMode::ForceOn);
-        assert_eq!(BlurMode::from_config_str("force_off"), BlurMode::ForceOff);
-        assert_eq!(BlurMode::from_config_str("unknown"), BlurMode::Auto);
+        assert_eq!(BlurMode::parse("auto"), BlurMode::Auto);
+        assert_eq!(BlurMode::parse("on"), BlurMode::ForceOn);
+        assert_eq!(BlurMode::parse("off"), BlurMode::ForceOff);
+        assert_eq!(BlurMode::parse("ForceOn"), BlurMode::ForceOn);
+        assert_eq!(BlurMode::parse("force_off"), BlurMode::ForceOff);
+        assert_eq!(BlurMode::parse("unknown"), BlurMode::Auto);
     }
 
     #[test]

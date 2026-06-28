@@ -58,6 +58,10 @@ pub enum GestureEvent {
         action: crate::config::ButtonAction,
         pressed: bool,
     },
+    /// Horizontal scroll from the diverted thumb wheel (sign = direction).
+    ThumbwheelScroll { clicks: i32 },
+    /// A device-originated HID++ notification (live hardware state change).
+    Hardware(crate::hidpp::notifications::HardwareNotification),
 }
 
 /// Information about a detected input device
@@ -510,7 +514,7 @@ impl EvdevHandler {
     /// Run the event loop on Linux
     #[cfg(target_os = "linux")]
     async fn run_event_loop(&mut self) -> Result<(), EvdevError> {
-        use evdev::{Device, EventType, RelativeAxisCode, uinput::VirtualDevice as UinputDevice};
+        use evdev::{uinput::VirtualDevice as UinputDevice, Device, EventType, RelativeAxisCode};
 
         // Find the device based on mode
         let device_info = if self.generic_mode {
@@ -640,35 +644,33 @@ impl EvdevHandler {
                                 }
                             }
                         }
-                        EventType::RELATIVE => {
-                            // Track mouse movement while menu is active
-                            if self.menu_active {
-                                let code = RelativeAxisCode(event.code());
-                                let value = event.value();
+                        // Track mouse movement while menu is active
+                        EventType::RELATIVE if self.menu_active => {
+                            let code = RelativeAxisCode(event.code());
+                            let value = event.value();
 
-                                match code {
-                                    RelativeAxisCode::REL_X => {
-                                        self.cursor_x += value;
-                                        let _ = self
-                                            .event_tx
-                                            .send(GestureEvent::CursorMoved {
-                                                x: self.cursor_x,
-                                                y: self.cursor_y,
-                                            })
-                                            .await;
-                                    }
-                                    RelativeAxisCode::REL_Y => {
-                                        self.cursor_y += value;
-                                        let _ = self
-                                            .event_tx
-                                            .send(GestureEvent::CursorMoved {
-                                                x: self.cursor_x,
-                                                y: self.cursor_y,
-                                            })
-                                            .await;
-                                    }
-                                    _ => {}
+                            match code {
+                                RelativeAxisCode::REL_X => {
+                                    self.cursor_x += value;
+                                    let _ = self
+                                        .event_tx
+                                        .send(GestureEvent::CursorMoved {
+                                            x: self.cursor_x,
+                                            y: self.cursor_y,
+                                        })
+                                        .await;
                                 }
+                                RelativeAxisCode::REL_Y => {
+                                    self.cursor_y += value;
+                                    let _ = self
+                                        .event_tx
+                                        .send(GestureEvent::CursorMoved {
+                                            x: self.cursor_x,
+                                            y: self.cursor_y,
+                                        })
+                                        .await;
+                                }
+                                _ => {}
                             }
                         }
                         _ => {}
@@ -812,13 +814,7 @@ impl EvdevHandler {
         use std::process::Command;
         use tempfile::Builder;
 
-        // Create KWin script that calls ShowMenuAtCursor with true cursor position
-        let script = r#"
-var pos = workspace.cursorPos;
-callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
-         "org.kde.juhradialmx.Daemon", "ShowMenuAtCursor",
-         pos.x, pos.y);
-"#;
+        let script = crate::cursor::KWIN_CURSOR_SCRIPT;
 
         // Create a temporary file with .js suffix securely
         let mut temp_file = match Builder::new().suffix(".js").tempfile() {

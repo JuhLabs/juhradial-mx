@@ -19,7 +19,6 @@ from i18n import _
 from settings_config import ConfigManager
 from settings_constants import MOUSE_BUTTONS, translate_radial_label
 from settings_dialogs import SliceConfigDialog
-from settings_widgets import GeneratedAssetHero
 
 logger = logging.getLogger(__name__)
 
@@ -117,9 +116,6 @@ class ButtonsPage(Gtk.ScrolledWindow):
 
         header_row.append(radial_text)
         radial_card.append(header_row)
-        radial_card.append(
-            GeneratedAssetHero("settings-generated/control-ring.png", max_height=158)
-        )
 
         # Slices container - 2 columns of 4 slices
         slices_grid = Gtk.Grid()
@@ -261,15 +257,20 @@ class ButtonsPage(Gtk.ScrolledWindow):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
         row.add_css_class("button-row")
 
-        # Icon box
+        # Icon box (fixed square; center the glyph inside both axes)
         icon_box = Gtk.Box()
         icon_box.add_css_class("button-icon-box")
         icon_box.set_valign(Gtk.Align.CENTER)
+        icon_box.set_halign(Gtk.Align.CENTER)
         icon = Gtk.Image.new_from_icon_name(
             self.BUTTON_ICONS.get(btn_id, "input-mouse-symbolic")
         )
         icon.set_pixel_size(20)
         icon.add_css_class("button-icon")
+        icon.set_halign(Gtk.Align.CENTER)
+        icon.set_valign(Gtk.Align.CENTER)
+        icon.set_hexpand(True)
+        icon.set_vexpand(True)
         icon_box.append(icon)
         row.append(icon_box)
 
@@ -340,7 +341,7 @@ class ButtonsPage(Gtk.ScrolledWindow):
         color_hex = self.SLICE_COLORS.get(color_name, "#0abdc6")
 
         color_dot = Gtk.DrawingArea()
-        color_dot.set_size_request(10, 10)
+        color_dot.set_size_request(14, 14)
         color_dot.set_valign(Gtk.Align.CENTER)
 
         def draw_dot(area, cr, width, height):
@@ -348,9 +349,14 @@ class ButtonsPage(Gtk.ScrolledWindow):
             r = int(color_hex[1:3], 16) / 255.0
             g = int(color_hex[3:5], 16) / 255.0
             b = int(color_hex[5:7], 16) / 255.0
-            # Draw filled circle
+            # Soft halo behind the core so the dot reads as an indicator LED
+            # (also keeps low-contrast colors visible on light themes)
+            cr.set_source_rgba(r, g, b, 0.22)
+            cr.arc(width / 2, height / 2, 6.5, 0, 2 * 3.14159)
+            cr.fill()
+            # Filled core
             cr.set_source_rgb(r, g, b)
-            cr.arc(width / 2, height / 2, 4, 0, 2 * 3.14159)
+            cr.arc(width / 2, height / 2, 3.5, 0, 2 * 3.14159)
             cr.fill()
 
         color_dot.set_draw_func(draw_dot)

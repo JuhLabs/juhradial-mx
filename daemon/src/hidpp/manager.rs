@@ -27,6 +27,7 @@ pub enum ConnectionState {
 /// Reconnection cooldown in milliseconds (5 seconds)
 const RECONNECT_COOLDOWN_MS: u64 = 5000;
 
+
 /// Default slice debounce time (milliseconds)
 const DEFAULT_SLICE_DEBOUNCE_MS: u64 = 20;
 
@@ -190,6 +191,14 @@ impl HapticManager {
         }
     }
 
+    /// Enable or disable the volatile divert for a single button by CID.
+    pub fn set_button_divert(&mut self, cid: u16, divert: bool) -> Result<bool, HapticError> {
+        match &mut self.device {
+            Some(device) => device.set_button_divert(cid, divert),
+            None => Ok(false),
+        }
+    }
+
     /// Handle device disconnection gracefully
     fn handle_disconnect(&mut self) {
         let now = SystemTime::now()
@@ -235,13 +244,9 @@ impl HapticManager {
                 tracing::info!("Haptic device reconnected successfully");
                 // Re-divert buttons after reconnect (divert is volatile)
                 match self.divert_buttons() {
-                    Ok(n) if n > 0 => {
-                        tracing::info!(count = n, "Re-diverted buttons after reconnect")
-                    }
+                    Ok(n) if n > 0 => tracing::info!(count = n, "Re-diverted buttons after reconnect"),
                     Ok(_) => tracing::debug!("No buttons to re-divert after reconnect"),
-                    Err(e) => {
-                        tracing::warn!(error = %e, "Failed to re-divert buttons after reconnect")
-                    }
+                    Err(e) => tracing::warn!(error = %e, "Failed to re-divert buttons after reconnect"),
                 }
                 true
             }
@@ -339,6 +344,43 @@ impl HapticManager {
     /// For other devices, uses legacy intensity/duration-based pulses.
     ///
     /// CRITICAL: This method MUST NOT write to onboard mouse memory.
+    /// Play a specific MX4 waveform by pattern (settings "Test pulse").
+    ///
+    /// Unlike `emit()`, which maps a UX event to its configured pattern, this
+    /// plays the exact selected waveform so the haptics page can audition one.
+    /// MX4-only (named waveforms); respects enabled + debounce. No-op on legacy
+    /// or absent devices.
+    pub fn pulse_pattern(&mut self, pattern: Mx4HapticPattern) -> Result<(), HapticError> {
+        if !self.enabled {
+            return Ok(());
+        }
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        if now.saturating_sub(self.last_pulse_ms) < self.debounce_ms {
+            return Ok(());
+        }
+        let device = match &mut self.device {
+            Some(d) if d.mx4_haptic_supported() => d,
+            _ => return Ok(()),
+        };
+        match device.send_haptic_pattern(pattern) {
+            Ok(()) => {
+                self.last_pulse_ms = now;
+                Ok(())
+            }
+            Err(HapticError::IoError(_)) => {
+                self.handle_disconnect();
+                Ok(())
+            }
+            Err(e) => {
+                tracing::debug!(error = %e, "MX4 test pattern failed");
+                Ok(())
+            }
+        }
+    }
+
     pub fn emit(&mut self, event: HapticEvent) -> Result<(), HapticError> {
         tracing::debug!(event = %event, enabled = self.enabled, has_device = self.device.is_some(), "HapticManager.emit() called");
 
@@ -352,11 +394,7 @@ impl HapticManager {
         let device = match &mut self.device {
             Some(d) if d.haptic_supported() || d.mx4_haptic_supported() => d,
             Some(d) => {
-                tracing::debug!(
-                    haptic = d.haptic_supported(),
-                    mx4_haptic = d.mx4_haptic_supported(),
-                    "Device exists but no haptic support"
-                );
+                tracing::debug!(haptic = d.haptic_supported(), mx4_haptic = d.mx4_haptic_supported(), "Device exists but no haptic support");
                 return Ok(());
             }
             None => {
@@ -372,12 +410,7 @@ impl HapticManager {
             .as_millis() as u64;
 
         if now.saturating_sub(self.last_pulse_ms) < self.debounce_ms {
-            tracing::debug!(
-                last_pulse_ms = self.last_pulse_ms,
-                now = now,
-                debounce_ms = self.debounce_ms,
-                "Debounce - skipping"
-            );
+            tracing::debug!(last_pulse_ms = self.last_pulse_ms, now = now, debounce_ms = self.debounce_ms, "Debounce - skipping");
             return Ok(());
         }
 
@@ -514,7 +547,10 @@ impl HapticManager {
             return false;
         }
 
-        tracing::trace!(slice = slice_index, "Slice change haptic emitted");
+        tracing::trace!(
+            slice = slice_index,
+            "Slice change haptic emitted"
+        );
         true
     }
 
@@ -573,10 +609,7 @@ impl HapticManager {
         if self.device.is_none() {
             let _ = self.connect();
         }
-        self.device
-            .as_ref()
-            .map(|d| d.dpi_supported())
-            .unwrap_or(false)
+        self.device.as_ref().map(|d| d.dpi_supported()).unwrap_or(false)
     }
 
     /// Get current DPI value
@@ -618,10 +651,7 @@ impl HapticManager {
         if self.device.is_none() {
             let _ = self.connect();
         }
-        self.device
-            .as_ref()
-            .map(|d| d.smartshift_supported())
-            .unwrap_or(false)
+        self.device.as_ref().map(|d| d.smartshift_supported()).unwrap_or(false)
     }
 
     /// Get SmartShift configuration
@@ -643,9 +673,7 @@ impl HapticManager {
             let _ = self.connect();
         }
         match self.device.as_mut() {
-            Some(device) => {
-                device.set_smartshift(wheel_mode, auto_disengage, auto_disengage_default)
-            }
+            Some(device) => device.set_smartshift(wheel_mode, auto_disengage, auto_disengage_default),
             None => {
                 tracing::warn!("Cannot set SmartShift: device not connected");
                 Err(HapticError::DeviceNotFound)
@@ -655,12 +683,11 @@ impl HapticManager {
 
     /// Get SmartShift configuration (simplified API for DBus)
     pub fn get_smart_shift(&mut self) -> Option<(bool, u8)> {
-        self.get_smartshift()
-            .map(|(wheel_mode, auto_disengage, _default)| {
-                let enabled = wheel_mode == 1;
-                let threshold = 255u8.saturating_sub(auto_disengage);
-                (enabled, threshold)
-            })
+        self.get_smartshift().map(|(wheel_mode, auto_disengage, _default)| {
+            let enabled = wheel_mode == 1;
+            let threshold = 255u8.saturating_sub(auto_disengage);
+            (enabled, threshold)
+        })
     }
 
     /// Set SmartShift configuration (simplified API for DBus)
@@ -702,6 +729,55 @@ impl HapticManager {
     }
 
     // =========================================================================
+    // ThumbWheel Methods (delegated to HidppDevice)
+    // =========================================================================
+
+    /// Check if the ThumbWheel feature (0x2150) is supported.
+    pub fn thumbwheel_supported(&mut self) -> bool {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_ref().map(|d| d.thumbwheel_supported()).unwrap_or(false)
+    }
+
+    /// Feature index of the ThumbWheel feature, if present.
+    pub fn thumbwheel_feature_index(&self) -> Option<u8> {
+        self.device.as_ref().and_then(|d| d.thumbwheel_feature_index())
+    }
+
+    /// Feature indices for device-originated notification decoding (live
+    /// hardware readback). Returns all-`None` when no device is connected.
+    pub fn notification_indices(&self) -> crate::hidpp::notifications::NotificationIndices {
+        use crate::hidpp::constants::features;
+        let device = match self.device.as_ref() {
+            Some(d) => d,
+            None => return Default::default(),
+        };
+        crate::hidpp::notifications::NotificationIndices {
+            battery: device
+                .feature_index(features::UNIFIED_BATTERY)
+                .or_else(|| device.feature_index(features::BATTERY_STATUS)),
+            change_host: device.feature_index(features::CHANGE_HOST),
+            dpi: device.feature_index(features::ADJUSTABLE_DPI),
+            hires_wheel: device.feature_index(features::HIRES_WHEEL),
+        }
+    }
+
+    /// Enable or disable thumb-wheel divert (volatile, no memory writes).
+    pub fn set_thumbwheel_reporting(&mut self, divert: bool, invert: bool) -> Result<(), HapticError> {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        match self.device.as_mut() {
+            Some(device) => device.set_thumbwheel_reporting(divert, invert),
+            None => {
+                tracing::warn!("Cannot set ThumbWheel reporting: device not connected");
+                Err(HapticError::DeviceNotFound)
+            }
+        }
+    }
+
+    // =========================================================================
     // Battery Methods (delegated to HidppDevice)
     // =========================================================================
 
@@ -713,21 +789,23 @@ impl HapticManager {
             let _ = self.connect();
         }
         match self.device.as_mut() {
-            Some(device) => match device.query_battery() {
-                Ok(v) => Ok(v),
-                Err(HapticError::IoError(_)) | Err(HapticError::CommunicationError) => {
-                    self.handle_disconnect();
-                    if let Ok(true) = self.connect() {
-                        match self.device.as_mut() {
-                            Some(dev) => dev.query_battery(),
-                            None => Err(HapticError::DeviceNotFound),
+            Some(device) => {
+                match device.query_battery() {
+                    Ok(v) => Ok(v),
+                    Err(HapticError::IoError(_)) | Err(HapticError::CommunicationError) => {
+                        self.handle_disconnect();
+                        if let Ok(true) = self.connect() {
+                            match self.device.as_mut() {
+                                Some(dev) => dev.query_battery(),
+                                None => Err(HapticError::DeviceNotFound),
+                            }
+                        } else {
+                            Err(HapticError::DeviceNotFound)
                         }
-                    } else {
-                        Err(HapticError::DeviceNotFound)
                     }
+                    Err(e) => Err(e),
                 }
-                Err(e) => Err(e),
-            },
+            }
             None => {
                 tracing::debug!("Cannot query battery: device not connected");
                 Err(HapticError::DeviceNotFound)
@@ -737,10 +815,7 @@ impl HapticManager {
 
     /// Check if battery feature is supported
     pub fn battery_supported(&self) -> bool {
-        self.device
-            .as_ref()
-            .map(|d| d.battery_supported())
-            .unwrap_or(false)
+        self.device.as_ref().map(|d| d.battery_supported()).unwrap_or(false)
     }
 
     // =========================================================================
@@ -808,8 +883,7 @@ impl HapticManager {
                                         let now = SystemTime::now()
                                             .duration_since(UNIX_EPOCH)
                                             .unwrap()
-                                            .as_millis()
-                                            as u64;
+                                            .as_millis() as u64;
                                         self.last_host_switch_ms = now;
                                     }
                                     result

@@ -136,6 +136,7 @@ class JuhFlowBridge:
         try:
             self._server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # codeql[py/bind-socket-all-network-interfaces] LAN discovery/peer service: binding all interfaces is required and intentional
             self._server_sock.bind(("", self._tcp_port))  # nosec B104 - accepts LAN peer connections, must bind all interfaces
             self._server_sock.listen(5)
             self._server_sock.settimeout(1.0)

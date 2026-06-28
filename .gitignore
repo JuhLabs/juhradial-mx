@@ -1,88 +1,52 @@
-# ===========================================
-# JuhRadial MX - .gitignore
-# ===========================================
-
-# Build artifacts - Rust
+# Rust build artifacts
 daemon/target/
 
-# Build artifacts - Node.js
-kwin-script/node_modules/
-kwin-script/dist/
-kwin-script/*.js
-kwin-script/*.js.map
-
 # Python
-*.pyc
 __pycache__/
-*.pyo
-*.egg-info/
-.eggs/
-dist/
-build/
+*.pyc
 
-# OS files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-Thumbs.db
-ehthumbs.db
-Desktop.ini
+# BMAD output
+_bmad-output/
 
-# IDE and editors
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-*~
-*.sublime-workspace
-*.sublime-project
 
-# Temp and log files
-*.log
-/tmp/
-*.tmp
-*.temp
+# OS
+.DS_Store
+Thumbs.db
 
-# Local development tools (not needed for distribution)
-.agentvibes/
-.bmad/
+# Draft files
+drafts-github-replies.md
+
+# AI / editor tooling and scratch (do not publish)
 .claude/
+.codex
 .playwright-mcp/
+_bmad/
+_bmad-output/
 bmad-custom-src/
-.mcp.json
-docs/sprint-artifacts/
-docs/bmm-workflow-status.yaml
 
-# Internal documentation (use GitHub wiki instead)
-# docs/  # Uncomment if you want to exclude docs
+# Internal docs kept private (not shipped publicly)
+CLAUDE.md
+DESIGN.md
+PRODUCT.md
+ASSET_PROMPTS.md
+README_PREVIEW.md
+RECONCILE_PLAN.md
+design/
 
-# Flatpak build
-.flatpak-builder/
-flatpak-build/
-*.flatpak
-
-# Package builds
-*.rpm
-*.deb
-*.pkg.tar.*
-
-# Generated test/debug images
+# Generated/scratch image output and unused settings art
 GeneratedImages/
+assets/settings-generated/
 
-# Test and coverage
-.coverage
-htmlcov/
-.pytest_cache/
-.tox/
+# gettext backup files
+*.po~
 
-# Secrets (never commit!)
-*.pem
-*.key
-.env
-.env.local
-credentials.json
-
-# Internal development docs
-docs/
+# Throwaway root-level preview/screenshot images (not used by README)
+/github-live.png
+/readme-preview-full.png
+/readme-preview-v2.png
+/screenshotdashboard.png

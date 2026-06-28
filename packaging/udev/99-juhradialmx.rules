@@ -49,7 +49,10 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", TAG+="uaccess"
 # Over Bluetooth the kernel creates a virtual uhid device with NO parent
 # exposing idVendor/idProduct, so the ATTRS{idVendor} rules above never match.
 # These devices are named "<bus>:<VID>:<PID>.<n>", e.g. 0005:046D:B042.0003
-# (bus 0005 = Bluetooth, 0003 = USB). Match the parent device name instead.
+# (kernel names are uppercase; bus 0005 = Bluetooth, 0003 = USB). Match the
+# parent kernel name instead. Note: the effective access grant here comes from
+# GROUP="input" — TAG+="uaccess" in a 99-* file runs after 73-seat-late.rules
+# and is a no-op.
 SUBSYSTEM=="hidraw", KERNELS=="0005:046D:*", MODE="0660", GROUP="input", TAG+="uaccess"
 SUBSYSTEM=="hidraw", KERNELS=="0003:046D:*", MODE="0660", GROUP="input", TAG+="uaccess"
 

@@ -77,98 +77,50 @@ impl Serialize for MacroAction {
             MacroAction::KeyDown(key) => RawAction {
                 action_type: "key_down".into(),
                 key: Some(key.clone()),
-                keycode: None,
-                button: None,
-                ms: None,
-                text: None,
-                direction: None,
-                amount: None,
-                id: None,
-                delay_after_ms: 0,
+                keycode: None, button: None, ms: None, text: None,
+                direction: None, amount: None, id: None, delay_after_ms: 0,
             },
             MacroAction::KeyUp(key) => RawAction {
                 action_type: "key_up".into(),
                 key: Some(key.clone()),
-                keycode: None,
-                button: None,
-                ms: None,
-                text: None,
-                direction: None,
-                amount: None,
-                id: None,
-                delay_after_ms: 0,
+                keycode: None, button: None, ms: None, text: None,
+                direction: None, amount: None, id: None, delay_after_ms: 0,
             },
             MacroAction::MouseDown(btn) => RawAction {
                 action_type: "mouse_down".into(),
-                key: None,
-                keycode: None,
-                button: Some(btn.clone()),
-                ms: None,
-                text: None,
-                direction: None,
-                amount: None,
-                id: None,
-                delay_after_ms: 0,
+                key: None, keycode: None, button: Some(btn.clone()),
+                ms: None, text: None, direction: None, amount: None,
+                id: None, delay_after_ms: 0,
             },
             MacroAction::MouseUp(btn) => RawAction {
                 action_type: "mouse_up".into(),
-                key: None,
-                keycode: None,
-                button: Some(btn.clone()),
-                ms: None,
-                text: None,
-                direction: None,
-                amount: None,
-                id: None,
-                delay_after_ms: 0,
+                key: None, keycode: None, button: Some(btn.clone()),
+                ms: None, text: None, direction: None, amount: None,
+                id: None, delay_after_ms: 0,
             },
             MacroAction::MouseClick(btn) => RawAction {
                 action_type: "mouse_click".into(),
-                key: None,
-                keycode: None,
-                button: Some(btn.clone()),
-                ms: None,
-                text: None,
-                direction: None,
-                amount: None,
-                id: None,
-                delay_after_ms: 0,
+                key: None, keycode: None, button: Some(btn.clone()),
+                ms: None, text: None, direction: None, amount: None,
+                id: None, delay_after_ms: 0,
             },
             MacroAction::Delay(ms) => RawAction {
                 action_type: "delay".into(),
-                key: None,
-                keycode: None,
-                button: None,
-                ms: Some(*ms),
-                text: None,
-                direction: None,
-                amount: None,
-                id: None,
-                delay_after_ms: 0,
+                key: None, keycode: None, button: None, ms: Some(*ms),
+                text: None, direction: None, amount: None,
+                id: None, delay_after_ms: 0,
             },
             MacroAction::Text(text) => RawAction {
                 action_type: "text".into(),
-                key: None,
-                keycode: None,
-                button: None,
-                ms: None,
-                text: Some(text.clone()),
-                direction: None,
-                amount: None,
-                id: None,
-                delay_after_ms: 0,
+                key: None, keycode: None, button: None, ms: None,
+                text: Some(text.clone()), direction: None, amount: None,
+                id: None, delay_after_ms: 0,
             },
             MacroAction::Scroll { direction, amount } => RawAction {
                 action_type: "scroll".into(),
-                key: None,
-                keycode: None,
-                button: None,
-                ms: None,
-                text: None,
-                direction: Some(direction.clone()),
-                amount: Some(*amount),
-                id: None,
-                delay_after_ms: 0,
+                key: None, keycode: None, button: None, ms: None,
+                text: None, direction: Some(direction.clone()),
+                amount: Some(*amount), id: None, delay_after_ms: 0,
             },
         };
         raw.serialize(serializer)
@@ -179,8 +131,12 @@ impl<'de> Deserialize<'de> for MacroAction {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let raw = RawAction::deserialize(deserializer)?;
         match raw.action_type.as_str() {
-            "key_down" => Ok(MacroAction::KeyDown(raw.key.unwrap_or_default())),
-            "key_up" => Ok(MacroAction::KeyUp(raw.key.unwrap_or_default())),
+            "key_down" => Ok(MacroAction::KeyDown(
+                raw.key.unwrap_or_default(),
+            )),
+            "key_up" => Ok(MacroAction::KeyUp(
+                raw.key.unwrap_or_default(),
+            )),
             "mouse_down" => Ok(MacroAction::MouseDown(
                 raw.button.unwrap_or_else(|| "left".into()),
             )),
@@ -198,16 +154,8 @@ impl<'de> Deserialize<'de> for MacroAction {
             }),
             other => Err(serde::de::Error::unknown_variant(
                 other,
-                &[
-                    "key_down",
-                    "key_up",
-                    "mouse_down",
-                    "mouse_up",
-                    "mouse_click",
-                    "delay",
-                    "text",
-                    "scroll",
-                ],
+                &["key_down", "key_up", "mouse_down", "mouse_up",
+                  "mouse_click", "delay", "text", "scroll"],
             )),
         }
     }
@@ -454,8 +402,7 @@ mod tests {
 
     #[test]
     fn test_mouse_python_format() {
-        let json =
-            r#"{"type": "mouse_down", "button": "left", "id": "ghi-789", "delay_after_ms": 0}"#;
+        let json = r#"{"type": "mouse_down", "button": "left", "id": "ghi-789", "delay_after_ms": 0}"#;
         let action: MacroAction = serde_json::from_str(json).unwrap();
         assert_eq!(action, MacroAction::MouseDown("left".into()));
     }
@@ -471,13 +418,7 @@ mod tests {
     fn test_scroll_python_format() {
         let json = r#"{"type": "scroll", "direction": "up", "amount": 3, "id": "mno", "delay_after_ms": 0}"#;
         let action: MacroAction = serde_json::from_str(json).unwrap();
-        assert_eq!(
-            action,
-            MacroAction::Scroll {
-                direction: "up".into(),
-                amount: 3
-            }
-        );
+        assert_eq!(action, MacroAction::Scroll { direction: "up".into(), amount: 3 });
     }
 
     #[test]

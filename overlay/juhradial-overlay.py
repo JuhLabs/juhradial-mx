@@ -56,10 +56,12 @@ from overlay_constants import (
     MENU_RADIUS,
     CENTER_ZONE_RADIUS,
     WINDOW_SIZE,
+    compute_ring_scale,
     IS_HYPRLAND,
     IS_GNOME,
     IS_COSMIC,
     IS_KDE,
+    IS_NIRI,
     IS_X11,
     _HAS_XWAYLAND,
     _log,
@@ -69,6 +71,7 @@ from overlay_cursor import (
     get_monitor_at_cursor,
     get_cursor_position_hyprland,
     get_cursor_position_gnome,
+    get_cursor_position_qt,
     get_cursor_position_xwayland,
     get_cursor_position_xwayland_synced,
     get_cursor_pos,
@@ -370,12 +373,16 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
-        self.setFixedSize(WINDOW_SIZE, WINDOW_SIZE)
+        # Ring scale: geometry constants are logical (1440p base); the window
+        # is sized per-monitor in _apply_ring_scale and painting scales up.
+        self.ring_scale = 1.0
+        self.win_px = WINDOW_SIZE
+        self.setFixedSize(self.win_px, self.win_px)
         self.setMouseTracking(True)
 
         # Pre-set circular mask on KDE so the very first frame is shaped
         if IS_KDE:
-            half_win = WINDOW_SIZE // 2
+            half_win = self.win_px // 2
             r = half_win
             self.setMask(QRegion(
                 half_win - r, half_win - r, r * 2, r * 2,
@@ -410,10 +417,14 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # Track when menu was shown (for tap detection)
         self.show_time = None
 
-        # D-Bus setup
+        # D-Bus setup. Subscribe with an EMPTY service name: QtDBus resolves
+        # a named service to its unique bus name when the match rule is
+        # installed, so a daemon restart (or a name-ownership race at startup)
+        # leaves the subscription bound to a stale sender and the overlay
+        # goes deaf to MenuRequested. Path + interface still scope the match.
         bus = QDBusConnection.sessionBus()
-        bus.connect(
-            "org.kde.juhradialmx",
+        ok_show = bus.connect(
+            "",
             "/org/kde/juhradialmx/Daemon",
             "org.kde.juhradialmx.Daemon",
             "MenuRequested",
@@ -421,21 +432,26 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self.on_show,
         )
         # Listen for HideMenu without parameters - we track duration ourselves
-        bus.connect(
-            "org.kde.juhradialmx",
+        ok_hide = bus.connect(
+            "",
             "/org/kde/juhradialmx/Daemon",
             "org.kde.juhradialmx.Daemon",
             "HideMenu",
             "",
             self.on_hide,
         )
-        bus.connect(
-            "org.kde.juhradialmx",
+        ok_cursor = bus.connect(
+            "",
             "/org/kde/juhradialmx/Daemon",
             "org.kde.juhradialmx.Daemon",
             "CursorMoved",
             "ii",
             self.on_cursor_moved,
+        )
+        print(
+            f"[DBUS] signal subscriptions: MenuRequested={ok_show} "
+            f"HideMenu={ok_hide} CursorMoved={ok_cursor}",
+            flush=True,
         )
 
         # Listen for language changes from settings process
@@ -542,32 +558,37 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 x, y = fresh_pos
                 print(f"OVERLAY: Hyprland fresh cursor position: ({x}, {y})")
 
-        # On GNOME Wayland, re-query cursor position for freshness
-        # The daemon coordinates may be stale due to async timing
+        # On GNOME Wayland, use QCursor.pos() for positioning because the
+        # GNOME extension returns Clutter logical coords which differ from
+        # XWayland coords on HiDPI monitors (e.g., 4K at 200% scaling).
+        # QCursor.pos() is in Qt/XWayland space, matching self.move().
+        # Fall back to GNOME extension if QCursor returns (0,0) - which
+        # happens when no XWayland window is currently visible.
         if IS_GNOME:
-            fresh_pos = get_cursor_position_gnome()
+            fresh_pos = get_cursor_position_qt()
             if fresh_pos:
                 x, y = fresh_pos
-                print(f"OVERLAY: GNOME fresh cursor position: ({x}, {y})")
+                print(f"OVERLAY: GNOME QCursor position: ({x}, {y})")
+            else:
+                fresh_pos = get_cursor_position_gnome()
+                if fresh_pos:
+                    x, y = fresh_pos
+                    print(f"OVERLAY: GNOME extension fallback: ({x}, {y})")
 
-        # On KDE X11, use QCursor.pos() directly - most reliable because it
-        # returns coordinates in Qt's own space (matching QWidget.move()).
-        # The daemon's xdotool/XQueryPointer coords may be in physical pixels
-        # while Qt uses logical pixels with KDE display scaling, causing the
-        # menu to appear offset from the cursor.
+        # On KDE X11, use QCursor.pos() - it's in Qt's own coordinate space.
         if IS_KDE and IS_X11:
             from PyQt6.QtGui import QCursor
             qpos = QCursor.pos()
             x, y = qpos.x(), qpos.y()
             _log(f"KDE X11: QCursor position ({x}, {y})")
 
-        # On KDE Wayland, the daemon's KWin script provides accurate
-        # workspace.cursorPos coordinates via D-Bus (ShowMenuAtCursor).
-        # Trust those instead of re-querying via XWayland, which can
-        # return slightly offset positions (e.g., cursor hotspot shift
-        # when hovering browser links).
+        # On KDE Wayland, trust the daemon/KWin coordinate. QCursor.pos()
+        # comes from XWayland and can return a valid-looking stale position
+        # when the pointer is not over an XWayland surface, especially after
+        # Plasma scale changes. The daemon's KWin script converts the live
+        # KWin logical cursor into the XWayland space used by self.move().
         elif IS_KDE and _HAS_XWAYLAND:
-            _log(f"KDE Wayland: trusting KWin position ({x}, {y})")
+            _log(f"KDE Wayland: daemon/KWin cursor coords ({x},{y})")
 
         # On COSMIC, XWayland doesn't track the cursor unless it's over an
         # XWayland window.  Use a dedicated raw X11 sync window (truly
@@ -579,6 +600,16 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 x, y = fresh_pos
                 _log(f"COSMIC sync: using position ({x}, {y})")
 
+        # On niri, XWayland (via the integrated xwayland-satellite) only tracks
+        # the cursor over an XWayland surface, and niri has no cursor IPC. The
+        # menu is an override-redirect popup, which xwayland-satellite honors at
+        # its requested coords, so use the same raw X11 sync path as COSMIC.
+        elif IS_NIRI and _HAS_XWAYLAND:
+            fresh_pos = get_cursor_position_xwayland_synced()
+            if fresh_pos:
+                x, y = fresh_pos
+                _log(f"niri sync: using position ({x}, {y})")
+
         # On other Wayland compositors with XWayland (non-Hyprland,
         # non-GNOME, non-KDE, non-COSMIC): re-query cursor position via
         # XWayland to ensure coordinates are in XWayland's pixel space.
@@ -588,20 +619,49 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 x, y = fresh_pos
                 _log(f"XWayland cursor position: ({x}, {y})")
 
-        # Detect which monitor the cursor is on and clamp menu to it
+        # Detect which monitor the cursor is on and clamp menu to it.
+        # Works on all compositors: Hyprland uses IPC monitor info,
+        # all others use Qt screen geometry (accurate in XCB mode).
         if IS_HYPRLAND:
             mon = get_monitor_at_cursor(x, y)
+        else:
+            mon = None
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            if app:
+                for screen in app.screens():
+                    geo = screen.geometry()
+                    if (geo.x() <= x < geo.x() + geo.width() and
+                            geo.y() <= y < geo.y() + geo.height()):
+                        mon = {
+                            "x": geo.x(), "y": geo.y(),
+                            "width": geo.width(), "height": geo.height(),
+                            "name": screen.name(),
+                        }
+                        break
+            if mon is None and app and app.screens():
+                # Cursor outside all screens (e.g. rounding at edges) -
+                # fall back to the primary screen
+                geo = app.primaryScreen().geometry()
+                mon = {
+                    "x": geo.x(), "y": geo.y(),
+                    "width": geo.width(), "height": geo.height(),
+                    "name": app.primaryScreen().name(),
+                }
+
+        if mon:
             print(
                 f"OVERLAY: Monitor: {mon['name']} ({mon['width']}x{mon['height']} at {mon['x']},{mon['y']})"
             )
-        else:
-            mon = None
 
         print(f"OVERLAY: MenuRequested at ({x}, {y})")
         _log(f"MenuRequested final pos: ({x}, {y})")
 
+        # Size the ring for the monitor it opens on
+        self._apply_ring_scale(mon)
+
         # Clamp menu position to stay within the active monitor
-        half = WINDOW_SIZE // 2
+        half = self.win_px // 2
         if mon:
             x = max(mon["x"] + half, min(x, mon["x"] + mon["width"] - half))
             y = max(mon["y"] + half, min(y, mon["y"] + mon["height"] - half))
@@ -631,20 +691,26 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.move(x - half, y - half)
 
         # On KDE Plasma, XWayland windows show a frozen wallpaper rectangle
-        # behind transparent areas (KWin caches the wallpaper). Two fixes:
-        # 1) Circular mask - removes rectangular corners from the window
-        # 2) Position micro-oscillation in _tick_animations forces KWin to
-        #    re-composite the wallpaper behind this window every frame
-        # Set mask BEFORE show() so the first frame is already shaped.
+        # behind transparent areas (KWin caches the wallpaper). The circular
+        # mask removes the rectangular corners from the window. Set the mask
+        # BEFORE show() so the first frame is already shaped. (A previous
+        # per-frame 1px move() forced a recomposite but visibly shook the
+        # centered wheel, especially on Nvidia, so it was removed.)
         if IS_KDE:
-            self._kde_base_x = x - half
-            self._kde_base_y = y - half
-            self._kde_frame = 0
             self._update_kde_mask()
 
         self.show()
         self.raise_()
         self.activateWindow()
+
+        # Animated-shader wallpapers leave a stale cached rectangle behind the
+        # transparent window unless KWin is forced to recomposite (closed issue
+        # #5). Do it ONCE, right after the window presents, with a single 1px
+        # move-and-restore. This is NOT the removed per-frame nudge (issue #32
+        # jitter): it fires exactly once per open, so the centered wheel is
+        # steady. The circular mask above is preserved across the nudge.
+        if IS_KDE:
+            QTimer.singleShot(0, self._recompose_nudge)
 
         # Note: Cursor polling via QCursor.pos() doesn't work on Wayland while button is held
         # Instead, we use CursorMoved D-Bus signals from daemon which tracks evdev REL events
@@ -699,11 +765,41 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 f"[HAPTIC] ERROR: daemon_iface is INVALID - cannot send haptic signal"
             )
 
+    def _apply_ring_scale(self, mon):
+        """Scale the ring window to the monitor it is shown on.
+
+        Drawing stays in logical base coordinates (paintEvent applies
+        QPainter.scale); hit-testing divides physical offsets by the factor.
+        """
+        scale = compute_ring_scale(mon.get("height") if mon else None)
+        if abs(scale - self.ring_scale) < 0.01:
+            return
+        self.ring_scale = scale
+        self.win_px = int(round(WINDOW_SIZE * scale))
+        self.setFixedSize(self.win_px, self.win_px)
+        self._update_kde_mask()
+        print(f"OVERLAY: Ring scale {scale:.2f} -> window {self.win_px}px")
+
+    def _recompose_nudge(self):
+        """One-shot 1px move-and-restore to force a single KWin recomposite.
+
+        Fired once per menu open (via QTimer.singleShot after present) so an
+        animated-shader wallpaper recomposites behind the transparent window and
+        does not leave a stale cached rectangle (closed issue #5). Unlike the
+        removed per-frame nudge (issue #32 jitter), this runs exactly once, and
+        the restore is deferred one event-loop tick so KWin sees both positions.
+        """
+        if not IS_KDE:
+            return
+        pos = self.pos()
+        self.move(pos.x() + 1, pos.y())
+        QTimer.singleShot(0, lambda: self.move(pos.x(), pos.y()))
+
     def _update_kde_mask(self):
         """Set circular window mask on KDE to eliminate rectangular artifact."""
         if not IS_KDE:
             return
-        half_win = WINDOW_SIZE // 2
+        half_win = self.win_px // 2
         # Use the full inscribed circle of the window. This clips the
         # rectangular corners (prevents KWin wallpaper cache artifact)
         # while being large enough to contain all rendered content
@@ -732,9 +828,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self.submenu_progress = min(1.0, self.submenu_progress + 0.08)  # ~200ms
             dirty = True
 
-        # Selection flash decay
+        # Selection flash decay (~160ms so the confirm ripple reads)
         if self.flash_progress > 0:
-            self.flash_progress = max(0.0, self.flash_progress - 0.12)  # ~130ms decay
+            self.flash_progress = max(0.0, self.flash_progress - 0.10)
             dirty = True
             if self.flash_progress <= 0:
                 self.flash_slice = -1
@@ -752,20 +848,10 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         if dirty:
             self.update()
         elif self._anim_timer.isActive():
-            if IS_KDE:
-                # Keep timer alive on KDE for position oscillation below
-                self.update()
-            else:
-                # All animations settled - stop timer to save CPU
-                self._anim_timer.stop()
-
-        # On KDE Plasma, micro-oscillate window position by 1px each frame.
-        # This forces KWin to re-composite the wallpaper behind the window,
-        # preventing the frozen/cached rectangle on animated shader wallpapers.
-        if IS_KDE and hasattr(self, '_kde_base_x'):
-            self._kde_frame += 1
-            offset = self._kde_frame % 2
-            self.move(self._kde_base_x + offset, self._kde_base_y)
+            # All animations settled - stop timer to save CPU. KDE uses a
+            # shaped window mask for transparency artifacts; moving the window
+            # every frame makes the centered radial wheel visibly shake.
+            self._anim_timer.stop()
 
     @pyqtSlot()
     def on_hide(self):
@@ -801,7 +887,10 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
     @pyqtSlot(int, int)
     def on_cursor_moved(self, dx, dy):
         """Handle cursor movement from daemon (relative to menu center)."""
-        # dx, dy are relative offsets from menu center (button press point)
+        # dx, dy are relative offsets from menu center (button press point),
+        # in physical pixels — convert to the ring's logical space first.
+        dx /= self.ring_scale
+        dy /= self.ring_scale
         distance = math.hypot(dx, dy)
         center_radius = self._get_center_radius()
 
@@ -832,7 +921,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         fresh_pos = get_cursor_position_xwayland()
         if fresh_pos:
             x, y = fresh_pos
-            half = WINDOW_SIZE // 2
+            half = self.win_px // 2
             self.menu_center_x = x
             self.menu_center_y = y
             self.move(x - half, y - half)
@@ -870,8 +959,8 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                     self._anim_timer.start()
                     self.update()
                     self._trigger_haptic("confirm")  # Haptic for selection confirm
-                    # Delay hide briefly so flash is visible
-                    QTimer.singleShot(80, lambda: self._finish_close(action))
+                    # Delay hide briefly so flash + confirm ripple are visible
+                    QTimer.singleShot(110, lambda: self._finish_close(action))
                     return  # Don't hide yet
 
         # Reset submenu state and hide immediately (no flash)
@@ -884,7 +973,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
 
     def _finish_hide(self):
         """Reset state and hide the menu."""
-        # On KDE, make window invisible BEFORE stopping the oscillation timer.
+        # On KDE, make window invisible BEFORE stopping the animation timer.
         # Otherwise KWin gets one frame to show the cached wallpaper rectangle.
         if IS_KDE:
             self.setWindowOpacity(0.0)
@@ -1029,8 +1118,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         cx = self.menu_center_x
         cy = self.menu_center_y
 
-        dx = pos_x - cx
-        dy = pos_y - cy
+        # Physical offsets -> logical ring space
+        dx = (pos_x - cx) / self.ring_scale
+        dy = (pos_y - cy) / self.ring_scale
         distance = math.hypot(dx, dy)
         center_radius = self._get_center_radius()
 
@@ -1114,12 +1204,17 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         return -1
 
     def mouseMoveEvent(self, event):
+        # In toggle mode, _poll_cursor handles hover exclusively to avoid
+        # oscillation between PyQt6 event coords and absolute screen coords.
+        if self.toggle_mode:
+            return
         _log(f"mouseMoveEvent: toggle_mode={self.toggle_mode}")
-        cx = WINDOW_SIZE / 2
-        cy = WINDOW_SIZE / 2
+        cx = self.win_px / 2
+        cy = self.win_px / 2
         pos = event.position()
-        dx = pos.x() - cx
-        dy = pos.y() - cy
+        # Physical window coords -> logical ring space
+        dx = (pos.x() - cx) / self.ring_scale
+        dy = (pos.y() - cy) / self.ring_scale
         distance = math.hypot(dx, dy)
         center_radius = self._get_center_radius()
 
