@@ -20,7 +20,11 @@ import sys
 
 sys.path.insert(0, ".")
 
-from overlay.overlay_constants import map_logical_to_screen, hyprland_menu_center
+from overlay.overlay_constants import (
+    map_logical_to_screen,
+    hyprland_menu_center,
+    map_and_clamp_menu,
+)
 
 
 def _geo(x, y, w, h, name=None):
@@ -175,6 +179,79 @@ def test_orchestrator_five_monitors_name_match():
     cx, cy = hyprland_menu_center(lx, 500, mons[3], mons, qts)
     assert cx == qts[3]["x"] + round(1900 / 1920 * 960)
     assert cy == round(500 / 1080 * 540)
+
+
+# --- map_and_clamp_menu: edge clamping in Qt space (issue #45 hardening) -----
+
+
+def test_clamp_issue45_bottom_right_stays_inside_qt_screen():
+    # The residual bug: logical 2560x1440 reported by Qt as 1600x900. A 484px
+    # window at the bottom-right must stay fully inside the Qt screen. Clamping
+    # in logical space with a Qt-space half left it ~90px off-screen.
+    logical = _geo(0, 0, 2560, 1440, "HDMI-A-1")
+    qt = _geo(0, 0, 1600, 900, "HDMI-A-1")
+    p = map_and_clamp_menu(2559, 1439, logical, [logical], [qt], 484)
+    assert p["qt_center"] == (1358, 658)
+    ox, oy = p["qt_origin"]
+    assert ox >= 0 and oy >= 0
+    assert ox + 484 <= 1600 and oy + 484 <= 900
+
+
+def test_clamp_top_left_corner_stays_inside():
+    logical = _geo(0, 0, 2560, 1440, "HDMI-A-1")
+    qt = _geo(0, 0, 1600, 900, "HDMI-A-1")
+    p = map_and_clamp_menu(0, 0, logical, [logical], [qt], 484)
+    ox, oy = p["qt_origin"]
+    assert ox == 0 and oy == 0  # clamped to the corner, not negative
+
+
+def test_clamp_negative_origin_monitor_preserved():
+    # A monitor left of the origin keeps negative Qt coordinates.
+    logical = _geo(-1920, 0, 1920, 1080, "DP-2")
+    qt = _geo(-1536, 0, 1536, 864, "DP-2")
+    p = map_and_clamp_menu(-960, 540, logical, [logical], [qt], 400)
+    assert p["qt_center"] == (-768, 432)  # centre maps to centre
+
+
+def test_clamp_identity_at_100_percent():
+    logical = _geo(0, 0, 2560, 1440, "DP-1")
+    qt = _geo(0, 0, 2560, 1440, "DP-1")
+    p = map_and_clamp_menu(1280, 720, logical, [logical], [qt], 400)
+    assert p["qt_center"] == (1280, 720)
+    assert p["qt_origin"] == (1080, 520)
+    assert p["logical_center"] == (1280, 720)
+
+
+def test_clamp_interior_logical_center_round_trips():
+    # Away from any edge, the logical center returned for hover must match the
+    # original cursor (the back-derivation is the inverse of the mapping).
+    logical = _geo(0, 0, 2560, 1440, "HDMI-A-1")
+    qt = _geo(0, 0, 1600, 900, "HDMI-A-1")
+    p = map_and_clamp_menu(930, 562, logical, [logical], [qt], 400)
+    lx, ly = p["logical_center"]
+    assert abs(lx - 930) <= 2 and abs(ly - 562) <= 2
+    assert p["qt_center"] == (round(930 / 2560 * 1600), round(562 / 1440 * 900))
+
+
+def test_clamp_identity_passthrough_without_qt_screens():
+    # No Qt geometry: clamp in logical space against the cursor's monitor.
+    mon = _geo(0, 0, 2560, 1440, "DP-1")
+    p = map_and_clamp_menu(2559, 1439, mon, [mon], [], 400)
+    assert p["qt_center"] == (2360, 1240)
+    assert p["logical_center"] == (2360, 1240)
+
+
+def test_clamp_global_affine_when_names_differ():
+    # Generic XWayland output names -> global affine, still clamped on-screen.
+    logical = [
+        _geo(0, 0, 2560, 1440, "HDMI-A-1"),
+        _geo(2560, 0, 1600, 1000, "eDP-2"),
+    ]
+    qt = [_geo(0, 0, 1600, 900, "XW0"), _geo(1600, 0, 1000, 625, "XW1")]
+    p = map_and_clamp_menu(2560 + 1599, 999, logical[1], logical, qt, 400)
+    ox, oy = p["qt_origin"]
+    assert ox >= 0 and oy >= 0
+    assert ox + 400 <= 2600 and oy + 400 <= 900  # qt desktop bbox is 2600x900
 
 
 if __name__ == "__main__":
