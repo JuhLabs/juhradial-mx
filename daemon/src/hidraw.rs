@@ -77,6 +77,9 @@ pub struct HidrawHandler {
     /// Feature indices for device-originated hardware notifications (battery,
     /// host, DPI, ratchet), used for live hardware readback.
     notification_indices: crate::hidpp::notifications::NotificationIndices,
+    /// Live KWin availability (D-Bus name ownership), used to pick the cursor
+    /// backend on KDE instead of the XDG_CURRENT_DESKTOP env var (issue #32).
+    kwin_available: Option<crate::compositor::KWinAvailability>,
 }
 
 /// Map HID++ CID to evdev key code for macro trigger forwarding
@@ -115,7 +118,14 @@ impl HidrawHandler {
             active_button_action: None,
             thumbwheel_feature_index: None,
             notification_indices: Default::default(),
+            kwin_available: None,
         }
+    }
+
+    /// Share the live KWin availability flag so the gesture handler can pick the
+    /// cursor backend by D-Bus capability rather than an environment string.
+    pub fn set_kwin_availability(&mut self, kwin: crate::compositor::KWinAvailability) {
+        self.kwin_available = Some(kwin);
     }
 
     /// Register CIDs that are diverted for macro triggers (not gesture buttons)
@@ -581,25 +591,29 @@ impl HidrawHandler {
             // Desktop-aware cursor query:
             // - KDE: KWin script for accurate multi-monitor Wayland cursor
             // - Others (GNOME, Hyprland, Sway, COSMIC): direct query cascade
-            let is_kde = std::env::var("XDG_CURRENT_DESKTOP")
-                .map(|d| {
-                    let u = d.to_uppercase();
-                    u.contains("KDE") || u.contains("PLASMA")
-                })
+            // Pick the cursor backend by whether KWin owns its D-Bus name, not
+            // by XDG_CURRENT_DESKTOP, which is empty when systemd starts the
+            // daemon at cold boot and made KDE look non-KDE (issue #32).
+            let kwin_owned = self
+                .kwin_available
+                .as_ref()
+                .map(|k| k.is_owned())
                 .unwrap_or(false);
-
-            if is_kde {
-                tracing::info!("Gesture button PRESSED - triggering KWin cursor query");
-                if !Self::trigger_kwin_cursor_script() {
+            match crate::compositor::cursor_backend(kwin_owned) {
+                crate::compositor::CursorBackend::KWin => {
+                    tracing::info!(kwin_owned, "Gesture button PRESSED - triggering KWin cursor query");
+                    if !Self::trigger_kwin_cursor_script() {
+                        let (x, y) = Self::get_cursor_position();
+                        tracing::warn!(x, y, "KWin script failed, using fallback cursor position");
+                        let _ = self.event_tx.send(GestureEvent::Pressed { x, y }).await;
+                    }
+                    // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus
+                }
+                crate::compositor::CursorBackend::Fallback => {
                     let (x, y) = Self::get_cursor_position();
-                    tracing::warn!(x, y, "KWin script failed, using fallback cursor position");
+                    tracing::info!(x, y, kwin_owned, "Gesture button PRESSED - cursor query");
                     let _ = self.event_tx.send(GestureEvent::Pressed { x, y }).await;
                 }
-                // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus
-            } else {
-                let (x, y) = Self::get_cursor_position();
-                tracing::info!(x, y, "Gesture button PRESSED - cursor query");
-                let _ = self.event_tx.send(GestureEvent::Pressed { x, y }).await;
             }
         } else {
             // Button released

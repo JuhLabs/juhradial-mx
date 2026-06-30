@@ -6,6 +6,7 @@ pub mod accessibility;
 pub mod actions;
 pub mod battery;
 pub mod bundled_themes;
+pub mod compositor;
 pub mod config;
 pub mod cursor;
 pub mod dbus;
