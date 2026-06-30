@@ -67,13 +67,38 @@ def map_logical_to_screen(lx, ly, mon, screen_geo):
     Returns:
         (cx, cy) menu-center in Qt point space, rounded to ints.
     """
-    mw = mon.get("width") or 1
-    mh = mon.get("height") or 1
-    fx = (lx - mon.get("x", 0)) / mw
-    fy = (ly - mon.get("y", 0)) / mh
-    cx = screen_geo["x"] + fx * screen_geo["width"]
-    cy = screen_geo["y"] + fy * screen_geo["height"]
+    cx, cy = _map_fraction(lx, ly, mon, screen_geo)
     return (int(round(cx)), int(round(cy)))
+
+
+def _map_fraction(x, y, src, dst):
+    """Map (x, y) from rect ``src`` to rect ``dst`` by fractional position.
+
+    The point's fraction within ``src`` is invariant across coordinate spaces,
+    so this transfers it to ``dst`` without knowing any scale factor. Returns
+    floats; callers round when they need ints.
+    """
+    sw = src.get("width") or 1
+    sh = src.get("height") or 1
+    fx = (x - src.get("x", 0)) / sw
+    fy = (y - src.get("y", 0)) / sh
+    return (dst.get("x", 0) + fx * (dst.get("width") or 1),
+            dst.get("y", 0) + fy * (dst.get("height") or 1))
+
+
+def _clamp_center(cx, cy, rect, half):
+    """Clamp a window center so a ``half``-radius window stays inside ``rect``.
+
+    All values share one coordinate space (``half`` matches ``rect``). If the
+    window is larger than the rect (margins cross over), the rect is centred.
+    """
+    rx, ry = rect.get("x", 0), rect.get("y", 0)
+    rw, rh = rect.get("width") or 1, rect.get("height") or 1
+    min_x, max_x = rx + half, rx + rw - half
+    min_y, max_y = ry + half, ry + rh - half
+    cx = min(max(cx, min_x), max_x) if min_x <= max_x else rx + rw / 2
+    cy = min(max(cy, min_y), max_y) if min_y <= max_y else ry + rh / 2
+    return cx, cy
 
 
 def _bounding_box(rects):
@@ -120,6 +145,65 @@ def hyprland_menu_center(lx, ly, cursor_mon, hypr_monitors, qt_screens):
         )
 
     return (int(round(lx)), int(round(ly)))
+
+
+def _select_screens(cursor_mon, hypr_monitors, qt_screens):
+    """Return the (logical_rect, qt_rect) pair to map between, mirroring the
+    tiers of hyprland_menu_center. Returns (None, None) for identity passthrough
+    (no Qt screen info), where logical space already equals move() space.
+    """
+    if cursor_mon and qt_screens:
+        name = cursor_mon.get("name")
+        for screen in qt_screens:
+            if name and screen.get("name") == name:
+                return cursor_mon, screen
+    if hypr_monitors and qt_screens:
+        return _bounding_box(hypr_monitors), _bounding_box(qt_screens)
+    return None, None
+
+
+def map_and_clamp_menu(lx, ly, cursor_mon, hypr_monitors, qt_screens, window_size):
+    """Place the menu for a Hyprland logical cursor and clamp it on-screen.
+
+    Maps the cursor into Qt space (so QWidget.move() lands on the cursor under
+    mixed/fractional scaling, issue #45) and then clamps the window in Qt space
+    using the Qt-space half-window. Clamping must happen AFTER the mapping:
+    clamping in logical space with a Qt-space margin leaves a residual corner
+    overflow when the logical and Qt monitor geometries differ by a per-monitor
+    scale. The logical center is back-derived from the clamped Qt center so hover
+    hit-testing (which polls the logical cursor) stays aligned with the visible
+    ring.
+
+    Returns a dict:
+        qt_center      (cx, cy) menu center in Qt point space
+        qt_origin      (x, y) top-left for QWidget.move()
+        logical_center (cx, cy) menu center in compositor-logical space
+    """
+    half = window_size // 2
+    logical_rect, qt_rect = _select_screens(cursor_mon, hypr_monitors, qt_screens)
+
+    if qt_rect is None:
+        # Identity passthrough: no Qt geometry, so logical == move() space.
+        qx, qy = (lx, ly)
+        if cursor_mon:
+            qx, qy = _clamp_center(lx, ly, cursor_mon, half)
+        qx, qy = int(round(qx)), int(round(qy))
+        return {
+            "qt_center": (qx, qy),
+            "qt_origin": (qx - half, qy - half),
+            "logical_center": (qx, qy),
+        }
+
+    qx, qy = _map_fraction(lx, ly, logical_rect, qt_rect)
+    qx, qy = _clamp_center(qx, qy, qt_rect, half)
+    lcx, lcy = _map_fraction(qx, qy, qt_rect, logical_rect)
+
+    qx, qy = int(round(qx)), int(round(qy))
+    return {
+        "qt_center": (qx, qy),
+        "qt_origin": (qx - half, qy - half),
+        "logical_center": (int(round(lcx)), int(round(lcy))),
+    }
 
 # =============================================================================
 # DESKTOP ENVIRONMENT DETECTION FLAGS

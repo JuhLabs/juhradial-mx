@@ -57,7 +57,7 @@ from overlay_constants import (
     CENTER_ZONE_RADIUS,
     WINDOW_SIZE,
     compute_ring_scale,
-    hyprland_menu_center,
+    map_and_clamp_menu,
     IS_HYPRLAND,
     IS_GNOME,
     IS_COSMIC,
@@ -662,14 +662,45 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # Size the ring for the monitor it opens on
         self._apply_ring_scale(mon)
 
-        # Clamp menu position to stay within the active monitor
+        # Decide where the window goes. On Hyprland, hyprctl cursorpos is in
+        # compositor-logical pixels while QWidget.move() is in Qt's own space;
+        # under mixed/fractional scaling these differ, so we map the cursor's
+        # fractional position onto the Qt screen and clamp the window in Qt space
+        # (clamping before mapping overflows the edge on mixed scale, issue #45).
+        # menu_center_x/y stay logical because the hover poll compares them
+        # against get_cursor_pos() (also logical). Other compositors: logical
+        # space already equals move() space, so clamp directly there.
         half = self.win_px // 2
-        if mon:
-            x = max(mon["x"] + half, min(x, mon["x"] + mon["width"] - half))
-            y = max(mon["y"] + half, min(y, mon["y"] + mon["height"] - half))
+        if IS_HYPRLAND and mon:
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            qt_screens = []
+            if app:
+                for screen in app.screens():
+                    g = screen.geometry()
+                    qt_screens.append({
+                        "x": g.x(), "y": g.y(),
+                        "width": g.width(), "height": g.height(),
+                        "name": screen.name(),
+                    })
+            placement = map_and_clamp_menu(
+                x, y, mon, get_all_monitors_logical(), qt_screens, self.win_px
+            )
+            self.menu_center_x, self.menu_center_y = placement["logical_center"]
+            move_x, move_y = placement["qt_origin"]
+            _log(
+                f"Hyprland placement: logical ({x},{y}) -> Qt {placement['qt_center']} "
+                f"origin {placement['qt_origin']} logical_center {placement['logical_center']}; "
+                f"qt_screens={[(s['name'], s['width'], s['height']) for s in qt_screens]}"
+            )
+        else:
+            if mon:
+                x = max(mon["x"] + half, min(x, mon["x"] + mon["width"] - half))
+                y = max(mon["y"] + half, min(y, mon["y"] + mon["height"] - half))
+            self.menu_center_x = x
+            self.menu_center_y = y
+            move_x, move_y = x - half, y - half
 
-        self.menu_center_x = x
-        self.menu_center_y = y
         self.toggle_mode = False  # Reset toggle mode on new show
         self.show_time = time.time()  # Track when menu was shown
 
@@ -687,43 +718,11 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         overlay_actions.get_media_state()
 
         # Position and show: set opacity to 0 and move BEFORE show to prevent
-        # any visible frame at the wrong location on multi-monitor setups
+        # any visible frame at the wrong location on multi-monitor setups.
+        # move_x/move_y were computed above (Qt space on Hyprland, logical space
+        # otherwise).
         self.highlighted_slice = -1
         self.setWindowOpacity(0.0)
-
-        # On Hyprland, hyprctl cursorpos is in compositor-logical pixels, but
-        # QWidget.move() places windows in Qt's own coordinate space. With
-        # mixed/fractional monitor scaling these spaces differ (either Qt applies
-        # a devicePixelRatio or XWayland scales the surface), so passing logical
-        # coords straight to move() drifts the menu proportionally to its distance
-        # from the origin (issue #45). Map the cursor's fractional position within
-        # its monitor onto the matching Qt screen's geometry, which is in the same
-        # space move() uses, so the menu lands on the cursor regardless of scale
-        # or which layer applies it. When geometries match (100% scaling) this is
-        # an identity no-op. menu_center_x/y stay in logical space above because
-        # the toggle-mode hover poll compares them against get_cursor_pos()
-        # (also logical).
-        move_x, move_y = x - half, y - half
-        if IS_HYPRLAND and mon:
-            from PyQt6.QtWidgets import QApplication
-            app = QApplication.instance()
-            qt_screens = []
-            if app:
-                for screen in app.screens():
-                    g = screen.geometry()
-                    qt_screens.append({
-                        "x": g.x(), "y": g.y(),
-                        "width": g.width(), "height": g.height(),
-                        "name": screen.name(),
-                    })
-            cx, cy = hyprland_menu_center(
-                x, y, mon, get_all_monitors_logical(), qt_screens
-            )
-            move_x, move_y = cx - half, cy - half
-            _log(
-                f"Hyprland placement: logical ({x},{y}) -> Qt ({cx},{cy}); "
-                f"qt_screens={[(s['name'], s['width'], s['height']) for s in qt_screens]}"
-            )
         self.move(move_x, move_y)
 
         # On KDE Plasma, XWayland windows show a frozen wallpaper rectangle
