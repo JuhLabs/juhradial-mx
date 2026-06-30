@@ -280,8 +280,12 @@ impl HidrawHandler {
             .map_err(|e| {
                 if e.kind() == io::ErrorKind::PermissionDenied {
                     tracing::error!(
-                        "Permission denied opening {:?}. Make sure udev rules are installed.",
-                        path
+                        "Permission denied opening {:?}. The node should be root:input mode 0660 \
+                         (check: ls -l {:?}) and this daemon's user must be in the 'input' group. \
+                         Fix: sudo usermod -aG input $USER, then REBOOT (or fully log out and back \
+                         in) so the systemd --user manager picks up the group — a stale session \
+                         that predates the group change cannot access the device. See issue #52.",
+                        path, path
                     );
                     HidrawError::PermissionDenied
                 } else if e.kind() == io::ErrorKind::NotFound {
