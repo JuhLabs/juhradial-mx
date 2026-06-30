@@ -376,6 +376,57 @@ windowrulev2 = noanim, title:^(JuhRadial MX)$
   <img src="assets/github/separator.png" width="80%" alt="">
 </div>
 
+## Uninstall
+
+To remove JuhRadial MX, stop the user services first, then delete the installed
+files. The daemon and overlay run as your user, so steps 1, 2 and 5 need no root;
+the system files under `/usr/local`, `/usr/share` and `/etc` (steps 3 and 4) do.
+
+```bash
+# 1. Stop and disable the user services
+systemctl --user disable --now juhradialmx-daemon.service
+systemctl --user disable --now ydotoold.service        # only if it was installed
+rm -f ~/.config/systemd/user/juhradialmx-daemon.service \
+      ~/.config/systemd/user/ydotoold.service
+systemctl --user daemon-reload
+
+# 2. Remove the autostart entry (if you enabled start-at-login)
+rm -f ~/.config/autostart/juhradial-mx.desktop
+
+# 3. Remove the binaries, assets, desktop entries and icon
+sudo rm -f  /usr/local/bin/juhradiald \
+            /usr/local/bin/juhradial-mx \
+            /usr/local/bin/juhradial-settings
+sudo rm -rf /usr/share/juhradial /opt/juhradial-mx
+sudo rm -f  /usr/share/applications/juhradial-mx.desktop \
+            /usr/share/applications/org.kde.juhradialmx.settings.desktop \
+            /usr/share/icons/hicolor/scalable/apps/juhradial-mx.svg
+
+# 4. Remove the udev rules and uinput module config, then reload
+sudo rm -f  /etc/udev/rules.d/99-juhradialmx.rules \
+            /etc/udev/rules.d/60-ydotool-uinput.rules \
+            /etc/modules-load.d/juhradial-uinput.conf
+sudo udevadm control --reload-rules && sudo udevadm trigger
+
+# 5. Remove your configuration (themes, button maps, macros)
+rm -rf ~/.config/juhradial
+```
+
+GNOME users: also disable and remove the cursor extension.
+
+```bash
+gnome-extensions disable juhradial-cursor@dev.juhlabs.com
+rm -rf ~/.local/share/gnome-shell/extensions/juhradial-cursor@dev.juhlabs.com
+```
+
+Hyprland users: remove the JuhRadial window rules the installer added to your
+Hyprland config (a `JuhRadial MX` block in `~/.config/hypr/`, typically
+`~/.config/hypr/juhradial-rules.conf` or a section in `hyprland.conf`).
+
+<div align="center">
+  <img src="assets/github/separator.png" width="80%" alt="">
+</div>
+
 ## Architecture
 
 ```
