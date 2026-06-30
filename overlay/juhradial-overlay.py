@@ -57,6 +57,7 @@ from overlay_constants import (
     CENTER_ZONE_RADIUS,
     WINDOW_SIZE,
     compute_ring_scale,
+    map_and_clamp_menu,
     IS_HYPRLAND,
     IS_GNOME,
     IS_COSMIC,
@@ -69,6 +70,7 @@ from overlay_constants import (
 from overlay_cursor import (
     _refresh_monitors,
     get_monitor_at_cursor,
+    get_all_monitors_logical,
     get_cursor_position_hyprland,
     get_cursor_position_gnome,
     get_cursor_position_qt,
@@ -660,14 +662,45 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # Size the ring for the monitor it opens on
         self._apply_ring_scale(mon)
 
-        # Clamp menu position to stay within the active monitor
+        # Decide where the window goes. On Hyprland, hyprctl cursorpos is in
+        # compositor-logical pixels while QWidget.move() is in Qt's own space;
+        # under mixed/fractional scaling these differ, so we map the cursor's
+        # fractional position onto the Qt screen and clamp the window in Qt space
+        # (clamping before mapping overflows the edge on mixed scale, issue #45).
+        # menu_center_x/y stay logical because the hover poll compares them
+        # against get_cursor_pos() (also logical). Other compositors: logical
+        # space already equals move() space, so clamp directly there.
         half = self.win_px // 2
-        if mon:
-            x = max(mon["x"] + half, min(x, mon["x"] + mon["width"] - half))
-            y = max(mon["y"] + half, min(y, mon["y"] + mon["height"] - half))
+        if IS_HYPRLAND and mon:
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            qt_screens = []
+            if app:
+                for screen in app.screens():
+                    g = screen.geometry()
+                    qt_screens.append({
+                        "x": g.x(), "y": g.y(),
+                        "width": g.width(), "height": g.height(),
+                        "name": screen.name(),
+                    })
+            placement = map_and_clamp_menu(
+                x, y, mon, get_all_monitors_logical(), qt_screens, self.win_px
+            )
+            self.menu_center_x, self.menu_center_y = placement["logical_center"]
+            move_x, move_y = placement["qt_origin"]
+            _log(
+                f"Hyprland placement: logical ({x},{y}) -> Qt {placement['qt_center']} "
+                f"origin {placement['qt_origin']} logical_center {placement['logical_center']}; "
+                f"qt_screens={[(s['name'], s['width'], s['height']) for s in qt_screens]}"
+            )
+        else:
+            if mon:
+                x = max(mon["x"] + half, min(x, mon["x"] + mon["width"] - half))
+                y = max(mon["y"] + half, min(y, mon["y"] + mon["height"] - half))
+            self.menu_center_x = x
+            self.menu_center_y = y
+            move_x, move_y = x - half, y - half
 
-        self.menu_center_x = x
-        self.menu_center_y = y
         self.toggle_mode = False  # Reset toggle mode on new show
         self.show_time = time.time()  # Track when menu was shown
 
@@ -685,10 +718,12 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         overlay_actions.get_media_state()
 
         # Position and show: set opacity to 0 and move BEFORE show to prevent
-        # any visible frame at the wrong location on multi-monitor setups
+        # any visible frame at the wrong location on multi-monitor setups.
+        # move_x/move_y were computed above (Qt space on Hyprland, logical space
+        # otherwise).
         self.highlighted_slice = -1
         self.setWindowOpacity(0.0)
-        self.move(x - half, y - half)
+        self.move(move_x, move_y)
 
         # On KDE Plasma, XWayland windows show a frozen wallpaper rectangle
         # behind transparent areas (KWin caches the wallpaper). The circular

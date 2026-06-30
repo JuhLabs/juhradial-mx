@@ -53,6 +53,11 @@ def _resolve_asset_path(relative_path):
     candidates = [
         Path(__file__).parent.parent / "assets" / relative_path,
         Path("/usr/share/juhradial/assets") / relative_path,
+        # The brand SVG (juhradial-mx.svg) is installed to the icon theme dir by
+        # every install method (curl, Arch, RPM) but is not mirrored under
+        # /usr/share/juhradial/assets, so the header logo showed image-missing
+        # without this fallback (issue #32).
+        Path("/usr/share/icons/hicolor/scalable/apps") / relative_path,
     ]
     for p in candidates:
         if p.exists():
