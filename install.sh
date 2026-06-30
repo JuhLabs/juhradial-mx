@@ -430,16 +430,25 @@ install_dependencies() {
 clone_repo() {
     step "Fetching source"
 
-    if [ -d "$INSTALL_DIR" ]; then
+    # Use numeric IDs for ownership: the primary group is not always named after
+    # the user (issue #52 hit a chown failure on Arch where the group differs).
+    local uid gid
+    uid="$(id -u)"
+    gid="$(id -g)"
+
+    if [ -d "$INSTALL_DIR/.git" ]; then
         log_info "Updating existing installation..."
-        sudo chown -R "$USER:$USER" "$INSTALL_DIR"
+        sudo chown -R "$uid:$gid" "$INSTALL_DIR"
         git -C "$INSTALL_DIR" fetch origin
         git -C "$INSTALL_DIR" reset --hard origin/master
         git -C "$INSTALL_DIR" clean -fd
     else
         log_info "Cloning repository..."
-        sudo git clone "$REPO_URL" "$INSTALL_DIR"
-        sudo chown -R "$USER:$USER" "$INSTALL_DIR"
+        # A previous failed install can leave a partial, root-owned dir behind;
+        # clear it so the clone starts clean and ends up owned by the user.
+        [ -e "$INSTALL_DIR" ] && sudo rm -rf "$INSTALL_DIR"
+        sudo install -d -o "$uid" -g "$gid" "$INSTALL_DIR"
+        git clone "$REPO_URL" "$INSTALL_DIR"
     fi
 
     cd "$INSTALL_DIR"
