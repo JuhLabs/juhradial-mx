@@ -31,6 +31,8 @@ echo "=== static install.sh checks ==="
 grep -q "ensure_rust_toolchain" "$SRC/install.sh" && echo "  ok: ensure_rust_toolchain present (#23)" || echo "  WARN: ensure_rust_toolchain missing (#23)"
 grep -q "python3-PyQt6" "$SRC/install.sh" && echo "  ok: python3-PyQt6 present (#24)" || echo "  WARN: python3-PyQt6 missing (#24)"
 grep -q "python3-qt6-svg" "$SRC/install.sh" && echo "  WARN: stale python3-qt6-svg still present (#24)" || echo "  ok: stale python3-qt6-svg gone (#24)"
+grep -q 'id -u' "$SRC/install.sh" && grep -q 'id -g' "$SRC/install.sh" && echo "  ok: installer uses numeric uid/gid (#52)" || echo "  WARN: installer not using numeric uid/gid (#52)"
+grep -q '\$USER:\$USER' "$SRC/install.sh" && echo "  WARN: installer still assumes username equals group name (#52)" || echo "  ok: no \$USER:\$USER group assumption (#52)"
 echo
 
 # Bootstrap a new-enough Rust (mirrors install.sh ensure_rust_toolchain) then
