@@ -25,6 +25,14 @@ PartOf=graphical-session.target
 # D-Bus session is required for communication with KWin
 Requires=dbus.socket
 
+# Limit restart attempts to prevent infinite restart loops.
+# These MUST live in [Unit], not [Service]: systemd moved StartLimitIntervalSec/
+# StartLimitBurst out of [Service] (v229+), and leaving them in [Service] logs
+# "Unknown key 'StartLimitIntervalSec' in section [Service], ignoring" and
+# silently disables the rate limit (issue #52).
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/juhradiald
@@ -32,10 +40,6 @@ ExecStart=/usr/local/bin/juhradiald
 # on-abnormal = non-clean signals, watchdog, timeout — NOT SIGTERM/clean exit.
 Restart=on-abnormal
 RestartSec=5s
-
-# Limit restart attempts to prevent infinite restart loops
-StartLimitIntervalSec=60
-StartLimitBurst=5
 
 # Disable watchdog to prevent systemd drop-ins (e.g. 10-timeout-abort.conf
 # on Fedora) from killing the daemon when it doesn't send sd_notify heartbeats.
