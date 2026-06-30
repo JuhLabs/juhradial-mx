@@ -421,6 +421,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
+    // Detect KWin by D-Bus name ownership (not XDG_CURRENT_DESKTOP, which is
+    // empty when systemd starts the daemon at cold boot, issue #32). The watcher
+    // seeds the flag and follows KWin restarts on the same session connection.
+    let kwin_availability = juhradiald::compositor::KWinAvailability::new();
+    {
+        let conn = dbus_connection.clone();
+        let kwin = kwin_availability.clone();
+        tokio::spawn(async move { juhradiald::compositor::run_kwin_watcher(conn, kwin).await });
+    }
+
     let haptic_manager_for_hidraw = haptic_manager_for_battery.clone();
 
     // Live battery notifications update the same shared state the active poller
@@ -534,6 +544,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hidraw_tx = event_tx.clone();
     let hidraw_config = shared_config.clone();
     let hidraw_hotplug = hotplug_notify.clone();
+    let hidraw_kwin = kwin_availability.clone();
     let hidraw_handle = tokio::spawn(async move {
         run_hidraw_loop(
             hidraw_tx,
@@ -542,6 +553,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             hidraw_config,
             hidraw_hotplug,
             haptic_manager_for_hidraw,
+            hidraw_kwin,
         )
         .await
     });
@@ -560,20 +572,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let hotplug_for_mx = hotplug_notify.clone();
     let evdev_config = shared_config.clone();
+    let evdev_kwin = kwin_availability.clone();
     let evdev_handle = tokio::spawn(async move {
-        run_evdev_loop(evdev_tx, suppressed_for_mx, hotplug_for_mx, evdev_config).await
+        run_evdev_loop(evdev_tx, suppressed_for_mx, hotplug_for_mx, evdev_config, evdev_kwin).await
     });
 
     let generic_evdev_tx = event_tx.clone();
     let suppressed_for_generic = macro_evdev_codes.clone();
     let hotplug_for_generic = hotplug_notify.clone();
     let generic_evdev_config = shared_config.clone();
+    let generic_evdev_kwin = kwin_availability.clone();
     let generic_evdev_handle = tokio::spawn(async move {
         run_generic_evdev_loop(
             generic_evdev_tx,
             suppressed_for_generic,
             hotplug_for_generic,
             generic_evdev_config,
+            generic_evdev_kwin,
         )
         .await
     });
@@ -819,6 +834,7 @@ async fn run_hidraw_loop(
     shared_config: juhradiald::config::SharedConfig,
     hotplug: Arc<tokio::sync::Notify>,
     haptic_manager: SharedHapticManager,
+    kwin_availability: juhradiald::compositor::KWinAvailability,
 ) {
     let mut handler = HidrawHandler::new(event_tx);
     let macro_cids_for_divert = macro_cids.clone();
@@ -826,6 +842,7 @@ async fn run_hidraw_loop(
     let config_for_divert = shared_config.clone();
     handler.set_macro_cids(macro_cids);
     handler.set_shared_config(shared_config);
+    handler.set_kwin_availability(kwin_availability);
 
     loop {
         // Re-read the reassigned buttons each cycle so a config change is
@@ -957,10 +974,12 @@ async fn run_evdev_loop(
     suppressed_keys: HashSet<u16>,
     hotplug: Arc<tokio::sync::Notify>,
     shared_config: juhradiald::config::SharedConfig,
+    kwin_availability: juhradiald::compositor::KWinAvailability,
 ) {
     let mut handler = EvdevHandler::new(event_tx.clone());
     handler.set_suppressed_keys(suppressed_keys);
     handler.set_shared_config(shared_config);
+    handler.set_kwin_availability(kwin_availability);
 
     let mut logged_waiting = false;
 
@@ -1063,6 +1082,7 @@ async fn run_generic_evdev_loop(
     suppressed_keys: HashSet<u16>,
     hotplug: Arc<tokio::sync::Notify>,
     shared_config: juhradiald::config::SharedConfig,
+    kwin_availability: juhradiald::compositor::KWinAvailability,
 ) {
     let trigger = read_trigger_button_from_config();
     if let Some(code) = trigger {
@@ -1071,6 +1091,7 @@ async fn run_generic_evdev_loop(
     let mut handler = EvdevHandler::new_generic(event_tx.clone(), trigger);
     handler.set_suppressed_keys(suppressed_keys);
     handler.set_shared_config(shared_config);
+    handler.set_kwin_availability(kwin_availability);
 
     let mut logged_waiting = false;
 

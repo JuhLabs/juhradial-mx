@@ -111,6 +111,9 @@ pub struct EvdevHandler {
     shared_config: Option<crate::config::SharedConfig>,
     /// The action triggered on button press (for release handling)
     active_button_action: Option<crate::config::ButtonAction>,
+    /// Live KWin availability (D-Bus name ownership), used to pick the cursor
+    /// backend on KDE instead of the XDG_CURRENT_DESKTOP env var (issue #32).
+    kwin_available: Option<crate::compositor::KWinAvailability>,
 }
 
 impl EvdevHandler {
@@ -130,6 +133,7 @@ impl EvdevHandler {
             suppressed_keys: HashSet::new(),
             shared_config: None,
             active_button_action: None,
+            kwin_available: None,
         }
     }
 
@@ -149,12 +153,19 @@ impl EvdevHandler {
             suppressed_keys: HashSet::new(),
             shared_config: None,
             active_button_action: None,
+            kwin_available: None,
         }
     }
 
     /// Set the shared configuration for button action lookup
     pub fn set_shared_config(&mut self, config: crate::config::SharedConfig) {
         self.shared_config = Some(config);
+    }
+
+    /// Share the live KWin availability flag so the gesture handler can pick the
+    /// cursor backend by D-Bus capability rather than an environment string.
+    pub fn set_kwin_availability(&mut self, kwin: crate::compositor::KWinAvailability) {
+        self.kwin_available = Some(kwin);
     }
 
     /// Set which key codes should be suppressed (eaten) from the OS.
@@ -723,15 +734,20 @@ impl EvdevHandler {
                     self.cursor_x = 0;
                     self.cursor_y = 0;
 
-                    let is_kde = std::env::var("XDG_CURRENT_DESKTOP")
-                        .map(|d| {
-                            let u = d.to_uppercase();
-                            u.contains("KDE") || u.contains("PLASMA")
-                        })
+                    // Pick the cursor backend by whether KWin owns its D-Bus
+                    // name, not by XDG_CURRENT_DESKTOP, which is empty when
+                    // systemd starts the daemon at cold boot (issue #32).
+                    let kwin_owned = self
+                        .kwin_available
+                        .as_ref()
+                        .map(|k| k.is_owned())
                         .unwrap_or(false);
 
-                    if is_kde {
+                    if crate::compositor::cursor_backend(kwin_owned)
+                        == crate::compositor::CursorBackend::KWin
+                    {
                         tracing::info!(
+                            kwin_owned,
                             "Gesture button pressed (radial_menu) - triggering KWin cursor query"
                         );
                         if !Self::trigger_kwin_cursor_script() {
@@ -751,6 +767,7 @@ impl EvdevHandler {
                         tracing::info!(
                             x = pos.x,
                             y = pos.y,
+                            kwin_owned,
                             "Gesture button pressed (radial_menu) - cursor query"
                         );
                         let _ = self
