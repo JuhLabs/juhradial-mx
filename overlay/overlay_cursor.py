@@ -119,6 +119,30 @@ def get_monitor_at_cursor(cx, cy):
     return {"x": 0, "y": 0, "width": 1920, "height": 1080, "name": "fallback"}
 
 
+def get_all_monitors_logical():
+    """Return all Hyprland monitors as logical-pixel rects.
+
+    Each rect is {x, y, width, height, name}. Width/height are the transformed
+    (scaled) logical sizes, matching the compositor-logical cursor coordinate
+    space. Used to map the cursor onto Qt screen geometry for menu placement.
+    """
+    global _monitors_cache
+    if _monitors_cache is None:
+        _refresh_monitors()
+
+    rects = []
+    for mon in _monitors_cache or []:
+        scale = mon.get("scale", 1.0) or 1.0
+        rects.append({
+            "x": mon.get("x", 0),
+            "y": mon.get("y", 0),
+            "width": int(mon.get("width", 1920) / scale),
+            "height": int(mon.get("height", 1080) / scale),
+            "name": mon.get("name", "?"),
+        })
+    return rects
+
+
 def get_cursor_position_hyprland():
     """Get cursor position using Hyprland IPC socket (faster than subprocess).
 
