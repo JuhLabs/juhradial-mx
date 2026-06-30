@@ -27,7 +27,8 @@ gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gtk, Gdk, GLib, Gtk4LayerShell as LS  # noqa: E402
 
 RING_R = 110
-state = {"px": None, "py": None, "t_map": None, "t_pointer": None, "mon": None}
+state = {"px": None, "py": None, "t_map": None, "t_pointer": None,
+         "mon": None, "ok": False}
 
 
 def log(msg):
@@ -82,11 +83,11 @@ def finish(win):
     except FileNotFoundError:
         log("grim not installed; skipped screenshot")
 
-    ok = state["t_pointer"] is not None
-    log(f"RESULT gate1_mapped=True gate2_pointer_on_map={ok} "
+    state["ok"] = state["t_pointer"] is not None
+    log(f"RESULT gate1_mapped=True gate2_pointer_on_map={state['ok']} "
         f"monitor={state['mon']}")
     win.get_application().quit()
-    sys.exit(0 if ok else 2)
+    return False
 
 
 def on_app(app):
@@ -104,8 +105,8 @@ def on_app(app):
     win.set_child(area)
 
     motion = Gtk.EventControllerMotion()
-    motion.connect("enter", lambda c, x, y: record_pointer(c, x, y))
-    motion.connect("motion", lambda c, x, y: record_pointer(c, x, y))
+    motion.connect("enter", record_pointer)
+    motion.connect("motion", record_pointer)
     win.add_controller(motion)
 
     css = Gtk.CssProvider()
@@ -124,19 +125,26 @@ def on_app(app):
             state["mon"] = f"{m.get_connector()} {g.width}x{g.height}+{g.x}+{g.y} scale={m.get_scale_factor()}"
         log(f"GATE1 layer surface mapped; monitor={state['mon']}")
         # Give the compositor a beat to deliver the pointer-enter, then finish.
-        GLib.timeout_add(1200, lambda: (finish(win), False)[1])
+        GLib.timeout_add(1200, finish, win)
         return False
 
     win.connect("map", lambda _w: GLib.idle_add(after_map))
     win.present()
 
 
+def _on_timeout(app):
+    log("TIMEOUT: no result in 8s")
+    app.quit()
+    return False
+
+
 def main():
     app = Gtk.Application(application_id="com.juhlabs.niriprobe")
     app.connect("activate", on_app)
-    # Safety: hard-exit if the session never delivers map/pointer.
-    GLib.timeout_add(8000, lambda: (log("TIMEOUT: no result in 8s"), sys.exit(3)))
+    # Safety: quit if the session never delivers map/pointer.
+    GLib.timeout_add(8000, _on_timeout, app)
     app.run(None)
+    sys.exit(0 if state["ok"] else 2)
 
 
 if __name__ == "__main__":
