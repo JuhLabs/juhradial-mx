@@ -18,8 +18,12 @@
 [Unit]
 Description=JuhRadial MX Daemon - Radial menu for Logitech MX Master 4
 Documentation=https://github.com/juhhally/juhradial-mx
+# NOTE: Do NOT use `Wants=graphical-session.target` here. Combined with
+# `WantedBy=default.target` it would activate graphical-session.target on every
+# login (even a text TTY), which makes gnome-session abort with "A graphical
+# session is already running!" -> GDM login loop. This service must only be
+# pulled BY a real graphical session, never push the target up itself.
 After=graphical-session.target
-Wants=graphical-session.target
 PartOf=graphical-session.target
 
 # D-Bus session is required for communication with KWin
@@ -57,4 +61,4 @@ MemoryMax=100M
 CPUQuota=50%
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target
