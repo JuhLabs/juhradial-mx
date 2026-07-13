@@ -62,7 +62,6 @@ from settings_page_scroll import ScrollPage
 from settings_page_haptics import HapticsPage
 from settings_page_devices import DevicesPage
 from settings_page_easyswitch import EasySwitchPage
-from settings_page_flow import FlowPage
 from settings_page_settings import SettingsPage
 from settings_page_macros import MacrosPage
 from settings_page_gaming import GamingPage
@@ -760,8 +759,10 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
 
             self.content_stack.add_named(buttons_page, "buttons")
 
-        # Other pages
-        self.content_stack.add_named(ScrollPage(), "scroll")
+        # The first visible page is Buttons. Build Point & Scroll lazily because
+        # its hardware-state reads are independent of the initial screen.
+        self._scroll_page_placeholder = Gtk.Box()
+        self.content_stack.add_named(self._scroll_page_placeholder, "scroll")
         self.content_stack.add_named(DevicesPage(), "devices")
         self.content_stack.add_named(SettingsPage(), "settings")
 
@@ -844,6 +845,18 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         for btn_id, btn in self.nav_buttons.items():
             btn.set_active(btn_id == item_id)
 
+        # Lazy-load Point & Scroll after the first frame. Its daemon reads can
+        # be slow while HID++ is reconnecting, but must not delay opening the
+        # default Buttons page.
+        if (
+            item_id == "scroll"
+            and hasattr(self, "_scroll_page_placeholder")
+            and self._scroll_page_placeholder is not None
+        ):
+            self.content_stack.remove(self._scroll_page_placeholder)
+            self._scroll_page_placeholder = None
+            self.content_stack.add_named(ScrollPage(), "scroll")
+
         # Lazy-load FlowPage on first navigation to avoid Zeroconf startup cost
         # (only in Logitech mode - flow tab is hidden in generic mode)
         if (
@@ -854,6 +867,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         ):
             self.content_stack.remove(self._flow_page_placeholder)
             self._flow_page_placeholder = None
+            from settings_page_flow import FlowPage
             flow_page = FlowPage()
             self.content_stack.add_named(flow_page, "flow")
 

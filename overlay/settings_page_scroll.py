@@ -914,8 +914,14 @@ None,      Down, Button5, {lines}
     # ------------------------------------------------------------------
     # Load device state on startup
     # ------------------------------------------------------------------
+    def _apply_saved_scroll_mode(self):
+        """Use persisted SmartShift state when the daemon is unavailable."""
+        mode = config.get("scroll", "mode", default="smartshift")
+        self.mode_selector.set_mode(mode)
+        self.sensitivity_box.set_visible(mode == "smartshift")
+
     def _load_device_settings(self):
-        """Load SmartShift and HiResScroll settings from device.
+        """Start non-blocking SmartShift and HiResScroll reads from the daemon.
 
         In generic mode, skip all HID++ device queries - just use config values.
         """
@@ -923,64 +929,128 @@ None,      Down, Button5, {lines}
             # No HID++ device to query; use saved config for basic scroll settings
             return
 
-        proxy = self._get_dbus_proxy()
-        if not proxy:
-            # Fall back to config
-            mode = config.get("scroll", "mode", default="smartshift")
-            self.mode_selector.set_mode(mode)
-            self.sensitivity_box.set_visible(mode == "smartshift")
+        # Creating a D-Bus proxy synchronously may trigger introspection and
+        # block the first settings frame while the HID++ daemon is busy. Start
+        # the whole connection/proxy/read chain asynchronously instead.
+        try:
+            Gio.bus_get(
+                Gio.BusType.SESSION,
+                None,
+                self._on_startup_session_bus_ready,
+                None,
+            )
+        except GLib.Error as e:
+            logger.error("D-Bus error starting device settings load: %s", e.message)
+            self._apply_saved_scroll_mode()
+
+    def _on_startup_session_bus_ready(self, _source, async_result, _user_data):
+        try:
+            bus = Gio.bus_get_finish(async_result)
+            Gio.DBusProxy.new(
+                bus,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                "org.kde.juhradialmx",
+                "/org/kde/juhradialmx/Daemon",
+                "org.kde.juhradialmx.Daemon",
+                None,
+                self._on_startup_proxy_ready,
+                None,
+            )
+        except GLib.Error as e:
+            logger.error("D-Bus error creating device settings proxy: %s", e.message)
+            self._apply_saved_scroll_mode()
+
+    def _on_startup_proxy_ready(self, _source, async_result, _user_data):
+        try:
+            proxy = Gio.DBusProxy.new_finish(async_result)
+        except GLib.Error as e:
+            logger.error("D-Bus error creating device settings proxy: %s", e.message)
+            self._apply_saved_scroll_mode()
             return
 
-        # Load SmartShift
+        # Do not use call_sync here: these callbacks run after the window is
+        # presented, and a busy HID++ daemon must not stall GTK's main loop.
         try:
-            supported = proxy.call_sync(
+            proxy.call(
                 "SmartShiftSupported", None,
                 Gio.DBusCallFlags.NONE, 2000, None,
+                self._on_smartshift_support_loaded, None,
             )
-            if supported and supported.get_child_value(0).get_boolean():
-                result = proxy.call_sync(
-                    "GetSmartShift", None,
-                    Gio.DBusCallFlags.NONE, 2000, None,
-                )
-                if result:
-                    enabled = result.get_child_value(0).get_boolean()
-                    device_threshold = result.get_child_value(1).get_byte()
-
-                    # Determine mode from device + saved config
-                    saved_mode = config.get("scroll", "mode", default=None)
-                    if saved_mode == "freespin":
-                        mode = "freespin"
-                    elif enabled:
-                        mode = "smartshift"
-                    else:
-                        mode = "ratchet"
-
-                    # Convert device threshold to UI percentage
-                    ui_threshold = 100 - int(device_threshold / 2.55)
-                    ui_threshold = max(1, min(100, ui_threshold))
-
-                    self.mode_selector.set_mode(mode)
-                    self.sens_scale.set_value(ui_threshold)
-                    self.sensitivity_box.set_visible(mode == "smartshift")
-
-                    config.set("scroll", "mode", mode)
-                    config.set("scroll", "smartshift_threshold", ui_threshold)
-            else:
-                # SmartShift not supported
-                self.mode_selector.set_sensitive(False)
-                self.sensitivity_box.set_visible(False)
         except GLib.Error as e:
-            logger.error("D-Bus error loading SmartShift: %s", e.message)
-            mode = config.get("scroll", "mode", default="smartshift")
-            self.mode_selector.set_mode(mode)
-            self.sensitivity_box.set_visible(mode == "smartshift")
+            logger.error("D-Bus error starting SmartShift load: %s", e.message)
+            self._apply_saved_scroll_mode()
 
-        # Load HiResScroll
         try:
-            result = proxy.call_sync(
+            proxy.call(
                 "GetHiresscrollMode", None,
                 Gio.DBusCallFlags.NONE, 2000, None,
+                self._on_hiresscroll_loaded, None,
             )
+        except GLib.Error as e:
+            logger.error("D-Bus error starting HiResScroll load: %s", e.message)
+
+    def _on_smartshift_support_loaded(self, proxy, async_result, _user_data):
+        try:
+            supported = proxy.call_finish(async_result)
+        except GLib.Error as e:
+            logger.error("D-Bus error loading SmartShift support: %s", e.message)
+            self._apply_saved_scroll_mode()
+            return
+
+        if not supported or not supported.get_child_value(0).get_boolean():
+            self.mode_selector.set_sensitive(False)
+            self.sensitivity_box.set_visible(False)
+            return
+
+        try:
+            proxy.call(
+                "GetSmartShift", None,
+                Gio.DBusCallFlags.NONE, 2000, None,
+                self._on_smartshift_loaded, None,
+            )
+        except GLib.Error as e:
+            logger.error("D-Bus error starting SmartShift read: %s", e.message)
+            self._apply_saved_scroll_mode()
+
+    def _on_smartshift_loaded(self, proxy, async_result, _user_data):
+        try:
+            result = proxy.call_finish(async_result)
+        except GLib.Error as e:
+            logger.error("D-Bus error loading SmartShift: %s", e.message)
+            self._apply_saved_scroll_mode()
+            return
+
+        if not result:
+            self._apply_saved_scroll_mode()
+            return
+
+        enabled = result.get_child_value(0).get_boolean()
+        device_threshold = result.get_child_value(1).get_byte()
+
+        # Determine mode from device + saved config.
+        saved_mode = config.get("scroll", "mode", default=None)
+        if saved_mode == "freespin":
+            mode = "freespin"
+        elif enabled:
+            mode = "smartshift"
+        else:
+            mode = "ratchet"
+
+        # Convert device threshold to UI percentage.
+        ui_threshold = 100 - int(device_threshold / 2.55)
+        ui_threshold = max(1, min(100, ui_threshold))
+
+        self.mode_selector.set_mode(mode)
+        self.sens_scale.set_value(ui_threshold)
+        self.sensitivity_box.set_visible(mode == "smartshift")
+
+        config.set("scroll", "mode", mode)
+        config.set("scroll", "smartshift_threshold", ui_threshold)
+
+    def _on_hiresscroll_loaded(self, proxy, async_result, _user_data):
+        try:
+            result = proxy.call_finish(async_result)
             if result:
                 hires = result.get_child_value(0).get_boolean()
                 self.smooth_switch.set_active(hires)

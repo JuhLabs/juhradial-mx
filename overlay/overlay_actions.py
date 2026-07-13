@@ -321,32 +321,41 @@ def load_os_icons():
 # =============================================================================
 
 
+def _requires_settings_relaunch():
+    """Keep the legacy relaunch only outside KDE Plasma.
+
+    KDE Plasma reliably presents an existing Gtk.Application through its
+    single-instance D-Bus activation. Other desktops retain the established
+    kill-and-relaunch behavior until they are verified separately.
+    """
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+    return "kde" not in desktop and "plasma" not in desktop
+
+
 def open_settings():
     """Launch or refocus the settings dashboard.
 
-    On GNOME Wayland, present() from a D-Bus Activate can't raise the window
-    because the calling process (radial overlay) has already hidden itself.
-    So we check if the settings app is running and if so, kill and relaunch
-    to guarantee a focused window.
+    KDE's single-instance activation raises an existing window immediately.
+    Other desktops retain the existing kill-and-relaunch behavior, which works
+    around focus restrictions observed on GNOME Wayland.
     """
     settings_script = os.path.join(os.path.dirname(__file__), "settings_dashboard.py")
 
-    # Check if settings app is already running on D-Bus
-    try:
-        result = subprocess.run(
-            ["busctl", "--user", "status", "org.kde.juhradialmx.settings"],
-            capture_output=True, timeout=0.5,
-        )
-        if result.returncode == 0:
-            # Already running - kill it so the fresh launch gets focus
-            subprocess.run(
-                ["pkill", "-f", "settings_dashboard.py"],
-                capture_output=True, timeout=1,
+    if _requires_settings_relaunch():
+        try:
+            result = subprocess.run(
+                ["busctl", "--user", "status", "org.kde.juhradialmx.settings"],
+                capture_output=True, timeout=0.5,
             )
-            import time
-            time.sleep(0.15)
-    except (subprocess.SubprocessError, OSError):
-        pass  # Settings process may not be running
+            if result.returncode == 0:
+                subprocess.run(
+                    ["pkill", "-f", "settings_dashboard.py"],
+                    capture_output=True, timeout=1,
+                )
+                import time
+                time.sleep(0.15)
+        except (subprocess.SubprocessError, OSError):
+            pass  # Settings process may not be running
 
     subprocess.Popen(
         ["python3", settings_script],
