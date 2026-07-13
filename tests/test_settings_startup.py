@@ -14,15 +14,19 @@ SETTINGS_WIDGETS_PATH = REPO_ROOT / "overlay" / "settings_widgets.py"
 OVERLAY_ACTIONS_PATH = REPO_ROOT / "overlay" / "overlay_actions.py"
 
 
-def _load_device_settings_method() -> ast.FunctionDef:
+def _scroll_page_method(name: str) -> ast.FunctionDef:
     module = ast.parse(SCROLL_PAGE_PATH.read_text(encoding="utf-8"))
     for node in module.body:
         if not isinstance(node, ast.ClassDef) or node.name != "ScrollPage":
             continue
         for statement in node.body:
-            if isinstance(statement, ast.FunctionDef) and statement.name == "_load_device_settings":
+            if isinstance(statement, ast.FunctionDef) and statement.name == name:
                 return statement
-    raise AssertionError("ScrollPage._load_device_settings must exist")
+    raise AssertionError(f"ScrollPage.{name} must exist")
+
+
+def _load_device_settings_method() -> ast.FunctionDef:
+    return _scroll_page_method("_load_device_settings")
 
 
 def _settings_window_method(name: str) -> ast.FunctionDef:
@@ -58,6 +62,44 @@ def test_initial_scroll_device_read_does_not_block_the_gtk_main_thread():
     assert "call_sync" not in calls
     assert "_get_dbus_proxy" not in calls
     assert "bus_get" in calls
+
+
+def test_initial_scroll_device_reads_never_overwrite_local_edits():
+    initial_load = _load_device_settings_method()
+    initial_apply = _scroll_page_method("_apply_initial_scroll_state")
+    saved_mode = _scroll_page_method("_apply_saved_scroll_mode")
+    handlers = [
+        _scroll_page_method("_on_smartshift_support_loaded"),
+        _scroll_page_method("_on_smartshift_loaded"),
+        _scroll_page_method("_on_hiresscroll_loaded"),
+    ]
+    local_edit_handlers = [
+        _scroll_page_method("_on_mode_changed"),
+        _scroll_page_method("_on_sensitivity_changed"),
+        _scroll_page_method("_on_smooth_changed"),
+    ]
+
+    def method_calls(method: ast.FunctionDef, name: str) -> bool:
+        return any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == name
+            for node in ast.walk(method)
+        )
+
+    assert any(
+        isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Attribute)
+            and target.attr == "_initial_scroll_state_generation"
+            for target in node.targets
+        )
+        for node in ast.walk(initial_load)
+    )
+    assert all(method_calls(handler, "_has_local_scroll_state_edits") for handler in handlers)
+    assert all(method_calls(handler, "_mark_scroll_state_user_edit") for handler in local_edit_handlers)
+    assert method_calls(saved_mode, "_has_local_scroll_state_edits")
+    assert method_calls(initial_apply, "set_value")
 
 
 def test_scroll_page_is_created_only_when_the_user_navigates_to_it():
