@@ -250,6 +250,12 @@ class ScrollPage(Gtk.ScrolledWindow):
         super().__init__()
         self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
 
+        # Initial hardware state arrives asynchronously. Keep a generation so
+        # a delayed reply can never overwrite a choice made in this window.
+        self._scroll_state_generation = 0
+        self._initial_scroll_state_generation = 0
+        self._applying_initial_scroll_state = False
+
         self._device_mode = get_device_mode()
         self._is_generic = self._device_mode == "generic"
 
@@ -527,6 +533,9 @@ class ScrollPage(Gtk.ScrolledWindow):
     # ------------------------------------------------------------------
     def _on_mode_changed(self, mode):
         """Handle wheel mode change from segmented control."""
+        if self._applying_initial_scroll_state:
+            return
+        self._mark_scroll_state_user_edit()
         config.set("scroll", "mode", mode)
         # Show/hide sensitivity slider
         self.sensitivity_box.set_visible(mode == "smartshift")
@@ -544,6 +553,9 @@ class ScrollPage(Gtk.ScrolledWindow):
             self._apply_smartshift_to_device(True, device_threshold)
 
     def _on_sensitivity_changed(self, scale):
+        if self._applying_initial_scroll_state:
+            return
+        self._mark_scroll_state_user_edit()
         value = int(scale.get_value())
         config.set("scroll", "smartshift_threshold", value)
         self._update_sens_label(value)
@@ -636,6 +648,9 @@ class ScrollPage(Gtk.ScrolledWindow):
         return False
 
     def _on_smooth_changed(self, switch, state):
+        if self._applying_initial_scroll_state:
+            return False
+        self._mark_scroll_state_user_edit()
         config.set("scroll", "smooth", state)
         if not self._is_generic:
             self._apply_hiresscroll_to_device()
@@ -914,17 +929,41 @@ None,      Down, Button5, {lines}
     # ------------------------------------------------------------------
     # Load device state on startup
     # ------------------------------------------------------------------
+    def _mark_scroll_state_user_edit(self):
+        """Invalidate pending initial D-Bus reads after a local edit."""
+        self._scroll_state_generation += 1
+
+    def _has_local_scroll_state_edits(self):
+        return self._scroll_state_generation != self._initial_scroll_state_generation
+
+    def _apply_initial_scroll_state(self, *, mode=None, threshold=None, smooth=None):
+        """Update controls from the initial device read without firing setters."""
+        self._applying_initial_scroll_state = True
+        try:
+            if mode is not None:
+                self.mode_selector.set_mode(mode)
+                self.sensitivity_box.set_visible(mode == "smartshift")
+            if threshold is not None:
+                self.sens_scale.set_value(threshold)
+                self._update_sens_label(threshold)
+            if smooth is not None:
+                self.smooth_switch.set_active(smooth)
+        finally:
+            self._applying_initial_scroll_state = False
+
     def _apply_saved_scroll_mode(self):
         """Use persisted SmartShift state when the daemon is unavailable."""
+        if self._has_local_scroll_state_edits():
+            return
         mode = config.get("scroll", "mode", default="smartshift")
-        self.mode_selector.set_mode(mode)
-        self.sensitivity_box.set_visible(mode == "smartshift")
+        self._apply_initial_scroll_state(mode=mode)
 
     def _load_device_settings(self):
         """Start non-blocking SmartShift and HiResScroll reads from the daemon.
 
         In generic mode, skip all HID++ device queries - just use config values.
         """
+        self._initial_scroll_state_generation = self._scroll_state_generation
         if self._is_generic:
             # No HID++ device to query; use saved config for basic scroll settings
             return
@@ -998,6 +1037,9 @@ None,      Down, Button5, {lines}
             self._apply_saved_scroll_mode()
             return
 
+        if self._has_local_scroll_state_edits():
+            return
+
         if not supported or not supported.get_child_value(0).get_boolean():
             self.mode_selector.set_sensitive(False)
             self.sensitivity_box.set_visible(False)
@@ -1021,6 +1063,9 @@ None,      Down, Button5, {lines}
             self._apply_saved_scroll_mode()
             return
 
+        if self._has_local_scroll_state_edits():
+            return
+
         if not result:
             self._apply_saved_scroll_mode()
             return
@@ -1041,9 +1086,7 @@ None,      Down, Button5, {lines}
         ui_threshold = 100 - int(device_threshold / 2.55)
         ui_threshold = max(1, min(100, ui_threshold))
 
-        self.mode_selector.set_mode(mode)
-        self.sens_scale.set_value(ui_threshold)
-        self.sensitivity_box.set_visible(mode == "smartshift")
+        self._apply_initial_scroll_state(mode=mode, threshold=ui_threshold)
 
         config.set("scroll", "mode", mode)
         config.set("scroll", "smartshift_threshold", ui_threshold)
@@ -1051,9 +1094,11 @@ None,      Down, Button5, {lines}
     def _on_hiresscroll_loaded(self, proxy, async_result, _user_data):
         try:
             result = proxy.call_finish(async_result)
+            if self._has_local_scroll_state_edits():
+                return
             if result:
                 hires = result.get_child_value(0).get_boolean()
-                self.smooth_switch.set_active(hires)
+                self._apply_initial_scroll_state(smooth=hires)
                 config.set("scroll", "smooth", hires)
         except GLib.Error as e:
             logger.error("D-Bus error loading HiResScroll: %s", e.message)
