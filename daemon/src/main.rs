@@ -6,6 +6,7 @@
 use clap::Parser;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::time::Instant;
 use tokio::sync::mpsc;
 use tokio::time::{Duration, sleep};
 use tracing::{Level, debug, error, info, warn};
@@ -45,6 +46,16 @@ const DEVICE_POLL_INTERVAL_SECS: u64 = 60;
 /// found one, so a shorter cadence does not reintroduce the steady-state evdev
 /// scanning stutter that `DEVICE_POLL_INTERVAL_SECS` avoids.
 const HIDRAW_RECONNECT_POLL_INTERVAL_SECS: u64 = 5;
+
+/// Emit monotonic checkpoints so cold-start latency can be attributed to a
+/// concrete phase instead of inferring it from process activation.
+fn log_startup_phase(started_at: &Instant, phase: &'static str) {
+    info!(
+        phase,
+        elapsed_ms = started_at.elapsed().as_millis() as u64,
+        "Startup phase completed"
+    );
+}
 
 /// Spawn a background thread that watches /dev/input/ for device hotplug events
 /// using inotify. Returns a Notify that fires when event* devices appear or disappear.
@@ -173,6 +184,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     info!("JuhRadial MX Daemon starting...");
+    let startup_started_at = Instant::now();
 
     // Handle --list-devices flag
     if args.list_devices {
@@ -196,6 +208,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             juhradiald::config::new_shared_config()
         }
     };
+    log_startup_phase(&startup_started_at, "config");
 
     // Initialize haptic manager for MX4 haptic feedback
     let haptic_config = shared_config.read().unwrap().haptics.clone();
@@ -251,6 +264,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             info!(name = %name, "HID++ device name");
         }
     }
+    log_startup_phase(&startup_started_at, "hidpp_bootstrap");
 
     // Clone haptic_manager for battery updater before passing to D-Bus
     let haptic_manager_for_battery = haptic_manager.clone();
@@ -303,6 +317,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     };
+    log_startup_phase(&startup_started_at, "device_mode");
 
     // Initialize gaming mode and macro subsystem
     let gaming_mode = new_shared_gaming_mode(haptic_manager.clone());
@@ -332,37 +347,60 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 })
                 .collect();
         }
+        let initial_remapped_cids = shared_config
+            .read()
+            .map(|config| config.remapped_button_cids())
+            .unwrap_or_default();
 
-        macro_cids = if pending_cids.is_empty() {
+        macro_cids = if pending_cids.is_empty() && initial_remapped_cids.is_empty() {
             Vec::new()
         } else {
-            // Each divert sends an HID++ long_request and polls 10ms × up to 1s
-            // for the response. Run on the blocking pool so the runtime keeps
-            // servicing input events while macros are being registered.
+            // Scan REPROG_CONTROLS_V4 once, then send one long request per
+            // matching macro. Re-scanning every control for every macro could
+            // multiply cold-start I/O by the macro count.
             let manager_for_divert = haptic_manager.clone();
             tokio::task::spawn_blocking(move || {
                 let mut mgr = manager_for_divert.lock().unwrap();
+                let requested_cids: Vec<u16> = pending_cids
+                    .iter()
+                    .map(|(_, cid)| *cid)
+                    .chain(initial_remapped_cids.iter().copied())
+                    .collect();
+                let diverted_cids: HashSet<u16> = match mgr.divert_buttons_by_cid(&requested_cids) {
+                    Ok(cids) => cids.into_iter().collect(),
+                    Err(e) => {
+                        warn!(error = %e, "Failed to scan macro buttons for HID++ divert");
+                        HashSet::new()
+                    }
+                };
                 let mut cids = Vec::new();
                 for (evdev_code, cid) in pending_cids {
-                    match mgr.divert_single_button(cid) {
-                        Ok(true) => {
-                            info!(
-                                evdev_code = format!("0x{:04X}", evdev_code),
-                                cid = format!("0x{:04X}", cid),
-                                "Macro button diverted via HID++"
-                            );
-                            cids.push(cid);
-                        }
-                        Ok(false) => warn!(
+                    if diverted_cids.contains(&cid) {
+                        info!(
                             evdev_code = format!("0x{:04X}", evdev_code),
                             cid = format!("0x{:04X}", cid),
-                            "Could not divert macro button (not found or not divertable)"
-                        ),
-                        Err(e) => warn!(
+                            "Macro button diverted via HID++"
+                        );
+                        cids.push(cid);
+                    } else {
+                        warn!(
                             evdev_code = format!("0x{:04X}", evdev_code),
-                            error = %e,
-                            "Failed to divert macro button"
-                        ),
+                            cid = format!("0x{:04X}", cid),
+                            "Could not divert macro button (not found, not divertable, or HID++ update failed)"
+                        );
+                    }
+                }
+                for cid in initial_remapped_cids {
+                    if diverted_cids.contains(&cid) {
+                        info!(
+                            cid = format!("0x{:04X}", cid),
+                            "Reassigned button diverted via HID++"
+                        );
+                    } else {
+                        warn!(
+                            cid = format!("0x{:04X}", cid),
+                            "Could not divert reassigned button (not found, not divertable, or HID++ update failed)"
+                        );
                     }
                 }
                 cids
@@ -371,6 +409,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("macro divert task panicked")
         };
     }
+    log_startup_phase(&startup_started_at, "macro_diverts");
 
     // Clone trigger_map and macro_engine for event processing (macro trigger detection)
     // Must clone before D-Bus init which moves them
@@ -420,6 +459,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err(e.into());
         }
     };
+    log_startup_phase(&startup_started_at, "dbus");
 
     // Detect KWin by D-Bus name ownership (not XDG_CURRENT_DESKTOP, which is
     // empty when systemd starts the daemon at cold boot, issue #32). The watcher
@@ -469,6 +509,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(mut map) => *map = profile_manager.hardware_profiles(),
         Err(e) => error!(error = %e, "Failed to seed shared hardware profiles"),
     }
+    log_startup_phase(&startup_started_at, "profiles");
 
     // Initialize window tracker for per-app HARDWARE profiles (Story 3.2/3.3).
     // The tracker pushes focused-window resource classes; the consumer below
@@ -548,7 +589,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hidraw_handle = tokio::spawn(async move {
         run_hidraw_loop(
             hidraw_tx,
-            mx4_hidraw_path,
+            HidrawStartup {
+                preferred_path: mx4_hidraw_path,
+            },
             macro_cids,
             hidraw_config,
             hidraw_hotplug,
@@ -608,6 +651,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // TODO: Initialize remaining components
     // 4. Initialize HID++ haptic subsystem
 
+    log_startup_phase(&startup_started_at, "ready");
     info!("JuhRadial MX Daemon ready");
 
     // Wait for shutdown signal
@@ -695,6 +739,10 @@ fn list_logitech_devices() {
     }
 }
 
+struct HidrawStartup {
+    preferred_path: Option<PathBuf>,
+}
+
 /// Reconnect HID++ and re-apply volatile button diverts.
 ///
 /// Easy-Switch host changes reset temporary REPROG_CONTROLS_V4 diverts, so the
@@ -706,63 +754,54 @@ async fn refresh_hidpp_button_diverts(
 ) -> Option<PathBuf> {
     match tokio::task::spawn_blocking(move || {
         let mut manager = haptic_manager.lock().unwrap();
-        match manager.connect() {
-            Ok(true) => {
-                match manager.divert_buttons() {
-                    Ok(n) if n > 0 => info!(count = n, "HID++ gesture buttons diverted"),
-                    Ok(_) => warn!("No HID++ gesture buttons found to divert"),
-                    Err(e) => warn!(error = %e, "Failed to divert HID++ gesture buttons"),
-                }
-
-                for &cid in &macro_cids {
-                    match manager.divert_single_button(cid) {
-                        Ok(true) => debug!(
-                            cid = format!("0x{:04X}", cid),
-                            "HID++ macro button diverted"
-                        ),
-                        Ok(false) => debug!(
-                            cid = format!("0x{:04X}", cid),
-                            "HID++ macro button not divertable on this device"
-                        ),
-                        Err(e) => warn!(
-                            cid = format!("0x{:04X}", cid),
-                            error = %e,
-                            "Failed to divert HID++ macro button"
-                        ),
-                    }
-                }
-
-                // Divert buttons the user reassigned away from their native
-                // default so the daemon can apply the configured action.
-                for &cid in &remapped_cids {
-                    match manager.divert_single_button(cid) {
-                        Ok(true) => info!(
-                            cid = format!("0x{:04X}", cid),
-                            "HID++ reassigned button diverted"
-                        ),
-                        Ok(false) => debug!(
-                            cid = format!("0x{:04X}", cid),
-                            "Reassigned button not divertable on this device"
-                        ),
-                        Err(e) => warn!(
-                            cid = format!("0x{:04X}", cid),
-                            error = %e,
-                            "Failed to divert HID++ reassigned button"
-                        ),
-                    }
-                }
-
-                manager.device_path()
-            }
-            Ok(false) => {
-                debug!("No MX Master HID++ device available for button divert");
-                None
-            }
+        let connected = match manager.connect() {
+            Ok(connected) => connected,
             Err(e) => {
                 warn!(error = %e, "HID++ reconnect failed while refreshing button divert");
-                None
+                return None;
+            }
+        };
+        if !connected {
+            debug!("No MX Master HID++ device available for button divert");
+            return None;
+        }
+
+        match manager.divert_buttons() {
+            Ok(n) if n > 0 => info!(count = n, "HID++ gesture buttons diverted"),
+            Ok(_) => warn!("No HID++ gesture buttons found to divert"),
+            Err(e) => warn!(error = %e, "Failed to divert HID++ gesture buttons"),
+        }
+
+        // Macro and reassigned CIDs all use the same REPROG_CONTROLS_V4 table,
+        // so enumerate it once rather than once per configured control.
+        let requested_cids: Vec<u16> = macro_cids
+            .iter()
+            .chain(remapped_cids.iter())
+            .copied()
+            .collect();
+        let diverted_cids: HashSet<u16> = match manager.divert_buttons_by_cid(&requested_cids) {
+            Ok(cids) => cids.into_iter().collect(),
+            Err(e) => {
+                warn!(error = %e, "Failed to scan configured HID++ button diverts");
+                HashSet::new()
+            }
+        };
+        for cid in macro_cids {
+            if diverted_cids.contains(&cid) {
+                debug!(cid = format!("0x{:04X}", cid), "HID++ macro button diverted");
+            } else {
+                debug!(cid = format!("0x{:04X}", cid), "HID++ macro button not divertable on this device");
             }
         }
+        for cid in remapped_cids {
+            if diverted_cids.contains(&cid) {
+                info!(cid = format!("0x{:04X}", cid), "HID++ reassigned button diverted");
+            } else {
+                debug!(cid = format!("0x{:04X}", cid), "Reassigned button not divertable on this device");
+            }
+        }
+
+        manager.device_path()
     })
     .await
     {
@@ -829,13 +868,16 @@ async fn fetch_notification_indices(
 
 async fn run_hidraw_loop(
     event_tx: mpsc::Sender<GestureEvent>,
-    mut preferred_path: Option<PathBuf>,
+    startup: HidrawStartup,
     macro_cids: Vec<u16>,
     shared_config: juhradiald::config::SharedConfig,
     hotplug: Arc<tokio::sync::Notify>,
     haptic_manager: SharedHapticManager,
     kwin_availability: juhradiald::compositor::KWinAvailability,
 ) {
+    let HidrawStartup {
+        mut preferred_path,
+    } = startup;
     let mut handler = HidrawHandler::new(event_tx);
     let macro_cids_for_divert = macro_cids.clone();
     let config_for_thumbwheel = shared_config.clone();
@@ -1411,6 +1453,7 @@ mod tests {
         assert_eq!(DEVICE_POLL_INTERVAL_SECS, 60);
         assert_eq!(HIDRAW_RECONNECT_POLL_INTERVAL_SECS, 5);
     }
+
 
     #[test]
     fn test_args_default_config() {
