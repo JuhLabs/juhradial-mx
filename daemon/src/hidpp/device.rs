@@ -4,6 +4,7 @@
 //! Handles device discovery, HID++ 2.0 protocol, feature enumeration,
 //! button divert, haptics, DPI, SmartShift, battery, and Easy-Switch.
 
+use std::collections::HashSet;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
@@ -1024,6 +1025,65 @@ impl HidppDevice {
         }
 
         Ok(false)
+    }
+
+    /// Enable or disable volatile diverts for multiple controls after one
+    /// REPROG_CONTROLS_V4 control scan.
+    ///
+    /// This is equivalent to calling [`Self::set_button_divert`] for every CID,
+    /// but avoids repeating `getCount` and `getCidInfo` for each macro during
+    /// startup. The returned CIDs are exactly those successfully updated.
+    pub fn set_button_diverts(
+        &mut self,
+        cids: &[u16],
+        divert: bool,
+    ) -> Result<Vec<u16>, HapticError> {
+        let feature_index = match self.reprog_controls_feature_index {
+            Some(idx) => idx,
+            None => return Ok(Vec::new()),
+        };
+        let requested: HashSet<u16> = cids.iter().copied().collect();
+        if requested.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let count = match self.hidpp_request(feature_index, 0x00, &[]) {
+            Some(resp) if resp.len() >= 5 => resp[4],
+            _ => return Ok(Vec::new()),
+        };
+        let divert_flags: u8 = if divert { 0x03 } else { 0x02 };
+        let mut diverted = Vec::new();
+
+        for i in 0..count {
+            let resp = match self.hidpp_request(feature_index, 0x01, &[i, 0, 0]) {
+                Some(r) if r.len() >= 9 => r,
+                _ => continue,
+            };
+            let cid = ((resp[4] as u16) << 8) | (resp[5] as u16);
+            let divertable = (resp[8] & 0x20) != 0;
+            if !requested.contains(&cid) || !divertable {
+                continue;
+            }
+
+            let params: &[u8] = &[
+                (cid >> 8) as u8,
+                (cid & 0xFF) as u8,
+                divert_flags,
+                0x00,
+                0x00,
+            ];
+            if let Some(resp) = self.hidpp_long_request(feature_index, 0x03, params) {
+                tracing::info!(
+                    cid = format!("0x{:04X}", cid),
+                    divert,
+                    response = format!("{:02X?}", &resp[4..resp.len().min(9)]),
+                    "Button divert updated"
+                );
+                diverted.push(cid);
+            }
+        }
+
+        Ok(diverted)
     }
 
     // =========================================================================
