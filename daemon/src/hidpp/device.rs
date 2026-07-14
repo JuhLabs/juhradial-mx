@@ -65,6 +65,71 @@ pub struct HidppDevice {
     device_path: PathBuf,
 }
 
+trait ButtonDivertIo {
+    fn short_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Option<Vec<u8>>;
+    fn long_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Option<Vec<u8>>;
+}
+
+impl ButtonDivertIo for HidppDevice {
+    fn short_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Option<Vec<u8>> {
+        self.hidpp_request(feature_index, function, params)
+    }
+
+    fn long_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Option<Vec<u8>> {
+        self.hidpp_long_request(feature_index, function, params)
+    }
+}
+
+fn set_button_diverts_with_io(
+    io: &mut impl ButtonDivertIo,
+    feature_index: u8,
+    cids: &[u16],
+    divert: bool,
+) -> Vec<u16> {
+    let requested: HashSet<u16> = cids.iter().copied().collect();
+    if requested.is_empty() {
+        return Vec::new();
+    }
+
+    let count = match io.short_request(feature_index, 0x00, &[]) {
+        Some(resp) if resp.len() >= 5 => resp[4],
+        _ => return Vec::new(),
+    };
+    let divert_flags: u8 = if divert { 0x03 } else { 0x02 };
+    let mut diverted = Vec::new();
+
+    for index in 0..count {
+        let resp = match io.short_request(feature_index, 0x01, &[index, 0, 0]) {
+            Some(response) if response.len() >= 9 => response,
+            _ => continue,
+        };
+        let cid = ((resp[4] as u16) << 8) | (resp[5] as u16);
+        let divertable = (resp[8] & 0x20) != 0;
+        if !requested.contains(&cid) || !divertable {
+            continue;
+        }
+
+        let params = [
+            (cid >> 8) as u8,
+            (cid & 0xFF) as u8,
+            divert_flags,
+            0x00,
+            0x00,
+        ];
+        if let Some(resp) = io.long_request(feature_index, 0x03, &params) {
+            tracing::info!(
+                cid = format!("0x{:04X}", cid),
+                divert,
+                response = format!("{:02X?}", &resp[4..resp.len().min(9)]),
+                "Button divert updated"
+            );
+            diverted.push(cid);
+        }
+    }
+
+    diverted
+}
+
 impl HidppDevice {
     /// Find a Logitech hidraw device suitable for HID++ communication
     ///
@@ -1042,48 +1107,12 @@ impl HidppDevice {
             Some(idx) => idx,
             None => return Ok(Vec::new()),
         };
-        let requested: HashSet<u16> = cids.iter().copied().collect();
-        if requested.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let count = match self.hidpp_request(feature_index, 0x00, &[]) {
-            Some(resp) if resp.len() >= 5 => resp[4],
-            _ => return Ok(Vec::new()),
-        };
-        let divert_flags: u8 = if divert { 0x03 } else { 0x02 };
-        let mut diverted = Vec::new();
-
-        for i in 0..count {
-            let resp = match self.hidpp_request(feature_index, 0x01, &[i, 0, 0]) {
-                Some(r) if r.len() >= 9 => r,
-                _ => continue,
-            };
-            let cid = ((resp[4] as u16) << 8) | (resp[5] as u16);
-            let divertable = (resp[8] & 0x20) != 0;
-            if !requested.contains(&cid) || !divertable {
-                continue;
-            }
-
-            let params: &[u8] = &[
-                (cid >> 8) as u8,
-                (cid & 0xFF) as u8,
-                divert_flags,
-                0x00,
-                0x00,
-            ];
-            if let Some(resp) = self.hidpp_long_request(feature_index, 0x03, params) {
-                tracing::info!(
-                    cid = format!("0x{:04X}", cid),
-                    divert,
-                    response = format!("{:02X?}", &resp[4..resp.len().min(9)]),
-                    "Button divert updated"
-                );
-                diverted.push(cid);
-            }
-        }
-
-        Ok(diverted)
+        Ok(set_button_diverts_with_io(
+            self,
+            feature_index,
+            cids,
+            divert,
+        ))
     }
 
     // =========================================================================
@@ -1921,5 +1950,140 @@ impl HidppDevice {
                 Ok(())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod button_divert_tests {
+    use std::collections::VecDeque;
+
+    use super::*;
+
+    #[derive(Debug, PartialEq)]
+    struct Request {
+        feature_index: u8,
+        function: u8,
+        params: Vec<u8>,
+    }
+
+    #[derive(Default)]
+    struct MockButtonDivertIo {
+        short_responses: VecDeque<Option<Vec<u8>>>,
+        long_responses: VecDeque<Option<Vec<u8>>>,
+        short_requests: Vec<Request>,
+        long_requests: Vec<Request>,
+    }
+
+    impl ButtonDivertIo for MockButtonDivertIo {
+        fn short_request(
+            &mut self,
+            feature_index: u8,
+            function: u8,
+            params: &[u8],
+        ) -> Option<Vec<u8>> {
+            self.short_requests.push(Request {
+                feature_index,
+                function,
+                params: params.to_vec(),
+            });
+            self.short_responses.pop_front().flatten()
+        }
+
+        fn long_request(
+            &mut self,
+            feature_index: u8,
+            function: u8,
+            params: &[u8],
+        ) -> Option<Vec<u8>> {
+            self.long_requests.push(Request {
+                feature_index,
+                function,
+                params: params.to_vec(),
+            });
+            self.long_responses.pop_front().flatten()
+        }
+    }
+
+    fn count_response(count: u8) -> Vec<u8> {
+        let mut response = vec![0; 5];
+        response[4] = count;
+        response
+    }
+
+    fn control_response(cid: u16, flags: u8) -> Vec<u8> {
+        let mut response = vec![0; 9];
+        response[4] = (cid >> 8) as u8;
+        response[5] = (cid & 0xFF) as u8;
+        response[8] = flags;
+        response
+    }
+
+    #[test]
+    fn batch_divert_scans_controls_once_and_returns_only_successful_cids() {
+        let mut io = MockButtonDivertIo {
+            short_responses: VecDeque::from([
+                Some(count_response(4)),
+                Some(control_response(0x0050, 0x20)),
+                Some(control_response(0x0051, 0x20)),
+                Some(control_response(0x0052, 0x00)),
+                None,
+            ]),
+            long_responses: VecDeque::from([Some(vec![0; 9]), None]),
+            ..Default::default()
+        };
+
+        let diverted =
+            set_button_diverts_with_io(&mut io, 0x0A, &[0x0050, 0x0051, 0x0052, 0x0050], true);
+
+        assert_eq!(diverted, vec![0x0050]);
+        assert_eq!(io.short_requests.len(), 5);
+        assert_eq!(io.short_requests[0].function, 0x00);
+        assert_eq!(
+            io.short_requests[1..]
+                .iter()
+                .map(|request| request.params.clone())
+                .collect::<Vec<_>>(),
+            vec![vec![0, 0, 0], vec![1, 0, 0], vec![2, 0, 0], vec![3, 0, 0]]
+        );
+        assert_eq!(
+            io.long_requests,
+            vec![
+                Request {
+                    feature_index: 0x0A,
+                    function: 0x03,
+                    params: vec![0x00, 0x50, 0x03, 0x00, 0x00],
+                },
+                Request {
+                    feature_index: 0x0A,
+                    function: 0x03,
+                    params: vec![0x00, 0x51, 0x03, 0x00, 0x00],
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn batch_divert_stops_when_control_count_is_unavailable() {
+        let mut io = MockButtonDivertIo {
+            short_responses: VecDeque::from([None]),
+            ..Default::default()
+        };
+
+        let diverted = set_button_diverts_with_io(&mut io, 0x0A, &[0x0050], true);
+
+        assert!(diverted.is_empty());
+        assert_eq!(io.short_requests.len(), 1);
+        assert!(io.long_requests.is_empty());
+    }
+
+    #[test]
+    fn batch_divert_skips_io_for_an_empty_request() {
+        let mut io = MockButtonDivertIo::default();
+
+        let diverted = set_button_diverts_with_io(&mut io, 0x0A, &[], true);
+
+        assert!(diverted.is_empty());
+        assert!(io.short_requests.is_empty());
+        assert!(io.long_requests.is_empty());
     }
 }
