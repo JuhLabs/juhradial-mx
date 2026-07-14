@@ -788,16 +788,28 @@ async fn refresh_hidpp_button_diverts(
         };
         for cid in macro_cids {
             if diverted_cids.contains(&cid) {
-                debug!(cid = format!("0x{:04X}", cid), "HID++ macro button diverted");
+                debug!(
+                    cid = format!("0x{:04X}", cid),
+                    "HID++ macro button diverted"
+                );
             } else {
-                debug!(cid = format!("0x{:04X}", cid), "HID++ macro button not divertable on this device");
+                debug!(
+                    cid = format!("0x{:04X}", cid),
+                    "HID++ macro button not divertable on this device"
+                );
             }
         }
         for cid in remapped_cids {
             if diverted_cids.contains(&cid) {
-                info!(cid = format!("0x{:04X}", cid), "HID++ reassigned button diverted");
+                info!(
+                    cid = format!("0x{:04X}", cid),
+                    "HID++ reassigned button diverted"
+                );
             } else {
-                debug!(cid = format!("0x{:04X}", cid), "Reassigned button not divertable on this device");
+                debug!(
+                    cid = format!("0x{:04X}", cid),
+                    "Reassigned button not divertable on this device"
+                );
             }
         }
 
@@ -875,9 +887,7 @@ async fn run_hidraw_loop(
     haptic_manager: SharedHapticManager,
     kwin_availability: juhradiald::compositor::KWinAvailability,
 ) {
-    let HidrawStartup {
-        mut preferred_path,
-    } = startup;
+    let HidrawStartup { mut preferred_path } = startup;
     let mut handler = HidrawHandler::new(event_tx);
     let macro_cids_for_divert = macro_cids.clone();
     let config_for_thumbwheel = shared_config.clone();
@@ -905,11 +915,8 @@ async fn run_hidraw_loop(
 
         // Re-apply thumb-wheel divert (volatile) and refresh the feature index
         // the reader uses to route rotation notifications.
-        let tw_index = apply_thumbwheel_reporting(
-            haptic_manager.clone(),
-            config_for_thumbwheel.clone(),
-        )
-        .await;
+        let tw_index =
+            apply_thumbwheel_reporting(haptic_manager.clone(), config_for_thumbwheel.clone()).await;
         handler.set_thumbwheel_feature_index(tw_index);
 
         // Refresh notification feature indices for live hardware readback. Like
@@ -1453,7 +1460,6 @@ mod tests {
         assert_eq!(DEVICE_POLL_INTERVAL_SECS, 60);
         assert_eq!(HIDRAW_RECONNECT_POLL_INTERVAL_SECS, 5);
     }
-
 
     #[test]
     fn test_args_default_config() {
