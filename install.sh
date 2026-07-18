@@ -36,6 +36,7 @@ DISTRO_FAMILY=""
 TOTAL_STEPS=6
 CURRENT_STEP=0
 INSTALL_MODE="install"  # "install" or "upgrade"
+GROUP_ACTIVATION_PENDING=0  # set when 'input' was added but isn't active this session
 
 # ── Output helpers ───────────────────────────────────────────────────
 print_banner() {
@@ -587,16 +588,37 @@ install_files() {
 
         sudo udevadm control --reload-rules
         sudo udevadm trigger
+        # Re-apply MODE/GROUP to ALREADY-PRESENT nodes. A plain `udevadm trigger`
+        # emits "change" events, which do not reliably re-run node permission
+        # assignment for existing hidraw/input devices (systemd#31970). An
+        # explicit "add" action scoped to these subsystems forces the new
+        # root:input 0660 grant onto a mouse that was already connected before
+        # the rules were (re)installed — the Bluetooth /dev/hidraw* case in #52.
+        sudo udevadm trigger --action=add --subsystem-match=hidraw --subsystem-match=input
         log_success "udev rules"
 
-        # Ensure 'input' group exists and user is a member (required for hidraw/evdev access)
+        # Ensure 'input' group exists and the user is a member (database side).
+        # The udev rules grant access via GROUP="input" MODE="0660"; the daemon's
+        # user must belong to that group to open the hidraw node.
         if ! getent group input &> /dev/null; then
             sudo groupadd input
             log_info "Created 'input' group"
         fi
         if ! id -nG "$USER" | grep -qw input; then
             sudo usermod -aG input "$USER"
-            log_warning "Added $USER to 'input' group - log out and back in for device access"
+            log_info "Added $USER to the 'input' group"
+        fi
+        # Group-activation race (#52): the systemd --user manager that starts the
+        # daemon inherits its supplementary groups from PAM at login and CANNOT
+        # gain a freshly added group at runtime (SupplementaryGroups= in a user
+        # unit needs CAP_SETGID, which the unprivileged user manager lacks). So if
+        # THIS login session's own credentials don't include 'input' yet, the
+        # daemon will hit EACCES on /dev/hidraw* until a reboot or full re-login.
+        # `id -nG` (no user arg) reports the live process credentials, unlike
+        # `id -nG "$USER"` which is a database lookup that already shows the group.
+        if ! id -nG | grep -qw input; then
+            GROUP_ACTIVATION_PENDING=1
+            log_warning "'input' group is not active in this session yet (see notice below)"
         fi
     fi
 
@@ -782,6 +804,23 @@ print_success() {
     echo -e "  ${CYAN}Enjoying JuhRadial MX?${RESET} Leave a ${YELLOW}★${RESET} on GitHub!"
     echo -e "  ${DIM}Found a bug? Open an issue - we'd love to hear from you.${RESET}"
     echo ""
+
+    # Group-activation race (#52): the daemon cannot touch the mouse until the
+    # 'input' group is live in the session that runs the systemd --user manager.
+    # This is NOT fixed by `systemctl --user daemon-reload` or by restarting the
+    # service — only a reboot or full log out/in re-runs PAM and re-reads groups.
+    if [ "$GROUP_ACTIVATION_PENDING" = "1" ]; then
+        echo -e "  ${YELLOW}${BOLD}════════════════════════════════════════════════${RESET}"
+        echo -e "  ${YELLOW}${BOLD}  ACTION REQUIRED: REBOOT (or log out and back in)${RESET}"
+        echo -e "  ${YELLOW}${BOLD}════════════════════════════════════════════════${RESET}"
+        echo -e "  ${WHITE}You were just added to the ${BOLD}input${RESET}${WHITE} group, but this login${RESET}"
+        echo -e "  ${WHITE}session is still running without it. The daemon will report${RESET}"
+        echo -e "  ${WHITE}${BOLD}Permission denied${RESET}${WHITE} on /dev/hidraw* (no battery, DPI,${RESET}"
+        echo -e "  ${WHITE}haptics or button actions) until you ${BOLD}reboot${RESET}${WHITE} or fully${RESET}"
+        echo -e "  ${WHITE}log out and back in. A restart of the service is not enough.${RESET}"
+        echo -e "  ${DIM}Verify after reboot: ls -l /dev/hidraw0  → root input, mode 0660${RESET}"
+        echo ""
+    fi
 
     # First-time GNOME installers need a session restart for the extension
     if [ "$INSTALL_MODE" = "install" ] && [ "$DESKTOP_TYPE" = "gnome" ]; then

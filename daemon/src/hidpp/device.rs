@@ -277,7 +277,11 @@ impl HidppDevice {
                     if e.kind() == std::io::ErrorKind::PermissionDenied {
                         tracing::warn!(
                             path = %device_path.display(),
-                            "Permission denied opening hidraw device. Check udev rules."
+                            "Permission denied opening hidraw device. Node should be root:input \
+                             mode 0660; this daemon's user must be in the 'input' group. Run \
+                             'sudo usermod -aG input $USER' then REBOOT (or log out and back in) \
+                             so the systemd --user manager inherits the group — a session that \
+                             predates the group change cannot access the device (issue #52)."
                         );
                     } else {
                         tracing::debug!(
