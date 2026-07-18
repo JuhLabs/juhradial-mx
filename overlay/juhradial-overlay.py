@@ -209,7 +209,10 @@ class SplashScreen(QWidget):
         self._timer.setInterval(16)  # ~60fps
         self._timer.start()
 
-    MIN_DISPLAY_MS = 2000  # show splash for at least 2 seconds
+    # Keep the branded transition perceptible without masking a ready daemon.
+    # Full overlay initialization is normally sub-second; a 2s floor made every
+    # fast launch look slow even when D-Bus was already available.
+    MIN_DISPLAY_MS = 250
 
     def _tick(self):
         import time
@@ -230,7 +233,7 @@ class SplashScreen(QWidget):
                 self.deleteLater()
                 return
         elif self._ready:
-            # App loading done - wait for minimum display time + daemon ready
+            # App loading done - wait for the short transition + daemon readiness.
             elapsed_ms = (time.time() - self._show_time) * 1000
             daemon_ok = (
                 self._daemon_iface is None
