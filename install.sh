@@ -659,7 +659,11 @@ enable_service() {
     fi
 
     systemctl --user daemon-reload || log_warning "Failed to reload user systemd"
-    systemctl --user enable juhradialmx-daemon || log_warning "Failed to enable service"
+    # reenable (not enable): upgrades from <=0.4.0 left a stale symlink in
+    # default.target.wants which caused the issue #67 login loop; reenable
+    # drops all old [Install] symlinks and recreates them for the current
+    # WantedBy=graphical-session.target default.target.
+    systemctl --user reenable juhradialmx-daemon || log_warning "Failed to enable service"
 
     # ydotoold autostart (kernel-uinput injection for Wayland shortcut actions)
     setup_ydotoold

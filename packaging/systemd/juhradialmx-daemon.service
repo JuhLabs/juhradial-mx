@@ -8,7 +8,8 @@
 # Installation:
 #   sudo install -Dm644 juhradialmx-daemon.service /usr/lib/systemd/user/juhradialmx-daemon.service
 #   systemctl --user daemon-reload
-#   systemctl --user enable --now juhradialmx-daemon.service
+#   systemctl --user reenable juhradialmx-daemon.service && systemctl --user start juhradialmx-daemon.service
+#   (reenable, not enable: it drops stale [Install] symlinks from older versions)
 #
 # Management:
 #   systemctl --user status juhradialmx-daemon   # Check status
@@ -18,12 +19,24 @@
 [Unit]
 Description=JuhRadial MX Daemon - Radial menu for Logitech MX Master 4
 Documentation=https://github.com/juhhally/juhradial-mx
+# Ordering + lifecycle only. This unit must NEVER pull graphical-session.target
+# in via Wants=/Requires=: that activated the target before the desktop's
+# session manager registered, which GNOME treats as "a graphical session is
+# already running" and GDM then kills the session - a hard login loop
+# (issue #67). graphical-session.target is started by the session manager
+# alone; we only order after it and stop with it. Being WantedBy targets
+# (see [Install]) is safe: symlinks start US when a target activates, they
+# never activate the target.
 After=graphical-session.target
-Wants=graphical-session.target
 PartOf=graphical-session.target
 
 # D-Bus session is required for communication with KWin
 Requires=dbus.socket
+
+# Limit restart attempts to prevent infinite restart loops.
+# These are [Unit] keys; in [Service] systemd ignores them with a warning.
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -32,10 +45,6 @@ ExecStart=/usr/local/bin/juhradiald
 # on-abnormal = non-clean signals, watchdog, timeout — NOT SIGTERM/clean exit.
 Restart=on-abnormal
 RestartSec=5s
-
-# Limit restart attempts to prevent infinite restart loops
-StartLimitIntervalSec=60
-StartLimitBurst=5
 
 # Disable watchdog to prevent systemd drop-ins (e.g. 10-timeout-abort.conf
 # on Fedora) from killing the daemon when it doesn't send sd_notify heartbeats.
@@ -57,4 +66,13 @@ MemoryMax=100M
 CPUQuota=50%
 
 [Install]
-WantedBy=default.target
+# Both targets: graphical-session.target for systemd-managed desktops (GNOME,
+# Plasma systemd boot, COSMIC, uwsm) gives correct ordering + lifecycle;
+# default.target keeps autostart working on sessions that never activate
+# graphical-session.target (bare exec-launched Hyprland/sway/niri/river, i3,
+# XFCE, Cinnamon, Plasma with systemd boot disabled), where the old unit
+# autostarted and graphical-session.target alone would silently never fire.
+# Starting at default.target cannot recreate the #67 loop: without a Wants=
+# line the unit does not activate graphical-session.target, it only starts
+# earlier in the ordering-free case.
+WantedBy=graphical-session.target default.target

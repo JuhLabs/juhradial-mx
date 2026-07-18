@@ -143,6 +143,104 @@ def get_all_monitors_logical():
     return rects
 
 
+# ---------------------------------------------------------------------------
+# KDE Wayland logical monitor layout (issue: second-monitor menu drift).
+#
+# The daemon's KWin script reports the cursor in KWin-LOGICAL coordinates,
+# but QWidget.move() runs in Qt/XWayland space. With mixed per-monitor
+# scaling these spaces differ per monitor (same size, shifted origin, or
+# scaled - depends on the "legacy applications" XWayland mode), so the
+# menu drifts on every monitor whose logical rect != Qt rect. The fix is
+# the same fraction-invariant mapping as Hyprland issue #45; KScreen is
+# the logical-layout source. At 100% everywhere the rects match and the
+# mapping reduces to identity, so single-scale setups are untouched.
+# ---------------------------------------------------------------------------
+
+_kde_monitors_cache = None
+_kde_monitors_ts = 0.0
+_KDE_MONITORS_TTL = 10.0  # layout changes are rare; 27ms spawn once per TTL
+
+
+def _parse_kscreen_json(text):
+    """Parse `kscreen-doctor -o --json` output into logical monitor rects.
+
+    The output is one JSON document possibly followed by trailing non-JSON
+    text, so decode only the first document. Logical rect = pos + current
+    mode size / scale, with width/height swapped for 90/270 rotation
+    (KScreen enum: 1=normal, 2=left/90, 4=inverted/180, 8=right/270), so
+    portrait monitors map correctly.
+    """
+    import json
+    doc, _idx = json.JSONDecoder().raw_decode(text)
+    rects = []
+    for out in doc.get("outputs", []):
+        if not out.get("enabled"):
+            continue
+        pos = out.get("pos") or {}
+        scale = float(out.get("scale") or 1.0) or 1.0
+        mode = next((m for m in out.get("modes", [])
+                     if m.get("id") == out.get("currentModeId")), None)
+        size = (mode or {}).get("size") or {}
+        w, h = size.get("width"), size.get("height")
+        if not w or not h:
+            continue
+        if out.get("rotation", 1) in (2, 8):
+            w, h = h, w
+        rects.append({
+            "x": pos.get("x", 0),
+            "y": pos.get("y", 0),
+            "width": int(round(w / scale)),
+            "height": int(round(h / scale)),
+            "name": out.get("name", "?"),
+        })
+    return rects
+
+
+def get_kde_monitors_logical():
+    """KDE logical monitor rects via kscreen-doctor, cached with a short TTL.
+
+    Returns [] when kscreen-doctor is unavailable or fails (non-KDE distro,
+    old Plasma) - callers then keep the previous identity behaviour.
+
+    The refresh timestamp advances on FAILURE too, so a broken kscreen-doctor
+    costs at most one subprocess timeout per TTL, never one per menu open.
+    The child must NOT inherit the overlay's QT_QPA_PLATFORM=xcb: kscreen-doctor
+    is a Qt Wayland-session tool and hangs for many seconds under the xcb
+    platform (verified on Plasma 6), which both stalled the open path and
+    left the layout empty.
+    """
+    global _kde_monitors_cache, _kde_monitors_ts
+    import time
+    now = time.monotonic()
+    if _kde_monitors_ts and now - _kde_monitors_ts < _KDE_MONITORS_TTL:
+        return _kde_monitors_cache or []
+    _kde_monitors_ts = now
+    child_env = dict(os.environ)
+    child_env.pop("QT_QPA_PLATFORM", None)
+    try:
+        result = subprocess.run(
+            ["kscreen-doctor", "-o", "--json"],
+            capture_output=True, text=True, timeout=0.5, env=child_env,
+        )
+        rects = _parse_kscreen_json(result.stdout) if result.returncode == 0 else []
+    except (OSError, ValueError, subprocess.TimeoutExpired) as e:
+        from overlay_constants import _log
+        _log(f"[KDE] kscreen-doctor failed: {e}")
+        rects = []
+    if rects:
+        _kde_monitors_cache = rects
+    return _kde_monitors_cache or []
+
+
+def find_monitor_at(x, y, monitors):
+    """Return the monitor rect containing (x, y), else None."""
+    for mon in monitors or []:
+        if (mon["x"] <= x < mon["x"] + mon["width"]
+                and mon["y"] <= y < mon["y"] + mon["height"]):
+            return mon
+    return None
+
+
 def get_cursor_position_hyprland():
     """Get cursor position using Hyprland IPC socket (faster than subprocess).
 
