@@ -24,7 +24,47 @@ except (OSError, AttributeError):
 
 # Force XWayland platform - required for window positioning on Wayland
 # (Native Wayland doesn't allow apps to position their own windows)
-os.environ["QT_QPA_PLATFORM"] = "xcb"
+
+
+def _wait_for_x11(timeout=12.0):
+    """Block until the X server behind $DISPLAY accepts connections.
+
+    On a cold boot the autostart entry can outrun XWayland: DISPLAY is
+    already exported by the session, but the socket is not accepting yet,
+    so Qt's xcb platform aborts inside QApplication (issue #60: KDE crash
+    notification, overlay dead until manually restarted). Waiting here
+    costs nothing once the session is up (first connect succeeds).
+    """
+    import socket
+    import time
+
+    display = os.environ.get("DISPLAY", "")
+    if not display.startswith(":"):
+        return False  # No local X display to wait for.
+    try:
+        num = int(display[1:].split(".")[0])
+    except ValueError:
+        return False
+    path = f"/tmp/.X11-unix/X{num}"
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(1.0)
+        try:
+            s.connect(path)
+            return True
+        except OSError:
+            time.sleep(0.25)
+        finally:
+            s.close()
+    return False
+
+
+_wait_for_x11()
+# "xcb;wayland": Qt treats this as an ordered fallback list. If XWayland
+# still is not up (or is missing entirely), the overlay comes up on the
+# native wayland platform - positioning degrades but nothing crashes.
+os.environ["QT_QPA_PLATFORM"] = "xcb;wayland"
 
 import math
 import shlex
@@ -77,6 +117,8 @@ from overlay_cursor import (
     get_cursor_position_xwayland,
     get_cursor_position_xwayland_synced,
     get_cursor_pos,
+    get_kde_monitors_logical,
+    find_monitor_at,
 )
 import overlay_actions
 from overlay_painting import RadialMenuPaintingMixin
@@ -359,7 +401,11 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # Window flags depend on compositor:
         # - GNOME: Popup gets auto-dismissed when focus shifts. Use Tool instead.
         # - KDE/Hyprland/others: Popup works fine and receives mouse input.
-        if IS_GNOME:
+        # - Native wayland platform (xcb fallback engaged): a parentless
+        #   grabbing Popup is refused by qtwayland >= 6.9.1 ("Failed to create
+        #   grabbing popup...") and the menu never maps, so use the Tool set.
+        on_native_wayland = QApplication.instance().platformName() == "wayland"
+        if IS_GNOME or on_native_wayland:
             self.setWindowFlags(
                 Qt.WindowType.FramelessWindowHint
                 | Qt.WindowType.WindowStaysOnTopHint
@@ -455,6 +501,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             f"HideMenu={ok_hide} CursorMoved={ok_cursor}",
             flush=True,
         )
+        # Prime the KScreen layout cache off the latency-critical open path.
+        if IS_KDE and not IS_X11 and _HAS_XWAYLAND:
+            _log(f"KScreen layout primed: {get_kde_monitors_logical()}")
 
         # Listen for language changes from settings process
         bus.connect(
@@ -622,8 +671,16 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 _log(f"XWayland cursor position: ({x}, {y})")
 
         # Detect which monitor the cursor is on and clamp menu to it.
-        # Works on all compositors: Hyprland uses IPC monitor info,
-        # all others use Qt screen geometry (accurate in XCB mode).
+        # Hyprland uses IPC monitor info (compositor-logical rect); KDE
+        # Wayland uses the KScreen logical layout (the daemon's KWin cursor
+        # is KWin-logical, which differs from Qt space per monitor under
+        # mixed scaling - same disease as Hyprland issue #45); all others
+        # use Qt screen geometry (accurate in XCB mode). On KScreen failure
+        # fall through to the Qt scan so the menu keeps the old behaviour.
+        kde_wayland = IS_KDE and not IS_X11 and _HAS_XWAYLAND
+        kde_mons = get_kde_monitors_logical() if kde_wayland else []
+        kde_mon = find_monitor_at(x, y, kde_mons) if kde_mons else None
+
         if IS_HYPRLAND:
             mon = get_monitor_at_cursor(x, y)
         else:
@@ -650,6 +707,23 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                     "width": geo.width(), "height": geo.height(),
                     "name": app.primaryScreen().name(),
                 }
+
+        # On KDE Wayland the scan above ran with LOGICAL coords against Qt
+        # rects, which can pick the wrong screen near a boundary. Override
+        # with the Qt screen matching the logical monitor's connector so
+        # ring scaling follows the screen the menu actually opens on.
+        if kde_mon is not None:
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            for screen in (app.screens() if app else []):
+                if screen.name() == kde_mon.get("name"):
+                    g = screen.geometry()
+                    mon = {
+                        "x": g.x(), "y": g.y(),
+                        "width": g.width(), "height": g.height(),
+                        "name": screen.name(),
+                    }
+                    break
 
         if mon:
             print(
@@ -693,7 +767,38 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 f"origin {placement['qt_origin']} logical_center {placement['logical_center']}; "
                 f"qt_screens={[(s['name'], s['width'], s['height']) for s in qt_screens]}"
             )
+        elif kde_wayland and kde_mon and kde_mons:
+            # KDE Wayland: map the KWin-logical cursor onto the Qt screen by
+            # fractional position (per connector name, bbox-affine fallback),
+            # then clamp in Qt space - the identical machinery as Hyprland
+            # issue #45, fed by KScreen. Reduces to identity when logical and
+            # Qt rects match (100% scaling), so those setups are unaffected.
+            # menu_center is the QT centre here: the hover poll compares it
+            # against get_cursor_pos(), which reads QCursor.pos() (Qt space)
+            # on KDE.
+            from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            qt_screens = []
+            if app:
+                for screen in app.screens():
+                    g = screen.geometry()
+                    qt_screens.append({
+                        "x": g.x(), "y": g.y(),
+                        "width": g.width(), "height": g.height(),
+                        "name": screen.name(),
+                    })
+            placement = map_and_clamp_menu(
+                x, y, kde_mon, kde_mons, qt_screens, self.win_px
+            )
+            self.menu_center_x, self.menu_center_y = placement["qt_center"]
+            move_x, move_y = placement["qt_origin"]
+            _log(
+                f"KDE placement: logical ({x},{y}) -> Qt {placement['qt_center']} "
+                f"origin {placement['qt_origin']}; kde_mon={kde_mon}"
+            )
         else:
+            if kde_wayland:
+                _log("KDE placement: KScreen layout unavailable - identity fallback")
             if mon:
                 x = max(mon["x"] + half, min(x, mon["x"] + mon["width"] - half))
                 y = max(mon["y"] + half, min(y, mon["y"] + mon["height"] - half))
