@@ -191,6 +191,18 @@ impl HapticManager {
         }
     }
 
+    /// Divert multiple controls with one REPROG_CONTROLS_V4 control scan.
+    ///
+    /// Returns the CIDs which were found, divertable, and successfully updated.
+    /// The result is connection-scoped: callers must repeat it after reconnect
+    /// because button diverts are volatile.
+    pub fn divert_buttons_by_cid(&mut self, cids: &[u16]) -> Result<Vec<u16>, HapticError> {
+        match &mut self.device {
+            Some(device) => device.set_button_diverts(cids, true),
+            None => Ok(Vec::new()),
+        }
+    }
+
     /// Enable or disable the volatile divert for a single button by CID.
     pub fn set_button_divert(&mut self, cid: u16, divert: bool) -> Result<bool, HapticError> {
         match &mut self.device {

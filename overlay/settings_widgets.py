@@ -17,25 +17,12 @@ from pathlib import Path
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
+gi.require_version('GdkPixbuf', '2.0')
 
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk, GdkPixbuf
 
 from i18n import _
 from settings_constants import MOUSE_BUTTONS
-
-
-def _texture_to_pixbuf(texture):
-    """Convert Gdk.Texture to GdkPixbuf for cairo rendering."""
-    try:
-        from gi.repository import GdkPixbuf
-        data = texture.save_to_png_bytes()
-        loader = GdkPixbuf.PixbufLoader.new_with_type('png')
-        loader.write(data.get_data())
-        loader.close()
-        return loader.get_pixbuf()
-    except Exception:
-        logging.debug("_texture_to_pixbuf failed", exc_info=True)
-        return None
 
 
 def _rounded_rect(cr, x, y, w, h, r):
@@ -142,13 +129,13 @@ class MouseVisualization(Gtk.DrawingArea):
             '/usr/share/juhradial/assets/devices/logitechmouse.png',
         ]
 
-        self._cached_pixbuf = None  # Cache pixbuf conversion (expensive)
+        self._cached_pixbuf = None
 
         for path in image_paths:
             if os.path.exists(path):
                 try:
-                    self.mouse_image = Gdk.Texture.new_from_filename(path)
-                    self._cached_pixbuf = _texture_to_pixbuf(self.mouse_image)
+                    self._cached_pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+                    self.mouse_image = self._cached_pixbuf
                     break
                 except Exception as e:
                     logging.warning("Failed to load mouse image: %s", e)
@@ -445,8 +432,8 @@ class GenericMouseVisualization(Gtk.DrawingArea):
         for path in image_paths:
             if os.path.exists(path):
                 try:
-                    self.mouse_image = Gdk.Texture.new_from_filename(path)
-                    self._cached_pixbuf = _texture_to_pixbuf(self.mouse_image)
+                    self._cached_pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+                    self.mouse_image = self._cached_pixbuf
                 except Exception as e:
                     logging.warning("Failed to load generic mouse image: %s", e)
                 break
