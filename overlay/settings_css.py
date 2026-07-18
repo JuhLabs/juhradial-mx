@@ -58,18 +58,30 @@ def generate_css(COLORS):
     line_strong  = f'rgba({_ln}, 0.135)'
     line_bright  = f'rgba({_ln}, 0.22)'
 
-    # Ink ramp
-    text_0       = c.get('text', '#F3F8FB')
-    text_1       = c.get('text', '#DCE5EE')
-    text_2       = c.get('subtext1', '#A4B1C0')
-    text_3       = c.get('subtext0', '#6C7A8A')
-    text_4       = c.get('overlay1', c.get('overlay0', '#47535F'))
+    # Ink ramp — floored to WCAG minimums against both the page background
+    # and raised cards, so palettes that ship low-contrast ink (Solarized
+    # Light body text 4.1:1, GitHub Light overlay tier 2.0:1) stay readable
+    # on every theme. Passing palettes come through untouched.
+    from theme_contrast import ensure_contrast
+
+    def _legible(fg, minimum):
+        fg = ensure_contrast(fg, surface_800, minimum)
+        return ensure_contrast(fg, surface_600, minimum)
+
+    text_0       = _legible(c.get('text', '#F3F8FB'), 4.5)
+    text_1       = _legible(c.get('text', '#DCE5EE'), 4.5)
+    text_2       = _legible(c.get('subtext1', '#A4B1C0'), 4.5)
+    text_3       = _legible(c.get('subtext0', '#6C7A8A'), 3.0)
+    text_4       = _legible(c.get('overlay1', c.get('overlay0', '#47535F')), 3.0)
 
     # Accent — the one charged trace, from the theme
     accent        = c.get('accent', '#4FEFC9')
     accent_2      = c.get('accent2', '#36C9FF')
     accent_bright = c.get('accent', '#76FFDD')
-    on_accent     = '#04201A' if is_dark else '#04140F'
+    # Text on accent fills: dark ink on bright accents, but themes with a
+    # DARK accent (Latte blue #1e66f5: 3.7:1 vs near-black) need white ink.
+    from theme_contrast import ensure_contrast as _ec
+    on_accent     = _ec('#04201A' if is_dark else '#04140F', accent, 4.5)
 
     accent_a06 = _rgba(accent, 0.06)
     accent_a10 = _rgba(accent, 0.10)
@@ -82,10 +94,11 @@ def generate_css(COLORS):
     grad_live      = f'linear-gradient(135deg, {accent} 0%, {accent_2} 100%)'
     grad_live_soft = f'linear-gradient(135deg, {_rgba(accent, 0.20)}, {_rgba(accent_2, 0.13)})'
 
-    # Semantic (status only)
-    success = c.get('green', '#3FE08A')
-    warning = c.get('yellow', '#FFC75A')
-    danger  = c.get('red', '#FF5C6E')
+    # Semantic (status only) — same legibility floor as the ink ramp
+    # (Latte yellow is 2.3:1 raw, Nord red 2.1:1).
+    success = _legible(c.get('green', '#3FE08A'), 3.0)
+    warning = _legible(c.get('yellow', '#FFC75A'), 3.0)
+    danger  = _legible(c.get('red', '#FF5C6E'), 3.0)
 
     # Glow — accent bloom (live only)
     glow_xs  = f'0 0 8px {_rgba(accent, 0.40)}'
@@ -1353,6 +1366,16 @@ tooltip {{
     border-radius: 16px;
     padding: 12px;
     box-shadow: {shadow_sm}, {inset_top};
+}}
+
+/* Credit text tracks the live theme (markup span colors would go stale
+   after a runtime theme switch). */
+.credit-dim {{
+    color: {text_3};
+}}
+
+.credit-name {{
+    color: {text_1};
 }}
 
 .donate-btn {{

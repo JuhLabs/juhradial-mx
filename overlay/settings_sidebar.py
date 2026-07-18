@@ -63,20 +63,20 @@ class SidebarMixin:
         credits_box.set_margin_end(8)
         credits_box.set_margin_bottom(8)
 
-        # Developer info
+        # Developer info. Colors come from CSS classes, NOT baked into the
+        # markup: a span color captures the palette active at construction
+        # and goes stale (invisible text) after a live theme switch.
         dev_label = Gtk.Label()
-        dev_label.set_markup(
-            f'<span size="small" color="{COLORS["subtext0"]}">'
-            + _("Developed by")
-            + "</span>"
-        )
+        dev_label.set_markup('<span size="small">' + _("Developed by") + "</span>")
+        dev_label.add_css_class("credit-dim")
         dev_label.set_halign(Gtk.Align.START)
         credits_box.append(dev_label)
 
         name_label = Gtk.Label()
         name_label.set_markup(
-            f'<span size="small" weight="bold" color="{COLORS["text"]}">JuhLabs (Julian Hermstad)</span>'
+            '<span size="small" weight="bold">JuhLabs (Julian Hermstad)</span>'
         )
+        name_label.add_css_class("credit-name")
         name_label.set_halign(Gtk.Align.START)
         credits_box.append(name_label)
 
@@ -96,12 +96,13 @@ class SidebarMixin:
         # Description
         desc_label = Gtk.Label()
         desc_label.set_markup(
-            f'<span size="x-small" color="{COLORS["subtext0"]}">'
+            '<span size="x-small">'
             + _(
                 "Free &amp; open source software.\nIf you enjoy this project,\nconsider supporting development."
             )
             + "</span>"
         )
+        desc_label.add_css_class("credit-dim")
         desc_label.set_halign(Gtk.Align.START)
         desc_label.set_margin_top(4)
         credits_box.append(desc_label)
