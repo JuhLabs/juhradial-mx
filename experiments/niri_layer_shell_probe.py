@@ -28,7 +28,7 @@ from gi.repository import Gtk, Gdk, GLib, Gtk4LayerShell as LS  # noqa: E402
 
 RING_R = 110
 state = {"px": None, "py": None, "t_map": None, "t_pointer": None,
-         "mon": None, "ok": False}
+         "mon": None, "ok": False, "moved": False}
 
 
 def log(msg):
@@ -52,12 +52,26 @@ def on_draw(area, cr, w, h, _):
     cr.stroke()
 
 
-def record_pointer(_ctrl, x, y):
+def record_enter(_ctrl, x, y):
+    # Only an enter that precedes any motion proves the compositor delivers
+    # coords on map; an enter provoked by a mouse nudge proves nothing.
     if state["t_pointer"] is None:
-        state["t_pointer"] = time.monotonic()
-        dt = state["t_pointer"] - state["t_map"] if state["t_map"] else -1
-        log(f"GATE2 pointer coords received WITHOUT movement: ({x:.0f},{y:.0f}) "
-            f"{dt*1000:.0f}ms after map")
+        if state["moved"]:
+            log(f"GATE2 tainted: pointer-enter at ({x:.0f},{y:.0f}) arrived "
+                f"only after user movement; cannot claim coords-on-map")
+        else:
+            state["t_pointer"] = time.monotonic()
+            dt = state["t_pointer"] - state["t_map"] if state["t_map"] else -1
+            log(f"GATE2 pointer coords received WITHOUT movement: ({x:.0f},{y:.0f}) "
+                f"{dt*1000:.0f}ms after map")
+    state["px"], state["py"] = x, y
+
+
+def record_motion(_ctrl, x, y):
+    if not state["moved"]:
+        state["moved"] = True
+        if state["t_pointer"] is None:
+            log("GATE2 mouse moved before any enter event; a later pass would be tainted")
     state["px"], state["py"] = x, y
 
 
@@ -105,8 +119,8 @@ def on_app(app):
     win.set_child(area)
 
     motion = Gtk.EventControllerMotion()
-    motion.connect("enter", record_pointer)
-    motion.connect("motion", record_pointer)
+    motion.connect("enter", record_enter)
+    motion.connect("motion", record_motion)
     win.add_controller(motion)
 
     css = Gtk.CssProvider()
