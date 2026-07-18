@@ -822,8 +822,15 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.bloom_progress = 0.0
         self.center_pulse = 0.0
 
-        # Query media playback state for play/pause icon
-        overlay_actions.get_media_state()
+        # Media playback state (play/pause glyph) is queried AFTER show():
+        # get_media_state() shells out to playerctl (0.2s timeout), which on
+        # a busy MPRIS player stalls the whole open path for up to 200ms.
+        # One repaint later is invisible; a stalled open is not.
+        def _refresh_media_glyph():
+            if not self.isVisible():
+                return
+            overlay_actions.get_media_state()
+            self.update()
 
         # Position and show: set opacity to 0 and move BEFORE show to prevent
         # any visible frame at the wrong location on multi-monitor setups.
@@ -845,6 +852,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.show()
         self.raise_()
         self.activateWindow()
+        QTimer.singleShot(0, _refresh_media_glyph)
 
         # Animated-shader wallpapers leave a stale cached rectangle behind the
         # transparent window unless KWin is forced to recomposite (closed issue
