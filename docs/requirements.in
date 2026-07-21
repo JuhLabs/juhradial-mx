@@ -1,0 +1,4 @@
+# Direct dependency for the documentation build.
+# Regenerate the lockfile with:
+#   pip-compile --generate-hashes --output-file=docs/requirements.txt docs/requirements.in
+mkdocs-material

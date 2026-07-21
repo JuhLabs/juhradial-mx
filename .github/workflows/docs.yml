@@ -23,8 +23,11 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.x"
-      - run: pip install mkdocs-material
+          # Pinned rather than "3.x" so the interpreter matches the one
+          # docs/requirements.txt was compiled against; --require-hashes
+          # resolution is Python-version sensitive.
+          python-version: "3.14"
+      - run: pip install --require-hashes -r docs/requirements.txt
       - run: mkdocs build
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
