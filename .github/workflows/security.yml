@@ -10,6 +10,9 @@ on:
     - cron: '0 6 * * 1'  # Weekly on Monday
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   cargo-audit:
     name: Cargo Security Audit
@@ -17,10 +20,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
 
       - name: Install cargo-audit
         run: cargo install cargo-audit
