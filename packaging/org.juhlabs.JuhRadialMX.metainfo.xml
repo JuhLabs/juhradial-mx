@@ -93,6 +93,31 @@
   </keywords>
 
   <releases>
+    <release version="0.4.1" date="2026-07-21">
+      <description>
+        <p>Cursor placement on GNOME Wayland, menu dismissal, and action fixes</p>
+        <ul>
+          <li>Radial menu opens at the cursor on GNOME Wayland, including scaled displays</li>
+          <li>A second tap closes the menu again instead of reopening it</li>
+          <li>Only one overlay instance runs at a time, so the gesture button stays responsive</li>
+          <li>Thumb-wheel assignments made in the Buttons tab now take effect</li>
+          <li>Screenshot action picks a capture tool that works on the running desktop</li>
+          <li>GNOME cursor helper extension supports GNOME Shell 50</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.4.0" date="2026-06-28">
+      <description>
+        <p>Thumb-wheel actions, per-application profiles, and portable system actions</p>
+        <ul>
+          <li>Bind the thumb-wheel to volume, zoom, or horizontal scroll</li>
+          <li>DPI, button, and scroll settings switch automatically per application</li>
+          <li>Portable system actions use the native mechanism for each desktop</li>
+          <li>Live battery, DPI, ratchet, and Easy-Switch state on the Devices page</li>
+          <li>Correct menu position under fractional scaling, and niri support</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.8" date="2026-02-14">
       <description>
         <p>Automatic logid restart on Easy-Switch device reconnect</p>

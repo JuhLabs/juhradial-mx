@@ -6,8 +6,9 @@ We release patches for security vulnerabilities for the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.3.0-beta | :white_check_mark: Current release |
-| 0.2.9   | :white_check_mark: |
+| 0.4.1   | :white_check_mark: Current release |
+| 0.4.0   | :white_check_mark: |
+| 0.3.x   | :white_check_mark: |
 | 0.2.x   | :white_check_mark: |
 | 0.1.x   | :x: Upgrade required (critical security fixes in 0.2.1+) |
 | < 0.1   | :x:                |

@@ -36,7 +36,7 @@
           # Rust daemon - handles evdev input and D-Bus signaling
           juhradiald = pkgs.rustPlatform.buildRustPackage {
             pname = "juhradiald";
-            version = "0.3.0-beta";
+            version = "0.4.1";
 
             src = ./.;
             cargoRoot = "daemon";
@@ -60,7 +60,7 @@
 
           default = pkgs.stdenv.mkDerivation {
             pname = "juhradial-mx";
-            version = "0.3.0-beta";
+            version = "0.4.1";
             src = ./.;
 
             nativeBuildInputs = with pkgs; [
