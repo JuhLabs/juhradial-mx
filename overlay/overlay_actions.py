@@ -157,6 +157,59 @@ ICON_NAME_MAP = {
 # CONFIG LOADING
 # =============================================================================
 
+# Interactive screenshot via org.freedesktop.portal.Screenshot. Desktop-agnostic
+# and the only reliable path on GNOME 42+, where the private Shell screenshot API
+# is not exposed to third-party callers. The portal Screenshot call is async: it
+# returns a Request handle and the result arrives on that Request's Response
+# signal, and xdg-desktop-portal cancels the pending Request the moment the
+# caller's bus connection drops. A one-shot `gdbus call` therefore dismisses the
+# interactive picker as soon as gdbus exits, so route through portal_screenshot.py,
+# which holds its bus connection open on a GLib main loop until Response arrives.
+# Stored as an exec string so the overlay's existing shlex.split + Popen dispatch
+# runs it unchanged; the helper path is resolved next to this module so it works
+# from both a dev checkout and /usr/share/juhradial.
+_PORTAL_SCREENSHOT_CMD = (
+    "python3 " + os.path.join(os.path.dirname(__file__), "portal_screenshot.py")
+)
+
+
+def resolve_screenshot_command(configured_cmd: str) -> str:
+    """Return a screenshot exec command suited to the current desktop.
+
+    KDE keeps its configured command (spectacle). Elsewhere a command whose
+    binary is not installed is replaced, and spectacle is additionally replaced
+    on Wayland sessions (it can capture there only through KDE's own portal
+    backend, so an installed spectacle still works on X11 and is kept there):
+    COSMIC keeps cosmic-screenshot; every other portal desktop (GNOME included)
+    uses the freedesktop Screenshot portal via portal_screenshot.py, with
+    flameshot as a last resort. Any other configured command whose binary
+    exists is left untouched so a user's own choice is preserved.
+    """
+    import importlib.util
+    import shutil
+
+    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+    if "kde" in desktop or "plasma" in desktop:
+        return configured_cmd
+
+    wayland = os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland"
+    parts = configured_cmd.split()
+    base = parts[0] if parts else ""
+    mismatched = (base == "spectacle" and wayland) or (
+        base and shutil.which(base) is None
+    )
+    if not mismatched:
+        return configured_cmd
+
+    if "cosmic" in desktop and shutil.which("cosmic-screenshot"):
+        return "cosmic-screenshot"
+    # The helper needs PyGObject, not gdbus; gate on what it actually imports.
+    if importlib.util.find_spec("gi") is not None:
+        return _PORTAL_SCREENSHOT_CMD
+    if shutil.which("flameshot"):
+        return "flameshot gui"
+    return configured_cmd
+
 
 def load_actions_from_config():
     """Load radial menu actions from config file"""
@@ -199,6 +252,8 @@ def load_actions_from_config():
                 label = settings_constants.translate_radial_label(label, action_id)
                 action_type = slice_data.get("type", "exec")
                 command = slice_data.get("command", "")
+                if action_id == "screenshot" and action_type == "exec":
+                    command = resolve_screenshot_command(command)
                 color = slice_data.get("color", "teal")
                 gtk_icon = slice_data.get("icon", "application-x-executable-symbolic")
 
