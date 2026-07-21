@@ -2,7 +2,7 @@
 # Build: rpmbuild -ba juhradial-mx.spec
 
 Name:           juhradial-mx
-Version:        0.2.5
+Version:        0.4.1
 Release:        1%{?dist}
 Summary:        Beautiful radial menu for Logitech MX Master mice on Linux
 
@@ -119,6 +119,14 @@ install -Dm644 packaging/udev/99-logitech-hidpp.rules %{buildroot}%{_udevrulesdi
 %{_userunitdir}/juhradialmx-daemon.service
 %{_udevrulesdir}/99-logitech-hidpp.rules
 %changelog
+* Tue Jul 21 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.1-1
+- Radial menu opens at the cursor on GNOME Wayland
+- Second tap closes the menu again
+- Only one overlay instance runs at a time
+- Thumb-wheel assignments from the Buttons tab take effect
+- Screenshot action picks a tool that works on the running desktop
+- GNOME cursor helper extension supports GNOME Shell 50
+
 * Fri Dec 13 2024 JuhLabs (Julian Hermstad) <juhlabs@example.com> - 1.0.0-1
 - Initial release
 - Glassmorphic radial menu overlay

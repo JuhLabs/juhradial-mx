@@ -29,9 +29,9 @@ The installer detects your distro, installs dependencies, builds from source, an
 | [Architecture](architecture.md) | How it works, for contributors |
 | [FAQ](faq.md) | Quick answers to common questions |
 
-## What is new in v0.4.0
+## What is new in v0.4.1
 
-Thumb-wheel actions (volume, zoom, horizontal scroll), per-application profiles that switch DPI, buttons, and scroll on focus, portable system actions on any button, live device state, and a settings search box. See the [Changelog](https://github.com/JuhLabs/juhradial-mx/blob/master/CHANGELOG.md).
+The radial menu now opens on the cursor on GNOME Wayland, a second tap closes it again, only one overlay runs at a time, thumb-wheel assignments in the Buttons tab take effect, and the screenshot action picks a tool that works on the desktop you are running. See the [Changelog](https://github.com/JuhLabs/juhradial-mx/blob/master/CHANGELOG.md).
 
 ## A look at it
 

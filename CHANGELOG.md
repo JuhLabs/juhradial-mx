@@ -5,6 +5,20 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-07-21
+
+### Added
+
+- **GNOME Shell 50 support** - The bundled GNOME cursor helper extension now declares compatibility with GNOME Shell 50.
+
+### Fixed
+
+- **Radial menu opens at the cursor on GNOME Wayland** - XWayland only refreshes its pointer while the cursor sits over an X11 window, so on an all-Wayland GNOME desktop the overlay positioned itself from a stale reading. It now forces a refresh and reads the result in Qt's coordinate space, so the menu stays on the cursor on scaled displays too.
+- **A second tap closes the menu again** - The daemon emits its open signal twice for a single press, and the duplicate reopened the menu that had just closed.
+- **Only one overlay runs at a time** - On KDE, session restore and the launcher could each start an overlay, and the two fought over the menu, leaving the gesture button unresponsive. Fixes [#60](https://github.com/JuhLabs/juhradial-mx/issues/60).
+- **Thumb-wheel assignments take effect** - The Buttons tab wrote the setting to a key the daemon does not read, so the wheel kept its previous mode, for example staying on zoom after being set to horizontal scroll.
+- **Screenshot action picks a tool that works** - It defaulted to spectacle, which cannot capture outside KDE; GNOME and other portal desktops now use the freedesktop screenshot portal.
+
 ## [0.4.0] - 2026-06-28
 
 ### Added
@@ -322,6 +336,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Native Wayland** - Full support for KDE Plasma 6 and Hyprland
 - Support for MX Master 4, MX Master 3S, and MX Master 3
 
+[0.4.1]: https://github.com/JuhLabs/juhradial-mx/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/JuhLabs/juhradial-mx/compare/v0.3.2-beta...v0.4.0
+[0.3.2-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.3.1-beta...v0.3.2-beta
 [0.3.1-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.3.0-beta...v0.3.1-beta
 [0.3.0-beta]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.9...v0.3.0-beta
 [0.2.6]: https://github.com/JuhLabs/juhradial-mx/compare/v0.2.5...v0.2.6

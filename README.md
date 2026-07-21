@@ -10,7 +10,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.4.0-cyan.svg" alt="Version 0.4.0">
+      <img src="https://img.shields.io/badge/version-0.4.1-cyan.svg" alt="Version 0.4.1">
     </a>
     <a href="https://juhlabs.github.io/juhradial-mx/">
       <img src="https://img.shields.io/badge/docs-juhlabs.github.io-4FEFC9.svg" alt="Documentation">
@@ -44,7 +44,7 @@
 <br>
 
 > [!TIP]
-> **New in [v0.4.0](CHANGELOG.md):** Thumb-wheel actions (volume, zoom, horizontal scroll), per-application profiles that switch DPI/buttons/scroll on focus, portable system actions on any button, live device state, and a settings search box. Plus reliable Wayland action injection via uinput and fixes for fractional-scaling menu position (#25), button reassignments (#26), and building on Ubuntu 24.04 (#23) and openSUSE Tumbleweed (#24). [Update now](#installation).
+> **New in [v0.4.1](CHANGELOG.md):** The radial menu now opens on the cursor on GNOME Wayland, a second tap closes it again, only one overlay runs at a time (#60), thumb-wheel assignments in the Buttons tab take effect, and the screenshot action picks a tool that works on your desktop. [Update now](#installation).
 >
 > **Documentation:** Full guides, configuration reference, and per-compositor notes are at **[juhlabs.github.io/juhradial-mx](https://juhlabs.github.io/juhradial-mx/)**.
 >
