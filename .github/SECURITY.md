@@ -73,7 +73,7 @@ This creates a private security advisory that only you and the maintainers can s
 
 If you prefer email or Private Vulnerability Reporting is not available:
 
-- **Email:** [security contact - to be added by repository owner]
+- **Email:** dev@juhlabs.com
 - **Subject Line:** `[SECURITY] Brief description of the issue`
 
 **Please include:**
