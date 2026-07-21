@@ -75,6 +75,19 @@ _ACTION_GROUPS = [
     ]),
 ]
 
+# The thumb wheel (horizontal_scroll) is a rotational control the daemon drives
+# from config.thumbwheel.mode; only these actions map onto a wheel mode (see
+# _on_save's mirror). Its dialog is restricted to this set so users cannot pick
+# an action the wheel cannot honor.
+_THUMBWHEEL_ACTIONS = {
+    "scroll_left_right",
+    "zoom_in",
+    "zoom_out",
+    "volume_up",
+    "volume_down",
+    "none",
+}
+
 # Icon names for the DE-portable preset actions (freedesktop symbolic names).
 # Only the preset rows carry a prefix icon; other rows are left unchanged.
 _ACTION_ICONS = {
@@ -193,6 +206,13 @@ class ButtonConfigDialog(Adw.Window):
             group_actions = [
                 (aid, action_map[aid]) for aid in action_ids if aid in action_map
             ]
+            # The thumb wheel can only honor a rotational subset of actions.
+            if self.button_id == "horizontal_scroll":
+                group_actions = [
+                    (aid, aname)
+                    for aid, aname in group_actions
+                    if aid in _THUMBWHEEL_ACTIONS
+                ]
             if not group_actions:
                 continue
 
@@ -276,6 +296,24 @@ class ButtonConfigDialog(Adw.Window):
             buttons_config = config.get("buttons", default={})
             buttons_config[self.button_id] = action_id
             config.set("buttons", buttons_config)
+
+            # The thumb wheel (horizontal_scroll) is a rotational control the
+            # daemon drives from config.thumbwheel.mode, not from
+            # buttons.horizontal_scroll (which it never reads). Mirror the choice
+            # into thumbwheel.mode so assigning it here actually takes effect
+            # instead of leaving the wheel on its previous mode (e.g. zoom).
+            if self.button_id == "horizontal_scroll":
+                tw_mode = {
+                    "scroll_left_right": "scroll",
+                    "zoom_in": "zoom",
+                    "zoom_out": "zoom",
+                    "volume_up": "volume",
+                    "volume_down": "volume",
+                    "none": "off",
+                }.get(action_id)
+                if tw_mode is not None:
+                    config.set("thumbwheel", "mode", tw_mode)
+
             config.save()
 
             logger.info("Button %s configured to: %s", self.button_id, action_name)
