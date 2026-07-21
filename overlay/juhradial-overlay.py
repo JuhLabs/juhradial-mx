@@ -465,6 +465,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
 
         # Toggle mode: True when menu was opened with a quick tap and stays open
         self.toggle_mode = False
+        # Timestamp of the last close; used to debounce the daemon's duplicate
+        # MenuRequested emission (see on_show).
+        self._menu_closed_at = 0.0
         # Track when menu was shown (for tap detection)
         self.show_time = None
 
@@ -583,6 +586,27 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
     def on_show(self, x, y):
         import time
 
+        # The daemon emits MenuRequested twice per gesture press (~130us apart:
+        # once from the hidraw handler, once from the gesture-event loop).
+        # Debounce the duplicate in both directions: right after a close it
+        # would reopen the menu the toggle-close branch just closed (so a second
+        # tap never closes), and right after a fresh open it would re-run the
+        # full cursor sync + show. 30ms is orders of magnitude above the
+        # duplicate spacing but well under real inter-press gaps (fastest
+        # observed on-device: ~117ms), so a fast second-tap-close or a rapid
+        # re-open is never swallowed.
+        now = time.time()
+        if now - getattr(self, "_menu_closed_at", 0.0) < 0.03:
+            print("OVERLAY: duplicate MenuRequested after close - ignored")
+            return
+        if (
+            self.isVisible()
+            and getattr(self, "show_time", None)
+            and now - self.show_time < 0.03
+        ):
+            print("OVERLAY: duplicate MenuRequested while fresh - ignored")
+            return
+
         # Reload translations for language changes
         from i18n import setup_i18n
 
@@ -601,6 +625,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         if self.toggle_mode and self.isVisible():
             print("OVERLAY: Second tap detected - closing menu")
             self._close_menu(execute=False)
+            self._menu_closed_at = now
             return
 
         # On Hyprland, re-query cursor position and monitor info for freshness
@@ -612,22 +637,36 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 x, y = fresh_pos
                 print(f"OVERLAY: Hyprland fresh cursor position: ({x}, {y})")
 
-        # On GNOME Wayland, use QCursor.pos() for positioning because the
-        # GNOME extension returns Clutter logical coords which differ from
-        # XWayland coords on HiDPI monitors (e.g., 4K at 200% scaling).
-        # QCursor.pos() is in Qt/XWayland space, matching self.move().
-        # Fall back to GNOME extension if QCursor returns (0,0) - which
-        # happens when no XWayland window is currently visible.
+        # On GNOME Wayland, Mutter's XWayland only refreshes the X pointer
+        # while the cursor is over an X11 surface, so on an all-Wayland
+        # desktop QCursor.pos() returns a plausible-looking stale position.
+        # Use the COSMIC/niri sync window purely to force that refresh, then
+        # read the position through QCursor.pos(): it reflects the same
+        # now-fresh XWayland pointer but in Qt logical space, which is what
+        # self.move() expects (raw XQueryPointer pixels overshoot when Qt's
+        # devicePixelRatio != 1, e.g. 4K at 200%). The raw sync reading is
+        # kept as fallback, and the GNOME extension after that (Clutter
+        # logical coords; may also differ from Qt space on HiDPI).
         if IS_GNOME:
-            fresh_pos = get_cursor_position_qt()
-            if fresh_pos:
-                x, y = fresh_pos
-                print(f"OVERLAY: GNOME QCursor position: ({x}, {y})")
-            else:
-                fresh_pos = get_cursor_position_gnome()
+            fresh_pos = None
+            if not IS_X11 and _HAS_XWAYLAND:
+                fresh_pos = get_cursor_position_xwayland_synced()
+                if fresh_pos:
+                    qt_pos = get_cursor_position_qt()
+                    if qt_pos:
+                        fresh_pos = qt_pos
+                    x, y = fresh_pos
+                    _log(f"GNOME sync: using position ({x}, {y})")
+            if not fresh_pos:
+                fresh_pos = get_cursor_position_qt()
                 if fresh_pos:
                     x, y = fresh_pos
-                    print(f"OVERLAY: GNOME extension fallback: ({x}, {y})")
+                    print(f"OVERLAY: GNOME QCursor position: ({x}, {y})")
+                else:
+                    fresh_pos = get_cursor_position_gnome()
+                    if fresh_pos:
+                        x, y = fresh_pos
+                        print(f"OVERLAY: GNOME extension fallback: ({x}, {y})")
 
         # On KDE X11, use QCursor.pos() - it's in Qt's own coordinate space.
         if IS_KDE and IS_X11:
@@ -1079,6 +1118,10 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             print(f"OVERLAY: COSMIC reposition to ({x}, {y})")
 
     def _close_menu(self, execute=True):
+        import time
+        # Record the close time so on_show can debounce the daemon's duplicate
+        # MenuRequested on every close path, not just the toggle-close branch.
+        self._menu_closed_at = time.time()
         self.cursor_timer.stop()
         self.toggle_mode = False  # Reset toggle mode
 
@@ -1518,6 +1561,25 @@ if __name__ == "__main__":
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("JuhRadial MX")
     app.setDesktopFileName("juhradial-mx")
+
+    # Single-instance guard: a session-restored duplicate (issue #60) or a
+    # double launch would both subscribe to MenuRequested and fight over
+    # showing and grabbing the menu, breaking the gesture UX. Own a well-known
+    # D-Bus name; if another overlay already holds it, exit fast before any
+    # heavy loading. Mirrors the settings app (issue #65).
+    bus = QDBusConnection.sessionBus()
+    if not bus.isConnected():
+        print(
+            "session D-Bus unavailable - overlay cannot receive daemon signals, exiting",
+            flush=True,
+        )
+        sys.exit(1)
+    if not bus.registerService("org.kde.juhradialmx.overlay"):
+        print(
+            "another overlay instance owns org.kde.juhradialmx.overlay - exiting",
+            flush=True,
+        )
+        sys.exit(0)
 
     # Show splash screen immediately (before heavy loading)
     splash = SplashScreen()
