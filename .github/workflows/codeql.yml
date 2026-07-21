@@ -9,6 +9,9 @@ on:
     # Run weekly on Sundays at 00:00 UTC to catch new vulnerabilities
     - cron: '0 0 * * 0'
 
+permissions:
+  contents: read
+
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
@@ -33,10 +36,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v7.0.0
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
+      uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
       with:
         languages: ${{ matrix.language }}
         # Use security-and-quality query suite for comprehensive analysis
@@ -48,14 +51,14 @@ jobs:
     # For compiled languages (Rust), we need to build the code
     # Autobuild attempts a basic build, but we can customize if needed
     - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
+      uses: github/codeql-action/autobuild@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
       if: matrix.language == 'rust'
 
     # For Python, no build step is needed (interpreted language)
     # CodeQL will analyze the source directly
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
+      uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
       with:
         category: "/language:${{ matrix.language }}"
         # Upload SARIF results to GitHub Security tab
@@ -64,7 +67,7 @@ jobs:
         output: sarif-results
 
     - name: Upload SARIF as artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       if: always()
       with:
         name: codeql-results-${{ matrix.language }}
