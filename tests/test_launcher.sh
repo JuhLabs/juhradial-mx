@@ -51,4 +51,44 @@ if resolve_daemon "$tmp/empty" "$tmp/absent-local" "$tmp/absent-system" >/dev/nu
     exit 1
 fi
 
+# Issue #60: when the systemd user unit is enabled or active, the launcher
+# must defer daemon startup to it entirely, so the managed copy is the only
+# starter and cannot lose the single-instance race to an unmanaged child.
+mkdir -p "$tmp/bin-enabled" "$tmp/bin-disabled"
+cat > "$tmp/bin-enabled/systemctl" <<'STUB'
+#!/bin/bash
+exit 0
+STUB
+cat > "$tmp/bin-disabled/systemctl" <<'STUB'
+#!/bin/bash
+exit 1
+STUB
+chmod +x "$tmp/bin-enabled/systemctl" "$tmp/bin-disabled/systemctl"
+
+if ! PATH="$tmp/bin-enabled" daemon_unit_managed; then
+    echo "FAIL: daemon_unit_managed should be true when the unit is enabled" >&2
+    exit 1
+fi
+if PATH="$tmp/bin-disabled" daemon_unit_managed; then
+    echo "FAIL: daemon_unit_managed should be false when the unit is disabled" >&2
+    exit 1
+fi
+if PATH="$tmp/empty-path-dir" daemon_unit_managed; then
+    echo "FAIL: daemon_unit_managed should be false without systemctl" >&2
+    exit 1
+fi
+
+# Issue #60: the launcher must wait for ALL children with a bare `wait`, not
+# just the daemon PID. A daemon that loses the single-instance name race exits
+# immediately; waiting on it alone would end the launcher, and the systemd
+# autostart unit then kills the overlay with the rest of the cgroup.
+if ! grep -qE '^[[:space:]]+wait$' scripts/juhradial-mx.sh; then
+    echo "FAIL: launcher must use a bare 'wait' for all started children (#60)" >&2
+    exit 1
+fi
+if grep -qE 'wait "\$(daemon|overlay)_pid"' scripts/juhradial-mx.sh; then
+    echo "FAIL: launcher must not wait on a single child PID (#60)" >&2
+    exit 1
+fi
+
 echo "PASS: launcher path resolution tests"

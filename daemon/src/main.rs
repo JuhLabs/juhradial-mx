@@ -15,7 +15,7 @@ use tracing_subscriber::FmtSubscriber;
 use juhradiald::{
     battery::{new_shared_state, start_battery_updater_shared, SharedBatteryState},
     config::load_shared_config,
-    dbus::{DBUS_NAME, DBUS_PATH, init_dbus_service_with_device},
+    dbus::{DBUS_NAME, DBUS_PATH, claim_name, init_dbus_service_with_device},
     evdev::{EvdevError, EvdevHandler, GestureEvent},
     gaming::new_shared_gaming_mode,
     hidpp::SharedHapticManager,
@@ -191,6 +191,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         list_logitech_devices();
         return Ok(());
     }
+
+    // Single-instance guard, and it must run BEFORE any device work. At login
+    // the systemd user service and the autostart launcher race to start a
+    // daemon (issue #60): the launcher's NameHasOwner check is check-then-act,
+    // so a second copy can always slip through. Claiming the well-known name
+    // atomically here makes the first daemon win and every later copy exit
+    // cleanly (exit 0, so Restart=on-abnormal never sees a refused claim as a
+    // crash) before it has diverted buttons or opened any device. Claiming
+    // this early also shrinks the launcher's race window: the name becomes
+    // visible immediately instead of after the ~1.5s HID++ probe.
+    let dbus_connection = zbus::Connection::session().await.map_err(|e| {
+        error!("Failed to connect to session D-Bus: {}", e);
+        e
+    })?;
+    if !claim_name(&dbus_connection, DBUS_NAME).await? {
+        info!(
+            "another juhradiald already owns {}; exiting (single-instance guard)",
+            DBUS_NAME
+        );
+        return Ok(());
+    }
+    log_startup_phase(&startup_started_at, "bus-name claim");
 
     info!("Configuration: {}", args.config);
 
@@ -431,8 +453,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // consumer hold a clone, so a UI save reaches the consumer without restart.
     let hardware_profiles: SharedHardwareProfiles = Arc::new(RwLock::new(HashMap::new()));
 
-    // Initialize D-Bus service with battery state, config, haptic manager, device info, and macro state
-    let dbus_connection = match init_dbus_service_with_device(
+    // Export the D-Bus service on the connection that already holds the
+    // single-instance name claim from startup.
+    match init_dbus_service_with_device(
+        &dbus_connection,
         battery_state.clone(),
         shared_config.clone(),
         haptic_manager,
@@ -447,12 +471,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await
     {
-        Ok(conn) => {
+        Ok(()) => {
             info!(
                 "D-Bus service initialized successfully (mode={}, device={})",
                 device_mode, device_name
             );
-            conn
         }
         Err(e) => {
             error!("Failed to initialize D-Bus service: {}", e);

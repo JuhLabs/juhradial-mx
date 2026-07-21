@@ -23,7 +23,7 @@ pub const DBUS_PATH: &str = "/org/kde/juhradialmx/Daemon";
 pub const DBUS_NAME: &str = "org.kde.juhradialmx";
 
 // Re-export public API
-pub use init::{init_dbus_service, init_dbus_service_with_device};
+pub use init::{claim_name, init_dbus_service, init_dbus_service_with_device};
 pub use service::JuhRadialService;
 
 #[cfg(test)]

@@ -57,6 +57,21 @@ resolve_daemon() {
     return 1
 }
 
+# True when the systemd user unit is responsible for the daemon. When the
+# unit is enabled (it will start at login) or active (it is running now), the
+# launcher must not start its own copy at all: at login the two would race,
+# and if the launcher's unmanaged child won the daemon's single-instance name
+# claim, the surviving daemon would run without the unit's resource limits and
+# crash supervision, with the unit stuck inactive (issue #60). Skipping here
+# keeps the managed copy the only starter on systemd setups; systems without
+# the unit fall through to the D-Bus ownership check below.
+daemon_unit_managed() {
+    local unit="${1:-juhradialmx-daemon.service}"
+    command -v systemctl >/dev/null 2>&1 || return 1
+    systemctl --user is-enabled --quiet "$unit" 2>/dev/null ||
+        systemctl --user is-active --quiet "$unit" 2>/dev/null
+}
+
 # True when something (e.g. a systemd user service) already owns the daemon's
 # D-Bus name, so we should not start a second, unmanaged copy.
 daemon_name_owned() {
@@ -87,8 +102,12 @@ main() {
         overlay_pid=$!
     fi
 
-    # Start the daemon unless one already owns the D-Bus name (systemd, etc.).
-    if ! daemon_name_owned; then
+    # Start the daemon only when systemd is not responsible for it AND nothing
+    # already owns the D-Bus name. The daemon's own single-instance claim is
+    # the final authority; these checks just avoid spawning doomed copies.
+    if daemon_unit_managed; then
+        : # the systemd user unit owns the daemon lifecycle
+    elif ! daemon_name_owned; then
         if ! daemon="$(resolve_daemon "$root")"; then
             [ -z "$overlay_pid" ] || kill "$overlay_pid" 2>/dev/null || true
             echo "JuhRadial MX: daemon binary (juhradiald) not found." >&2
@@ -104,12 +123,12 @@ main() {
     [ -z "$overlay_pid" ] || echo "  Overlay PID: $overlay_pid"
     [ -z "$daemon_pid" ] || echo "  Daemon PID:  $daemon_pid"
 
-    # Keep the launcher alive for whichever process it actually started.
-    if [ -n "$daemon_pid" ]; then
-        wait "$daemon_pid"
-    elif [ -n "$overlay_pid" ]; then
-        wait "$overlay_pid"
-    fi
+    # Keep the launcher alive until EVERYTHING it started has exited, not just
+    # the daemon. The daemon's single-instance guard makes a copy that lost the
+    # name race exit immediately (issue #60); if the launcher followed it down,
+    # the systemd-generated autostart unit would tear down its whole cgroup and
+    # kill the overlay that was just started. A bare `wait` covers every child.
+    wait
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
