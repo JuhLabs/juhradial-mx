@@ -155,8 +155,8 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
                     node_id, peer["aes_key_bytes"],
                 )
 
-        # Start edge detector and enable if config says so
-        _edge_detector.start()
+        # Apply config before publishing a worker. A retained detector may still
+        # be enabled from its prior owner, so false must be propagated too.
         try:
             import json
             from pathlib import Path
@@ -165,8 +165,8 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
             edge_on = cfg.get("flow", {}).get("edge_trigger", True)
         except Exception:
             edge_on = True
-        if edge_on:
-            _edge_detector.set_enabled(True)
+        _edge_detector.set_enabled(edge_on)
+        _edge_detector.start()
     except Exception as e:
         logger.warning("Edge detector/handoff setup deferred: %s", e)
 
@@ -277,26 +277,34 @@ def update_indicator_direction(direction=None):
 
 
 def stop_flow_server():
-    """Stop all Flow servers"""
+    """Stop all Flow servers."""
     global _flow_server, _logi_flow_server, _logi_discovery, _presence_server
     global _handoff_manager, _edge_detector, _juhflow_bridge, _flow_indicator
 
-    if _flow_indicator:
-        _flow_indicator.hide()
-        _flow_indicator.deleteLater()
-        _flow_indicator = None
-
-    if _juhflow_bridge:
-        _juhflow_bridge.stop()
-        _juhflow_bridge = None
-
     if _edge_detector:
-        _edge_detector.stop()
+        # The detector callback can still be executing FlowHandoffManager code.
+        # Retain its complete dependency graph until the callback fence and poll
+        # generation are quiescent; restart then reuses the still-wired graph.
+        if not _edge_detector.stop():
+            return
         _edge_detector = None
 
     if _handoff_manager:
         _handoff_manager.stop()
         _handoff_manager = None
+
+    if _juhflow_bridge:
+        _juhflow_bridge.stop()
+        _juhflow_bridge = None
+
+    if _presence_server:
+        _presence_server.stop()
+        _presence_server = None
+
+    if _flow_indicator:
+        _flow_indicator.hide()
+        _flow_indicator.deleteLater()
+        _flow_indicator = None
 
     if _flow_server:
         _flow_server.stop()
@@ -305,10 +313,6 @@ def stop_flow_server():
     if _logi_flow_server:
         _logi_flow_server.stop()
         _logi_flow_server = None
-
-    if _presence_server:
-        _presence_server.stop()
-        _presence_server = None
 
     if _logi_discovery:
         _logi_discovery.stop()

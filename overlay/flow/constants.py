@@ -36,6 +36,10 @@ FLOW_TAG_LEN = 16
 EDGE_THRESHOLD_PX = 5
 EDGE_DWELL_MS = 350
 EDGE_POLL_INTERVAL_MS = 8
+# Poll less often while the cursor is far from the configured handoff edge.
+# The original 8 ms cadence is restored before entering the 5 px trigger zone.
+EDGE_IDLE_POLL_INTERVAL_MS = 32
+EDGE_NEAR_ZONE_PX = 64
 EDGE_COOLDOWN_MS = 1500
 
 # Velocity-based instant trigger: if cursor crosses this many px/s toward an edge,
