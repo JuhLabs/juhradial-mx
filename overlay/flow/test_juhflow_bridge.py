@@ -7,9 +7,14 @@ clipboard sync, heartbeat keepalive, and reconnect after disconnect.
 import json
 import os
 import socket
+import tempfile
+import threading
 import time
 import unittest
+from typing import Any
+from unittest import mock
 
+from . import juhflow_bridge as bridge_module
 from .crypto import (
     build_encrypted_packet,
     decrypt_payload,
@@ -360,6 +365,152 @@ class TestJuhFlowBridgeMultiPeer(unittest.TestCase):
         finally:
             client1.close()
             client2.close()
+
+
+class TestJuhFlowBridgeStatusPublication(unittest.TestCase):
+    """Test status publication through the production heartbeat path."""
+
+    def _run_heartbeat(self, bridge, status_path, presence_server=None):
+        with mock.patch(
+            f"{bridge_module.__package__}.get_presence_server",
+            return_value=presence_server,
+        ):
+            bridge._heartbeat_once(status_path)
+
+    @staticmethod
+    def _bridge_with_peers(peers) -> Any:
+        bridge = object.__new__(JuhFlowBridge)
+        bridge.get_peers = mock.Mock(return_value=peers)
+        bridge._broadcast = mock.Mock()
+        return bridge
+
+    def test_repeated_empty_heartbeats_do_not_replace_status_file(self):
+        bridge = self._bridge_with_peers([])
+
+        with tempfile.TemporaryDirectory() as home:
+            status_path = os.path.join(home, "flow_status.json")
+            real_replace = os.replace
+
+            with (
+                mock.patch("builtins.open") as status_open,
+                mock.patch.object(
+                    bridge_module.os, "replace", wraps=real_replace
+                ) as replace,
+            ):
+                for _ in range(2):
+                    self._run_heartbeat(bridge, status_path)
+
+            status_open.assert_not_called()
+            self.assertEqual(replace.call_count, 0)
+            self.assertFalse(os.path.exists(status_path))
+
+    def test_existing_status_is_removed_once_when_peers_are_empty(self):
+        bridge = self._bridge_with_peers([])
+
+        with tempfile.TemporaryDirectory() as home:
+            status_path = os.path.join(home, "flow_status.json")
+            with open(status_path, "w") as status_file:
+                status_file.write("persisted")
+            real_remove = os.remove
+
+            with mock.patch.object(
+                bridge_module.os, "remove", wraps=real_remove
+            ) as remove:
+                self._run_heartbeat(bridge, status_path)
+                self._run_heartbeat(bridge, status_path)
+
+            remove.assert_called_once_with(status_path)
+            self.assertFalse(os.path.exists(status_path))
+
+    def test_empty_status_tolerates_file_disappearing_before_removal(self):
+        bridge = self._bridge_with_peers([])
+
+        with (
+            mock.patch.object(bridge_module.os.path, "exists", return_value=True),
+            mock.patch.object(
+                bridge_module.os, "remove", side_effect=FileNotFoundError
+            ) as remove,
+        ):
+            self._run_heartbeat(bridge, "/tmp/flow_status.json")
+
+        remove.assert_called_once_with("/tmp/flow_status.json")
+
+    def test_connected_peer_is_written_atomically_with_expected_status(self):
+        peer = {
+            "id": "peer-1",
+            "hostname": "test-mac",
+            "platform": "macos",
+            "ip": "192.0.2.10",
+            "connected_at": 100.0,
+        }
+        bridge = self._bridge_with_peers([peer])
+
+        with tempfile.TemporaryDirectory() as home:
+            status_path = os.path.join(home, "flow_status.json")
+            real_replace = os.replace
+
+            with (
+                mock.patch.object(bridge_module.time, "time", return_value=123.0),
+                mock.patch.object(
+                    bridge_module.os, "replace", wraps=real_replace
+                ) as replace,
+            ):
+                self._run_heartbeat(bridge, status_path)
+
+            replace.assert_called_once_with(status_path + ".tmp", status_path)
+            with open(status_path) as status_file:
+                status = json.load(status_file)
+            self.assertEqual(status, {"peers": [peer], "updated_at": 123.0})
+            bridge._broadcast.assert_called_once_with(
+                {"type": MSG_HEARTBEAT, "ts": 123.0}
+            )
+
+    def test_disconnect_removes_previously_written_status(self):
+        peer = {
+            "id": "peer-1",
+            "hostname": "test-mac",
+            "platform": "macos",
+            "ip": "192.0.2.10",
+            "connected_at": 100.0,
+        }
+        bridge = self._bridge_with_peers([peer])
+
+        with tempfile.TemporaryDirectory() as home:
+            status_path = os.path.join(home, "flow_status.json")
+            self._run_heartbeat(bridge, status_path)
+            self.assertTrue(os.path.exists(status_path))
+
+            bridge.get_peers.return_value = []
+            self._run_heartbeat(bridge, status_path)
+
+            self.assertFalse(os.path.exists(status_path))
+
+    def test_presence_peer_is_counted_as_connected(self):
+        bridge = self._bridge_with_peers([])
+        presence_server = mock.Mock()
+        presence_server._conn_lock = threading.Lock()
+        presence_server.active_connections = {
+            "0123456789abcdefcafebabe": (mock.Mock(), "office-mac", b"key")
+        }
+
+        with tempfile.TemporaryDirectory() as home:
+            status_path = os.path.join(home, "flow_status.json")
+            self._run_heartbeat(bridge, status_path, presence_server)
+
+            with open(status_path) as status_file:
+                status = json.load(status_file)
+            self.assertEqual(
+                status["peers"],
+                [
+                    {
+                        "id": "0123456789abcdef",
+                        "hostname": "office-mac",
+                        "platform": "unknown",
+                        "ip": "",
+                        "connected_at": 0,
+                    }
+                ],
+            )
 
 
 if __name__ == "__main__":

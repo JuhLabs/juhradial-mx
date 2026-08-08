@@ -173,14 +173,15 @@ class JuhFlowBridge:
             except OSError:
                 pass
         # Clear status file
+        status_path = os.path.join(
+            os.path.expanduser("~"), ".config", "juhradial", "flow_status.json"
+        )
         try:
-            status_path = os.path.join(
-                os.path.expanduser("~"), ".config", "juhradial", "flow_status.json"
-            )
-            if os.path.exists(status_path):
-                os.remove(status_path)
-        except OSError:
+            os.remove(status_path)
+        except FileNotFoundError:
             pass
+        except OSError as e:
+            logger.debug("Cannot clear Flow status file: %s", e)
 
     def send_edge_hit(self, edge, position, screen, ctrl_key=False,
                       relative_position=None):
@@ -382,40 +383,61 @@ class JuhFlowBridge:
 
         sock.close()
 
+    def _get_status_peers(self):
+        """Return peers from both JuhFlow and Logitech presence connections."""
+        peers = self.get_peers()
+
+        from . import get_presence_server
+        presence_server = get_presence_server()
+        if presence_server and hasattr(presence_server, 'active_connections'):
+            with presence_server._conn_lock:
+                for node_id, (_conn, name, _key) in (
+                    presence_server.active_connections.items()
+                ):
+                    peers.append({
+                        "id": node_id[:16],
+                        "hostname": name,
+                        "platform": "unknown",
+                        "ip": "",
+                        "connected_at": 0,
+                    })
+
+        return peers
+
+    def _publish_status(self, status_path):
+        """Publish connected peers atomically, or clear stale disconnected state."""
+        peers = self._get_status_peers()
+        if not peers:
+            if not os.path.exists(status_path):
+                return
+            try:
+                os.remove(status_path)
+            except FileNotFoundError:
+                pass  # Another cleanup won the existence-check race.
+            return
+
+        status = {"peers": peers, "updated_at": time.time()}
+        tmp = status_path + ".tmp"
+        with open(tmp, "w") as status_file:
+            json.dump(status, status_file)
+        os.replace(tmp, status_path)
+
+    def _heartbeat_once(self, status_path):
+        """Send and publish one heartbeat; deterministic seam for the loop."""
+        msg = {"type": MSG_HEARTBEAT, "ts": time.time()}
+        self._broadcast(msg)
+        self._publish_status(status_path)
+
     def _heartbeat_loop(self):
-        """Send periodic heartbeats to all peers and write status file."""
+        """Send periodic heartbeats to all peers and publish their status."""
         status_path = os.path.join(
             os.path.expanduser("~"), ".config", "juhradial", "flow_status.json"
         )
         while self.running:
-            msg = {"type": MSG_HEARTBEAT, "ts": time.time()}
-            self._broadcast(msg)
-            # Write status file so settings process can read peer info
             try:
-                peers = self.get_peers()
-                # Also include presence server connections (Logitech Flow protocol)
-                try:
-                    from . import get_presence_server
-                    ps = get_presence_server()
-                    if ps and hasattr(ps, 'active_connections'):
-                        with ps._conn_lock:
-                            for nid, (conn, name, key) in ps.active_connections.items():
-                                peers.append({
-                                    "id": nid[:16],
-                                    "hostname": name,
-                                    "platform": "unknown",
-                                    "ip": "",
-                                    "connected_at": 0,
-                                })
-                except Exception:
-                    pass
-                status = {"peers": peers, "updated_at": time.time()}
-                tmp = status_path + ".tmp"
-                with open(tmp, "w") as f:
-                    json.dump(status, f)
-                os.replace(tmp, status_path)
-            except Exception:
-                pass
+                self._heartbeat_once(status_path)
+            except OSError as e:
+                logger.debug("Cannot publish Flow status: %s", e)
             for _ in range(50):  # 5 seconds
                 if not self.running:
                     return
