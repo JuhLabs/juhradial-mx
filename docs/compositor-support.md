@@ -67,7 +67,7 @@ gnome-extensions enable juhradial-cursor@dev.juhlabs.com
 
 ### Known limitation: per-app profiles on GNOME Wayland
 
-Per-application profiles (auto-switching DPI, buttons, and scroll on focus change) need a source of truth for the **focused window's application class**. The daemon's active-window tracker has a native source only for **KDE** (a persistent KWin script) and **Hyprland** (the event socket). Every other session falls back to polling `xprop _NET_ACTIVE_WINDOW` + `WM_CLASS`, which only reliably reflects native windows under X11.
+Per-application profiles (auto-switching DPI, buttons, and scroll on focus change) need a source of truth for the **focused window's application class**. The daemon's active-window tracker has a native source only for **KDE** (a persistent KWin script) and **Hyprland** (the event socket). Every other session falls back to watching `_NET_ACTIVE_WINDOW` with `xprop -spy` and reading `WM_CLASS` on each change, which only reliably reflects native windows under X11.
 
 Under **GNOME Wayland** there is no equivalent native focus signal exposed to external clients, and the `xprop` fallback sees XWayland clients only, not native Wayland toplevels. As a result:
 
@@ -193,7 +193,7 @@ The overlay is a normal X11 window placed at the reported coordinates, so positi
 
 ### Per-app profiles
 
-X11 per-app tracking polls `xprop _NET_ACTIVE_WINDOW` and reads `WM_CLASS`, so per-application profiles work natively on X11.
+X11 per-app tracking keeps `xprop -spy _NET_ACTIVE_WINDOW` running and reads `WM_CLASS` only when focus changes, so per-application profiles work natively on X11 without periodic process polling.
 
 ### Setup
 
