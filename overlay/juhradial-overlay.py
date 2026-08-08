@@ -1356,8 +1356,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                     self.update()
                 return
             if new_slice == self.submenu_slice or distance > MENU_RADIUS:
-                self.highlighted_subitem = -1
-                self.update()
+                if self.highlighted_subitem != -1:
+                    self.highlighted_subitem = -1
+                    self.update()
                 return
             else:
                 self.submenu_active = False
@@ -1385,8 +1386,6 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self.highlighted_slice = new_slice
             if not self._anim_timer.isActive():
                 self._anim_timer.start()
-            self.update()
-        elif self.submenu_active:
             self.update()
 
     def _get_subitem_at_position(self, dx, dy):
@@ -1450,8 +1449,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                     self.update()
                 return
             if new_slice == self.submenu_slice or distance > MENU_RADIUS:
-                self.highlighted_subitem = -1
-                self.update()
+                if self.highlighted_subitem != -1:
+                    self.highlighted_subitem = -1
+                    self.update()
                 return
             else:
                 self.submenu_active = False
@@ -1479,8 +1479,6 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self.highlighted_slice = new_slice
             if not self._anim_timer.isActive():
                 self._anim_timer.start()
-            self.update()
-        elif self.submenu_active:
             self.update()
 
     def mousePressEvent(self, event):
