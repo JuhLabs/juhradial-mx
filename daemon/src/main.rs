@@ -1228,6 +1228,48 @@ async fn run_generic_evdev_loop(
     }
 }
 
+enum ButtonActionDispatchOutcome {
+    Executed {
+        action: juhradiald::config::ButtonAction,
+        repeats: u8,
+        result: Result<bool, juhradiald::actions::ActionError>,
+    },
+    Released {
+        action: juhradiald::config::ButtonAction,
+    },
+}
+
+/// Dispatch one button-action event through an injectable execution boundary.
+///
+/// `process_gesture_events` uses this seam with the real action executor; tests
+/// use an in-memory fake, avoiding helper processes and global PATH changes.
+async fn dispatch_button_action_event_with<Executor, Execution>(
+    event: GestureEvent,
+    execute: Executor,
+) -> ButtonActionDispatchOutcome
+where
+    Executor: FnOnce(juhradiald::config::ButtonAction, u8) -> Execution,
+    Execution: std::future::Future<Output = Result<bool, juhradiald::actions::ActionError>>,
+{
+    match event {
+        GestureEvent::ButtonActionEvent {
+            action,
+            pressed: true,
+            repeats,
+        } => ButtonActionDispatchOutcome::Executed {
+            action,
+            repeats,
+            result: execute(action, repeats).await,
+        },
+        GestureEvent::ButtonActionEvent {
+            action,
+            pressed: false,
+            ..
+        } => ButtonActionDispatchOutcome::Released { action },
+        _ => unreachable!("button-action dispatcher received a different event kind"),
+    }
+}
+
 /// Process gesture events from the evdev handler
 ///
 /// Press triggers ydotool injection -> cursor_grabber catches -> emits ShowMenu
@@ -1315,24 +1357,36 @@ async fn process_gesture_events(
                     }
                 }
             }
-            GestureEvent::ButtonActionEvent { action, pressed } => {
-                if pressed {
-                    info!(%action, "Button action triggered");
-                    match juhradiald::actions::execute_button_action(action).await {
-                        Ok(true) => {
-                            // Action was handled directly
-                        }
-                        Ok(false) => {
-                            // Should not happen (RadialMenu goes through Pressed path)
-                            warn!("ButtonActionEvent with radial_menu - unexpected");
-                        }
-                        Err(e) => {
-                            error!(%action, error = %e, "Failed to execute button action");
+            event @ GestureEvent::ButtonActionEvent { .. } => {
+                match dispatch_button_action_event_with(
+                    event,
+                    juhradiald::actions::execute_button_action_repeated,
+                )
+                .await
+                {
+                    ButtonActionDispatchOutcome::Executed {
+                        action,
+                        repeats,
+                        result,
+                    } => {
+                        info!(%action, repeats, "Button action triggered");
+                        match result {
+                            Ok(true) => {
+                                // Action was handled directly
+                            }
+                            Ok(false) => {
+                                // Should not happen (RadialMenu goes through Pressed path)
+                                warn!("ButtonActionEvent with radial_menu - unexpected");
+                            }
+                            Err(e) => {
+                                error!(%action, error = %e, "Failed to execute button action");
+                            }
                         }
                     }
-                } else {
-                    // Button released for non-radial action - no HideMenu needed
-                    tracing::debug!(%action, "Button action released (no-op)");
+                    ButtonActionDispatchOutcome::Released { action } => {
+                        // Button released for non-radial action - no HideMenu needed
+                        tracing::debug!(%action, "Button action released (no-op)");
+                    }
                 }
             }
             GestureEvent::ThumbwheelScroll { clicks } => {
@@ -1525,6 +1579,63 @@ mod tests {
 
         let event = rx.recv().await.unwrap();
         assert!(matches!(event, GestureEvent::Released { duration_ms: 500 }));
+    }
+
+    #[tokio::test]
+    async fn button_action_dispatch_forwards_repeats_once_and_ignores_release() {
+        use juhradiald::config::ButtonAction;
+
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let pressed_calls = calls.clone();
+        let pressed = dispatch_button_action_event_with(
+            GestureEvent::ButtonActionEvent {
+                action: ButtonAction::VolumeUp,
+                pressed: true,
+                repeats: 8,
+            },
+            move |action, repeats| {
+                pressed_calls.lock().unwrap().push((action, repeats));
+                std::future::ready(Ok(true))
+            },
+        )
+        .await;
+
+        match pressed {
+            ButtonActionDispatchOutcome::Executed {
+                action,
+                repeats,
+                result,
+            } => {
+                assert_eq!(action, ButtonAction::VolumeUp);
+                assert_eq!(repeats, 8);
+                assert!(result.unwrap());
+            }
+            ButtonActionDispatchOutcome::Released { .. } => {
+                panic!("pressed event was treated as a release")
+            }
+        }
+
+        let released_calls = calls.clone();
+        let released = dispatch_button_action_event_with(
+            GestureEvent::ButtonActionEvent {
+                action: ButtonAction::VolumeUp,
+                pressed: false,
+                repeats: 8,
+            },
+            move |action, repeats| {
+                released_calls.lock().unwrap().push((action, repeats));
+                std::future::ready(Ok(true))
+            },
+        )
+        .await;
+
+        assert!(matches!(
+            released,
+            ButtonActionDispatchOutcome::Released {
+                action: ButtonAction::VolumeUp
+            }
+        ));
+        assert_eq!(*calls.lock().unwrap(), [(ButtonAction::VolumeUp, 8)]);
     }
 
     #[tokio::test]

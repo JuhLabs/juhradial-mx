@@ -445,13 +445,16 @@ impl HidrawHandler {
 
         match output {
             crate::config::ThumbwheelOutput::Button(action) => {
-                // Emit one press per repeat; non-radial actions dispatch directly.
-                for _ in 0..repeats {
-                    let _ = self
-                        .event_tx
-                        .send(GestureEvent::ButtonActionEvent { action, pressed: true })
-                        .await;
-                }
+                // Keep the whole rotation in one channel message so configured
+                // speed does not multiply queue traffic and helper processes.
+                let _ = self
+                    .event_tx
+                    .send(GestureEvent::ButtonActionEvent {
+                        action,
+                        pressed: true,
+                        repeats,
+                    })
+                    .await;
             }
             crate::config::ThumbwheelOutput::HorizontalScroll(dir) => {
                 let _ = self
@@ -519,6 +522,7 @@ impl HidrawHandler {
                     .send(GestureEvent::ButtonActionEvent {
                         action,
                         pressed: true,
+                        repeats: 1,
                     })
                     .await;
             }
@@ -561,6 +565,7 @@ impl HidrawHandler {
                             .send(GestureEvent::ButtonActionEvent {
                                 action,
                                 pressed: false,
+                                repeats: 1,
                             })
                             .await;
                     }
@@ -804,6 +809,37 @@ mod tests {
         let result = handler.open_path(&missing_path);
 
         assert!(matches!(result, Err(HidrawError::DeviceNotFound)));
+    }
+
+    #[tokio::test]
+    async fn thumbwheel_repetitions_are_batched_into_one_event() {
+        let config = crate::config::new_shared_config();
+        {
+            let mut config = config.write().unwrap();
+            config.thumbwheel.mode = crate::config::ThumbwheelMode::Volume;
+            config.thumbwheel.speed = 8;
+        }
+
+        let (tx, mut rx) = mpsc::channel(16);
+        let mut handler = HidrawHandler::new(tx);
+        handler.set_shared_config(config);
+
+        handler
+            .handle_thumbwheel_event(&[HIDPP_LONG, 0, 0, 0, 0, 1])
+            .await;
+
+        assert_eq!(
+            rx.recv().await,
+            Some(GestureEvent::ButtonActionEvent {
+                action: crate::config::ButtonAction::VolumeUp,
+                pressed: true,
+                repeats: 8,
+            })
+        );
+        assert!(matches!(
+            rx.try_recv(),
+            Err(mpsc::error::TryRecvError::Empty)
+        ));
     }
 
     #[test]
