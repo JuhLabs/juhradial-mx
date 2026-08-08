@@ -80,6 +80,8 @@ pub struct HidrawHandler {
     /// Live KWin availability (D-Bus name ownership), used to pick the cursor
     /// backend on KDE instead of the XDG_CURRENT_DESKTOP env var (issue #32).
     kwin_available: Option<crate::compositor::KWinAvailability>,
+    /// Native KWin scripting client backed by the daemon's session connection.
+    kwin_scripting: Option<crate::compositor::KWinScripting>,
 }
 
 /// Map HID++ CID to evdev key code for macro trigger forwarding
@@ -119,6 +121,7 @@ impl HidrawHandler {
             thumbwheel_feature_index: None,
             notification_indices: Default::default(),
             kwin_available: None,
+            kwin_scripting: None,
         }
     }
 
@@ -126,6 +129,11 @@ impl HidrawHandler {
     /// cursor backend by D-Bus capability rather than an environment string.
     pub fn set_kwin_availability(&mut self, kwin: crate::compositor::KWinAvailability) {
         self.kwin_available = Some(kwin);
+    }
+
+    /// Reuse the daemon's native D-Bus connection for KWin cursor scripts.
+    pub fn set_kwin_scripting(&mut self, scripting: crate::compositor::KWinScripting) {
+        self.kwin_scripting = Some(scripting);
     }
 
     /// Register CIDs that are diverted for macro triggers (not gesture buttons)
@@ -605,12 +613,25 @@ impl HidrawHandler {
                 .unwrap_or(false);
             match crate::compositor::cursor_backend(kwin_owned) {
                 crate::compositor::CursorBackend::KWin => {
-                    tracing::info!(kwin_owned, "Gesture button PRESSED - triggering KWin cursor query");
-                    if !Self::trigger_kwin_cursor_script() {
-                        let (x, y) = Self::get_cursor_position();
-                        tracing::warn!(x, y, "KWin script failed, using fallback cursor position");
-                        let _ = self.event_tx.send(GestureEvent::Pressed { x, y }).await;
-                    }
+                    tracing::info!(
+                        kwin_owned,
+                        "Gesture button PRESSED - triggering KWin cursor query"
+                    );
+                    let scripting = self.kwin_scripting.clone();
+                    let event_tx = self.event_tx.clone();
+                    crate::compositor::trigger_kwin_cursor_script(
+                        scripting.as_ref(),
+                        move || async move {
+                            let (x, y) = Self::get_cursor_position();
+                            tracing::warn!(
+                                x,
+                                y,
+                                "KWin script failed, using fallback cursor position"
+                            );
+                            let _ = event_tx.send(GestureEvent::Pressed { x, y }).await;
+                        },
+                    )
+                    .await;
                     // If KWin script succeeded, it calls ShowMenuAtCursor via D-Bus
                 }
                 crate::compositor::CursorBackend::Fallback => {
@@ -641,94 +662,6 @@ impl HidrawHandler {
     fn get_cursor_position() -> (i32, i32) {
         let pos = crate::cursor::get_cursor_position();
         (pos.x, pos.y)
-    }
-
-    /// Trigger KWin script to get cursor position and call ShowMenuAtCursor
-    ///
-    /// This method works correctly on Plasma 6 Wayland with multiple monitors,
-    /// unlike xdotool/XWayland which clamps cursor to a single screen.
-    fn trigger_kwin_cursor_script() -> bool {
-        use std::io::Write;
-        use std::process::Command;
-        use tempfile::Builder;
-
-        let script = crate::cursor::KWIN_CURSOR_SCRIPT;
-
-        // Create a temporary file with .js suffix securely
-        let mut temp_file = match Builder::new().suffix(".js").tempfile() {
-            Ok(file) => file,
-            Err(e) => {
-                tracing::warn!("Failed to create temp file for KWin script: {}", e);
-                return false;
-            }
-        };
-
-        // Write script to temp file
-        if let Err(e) = write!(temp_file, "{}", script) {
-            tracing::warn!("Failed to write KWin script: {}", e);
-            return false;
-        }
-
-        // Get the path as a string
-        let script_path = temp_file.path().to_string_lossy();
-
-        // Load script via D-Bus
-        let load_result = Command::new("dbus-send")
-            .args([
-                "--session",
-                "--print-reply",
-                "--dest=org.kde.KWin",
-                "/Scripting",
-                "org.kde.kwin.Scripting.loadScript",
-                &format!("string:{}", script_path),
-            ])
-            .output();
-
-        let load_output = match load_result {
-            Ok(output) if output.status.success() => output,
-            _ => {
-                tracing::warn!("Failed to load KWin script");
-                return false;
-            }
-        };
-
-        // Parse script ID from output (looks like "int32 5")
-        let stdout = String::from_utf8_lossy(&load_output.stdout);
-        let script_id: Option<i32> = stdout
-            .lines()
-            .find(|line| line.contains("int32"))
-            .and_then(|line| line.split_whitespace().last())
-            .and_then(|s| s.parse().ok());
-
-        let script_id = match script_id {
-            Some(id) => id,
-            None => {
-                tracing::warn!("Failed to parse KWin script ID");
-                return false;
-            }
-        };
-
-        // Run the script
-        let run_result = Command::new("dbus-send")
-            .args([
-                "--session",
-                "--print-reply",
-                "--dest=org.kde.KWin",
-                &format!("/Scripting/Script{}", script_id),
-                "org.kde.kwin.Script.run",
-            ])
-            .output();
-
-        match run_result {
-            Ok(output) if output.status.success() => {
-                tracing::debug!(script_id, "KWin cursor script triggered successfully");
-                true
-            }
-            _ => {
-                tracing::warn!("Failed to run KWin script");
-                false
-            }
-        }
     }
 
     /// Check if handler is connected

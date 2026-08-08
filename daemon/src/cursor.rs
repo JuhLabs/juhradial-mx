@@ -103,9 +103,9 @@ pub fn get_cursor_position() -> CursorPosition {
         return pos;
     }
 
-    // KWin scripting is handled by hidraw.rs trigger_kwin_cursor_script()
-    // which calls ShowMenuAtCursor via D-Bus asynchronously. This fallback
-    // path is only reached when that async path isn't used.
+    // KWin scripting is handled by the input handlers through the shared
+    // native zbus client, which calls ShowMenuAtCursor asynchronously. This
+    // fallback path is only reached when that KWin path isn't used or fails.
 
     // Try KWin D-Bus property (older Plasma versions)
     if let Some(pos) = get_cursor_via_kwin_dbus() {

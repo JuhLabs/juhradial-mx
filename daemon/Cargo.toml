@@ -52,6 +52,8 @@ default = []
 [dev-dependencies]
 # Performance benchmarks
 criterion = "0.8"
+# Isolated peer-to-peer D-Bus coverage for the native KWin scripting client.
+zbus = { version = "5", features = ["p2p"] }
 
 [[bench]]
 name = "latency"

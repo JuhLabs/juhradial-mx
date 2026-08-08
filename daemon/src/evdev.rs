@@ -114,6 +114,8 @@ pub struct EvdevHandler {
     /// Live KWin availability (D-Bus name ownership), used to pick the cursor
     /// backend on KDE instead of the XDG_CURRENT_DESKTOP env var (issue #32).
     kwin_available: Option<crate::compositor::KWinAvailability>,
+    /// Native KWin scripting client backed by the daemon's session connection.
+    kwin_scripting: Option<crate::compositor::KWinScripting>,
 }
 
 impl EvdevHandler {
@@ -134,6 +136,7 @@ impl EvdevHandler {
             shared_config: None,
             active_button_action: None,
             kwin_available: None,
+            kwin_scripting: None,
         }
     }
 
@@ -154,6 +157,7 @@ impl EvdevHandler {
             shared_config: None,
             active_button_action: None,
             kwin_available: None,
+            kwin_scripting: None,
         }
     }
 
@@ -166,6 +170,11 @@ impl EvdevHandler {
     /// cursor backend by D-Bus capability rather than an environment string.
     pub fn set_kwin_availability(&mut self, kwin: crate::compositor::KWinAvailability) {
         self.kwin_available = Some(kwin);
+    }
+
+    /// Reuse the daemon's native D-Bus connection for KWin cursor scripts.
+    pub fn set_kwin_scripting(&mut self, scripting: crate::compositor::KWinScripting) {
+        self.kwin_scripting = Some(scripting);
     }
 
     /// Set which key codes should be suppressed (eaten) from the OS.
@@ -750,18 +759,23 @@ impl EvdevHandler {
                             kwin_owned,
                             "Gesture button pressed (radial_menu) - triggering KWin cursor query"
                         );
-                        if !Self::trigger_kwin_cursor_script() {
-                            let pos = crate::cursor::get_cursor_position();
-                            tracing::warn!(
-                                x = pos.x,
-                                y = pos.y,
-                                "KWin script failed, using fallback"
-                            );
-                            let _ = self
-                                .event_tx
-                                .send(GestureEvent::Pressed { x: pos.x, y: pos.y })
-                                .await;
-                        }
+                        let scripting = self.kwin_scripting.clone();
+                        let event_tx = self.event_tx.clone();
+                        crate::compositor::trigger_kwin_cursor_script(
+                            scripting.as_ref(),
+                            move || async move {
+                                let pos = crate::cursor::get_cursor_position();
+                                tracing::warn!(
+                                    x = pos.x,
+                                    y = pos.y,
+                                    "KWin script failed, using fallback"
+                                );
+                                let _ = event_tx
+                                    .send(GestureEvent::Pressed { x: pos.x, y: pos.y })
+                                    .await;
+                            },
+                        )
+                        .await;
                     } else {
                         let pos = crate::cursor::get_cursor_position();
                         tracing::info!(
@@ -819,93 +833,6 @@ impl EvdevHandler {
             }
             _ => {
                 // Repeat events (value=2) are ignored
-            }
-        }
-    }
-
-    /// Trigger KWin script to get cursor position and call ShowMenuAtCursor
-    ///
-    /// This works correctly on Plasma 6 Wayland with multiple monitors.
-    fn trigger_kwin_cursor_script() -> bool {
-        use std::io::Write;
-        use std::process::Command;
-        use tempfile::Builder;
-
-        let script = crate::cursor::KWIN_CURSOR_SCRIPT;
-
-        // Create a temporary file with .js suffix securely
-        let mut temp_file = match Builder::new().suffix(".js").tempfile() {
-            Ok(file) => file,
-            Err(e) => {
-                tracing::warn!("Failed to create temp file for KWin script: {}", e);
-                return false;
-            }
-        };
-
-        // Write script to temp file
-        if let Err(e) = write!(temp_file, "{}", script) {
-            tracing::warn!("Failed to write KWin script: {}", e);
-            return false;
-        }
-
-        // Get the path as a string
-        let script_path = temp_file.path().to_string_lossy();
-
-        // Load script via D-Bus
-        let load_result = Command::new("dbus-send")
-            .args([
-                "--session",
-                "--print-reply",
-                "--dest=org.kde.KWin",
-                "/Scripting",
-                "org.kde.kwin.Scripting.loadScript",
-                &format!("string:{}", script_path),
-            ])
-            .output();
-
-        let load_output = match load_result {
-            Ok(output) if output.status.success() => output,
-            _ => {
-                tracing::warn!("Failed to load KWin script");
-                return false;
-            }
-        };
-
-        // Parse script ID from output (looks like "int32 5")
-        let stdout = String::from_utf8_lossy(&load_output.stdout);
-        let script_id: Option<i32> = stdout
-            .lines()
-            .find(|line| line.contains("int32"))
-            .and_then(|line| line.split_whitespace().last())
-            .and_then(|s| s.parse().ok());
-
-        let script_id = match script_id {
-            Some(id) => id,
-            None => {
-                tracing::warn!("Failed to parse KWin script ID");
-                return false;
-            }
-        };
-
-        // Run the script
-        let run_result = Command::new("dbus-send")
-            .args([
-                "--session",
-                "--print-reply",
-                "--dest=org.kde.KWin",
-                &format!("/Scripting/Script{}", script_id),
-                "org.kde.kwin.Script.run",
-            ])
-            .output();
-
-        match run_result {
-            Ok(output) if output.status.success() => {
-                tracing::debug!(script_id, "KWin cursor script triggered successfully");
-                true
-            }
-            _ => {
-                tracing::warn!("Failed to run KWin script");
-                false
             }
         }
     }
