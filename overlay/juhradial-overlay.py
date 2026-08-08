@@ -90,7 +90,12 @@ from PyQt6.QtGui import (
     QFont,
     QRadialGradient,
 )
-from PyQt6.QtDBus import QDBusConnection, QDBusInterface
+from PyQt6.QtDBus import (
+    QDBusConnection,
+    QDBusInterface,
+    QDBusPendingCallWatcher,
+    QDBusPendingReply,
+)
 
 from overlay_constants import (
     MENU_RADIUS,
@@ -531,6 +536,8 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             "org.kde.juhradialmx.Daemon",
             bus,
         )
+        self._haptic_watchers = set()
+        self._pending_haptic_events = set()
         print(
             f"[DBUS] D-Bus interface created - isValid: {self.daemon_iface.isValid()}"
         )
@@ -950,7 +957,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         return hover_gate(self._hover_anchors, self._hover_armed, source, dx, dy)
 
     def _trigger_haptic(self, event):
-        """Trigger haptic feedback via D-Bus call to daemon.
+        """Trigger haptic feedback without blocking the GUI thread.
 
         Args:
             event: One of "menu_appear", "slice_change", "confirm", "invalid"
@@ -959,17 +966,39 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             f"[HAPTIC] _trigger_haptic called: event={event}, iface_valid={self.daemon_iface.isValid()}"
         )
         if self.daemon_iface.isValid():
-            reply = self.daemon_iface.call("TriggerHaptic", event)
-            if reply.type() == reply.MessageType.ErrorMessage:
-                print(
-                    f"[HAPTIC] D-Bus call failed: {reply.errorName()} - {reply.errorMessage()}"
+            if event in self._pending_haptic_events:
+                print(f"[HAPTIC] Coalescing pending {event} event")
+                return
+
+            pending_call = self.daemon_iface.asyncCall("TriggerHaptic", event)
+            watcher = QDBusPendingCallWatcher(pending_call, self)
+            self._pending_haptic_events.add(event)
+            self._haptic_watchers.add(watcher)
+            watcher.finished.connect(
+                lambda finished_watcher, haptic_event=event: self._on_haptic_finished(
+                    finished_watcher, haptic_event
                 )
-            else:
-                print(f"[HAPTIC] D-Bus call succeeded for {event}")
+            )
         else:
             print(
                 f"[HAPTIC] ERROR: daemon_iface is INVALID - cannot send haptic signal"
             )
+
+    def _on_haptic_finished(self, watcher, event):
+        """Log an asynchronous haptic reply and release its watcher."""
+        try:
+            reply = QDBusPendingReply(watcher)
+            if reply.isError():
+                error = reply.error()
+                print(
+                    f"[HAPTIC] D-Bus call failed: {error.name()} - {error.message()}"
+                )
+            else:
+                print(f"[HAPTIC] D-Bus call succeeded for {event}")
+        finally:
+            self._pending_haptic_events.discard(event)
+            self._haptic_watchers.discard(watcher)
+            watcher.deleteLater()
 
     def _apply_ring_scale(self, mon):
         """Scale the ring window to the monitor it is shown on.
