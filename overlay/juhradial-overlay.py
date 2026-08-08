@@ -122,6 +122,7 @@ from overlay_cursor import (
     find_monitor_at,
 )
 import overlay_actions
+from overlay_media import MediaStateQuery, actions_use_media_state
 from overlay_painting import RadialMenuPaintingMixin
 from i18n import _
 
@@ -531,6 +532,8 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             "org.kde.juhradialmx.Daemon",
             bus,
         )
+        self._media_state_query = MediaStateQuery(parent=self)
+        self._media_state_query.state_changed.connect(self._on_media_state_changed)
         print(
             f"[DBUS] D-Bus interface created - isValid: {self.daemon_iface.isValid()}"
         )
@@ -864,16 +867,6 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.bloom_progress = 0.0
         self.center_pulse = 0.0
 
-        # Media playback state (play/pause glyph) is queried AFTER show():
-        # get_media_state() shells out to playerctl (0.2s timeout), which on
-        # a busy MPRIS player stalls the whole open path for up to 200ms.
-        # One repaint later is invisible; a stalled open is not.
-        def _refresh_media_glyph():
-            if not self.isVisible():
-                return
-            overlay_actions.get_media_state()
-            self.update()
-
         # Position and show: set opacity to 0 and move BEFORE show to prevent
         # any visible frame at the wrong location on multi-monitor setups.
         # move_x/move_y were computed above (Qt space on Hyprland, logical space
@@ -896,7 +889,8 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.show()
         self.raise_()
         self.activateWindow()
-        QTimer.singleShot(0, _refresh_media_glyph)
+        if actions_use_media_state(overlay_actions.ACTIONS):
+            QTimer.singleShot(0, self._refresh_media_glyph)
 
         # Animated-shader wallpapers leave a stale cached rectangle behind the
         # transparent window unless KWin is forced to recomposite (closed issue
@@ -937,6 +931,17 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
     def _get_center_radius(self):
         params = overlay_actions.RADIAL_PARAMS or {}
         return params.get("center_radius", params.get("ring_inner", CENTER_ZONE_RADIUS))
+
+    def _refresh_media_glyph(self):
+        """Refresh the dynamic play/pause glyph without blocking menu input."""
+        if self.isVisible() and actions_use_media_state(overlay_actions.ACTIONS):
+            self._media_state_query.start()
+
+    def _on_media_state_changed(self, playing):
+        """Apply an asynchronous playerctl result to the dynamic media glyph."""
+        overlay_actions.MEDIA_PLAYING = playing
+        if self.isVisible():
+            self.update()
 
     def _hover_gate(self, source, dx, dy):
         """Whether hover may highlight a slice yet.

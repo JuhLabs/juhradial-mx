@@ -426,19 +426,6 @@ def open_settings():
 MEDIA_PLAYING = False
 
 
-def get_media_state():
-    """Query playerctl for current playback state. Updates MEDIA_PLAYING global."""
-    global MEDIA_PLAYING
-    try:
-        result = subprocess.run(
-            ["playerctl", "status"],
-            capture_output=True, text=True, timeout=0.2,
-        )
-        MEDIA_PLAYING = result.stdout.strip() == "Playing"
-    except (subprocess.SubprocessError, OSError):
-        MEDIA_PLAYING = False
-
-
 # =============================================================================
 # MUTABLE GLOBALS (reassigned by on_show in main overlay)
 # =============================================================================
