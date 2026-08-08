@@ -97,6 +97,11 @@ pub struct EvdevHandler {
     cursor_y: i32,
     /// Whether menu is currently active (button held)
     menu_active: bool,
+    /// Whether the current physical input frame contains cursor movement
+    pending_cursor_update: bool,
+    /// Cursor movement buffered for the current physical input frame
+    pending_cursor_dx: i32,
+    pending_cursor_dy: i32,
     /// Trigger button code (GESTURE_BUTTON_CODES for MX, GENERIC_TRIGGER_BUTTON for generic)
     trigger_button: u16,
     /// Whether we are running in generic mouse mode
@@ -127,6 +132,9 @@ impl EvdevHandler {
             cursor_x: 0,
             cursor_y: 0,
             menu_active: false,
+            pending_cursor_update: false,
+            pending_cursor_dx: 0,
+            pending_cursor_dy: 0,
             trigger_button: GESTURE_BUTTON_CODES[0],
             generic_mode: false,
             last_config_check: Instant::now(),
@@ -147,6 +155,9 @@ impl EvdevHandler {
             cursor_x: 0,
             cursor_y: 0,
             menu_active: false,
+            pending_cursor_update: false,
+            pending_cursor_dx: 0,
+            pending_cursor_dy: 0,
             trigger_button: trigger_button.unwrap_or(GENERIC_TRIGGER_BUTTON),
             generic_mode: true,
             last_config_check: Instant::now(),
@@ -518,14 +529,17 @@ impl EvdevHandler {
 
         #[cfg(target_os = "linux")]
         {
-            self.run_event_loop().await
+            self.deactivate_cursor_tracking();
+            let result = self.run_event_loop().await;
+            self.deactivate_cursor_tracking();
+            result
         }
     }
 
     /// Run the event loop on Linux
     #[cfg(target_os = "linux")]
     async fn run_event_loop(&mut self) -> Result<(), EvdevError> {
-        use evdev::{uinput::VirtualDevice as UinputDevice, Device, EventType, RelativeAxisCode};
+        use evdev::{uinput::VirtualDevice as UinputDevice, Device, EventType};
 
         // Find the device based on mode
         let device_info = if self.generic_mode {
@@ -655,34 +669,8 @@ impl EvdevHandler {
                                 }
                             }
                         }
-                        // Track mouse movement while menu is active
-                        EventType::RELATIVE if self.menu_active => {
-                            let code = RelativeAxisCode(event.code());
-                            let value = event.value();
-
-                            match code {
-                                RelativeAxisCode::REL_X => {
-                                    self.cursor_x += value;
-                                    let _ = self
-                                        .event_tx
-                                        .send(GestureEvent::CursorMoved {
-                                            x: self.cursor_x,
-                                            y: self.cursor_y,
-                                        })
-                                        .await;
-                                }
-                                RelativeAxisCode::REL_Y => {
-                                    self.cursor_y += value;
-                                    let _ = self
-                                        .event_tx
-                                        .send(GestureEvent::CursorMoved {
-                                            x: self.cursor_x,
-                                            y: self.cursor_y,
-                                        })
-                                        .await;
-                                }
-                                _ => {}
-                            }
+                        EventType::RELATIVE | EventType::SYNCHRONIZATION => {
+                            self.handle_cursor_input_event(event).await
                         }
                         _ => {}
                     }
@@ -697,6 +685,64 @@ impl EvdevHandler {
                 }
             }
         }
+    }
+
+    /// Accumulate cursor movement and emit one update at a physical frame boundary.
+    #[cfg(target_os = "linux")]
+    async fn handle_cursor_input_event(&mut self, event: evdev::InputEvent) {
+        use evdev::{EventType, RelativeAxisCode, SynchronizationCode};
+
+        match event.event_type() {
+            EventType::RELATIVE if self.menu_active => match RelativeAxisCode(event.code()) {
+                RelativeAxisCode::REL_X => {
+                    self.pending_cursor_dx += event.value();
+                    self.pending_cursor_update = true;
+                }
+                RelativeAxisCode::REL_Y => {
+                    self.pending_cursor_dy += event.value();
+                    self.pending_cursor_update = true;
+                }
+                _ => {}
+            },
+            EventType::SYNCHRONIZATION if event.code() == SynchronizationCode::SYN_DROPPED.0 => {
+                self.discard_pending_cursor_frame();
+            }
+            EventType::SYNCHRONIZATION
+                if event.code() == SynchronizationCode::SYN_REPORT.0
+                    && self.menu_active
+                    && self.pending_cursor_update =>
+            {
+                self.cursor_x += self.pending_cursor_dx;
+                self.cursor_y += self.pending_cursor_dy;
+                self.discard_pending_cursor_frame();
+                let _ = self
+                    .event_tx
+                    .send(GestureEvent::CursorMoved {
+                        x: self.cursor_x,
+                        y: self.cursor_y,
+                    })
+                    .await;
+            }
+            _ => {}
+        }
+    }
+
+    fn activate_cursor_tracking(&mut self) {
+        self.menu_active = true;
+        self.cursor_x = 0;
+        self.cursor_y = 0;
+        self.discard_pending_cursor_frame();
+    }
+
+    fn deactivate_cursor_tracking(&mut self) {
+        self.menu_active = false;
+        self.discard_pending_cursor_frame();
+    }
+
+    fn discard_pending_cursor_frame(&mut self) {
+        self.pending_cursor_update = false;
+        self.pending_cursor_dx = 0;
+        self.pending_cursor_dy = 0;
     }
 
     /// Get the configured action for the evdev trigger button.
@@ -730,9 +776,7 @@ impl EvdevHandler {
 
                 if action == crate::config::ButtonAction::RadialMenu {
                     // Radial menu flow: need cursor position
-                    self.menu_active = true;
-                    self.cursor_x = 0;
-                    self.cursor_y = 0;
+                    self.activate_cursor_tracking();
 
                     // Pick the cursor backend by whether KWin owns its D-Bus
                     // name, not by XDG_CURRENT_DESKTOP, which is empty when
@@ -777,6 +821,7 @@ impl EvdevHandler {
                     }
                 } else {
                     // Non-radial action: dispatch via event channel
+                    self.deactivate_cursor_tracking();
                     tracing::info!(%action, "Gesture button pressed - non-radial action");
                     let _ = self
                         .event_tx
@@ -789,7 +834,7 @@ impl EvdevHandler {
             }
             0 => {
                 // Button released
-                self.menu_active = false;
+                self.deactivate_cursor_tracking();
                 let duration_ms = self
                     .press_time
                     .map(|t| t.elapsed().as_millis() as u64)
@@ -977,6 +1022,38 @@ impl std::error::Error for EvdevError {}
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "linux")]
+    use evdev::{EventType, InputEvent, RelativeAxisCode, SynchronizationCode};
+
+    #[cfg(target_os = "linux")]
+    fn relative_event(code: RelativeAxisCode, value: i32) -> InputEvent {
+        InputEvent::new(EventType::RELATIVE.0, code.0, value)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn synchronization_event(code: SynchronizationCode) -> InputEvent {
+        InputEvent::new(EventType::SYNCHRONIZATION.0, code.0, 0)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn cursor_events(rx: &mut mpsc::Receiver<GestureEvent>) -> Vec<GestureEvent> {
+        let mut events = Vec::new();
+        while let Ok(event) = rx.try_recv() {
+            if matches!(event, GestureEvent::CursorMoved { .. }) {
+                events.push(event);
+            }
+        }
+        events
+    }
+
+    #[cfg(target_os = "linux")]
+    fn active_handler() -> (EvdevHandler, mpsc::Receiver<GestureEvent>) {
+        let (tx, rx) = mpsc::channel(16);
+        let mut handler = EvdevHandler::new(tx);
+        handler.activate_cursor_tracking();
+        (handler, rx)
+    }
+
     #[test]
     fn test_vendor_id() {
         assert_eq!(LOGITECH_VENDOR_ID, 0x046D);
@@ -1009,6 +1086,183 @@ mod tests {
 
         assert_eq!(e1, e2);
         assert_ne!(e1, e3);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn cursor_movement_is_coalesced_until_syn_report() {
+        let (mut handler, mut rx) = active_handler();
+
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 7))
+            .await;
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_Y, -4))
+            .await;
+        assert!(cursor_events(&mut rx).is_empty());
+
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+
+        assert_eq!(
+            cursor_events(&mut rx),
+            vec![GestureEvent::CursorMoved { x: 7, y: -4 }]
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn single_axis_frames_each_emit_once() {
+        let (mut handler, mut rx) = active_handler();
+
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 5))
+            .await;
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_Y, 3))
+            .await;
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+
+        assert_eq!(
+            cursor_events(&mut rx),
+            vec![
+                GestureEvent::CursorMoved { x: 5, y: 0 },
+                GestureEvent::CursorMoved { x: 5, y: 3 },
+            ]
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn consecutive_two_axis_frames_emit_final_coordinates_once_per_frame() {
+        let (mut handler, mut rx) = active_handler();
+
+        for event in [
+            relative_event(RelativeAxisCode::REL_X, 2),
+            relative_event(RelativeAxisCode::REL_Y, 3),
+            synchronization_event(SynchronizationCode::SYN_REPORT),
+            relative_event(RelativeAxisCode::REL_X, -1),
+            relative_event(RelativeAxisCode::REL_Y, 4),
+            synchronization_event(SynchronizationCode::SYN_REPORT),
+        ] {
+            handler.handle_cursor_input_event(event).await;
+        }
+
+        assert_eq!(
+            cursor_events(&mut rx),
+            vec![
+                GestureEvent::CursorMoved { x: 2, y: 3 },
+                GestureEvent::CursorMoved { x: 1, y: 7 },
+            ]
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn irrelevant_synchronization_does_not_flush_cursor_movement() {
+        let (mut handler, mut rx) = active_handler();
+
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+        assert!(cursor_events(&mut rx).is_empty());
+
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 9))
+            .await;
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_CONFIG))
+            .await;
+        assert!(cursor_events(&mut rx).is_empty());
+
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+        assert_eq!(
+            cursor_events(&mut rx),
+            vec![GestureEvent::CursorMoved { x: 9, y: 0 }]
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn release_drops_pending_cursor_movement() {
+        let (mut handler, mut rx) = active_handler();
+
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 11))
+            .await;
+        handler.handle_gesture_event(0).await;
+        assert!(!handler.pending_cursor_update);
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+
+        assert!(cursor_events(&mut rx).is_empty());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn lifecycle_reset_drops_pending_cursor_movement() {
+        let (mut handler, mut rx) = active_handler();
+
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_Y, 13))
+            .await;
+        handler.deactivate_cursor_tracking();
+        assert!(!handler.pending_cursor_update);
+        handler.activate_cursor_tracking();
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+
+        assert!(cursor_events(&mut rx).is_empty());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn dropped_frame_discards_pending_cursor_movement() {
+        let (mut handler, mut rx) = active_handler();
+
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 17))
+            .await;
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_DROPPED))
+            .await;
+        assert!(!handler.pending_cursor_update);
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+
+        assert!(cursor_events(&mut rx).is_empty());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn dropped_x_does_not_leak_into_a_later_valid_y_frame() {
+        let (mut handler, mut rx) = active_handler();
+
+        for event in [
+            relative_event(RelativeAxisCode::REL_X, 17),
+            synchronization_event(SynchronizationCode::SYN_DROPPED),
+            synchronization_event(SynchronizationCode::SYN_REPORT),
+            relative_event(RelativeAxisCode::REL_Y, 5),
+            synchronization_event(SynchronizationCode::SYN_REPORT),
+        ] {
+            handler.handle_cursor_input_event(event).await;
+        }
+
+        assert_eq!(
+            cursor_events(&mut rx),
+            vec![GestureEvent::CursorMoved { x: 0, y: 5 }]
+        );
     }
 
     #[test]
