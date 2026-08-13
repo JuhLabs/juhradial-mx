@@ -5,6 +5,12 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Settings UI and overlay render on Debian/Ubuntu** - The PyGObject cairo bindings (`python3-gi-cairo`) were missing from the Debian/Ubuntu install path. On those distros `python3-gi` does not pull in cairo, so GTK4/libadwaita widgets failed to render. The installer, the installation guide, and the contributor setup now install `python3-gi-cairo`. The Fedora and Arch packaging already list cairo explicitly; those paths and openSUSE are unchanged.
+
 ## [0.4.1] - 2026-07-21
 
 ### Added

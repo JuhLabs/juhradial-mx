@@ -372,7 +372,7 @@ install_deps_debian() {
         rustc cargo \
         python3 python3-pip python3-venv \
         python3-pyqt6 python3-pyqt6.qtsvg \
-        python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
+        python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
         python3-cryptography \
         libdbus-1-dev libsystemd-dev \
         libevdev-dev libhidapi-dev \

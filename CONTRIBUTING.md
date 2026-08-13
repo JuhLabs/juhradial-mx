@@ -84,7 +84,7 @@ sudo pacman -S --needed \
 sudo apt install \
   rustc cargo \
   python3-pyqt6 python3-pyqt6.qtsvg \
-  python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
+  python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
   libdbus-1-dev libsystemd-dev \
   libevdev-dev libhidapi-dev \
   git make build-essential
