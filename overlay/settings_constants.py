@@ -157,7 +157,7 @@ _BASE_RADIAL_ACTIONS = [
     ("files", "Files", "system-file-manager-symbolic", "exec", "dolphin", "orange"),
     ("emoji", "Emoji Picker", "face-smile-symbolic", "exec", "ibus emoji", "yellow"),
     ("new_note", "New Note", "document-new-symbolic", "exec", "kwrite", "yellow"),
-    ("ai", "AI Assistant", "dialog-information-symbolic", "submenu", "", "teal"),
+    ("ai", "Quick Links", "dialog-information-symbolic", "submenu", "", "teal"),
     ("copy", "Copy", "edit-copy-symbolic", "shortcut", "ctrl+c", "blue"),
     ("paste", "Paste", "edit-paste-symbolic", "shortcut", "ctrl+v", "blue"),
     ("undo", "Undo", "edit-undo-symbolic", "shortcut", "ctrl+z", "blue"),

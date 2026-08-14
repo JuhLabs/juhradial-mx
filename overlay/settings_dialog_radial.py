@@ -408,6 +408,60 @@ class SliceConfigDialog(Adw.Window):
         self.cmd_box = cmd_box
         content.append(cmd_box)
 
+        # Quick links editor (submenu type only). Up to four label + URL rows;
+        # empty rows are skipped, and an all-empty editor falls back to the
+        # default AI assistant links.
+        links_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        links_title = Gtk.Label(label=_("Submenu Links"))
+        links_title.set_halign(Gtk.Align.START)
+        links_title.add_css_class("dim-label")
+        links_box.append(links_title)
+
+        links_hint = Gtk.Label(
+            label=_("Up to four links to show in this submenu. Leave all rows empty to use the default AI assistant links.")
+        )
+        links_hint.set_halign(Gtk.Align.START)
+        links_hint.set_wrap(True)
+        links_hint.add_css_class("dim-label")
+        links_box.append(links_hint)
+
+        default_links = [
+            ("Claude", "https://claude.ai"),
+            ("ChatGPT", "https://chat.openai.com"),
+            ("Gemini", "https://gemini.google.com"),
+            ("Perplexity", "https://perplexity.ai"),
+        ]
+        configured = self.slice_data.get("submenu") or []
+        self.link_rows = []
+        for i in range(4):
+            if i < len(configured) and isinstance(configured[i], dict):
+                row_label = configured[i].get("label", "")
+                row_url = configured[i].get("url", "")
+            elif not configured:
+                row_label, row_url = default_links[i]
+            else:
+                row_label, row_url = "", ""
+
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            label_entry = Gtk.Entry()
+            label_entry.set_text(row_label)
+            label_entry.set_placeholder_text(_("Label"))
+            label_entry.set_hexpand(False)
+            label_entry.set_width_chars(12)
+            row.append(label_entry)
+
+            url_entry = Gtk.Entry()
+            url_entry.set_text(row_url)
+            url_entry.set_placeholder_text(_("https://..."))
+            url_entry.set_hexpand(True)
+            row.append(url_entry)
+
+            links_box.append(row)
+            self.link_rows.append((label_entry, url_entry))
+
+        self.links_box = links_box
+        content.append(links_box)
+
         # Color picker
         color_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         color_title = Gtk.Label(label=_("Color"))
@@ -490,6 +544,7 @@ class SliceConfigDialog(Adw.Window):
         # Command is needed for exec and url types
         needs_command = type_id in ("exec", "url")
         self.cmd_box.set_visible(needs_command)
+        self.links_box.set_visible(type_id == "submenu")
 
         if type_id == "url":
             self.cmd_title.set_text(_("URL"))
@@ -536,6 +591,19 @@ class SliceConfigDialog(Adw.Window):
             "color": selected_color,
             "icon": self.icon_entry.get_text() or "application-x-executable-symbolic",
         }
+        if type_id == "submenu":
+            links = []
+            for label_entry, url_entry in self.link_rows:
+                link_label = label_entry.get_text().strip()
+                link_url = url_entry.get_text().strip()
+                if not link_label and not link_url:
+                    continue
+                if link_url and not link_url.startswith(("http://", "https://")):
+                    link_url = "https://" + link_url
+                if link_label and link_url:
+                    links.append({"label": link_label, "url": link_url})
+            if links:
+                new_slice["submenu"] = links
         # Update config
         slices = self.config_manager.get("radial_menu", "slices", default=[])
 

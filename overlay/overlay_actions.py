@@ -113,6 +113,48 @@ AI_SUBMENU = [
     ("Perplexity", "url", "https://perplexity.ai", "perplexity"),
 ]
 
+# Domain fragments mapped to the bundled brand icons; anything else falls back
+# to the painter's generic browser glyph.
+_LINK_ICON_DOMAINS = [
+    ("claude", "claude"),
+    ("chatgpt", "chatgpt"),
+    ("openai", "chatgpt"),
+    ("gemini", "gemini"),
+    ("perplexity", "perplexity"),
+]
+
+
+def _link_icon_for_url(url):
+    """Pick a submenu icon id for a quick-link URL."""
+    lowered = url.lower()
+    for fragment, icon in _LINK_ICON_DOMAINS:
+        if fragment in lowered:
+            return icon
+    return "browser"
+
+
+def submenu_from_config(items):
+    """Build a submenu from configured quick links, or None if unusable.
+
+    ``items`` is the slice's ``submenu`` config list of {label, url} dicts.
+    Invalid entries are skipped; an empty result returns None so the caller
+    falls back to the default AI links.
+    """
+    if not isinstance(items, list):
+        return None
+    submenu = []
+    for item in items:
+        if len(submenu) == 4:
+            break
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label", "")).strip()
+        url = str(item.get("url", "")).strip()
+        if not label or not url.startswith(("http://", "https://")):
+            continue
+        submenu.append((label, "url", url, _link_icon_for_url(url)))
+    return submenu or None
+
 # Easy-Switch submenu - built dynamically in load_actions_from_config()
 EASY_SWITCH_SUBMENU = [
     ("Host 1", "easy_switch", "0", "os_unknown"),
@@ -260,8 +302,13 @@ def load_actions_from_config():
                 # Map GTK icon name to internal icon ID
                 icon = ICON_NAME_MAP.get(gtk_icon, "settings")
 
-                # Handle submenu type (use AI_SUBMENU as default)
-                submenu = AI_SUBMENU if action_type == "submenu" else None
+                # Handle submenu type: configured quick links win, with the
+                # default AI links as fallback for older configs.
+                submenu = None
+                if action_type == "submenu":
+                    submenu = (
+                        submenu_from_config(slice_data.get("submenu")) or AI_SUBMENU
+                    )
 
                 # Check if Easy-Switch shortcuts are enabled and this is the Emoji slot (index 5)
                 if easy_switch_enabled and i == 5:

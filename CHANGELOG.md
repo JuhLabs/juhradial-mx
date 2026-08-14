@@ -5,6 +5,12 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Custom quick links in the radial submenu** - The submenu slice (previously fixed to Claude, ChatGPT, Gemini, and Perplexity) is now editable: the slice dialog in Settings offers up to four label + URL rows, so the wheel can open any web page. Known AI domains keep their brand icons, other links get a browser glyph, and leaving the rows empty keeps the familiar AI defaults. The preset is now called "Quick Links".
+
 ## [0.4.2] - 2026-08-14
 
 ### Fixed
