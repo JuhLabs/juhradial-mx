@@ -101,6 +101,13 @@ class AppPickerDialog(Adw.Window):
         cancel_btn = Gtk.Button(label=_("Cancel"))
         cancel_btn.connect("clicked", lambda _b: self.close())
         header.pack_start(cancel_btn)
+
+        self.select_btn = Gtk.Button(label=_("Select"))
+        self.select_btn.add_css_class("suggested-action")
+        self.select_btn.set_sensitive(False)
+        self.select_btn.connect("clicked", self._on_select_clicked)
+        header.pack_end(self.select_btn)
+
         main_box.append(header)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -118,10 +125,13 @@ class AppPickerDialog(Adw.Window):
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled.set_vexpand(True)
 
+        self._selected_app = None
+
         self.list_box = Gtk.ListBox()
-        self.list_box.set_selection_mode(Gtk.SelectionMode.NONE)
+        self.list_box.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.list_box.add_css_class("boxed-list")
         self.list_box.set_filter_func(self._filter_row)
+        self.list_box.connect("row-selected", self._on_row_selected)
         self.list_box.connect("row-activated", self._on_row_activated)
 
         self._populate_apps()
@@ -164,9 +174,19 @@ class AppPickerDialog(Adw.Window):
             return True
         return query in row.get_title().lower()
 
+    def _on_row_selected(self, _list_box, row):
+        self._selected_app = getattr(row, "app_info", None) if row else None
+        self.select_btn.set_sensitive(self._selected_app is not None)
+
     def _on_row_activated(self, _list_box, row):
+        """Double-click / Enter on a row picks it immediately."""
         app_info = getattr(row, "app_info", None)
         if app_info is None:
             return
         self._on_pick(app_info)
+        self.close()
+
+    def _on_select_clicked(self, _button):
+        if self._selected_app is not None:
+            self._on_pick(self._selected_app)
         self.close()

@@ -188,7 +188,7 @@ class SliceConfigDialog(Adw.Window):
     def __init__(self, parent, slice_index, config_manager, on_save_callback=None):
         super().__init__()
         self.ACTION_TYPES = [
-            ("exec", _("Run Command"), _("Execute a shell command")),
+            ("exec", _("Run Command / App"), _("Execute a shell command, or pick an installed application")),
             ("url", _("Open URL"), _("Open a web address")),
             ("settings", _("Open Settings"), _("Open JuhRadial settings")),
             ("emoji", _("Emoji Picker"), _("Show emoji picker")),
