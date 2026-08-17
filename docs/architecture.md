@@ -171,7 +171,7 @@ Device state:
 | `GetBatteryStatus` | `(y percent, b charging)` | UnifiedBattery `0x1004` |
 | `GetDpi` / `SetDpi` / `DpiSupported` | `u16` / `(u16)` / `bool` | AdjustableDPI `0x2201` |
 | `GetSmartShift` / `SetSmartShift` / `SmartShiftSupported` | `(b, y)` / `(b, y)` / `bool` | SmartShift / HiResScroll `0x2110` / `0x2111` |
-| `GetHiresscrollMode` / `SetHiresscrollMode` | `(b hires, b invert, b target)` | HiResScroll `0x2111` |
+| `GetHiresscrollMode` / `SetHiresscrollMode` | `(b hires, b invert, b target)` | HiResWheel `0x2121` |
 | `SetThumbwheelReporting` / `ThumbwheelSupported` | `(b divert, b invert)` / `bool` | ThumbWheel `0x2150` |
 | `GetHostNames` / `GetEasySwitchInfo` / `SetHost` | `as` / `(y, y)` / `(y) -> b` | HostsInfo `0x1815`, ChangeHost `0x1814` |
 | `GetDeviceMode` / `GetDeviceName` | `s` / `s` | discovery result |
@@ -248,8 +248,8 @@ A device exposes features by index. The daemon resolves IFeatureSet (`0x0001`) v
 | UnifiedBattery | `0x1004` | Preferred battery feature for the MX Master 4 (read-only). |
 | AdjustableDPI | `0x2201` | Get/set sensor DPI; also the "is a mouse" filter during discovery. |
 | SmartShift (legacy) | `0x2110` | Ratchet control on older mice. |
-| HiResScroll | `0x2111` | SmartShift / ratchet and hi-res scroll mode on MX Master 3/3S/4. |
-| HiResWheel | `0x2121` | Read-only: learn the index to decode the wheel ratchet-changed event. |
+| SmartShift Enhanced | `0x2111` | Ratchet / free-spin control on MX Master 3/3S/4 (functions 1/2; function 0 is getCapabilities). |
+| HiResWheel | `0x2121` | Wheel-mode bitfield get/set (hi-res, invert, target) and decoding of the wheel ratchet-changed event. |
 | ThumbWheel | `0x2150` | Volatile divert so thumb-wheel rotation arrives as notifications (horizontal scroll). |
 | ChangeHost | `0x1814` | Easy-Switch: read host count / current, switch host. |
 | HostsInfo | `0x1815` | Read-only: paired host friendly names. |

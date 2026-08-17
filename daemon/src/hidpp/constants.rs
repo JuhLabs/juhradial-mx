@@ -54,9 +54,11 @@ pub mod features {
     /// Users want their DPI setting to be remembered across reboots.
     /// Functions: [0] getSensorCount, [1] getSensorDpiList, [2] getSensorDpi, [3] setSensorDpi
     pub const ADJUSTABLE_DPI: u16 = 0x2201;
-    /// HiResScroll - High-resolution scroll with SmartShift (MX Master 3/4)
-    /// This is used by newer mice (MX Master 3, 3S, 4) for ratchet/free-spin control.
-    /// Functions: [0] getMode, [1] setMode (contains ratchet mode control)
+    /// SmartShift Enhanced (0x2111) - ratchet/free-spin control on newer mice
+    /// (MX Master 3, 3S, 4). NOTE: despite the constant's name this is NOT the
+    /// HiRes scrolling feature; hi-res mode lives on HIRES_WHEEL (0x2121).
+    /// Functions: [0] getCapabilities, [1] getRatchetControlMode,
+    /// [2] setRatchetControlMode (third byte = torque %, unlike 0x2110).
     pub const HIRES_SCROLL: u16 = 0x2111;
 
     /// SmartShift Legacy - For older mice (MX Master 2S and earlier)
@@ -65,9 +67,10 @@ pub mod features {
 
     /// HiResWheel - High-resolution vertical wheel (0x2121)
     ///
-    /// READ-ONLY here: used only to learn the feature index so the hidraw
-    /// reader can decode the device-originated `ratchetSwitchChanged` event
-    /// (free-spin vs ratchet). We never write to this feature.
+    /// Used for two things: decoding the device-originated
+    /// `ratchetSwitchChanged` event (free-spin vs ratchet) in the hidraw
+    /// reader, and get/set of the wheel mode bitfield (target/hi-res/invert)
+    /// via [1] getWheelMode / [2] setWheelMode.
     pub const HIRES_WHEEL: u16 = 0x2121;
 
     /// ThumbWheel - Horizontal thumb wheel on MX Master 3/3S/4 (0x2150)

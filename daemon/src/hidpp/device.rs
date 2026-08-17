@@ -43,10 +43,14 @@ pub struct HidppDevice {
     dpi_supported: bool,
     /// Adjustable DPI feature index (0x2201)
     dpi_feature_index: Option<u8>,
-    /// Whether SmartShift feature is available (0x2110)
+    /// Whether SmartShift feature is available (0x2111 or 0x2110)
     smartshift_supported: bool,
-    /// SmartShift feature index (0x2110)
+    /// SmartShift feature index (0x2111 Enhanced preferred, 0x2110 legacy fallback)
     smartshift_feature_index: Option<u8>,
+    /// True when bound to SmartShift Enhanced (0x2111), which uses function IDs
+    /// [1] getRatchetControlMode / [2] setRatchetControlMode (its [0] is
+    /// getCapabilities). Legacy 0x2110 uses [0] get / [1] set.
+    smartshift_is_enhanced: bool,
     /// Whether unified battery feature is available (0x1004)
     battery_supported: bool,
     /// Battery feature index (0x1004 or 0x1000)
@@ -323,6 +327,7 @@ impl HidppDevice {
                     dpi_feature_index: None,
                     smartshift_supported: false,
                     smartshift_feature_index: None,
+                    smartshift_is_enhanced: false,
                     battery_supported: false,
                     battery_feature_index: None,
                     is_unified_battery: false,
@@ -806,13 +811,14 @@ impl HidppDevice {
                     );
                 }
 
-                // Check for HiResScroll feature (0x2111) - MX Master 3/4 SmartShift control
+                // Check for SmartShift Enhanced (0x2111) - MX Master 3/4 SmartShift control
                 if feature_id == features::HIRES_SCROLL {
                     self.smartshift_supported = true;
                     self.smartshift_feature_index = Some(feature_index);
+                    self.smartshift_is_enhanced = true;
                     tracing::info!(
                         index = feature_index,
-                        "HiResScroll feature found (0x2111) - SmartShift control available"
+                        "SmartShift Enhanced feature found (0x2111) - SmartShift control available"
                     );
                 }
 
@@ -1540,10 +1546,10 @@ impl HidppDevice {
     /// Returns the current SmartShift wheel mode and auto-disengage threshold.
     ///
     /// # Returns
-    /// Some((wheel_mode, auto_disengage, auto_disengage_default)) where:
+    /// Some((wheel_mode, auto_disengage, third)) where:
     /// - wheel_mode: 1 = Freespin, 2 = Ratchet
     /// - auto_disengage: Threshold for automatic ratchet disengagement (1-254 = N/4 turns/sec, 255 = always engaged)
-    /// - auto_disengage_default: Default threshold stored in device
+    /// - third: autoDisengageDefault on legacy 0x2110, torque % on Enhanced 0x2111
     ///
     /// None if SmartShift is not supported
     pub fn get_smartshift(&mut self) -> Option<(u8, u8, u8)> {
@@ -1551,10 +1557,12 @@ impl HidppDevice {
 
         tracing::debug!(feature_index, "Getting SmartShift config from device");
 
-        // Function [0] getRatchetControlMode() -> wheelMode, autoDisengage, autoDisengageDefault
+        // Legacy 0x2110: function [0] getRatchetControlMode.
+        // Enhanced 0x2111: function [1] getRatchetControlMode ([0] is getCapabilities).
+        let read_fn = if self.smartshift_is_enhanced { 0x01 } else { 0x00 };
         let params = [0x00, 0x00, 0x00];
 
-        self.hidpp_request(feature_index, 0x00, &params).and_then(|resp| {
+        self.hidpp_request(feature_index, read_fn, &params).and_then(|resp| {
             if resp.len() >= 7 {
                 // Response: [report_type, device_idx, feature_idx, fn_sw_id, wheel_mode, auto_disengage, auto_disengage_default, ...]
                 let wheel_mode = resp[4];
@@ -1582,7 +1590,9 @@ impl HidppDevice {
     /// # Arguments
     /// * `wheel_mode` - 0 = no change, 1 = Freespin, 2 = Ratchet
     /// * `auto_disengage` - 0 = no change, 1-254 = N/4 turns/sec threshold, 255 = always engaged
-    /// * `auto_disengage_default` - 0 = no change, 1-254 = default threshold, 255 = always engaged
+    /// * `auto_disengage_default` - 0 = no change, 1-254 = default threshold, 255 = always
+    ///   engaged. Legacy 0x2110 only: on Enhanced 0x2111 the third byte is torque %, so this
+    ///   parameter is ignored and 0 (= leave unchanged) is sent instead.
     ///
     /// # Returns
     /// Ok(()) on success, error on failure
@@ -1608,10 +1618,17 @@ impl HidppDevice {
             "Setting SmartShift config"
         );
 
-        // Function [1] setRatchetControlMode(wheelMode, autoDisengage, autoDisengageDefault)
-        let params = [wheel_mode, auto_disengage, auto_disengage_default];
+        // Legacy 0x2110: function [1] setRatchetControlMode(wheelMode, autoDisengage,
+        // autoDisengageDefault). Enhanced 0x2111: function [2] setRatchetControlMode,
+        // whose third byte is torque % - send 0 (= leave unchanged) there.
+        let (write_fn, third_byte) = if self.smartshift_is_enhanced {
+            (0x02, 0x00)
+        } else {
+            (0x01, auto_disengage_default)
+        };
+        let params = [wheel_mode, auto_disengage, third_byte];
 
-        match self.hidpp_request(feature_index, 0x01, &params) {
+        match self.hidpp_request(feature_index, write_fn, &params) {
             Some(resp) if resp.len() >= 7 => {
                 // Response echoes the parameters
                 let returned_wheel_mode = resp[4];
@@ -1642,13 +1659,13 @@ impl HidppDevice {
         }
     }
 
-    /// Get HiResScroll mode configuration
+    /// Get HiResScroll mode configuration (HiRes Wheel 0x2121)
     pub fn get_hiresscroll_mode(&mut self) -> Option<(bool, bool, bool)> {
-        let feature_index = self.smartshift_feature_index?;
+        let feature_index = self.feature_index(features::HIRES_WHEEL)?;
 
         tracing::debug!(feature_index, "Getting HiResScroll mode from device");
 
-        // Function [1] getMode() -> mode byte
+        // Function [1] getWheelMode() -> mode byte
         let params = [0x00, 0x00, 0x00];
 
         self.hidpp_request(feature_index, 0x01, &params).and_then(|resp| {
@@ -1673,14 +1690,14 @@ impl HidppDevice {
         })
     }
 
-    /// Set HiResScroll mode configuration
+    /// Set HiResScroll mode configuration (HiRes Wheel 0x2121)
     pub fn set_hiresscroll_mode(
         &mut self,
         hires: bool,
         invert: bool,
         target: bool,
     ) -> Result<(), HapticError> {
-        let feature_index = match self.smartshift_feature_index {
+        let feature_index = match self.feature_index(features::HIRES_WHEEL) {
             Some(idx) => idx,
             None => {
                 tracing::debug!("HiResScroll not supported on this device");
@@ -1709,7 +1726,7 @@ impl HidppDevice {
             "Setting HiResScroll mode"
         );
 
-        // Function [2] setMode(mode)
+        // Function [2] setWheelMode(mode)
         let params = [mode, 0x00, 0x00];
 
         match self.hidpp_request(feature_index, 0x02, &params) {

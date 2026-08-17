@@ -693,19 +693,38 @@ impl HapticManager {
         }
     }
 
-    /// Get SmartShift configuration (simplified API for DBus)
+    /// Get SmartShift configuration (simplified API for DBus and profiles)
+    ///
+    /// Returns (enabled, threshold), the inverse of [`Self::set_smart_shift`]:
+    /// SmartShift auto-disengage -> (true, 1-254), freespin -> (true, 0),
+    /// permanent ratchet (autoDisengage 255) -> (false, 0).
     pub fn get_smart_shift(&mut self) -> Option<(bool, u8)> {
-        self.get_smartshift().map(|(wheel_mode, auto_disengage, _default)| {
-            let enabled = wheel_mode == 1;
-            let threshold = 255u8.saturating_sub(auto_disengage);
-            (enabled, threshold)
+        self.get_smartshift().map(|(wheel_mode, auto_disengage, _third)| {
+            if wheel_mode == 1 {
+                (true, 0)
+            } else if auto_disengage == 255 {
+                (false, 0)
+            } else {
+                (true, auto_disengage)
+            }
         })
     }
 
-    /// Set SmartShift configuration (simplified API for DBus)
+    /// Set SmartShift configuration (simplified API for DBus and profiles)
+    ///
+    /// (true, 1-254) = ratchet with auto-disengage at the given threshold
+    /// (SmartShift), (true, 0) = freespin, (false, _) = permanently ratcheted.
+    /// Device semantics: wheelMode 1 = Freespin, 2 = Ratchet; autoDisengage
+    /// 255 = never disengage.
     pub fn set_smart_shift(&mut self, enabled: bool, threshold: u8) -> Result<(), HapticError> {
-        let wheel_mode = if enabled { 1 } else { 2 };
-        let auto_disengage = 255u8.saturating_sub(threshold);
+        let (wheel_mode, auto_disengage) = if !enabled {
+            (2, 255)
+        } else if threshold == 0 {
+            // Freespin; auto_disengage 0 = leave the stored threshold unchanged.
+            (1, 0)
+        } else {
+            (2, threshold.min(254))
+        };
         self.set_smartshift(wheel_mode, auto_disengage, auto_disengage)
     }
 

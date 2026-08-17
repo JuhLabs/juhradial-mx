@@ -394,16 +394,7 @@ impl JuhRadialService {
 
     async fn get_smart_shift(&self) -> fdo::Result<(bool, u8)> {
         match self.haptic_manager.lock() {
-            Ok(mut manager) => {
-                match manager.get_smartshift() {
-                    Some((_wheel_mode, auto_disengage, _auto_disengage_default)) => {
-                        let enabled = auto_disengage > 0;
-                        let threshold = if enabled { auto_disengage } else { 30 };
-                        Ok((enabled, threshold))
-                    }
-                    None => Ok((false, 0))
-                }
-            }
+            Ok(mut manager) => Ok(manager.get_smart_shift().unwrap_or((false, 0))),
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock haptic manager for get_smart_shift");
                 Ok((false, 0))
@@ -416,11 +407,7 @@ impl JuhRadialService {
 
         match self.haptic_manager.lock() {
             Ok(mut manager) => {
-                let wheel_mode = if enabled { 1u8 } else { 2u8 };
-                let auto_disengage = if enabled { threshold } else { 255u8 };
-                let auto_disengage_default = auto_disengage;
-
-                match manager.set_smartshift(wheel_mode, auto_disengage, auto_disengage_default) {
+                match manager.set_smart_shift(enabled, threshold) {
                     Ok(()) => {
                         tracing::info!(enabled, threshold, "SmartShift set successfully");
                         Ok(())
