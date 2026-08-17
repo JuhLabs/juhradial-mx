@@ -572,7 +572,12 @@ class RadialMenuPaintingMixin:
         """Draw a pre-rendered pixmap for icon_id if one is cached, else fall
         back to the hand-drawn vector glyph. icon_id is either an internal
         glyph name (e.g. "play_pause") or an absolute path to a user-imported
-        app icon (see overlay_actions.USER_ICONS)."""
+        app icon (see overlay_actions.USER_ICONS).
+
+        User icons are rendered here, on first paint, rather than when the
+        config is loaded: that happens before QApplication exists, and
+        QPixmap/QSvgRenderer abort the process if constructed that early."""
+        overlay_actions.load_user_icon(icon_id)
         all_icons = {
             **overlay_actions.AI_ICONS,
             **overlay_actions.OS_ICONS,
@@ -1162,6 +1167,7 @@ class RadialMenuPaintingMixin:
 
             # Icon - use pre-rendered pixmap if available, fallback to drawn icon
             icon_name = item[3]  # e.g., "claude", "chatgpt", "os_linux", or an absolute icon path
+            overlay_actions.load_user_icon(icon_name)
             all_icons = {
                 **overlay_actions.AI_ICONS,
                 **overlay_actions.OS_ICONS,

@@ -158,7 +158,7 @@ def submenu_from_config(items):
             if not command:
                 continue
             icon_path = str(item.get("icon", ""))
-            icon = icon_path if load_user_icon(icon_path) else "browser"
+            icon = icon_path if _is_user_icon_path(icon_path) else "browser"
             submenu.append((label, "exec", command, icon))
             continue
         url = str(item.get("url", "")).strip()
@@ -313,7 +313,11 @@ def load_actions_from_config():
 
                 # A user-imported app icon is stored as an absolute file path;
                 # anything else is a symbolic icon name mapped to an internal ID.
-                if load_user_icon(gtk_icon):
+                # The actual pixmap is rendered lazily at paint time (see
+                # overlay_painting._draw_action_icon) - this runs at import
+                # time, before QApplication exists, and QPixmap/QSvgRenderer
+                # abort the process if constructed that early.
+                if _is_user_icon_path(gtk_icon):
                     icon = gtk_icon
                 else:
                     icon = ICON_NAME_MAP.get(gtk_icon, "settings")
@@ -382,13 +386,23 @@ def _svg_to_pixmap(path, size=64):
     return QPixmap.fromImage(img)
 
 
+def _is_user_icon_path(path):
+    """Plain filesystem check - safe to call at import time, unlike
+    load_user_icon() which constructs Qt objects (see its docstring)."""
+    return bool(path) and os.path.isabs(path) and os.path.exists(path)
+
+
 def load_user_icon(path):
     """Load a user-imported app icon (absolute .svg/.png/... path) into
     USER_ICONS, keyed by its own path. Returns True if the icon is cached
-    (already loaded or loaded now), False if it can't be read/rendered."""
+    (already loaded or loaded now), False if it can't be read/rendered.
+
+    Constructs QPixmap/QSvgRenderer, which abort the process if called
+    before a QApplication exists - only call this after one is constructed
+    (e.g. lazily at paint time), never from load_actions_from_config()."""
     if path in USER_ICONS:
         return True
-    if not path or not os.path.isabs(path) or not os.path.exists(path):
+    if not _is_user_icon_path(path):
         return False
     if path.lower().endswith(".svg"):
         pixmap = _svg_to_pixmap(path)

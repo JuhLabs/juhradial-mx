@@ -5,8 +5,11 @@ that launch an app instead of a URL.
 Run: python3 -m pytest tests/test_app_icon_picker.py -q
 """
 
+import json
 import os
+import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -100,6 +103,11 @@ def test_submenu_app_entry_round_trips(tmp_path):
         ("Files", "exec", "dolphin", str(icon_path)),
         ("Docs", "url", "https://docs.example.com", "browser"),
     ]
+    # The pixmap isn't rendered here - only a plain filesystem check runs at
+    # config-load time, since this path also runs at import time (before
+    # QApplication exists) and QPixmap/QSvgRenderer would abort the process.
+    assert str(icon_path) not in USER_ICONS
+    assert load_user_icon(str(icon_path)) is True
     assert str(icon_path) in USER_ICONS
 
 
@@ -112,3 +120,48 @@ def test_submenu_app_entry_with_unresolvable_icon_falls_back_to_browser():
     links = [{"label": "Files", "type": "exec", "command": "dolphin", "icon": "/no/such/icon.svg"}]
     result = submenu_from_config(links)
     assert result == [("Files", "exec", "dolphin", "browser")]
+
+
+def test_loading_config_with_app_icon_does_not_touch_qt_before_app_exists(tmp_path):
+    """Regression test: overlay_actions.ACTIONS is built by
+    load_actions_from_config() at *import* time (juhradial-overlay.py
+    imports overlay_actions before constructing QApplication). If that path
+    ever constructs a QPixmap/QSvgRenderer directly, Qt aborts the whole
+    process - this bit us in production for a slice with an imported app
+    icon. Runs in a fresh subprocess with no QApplication ever created."""
+    icon_path = tmp_path / "app-icon.svg"
+    icon_path.write_text(SVG_STUB, encoding="utf-8")
+
+    fake_home = tmp_path / "home"
+    config_dir = fake_home / ".config" / "juhradial"
+    config_dir.mkdir(parents=True)
+    (config_dir / "config.json").write_text(
+        json.dumps(
+            {
+                "radial_menu": {
+                    "slices": [
+                        {
+                            "label": "App",
+                            "type": "exec",
+                            "command": "some-app",
+                            "color": "green",
+                            "icon": str(icon_path),
+                        }
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    overlay_dir = Path(__file__).resolve().parents[1] / "overlay"
+    env = {**os.environ, "HOME": str(fake_home)}
+    result = subprocess.run(
+        [sys.executable, "-c", "import overlay_actions"],
+        cwd=str(overlay_dir),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
