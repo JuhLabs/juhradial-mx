@@ -425,7 +425,15 @@ class ScrollPage(Gtk.ScrolledWindow):
         scroll_speed_scale.set_draw_value(False)
         scroll_speed_scale.connect("value-changed", self._on_scroll_speed_changed)
         disable_scroll_on_scale(scroll_speed_scale)
-        scroll_speed_row.set_control(scroll_speed_scale)
+        speed_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        speed_box.append(scroll_speed_scale)
+        self._scroll_speed_label = Gtk.Label()
+        self._scroll_speed_label.add_css_class("dim-label")
+        self._scroll_speed_label.set_size_request(70, -1)
+        self._scroll_speed_label.set_xalign(0.0)
+        self._update_scroll_speed_label(int(scroll_speed_scale.get_value()))
+        speed_box.append(self._scroll_speed_label)
+        scroll_speed_row.set_control(speed_box)
         scroll_card.append(scroll_speed_row)
 
         # Direction
@@ -659,7 +667,16 @@ class ScrollPage(Gtk.ScrolledWindow):
     def _on_scroll_speed_changed(self, scale):
         value = int(scale.get_value())
         config.set("scroll", "speed", value)
+        self._update_scroll_speed_label(value)
         self._apply_scroll_speed(value)
+
+    def _update_scroll_speed_label(self, value):
+        # The slider drives a desktop scroll factor (see _apply_scroll_speed);
+        # most desktops scroll 3 lines per notch at factor 1.0, so surface the
+        # effective line count instead of the raw slider position.
+        lines = 3 * (0.5 + (value - 1) * 0.167)
+        text = f"{lines:.1f}".rstrip("0").rstrip(".")
+        self._scroll_speed_label.set_text(_("≈ {n} lines").format(n=text))
 
     def _apply_scroll_speed(self, lines):
         """Apply scroll speed multiplier - works on GNOME, KDE, Hyprland, etc."""
@@ -985,6 +1002,16 @@ None,      Down, Button5, {lines}
     def _on_startup_session_bus_ready(self, _source, async_result, _user_data):
         try:
             bus = Gio.bus_get_finish(async_result)
+            if not getattr(self, "_ratchet_sub_id", None):
+                # Follow the hardware wheel-mode button: re-read device state on
+                # RatchetChanged. Empty sender so a daemon restart does not
+                # silence us (see CLAUDE.md).
+                self._ratchet_sub_id = bus.signal_subscribe(
+                    None, "org.kde.juhradialmx.Daemon", "RatchetChanged",
+                    "/org/kde/juhradialmx/Daemon", None, Gio.DBusSignalFlags.NONE,
+                    self._on_ratchet_changed_signal, None,
+                )
+                self._ratchet_bus = bus
             Gio.DBusProxy.new(
                 bus,
                 Gio.DBusProxyFlags.NONE,
@@ -1054,6 +1081,12 @@ None,      Down, Button5, {lines}
         except GLib.Error as e:
             logger.error("D-Bus error starting SmartShift read: %s", e.message)
             self._apply_saved_scroll_mode()
+
+    def _on_ratchet_changed_signal(self, *_args):
+        # Hardware wheel-mode button pressed: re-read device state through the
+        # guarded startup path so local edits win and nothing echoes back to
+        # the device.
+        self._load_device_settings()
 
     def _on_smartshift_loaded(self, proxy, async_result, _user_data):
         try:

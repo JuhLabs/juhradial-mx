@@ -232,12 +232,25 @@ class DevicesPage(Gtk.ScrolledWindow):
 
         conn_row = SettingRow(_("Connection"), _("How your device is connected"))
         conn_icon_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        if "Bluetooth" in connection_type:
-            conn_icon = Gtk.Image.new_from_icon_name("bluetooth-symbolic")
-        elif "USB" in connection_type:
-            conn_icon = Gtk.Image.new_from_icon_name("usb-symbolic")
+        if "USB" in connection_type:
+            candidates = [
+                "usb-symbolic",
+                "drive-removable-media-usb-symbolic",
+                "drive-removable-media-usb",
+                "media-removable-symbolic",
+                "drive-removable-media-symbolic",
+            ]
+        elif "Bluetooth" in connection_type:
+            candidates = [
+                "bluetooth-symbolic",
+                "bluetooth-active-symbolic",
+                "network-bluetooth-symbolic",
+                "preferences-system-bluetooth-symbolic",
+                "preferences-system-bluetooth",
+            ]
         else:
-            conn_icon = Gtk.Image.new_from_icon_name("network-wireless-symbolic")
+            candidates = ["network-wireless-symbolic", "network-wireless"]
+        conn_icon = Gtk.Image.new_from_icon_name(self._first_available_icon(candidates))
         conn_icon.add_css_class("accent-color")
         conn_icon_box.append(conn_icon)
         conn_label = Gtk.Label(label=connection_type)
@@ -245,6 +258,7 @@ class DevicesPage(Gtk.ScrolledWindow):
         conn_row.set_control(conn_icon_box)
         box.append(conn_row)
 
+        self._conn_battery_label = None
         if not self._is_generic and battery_info is not None:
             sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
             sep.set_margin_top(12)
@@ -259,6 +273,8 @@ class DevicesPage(Gtk.ScrolledWindow):
             battery_label = Gtk.Label(label=battery_info)
             battery_label.add_css_class("battery-indicator")
             battery_box.append(battery_label)
+            # Keep a reference so BatteryChanged signals can update this row.
+            self._conn_battery_label = battery_label
             battery_row.set_control(battery_box)
             box.append(battery_row)
 
@@ -282,13 +298,12 @@ class DevicesPage(Gtk.ScrolledWindow):
                     None,
                 )
                 # Connection
-                connection_type = _("USB Receiver")
+                connection_type = self._detect_logitech_connection()
                 try:
                     res = proxy.call_sync(
                         "GetBatteryStatus", None, Gio.DBusCallFlags.NONE, 500, None
                     )
                     if res:
-                        connection_type = _("USB Receiver / Bluetooth")
                         percentage, charging = res.unpack()
                         if percentage > 0:
                             status = _("Charging") if charging else _("Discharging")
@@ -390,11 +405,7 @@ class DevicesPage(Gtk.ScrolledWindow):
             self._live_dot.add_css_class("connected")
 
     def _prime_live(self):
-        """Pull initial values so the readouts are populated before any signal.
-
-        Ratchet/free-spin has no pull getter, so it stays '--' until a
-        RatchetChanged signal arrives.
-        """
+        """Pull initial values so the readouts are populated before any signal."""
         try:
             bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
             proxy = Gio.DBusProxy.new_sync(
@@ -439,16 +450,44 @@ class DevicesPage(Gtk.ScrolledWindow):
         except GLib.GError:
             # daemon unavailable or method missing; leave this live field empty
             pass
+        try:
+            res = proxy.call_sync(
+                "GetSmartShift", None, Gio.DBusCallFlags.NONE, 500, None
+            )
+            enabled, threshold = res.unpack()
+            self._live_labels["ratchet"].set_label(
+                self._wheel_mode_text(enabled, threshold)
+            )
+            any_value = True
+        except GLib.GError:
+            # daemon unavailable or method missing; leave this live field empty
+            pass
 
         if any_value:
             self._set_live_connected()
         return False
+
+    @staticmethod
+    def _wheel_mode_text(enabled, threshold):
+        """Three-state wheel label from the daemon's (enabled, threshold).
+
+        (True, 1-254) = SmartShift auto-disengage, (True, 0) = free-spin,
+        (False, _) = permanently ratcheted.
+        """
+        if not enabled:
+            return _("RATCHET")
+        if threshold == 0:
+            return _("FREE-SPIN")
+        return _("SMARTSHIFT")
 
     def _set_battery(self, percent, status):
         text = f"{percent}%"
         if status:
             text = f"{text} · {status}"
         self._live_labels["battery"].set_label(text)
+        # Keep the Connected Device card's battery row in sync as well.
+        if getattr(self, "_conn_battery_label", None) is not None:
+            self._conn_battery_label.set_label(text)
 
     def _on_battery_signal(self, _c, _s, _p, _i, _sig, params, _u):
         percent, status = params.unpack()
@@ -497,3 +536,56 @@ class DevicesPage(Gtk.ScrolledWindow):
         except OSError:
             pass  # HID sysfs scan can fail on some systems
         return _("USB")
+
+    @staticmethod
+    def _first_available_icon(candidates):
+        """Return the first icon name the current theme can render.
+
+        Avoids the red broken-image glyph when a theme (e.g. Breeze) lacks a
+        given symbolic name.
+        """
+        display = Gdk.Display.get_default()
+        if display is not None:
+            theme = Gtk.IconTheme.get_for_display(display)
+            for name in candidates:
+                if theme.has_icon(name):
+                    return name
+        return "input-mouse-symbolic"
+
+    def _detect_logitech_connection(self):
+        """Detect how the Logitech mouse is actually connected.
+
+        Scans /sys/bus/hid/devices/ for Logitech (046D) entries: bus type
+        0005 = Bluetooth, 0003 = a USB receiver (Bolt C548, Unifying C52B/C534).
+        Falls back to plain 'USB Receiver' when the scan is inconclusive.
+        """
+        bluetooth = False
+        receiver = None
+        try:
+            from pathlib import Path as _Path
+
+            hid_path = _Path("/sys/bus/hid/devices/")
+            if hid_path.exists():
+                for device in hid_path.iterdir():
+                    # HID device names: BBBB:VVVV:PPPP.NNNN
+                    name = device.name.upper()
+                    if ":046D:" not in name:
+                        continue
+                    if name.startswith("0005:"):
+                        bluetooth = True
+                    elif name.startswith("0003:"):
+                        pid = name.split(".")[0].rsplit(":", 1)[-1]
+                        if pid == "C548":
+                            receiver = _("USB Receiver (Bolt)")
+                        elif pid in ("C52B", "C534"):
+                            receiver = _("USB Receiver (Unifying)")
+                        elif receiver is None:
+                            receiver = _("USB Receiver")
+        except OSError:
+            pass  # HID sysfs scan can fail on some systems
+
+        if receiver and bluetooth:
+            return _("{receiver} + Bluetooth").format(receiver=receiver)
+        if bluetooth:
+            return _("Bluetooth")
+        return receiver or _("USB Receiver")

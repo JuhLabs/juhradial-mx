@@ -159,7 +159,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         minimal_label.add_css_class("dim-label")
         minimal_box.append(minimal_label)
         minimal_info_btn = Gtk.Button()
-        minimal_info_btn.set_child(Gtk.Image.new_from_icon_name("dialog-information-symbolic"))
+        minimal_info_btn.set_child(Gtk.Label(label="ⓘ"))  # themed info icons render full-color blue on Breeze
         minimal_info_btn.add_css_class("flat")
         minimal_info_btn.add_css_class("dim-label")
         minimal_info_btn.set_tooltip_text(_("Show a minimal radial wheel with icons only - no pizza slices or labels"))
@@ -178,7 +178,7 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         generic_label.add_css_class("dim-label")
         generic_box.append(generic_label)
         generic_info_btn = Gtk.Button()
-        generic_info_btn.set_child(Gtk.Image.new_from_icon_name("dialog-information-symbolic"))
+        generic_info_btn.set_child(Gtk.Label(label="ⓘ"))
         generic_info_btn.add_css_class("flat")
         generic_info_btn.add_css_class("dim-label")
         generic_info_btn.set_tooltip_text(_("Enable for non-Logitech mice. Disables HID++ features like haptics and Easy-Switch."))
