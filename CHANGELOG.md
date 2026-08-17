@@ -5,6 +5,19 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-08-18
+
+### Fixed
+
+- **SmartShift settings actually reach the mouse now** - On the MX Master 3/3S/4 the daemon was calling SmartShift with the legacy `0x2110` function IDs, but these mice expose SmartShift Enhanced (`0x2111`), whose functions are shifted by one. Reads therefore parsed a capabilities reply as ratchet state (reporting a constant threshold no matter the real setting) and writes landed on a getter, so changing the wheel mode or threshold silently did nothing. The daemon now records which SmartShift variant the device exposes and uses the matching function IDs, keeping the third parameter (torque on `0x2111`, default threshold on `0x2110`) per-variant so a threshold write can no longer reprogram torque. Fixing the writes also exposed an inverted mode mapping in the D-Bus layer (enabling SmartShift would have forced permanent free-spin) and two contradictory threshold encodings between the settings path and per-app profiles; both are now a single mapping. Reported with hardware traces by [@FoxQwartz](https://github.com/FoxQwartz). Fixes [#107](https://github.com/JuhLabs/juhradial-mx/issues/107).
+- **Hi-res scroll get/set target the right feature** - `GetHiresscrollMode`/`SetHiresscrollMode` were addressed to the SmartShift feature index instead of HiRes Wheel (`0x2121`), so the reported hi-res state was a misread of SmartShift's wheel mode, and toggling smooth or natural scrolling silently rewrote the SmartShift ratchet mode. Both now resolve `0x2121`, whose function IDs and mode bits the code already used correctly. Also reported by [@FoxQwartz](https://github.com/FoxQwartz). Fixes [#106](https://github.com/JuhLabs/juhradial-mx/issues/106).
+- **Settings live state is populated and stays current** - The Devices page WHEEL readout is primed from the daemon on open (previously blank until the wheel-mode button was pressed) and now distinguishes SmartShift from a permanent ratchet; the Connected Device battery row follows charge signals instead of freezing at its load-time value; and the Point-and-scroll mode selector re-reads device state when the hardware wheel-mode button fires. Reported by [@FoxQwartz](https://github.com/FoxQwartz). Fixes [#108](https://github.com/JuhLabs/juhradial-mx/issues/108).
+- **Connection row shows the real link** - The Devices page guessed "USB Receiver / Bluetooth"; it now reads the HID bus from sysfs and reports Bolt, Unifying, plain USB receiver, or Bluetooth, with icon names that exist on Breeze (the old hardcoded names rendered as a broken-image glyph on KDE).
+
+### Changed
+
+- **Scroll speed slider shows its effect** - The Point-and-scroll speed slider now displays the approximate lines-per-notch it produces instead of an unlabeled position, and the header info hints render as theme-independent glyphs (the themed info icon is full-color blue on Breeze and clashed with the dark header).
+
 ## [0.4.3] - 2026-08-15
 
 ### Added

@@ -12,7 +12,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.4.1-cyan.svg" alt="Version 0.4.1">
+      <img src="https://img.shields.io/badge/version-0.4.4-cyan.svg" alt="Version 0.4.4">
     </a>
     <a href="https://juhlabs.github.io/juhradial-mx/">
       <img src="https://img.shields.io/badge/docs-juhlabs.github.io-4FEFC9.svg" alt="Documentation">
@@ -41,7 +41,7 @@
 -->
 
 > [!TIP]
-> **New in [v0.4.1](CHANGELOG.md):** Better GNOME Wayland cursor placement, tap-to-close, single-overlay enforcement ([#60](https://github.com/JuhLabs/juhradial-mx/issues/60)), working thumb-wheel assignments, and desktop-aware screenshots. [Update now](#installation).
+> **New in [v0.4.4](CHANGELOG.md):** SmartShift and hi-res scroll controls now really program the mouse: the daemon spoke the wrong HID++ dialect to the MX Master 3/3S/4 SmartShift feature, so mode changes silently did nothing ([#106](https://github.com/JuhLabs/juhradial-mx/issues/106), [#107](https://github.com/JuhLabs/juhradial-mx/issues/107)). Plus live wheel/battery readouts in Settings ([#108](https://github.com/JuhLabs/juhradial-mx/issues/108)). [Update now](#installation).
 
 ## Installation
 
