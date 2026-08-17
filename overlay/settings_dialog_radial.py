@@ -8,6 +8,7 @@ SPDX-License-Identifier: GPL-3.0
 """
 
 import logging
+import types
 
 import gi
 
@@ -24,6 +25,7 @@ from settings_constants import (
     DE_COMMAND_MAP,
     get_de_key,
 )
+from settings_dialog_app_picker import AppPickerDialog, resolve_and_cache_icon, command_for_app
 
 logger = logging.getLogger(__name__)
 
@@ -401,10 +403,18 @@ class SliceConfigDialog(Adw.Window):
         self.cmd_title.add_css_class("dim-label")
         cmd_box.append(self.cmd_title)
 
+        cmd_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.command_entry = Gtk.Entry()
         self.command_entry.set_text(self.slice_data.get("command", ""))
         self.command_entry.set_placeholder_text(_("e.g., playerctl play-pause"))
-        cmd_box.append(self.command_entry)
+        self.command_entry.set_hexpand(True)
+        cmd_row.append(self.command_entry)
+
+        self.pick_app_btn = Gtk.Button(label=_("Pick Application…"))
+        self.pick_app_btn.connect("clicked", self._on_pick_app_clicked)
+        cmd_row.append(self.pick_app_btn)
+
+        cmd_box.append(cmd_row)
         self.cmd_box = cmd_box
         content.append(cmd_box)
 
@@ -418,7 +428,7 @@ class SliceConfigDialog(Adw.Window):
         links_box.append(links_title)
 
         links_hint = Gtk.Label(
-            label=_("Up to four links to show in this submenu. Leave all rows empty to use the default AI assistant links.")
+            label=_("Up to four links or apps to show in this submenu. Leave all rows empty to use the default AI assistant links.")
         )
         links_hint.set_halign(Gtk.Align.START)
         links_hint.set_wrap(True)
@@ -434,30 +444,59 @@ class SliceConfigDialog(Adw.Window):
         configured = self.slice_data.get("submenu") or []
         self.link_rows = []
         for i in range(4):
+            row_label, row_url = "", ""
+            row_kind, row_command, row_icon = "url", "", ""
             if i < len(configured) and isinstance(configured[i], dict):
-                row_label = configured[i].get("label", "")
-                row_url = configured[i].get("url", "")
+                entry = configured[i]
+                row_label = entry.get("label", "")
+                if entry.get("type") == "exec":
+                    row_kind = "app"
+                    row_command = entry.get("command", "")
+                    row_icon = entry.get("icon", "")
+                else:
+                    row_url = entry.get("url", "")
             elif not configured:
                 row_label, row_url = default_links[i]
-            else:
-                row_label, row_url = "", ""
 
-            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            row_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
             label_entry = Gtk.Entry()
             label_entry.set_text(row_label)
             label_entry.set_placeholder_text(_("Label"))
             label_entry.set_hexpand(False)
             label_entry.set_width_chars(12)
-            row.append(label_entry)
+            row_box.append(label_entry)
 
             url_entry = Gtk.Entry()
-            url_entry.set_text(row_url)
             url_entry.set_placeholder_text(_("https://..."))
             url_entry.set_hexpand(True)
-            row.append(url_entry)
+            row_box.append(url_entry)
 
-            links_box.append(row)
-            self.link_rows.append((label_entry, url_entry))
+            row = types.SimpleNamespace(
+                label_entry=label_entry,
+                url_entry=url_entry,
+                kind=row_kind,
+                app_command=row_command,
+                app_icon=row_icon,
+            )
+
+            pick_app_btn = Gtk.Button(label=_("App…"))
+            pick_app_btn.connect("clicked", lambda _b, r=row: self._on_pick_link_app(r))
+            row_box.append(pick_app_btn)
+
+            clear_btn = Gtk.Button(icon_name="edit-clear-symbolic")
+            clear_btn.set_tooltip_text(_("Clear app, use as link instead"))
+            clear_btn.connect("clicked", lambda _b, r=row: self._on_clear_link_app(r))
+            row_box.append(clear_btn)
+            row.clear_btn = clear_btn
+
+            if row_kind == "app":
+                self._show_link_app(row, row_label)
+            else:
+                url_entry.set_text(row_url)
+                clear_btn.set_visible(False)
+
+            links_box.append(row_box)
+            self.link_rows.append(row)
 
         self.links_box = links_box
         content.append(links_box)
@@ -545,6 +584,7 @@ class SliceConfigDialog(Adw.Window):
         needs_command = type_id in ("exec", "url")
         self.cmd_box.set_visible(needs_command)
         self.links_box.set_visible(type_id == "submenu")
+        self.pick_app_btn.set_visible(type_id == "exec")
 
         if type_id == "url":
             self.cmd_title.set_text(_("URL"))
@@ -552,6 +592,45 @@ class SliceConfigDialog(Adw.Window):
         else:
             self.cmd_title.set_text(_("Command"))
             self.command_entry.set_placeholder_text(_("e.g., playerctl play-pause"))
+
+    def _on_pick_app_clicked(self, _button):
+        AppPickerDialog(self, on_pick=self._on_app_picked).present()
+
+    def _on_app_picked(self, app_info):
+        """Fill command/label/icon from a picked application."""
+        self.command_entry.set_text(command_for_app(app_info))
+        if not self.label_entry.get_text().strip():
+            name = app_info.get_display_name() or app_info.get_name() or ""
+            self.label_entry.set_text(name)
+        icon_path = resolve_and_cache_icon(app_info)
+        if icon_path:
+            self.icon_entry.set_text(icon_path)
+
+    def _show_link_app(self, row, label):
+        """Render a submenu row as pointing at an app: read-only display text."""
+        row.url_entry.set_text(_("App: {}").format(label) if label else _("App"))
+        row.url_entry.set_editable(False)
+        row.clear_btn.set_visible(True)
+
+    def _on_pick_link_app(self, row):
+        def on_pick(app_info):
+            row.kind = "app"
+            row.app_command = command_for_app(app_info)
+            row.app_icon = resolve_and_cache_icon(app_info) or ""
+            name = app_info.get_display_name() or app_info.get_name() or ""
+            if not row.label_entry.get_text().strip():
+                row.label_entry.set_text(name)
+            self._show_link_app(row, row.label_entry.get_text().strip() or name)
+
+        AppPickerDialog(self, on_pick=on_pick).present()
+
+    def _on_clear_link_app(self, row):
+        row.kind = "url"
+        row.app_command = ""
+        row.app_icon = ""
+        row.url_entry.set_text("")
+        row.url_entry.set_editable(True)
+        row.clear_btn.set_visible(False)
 
     def _on_color_selected(self, color, button):
         """Handle color selection - ensure exactly one is selected"""
@@ -593,9 +672,18 @@ class SliceConfigDialog(Adw.Window):
         }
         if type_id == "submenu":
             links = []
-            for label_entry, url_entry in self.link_rows:
-                link_label = label_entry.get_text().strip()
-                link_url = url_entry.get_text().strip()
+            for row in self.link_rows:
+                link_label = row.label_entry.get_text().strip()
+                if row.kind == "app":
+                    if link_label and row.app_command:
+                        links.append({
+                            "label": link_label,
+                            "type": "exec",
+                            "command": row.app_command,
+                            "icon": row.app_icon,
+                        })
+                    continue
+                link_url = row.url_entry.get_text().strip()
                 if not link_label and not link_url:
                     continue
                 if link_url and not link_url.startswith(("http://", "https://")):

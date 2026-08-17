@@ -136,7 +136,9 @@ def _link_icon_for_url(url):
 def submenu_from_config(items):
     """Build a submenu from configured quick links, or None if unusable.
 
-    ``items`` is the slice's ``submenu`` config list of {label, url} dicts.
+    ``items`` is the slice's ``submenu`` config list of dicts, each either
+    a link (``{label, url}``) or an app (``{label, type: "exec", command,
+    icon}``, "icon" holding an absolute path to a user-imported app icon).
     Invalid entries are skipped; an empty result returns None so the caller
     falls back to the default AI links.
     """
@@ -149,8 +151,18 @@ def submenu_from_config(items):
         if not isinstance(item, dict):
             continue
         label = str(item.get("label", "")).strip()
+        if not label:
+            continue
+        if item.get("type") == "exec":
+            command = str(item.get("command", "")).strip()
+            if not command:
+                continue
+            icon_path = str(item.get("icon", ""))
+            icon = icon_path if load_user_icon(icon_path) else "browser"
+            submenu.append((label, "exec", command, icon))
+            continue
         url = str(item.get("url", "")).strip()
-        if not label or not url.startswith(("http://", "https://")):
+        if not url.startswith(("http://", "https://")):
             continue
         submenu.append((label, "url", url, _link_icon_for_url(url)))
     return submenu or None
@@ -299,8 +311,12 @@ def load_actions_from_config():
                 color = slice_data.get("color", "teal")
                 gtk_icon = slice_data.get("icon", "application-x-executable-symbolic")
 
-                # Map GTK icon name to internal icon ID
-                icon = ICON_NAME_MAP.get(gtk_icon, "settings")
+                # A user-imported app icon is stored as an absolute file path;
+                # anything else is a symbolic icon name mapped to an internal ID.
+                if load_user_icon(gtk_icon):
+                    icon = gtk_icon
+                else:
+                    icon = ICON_NAME_MAP.get(gtk_icon, "settings")
 
                 # Handle submenu type: configured quick links win, with the
                 # default AI links as fallback for older configs.
@@ -338,6 +354,7 @@ def load_actions_from_config():
 
 AI_ICONS = {}
 OS_ICONS = {}
+USER_ICONS = {}
 
 
 def _get_assets_dir():
@@ -363,6 +380,30 @@ def _svg_to_pixmap(path, size=64):
     renderer.render(p)
     p.end()
     return QPixmap.fromImage(img)
+
+
+def load_user_icon(path):
+    """Load a user-imported app icon (absolute .svg/.png/... path) into
+    USER_ICONS, keyed by its own path. Returns True if the icon is cached
+    (already loaded or loaded now), False if it can't be read/rendered."""
+    if path in USER_ICONS:
+        return True
+    if not path or not os.path.isabs(path) or not os.path.exists(path):
+        return False
+    if path.lower().endswith(".svg"):
+        pixmap = _svg_to_pixmap(path)
+    else:
+        pixmap = QPixmap(path)
+        if pixmap.isNull():
+            pixmap = None
+        else:
+            pixmap = pixmap.scaled(
+                64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+            )
+    if not pixmap:
+        return False
+    USER_ICONS[path] = pixmap
+    return True
 
 
 def load_ai_icons():

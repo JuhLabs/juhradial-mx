@@ -426,7 +426,7 @@ class RadialMenuPaintingMixin:
         p.save()
         p.translate(icon_x, icon_y)
         p.scale(hover_bold, hover_bold)
-        self._draw_icon(p, 0, 0, action[4], icon_size, icon_color)
+        self._draw_action_icon(p, 0, 0, action[4], icon_size, icon_color)
         p.restore()
 
     def _draw_slice(self, p, cx, cy, index):
@@ -523,7 +523,7 @@ class RadialMenuPaintingMixin:
             int(ct1.green() + (ct2.green() - ct1.green()) * h),
             int(ct1.blue() + (ct2.blue() - ct1.blue()) * h),
         )
-        self._draw_icon(p, icon_x, icon_y, action[4], icon_radius * 0.65, icon_color)
+        self._draw_action_icon(p, icon_x, icon_y, action[4], icon_radius * 0.65, icon_color)
 
     def _draw_minimal_icon(self, p, cx, cy, index):
         """Draw a floating icon without slice background (vector minimal mode)."""
@@ -566,7 +566,24 @@ class RadialMenuPaintingMixin:
             int(ct1.green() + (ct2.green() - ct1.green()) * h),
             int(ct1.blue() + (ct2.blue() - ct1.blue()) * h),
         )
-        self._draw_icon(p, icon_x, icon_y, action[4], icon_radius * 0.65, icon_color)
+        self._draw_action_icon(p, icon_x, icon_y, action[4], icon_radius * 0.65, icon_color)
+
+    def _draw_action_icon(self, p, cx, cy, icon_id, size, color):
+        """Draw a pre-rendered pixmap for icon_id if one is cached, else fall
+        back to the hand-drawn vector glyph. icon_id is either an internal
+        glyph name (e.g. "play_pause") or an absolute path to a user-imported
+        app icon (see overlay_actions.USER_ICONS)."""
+        all_icons = {
+            **overlay_actions.AI_ICONS,
+            **overlay_actions.OS_ICONS,
+            **overlay_actions.USER_ICONS,
+        }
+        if icon_id in all_icons:
+            icon_size = size * 1.4
+            icon_rect = QRectF(cx - icon_size / 2, cy - icon_size / 2, icon_size, icon_size)
+            p.drawPixmap(icon_rect.toRect(), all_icons[icon_id])
+            return
+        self._draw_icon(p, cx, cy, icon_id, size, color)
 
     def _draw_icon(self, p, cx, cy, icon_type, size, color):
         # Thicker strokes for better visibility
@@ -1144,8 +1161,12 @@ class RadialMenuPaintingMixin:
             p.drawEllipse(QPointF(item_x, item_y), scaled_radius, scaled_radius)
 
             # Icon - use pre-rendered pixmap if available, fallback to drawn icon
-            icon_name = item[3]  # e.g., "claude", "chatgpt", "os_linux", etc.
-            all_icons = {**overlay_actions.AI_ICONS, **overlay_actions.OS_ICONS}
+            icon_name = item[3]  # e.g., "claude", "chatgpt", "os_linux", or an absolute icon path
+            all_icons = {
+                **overlay_actions.AI_ICONS,
+                **overlay_actions.OS_ICONS,
+                **overlay_actions.USER_ICONS,
+            }
             if icon_name in all_icons:
                 icon_size = scaled_radius * 1.4
                 icon_rect = QRectF(
