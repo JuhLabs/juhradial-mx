@@ -41,6 +41,9 @@
 -->
 
 > [!TIP]
+> **New:** Radial slices can now launch any installed application. The slice editor's **Pick Application…** button lists your desktop apps the way your app menu would, fills in the launch command, and imports the app's real icon onto the wheel; submenu quick-link rows can point at apps too. Thanks to [@gcarmin](https://github.com/gcarmin), our new co-maintainer, for designing and building this one ([#117](https://github.com/JuhLabs/juhradial-mx/pull/117)).
+
+> [!TIP]
 > **New in [v0.4.4](CHANGELOG.md):** SmartShift and hi-res scroll controls now really program the mouse. The daemon spoke the legacy HID++ dialect to the SmartShift Enhanced feature the MX Master 3/3S/4 actually expose, so reads returned a constant and every mode or threshold change silently did nothing, while hi-res toggles were misrouted into the ratchet control ([#106](https://github.com/JuhLabs/juhradial-mx/issues/106), [#107](https://github.com/JuhLabs/juhradial-mx/issues/107)). With v0.4.4 all three wheel modes (SmartShift, permanent ratchet, free-spin) apply on the hardware and round-trip correctly, per-app profile wheel settings work, the Settings wheel and battery readouts populate on open and follow the device live, and the Devices page reports the real connection (Bolt, Unifying, or Bluetooth) instead of guessing ([#108](https://github.com/JuhLabs/juhradial-mx/issues/108)). Thanks to [@FoxQwartz](https://github.com/FoxQwartz) for the hardware-level reports. [Update now](#installation).
 
 ## Installation
@@ -117,7 +120,7 @@ JuhRadial MX combines a Rust HID++ daemon, PyQt6 radial overlay, and GTK4/libadw
 | **Per-app profiles** | Switch pointer and wheel behavior by app, with native focus tracking on KDE, Hyprland, and X11 and XWayland tracking elsewhere. |
 | **Easy-Switch and device state** | Switch among three paired hosts and monitor battery, charging, DPI, ratchet state, and active host across Bolt, Unifying, and Bluetooth. |
 | **Settings dashboard** | Search and edit buttons, macros, haptics, pointer behavior, themes, profiles, Easy-Switch, and JuhFlow. |
-| **Quick-access actions** | Open services, files, notes, desktop actions, and custom commands from the wheel. |
+| **Quick-access actions** | Open services, files, notes, desktop actions, custom commands, and any installed application (picked from a searchable list, with its real icon) from the wheel. |
 | **Desktop integration** | Wayland-first support across major compositors plus X11, with XWayland used for overlay placement on Wayland. |
 
 Full feature and configuration guides are at [juhlabs.github.io/juhradial-mx](https://juhlabs.github.io/juhradial-mx/).
