@@ -25,8 +25,11 @@ from gi.repository import Gio
 from PyQt6.QtGui import QGuiApplication
 
 # QPixmap/QSvgRenderer need a live QGuiApplication (offscreen platform, set
-# above) even outside a real display session.
+# above) even outside a real display session. Kept referenced via the assert
+# below: an unreferenced instance can be garbage-collected immediately,
+# tearing down the application before any test runs.
 _qt_app = QGuiApplication.instance() or QGuiApplication([])
+assert _qt_app is not None
 
 from overlay_actions import USER_ICONS, load_user_icon, submenu_from_config
 from settings_dialog_app_picker import command_for_app, resolve_and_cache_icon
