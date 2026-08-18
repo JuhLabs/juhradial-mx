@@ -435,12 +435,6 @@ class SliceConfigDialog(Adw.Window):
         links_hint.add_css_class("dim-label")
         links_box.append(links_hint)
 
-        default_links = [
-            ("Claude", "https://claude.ai"),
-            ("ChatGPT", "https://chat.openai.com"),
-            ("Gemini", "https://gemini.google.com"),
-            ("Perplexity", "https://perplexity.ai"),
-        ]
         configured = self.slice_data.get("submenu") or []
         self.link_rows = []
         for i in range(4):
@@ -455,8 +449,11 @@ class SliceConfigDialog(Adw.Window):
                     row_icon = entry.get("icon", "")
                 else:
                     row_url = entry.get("url", "")
-            elif not configured:
-                row_label, row_url = default_links[i]
+            # else: leave the row blank - saving all four rows empty falls
+            # back to the default AI-assistant links (see the hint above and
+            # overlay_actions.load_actions_from_config), but a slice that has
+            # never had a submenu configured should open to blank rows, not
+            # pre-filled with those defaults.
 
             row_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
             label_entry = Gtk.Entry()

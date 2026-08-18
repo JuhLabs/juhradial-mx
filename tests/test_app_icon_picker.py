@@ -32,7 +32,7 @@ _qt_app = QGuiApplication.instance() or QGuiApplication([])
 assert _qt_app is not None
 
 from overlay_actions import USER_ICONS, load_user_icon, submenu_from_config
-from settings_dialog_app_picker import command_for_app, resolve_and_cache_icon
+from settings_dialog_app_picker import _is_terminal_app, command_for_app, resolve_and_cache_icon
 
 
 SVG_STUB = (
@@ -47,6 +47,40 @@ def test_command_for_app_strips_field_codes():
 
     app = SimpleNamespace(get_string=lambda key: "code --new-window %F")
     assert command_for_app(app) == "code --new-window"
+
+
+def test_command_for_app_keeps_escaped_percent_literal():
+    # %% is the Desktop Entry spec's escaped literal percent, not a field
+    # code - it must collapse to one "%", not disappear like %u/%f/etc.
+    app = SimpleNamespace(get_string=lambda key: "notify-send 100%% done")
+    assert command_for_app(app) == "notify-send 100% done"
+
+
+def test_is_terminal_app_true_for_terminal_desktop_entries(tmp_path):
+    # Exec must resolve to a real binary or GLib rejects the whole entry
+    # (new_from_filename() returns NULL) - "bash" is a safe, always-present
+    # stand-in for a real terminal app like htop.
+    desktop_file = tmp_path / "htop.desktop"
+    desktop_file.write_text(
+        "[Desktop Entry]\nType=Application\nName=htop\nExec=bash\nTerminal=true\n",
+        encoding="utf-8",
+    )
+    app = Gio.DesktopAppInfo.new_from_filename(str(desktop_file))
+    assert _is_terminal_app(app) is True
+
+
+def test_is_terminal_app_false_for_gui_desktop_entries(tmp_path):
+    desktop_file = tmp_path / "someapp.desktop"
+    desktop_file.write_text(
+        "[Desktop Entry]\nType=Application\nName=Some App\nExec=bash\n",
+        encoding="utf-8",
+    )
+    app = Gio.DesktopAppInfo.new_from_filename(str(desktop_file))
+    assert _is_terminal_app(app) is False
+
+
+def test_is_terminal_app_false_for_non_desktop_app_info():
+    assert _is_terminal_app(SimpleNamespace()) is False
 
 
 def test_resolve_and_cache_icon_from_file_icon(tmp_path, monkeypatch):
