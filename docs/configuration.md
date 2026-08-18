@@ -209,6 +209,9 @@ The 8-way ring is defined under `radial_menu.slices`. Each slice is an object:
 | `color` | A theme color name (`green`, `yellow`, `red`, `blue`, `mauve`, `pink`, `sapphire`, `teal`, and so on) |
 | `icon` | A freedesktop symbolic icon name, an emoji, or a path to `.png` / `.svg` / `.ico` |
 
+!!! tip
+    The Settings app's slice editor has a **Pick Application…** button (for `exec` slices) that lists installed applications the same way your desktop menu would. Picking one fills `command` with its launch command and `icon` with a path to a cached copy of its real icon, under `~/.config/juhradial/icons/`.
+
 Slice `type` values:
 
 | Type | Behaviour |
@@ -223,6 +226,26 @@ Slice `type` values:
 !!! tip
     On first run the slice commands are auto-filled for your desktop environment. For example, the Screenshot slice becomes `spectacle` on KDE, `gnome-screenshot --interactive` on GNOME, `cosmic-screenshot` on COSMIC, and `flameshot gui` on generic desktops. Set `desktop_environment` to pin a specific mapping.
 
+### Submenus
+
+A `submenu`-type slice carries up to four entries under `submenu`, each either a link or an app:
+
+```json
+"submenu": [
+  { "label": "Docs", "url": "https://docs.example.com" },
+  { "label": "Files", "type": "exec", "command": "dolphin", "icon": "/home/user/.config/juhradial/icons/org.kde.dolphin.desktop.png" }
+]
+```
+
+| Entry field | Meaning |
+| --- | --- |
+| `label` | Text shown for the submenu item |
+| `url` | For link entries: opened in the default browser |
+| `type` | Set to `exec` for an app entry (omit for a link entry) |
+| `command` | For `exec` entries: the launch command |
+| `icon` | For `exec` entries: a path to the app's cached icon |
+
+The Settings app's submenu editor has an **App…** button per row for picking an installed application, filling `command`/`icon` the same way the slice-level app picker does; a **Clear** button switches the row back to a plain link. Leaving all four rows empty falls back to the default AI-assistant links.
 
 ### Easy-switch
 
