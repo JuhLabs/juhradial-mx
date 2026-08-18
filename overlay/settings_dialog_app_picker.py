@@ -30,13 +30,27 @@ logger = logging.getLogger(__name__)
 
 # Desktop Entry "Exec=" field codes (XDG Desktop Entry spec, section on
 # "Exec key") - stripped since slices launch with no associated file/URL.
-_FIELD_CODE_RE = re.compile(r"%[fFuUdDnNickvm%]")
+# %% is the spec's escaped literal percent, not a field code - it collapses
+# to a single "%" instead of being dropped like the others.
+_FIELD_CODE_RE = re.compile(r"%%|%[fFuUdDnNickvm]")
+
+
+def _replace_field_code(match):
+    return "%" if match.group(0) == "%%" else ""
 
 
 def command_for_app(app_info):
     """Return a plain shell command for launching app_info."""
     exec_line = app_info.get_string("Exec") or ""
-    return _FIELD_CODE_RE.sub("", exec_line).strip()
+    return _FIELD_CODE_RE.sub(_replace_field_code, exec_line).strip()
+
+
+def _is_terminal_app(app_info):
+    """True for Terminal=true entries (htop, vim, ...): launched directly via
+    Popen they open no window and the slice looks dead. Filtered out of the
+    picker rather than launched in a terminal, since there is no single
+    "the user's terminal" to target reliably."""
+    return isinstance(app_info, Gio.DesktopAppInfo) and app_info.get_boolean("Terminal")
 
 
 def resolve_and_cache_icon(app_info):
@@ -143,7 +157,7 @@ class AppPickerDialog(Adw.Window):
         self.set_content(main_box)
 
     def _populate_apps(self):
-        apps = [a for a in Gio.AppInfo.get_all() if a.should_show()]
+        apps = [a for a in Gio.AppInfo.get_all() if a.should_show() and not _is_terminal_app(a)]
         apps.sort(key=lambda a: (a.get_display_name() or a.get_name() or "").lower())
 
         seen_ids = set()
