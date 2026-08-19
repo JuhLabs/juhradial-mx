@@ -47,6 +47,8 @@ pub struct HapticManager {
     /// Whether the window-switch haptic is enabled (independent of `enabled`,
     /// which gates all haptics)
     window_switch_enabled: bool,
+    /// Whether the monitor-switch haptic is enabled (independent of `enabled`)
+    monitor_switch_enabled: bool,
     /// Last pulse timestamp for debouncing (milliseconds)
     last_pulse_ms: u64,
     /// Connection state for reconnection logic
@@ -78,6 +80,7 @@ impl HapticManager {
             per_event: PerEventPattern::default(),
             enabled,
             window_switch_enabled: true,
+            monitor_switch_enabled: true,
             last_pulse_ms: 0,
             connection_state: ConnectionState::NotConnected,
             last_disconnect_ms: 0,
@@ -104,9 +107,11 @@ impl HapticManager {
                 confirm: Mx4HapticPattern::from_name(&config.per_event.confirm),
                 invalid: Mx4HapticPattern::from_name(&config.per_event.invalid),
                 window_switch: Mx4HapticPattern::from_name(&config.per_event.window_switch),
+                monitor_switch: Mx4HapticPattern::from_name(&config.per_event.monitor_switch),
             },
             enabled: config.enabled,
             window_switch_enabled: config.window_switch_enabled,
+            monitor_switch_enabled: config.monitor_switch_enabled,
             last_pulse_ms: 0,
             connection_state: ConnectionState::NotConnected,
             last_disconnect_ms: 0,
@@ -129,9 +134,11 @@ impl HapticManager {
             confirm: Mx4HapticPattern::from_name(&config.per_event.confirm),
             invalid: Mx4HapticPattern::from_name(&config.per_event.invalid),
             window_switch: Mx4HapticPattern::from_name(&config.per_event.window_switch),
+            monitor_switch: Mx4HapticPattern::from_name(&config.per_event.monitor_switch),
         };
         self.enabled = config.enabled;
         self.window_switch_enabled = config.window_switch_enabled;
+        self.monitor_switch_enabled = config.monitor_switch_enabled;
         self.debounce_ms = config.debounce_ms;
         self.slice_debounce_ms = config.slice_debounce_ms;
         self.reentry_debounce_ms = config.reentry_debounce_ms;
@@ -406,6 +413,12 @@ impl HapticManager {
     /// whether to emit at all rather than emitting and having it swallowed)
     pub fn is_window_switch_enabled(&self) -> bool {
         self.window_switch_enabled
+    }
+
+    /// Whether the monitor-switch haptic is enabled (checked separately from
+    /// `emit()`'s own master `enabled` gate, same reasoning as window-switch)
+    pub fn is_monitor_switch_enabled(&self) -> bool {
+        self.monitor_switch_enabled
     }
 
     pub fn emit(&mut self, event: HapticEvent) -> Result<(), HapticError> {

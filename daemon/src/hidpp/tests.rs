@@ -135,6 +135,7 @@ fn test_from_config() {
         slice_debounce_ms: 20,
         reentry_debounce_ms: 50,
         window_switch_enabled: true,
+        monitor_switch_enabled: true,
     };
 
     let manager = HapticManager::from_config(&config);
@@ -154,6 +155,7 @@ fn test_from_config_disabled() {
         slice_debounce_ms: 20,
         reentry_debounce_ms: 50,
         window_switch_enabled: true,
+        monitor_switch_enabled: true,
     };
 
     let manager = HapticManager::from_config(&config);
@@ -175,6 +177,7 @@ fn test_update_from_config() {
         slice_debounce_ms: 20,
         reentry_debounce_ms: 50,
         window_switch_enabled: true,
+        monitor_switch_enabled: true,
     };
 
     manager.update_from_config(&new_config);
@@ -238,6 +241,7 @@ fn test_haptic_event_display() {
     );
     assert_eq!(format!("{}", HapticEvent::InvalidAction), "invalid_action");
     assert_eq!(format!("{}", HapticEvent::WindowSwitch), "window_switch");
+    assert_eq!(format!("{}", HapticEvent::MonitorSwitch), "monitor_switch");
 }
 
 #[test]
@@ -248,6 +252,7 @@ fn test_per_event_pattern_defaults() {
     assert_eq!(per_event.confirm, Mx4HapticPattern::SharpStateChange);
     assert_eq!(per_event.invalid, Mx4HapticPattern::AngryAlert);
     assert_eq!(per_event.window_switch, Mx4HapticPattern::SubtleCollision);
+    assert_eq!(per_event.monitor_switch, Mx4HapticPattern::SubtleCollision);
 }
 
 #[test]
@@ -258,6 +263,7 @@ fn test_per_event_pattern_get() {
         confirm: Mx4HapticPattern::AngryAlert,
         invalid: Mx4HapticPattern::SharpStateChange,
         window_switch: Mx4HapticPattern::DampStateChange,
+        monitor_switch: Mx4HapticPattern::AngryAlert,
     };
 
     assert_eq!(
@@ -279,6 +285,10 @@ fn test_per_event_pattern_get() {
     assert_eq!(
         per_event.get(&HapticEvent::WindowSwitch),
         Mx4HapticPattern::DampStateChange
+    );
+    assert_eq!(
+        per_event.get(&HapticEvent::MonitorSwitch),
+        Mx4HapticPattern::AngryAlert
     );
 }
 
@@ -328,11 +338,13 @@ fn test_from_config_with_per_event() {
             confirm: "angry_alert".to_string(),
             invalid: "subtle_collision".to_string(),
             window_switch: "subtle_collision".to_string(),
+            monitor_switch: "subtle_collision".to_string(),
         },
         debounce_ms: 25,
         slice_debounce_ms: 20,
         reentry_debounce_ms: 50,
         window_switch_enabled: true,
+        monitor_switch_enabled: true,
     };
 
     let manager = HapticManager::from_config(&config);
@@ -364,11 +376,13 @@ fn test_update_from_config_with_per_event() {
             confirm: "damp_state_change".to_string(),
             invalid: "subtle_collision".to_string(),
             window_switch: "subtle_collision".to_string(),
+            monitor_switch: "subtle_collision".to_string(),
         },
         debounce_ms: 30,
         slice_debounce_ms: 20,
         reentry_debounce_ms: 50,
         window_switch_enabled: true,
+        monitor_switch_enabled: true,
     };
 
     manager.update_from_config(&new_config);
@@ -655,6 +669,7 @@ fn test_from_config_with_slice_debounce() {
         slice_debounce_ms: 25,
         reentry_debounce_ms: 60,
         window_switch_enabled: true,
+        monitor_switch_enabled: true,
     };
 
     let manager = HapticManager::from_config(&config);
@@ -678,6 +693,7 @@ fn test_update_from_config_with_slice_debounce() {
         slice_debounce_ms: 35,
         reentry_debounce_ms: 75,
         window_switch_enabled: true,
+        monitor_switch_enabled: true,
     };
 
     manager.update_from_config(&new_config);

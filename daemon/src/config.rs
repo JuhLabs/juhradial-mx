@@ -44,6 +44,10 @@ pub struct HapticEventConfig {
     /// Pattern when the focused application window changes (default: subtle_collision)
     #[serde(default = "default_window_switch")]
     pub window_switch: String,
+
+    /// Pattern when the cursor moves to a different physical monitor (default: subtle_collision)
+    #[serde(default = "default_monitor_switch")]
+    pub monitor_switch: String,
 }
 
 fn default_menu_appear() -> String { "damp_state_change".to_string() }
@@ -51,6 +55,7 @@ fn default_slice_change() -> String { "subtle_collision".to_string() }
 fn default_confirm() -> String { "sharp_state_change".to_string() }
 fn default_invalid() -> String { "angry_alert".to_string() }
 fn default_window_switch() -> String { "subtle_collision".to_string() }
+fn default_monitor_switch() -> String { "subtle_collision".to_string() }
 
 impl Default for HapticEventConfig {
     fn default() -> Self {
@@ -60,6 +65,7 @@ impl Default for HapticEventConfig {
             confirm: default_confirm(),
             invalid: default_invalid(),
             window_switch: default_window_switch(),
+            monitor_switch: default_monitor_switch(),
         }
     }
 }
@@ -104,6 +110,11 @@ pub struct HapticConfig {
     /// independent of the radial menu
     #[serde(default = "default_true")]
     pub window_switch_enabled: bool,
+
+    /// Enable a haptic pulse when the cursor moves to a different physical
+    /// monitor, independent of the radial menu
+    #[serde(default = "default_true")]
+    pub monitor_switch_enabled: bool,
 }
 
 fn default_true() -> bool { true }
@@ -122,6 +133,7 @@ impl Default for HapticConfig {
             slice_debounce_ms: 20,
             reentry_debounce_ms: 50,
             window_switch_enabled: true,
+            monitor_switch_enabled: true,
         }
     }
 }
@@ -637,6 +649,8 @@ mod tests {
         assert_eq!(haptic.per_event.invalid, "angry_alert");
         assert_eq!(haptic.per_event.window_switch, "subtle_collision");
         assert!(haptic.window_switch_enabled);
+        assert_eq!(haptic.per_event.monitor_switch, "subtle_collision");
+        assert!(haptic.monitor_switch_enabled);
     }
 
     #[test]

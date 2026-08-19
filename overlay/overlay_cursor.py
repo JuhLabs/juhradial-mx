@@ -13,7 +13,7 @@ SPDX-License-Identifier: GPL-3.0
 import os
 import subprocess
 
-from overlay_constants import IS_HYPRLAND, IS_GNOME, _HAS_XWAYLAND
+from overlay_constants import IS_HYPRLAND, IS_GNOME, IS_KDE, IS_X11, _HAS_XWAYLAND
 
 # =============================================================================
 # HYPRLAND CURSOR DETECTION
@@ -249,6 +249,38 @@ def find_monitor_at(x, y, monitors):
                 and mon["y"] <= y < mon["y"] + mon["height"]):
             return mon
     return None
+
+
+def get_current_monitor_name(x, y):
+    """Return the name of the monitor containing (x, y), or None.
+
+    Mirrors the compositor branching used for menu-open monitor detection
+    (Hyprland IPC / KDE Wayland kscreen-doctor / generic Qt screens), but
+    only needs the monitor's identity, not its full geometry - callers
+    comparing successive results (e.g. detecting a monitor-switch haptic)
+    don't need the rect at all.
+    """
+    if IS_HYPRLAND:
+        mon = get_monitor_at_cursor(x, y)
+        return mon.get("name") if mon else None
+
+    if IS_KDE and not IS_X11 and _HAS_XWAYLAND:
+        kde_mons = get_kde_monitors_logical()
+        mon = find_monitor_at(x, y, kde_mons) if kde_mons else None
+        if mon:
+            return mon.get("name")
+
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if not app:
+        return None
+    for screen in app.screens():
+        geo = screen.geometry()
+        if (geo.x() <= x < geo.x() + geo.width()
+                and geo.y() <= y < geo.y() + geo.height()):
+            return screen.name()
+    primary = app.primaryScreen()
+    return primary.name() if primary else None
 
 
 def get_cursor_position_hyprland():

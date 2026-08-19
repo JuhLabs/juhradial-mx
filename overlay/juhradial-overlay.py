@@ -125,6 +125,7 @@ from overlay_cursor import (
     get_cursor_pos,
     get_kde_monitors_logical,
     find_monitor_at,
+    get_current_monitor_name,
 )
 import overlay_actions
 from overlay_media import MediaStateQuery, actions_use_media_state
@@ -559,6 +560,14 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self._anim_timer = QTimer(self)
         self._anim_timer.timeout.connect(self._tick_animations)
         self._anim_timer.setInterval(16)  # ~60fps
+
+        # Ambient monitor-switch watcher - unlike cursor_timer/_anim_timer,
+        # this runs for the process's whole lifetime, not just while the
+        # menu is open, since a monitor crossing can happen at any time.
+        self._last_monitor_name = None
+        self._monitor_watch_timer = QTimer(self)
+        self._monitor_watch_timer.timeout.connect(self._check_monitor_switch)
+        self._monitor_watch_timer.start(400)  # kscreen-doctor lookups are 10s-cached
 
         print("=" * 60, flush=True)
         print("  JuhRadial MX - PyQt6 Overlay", flush=True)
@@ -1004,6 +1013,25 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self._pending_haptic_events.discard(event)
             self._haptic_watchers.discard(watcher)
             watcher.deleteLater()
+
+    def _check_monitor_switch(self):
+        """Ambient tick: pulse when the cursor lands on a different monitor.
+
+        Runs regardless of whether the radial menu is open - this is a
+        background awareness cue, not part of the menu's own hover/select
+        haptics.
+        """
+        pos = get_cursor_position_xwayland()
+        if not pos:
+            from PyQt6.QtGui import QCursor
+            qpos = QCursor.pos()
+            pos = (qpos.x(), qpos.y())
+        name = get_current_monitor_name(*pos)
+        if name is None:
+            return
+        if self._last_monitor_name is not None and name != self._last_monitor_name:
+            self._trigger_haptic("monitor_switch")
+        self._last_monitor_name = name
 
     def _apply_ring_scale(self, mon):
         """Scale the ring window to the monitor it is shown on.
