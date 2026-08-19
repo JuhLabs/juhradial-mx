@@ -564,10 +564,21 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # Ambient monitor-switch watcher - unlike cursor_timer/_anim_timer,
         # this runs for the process's whole lifetime, not just while the
         # menu is open, since a monitor crossing can happen at any time.
+        #
+        # Skipped on KDE Wayland: XWayland only tracks the cursor while it's
+        # over an XWayland window, so get_cursor_position_xwayland()/
+        # QCursor.pos() return a stale, frozen point the rest of the time -
+        # confirmed live (two successive queries returned the identical
+        # stale coordinate). The daemon covers KDE instead, via a persistent
+        # KWin script driven by workspace.cursorPosChanged/screenAt, which
+        # always sees the live position (see cursor::KWIN_CURSOR_SCREEN_SCRIPT
+        # in the daemon).
         self._last_monitor_name = None
-        self._monitor_watch_timer = QTimer(self)
-        self._monitor_watch_timer.timeout.connect(self._check_monitor_switch)
-        self._monitor_watch_timer.start(400)  # kscreen-doctor lookups are 10s-cached
+        kde_wayland = IS_KDE and not IS_X11 and _HAS_XWAYLAND
+        if not kde_wayland:
+            self._monitor_watch_timer = QTimer(self)
+            self._monitor_watch_timer.timeout.connect(self._check_monitor_switch)
+            self._monitor_watch_timer.start(400)  # kscreen-doctor lookups are 10s-cached
 
         print("=" * 60, flush=True)
         print("  JuhRadial MX - PyQt6 Overlay", flush=True)

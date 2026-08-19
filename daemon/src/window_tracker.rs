@@ -116,8 +116,10 @@ impl Default for WindowTracker {
 }
 
 /// Load and run a KWin script via D-Bus, returning whether it started. Mirrors
-/// the cursor-script pipeline (loadScript → Script.run).
-fn install_kwin_script(script: &str) -> bool {
+/// the cursor-script pipeline (loadScript → Script.run). `pub(crate)` so other
+/// persistent-script installers (e.g. cursor::watch_cursor_screen_kde) can
+/// reuse it instead of duplicating the loadScript/Script.run dance.
+pub(crate) fn install_kwin_script(script: &str) -> bool {
     let mut temp_file = match tempfile::Builder::new().suffix(".js").tempfile() {
         Ok(f) => f,
         Err(e) => {

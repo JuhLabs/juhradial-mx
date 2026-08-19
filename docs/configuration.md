@@ -114,7 +114,12 @@ systemctl --user restart juhradialmx-daemon.service
 
 The app-switch pulse fires whenever the daemon's window tracker (used for [per-application profiles](#per-application-profiles-profilesjson)) sees the focused window's class change — it runs whenever window tracking is available (KDE, Hyprland, X11), whether or not any per-app profiles are configured, and is capped at one pulse per distinct app switch, not per window-focus event within the same app.
 
-The monitor-switch pulse is detected entirely in the overlay process: an ambient timer (running continuously, independent of the radial menu) polls the cursor position every 400ms and compares which physical monitor it's on against the previous reading. On COSMIC and niri, the underlying XWayland cursor query can return a stale position until the cursor crosses an XWayland-visible surface, so a crossing may occasionally be missed or delayed on those two compositors specifically; KDE, Hyprland, GNOME, and X11 are unaffected.
+The monitor-switch pulse has two independent sources, chosen per desktop:
+
+- **KDE** — a persistent KWin script, installed once alongside the active-window tracking script, connects to `workspace.cursorPosChanged` and calls `TriggerHaptic` directly via `workspace.screenAt()` whenever the screen under the cursor changes. This is KWin-native and always sees the live cursor position.
+- **Hyprland, GNOME, X11** — an ambient timer in the overlay process (running continuously, independent of the radial menu) polls the cursor position every 400ms and compares which physical monitor it's on against the previous reading, using each desktop's own live cursor source (Hyprland IPC, the GNOME Shell helper extension, or native X11).
+
+KDE deliberately does **not** use the overlay's ambient timer: XWayland only tracks the cursor while it's over an XWayland window, so on Wayland outside of an open radial menu the timer's `QCursor.pos()`/`XQueryPointer` reads return a stale, frozen position almost all the time (confirmed live — two successive queries returned the identical stale point). The same staleness affects COSMIC and niri, which aren't given a native alternative yet, so a crossing there may occasionally be missed or delayed.
 
 Pattern names are MX Master 4 HID++ waveform IDs (for example `subtle_collision`, `damp_state_change`, `sharp_state_change`, `angry_alert`). Pick from the patterns offered in the HAPTIC FEEDBACK page of the Settings app.
 

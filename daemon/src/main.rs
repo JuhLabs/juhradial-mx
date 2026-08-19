@@ -555,12 +555,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The tracker pushes focused-window resource classes; the consumer below
     // applies any matching HardwareProfile via volatile HID++ setters.
     let window_tracker = WindowTracker::new();
+    let tracker_desktop = window_tracker.desktop();
     if window_tracker.is_available() {
-        info!(desktop = window_tracker.desktop(), "Window tracking enabled for per-app hardware profiles");
+        info!(desktop = tracker_desktop, "Window tracking enabled for per-app hardware profiles");
         let watch_tx = active_window_tx.clone();
         tokio::spawn(async move { window_tracker.watch(watch_tx).await });
     } else {
         warn!("Window tracking unavailable - per-app hardware profiles inactive");
+    }
+
+    // Monitor-switch haptic on KDE: a persistent KWin script (installed once,
+    // like the active-window script above) reports screen crossings directly
+    // via TriggerHaptic - see cursor::KWIN_CURSOR_SCREEN_SCRIPT for why this
+    // needs to be KWin-native rather than the overlay's own ambient cursor
+    // poll (stale on KDE Wayland outside an open menu).
+    if tracker_desktop == "kde" {
+        tokio::task::spawn_blocking(juhradiald::cursor::watch_cursor_screen_kde);
     }
 
     // Consumer: on each focus change, look up and apply the per-app hardware
