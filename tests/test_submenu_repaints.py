@@ -72,6 +72,7 @@ class _MenuHarness:
         self._anim_timer = _Timer()
         self._subitem_result = subitem_result
         self.update_calls = 0
+        self.haptic_events = []
 
     def _hover_gate(self, *_args):
         return True
@@ -85,8 +86,8 @@ class _MenuHarness:
     def _update_kde_mask(self):
         pass
 
-    def _trigger_haptic(self, _event):
-        pass
+    def _trigger_haptic(self, event):
+        self.haptic_events.append(event)
 
     def update(self):
         self.update_calls += 1
@@ -139,6 +140,38 @@ def test_changing_the_highlighted_subitem_repaints_once():
 
     assert menu.highlighted_subitem == 2
     assert menu.update_calls == 1
+
+
+def test_changing_the_highlighted_subitem_triggers_haptic():
+    menu = _MenuHarness(highlighted_subitem=1, subitem_result=2)
+
+    _radial_menu_method("_poll_cursor")(menu)
+
+    assert menu.haptic_events == ["slice_change"]
+
+
+def test_clearing_the_highlighted_subitem_does_not_trigger_haptic():
+    menu = _MenuHarness(highlighted_subitem=2, subitem_result=-1)
+
+    _radial_menu_method("_poll_cursor")(menu)
+
+    assert menu.haptic_events == []
+
+
+def test_mouse_move_changing_the_highlighted_subitem_triggers_haptic():
+    menu = _MenuHarness(highlighted_subitem=1, subitem_result=2)
+
+    _radial_menu_method("mouseMoveEvent")(menu, _MouseEvent())
+
+    assert menu.haptic_events == ["slice_change"]
+
+
+def test_mouse_move_clearing_the_highlighted_subitem_does_not_trigger_haptic():
+    menu = _MenuHarness(highlighted_subitem=2, subitem_result=-1)
+
+    _radial_menu_method("mouseMoveEvent")(menu, _MouseEvent())
+
+    assert menu.haptic_events == []
 
 
 def test_submenu_animation_keeps_repainting_until_settled():
