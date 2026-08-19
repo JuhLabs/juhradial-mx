@@ -212,6 +212,8 @@ pub enum HapticEvent {
     SelectionConfirm,
     /// User selects an empty or invalid slice
     InvalidAction,
+    /// The focused application window changed (independent of the radial menu)
+    WindowSwitch,
 }
 
 impl HapticEvent {
@@ -222,6 +224,7 @@ impl HapticEvent {
             HapticEvent::SliceChange => haptic_profiles::SLICE_CHANGE,
             HapticEvent::SelectionConfirm => haptic_profiles::CONFIRM,
             HapticEvent::InvalidAction => haptic_profiles::INVALID,
+            HapticEvent::WindowSwitch => haptic_profiles::SLICE_CHANGE,
         }
     }
 
@@ -232,6 +235,7 @@ impl HapticEvent {
             HapticEvent::SliceChange => HapticPattern::Single,
             HapticEvent::SelectionConfirm => HapticPattern::Double,
             HapticEvent::InvalidAction => HapticPattern::Triple,
+            HapticEvent::WindowSwitch => HapticPattern::Single,
         }
     }
 
@@ -260,6 +264,8 @@ impl HapticEvent {
             HapticEvent::SelectionConfirm => Mx4HapticPattern::Completed,
             // Invalid action: error/warning feel
             HapticEvent::InvalidAction => Mx4HapticPattern::AngryAlert,
+            // Window switch: same lightweight tick as slice hover
+            HapticEvent::WindowSwitch => Mx4HapticPattern::SubtleCollision,
         }
     }
 }
@@ -271,6 +277,7 @@ impl fmt::Display for HapticEvent {
             HapticEvent::SliceChange => write!(f, "slice_change"),
             HapticEvent::SelectionConfirm => write!(f, "selection_confirm"),
             HapticEvent::InvalidAction => write!(f, "invalid_action"),
+            HapticEvent::WindowSwitch => write!(f, "window_switch"),
         }
     }
 }
@@ -286,6 +293,8 @@ pub struct PerEventPattern {
     pub confirm: Mx4HapticPattern,
     /// Pattern for invalid action
     pub invalid: Mx4HapticPattern,
+    /// Pattern for a focused-application window switch
+    pub window_switch: Mx4HapticPattern,
 }
 
 impl Default for PerEventPattern {
@@ -295,6 +304,7 @@ impl Default for PerEventPattern {
             slice_change: Mx4HapticPattern::SubtleCollision,
             confirm: Mx4HapticPattern::SharpStateChange,
             invalid: Mx4HapticPattern::AngryAlert,
+            window_switch: Mx4HapticPattern::SubtleCollision,
         }
     }
 }
@@ -307,6 +317,7 @@ impl PerEventPattern {
             HapticEvent::SliceChange => self.slice_change,
             HapticEvent::SelectionConfirm => self.confirm,
             HapticEvent::InvalidAction => self.invalid,
+            HapticEvent::WindowSwitch => self.window_switch,
         }
     }
 }

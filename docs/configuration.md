@@ -84,11 +84,13 @@ systemctl --user restart juhradialmx-daemon.service
     "menu_appear": "damp_state_change",
     "slice_change": "subtle_collision",
     "confirm": "sharp_state_change",
-    "invalid": "angry_alert"
+    "invalid": "angry_alert",
+    "window_switch": "subtle_collision"
   },
   "debounce_ms": 20,
   "slice_debounce_ms": 20,
-  "reentry_debounce_ms": 50
+  "reentry_debounce_ms": 50,
+  "window_switch_enabled": true
 }
 ```
 
@@ -100,9 +102,13 @@ systemctl --user restart juhradialmx-daemon.service
 | `per_event.slice_change` | string | `subtle_collision` | Pulse when hovering a different slice |
 | `per_event.confirm` | string | `sharp_state_change` | Pulse when selecting an action |
 | `per_event.invalid` | string | `angry_alert` | Pulse for a blocked or invalid action |
+| `per_event.window_switch` | string | `subtle_collision` | Pulse when the focused application window changes |
 | `debounce_ms` | int | `20` | Minimum milliseconds between any two pulses |
 | `slice_debounce_ms` | int | `20` | Minimum milliseconds between slice-change pulses |
 | `reentry_debounce_ms` | int | `50` | Window that suppresses a duplicate pulse when the cursor re-enters the same slice |
+| `window_switch_enabled` | bool | `true` | Enable the app-switch pulse independently of the radial menu's own events |
+
+The app-switch pulse fires whenever the daemon's window tracker (used for [per-application profiles](#per-application-profiles-profilesjson)) sees the focused window's class change — it runs whenever window tracking is available (KDE, Hyprland, X11), whether or not any per-app profiles are configured, and is capped at one pulse per distinct app switch, not per window-focus event within the same app.
 
 Pattern names are MX Master 4 HID++ waveform IDs (for example `subtle_collision`, `damp_state_change`, `sharp_state_change`, `angry_alert`). Pick from the patterns offered in the HAPTIC FEEDBACK page of the Settings app.
 
