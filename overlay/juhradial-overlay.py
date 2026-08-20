@@ -1387,6 +1387,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             if subitem >= 0:
                 if subitem != self.highlighted_subitem:
                     self.highlighted_subitem = subitem
+                    self._trigger_haptic("slice_change")
                     self.update()
                 return
             if new_slice == self.submenu_slice or distance > MENU_RADIUS:
@@ -1480,6 +1481,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             if subitem >= 0:
                 if subitem != self.highlighted_subitem:
                     self.highlighted_subitem = subitem
+                    self._trigger_haptic("slice_change")
                     self.update()
                 return
             if new_slice == self.submenu_slice or distance > MENU_RADIUS:
