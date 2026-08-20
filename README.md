@@ -41,6 +41,9 @@
 -->
 
 > [!TIP]
+> **New:** MX Master 4 haptics now reach beyond the wheel. The actuator gives one pulse whenever the focused application changes (Alt+Tab, the taskbar, or clicking into another app's window; never for windows of the same app), with its own toggle and pattern under **Settings → Haptics → App Switch** so it can be turned off independently of the menu. Hovering between items inside a submenu (Quick Links, AI assistant, app rows) now pulses like the main ring, too. Both built thanks to [@gcarmin](https://github.com/gcarmin) ([#119](https://github.com/JuhLabs/juhradial-mx/pull/119), [#120](https://github.com/JuhLabs/juhradial-mx/pull/120)).
+
+> [!TIP]
 > **New:** Radial slices can now launch any installed application. The slice editor's **Pick Application…** button lists your desktop apps the way your app menu would, fills in the launch command, and imports the app's real icon onto the wheel; submenu quick-link rows can point at apps too. Thanks to [@gcarmin](https://github.com/gcarmin), our new co-maintainer, for designing and building this one ([#117](https://github.com/JuhLabs/juhradial-mx/pull/117)).
 
 > [!TIP]
@@ -114,7 +117,7 @@ JuhRadial MX combines a Rust HID++ daemon, PyQt6 radial overlay, and GTK4/libadw
 |---|---|
 | **Radial menu** | Configurable eight-segment overlay with hold-and-drag or tap-to-open interaction, animations, and 3D themes. |
 | **Button remapping and macros** | Map controls to shortcuts, delays, typed text, repeating loops, system actions, or evdev-backed Gaming Mode. |
-| **MX Master 4 haptics** | Tune actuator feedback for selections and supported interactions on MX Master 4 hardware. |
+| **MX Master 4 haptics** | Tune actuator feedback per event on MX Master 4 hardware: menu open, ring and submenu hover, selections, and application switches. |
 | **Pointer and scroll control** | Adjust 400 to 8000 DPI presets, sensitivity, SmartShift, high-resolution scrolling, and scroll speed. |
 | **Thumb wheel** | Bind the side wheel to volume, zoom, horizontal scrolling, or off, with direction and speed controls. |
 | **Per-app profiles** | Switch pointer and wheel behavior by app, with native focus tracking on KDE, Hyprland, and X11 and XWayland tracking elsewhere. |
