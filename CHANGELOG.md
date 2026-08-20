@@ -16,10 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Haptic feedback works inside submenus** - Hovering between items in an open submenu (Quick Links, AI assistant, the app-picker submenu rows) gave no haptic pulse, only the main Actions Ring did. Submenu hover now triggers the same `slice_change` pulse as the main ring.
 
-### Fixed
-
-- **Haptic feedback works inside submenus** - Hovering between items in an open submenu (Quick Links, AI assistant, the app-picker submenu rows) gave no haptic pulse, only the main Actions Ring did. Submenu hover now triggers the same `slice_change` pulse as the main ring.
-
 ## [0.4.4] - 2026-08-18
 
 ### Fixed
