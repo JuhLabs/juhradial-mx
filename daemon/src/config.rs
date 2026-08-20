@@ -40,12 +40,17 @@ pub struct HapticEventConfig {
     /// Pattern for invalid/blocked actions (default: angry_alert)
     #[serde(default = "default_invalid")]
     pub invalid: String,
+
+    /// Pattern when the focused application window changes (default: subtle_collision)
+    #[serde(default = "default_window_switch")]
+    pub window_switch: String,
 }
 
 fn default_menu_appear() -> String { "damp_state_change".to_string() }
 fn default_slice_change() -> String { "subtle_collision".to_string() }
 fn default_confirm() -> String { "sharp_state_change".to_string() }
 fn default_invalid() -> String { "angry_alert".to_string() }
+fn default_window_switch() -> String { "subtle_collision".to_string() }
 
 impl Default for HapticEventConfig {
     fn default() -> Self {
@@ -54,6 +59,7 @@ impl Default for HapticEventConfig {
             slice_change: default_slice_change(),
             confirm: default_confirm(),
             invalid: default_invalid(),
+            window_switch: default_window_switch(),
         }
     }
 }
@@ -93,6 +99,11 @@ pub struct HapticConfig {
     /// Prevents duplicate haptic when cursor re-enters the same slice quickly
     #[serde(default = "default_reentry_debounce")]
     pub reentry_debounce_ms: u64,
+
+    /// Enable a haptic pulse when the focused application window changes,
+    /// independent of the radial menu
+    #[serde(default = "default_true")]
+    pub window_switch_enabled: bool,
 }
 
 fn default_true() -> bool { true }
@@ -110,6 +121,7 @@ impl Default for HapticConfig {
             debounce_ms: 20,
             slice_debounce_ms: 20,
             reentry_debounce_ms: 50,
+            window_switch_enabled: true,
         }
     }
 }
@@ -623,6 +635,8 @@ mod tests {
         assert_eq!(haptic.per_event.slice_change, "subtle_collision");
         assert_eq!(haptic.per_event.confirm, "sharp_state_change");
         assert_eq!(haptic.per_event.invalid, "angry_alert");
+        assert_eq!(haptic.per_event.window_switch, "subtle_collision");
+        assert!(haptic.window_switch_enabled);
     }
 
     #[test]

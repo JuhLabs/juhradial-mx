@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Pick an installed application for a radial slice** - The slice dialog in Settings has a "Pick Application…" button (for `exec` slices) that lists installed applications the same way your desktop menu would, instead of typing a raw command by hand. Picking one fills the command and imports the app's real icon (cached under `~/.config/juhradial/icons/`), replacing the generic glyph on the wheel. Submenu rows (Quick Links) got the same treatment: each of the four rows can now point at an app instead of a URL, via a per-row "App…" picker with a "Clear" button to switch back to a link.
+- **Haptic feedback on application switch** - The MX Master 4 actuator now pulses whenever the focused application window changes (Alt+Tab, taskbar, clicking a different app), independent of the radial menu. On by default, with its own toggle and pattern in Settings → Haptics → App Switch, so it can be turned off separately from the menu's own haptics. Reuses the daemon's existing window tracker (also used for per-application profiles), so it works wherever that already does: KDE, Hyprland, and X11.
+
+### Fixed
+
+- **Haptic feedback works inside submenus** - Hovering between items in an open submenu (Quick Links, AI assistant, the app-picker submenu rows) gave no haptic pulse, only the main Actions Ring did. Submenu hover now triggers the same `slice_change` pulse as the main ring.
 
 ### Fixed
 

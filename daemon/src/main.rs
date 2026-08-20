@@ -18,7 +18,7 @@ use juhradiald::{
     dbus::{DBUS_NAME, DBUS_PATH, claim_name, init_dbus_service_with_device},
     evdev::{EvdevError, EvdevHandler, GestureEvent},
     gaming::new_shared_gaming_mode,
-    hidpp::SharedHapticManager,
+    hidpp::{HapticEvent, SharedHapticManager},
     hidraw::{HidrawError, HidrawHandler},
     macros::{MacroEngine, MacroRecorder, TriggerMap},
     new_shared_haptic_manager,
@@ -582,6 +582,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     continue;
                 }
                 current_class = class.clone();
+
+                // Window-switch haptic fires on every app-class change,
+                // regardless of whether a hardware profile matches below.
+                let mgr_ws = hw_manager.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    if let Ok(mut m) = mgr_ws.lock() {
+                        if m.is_window_switch_enabled() {
+                            let _ = m.emit(HapticEvent::WindowSwitch);
+                        }
+                    }
+                })
+                .await;
+
                 // Lookup is case-insensitive: keys are lowercased at load, so
                 // lowercase the incoming class (window-tracker sources vary).
                 let hw = {

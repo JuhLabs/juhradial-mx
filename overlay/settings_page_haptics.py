@@ -231,12 +231,25 @@ class HapticsPage(Gtk.ScrolledWindow):
         card = SettingsCard(_("Per-Event Patterns"))
         card.set_hexpand(True)
 
+        window_switch_row = SettingRow(
+            _("App Switch"), _("Pulse when the focused application changes")
+        )
+        window_switch_switch = Gtk.Switch()
+        window_switch_switch.set_valign(Gtk.Align.CENTER)
+        window_switch_switch.set_active(
+            config.get("haptics", "window_switch_enabled", default=True)
+        )
+        window_switch_switch.connect("state-set", self._on_window_switch_toggled)
+        window_switch_row.set_control(window_switch_switch)
+        card.append(window_switch_row)
+
         self.event_dropdowns = {}
         event_settings = [
             ("menu_appear", _("Menu Appear"), _("Pattern when the radial menu opens")),
             ("slice_change", _("Slice Hover"), _("Pattern when hovering ring sectors")),
             ("confirm", _("Selection"), _("Pattern when selecting an action")),
             ("invalid", _("Invalid Action"), _("Pattern for blocked actions")),
+            ("window_switch", _("App Switch Pattern"), _("Pattern when the focused application changes")),
         ]
         for key, label, desc in event_settings:
             row = SettingRow(label, desc)
@@ -421,6 +434,12 @@ class HapticsPage(Gtk.ScrolledWindow):
         self._reload_daemon_config()
         return False
 
+    def _on_window_switch_toggled(self, switch, state):
+        config.set("haptics", "window_switch_enabled", state)
+        config.save(show_toast=False)
+        self._reload_daemon_config()
+        return False
+
     # ----------------------------------------------------- pattern dropdowns
     def _create_pattern_dropdown(self, current_value, on_change_callback):
         labels = [display_name for _id, display_name, _desc in self.HAPTIC_PATTERNS]
@@ -451,7 +470,7 @@ class HapticsPage(Gtk.ScrolledWindow):
     def _apply_pattern_to_all(self, pattern):
         if not pattern:
             return
-        for key in ["menu_appear", "slice_change", "confirm", "invalid"]:
+        for key in ["menu_appear", "slice_change", "confirm", "invalid", "window_switch"]:
             config.set("haptics", "per_event", key, pattern)
         pattern_index = 0
         for i, (pattern_id, _pname, _pdesc) in enumerate(self.HAPTIC_PATTERNS):
