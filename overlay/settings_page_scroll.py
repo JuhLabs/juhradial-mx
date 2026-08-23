@@ -552,13 +552,29 @@ class ScrollPage(Gtk.ScrolledWindow):
         if mode == "ratchet":
             self._apply_smartshift_to_device(False, 0)
         elif mode == "freespin":
-            # Free-spin: wheel_mode=1 (freespin), auto_disengage=0 (no auto-switch)
-            self._apply_smartshift_to_device_raw(1, 0)
+            self._apply_smartshift_to_device(True, 0)
         else:
-            # SmartShift
-            threshold = int(self.sens_scale.get_value())
-            device_threshold = max(1, min(254, int((100 - threshold) * 2.55)))
+            sensitivity = int(self.sens_scale.get_value())
+            device_threshold = self._smartshift_ui_to_device(sensitivity)
             self._apply_smartshift_to_device(True, device_threshold)
+
+    @staticmethod
+    def _smartshift_ui_to_device(value):
+        """Map Easy 1% -> Hard 100% to automatic thresholds 1..49.
+
+        Threshold 0 selects permanent free-spin and 255 selects permanent
+        ratchet, so neither belongs on the SmartShift sensitivity slider.
+        Logitech's established ratchet-speed scale uses 50 as the ratchet-only
+        endpoint; 49 is therefore the hardest setting that still auto-releases.
+        """
+        value = max(1, min(100, int(value)))
+        return 1 + (((value - 1) * 48 + 49) // 99)
+
+    @staticmethod
+    def _smartshift_device_to_ui(device_threshold):
+        """Map automatic thresholds 1..49 back to Easy/Hard percent."""
+        threshold = max(1, min(49, int(device_threshold)))
+        return 1 + (((threshold - 1) * 99) // 48)
 
     def _on_sensitivity_changed(self, scale):
         if self._applying_initial_scroll_state:
@@ -569,7 +585,7 @@ class ScrollPage(Gtk.ScrolledWindow):
         self._update_sens_label(value)
 
         # Apply to device
-        device_threshold = max(1, min(254, int((100 - value) * 2.55)))
+        device_threshold = self._smartshift_ui_to_device(value)
         self._apply_smartshift_to_device(True, device_threshold)
 
     def _update_sens_label(self, value):
@@ -908,26 +924,6 @@ None,      Down, Button5, {lines}
         except GLib.Error as e:
             logger.error("D-Bus error setting SmartShift: %s", e.message)
 
-    def _apply_smartshift_to_device_raw(self, wheel_mode, auto_disengage):
-        """Set SmartShift with explicit wheel_mode for free-spin support.
-
-        Free-spin = wheel_mode=1, auto_disengage=0 (no auto-switch).
-        Falls back to the simplified API if direct call fails.
-        """
-        proxy = self._get_dbus_proxy()
-        if not proxy:
-            return
-        # Use the simplified API: enabled=True with the given threshold.
-        # wheel_mode=1 + auto_disengage=0 -> freespin on the daemon side.
-        try:
-            proxy.call_sync(
-                "SetSmartShift",
-                GLib.Variant("(by)", (bool(wheel_mode), auto_disengage)),
-                Gio.DBusCallFlags.NONE, 2000, None,
-            )
-        except GLib.Error as e:
-            logger.error("D-Bus error setting wheel mode: %s", e.message)
-
     def _apply_hiresscroll_to_device(self):
         hires = config.get("scroll", "smooth", default=True)
         invert = config.get("scroll", "natural", default=False)
@@ -1106,18 +1102,29 @@ None,      Down, Button5, {lines}
         enabled = result.get_child_value(0).get_boolean()
         device_threshold = result.get_child_value(1).get_byte()
 
-        # Determine mode from device + saved config.
-        saved_mode = config.get("scroll", "mode", default=None)
-        if saved_mode == "freespin":
-            mode = "freespin"
-        elif enabled:
-            mode = "smartshift"
-        else:
+        # GetSmartShift's D-Bus contract reports (False, _) for permanent
+        # ratchet, (True, 0) for free-spin and (True, 1..254) for SmartShift.
+        if not enabled:
             mode = "ratchet"
+        elif device_threshold == 0:
+            mode = "freespin"
+        else:
+            mode = "smartshift"
 
-        # Convert device threshold to UI percentage.
-        ui_threshold = 100 - int(device_threshold / 2.55)
-        ui_threshold = max(1, min(100, ui_threshold))
+        # Ratchet and free-spin do not carry a useful automatic threshold, so
+        # preserve the user's saved SmartShift preference in those modes.
+        if mode == "smartshift":
+            ui_threshold = self._smartshift_device_to_ui(device_threshold)
+        else:
+            ui_threshold = max(
+                1,
+                min(
+                    100,
+                    int(config.get(
+                        "scroll", "smartshift_threshold", default=50
+                    )),
+                ),
+            )
 
         self._apply_initial_scroll_state(mode=mode, threshold=ui_threshold)
 
