@@ -565,17 +565,19 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # this runs for the process's whole lifetime, not just while the
         # menu is open, since a monitor crossing can happen at any time.
         #
-        # Skipped on KDE Wayland: XWayland only tracks the cursor while it's
-        # over an XWayland window, so get_cursor_position_xwayland()/
-        # QCursor.pos() return a stale, frozen point the rest of the time -
-        # confirmed live (two successive queries returned the identical
-        # stale coordinate). The daemon covers KDE instead, via a persistent
-        # KWin script driven by workspace.cursorPosChanged/screenAt, which
-        # always sees the live position (see cursor::KWIN_CURSOR_SCREEN_SCRIPT
-        # in the daemon).
+        # Skipped on all of KDE (X11 and Wayland alike): the daemon always
+        # installs cursor::KWIN_CURSOR_SCREEN_SCRIPT there (detect_desktop()
+        # only checks XDG_CURRENT_DESKTOP, not session type), a persistent
+        # KWin script driven by workspace.cursorPosChanged/screenAt that
+        # always sees the live position - running this poll too on KDE X11
+        # would double-pulse every crossing. On KDE Wayland specifically the
+        # poll would also be flat-out wrong on its own: XWayland only tracks
+        # the cursor while it's over an XWayland window, so
+        # get_cursor_position_xwayland()/QCursor.pos() return a stale, frozen
+        # point the rest of the time - confirmed live (two successive queries
+        # returned the identical stale coordinate).
         self._last_monitor_name = None
-        kde_wayland = IS_KDE and not IS_X11 and _HAS_XWAYLAND
-        if not kde_wayland:
+        if not IS_KDE:
             self._monitor_watch_timer = QTimer(self)
             self._monitor_watch_timer.timeout.connect(self._check_monitor_switch)
             self._monitor_watch_timer.start(400)  # kscreen-doctor lookups are 10s-cached

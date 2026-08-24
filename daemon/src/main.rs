@@ -564,13 +564,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         warn!("Window tracking unavailable - per-app hardware profiles inactive");
     }
 
-    // Monitor-switch haptic on KDE: a persistent KWin script (installed once,
-    // like the active-window script above) reports screen crossings directly
-    // via TriggerHaptic - see cursor::KWIN_CURSOR_SCREEN_SCRIPT for why this
-    // needs to be KWin-native rather than the overlay's own ambient cursor
-    // poll (stale on KDE Wayland outside an open menu).
+    // Monitor-switch haptic on KDE (X11 or Wayland - detect_desktop() only
+    // checks XDG_CURRENT_DESKTOP, not session type): a persistent KWin script
+    // (installed once, like the active-window script above) reports screen
+    // crossings directly via TriggerHaptic - see cursor::KWIN_CURSOR_SCREEN_SCRIPT
+    // for why this needs to be KWin-native rather than the overlay's own
+    // ambient cursor poll (stale on KDE Wayland outside an open menu). The
+    // overlay skips its own poll on all of KDE for this reason, so a failed
+    // install here silently means no monitor-switch haptic at all on KDE.
     if tracker_desktop == "kde" {
-        tokio::task::spawn_blocking(juhradiald::cursor::watch_cursor_screen_kde);
+        tokio::spawn(async {
+            let installed =
+                tokio::task::spawn_blocking(juhradiald::cursor::watch_cursor_screen_kde)
+                    .await
+                    .unwrap_or(false);
+            if installed {
+                info!("KWin cursor-screen script installed (monitor-switch haptic)");
+            } else {
+                warn!("Failed to install KWin cursor-screen script; monitor-switch haptic inactive on KDE");
+            }
+        });
     }
 
     // Consumer: on each focus change, look up and apply the per-app hardware
