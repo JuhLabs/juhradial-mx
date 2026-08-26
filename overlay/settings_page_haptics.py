@@ -243,6 +243,18 @@ class HapticsPage(Gtk.ScrolledWindow):
         window_switch_row.set_control(window_switch_switch)
         card.append(window_switch_row)
 
+        monitor_switch_row = SettingRow(
+            _("Monitor Switch"), _("Pulse when the cursor moves to a different monitor")
+        )
+        monitor_switch_switch = Gtk.Switch()
+        monitor_switch_switch.set_valign(Gtk.Align.CENTER)
+        monitor_switch_switch.set_active(
+            config.get("haptics", "monitor_switch_enabled", default=True)
+        )
+        monitor_switch_switch.connect("state-set", self._on_monitor_switch_toggled)
+        monitor_switch_row.set_control(monitor_switch_switch)
+        card.append(monitor_switch_row)
+
         self.event_dropdowns = {}
         event_settings = [
             ("menu_appear", _("Menu Appear"), _("Pattern when the radial menu opens")),
@@ -250,6 +262,7 @@ class HapticsPage(Gtk.ScrolledWindow):
             ("confirm", _("Selection"), _("Pattern when selecting an action")),
             ("invalid", _("Invalid Action"), _("Pattern for blocked actions")),
             ("window_switch", _("App Switch Pattern"), _("Pattern when the focused application changes")),
+            ("monitor_switch", _("Monitor Switch Pattern"), _("Pattern when the cursor moves to a different monitor")),
         ]
         for key, label, desc in event_settings:
             row = SettingRow(label, desc)
@@ -440,6 +453,12 @@ class HapticsPage(Gtk.ScrolledWindow):
         self._reload_daemon_config()
         return False
 
+    def _on_monitor_switch_toggled(self, switch, state):
+        config.set("haptics", "monitor_switch_enabled", state)
+        config.save(show_toast=False)
+        self._reload_daemon_config()
+        return False
+
     # ----------------------------------------------------- pattern dropdowns
     def _create_pattern_dropdown(self, current_value, on_change_callback):
         labels = [display_name for _id, display_name, _desc in self.HAPTIC_PATTERNS]
@@ -470,7 +489,7 @@ class HapticsPage(Gtk.ScrolledWindow):
     def _apply_pattern_to_all(self, pattern):
         if not pattern:
             return
-        for key in ["menu_appear", "slice_change", "confirm", "invalid", "window_switch"]:
+        for key in ["menu_appear", "slice_change", "confirm", "invalid", "window_switch", "monitor_switch"]:
             config.set("haptics", "per_event", key, pattern)
         pattern_index = 0
         for i, (pattern_id, _pname, _pdesc) in enumerate(self.HAPTIC_PATTERNS):

@@ -25,6 +25,47 @@ callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
          Math.round(pos.y));
 "#;
 
+/// Persistent KWin script reporting a monitor-switch haptic whenever the
+/// screen under the cursor changes.
+///
+/// `workspace.cursorPosChanged` fires on every pointer motion, but the
+/// `lastScreen` dedup below means `callDBus` (the actually expensive part)
+/// only runs on a real crossing - cheap enough to leave connected for the
+/// life of the session, unlike a per-tick poll. The `lastScreen !== null`
+/// guard skips the very first callback after install so a script (re)load
+/// never fires a spurious pulse for "no screen -> current screen".
+///
+/// This exists because the overlay's own ambient poll (Python, XWayland
+/// XQueryPointer / QCursor.pos()) returns a stale cached position on KDE
+/// Wayland whenever no XWayland window is focused - true almost all the
+/// time outside of an open radial menu, confirmed live on a real session
+/// (two successive queries returned the identical stale point). KWin's own
+/// `cursorPos`/`screenAt` are always live, so KDE gets this dedicated path
+/// instead of the Python poll (see juhradial-overlay.py's monitor-switch
+/// guard, which skips KDE Wayland for the same reason).
+pub const KWIN_CURSOR_SCREEN_SCRIPT: &str = r#"
+var lastScreen = null;
+function reportScreenChange() {
+    var out = workspace.screenAt(workspace.cursorPos);
+    var name = out ? out.name : null;
+    if (name !== null) {
+        if (lastScreen !== null && name !== lastScreen) {
+            callDBus("org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
+                     "org.kde.juhradialmx.Daemon", "TriggerHaptic", "monitor_switch");
+        }
+        lastScreen = name;
+    }
+}
+workspace.cursorPosChanged.connect(reportScreenChange);
+reportScreenChange();
+"#;
+
+/// Install the persistent cursor-screen KWin script (KDE only). Returns
+/// whether installation succeeded, same as `window_tracker::install_kwin_script`.
+pub fn watch_cursor_screen_kde() -> bool {
+    crate::window_tracker::install_kwin_script(KWIN_CURSOR_SCREEN_SCRIPT)
+}
+
 /// Menu diameter in pixels (matches overlay MENU_RADIUS * 2)
 pub const MENU_DIAMETER: i32 = 300;
 
@@ -655,6 +696,29 @@ mod tests {
         assert!(!KWIN_CURSOR_SCRIPT.contains("* dpr"));
         assert!(!KWIN_CURSOR_SCRIPT.contains("/ dpr"));
         assert!(!KWIN_CURSOR_SCRIPT.contains("devicePixelRatio"));
+    }
+
+    #[test]
+    fn test_kwin_cursor_screen_script_uses_live_kwin_signals() {
+        // Must react to workspace's own cursor-tracking signal, not a poll -
+        // that's the whole point of this script over the overlay's Python
+        // ambient timer, which reads a stale XWayland cache on KDE Wayland.
+        assert!(KWIN_CURSOR_SCREEN_SCRIPT.contains("workspace.cursorPosChanged.connect"));
+        assert!(KWIN_CURSOR_SCREEN_SCRIPT.contains("workspace.screenAt(workspace.cursorPos)"));
+    }
+
+    #[test]
+    fn test_kwin_cursor_screen_script_dedupes_before_calling_dbus() {
+        // callDBus must be conditioned on lastScreen actually differing, so a
+        // script (re)install or same-screen jitter doesn't spam TriggerHaptic.
+        assert!(KWIN_CURSOR_SCREEN_SCRIPT.contains("lastScreen !== null"));
+        assert!(KWIN_CURSOR_SCREEN_SCRIPT.contains("name !== lastScreen"));
+    }
+
+    #[test]
+    fn test_kwin_cursor_screen_script_triggers_monitor_switch_haptic() {
+        assert!(KWIN_CURSOR_SCREEN_SCRIPT.contains("\"TriggerHaptic\""));
+        assert!(KWIN_CURSOR_SCREEN_SCRIPT.contains("\"monitor_switch\""));
     }
 
     #[test]

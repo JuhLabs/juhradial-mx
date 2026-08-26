@@ -85,12 +85,14 @@ systemctl --user restart juhradialmx-daemon.service
     "slice_change": "subtle_collision",
     "confirm": "sharp_state_change",
     "invalid": "angry_alert",
-    "window_switch": "subtle_collision"
+    "window_switch": "subtle_collision",
+    "monitor_switch": "subtle_collision"
   },
   "debounce_ms": 20,
   "slice_debounce_ms": 20,
   "reentry_debounce_ms": 50,
-  "window_switch_enabled": true
+  "window_switch_enabled": true,
+  "monitor_switch_enabled": true
 }
 ```
 
@@ -103,12 +105,21 @@ systemctl --user restart juhradialmx-daemon.service
 | `per_event.confirm` | string | `sharp_state_change` | Pulse when selecting an action |
 | `per_event.invalid` | string | `angry_alert` | Pulse for a blocked or invalid action |
 | `per_event.window_switch` | string | `subtle_collision` | Pulse when the focused application window changes |
+| `per_event.monitor_switch` | string | `subtle_collision` | Pulse when the cursor moves to a different physical monitor |
 | `debounce_ms` | int | `20` | Minimum milliseconds between any two pulses |
 | `slice_debounce_ms` | int | `20` | Minimum milliseconds between slice-change pulses |
 | `reentry_debounce_ms` | int | `50` | Window that suppresses a duplicate pulse when the cursor re-enters the same slice |
 | `window_switch_enabled` | bool | `true` | Enable the app-switch pulse independently of the radial menu's own events |
+| `monitor_switch_enabled` | bool | `true` | Enable the monitor-switch pulse independently of the radial menu's own events |
 
 The app-switch pulse fires whenever the daemon's window tracker (used for [per-application profiles](#per-application-profiles-profilesjson)) sees the focused window's class change — it runs whenever window tracking is available (KDE, Hyprland, X11), whether or not any per-app profiles are configured, and is capped at one pulse per distinct app switch, not per window-focus event within the same app.
+
+The monitor-switch pulse has two independent sources, chosen per desktop:
+
+- **KDE** — a persistent KWin script, installed once alongside the active-window tracking script, connects to `workspace.cursorPosChanged` and calls `TriggerHaptic` directly via `workspace.screenAt()` whenever the screen under the cursor changes. This is KWin-native and always sees the live cursor position.
+- **Hyprland, GNOME, X11** — an ambient timer in the overlay process (running continuously, independent of the radial menu) polls the cursor position every 400ms and compares which physical monitor it's on against the previous reading, using each desktop's own live cursor source (Hyprland IPC, the GNOME Shell helper extension, or native X11).
+
+KDE deliberately does **not** use the overlay's ambient timer: XWayland only tracks the cursor while it's over an XWayland window, so on Wayland outside of an open radial menu the timer's `QCursor.pos()`/`XQueryPointer` reads return a stale, frozen position almost all the time (confirmed live — two successive queries returned the identical stale point). The same staleness affects COSMIC and niri, which aren't given a native alternative yet, so a crossing there may occasionally be missed or delayed.
 
 Pattern names are MX Master 4 HID++ waveform IDs (for example `subtle_collision`, `damp_state_change`, `sharp_state_change`, `angry_alert`). Pick from the patterns offered in the HAPTIC FEEDBACK page of the Settings app.
 

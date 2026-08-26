@@ -147,6 +147,7 @@ impl JuhRadialService {
             "confirm" => HapticEvent::SelectionConfirm,
             "invalid" => HapticEvent::InvalidAction,
             "window_switch" => HapticEvent::WindowSwitch,
+            "monitor_switch" => HapticEvent::MonitorSwitch,
             _ => {
                 tracing::warn!(event, "Unknown haptic event type");
                 return Ok(());
@@ -156,6 +157,10 @@ impl JuhRadialService {
         tracing::debug!("Attempting to lock haptic_manager");
         match self.haptic_manager.lock() {
             Ok(mut manager) => {
+                if haptic_event == HapticEvent::MonitorSwitch && !manager.is_monitor_switch_enabled() {
+                    tracing::debug!("Monitor-switch haptic disabled, skipping emit");
+                    return Ok(());
+                }
                 tracing::debug!("Lock acquired, calling emit()");
                 match manager.emit(haptic_event) {
                     Ok(()) => tracing::info!("Haptic emit succeeded"),
