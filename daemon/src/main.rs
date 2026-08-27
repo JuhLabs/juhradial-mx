@@ -57,6 +57,32 @@ fn log_startup_phase(started_at: &Instant, phase: &'static str) {
     );
 }
 
+/// True when every path in a hotplug event is a virtual device the daemon
+/// itself created for button suppression (`SharedVdevPaths`, populated by
+/// `evdev::run_event_loop`) - i.e. this event is self-caused, not a real
+/// external device change. A mixed event (one known path, one unknown one)
+/// is conservatively treated as real.
+///
+/// Why this exists (issue #121): that vdev is created on every MX connection
+/// (`GESTURE_BUTTON_CODES` is never empty), and creating/dropping it fires
+/// genuine Create/Remove events on /dev/input indistinguishable from a real
+/// plug/unplug to the watcher below. `run_evdev_loop`/`run_hidraw_loop` both
+/// cancel an active, healthy session on *any* hotplug notification (needed
+/// for real reconnects, e.g. an Easy-Switch host change), so without this
+/// filter the vdev's own churn self-triggers a reconnect loop. On USB/Bolt
+/// the whole round-trip is fast enough to land inside one debounce window
+/// and self-correct; on Bluetooth it's slow enough to escape the debounce
+/// repeatedly, producing a sustained lag loop.
+fn event_is_self_caused(paths: &[PathBuf], known: &juhradiald::evdev::SharedVdevPaths) -> bool {
+    if paths.is_empty() {
+        return false;
+    }
+    let Ok(known) = known.lock() else {
+        return false;
+    };
+    paths.iter().all(|p| known.contains(p))
+}
+
 /// Spawn a background thread that watches /dev/input/ for device hotplug events
 /// using inotify. Returns a Notify that fires when event* devices appear or disappear.
 /// This allows evdev loops to re-scan immediately instead of waiting for the 2s poll.
@@ -65,7 +91,11 @@ fn log_startup_phase(started_at: &Instant, phase: &'static str) {
 /// (e.g. Close(Write)) are filtered out to prevent a feedback loop where our own
 /// device scanning triggers inotify events that cause more scanning. A 500ms
 /// debounce window coalesces rapid events from USB hubs into a single notification.
-fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
+/// Events on our own button-suppression virtual device are filtered out too -
+/// see `event_is_self_caused`.
+fn spawn_device_hotplug_watcher(
+    known_vdev_paths: juhradiald::evdev::SharedVdevPaths,
+) -> Arc<tokio::sync::Notify> {
     let hotplug = Arc::new(tokio::sync::Notify::new());
     let hotplug_tx = hotplug.clone();
 
@@ -123,6 +153,14 @@ fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
                             .unwrap_or(false)
                     });
                     if !is_event_device {
+                        continue;
+                    }
+
+                    if event_is_self_caused(&event.paths, &known_vdev_paths) {
+                        debug!(
+                            "Hotplug event on own virtual device ignored: {:?}",
+                            event.paths
+                        );
                         continue;
                     }
 
@@ -505,11 +543,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // writes, so GetBatteryStatus reflects them even when the active query fails.
     let battery_state_for_events = battery_state.clone();
 
+    // Paths of uinput virtual devices the daemon creates for button
+    // suppression - shared with the hotplug watcher so it can tell their
+    // Create/Remove churn apart from a real external device change (issue #121).
+    let known_vdev_paths: juhradiald::evdev::SharedVdevPaths =
+        Arc::new(Mutex::new(HashSet::new()));
+
     // Start inotify watcher on /dev/input/ for instant device hotplug detection.
     // Shared across the evdev loops and the hidraw loop; the battery updater
     // also fires it when a failing poll starts succeeding again, which is how
     // a Bolt radio wake is detected without any node hotplug (issue #102).
-    let hotplug_notify = spawn_device_hotplug_watcher();
+    let hotplug_notify = spawn_device_hotplug_watcher(known_vdev_paths.clone());
 
     // Spawn battery status updater (shares HidppDevice with haptic via SharedHapticManager)
     let battery_radio_recovered = hotplug_notify.clone();
@@ -688,6 +732,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hotplug_for_mx = hotplug_notify.clone();
     let evdev_config = shared_config.clone();
     let evdev_kwin = kwin_context.clone();
+    let evdev_vdev_paths = known_vdev_paths.clone();
     let evdev_handle = tokio::spawn(async move {
         run_evdev_loop(
             evdev_tx,
@@ -695,6 +740,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             hotplug_for_mx,
             evdev_config,
             evdev_kwin,
+            evdev_vdev_paths,
         )
         .await
     });
@@ -704,6 +750,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hotplug_for_generic = hotplug_notify.clone();
     let generic_evdev_config = shared_config.clone();
     let generic_evdev_kwin = kwin_context;
+    let generic_evdev_vdev_paths = known_vdev_paths.clone();
     let generic_evdev_handle = tokio::spawn(async move {
         run_generic_evdev_loop(
             generic_evdev_tx,
@@ -711,6 +758,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             hotplug_for_generic,
             generic_evdev_config,
             generic_evdev_kwin,
+            generic_evdev_vdev_paths,
         )
         .await
     });
@@ -1119,12 +1167,14 @@ async fn run_evdev_loop(
     hotplug: Arc<tokio::sync::Notify>,
     shared_config: juhradiald::config::SharedConfig,
     kwin: KWinContext,
+    known_vdev_paths: juhradiald::evdev::SharedVdevPaths,
 ) {
     let mut handler = EvdevHandler::new(event_tx.clone());
     handler.set_suppressed_keys(suppressed_keys);
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
+    handler.set_vdev_paths_registry(known_vdev_paths);
 
     let mut logged_waiting = false;
 
@@ -1241,6 +1291,7 @@ async fn run_generic_evdev_loop(
     hotplug: Arc<tokio::sync::Notify>,
     shared_config: juhradiald::config::SharedConfig,
     kwin: KWinContext,
+    known_vdev_paths: juhradiald::evdev::SharedVdevPaths,
 ) {
     let trigger = read_trigger_button_from_config();
     if let Some(code) = trigger {
@@ -1251,6 +1302,7 @@ async fn run_generic_evdev_loop(
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
+    handler.set_vdev_paths_registry(known_vdev_paths);
 
     let mut logged_waiting = false;
 
@@ -1567,6 +1619,51 @@ async fn emit_cursor_moved(
 mod tests {
     use super::*;
     use juhradiald::cursor::{CursorPosition, EDGE_MARGIN, MENU_RADIUS, ScreenBounds};
+
+    #[test]
+    fn event_is_self_caused_ignores_when_all_paths_are_known_vdev_paths() {
+        let known: juhradiald::evdev::SharedVdevPaths = Arc::new(Mutex::new(HashSet::new()));
+        known
+            .lock()
+            .unwrap()
+            .insert(PathBuf::from("/dev/input/event30"));
+
+        let paths = vec![PathBuf::from("/dev/input/event30")];
+        assert!(event_is_self_caused(&paths, &known));
+    }
+
+    #[test]
+    fn event_is_self_caused_honors_unknown_path() {
+        let known: juhradiald::evdev::SharedVdevPaths = Arc::new(Mutex::new(HashSet::new()));
+        known
+            .lock()
+            .unwrap()
+            .insert(PathBuf::from("/dev/input/event30"));
+
+        let paths = vec![PathBuf::from("/dev/input/event7")];
+        assert!(!event_is_self_caused(&paths, &known));
+    }
+
+    #[test]
+    fn event_is_self_caused_honors_mixed_known_and_unknown_paths() {
+        let known: juhradiald::evdev::SharedVdevPaths = Arc::new(Mutex::new(HashSet::new()));
+        known
+            .lock()
+            .unwrap()
+            .insert(PathBuf::from("/dev/input/event30"));
+
+        let paths = vec![
+            PathBuf::from("/dev/input/event30"),
+            PathBuf::from("/dev/input/event7"),
+        ];
+        assert!(!event_is_self_caused(&paths, &known));
+    }
+
+    #[test]
+    fn event_is_self_caused_false_for_empty_event() {
+        let known: juhradiald::evdev::SharedVdevPaths = Arc::new(Mutex::new(HashSet::new()));
+        assert!(!event_is_self_caused(&[], &known));
+    }
 
     #[test]
     fn test_device_poll_interval() {

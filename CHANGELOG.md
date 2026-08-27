@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Haptic feedback works inside submenus** - Hovering between items in an open submenu (Quick Links, AI assistant, the app-picker submenu rows) gave no haptic pulse, only the main Actions Ring did. Submenu hover now triggers the same `slice_change` pulse as the main ring.
+- **Mouse no longer stutters/locks up over Bluetooth** - The daemon's own button-suppression virtual device is created and destroyed on every connection, and that generates genuine device-node events on `/dev/input` indistinguishable from a real plug/unplug. The active HID++ and evdev sessions cancel and restart on *any* such event, so this self-inflicted churn could re-trigger itself in a loop - on fast USB/Bolt the round-trip usually lands inside one debounce window and self-corrects invisibly, but Bluetooth's slower device I/O let the cycle escape the debounce repeatedly, producing a sustained reconnect loop that made the radial menu and thumb button unusable. The hotplug watcher now recognizes and ignores events on the daemon's own virtual device, leaving real hotplug detection (e.g. an Easy-Switch host change) untouched. Reported with logs by an MX Master 3S (Bluetooth) user. Fixes [#121](https://github.com/JuhLabs/juhradial-mx/issues/121).
 
 ## [0.4.4] - 2026-08-18
 

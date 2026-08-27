@@ -15,8 +15,36 @@
 
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::sync::mpsc;
+
+/// Paths of uinput virtual devices the daemon itself created for button
+/// suppression, shared with the hotplug watcher so it can ignore Create/Remove
+/// events on them - see `run_event_loop`'s vdev-creation block and
+/// `main::event_is_self_caused` for why this exists (issue #121).
+pub type SharedVdevPaths = Arc<Mutex<HashSet<PathBuf>>>;
+
+/// Deregisters a virtual device's paths from `SharedVdevPaths` when dropped.
+///
+/// The vdev's owning future (`run_event_loop`, via `handler.start()`) can be
+/// cancelled mid-flight by the hotplug `select!` in `main.rs` - only `Drop`
+/// impls run reliably on async cancellation, so registration cleanup can't be
+/// inline cleanup code; it has to live here.
+struct VdevPathGuard {
+    paths: Vec<PathBuf>,
+    registry: SharedVdevPaths,
+}
+
+impl Drop for VdevPathGuard {
+    fn drop(&mut self) {
+        if let Ok(mut known) = self.registry.lock() {
+            for path in &self.paths {
+                known.remove(path);
+            }
+        }
+    }
+}
 
 /// MX Master 4 vendor ID (Logitech)
 pub const LOGITECH_VENDOR_ID: u16 = 0x046D;
@@ -121,6 +149,9 @@ pub struct EvdevHandler {
     kwin_available: Option<crate::compositor::KWinAvailability>,
     /// Native KWin scripting client backed by the daemon's session connection.
     kwin_scripting: Option<crate::compositor::KWinScripting>,
+    /// Registry the hotplug watcher consults to ignore Create/Remove events
+    /// caused by our own button-suppression virtual device (issue #121).
+    vdev_paths: Option<SharedVdevPaths>,
 }
 
 impl EvdevHandler {
@@ -145,6 +176,7 @@ impl EvdevHandler {
             active_button_action: None,
             kwin_available: None,
             kwin_scripting: None,
+            vdev_paths: None,
         }
     }
 
@@ -169,6 +201,7 @@ impl EvdevHandler {
             active_button_action: None,
             kwin_available: None,
             kwin_scripting: None,
+            vdev_paths: None,
         }
     }
 
@@ -193,6 +226,12 @@ impl EvdevHandler {
     /// events forwarded via a virtual device, minus the suppressed keys.
     pub fn set_suppressed_keys(&mut self, keys: HashSet<u16>) {
         self.suppressed_keys = keys;
+    }
+
+    /// Share the registry the hotplug watcher uses to ignore Create/Remove
+    /// events on our own button-suppression virtual device (issue #121).
+    pub fn set_vdev_paths_registry(&mut self, registry: SharedVdevPaths) {
+        self.vdev_paths = Some(registry);
     }
 
     /// Update the trigger button (e.g. after config reload)
@@ -585,6 +624,7 @@ impl EvdevHandler {
         // This prevents the OS from seeing macro-bound button presses (e.g.,
         // Back button won't trigger browser-back when a macro is assigned).
         let mut virtual_device = None;
+        let mut _vdev_path_guard: Option<VdevPathGuard> = None;
         if !self.suppressed_keys.is_empty() {
             let vdev_result = (|| -> Result<_, std::io::Error> {
                 let mut builder = UinputDevice::builder()?.name("JuhRadial Virtual Mouse");
@@ -600,11 +640,49 @@ impl EvdevHandler {
             })();
 
             match vdev_result {
-                Ok(vdev) => {
+                Ok(mut vdev) => {
                     tracing::info!(
                         suppressed = ?self.suppressed_keys,
                         "Device grabbed - macro buttons will be suppressed from OS"
                     );
+
+                    // Register this vdev's own /dev/input paths so the hotplug
+                    // watcher can tell its Create/Remove events (fired on every
+                    // connection) apart from a real external device change -
+                    // otherwise they self-trigger a reconnect loop, severe on
+                    // Bluetooth where I/O timing lines up with the watcher's
+                    // debounce window (issue #121).
+                    if let Some(registry) = self.vdev_paths.clone() {
+                        let mut own_paths = Vec::new();
+                        match vdev.enumerate_dev_nodes().await {
+                            Ok(mut nodes) => loop {
+                                match nodes.next_entry().await {
+                                    Ok(Some(path)) => {
+                                        if let Ok(mut known) = registry.lock() {
+                                            known.insert(path.clone());
+                                        }
+                                        own_paths.push(path);
+                                    }
+                                    Ok(None) => break,
+                                    Err(e) => {
+                                        tracing::debug!(
+                                            "Failed to enumerate virtual device node: {}",
+                                            e
+                                        );
+                                        break;
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                tracing::debug!(
+                                    "Failed to enumerate virtual device nodes: {}",
+                                    e
+                                );
+                            }
+                        }
+                        _vdev_path_guard = Some(VdevPathGuard { paths: own_paths, registry });
+                    }
+
                     virtual_device = Some(vdev);
                 }
                 Err(e) => {
@@ -948,6 +1026,40 @@ impl std::error::Error for EvdevError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn vdev_path_guard_removes_its_paths_on_drop() {
+        let registry: SharedVdevPaths = Arc::new(Mutex::new(HashSet::new()));
+        let a = PathBuf::from("/dev/input/event30");
+        let b = PathBuf::from("/dev/input/event31");
+        registry.lock().unwrap().insert(a.clone());
+        registry.lock().unwrap().insert(b.clone());
+
+        let guard = VdevPathGuard {
+            paths: vec![a.clone(), b.clone()],
+            registry: registry.clone(),
+        };
+        drop(guard);
+
+        let known = registry.lock().unwrap();
+        assert!(!known.contains(&a));
+        assert!(!known.contains(&b));
+    }
+
+    #[test]
+    fn vdev_path_guard_leaves_unrelated_paths_alone() {
+        let registry: SharedVdevPaths = Arc::new(Mutex::new(HashSet::new()));
+        let mine = PathBuf::from("/dev/input/event30");
+        let unrelated = PathBuf::from("/dev/input/event7");
+        registry.lock().unwrap().insert(mine.clone());
+        registry.lock().unwrap().insert(unrelated.clone());
+
+        drop(VdevPathGuard { paths: vec![mine.clone()], registry: registry.clone() });
+
+        let known = registry.lock().unwrap();
+        assert!(!known.contains(&mine));
+        assert!(known.contains(&unrelated));
+    }
 
     #[cfg(target_os = "linux")]
     use evdev::{EventType, InputEvent, RelativeAxisCode, SynchronizationCode};
