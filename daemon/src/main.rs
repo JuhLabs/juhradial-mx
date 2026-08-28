@@ -110,8 +110,11 @@ fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
                     // Access(Close(Write)) inotify events. If we react to those, we
                     // enter an infinite scan loop (~50ms cycle) that saturates the
                     // input subsystem and can block other devices (see issue #15).
-                    let is_hotplug =
-                        matches!(event.kind, EventKind::Create(_) | EventKind::Remove(_));
+                    // Only react to device removal. New event nodes can be
+                    // created by uinput/JuhRadial itself and must not restart
+                    // the active MX listener. The periodic poll remains as a
+                    // fallback for newly connected devices.
+                    let is_hotplug = matches!(event.kind, EventKind::Remove(_));
                     if !is_hotplug {
                         continue;
                     }
@@ -126,6 +129,34 @@ fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
                         continue;
                     }
 
+                    // Ignore virtual input devices created by JuhRadial itself.
+                    // The MX evdev handler creates "JuhRadial Virtual Mouse" via
+                    // uinput when button suppression is enabled. That creates a
+                    // new /dev/input/event* node, but it is NOT a physical
+                    // hotplug and must not cause the active MX listener to restart.
+                    let is_juh_radial_virtual = event.paths.iter().any(|p| {
+                        if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                            if !name.starts_with("event") {
+                                return false;
+                            }
+
+                            if let Ok(device) = evdev::Device::open(p) {
+                                return device
+                                    .name()
+                                    .map(|n| n == "JuhRadial Virtual Mouse")
+                                    .unwrap_or(false);
+                            }
+                        }
+                        false
+                    });
+
+                    if is_juh_radial_virtual {
+                        debug!(
+                            "Ignoring JuhRadial virtual input device hotplug"
+                        );
+                        continue;
+                    }
+
                     // Debounce: coalesce rapid events (e.g. USB hub enumerating
                     // multiple devices) into a single scan notification.
                     let now = Instant::now();
@@ -135,7 +166,11 @@ fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
                     }
                     last_notify = now;
 
-                    info!("Device hotplug detected: {:?}", event.kind);
+                    info!(
+                        "Device hotplug detected: {:?} paths={:?}",
+                        event.kind,
+                        event.paths
+                    );
                     hotplug_tx.notify_waiters();
                 }
                 Ok(Err(e)) => {
