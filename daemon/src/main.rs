@@ -702,11 +702,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Read the live shared map (refreshed by ReloadConfig) instead of a
         // one-time snapshot, so UI saves take effect without a daemon restart.
         let hw_profiles = hardware_profiles.clone();
+        // Profiles override only the thumb-wheel mode; the invert setting is
+        // global, so read it live from the shared config (issue #127).
+        let hw_config = shared_config.clone();
         if !hw_profiles.read().map(|m| m.is_empty()).unwrap_or(true) {
             info!("Per-app hardware profiles configured; focus-change application active");
         }
         tokio::spawn(async move {
             let mut current_class = String::new();
+            // True while the last applied profile overrode the thumb wheel,
+            // so leaving its app restores the global divert/invert instead of
+            // latching the profile's state everywhere (issue #127 review).
+            let mut thumbwheel_overridden = false;
             while let Some(class) = active_window_rx.recv().await {
                 if class == current_class {
                     continue;
@@ -735,17 +742,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             continue;
                         }
                     };
-                    match map.get(&class.to_lowercase()) {
-                        Some(hw) => hw.clone(),
-                        None => continue,
-                    }
+                    map.get(&class.to_lowercase()).cloned()
                 };
+
+                // Restore the global thumb-wheel state when leaving profiled
+                // coverage (no profile, or one that doesn't touch the wheel).
+                let profile_sets_tw = hw.as_ref().is_some_and(|h| h.thumbwheel.is_some());
+                if thumbwheel_overridden && !profile_sets_tw {
+                    thumbwheel_overridden = false;
+                    let tw = hw_config
+                        .read()
+                        .map(|c| c.thumbwheel.clone())
+                        .unwrap_or_default();
+                    let mgr_tw = hw_manager.clone();
+                    let _ = tokio::task::spawn_blocking(move || {
+                        if let Ok(mut m) = mgr_tw.lock() {
+                            if m.thumbwheel_supported() {
+                                let _ = m.set_thumbwheel_reporting(
+                                    tw.is_diverted(),
+                                    tw.hardware_invert(),
+                                );
+                            }
+                        }
+                    })
+                    .await;
+                }
+                thumbwheel_overridden = thumbwheel_overridden || profile_sets_tw;
+
+                let Some(hw) = hw else { continue };
                 info!(class = %class, "Applying per-app hardware profile");
                 let mgr = hw_manager.clone();
+                let thumbwheel_invert = hw_config
+                    .read()
+                    .map(|c| c.thumbwheel.invert)
+                    .unwrap_or(false);
                 let _ = tokio::task::spawn_blocking(move || {
                     match mgr.lock() {
                         Ok(mut m) => {
-                            juhradiald::profiles::apply_hardware_profile(&hw, &mut m)
+                            juhradiald::profiles::apply_hardware_profile(&hw, &mut m, thumbwheel_invert)
                         }
                         Err(e) => error!(error = %e, "Failed to lock haptic manager for hardware profile"),
                     }
@@ -1036,10 +1070,15 @@ async fn apply_thumbwheel_reporting(
         if !manager.thumbwheel_supported() {
             return None;
         }
-        // Direction inversion is applied in software by the hidraw reader, so
-        // the device divert is enabled with hardware inversion off.
-        match manager.set_thumbwheel_reporting(tw.is_diverted(), false) {
-            Ok(()) => info!(diverted = tw.is_diverted(), "Thumb-wheel reporting applied"),
+        // Diverted modes (Volume/Zoom) invert in software in the hidraw
+        // reader; native Horizontal Scroll inverts in hardware, so the invert
+        // byte must survive every re-apply (issue #127).
+        match manager.set_thumbwheel_reporting(tw.is_diverted(), tw.hardware_invert()) {
+            Ok(()) => info!(
+                diverted = tw.is_diverted(),
+                invert = tw.hardware_invert(),
+                "Thumb-wheel reporting applied"
+            ),
             Err(e) => warn!(error = %e, "Failed to apply thumb-wheel reporting"),
         }
         manager.thumbwheel_feature_index()

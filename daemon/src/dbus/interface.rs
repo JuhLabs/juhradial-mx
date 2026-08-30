@@ -239,12 +239,18 @@ impl JuhRadialService {
                         );
 
                         // Re-apply volatile thumb-wheel divert from the new
-                        // config. Inversion is software-side (hidraw reader), so
-                        // only the divert state is pushed to the device here.
+                        // config. Diverted modes (Volume/Zoom) invert in
+                        // software (hidraw reader); native Horizontal Scroll
+                        // inverts in hardware, so the invert byte must be
+                        // pushed here too or a reload wipes it (issue #127).
                         if manager.thumbwheel_supported() {
-                            match manager.set_thumbwheel_reporting(thumbwheel_config.is_diverted(), false) {
+                            match manager.set_thumbwheel_reporting(
+                                thumbwheel_config.is_diverted(),
+                                thumbwheel_config.hardware_invert(),
+                            ) {
                                 Ok(()) => tracing::info!(
                                     diverted = thumbwheel_config.is_diverted(),
+                                    invert = thumbwheel_config.hardware_invert(),
                                     "Thumb-wheel reporting re-applied on reload"
                                 ),
                                 Err(e) => tracing::warn!(error = %e, "Failed to re-apply thumb-wheel reporting"),

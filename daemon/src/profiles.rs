@@ -533,7 +533,13 @@ impl Default for ProfileManager {
 /// absent fields leave current state untouched. Failures are logged, not
 /// fatal, so one unsupported setter never blocks the rest. Per-button overrides
 /// are intentionally NOT applied here (they are config-level, not device state).
-pub fn apply_hardware_profile(profile: &HardwareProfile, manager: &mut crate::hidpp::HapticManager) {
+/// `thumbwheel_invert` is the user's global thumb-wheel invert setting; the
+/// profile only overrides the mode.
+pub fn apply_hardware_profile(
+    profile: &HardwareProfile,
+    manager: &mut crate::hidpp::HapticManager,
+    thumbwheel_invert: bool,
+) {
     if let Some(dpi) = profile.dpi {
         match manager.set_dpi(dpi) {
             Ok(()) => tracing::info!(dpi, "Hardware profile: DPI applied"),
@@ -557,10 +563,16 @@ pub fn apply_hardware_profile(profile: &HardwareProfile, manager: &mut crate::hi
     }
 
     if let Some(mode) = profile.thumbwheel {
-        let divert = mode != ThumbwheelMode::Off;
-        // Software handles inversion (hidraw reader), so device invert stays off.
-        match manager.set_thumbwheel_reporting(divert, false) {
-            Ok(()) => tracing::info!(?mode, divert, "Hardware profile: thumb-wheel applied"),
+        // Same divert/invert contract as ThumbwheelConfig::is_diverted /
+        // hardware_invert: only Volume/Zoom divert (their inversion is
+        // software-side in the hidraw reader), Scroll stays native and
+        // inverts in hardware via the user's global invert setting
+        // (issue #127). Diverting Scroll here would route rotations through
+        // the global-mode resolver and kill native scrolling.
+        let divert = matches!(mode, ThumbwheelMode::Volume | ThumbwheelMode::Zoom);
+        let hw_invert = thumbwheel_invert && mode == ThumbwheelMode::Scroll;
+        match manager.set_thumbwheel_reporting(divert, hw_invert) {
+            Ok(()) => tracing::info!(?mode, divert, invert = hw_invert, "Hardware profile: thumb-wheel applied"),
             Err(e) => tracing::warn!(error = %e, "Hardware profile: set_thumbwheel_reporting failed"),
         }
     }

@@ -337,6 +337,17 @@ impl ThumbwheelConfig {
         matches!(self.mode, ThumbwheelMode::Volume | ThumbwheelMode::Zoom)
     }
 
+    /// Hardware invert byte for `setThumbwheelReporting` (issue #127).
+    ///
+    /// Diverted modes (Volume/Zoom) invert in software via `resolve()`, so
+    /// their hardware byte stays 0 to avoid inverting twice. Horizontal
+    /// Scroll stays un-diverted (native REL_HWHEEL never reaches
+    /// `resolve()`), so its inversion must happen in hardware. Off leaves the
+    /// device at its native default.
+    pub fn hardware_invert(&self) -> bool {
+        self.invert && self.mode == ThumbwheelMode::Scroll
+    }
+
     /// Number of times to repeat the action per rotation notification.
     pub fn repeats(&self) -> u8 {
         self.speed.clamp(1, 8)
@@ -891,6 +902,26 @@ mod tests {
         let tw = ThumbwheelConfig { mode: ThumbwheelMode::Volume, invert: true, speed: 1 };
         assert_eq!(tw.resolve(5), Some(ThumbwheelOutput::Button(ButtonAction::VolumeDown)));
         assert_eq!(tw.resolve(-5), Some(ThumbwheelOutput::Button(ButtonAction::VolumeUp)));
+    }
+
+    #[test]
+    fn test_thumbwheel_hardware_invert_only_for_native_scroll() {
+        // Issue #127: Scroll is never diverted, so its inversion must be the
+        // hardware byte; diverted modes invert in software (resolve()) and
+        // must keep the hardware byte 0, or direction would flip twice.
+        let scroll = ThumbwheelConfig { mode: ThumbwheelMode::Scroll, invert: true, speed: 1 };
+        assert!(scroll.hardware_invert());
+        assert!(!scroll.is_diverted());
+
+        let volume = ThumbwheelConfig { mode: ThumbwheelMode::Volume, invert: true, speed: 1 };
+        assert!(!volume.hardware_invert());
+        let zoom = ThumbwheelConfig { mode: ThumbwheelMode::Zoom, invert: true, speed: 1 };
+        assert!(!zoom.hardware_invert());
+        let off = ThumbwheelConfig { mode: ThumbwheelMode::Off, invert: true, speed: 1 };
+        assert!(!off.hardware_invert());
+
+        let not_inverted = ThumbwheelConfig { mode: ThumbwheelMode::Scroll, invert: false, speed: 1 };
+        assert!(!not_inverted.hardware_invert());
     }
 
     #[test]

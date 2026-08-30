@@ -839,13 +839,20 @@ None,      Down, Button5, {lines}
         hardware immediately; ReloadConfig then makes the daemon re-read
         mode/speed, which it resolves from the shared config on each rotation.
         If the direct method is unavailable, ReloadConfig alone applies it.
+
+        The divert/invert pair mirrors the daemon's contract (issue #127):
+        only volume/zoom divert (their inversion is software-side in the
+        daemon), while horizontal scroll stays native and inverts in
+        hardware. Sending divert for scroll here made ReloadConfig undo it a
+        moment later, so the invert toggle never changed anything.
         """
         proxy = self._get_dbus_proxy()
         if not proxy:
             return
         mode = config.get("thumbwheel", "mode", default="off")
         invert = config.get("thumbwheel", "invert", default=False)
-        divert = mode != "off"
+        divert = mode in ("volume", "zoom")
+        invert = invert and mode == "scroll"
         try:
             proxy.call_sync(
                 "SetThumbwheelReporting",
