@@ -17,7 +17,7 @@ from gi.repository import Gtk, Gdk, GLib, Adw
 from i18n import _
 from settings_theme import COLORS
 from settings_constants import get_nav_items_for_mode
-from settings_widgets import NavButton
+from settings_widgets import NavButton, CAIRO_CONVERTER_AVAILABLE
 
 
 class SidebarMixin:
@@ -107,14 +107,18 @@ class SidebarMixin:
         desc_label.set_margin_top(4)
         credits_box.append(desc_label)
 
-        # Glowing heart (Cairo-drawn with breathing animation)
+        # Glowing heart (Cairo-drawn with breathing animation). Without the
+        # GI cairo converter the draw func throws on every frame, so leave
+        # the area blank and never start the timer (issues #100/#128).
         self._heart_area = Gtk.DrawingArea()
         self._heart_area.set_size_request(40, 40)
         self._heart_area.set_halign(Gtk.Align.CENTER)
         self._heart_area.set_margin_top(6)
         self._heart_breath = 0.0
-        self._heart_area.set_draw_func(self._draw_heart)
-        self._heart_timer = GLib.timeout_add(30, self._tick_heart)
+        self._heart_timer = None
+        if CAIRO_CONVERTER_AVAILABLE:
+            self._heart_area.set_draw_func(self._draw_heart)
+            self._heart_timer = GLib.timeout_add(30, self._tick_heart)
         credits_box.append(self._heart_area)
 
         # Donate button

@@ -376,7 +376,9 @@ class MacrosPage(Gtk.ScrolledWindow):
         self._timeline.set_content_height(156)
         self._timeline.set_hexpand(True)
         self._timeline.add_css_class("waveform-trace")
-        self._timeline.set_draw_func(self._draw_timeline)
+        from settings_widgets import CAIRO_CONVERTER_AVAILABLE
+        if CAIRO_CONVERTER_AVAILABLE:
+            self._timeline.set_draw_func(self._draw_timeline)
         card.append(self._timeline)
 
         # Add-step palette (KEY / MOUSE / DELAY / TEXT / SCROLL) — real actions.

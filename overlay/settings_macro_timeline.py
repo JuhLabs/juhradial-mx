@@ -319,7 +319,9 @@ class MacroTimeline(Gtk.Box):
             cr.rectangle(0, 2, w, h - 4)
             cr.fill()
 
-        color_bar.set_draw_func(draw_bar)
+        from settings_widgets import CAIRO_CONVERTER_AVAILABLE
+        if CAIRO_CONVERTER_AVAILABLE:
+            color_bar.set_draw_func(draw_bar)
         row.append(color_bar)
 
         # Icon

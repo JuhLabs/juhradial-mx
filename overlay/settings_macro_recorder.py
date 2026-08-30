@@ -21,6 +21,7 @@ from gi.repository import Gtk, Gdk, GLib, Gio, Adw
 from i18n import _
 from settings_theme import COLORS
 from settings_macro_storage import new_action
+from settings_widgets import CAIRO_CONVERTER_AVAILABLE
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,8 @@ class MacroRecorderDialog(Adw.Window):
         # Status indicator area (countdown/recording/preview)
         self._status_area = Gtk.DrawingArea()
         self._status_area.set_size_request(-1, 100)
-        self._status_area.set_draw_func(self._draw_status)
+        if CAIRO_CONVERTER_AVAILABLE:
+            self._status_area.set_draw_func(self._draw_status)
         self._status_area.set_halign(Gtk.Align.FILL)
         center.append(self._status_area)
 
@@ -268,9 +270,11 @@ class MacroRecorderDialog(Adw.Window):
         self._status_label.set_label(_("Recording..."))
         self._last_event_time = GLib.get_monotonic_time()
 
-        # Start pulse animation
+        # Start pulse animation. Skipped when the GI cairo converter is
+        # missing: each tick's redraw would throw 30x/s (issues #100/#128).
         self._pulse_phase = 0.0
-        self._pulse_timer = GLib.timeout_add(33, self._pulse_tick)  # ~30fps
+        if CAIRO_CONVERTER_AVAILABLE:
+            self._pulse_timer = GLib.timeout_add(33, self._pulse_tick)  # ~30fps
 
         # Try D-Bus recording via daemon
         self._try_start_dbus_recording()

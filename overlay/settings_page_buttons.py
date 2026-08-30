@@ -359,7 +359,9 @@ class ButtonsPage(Gtk.ScrolledWindow):
             cr.arc(width / 2, height / 2, 3.5, 0, 2 * 3.14159)
             cr.fill()
 
-        color_dot.set_draw_func(draw_dot)
+        from settings_widgets import CAIRO_CONVERTER_AVAILABLE
+        if CAIRO_CONVERTER_AVAILABLE:
+            color_dot.set_draw_func(draw_dot)
         row.append(color_dot)
 
         # Icon

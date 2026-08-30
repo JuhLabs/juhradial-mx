@@ -25,6 +25,28 @@ from i18n import _
 from settings_constants import MOUSE_BUTTONS
 
 
+def _cairo_converter_available():
+    """True when PyGObject can hand a cairo.Context to a GTK draw func.
+
+    On Debian/Ubuntu the GI-to-cairo converter is a separate package
+    (python3-gi-cairo, shipped by the installer since 0.4.2); without it
+    every draw callback raises "Couldn't find foreign struct converter for
+    'cairo.Context'". Timer-driven redraws turn that into a journal flood
+    plus an fd leak through the crash handler (issues #100/#128), so every
+    animation timer that queue_draws a Cairo area must gate on this.
+    gi.require_foreign is PyGObject's documented detector for the missing
+    converter; it does not replace installing the package.
+    """
+    try:
+        gi.require_foreign("cairo")
+        return True
+    except ImportError:
+        return False
+
+
+CAIRO_CONVERTER_AVAILABLE = _cairo_converter_available()
+
+
 def _rounded_rect(cr, x, y, w, h, r):
     """Draw a rounded rectangle path on a cairo context."""
     cr.new_path()
@@ -120,7 +142,8 @@ class MouseVisualization(Gtk.DrawingArea):
 
         self.set_content_width(600)
         self.set_content_height(500)
-        self.set_draw_func(self._draw)
+        if CAIRO_CONVERTER_AVAILABLE:
+            self.set_draw_func(self._draw)
 
         # Load mouse image
         image_paths = [
@@ -408,7 +431,8 @@ class GenericMouseVisualization(Gtk.DrawingArea):
 
         self.set_content_width(500)
         self.set_content_height(450)
-        self.set_draw_func(self._draw)
+        if CAIRO_CONVERTER_AVAILABLE:
+            self.set_draw_func(self._draw)
 
         # Enable mouse events for hover/click
         motion_ctrl = Gtk.EventControllerMotion()

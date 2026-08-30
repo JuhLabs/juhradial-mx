@@ -22,7 +22,7 @@ from gi.repository import Gtk, GLib, Gio, Adw
 
 from i18n import _
 from settings_config import config
-from settings_widgets import SettingsCard, SettingRow
+from settings_widgets import SettingsCard, SettingRow, CAIRO_CONVERTER_AVAILABLE
 import settings_theme
 
 logger = logging.getLogger(__name__)
@@ -111,8 +111,13 @@ class HapticsPage(Gtk.ScrolledWindow):
 
         # Animate the trace ONLY while it is mapped (visible) AND haptics is
         # enabled, so a hidden tab / minimized window / OFF state idles (no CPU).
+        # Also gated on the GI cairo converter: without it every tick's redraw
+        # throws, flooding the journal 25x/s (issues #100/#128).
         self._anim_id = None
-        self._anim_active = config.get("haptics", "enabled", default=True)
+        self._anim_active = (
+            config.get("haptics", "enabled", default=True)
+            and CAIRO_CONVERTER_AVAILABLE
+        )
         self._trace.connect("map", self._start_anim)
         self._trace.connect("unmap", self._stop_anim)
         self.connect("destroy", self._on_destroy)
@@ -182,7 +187,8 @@ class HapticsPage(Gtk.ScrolledWindow):
         self._trace.set_content_height(132)
         self._trace.set_hexpand(True)
         self._trace.add_css_class("waveform-trace")
-        self._trace.set_draw_func(self._draw_waveform)
+        if CAIRO_CONVERTER_AVAILABLE:
+            self._trace.set_draw_func(self._draw_waveform)
         card.append(self._trace)
 
         # Readouts: PATTERN / INTENSITY / DURATION / SHARPNESS

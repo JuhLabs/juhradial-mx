@@ -32,7 +32,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, Gdk, GLib, Gio, Adw
 
 from i18n import _
-from settings_sidebar import SidebarMixin
+from settings_sidebar import SidebarMixin, CAIRO_CONVERTER_AVAILABLE
 
 # Layer 1: Config + Theme
 from settings_config import config, get_device_name, get_device_mode, get_device_name_from_daemon, get_minimal_mode, set_minimal_mode, clear_device_mode_cache
@@ -262,6 +262,33 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         # Connect close-request to clean up resources
         self.connect("close-request", self._on_close_request)
 
+        # Surface a missing GI cairo converter once instead of failing
+        # silently 33 times a second (issues #100/#128). Idle so the window
+        # is presented first.
+        if not CAIRO_CONVERTER_AVAILABLE:
+            logger.error(
+                "GI cairo converter missing; Cairo-drawn widgets disabled. "
+                "Install python3-gi-cairo (Debian/Ubuntu) or reinstall via "
+                "install.sh."
+            )
+            GLib.idle_add(self._warn_missing_cairo_converter)
+
+    def _warn_missing_cairo_converter(self):
+        dialog = Adw.MessageDialog(
+            transient_for=self,
+            heading=_("Missing dependency"),
+            body=_(
+                "PyGObject cannot draw Cairo widgets because the GI cairo "
+                "converter is not installed. Some visual elements will stay "
+                "blank.\n\nOn Debian/Ubuntu run:\n"
+                "sudo apt install python3-gi-cairo\n\n"
+                "Re-running install.sh also installs it."
+            ),
+        )
+        dialog.add_response("ok", _("OK"))
+        dialog.present()
+        return False  # one-shot idle
+
     def show_toast(self, message, timeout=2):
         """Show a toast notification"""
         toast = Adw.Toast(title=message)
@@ -278,7 +305,11 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
                 # so guard with `and False` or this idle source spins forever and
                 # leaks CPU after the window closes.
                 GLib.idle_add(lambda: self._update_battery() and False)
-            if hasattr(self, "_heart_timer") and not self._heart_timer:
+            if (
+                CAIRO_CONVERTER_AVAILABLE
+                and hasattr(self, "_heart_timer")
+                and not self._heart_timer
+            ):
                 self._heart_timer = GLib.timeout_add(30, self._tick_heart)
         else:
             # Pause timers

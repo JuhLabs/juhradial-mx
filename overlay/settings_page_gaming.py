@@ -20,7 +20,7 @@ from gi.repository import Gtk, Adw
 from i18n import _
 from settings_config import config
 from settings_theme import COLORS
-from settings_widgets import SettingsCard, SettingRow, PageHeader, InfoCard
+from settings_widgets import SettingsCard, SettingRow, PageHeader, InfoCard, CAIRO_CONVERTER_AVAILABLE
 
 logger = logging.getLogger(__name__)
 
@@ -276,7 +276,8 @@ class GamingPage(Gtk.ScrolledWindow):
             cr.arc(w / 2, h / 2, 4.5, 0, 2 * 3.14159)
             cr.fill()
 
-        color_dot.set_draw_func(draw_dot)
+        if CAIRO_CONVERTER_AVAILABLE:
+            color_dot.set_draw_func(draw_dot)
         row.append(color_dot)
 
         # Name (editable)

@@ -29,7 +29,13 @@ from settings_constants import (
     get_de_key,
 )
 import settings_theme
-from settings_widgets import SettingsCard, SettingRow, PageHeader, _resolve_asset_path
+from settings_widgets import (
+    SettingsCard,
+    SettingRow,
+    PageHeader,
+    _resolve_asset_path,
+    CAIRO_CONVERTER_AVAILABLE,
+)
 from themes import get_theme_list
 
 logger = logging.getLogger(__name__)
@@ -71,7 +77,8 @@ class ThemePreview(Gtk.Box):
         self._area = Gtk.DrawingArea()
         self._area.set_content_height(210)
         self._area.set_hexpand(True)
-        self._area.set_draw_func(self._draw)
+        if CAIRO_CONVERTER_AVAILABLE:
+            self._area.set_draw_func(self._draw)
         self.append(self._area)
 
         foot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -119,7 +126,8 @@ class ThemePreview(Gtk.Box):
             dot = Gtk.DrawingArea()
             dot.set_content_width(14)
             dot.set_content_height(14)
-            dot.set_draw_func(self._draw_swatch, color)
+            if CAIRO_CONVERTER_AVAILABLE:
+                dot.set_draw_func(self._draw_swatch, color)
             self._swatches.append(dot)
         self._area.queue_draw()
 
