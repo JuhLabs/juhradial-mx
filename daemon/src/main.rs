@@ -57,14 +57,101 @@ fn log_startup_phase(started_at: &Instant, phase: &'static str) {
     );
 }
 
+/// Decide whether a /dev/input hotplug event was caused by the daemon's own
+/// button-suppression virtual device, updating `own_vdev_paths` as vdev nodes
+/// come and go. `name_of` resolves an event node to its kernel device name
+/// (sysfs in production, injected for tests).
+///
+/// Why this exists (issues #121/#125): the suppression vdev is created on
+/// every MX connection (`GESTURE_BUTTON_CODES` is never empty), and building
+/// or dropping it fires genuine Create/Remove inotify events that look like a
+/// real plug/unplug. `run_evdev_loop`/`run_hidraw_loop` cancel a healthy
+/// session on *any* hotplug notification (required for Easy-Switch host
+/// changes and Bolt sleep recovery, issue #102), so without this filter the
+/// vdev's own churn self-triggers a reconnect loop. On USB/Bolt the
+/// round-trip usually lands inside one debounce window and self-corrects; on
+/// Bluetooth it is slow enough to escape the debounce repeatedly, producing a
+/// sustained cursor-lag loop.
+///
+/// A Create is recognized by reading the node's name from sysfs at the moment
+/// the event is processed. The vdev cannot pre-register its own paths: the
+/// kernel publishes the node (and inotify fires) during `build()`, before the
+/// daemon can learn what path it got. A Remove cannot be named (the node is
+/// already gone), so it is matched against the paths recorded from their
+/// Creates - inotify delivers events in order, so a vdev's Create is always
+/// observed before its Remove. Mixed events (any non-vdev path) are
+/// conservatively treated as real hotplug.
+fn hotplug_event_is_self_caused(
+    kind: &notify::EventKind,
+    paths: &[std::path::PathBuf],
+    own_vdev_paths: &mut std::collections::HashSet<std::path::PathBuf>,
+    name_of: impl Fn(&std::path::Path) -> Option<String>,
+) -> bool {
+    use notify::EventKind;
+    if paths.is_empty() {
+        return false;
+    }
+    match kind {
+        EventKind::Create(_) => {
+            // No short-circuit: every vdev path must be recorded even when a
+            // real path in the same event makes the event itself real,
+            // otherwise the vdev's later Remove would count as real hotplug.
+            let mut all_ours = true;
+            for path in paths {
+                if name_of(path).as_deref() == Some(juhradiald::evdev::VIRTUAL_DEVICE_NAME) {
+                    own_vdev_paths.insert(path.clone());
+                } else {
+                    // A Create on a recorded path whose name is no longer the
+                    // vdev means the vdev's Remove was lost (e.g. inotify
+                    // queue overflow) and the kernel reused the event number:
+                    // evict the stale entry so the new real device's eventual
+                    // Remove is not swallowed as self-caused.
+                    own_vdev_paths.remove(path);
+                    all_ours = false;
+                }
+            }
+            all_ours
+        }
+        EventKind::Remove(_) => {
+            let mut all_ours = true;
+            for path in paths {
+                if !own_vdev_paths.remove(path) {
+                    all_ours = false;
+                }
+            }
+            all_ours
+        }
+        _ => false,
+    }
+}
+
+/// Kernel device name of an input event node, read from sysfs.
+///
+/// Reads `/sys/class/input/<eventN>/device/name`, which exists by the time
+/// devtmpfs publishes `/dev/input/<eventN>`. Deliberately does NOT open the
+/// event node itself: opening every new node from the watcher is how the
+/// issue #15 scan feedback loop started.
+fn sysfs_input_device_name(path: &std::path::Path) -> Option<String> {
+    let node = path.file_name()?.to_str()?;
+    let name_path = std::path::Path::new("/sys/class/input")
+        .join(node)
+        .join("device/name");
+    std::fs::read_to_string(name_path)
+        .ok()
+        .map(|s| s.trim_end().to_string())
+}
+
 /// Spawn a background thread that watches /dev/input/ for device hotplug events
-/// using inotify. Returns a Notify that fires when event* devices appear or disappear.
-/// This allows evdev loops to re-scan immediately instead of waiting for the 2s poll.
+/// using inotify. Returns a Notify that fires when event* devices appear or
+/// disappear. This allows evdev loops to re-scan immediately instead of waiting
+/// for the fallback poll (`DEVICE_POLL_INTERVAL_SECS`).
 ///
 /// Only reacts to Create/Remove events (actual device plug/unplug). Access events
 /// (e.g. Close(Write)) are filtered out to prevent a feedback loop where our own
-/// device scanning triggers inotify events that cause more scanning. A 500ms
-/// debounce window coalesces rapid events from USB hubs into a single notification.
+/// device scanning triggers inotify events that cause more scanning. Create/Remove
+/// of the daemon's own button-suppression vdev is filtered out too - see
+/// `hotplug_event_is_self_caused` (issues #121/#125). A 500ms debounce window
+/// coalesces rapid events from USB hubs into a single notification.
 fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
     let hotplug = Arc::new(tokio::sync::Notify::new());
     let hotplug_tx = hotplug.clone();
@@ -101,6 +188,10 @@ fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
 
         let mut last_notify = Instant::now() - Duration::from_secs(1);
         let debounce = Duration::from_millis(500);
+        // Paths of the daemon's own suppression vdev(s), maintained from the
+        // events themselves (Create records, Remove consumes). Lives in this
+        // thread only, so there is no cross-thread registration race.
+        let mut own_vdev_paths = std::collections::HashSet::new();
 
         loop {
             match rx.recv() {
@@ -123,6 +214,22 @@ fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
                             .unwrap_or(false)
                     });
                     if !is_event_device {
+                        continue;
+                    }
+
+                    // Must run before the debounce: a debounced-away Create
+                    // would never record the vdev path, and its Remove would
+                    // then restart the session as if a real device unplugged.
+                    if hotplug_event_is_self_caused(
+                        &event.kind,
+                        &event.paths,
+                        &mut own_vdev_paths,
+                        sysfs_input_device_name,
+                    ) {
+                        debug!(
+                            "Hotplug event on own virtual device ignored: {:?}",
+                            event.paths
+                        );
                         continue;
                     }
 
@@ -1574,6 +1681,172 @@ mod tests {
         // shorter cadence after Easy-Switch or hotplug events.
         assert_eq!(DEVICE_POLL_INTERVAL_SECS, 60);
         assert_eq!(HIDRAW_RECONNECT_POLL_INTERVAL_SECS, 5);
+    }
+
+    // --- hotplug self-caused filter (issues #121/#125) ---
+
+    use notify::event::{CreateKind, RemoveKind};
+    use notify::EventKind;
+    use std::collections::HashSet;
+    use std::path::{Path, PathBuf};
+
+    fn vdev_name_for<'a>(vdev_paths: &'a [&'a str]) -> impl Fn(&Path) -> Option<String> + 'a {
+        move |p: &Path| {
+            if vdev_paths.iter().any(|v| Path::new(v) == p) {
+                Some(juhradiald::evdev::VIRTUAL_DEVICE_NAME.to_string())
+            } else {
+                Some("Logitech MX Master 4".to_string())
+            }
+        }
+    }
+
+    #[test]
+    fn create_of_own_vdev_is_self_caused_and_recorded() {
+        let mut own = HashSet::new();
+        let paths = vec![PathBuf::from("/dev/input/event257")];
+        assert!(hotplug_event_is_self_caused(
+            &EventKind::Create(CreateKind::File),
+            &paths,
+            &mut own,
+            vdev_name_for(&["/dev/input/event257"]),
+        ));
+        assert!(own.contains(Path::new("/dev/input/event257")));
+    }
+
+    #[test]
+    fn create_of_unknown_device_is_real_hotplug() {
+        let mut own = HashSet::new();
+        let paths = vec![PathBuf::from("/dev/input/event256")];
+        assert!(!hotplug_event_is_self_caused(
+            &EventKind::Create(CreateKind::File),
+            &paths,
+            &mut own,
+            vdev_name_for(&[]),
+        ));
+        assert!(own.is_empty());
+    }
+
+    #[test]
+    fn remove_of_recorded_vdev_is_self_caused_and_consumed() {
+        let mut own = HashSet::new();
+        own.insert(PathBuf::from("/dev/input/event257"));
+        let paths = vec![PathBuf::from("/dev/input/event257")];
+        // A removed node has no sysfs entry left; the name resolver must not
+        // be consulted for Removes.
+        assert!(hotplug_event_is_self_caused(
+            &EventKind::Remove(RemoveKind::File),
+            &paths,
+            &mut own,
+            |_: &Path| None,
+        ));
+        assert!(own.is_empty());
+    }
+
+    #[test]
+    fn remove_of_unknown_device_is_real_hotplug() {
+        let mut own = HashSet::new();
+        let paths = vec![PathBuf::from("/dev/input/event29")];
+        assert!(!hotplug_event_is_self_caused(
+            &EventKind::Remove(RemoveKind::File),
+            &paths,
+            &mut own,
+            |_: &Path| None,
+        ));
+    }
+
+    #[test]
+    fn reused_event_number_after_vdev_removal_is_real_hotplug() {
+        // The kernel reuses event numbers: after our vdev at event257 is
+        // removed (and consumed above), a real device can appear at event257.
+        let mut own = HashSet::new();
+        own.insert(PathBuf::from("/dev/input/event257"));
+        let remove = vec![PathBuf::from("/dev/input/event257")];
+        assert!(hotplug_event_is_self_caused(
+            &EventKind::Remove(RemoveKind::File),
+            &remove,
+            &mut own,
+            |_: &Path| None,
+        ));
+        let create = vec![PathBuf::from("/dev/input/event257")];
+        assert!(!hotplug_event_is_self_caused(
+            &EventKind::Create(CreateKind::File),
+            &create,
+            &mut own,
+            vdev_name_for(&[]),
+        ));
+    }
+
+    #[test]
+    fn create_with_non_vdev_name_evicts_stale_entry() {
+        // If the vdev's Remove was lost (queue overflow) and the kernel
+        // reused the number for a real device, its Create must evict the
+        // stale record so the real device's later Remove counts as real.
+        let mut own = HashSet::new();
+        own.insert(PathBuf::from("/dev/input/event257"));
+        let create = vec![PathBuf::from("/dev/input/event257")];
+        assert!(!hotplug_event_is_self_caused(
+            &EventKind::Create(CreateKind::File),
+            &create,
+            &mut own,
+            vdev_name_for(&[]),
+        ));
+        assert!(!hotplug_event_is_self_caused(
+            &EventKind::Remove(RemoveKind::File),
+            &create,
+            &mut own,
+            |_: &Path| None,
+        ));
+    }
+
+    #[test]
+    fn mixed_create_is_real_but_still_records_vdev_path() {
+        let mut own = HashSet::new();
+        let paths = vec![
+            PathBuf::from("/dev/input/event256"),
+            PathBuf::from("/dev/input/event257"),
+        ];
+        assert!(!hotplug_event_is_self_caused(
+            &EventKind::Create(CreateKind::File),
+            &paths,
+            &mut own,
+            vdev_name_for(&["/dev/input/event257"]),
+        ));
+        // The vdev path must be recorded anyway, so its later Remove does not
+        // count as a real unplug.
+        assert!(own.contains(Path::new("/dev/input/event257")));
+        assert!(hotplug_event_is_self_caused(
+            &EventKind::Remove(RemoveKind::File),
+            &[PathBuf::from("/dev/input/event257")],
+            &mut own,
+            |_: &Path| None,
+        ));
+    }
+
+    #[test]
+    fn access_events_are_never_self_caused() {
+        // The watcher filters Access before this function runs (#15), but the
+        // function itself must not misclassify them either.
+        let mut own = HashSet::new();
+        let paths = vec![PathBuf::from("/dev/input/event257")];
+        assert!(!hotplug_event_is_self_caused(
+            &EventKind::Access(notify::event::AccessKind::Close(
+                notify::event::AccessMode::Write
+            )),
+            &paths,
+            &mut own,
+            vdev_name_for(&["/dev/input/event257"]),
+        ));
+    }
+
+    #[test]
+    fn empty_path_list_is_not_self_caused() {
+        let mut own = HashSet::new();
+        assert!(!hotplug_event_is_self_caused(
+            &EventKind::Create(CreateKind::File),
+            &[],
+            &mut own,
+            |_: &Path| None,
+        ));
     }
 
     #[test]

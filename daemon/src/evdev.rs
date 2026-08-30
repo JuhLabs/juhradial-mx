@@ -18,6 +18,14 @@ use std::path::PathBuf;
 use std::time::Instant;
 use tokio::sync::mpsc;
 
+/// Name of the uinput virtual device created for button suppression.
+///
+/// The hotplug watcher in `main.rs` matches this name via sysfs to tell the
+/// vdev's own Create/Remove churn apart from a real device change - creating
+/// or dropping it fires genuine inotify events on /dev/input that would
+/// otherwise cancel the very session that created it (issues #121/#125).
+pub const VIRTUAL_DEVICE_NAME: &str = "JuhRadial Virtual Mouse";
+
 /// MX Master 4 vendor ID (Logitech)
 pub const LOGITECH_VENDOR_ID: u16 = 0x046D;
 
@@ -587,16 +595,31 @@ impl EvdevHandler {
         let mut virtual_device = None;
         if !self.suppressed_keys.is_empty() {
             let vdev_result = (|| -> Result<_, std::io::Error> {
-                let mut builder = UinputDevice::builder()?.name("JuhRadial Virtual Mouse");
-                if let Some(keys) = device.supported_keys() {
-                    builder = builder.with_keys(keys)?;
-                }
-                if let Some(rel) = device.supported_relative_axes() {
-                    builder = builder.with_relative_axes(rel)?;
-                }
-                let vdev = builder.build()?;
+                // Grab first: if another process already holds the grab
+                // (EBUSY), failing before the vdev exists avoids creating and
+                // immediately destroying a node whose Create/Remove churn the
+                // hotplug watcher would then race to classify by sysfs name
+                // (issues #121/#125).
                 device.grab()?;
-                Ok(vdev)
+                let built = (|| -> Result<_, std::io::Error> {
+                    let mut builder = UinputDevice::builder()?.name(VIRTUAL_DEVICE_NAME);
+                    if let Some(keys) = device.supported_keys() {
+                        builder = builder.with_keys(keys)?;
+                    }
+                    if let Some(rel) = device.supported_relative_axes() {
+                        builder = builder.with_relative_axes(rel)?;
+                    }
+                    builder.build()
+                })();
+                match built {
+                    Ok(vdev) => Ok(vdev),
+                    Err(e) => {
+                        // Never keep an exclusive grab without a forwarder,
+                        // or the OS stops seeing the pointer entirely.
+                        let _ = device.ungrab();
+                        Err(e)
+                    }
+                }
             })();
 
             match vdev_result {
