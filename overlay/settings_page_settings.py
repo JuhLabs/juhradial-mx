@@ -10,6 +10,7 @@ SPDX-License-Identifier: GPL-3.0
 import json
 import logging
 import math
+import os
 import shutil
 from pathlib import Path
 
@@ -534,7 +535,10 @@ class SettingsPage(Gtk.ScrolledWindow):
 
     @staticmethod
     def _autostart_file():
-        return Path.home() / ".config" / "autostart" / "juhradial-mx.desktop"
+        # The desktop reads $XDG_CONFIG_HOME/autostart, so honor the override
+        # like install.sh does or the two writers target different files.
+        base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+        return Path(base) / "autostart" / "juhradial-mx.desktop"
 
     @staticmethod
     def _resolve_launcher_path():
@@ -575,17 +579,39 @@ class SettingsPage(Gtk.ScrolledWindow):
         logger.info("Wrote autostart: %s -> %s", autostart_file, exec_path)
 
     def _repair_autostart_if_stale(self):
-        """Rewrite an autostart entry whose Exec target no longer exists.
+        """Ensure the autostart entry exists and its Exec target is real.
 
         Older builds wrote a fixed /usr/bin/juhradial-mx, which 404s on curl
         installs (the launcher is in /usr/local/bin) and fails with status=127.
         Self-heal so existing users get a working entry without re-toggling the
-        switch (issue #32). Only touches a broken entry; a valid one is left as is.
+        switch (issue #32). A valid entry is left as is.
+
+        A missing file is created too: the Start at Login switch defaults to
+        ON before its state-set handler is connected, so the default never
+        wrote the file and the overlay silently did not start at login
+        (issue #129). install.sh writes the same entry at install time; this
+        covers distro packages and users who deleted the file by hand. Only
+        an installed launcher qualifies for the auto-create: a bare git
+        checkout must not silently make itself the login autostart (the
+        switch still writes the checkout path when toggled deliberately).
         """
         if not config.get("app", "start_at_login", default=True):
             return
         autostart_file = self._autostart_file()
         if not autostart_file.exists():
+            installed = shutil.which("juhradial-mx") or next(
+                (
+                    str(p)
+                    for p in (
+                        Path("/usr/local/bin/juhradial-mx"),
+                        Path("/usr/bin/juhradial-mx"),
+                    )
+                    if p.exists()
+                ),
+                None,
+            )
+            if installed:
+                self._write_autostart(installed)
             return
         try:
             text = autostart_file.read_text(encoding="utf-8")
@@ -604,7 +630,10 @@ class SettingsPage(Gtk.ScrolledWindow):
 
     def _on_startup_changed(self, switch, state):
         """Handle start at login toggle"""
-        config.set("app", "start_at_login", state)
+        # Persist immediately: _repair_autostart_if_stale and install.sh both
+        # read this key from disk, so an unsaved OFF would be silently undone
+        # by the next Settings launch or reinstall (issue #129).
+        config.set("app", "start_at_login", state, auto_save=True)
         if state:
             self._write_autostart(self._resolve_launcher_path())
         else:

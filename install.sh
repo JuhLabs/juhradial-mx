@@ -740,11 +740,71 @@ configure_gnome() {
 }
 
 # ── Desktop environment ─────────────────────────────────────────────
+install_autostart() {
+    # The overlay (radial menu) is started at login by the juhradial-mx
+    # launcher via XDG autostart, not a systemd unit: a second user service
+    # would race this entry and KDE session restore into duplicate overlays
+    # (issue #60), and units pulling graphical-session.target caused the
+    # issue #67 GNOME login loop. Until now nothing wrote this entry - the
+    # Settings switch defaults to ON without ever writing the file - so the
+    # overlay never started at login on a fresh install (issue #129). The
+    # Settings app maintains the same file afterwards.
+    # The desktop scans $XDG_CONFIG_HOME/autostart, so honor the override for
+    # the entry; config.json is read from where the Settings app writes it
+    # ($HOME/.config/juhradial, same as CONFIG_DIR above).
+    local autostart_dir="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+    local autostart_file="$autostart_dir/juhradial-mx.desktop"
+    local user_config="$HOME/.config/juhradial/config.json"
+
+    # Create-if-missing only: an existing entry may carry a DE-level disable
+    # (Hidden=true / X-GNOME-Autostart-enabled=false from the desktop's own
+    # autostart manager) or user edits; the Settings self-heal repairs a
+    # stale Exec, so an upgrade must not clobber the file.
+    if [ -f "$autostart_file" ]; then
+        log_dim "Autostart entry already present — leaving it untouched"
+        return 0
+    fi
+
+    # Respect a user who turned Start at Login off in Settings.
+    if [ -f "$user_config" ] && command -v python3 &> /dev/null; then
+        local enabled
+        enabled=$(python3 - "$user_config" <<'PY' 2>/dev/null
+import json, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as fh:
+        cfg = json.load(fh)
+    print("off" if cfg.get("app", {}).get("start_at_login", True) is False else "on")
+except Exception:
+    print("on")
+PY
+)
+        if [ "$enabled" = "off" ]; then
+            log_dim "Start at Login is off in Settings — skipping autostart entry"
+            return 0
+        fi
+    fi
+
+    mkdir -p "$autostart_dir"
+    cat > "$autostart_file" <<EOF
+[Desktop Entry]
+Type=Application
+Name=JuhRadial MX
+Comment=Radial menu for Logitech MX Master
+Exec=$BIN_DIR/juhradial-mx
+Icon=juhradial-mx
+Terminal=false
+Categories=Utility;
+X-GNOME-Autostart-enabled=true
+EOF
+    log_success "Login autostart entry written ($autostart_file)"
+}
+
 configure_desktop() {
     step "Desktop integration"
 
     configure_hyprland
     configure_gnome
+    install_autostart
 
     if [ "$DESKTOP_TYPE" = "hyprland" ]; then
         log_success "Hyprland window rules configured"
