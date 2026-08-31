@@ -19,7 +19,9 @@ sys.path.insert(0, "overlay")
 
 import overlay_cursor
 from overlay_constants import map_and_clamp_menu
-from overlay_cursor import get_monitor_at_cursor, hypr_logical_rect
+
+get_monitor_at_cursor = overlay_cursor.get_monitor_at_cursor
+hypr_logical_rect = overlay_cursor.hypr_logical_rect
 
 # DP-1 landscape at the origin, DP-2 a 1920x1080 panel rotated 270 next to it.
 LANDSCAPE = {"x": 0, "y": 0, "width": 2560, "height": 1440, "scale": 1.0,

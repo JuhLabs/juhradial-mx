@@ -133,7 +133,7 @@ class ScreenEdgeDetector:
             try:
                 self._reload_config()  # Load direction/monitor before first poll
                 self.cache_monitor_geometry()  # Cache geometry while on main thread
-            except BaseException:
+            except Exception:
                 with self._lifecycle_changed:
                     if self._starting_generation == generation:
                         self._starting_generation = None
@@ -308,8 +308,10 @@ class ScreenEdgeDetector:
                     self._flow_direction = flow.get("direction", "right")
                     self._flow_monitor = flow.get("monitor", "")
                     self._edge_sensitivity = flow.get("edge_sensitivity", 50)
-        except Exception:
-            pass
+        except Exception as e:
+            # Fail-soft: a missing or malformed config keeps the previous
+            # flow settings; the next mtime change retries.
+            logger.debug("Flow config reload failed: %s", e)
 
     def _is_generation_running(self, generation: Optional[int]) -> bool:
         if generation is None:

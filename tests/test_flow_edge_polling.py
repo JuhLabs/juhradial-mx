@@ -12,9 +12,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, os.fspath(REPO_ROOT / "overlay"))
 
 import flow as flow_module
-from flow import edge_detector as edge_module
 from flow.constants import EDGE_IDLE_POLL_INTERVAL_MS, EDGE_POLL_INTERVAL_MS
 from flow.edge_detector import ScreenEdgeDetector
+
+# The from-import of flow.edge_detector above also binds it as an attribute
+# on the package, so no mixed import of 'flow' itself is needed.
+edge_module = flow_module.edge_detector
 
 
 class _WakeEvent:

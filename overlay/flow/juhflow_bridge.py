@@ -171,7 +171,7 @@ class JuhFlowBridge:
             try:
                 self._server_sock.close()
             except OSError:
-                pass
+                pass  # already closed or dead; nothing left to release
         # Clear status file
         status_path = os.path.join(
             os.path.expanduser("~"), ".config", "juhradial", "flow_status.json"
@@ -179,7 +179,7 @@ class JuhFlowBridge:
         try:
             os.remove(status_path)
         except FileNotFoundError:
-            pass
+            pass  # already gone; nothing to clear
         except OSError as e:
             logger.debug("Cannot clear Flow status file: %s", e)
 

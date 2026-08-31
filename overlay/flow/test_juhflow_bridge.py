@@ -11,8 +11,8 @@ import tempfile
 import threading
 import time
 import unittest
+import unittest.mock as mock
 from typing import Any
-from unittest import mock
 
 from . import juhflow_bridge as bridge_module
 from .crypto import (
