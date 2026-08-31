@@ -1051,6 +1051,38 @@ async fn refresh_hidpp_button_diverts(
     }
 }
 
+/// Resolve only when the HID++ manager is connected on a DIFFERENT hidraw
+/// node than the event listener opened, and stay pending otherwise.
+///
+/// This is the deaf-listener condition a second plugged-in receiver produces:
+/// auto-detect ties both receivers on priority and can open the one the mouse
+/// is not paired to. Diverted button notifications then never arrive, so
+/// nothing on the listener's own path would ever end the session; this arm
+/// gives the reconnect loop a reason to re-bind onto the manager's
+/// ping-verified path (e.g. once the battery updater connects it).
+async fn hidraw_listener_mismatch(
+    haptic_manager: &SharedHapticManager,
+    listener_path: Option<std::path::PathBuf>,
+) {
+    let Some(listener_path) = listener_path else {
+        // No opened path to compare; leave the session to its other arms.
+        std::future::pending::<()>().await;
+        return;
+    };
+    loop {
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        let manager_path = haptic_manager
+            .lock()
+            .ok()
+            .and_then(|m| m.device_path());
+        if let Some(manager_path) = manager_path {
+            if manager_path != listener_path {
+                return;
+            }
+        }
+    }
+}
+
 /// Apply thumb-wheel divert from config and return the ThumbWheel feature index.
 ///
 /// Like button divert, thumb-wheel reporting (HID++ 0x2150) is volatile and is
@@ -1157,6 +1189,17 @@ async fn run_hidraw_loop(
         let note_indices = fetch_notification_indices(haptic_manager.clone()).await;
         handler.set_notification_indices(note_indices);
 
+        // The manager's device path is ping-verified: it is the receiver
+        // interface where the mouse actually answered HID++, and therefore
+        // where its diverted notifications arrive. With more than one
+        // receiver plugged in, blind auto-detect ties on priority and can
+        // open the other receiver, leaving the listener deaf. The manager
+        // may also have been connected by the battery updater even when the
+        // refresh above found nothing, so always prefer its live path.
+        if let Some(path) = haptic_manager.lock().ok().and_then(|m| m.device_path()) {
+            preferred_path = Some(path);
+        }
+
         // Try to open - use preferred path from HidppDevice if available
         // This ensures we listen on the same Bolt receiver where buttons were diverted
         let open_result = if let Some(ref path) = preferred_path {
@@ -1184,11 +1227,20 @@ async fn run_hidraw_loop(
                 }
                 info!("HID++ hidraw handler connected");
 
-                // Run the event loop until error, or until input hotplug tells
-                // us the mouse may have returned from another Easy-Switch host.
+                // Run the event loop until error, until input hotplug tells
+                // us the mouse may have returned from another Easy-Switch
+                // host, or until the HID++ manager turns out to be connected
+                // on a different node than we opened (the deaf-listener state
+                // a second plugged-in receiver can produce: no events arrive,
+                // so nothing else would ever re-trigger this loop).
+                let listener_path = handler.device_path();
                 let start_result = tokio::select! {
                     result = handler.start() => Some(result),
                     _ = hotplug.notified() => None,
+                    _ = hidraw_listener_mismatch(&haptic_manager, listener_path) => {
+                        info!("HID++ manager connected on a different node; re-binding event listener");
+                        None
+                    }
                 };
                 handler.close();
 
