@@ -87,7 +87,7 @@ impl ActionExecutor {
     pub async fn execute(action: &Action) -> Result<(), ActionError> {
         match &action.action_type {
             ActionType::Shortcut(keys) => {
-                Self::execute_shortcut(keys).await
+                Self::execute_shortcut(keys, 1).await
             }
             ActionType::Command(cmd) => {
                 Self::execute_command(cmd).await
@@ -108,10 +108,14 @@ impl ActionExecutor {
     /// Format: "ctrl+c", "ctrl+shift+z", "super+e"
     ///
     /// AC1: Execution within 10ms
-    async fn execute_shortcut(keys: &str) -> Result<(), ActionError> {
+    async fn execute_shortcut(keys: &str, repeats: u8) -> Result<(), ActionError> {
+        if repeats == 0 {
+            return Ok(());
+        }
+
         let start = Instant::now();
 
-        tracing::info!(keys, "Executing keyboard shortcut");
+        tracing::info!(keys, repeats, "Executing keyboard shortcut");
 
         // session_var, not std::env: started from the systemd user unit the
         // daemon has neither variable, so this read said "X11" on a Wayland
@@ -129,7 +133,7 @@ impl ActionExecutor {
         let mut injected = false;
         if is_wayland {
             if let Some(codes) = Self::shortcut_to_evdev_codes(keys) {
-                injected = Self::inject_via_ydotool(keys, &codes);
+                injected = Self::inject_via_ydotool(keys, &codes, repeats);
                 if !injected {
                     tracing::warn!(keys, "ydotool injection failed; trying xdotool");
                 }
@@ -142,14 +146,14 @@ impl ActionExecutor {
         // XF86AudioRaiseVolume), so pass the ORIGINAL case to xdotool.
         if !injected {
             let mut cmd = Command::new("xdotool");
-            cmd.args(["key", keys]);
+            cmd.args(Self::xdotool_shortcut_args(keys, repeats));
             apply_session_env(&mut cmd);
             match cmd.spawn() {
                 Ok(child) => reap_in_background(child, keys, "xdotool"),
                 Err(e) => {
                     tracing::debug!("xdotool unavailable: {}, trying ydotool codes", e);
                     let ok = Self::shortcut_to_evdev_codes(keys)
-                        .map(|c| Self::inject_via_ydotool(keys, &c))
+                        .map(|c| Self::inject_via_ydotool(keys, &c, repeats))
                         .unwrap_or(false);
                     if !ok {
                         return Err(ActionError::ExecutionFailed(format!(
@@ -222,13 +226,33 @@ impl ActionExecutor {
         }
     }
 
+    /// Build one xdotool invocation for the complete shortcut burst.
+    fn xdotool_shortcut_args(keys: &str, repeats: u8) -> Vec<String> {
+        let mut args = vec!["key".to_string()];
+        if repeats > 1 {
+            args.extend(["--repeat".to_string(), repeats.to_string()]);
+        }
+        args.push(keys.to_string());
+        args
+    }
+
+    /// Build one ydotool invocation for the complete shortcut burst. ydotool's
+    /// `key` subcommand has no repeat flag, but accepts an arbitrary sequence of
+    /// press/release events, so repeat the chord inside one argument vector.
+    fn ydotool_shortcut_args(codes: &[u16], repeats: u8) -> Vec<String> {
+        let mut args = vec!["key".to_string()];
+        for _ in 0..repeats {
+            args.extend(codes.iter().map(|c| format!("{}:1", c)));
+            args.extend(codes.iter().rev().map(|c| format!("{}:0", c)));
+        }
+        args
+    }
+
     /// Inject a key chord through the kernel uinput device via ydotool: press
     /// every code in order, then release in reverse. ydotool uses uinput, so it
     /// drives both X11 and Wayland (incl. KDE Plasma). Returns true if started.
-    fn inject_via_ydotool(keys: &str, codes: &[u16]) -> bool {
-        let mut args: Vec<String> = vec!["key".to_string()];
-        args.extend(codes.iter().map(|c| format!("{}:1", c)));
-        args.extend(codes.iter().rev().map(|c| format!("{}:0", c)));
+    fn inject_via_ydotool(keys: &str, codes: &[u16], repeats: u8) -> bool {
+        let args = Self::ydotool_shortcut_args(codes, repeats);
         match Command::new("ydotool").args(&args).spawn() {
             Ok(child) => {
                 reap_in_background(child, keys, "ydotool");
@@ -705,41 +729,100 @@ pub async fn execute_button_action(action: ButtonAction) -> Result<bool, ActionE
     }
 }
 
+/// Execute a button action repeatedly. Shortcut-backed actions (including every
+/// diverted ThumbWheel button output) are synthesized by a single helper
+/// process; other action kinds preserve their existing per-execution behavior.
+pub async fn execute_button_action_repeated(
+    action: ButtonAction,
+    repeats: u8,
+) -> Result<bool, ActionError> {
+    if repeats == 0 {
+        return Ok(true);
+    }
+    if repeats == 1 {
+        return execute_button_action(action).await;
+    }
+
+    if let Some(keys) = button_action_to_shortcut(action) {
+        ActionExecutor::execute_shortcut(keys, repeats).await?;
+        return Ok(true);
+    }
+
+    let mut handled = true;
+    for _ in 0..repeats {
+        handled &= execute_button_action(action).await?;
+    }
+    Ok(handled)
+}
+
+/// Build one xdotool command for a complete horizontal-scroll burst.
+fn xdotool_horizontal_scroll_args(clicks: i32) -> Option<Vec<String>> {
+    let count = clicks.unsigned_abs().min(16);
+    if count == 0 {
+        return None;
+    }
+    let button = if clicks > 0 { "7" } else { "6" };
+    Some(vec![
+        "click".to_string(),
+        "--repeat".to_string(),
+        count.to_string(),
+        button.to_string(),
+    ])
+}
+
+/// Build one ydotool command for a complete horizontal-scroll burst.
+///
+/// ydotool's `click` IDs 0x06/0x07 are BACK/TASK buttons, not wheel directions.
+/// Its `mousemove --wheel -- X Y` form emits X as one signed REL_HWHEEL value
+/// and Y as REL_WHEEL, so the signed magnitude carries the complete burst in a
+/// single process without a shell.
+fn ydotool_horizontal_scroll_args(clicks: i32) -> Option<Vec<String>> {
+    let horizontal = clicks.clamp(-16, 16);
+    if horizontal == 0 {
+        return None;
+    }
+    Some(vec![
+        "mousemove".to_string(),
+        "--wheel".to_string(),
+        "--".to_string(),
+        horizontal.to_string(),
+        "0".to_string(),
+    ])
+}
+
 /// Inject horizontal scroll clicks for the diverted thumb wheel.
 ///
 /// Positive `clicks` scroll right, negative scroll left. Horizontal scroll on
 /// X11 is mouse buttons 6 (left) and 7 (right); xdotool synthesizes these
 /// directly, with ydotool as a Wayland fallback (consistent with the keyboard
-/// shortcut path). Non-blocking: each click is spawned, not awaited.
+/// shortcut path). Non-blocking: the complete burst is spawned once and reaped
+/// in the background.
 pub async fn execute_horizontal_scroll(clicks: i32) -> Result<(), ActionError> {
-    if clicks == 0 {
+    let Some(args) = xdotool_horizontal_scroll_args(clicks) else {
         return Ok(());
-    }
-    // Button 6 = scroll left, 7 = scroll right.
-    let button = if clicks > 0 { "7" } else { "6" };
+    };
     let count = clicks.unsigned_abs().min(16);
+    let input = format!("horizontal scroll x{count}");
 
-    for _ in 0..count {
-        let mut cmd = Command::new("xdotool");
-        cmd.args(["click", button]);
-        // Same hole as the shortcut path: without the session environment
-        // xdotool dies on an empty DISPLAY and the click is lost (issue #60).
-        apply_session_env(&mut cmd);
-        match cmd.spawn() {
-            Ok(child) => reap_in_background(child, button, "xdotool"),
-            Err(e) => {
-                tracing::debug!("xdotool horizontal scroll failed: {}, trying ydotool", e);
-                // ydotool click button codes: 0x06 = left scroll, 0x07 = right scroll.
-                let yd_button = if clicks > 0 { "0x07" } else { "0x06" };
-                match Command::new("ydotool").args(["click", yd_button]).spawn() {
-                    Ok(child) => reap_in_background(child, yd_button, "ydotool"),
-                    Err(e2) => {
-                        tracing::error!("Both xdotool and ydotool horizontal scroll failed: {}", e2);
-                        return Err(ActionError::ExecutionFailed(format!(
-                            "Horizontal scroll failed: {}",
-                            e2
-                        )));
-                    }
+    let mut cmd = Command::new("xdotool");
+    cmd.args(&args);
+    // Same hole as the shortcut path: without the session environment xdotool
+    // dies on an empty DISPLAY and the click is lost (issue #60).
+    apply_session_env(&mut cmd);
+    match cmd.spawn() {
+        Ok(child) => reap_in_background(child, &input, "xdotool"),
+        Err(e) => {
+            tracing::debug!("xdotool horizontal scroll failed: {}, trying ydotool", e);
+            let yd_args = ydotool_horizontal_scroll_args(clicks)
+                .expect("non-zero clicks always produce ydotool arguments");
+            match Command::new("ydotool").args(&yd_args).spawn() {
+                Ok(child) => reap_in_background(child, &input, "ydotool"),
+                Err(e2) => {
+                    tracing::error!("Both xdotool and ydotool horizontal scroll failed: {}", e2);
+                    return Err(ActionError::ExecutionFailed(format!(
+                        "Horizontal scroll failed: {}",
+                        e2
+                    )));
                 }
             }
         }
@@ -971,6 +1054,68 @@ mod tests {
 
         let err = ActionError::ShellExecution("command not found".to_string());
         assert!(format!("{}", err).contains("Shell execution"));
+    }
+
+    #[test]
+    fn repeated_shortcuts_use_one_batched_helper_argument_vector() {
+        assert_eq!(
+            ActionExecutor::xdotool_shortcut_args("XF86AudioRaiseVolume", 4),
+            ["key", "--repeat", "4", "XF86AudioRaiseVolume"]
+        );
+        assert_eq!(
+            ActionExecutor::xdotool_shortcut_args("ctrl+c", 1),
+            ["key", "ctrl+c"]
+        );
+
+        assert_eq!(
+            ActionExecutor::ydotool_shortcut_args(&[29, 78], 3),
+            [
+                "key", "29:1", "78:1", "78:0", "29:0", "29:1", "78:1", "78:0", "29:0",
+                "29:1", "78:1", "78:0", "29:0",
+            ]
+        );
+    }
+
+    /// Interpret the documented ydotool `mousemove --wheel -- X Y` grammar:
+    /// X is REL_HWHEEL and Y is REL_WHEEL. Keeping this decoder in the test
+    /// makes the assertion about emitted wheel motion rather than duplicating
+    /// the production argument constants.
+    fn ydotool_wheel_delta(args: &[String]) -> Option<(i32, i32)> {
+        let [subcommand, wheel, separator, horizontal, vertical] = args else {
+            return None;
+        };
+        if subcommand != "mousemove" || (wheel != "--wheel" && wheel != "-w") || separator != "--" {
+            return None;
+        }
+        Some((horizontal.parse().ok()?, vertical.parse().ok()?))
+    }
+
+    #[test]
+    fn horizontal_scroll_uses_one_batched_helper_with_real_wheel_semantics() {
+        assert_eq!(
+            xdotool_horizontal_scroll_args(5).unwrap(),
+            ["click", "--repeat", "5", "7"]
+        );
+        assert_eq!(
+            xdotool_horizontal_scroll_args(i32::MAX).unwrap(),
+            ["click", "--repeat", "16", "7"]
+        );
+
+        let right = ydotool_horizontal_scroll_args(5).unwrap();
+        let left = ydotool_horizontal_scroll_args(-5).unwrap();
+        let clamped = ydotool_horizontal_scroll_args(i32::MIN).unwrap();
+        assert_eq!(ydotool_wheel_delta(&right), Some((5, 0)), "{right:?}");
+        assert_eq!(ydotool_wheel_delta(&left), Some((-5, 0)), "{left:?}");
+        assert_eq!(ydotool_wheel_delta(&clamped), Some((-16, 0)), "{clamped:?}");
+
+        // ydotool click IDs 0x06/0x07 are BACK/TASK buttons. Without the
+        // 0x40/0x80 press/release bits they do nothing, and even complete
+        // clicks would still be buttons rather than REL_HWHEEL movement.
+        let invalid_button_click = ["click", "--repeat=5", "0x06"].map(String::from);
+        assert_eq!(ydotool_wheel_delta(&invalid_button_click), None);
+
+        assert!(xdotool_horizontal_scroll_args(0).is_none());
+        assert!(ydotool_horizontal_scroll_args(0).is_none());
     }
 
     #[test]
