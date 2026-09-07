@@ -17,7 +17,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, Gdk, Gio, GLib, Adw
 
 from i18n import _
-from settings_config import get_device_name, get_device_mode, get_device_name_from_daemon
+from settings_config import get_device_mode, get_device_name_from_daemon
 from settings_theme import COLORS
 from settings_widgets import (
     InfoCard,
@@ -129,10 +129,10 @@ class DevicesPage(Gtk.ScrolledWindow):
 
             device_card.append(device_image_box)
 
-        # Device name
-        device_name = (
-            get_device_name_from_daemon() if self._is_generic else get_device_name()
-        )
+        # Device name - always ask the daemon (see settings_dashboard.py's
+        # header badge for why: product IDs are reused across MX Master
+        # generations, so the local guess table is unreliable).
+        device_name = get_device_name_from_daemon()
         subtitle = (
             _("Your connected mouse")
             if self._is_generic

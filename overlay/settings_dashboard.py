@@ -35,7 +35,7 @@ from i18n import _
 from settings_sidebar import SidebarMixin, CAIRO_CONVERTER_AVAILABLE
 
 # Layer 1: Config + Theme
-from settings_config import config, get_device_name, get_device_mode, get_device_name_from_daemon, get_minimal_mode, set_minimal_mode, clear_device_mode_cache
+from settings_config import config, get_device_mode, get_device_name_from_daemon, get_minimal_mode, set_minimal_mode, clear_device_mode_cache
 from settings_theme import (
     COLORS,
     CSS,
@@ -697,10 +697,11 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         divider.add_css_class("header-divider")
         title_box.append(divider)
 
-        # Device badge - use daemon name in generic mode
-        badge_name = (
-            get_device_name_from_daemon() if self._is_generic else get_device_name()
-        )
+        # Device badge - always ask the daemon, which reports the real
+        # device-reported name (HID++ or evdev), not a product-ID guess.
+        # Product IDs like 0xB034 are reused across MX Master generations
+        # (e.g. 3S and 4 share one), so the local guess table is unreliable.
+        badge_name = get_device_name_from_daemon()
         device_badge = Gtk.Label(label=badge_name.upper())
         device_badge.add_css_class("device-badge")
         device_badge.set_valign(Gtk.Align.CENTER)
