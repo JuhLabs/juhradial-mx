@@ -16,7 +16,6 @@ from PyQt6.QtSvg import QSvgRenderer
 
 from overlay_constants import (
     MENU_RADIUS,
-    CENTER_ZONE_RADIUS,
     ICON_ZONE_RADIUS,
     SHADOW_OFFSET,
     SUBMENU_EXTEND,
