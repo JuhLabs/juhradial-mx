@@ -62,6 +62,8 @@ class ConfigManager:
         "device_mode": "auto",
         "radial": {
             "minimal_mode": False,
+            "outer_radius": None,
+            "inner_radius": None,
         },
         "radial_menu": {
             "slices": [
@@ -314,6 +316,55 @@ def get_minimal_mode() -> bool:
 def set_minimal_mode(enabled: bool):
     """Enable or disable minimal mode and save config."""
     config.set("radial", "minimal_mode", enabled)
+    config.save(show_toast=False)
+
+
+# =============================================================================
+# RADIAL MENU RING GEOMETRY
+# =============================================================================
+# None means "use the theme/default radius" - overlay_actions.py falls back to
+# overlay_constants.MENU_RADIUS/CENTER_ZONE_RADIUS when unset.
+RING_OUTER_RADIUS_MIN = 80
+RING_OUTER_RADIUS_MAX = 250
+RING_INNER_RADIUS_MIN = 20
+# Inner radius must stay at least this far below outer so the selectable ring
+# band never collapses to nothing.
+RING_INNER_RADIUS_MARGIN = 30
+
+
+def get_ring_geometry() -> dict:
+    """Return the user's configured ring radii ({'outer_radius', 'inner_radius'}, either may be None)."""
+    return {
+        "outer_radius": config.get("radial", "outer_radius", default=None),
+        "inner_radius": config.get("radial", "inner_radius", default=None),
+    }
+
+
+def set_outer_radius(value):
+    """Set the ring's outer radius in pixels, or None to reset to the theme default."""
+    from overlay_constants import MENU_RADIUS
+
+    if value is not None:
+        value = int(max(RING_OUTER_RADIUS_MIN, min(RING_OUTER_RADIUS_MAX, value)))
+        inner = config.get("radial", "inner_radius", default=None)
+        if inner is not None and inner > value - RING_INNER_RADIUS_MARGIN:
+            config.set(
+                "radial",
+                "inner_radius",
+                max(RING_INNER_RADIUS_MIN, value - RING_INNER_RADIUS_MARGIN),
+            )
+    config.set("radial", "outer_radius", value)
+    config.save(show_toast=False)
+
+
+def set_inner_radius(value):
+    """Set the ring's inner (dead-zone) radius in pixels, or None to reset to the theme default."""
+    from overlay_constants import MENU_RADIUS
+
+    if value is not None:
+        outer = config.get("radial", "outer_radius", default=None) or MENU_RADIUS
+        value = int(max(RING_INNER_RADIUS_MIN, min(value, outer - RING_INNER_RADIUS_MARGIN)))
+    config.set("radial", "inner_radius", value)
     config.save(show_toast=False)
 
 

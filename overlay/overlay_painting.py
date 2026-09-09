@@ -108,24 +108,25 @@ class RadialMenuPaintingMixin:
         else:
             # === Vector Mode (original) ===
             if not minimal:
+                outer_disc_r = self._get_outer_radius()
                 # Shadow
                 shadow_color = QColor(0, 0, 0, 100)
                 p.setBrush(QBrush(shadow_color))
                 p.setPen(Qt.PenStyle.NoPen)
-                p.drawEllipse(QPointF(cx + 4, cy + 6), MENU_RADIUS, MENU_RADIUS)
+                p.drawEllipse(QPointF(cx + 4, cy + 6), outer_disc_r, outer_disc_r)
 
                 # Main background
                 base_color = QColor(overlay_actions.COLORS["base"])
                 base_color.setAlpha(235)
                 p.setBrush(QBrush(base_color))
-                p.drawEllipse(QPointF(cx, cy), MENU_RADIUS, MENU_RADIUS)
+                p.drawEllipse(QPointF(cx, cy), outer_disc_r, outer_disc_r)
 
                 # Border
                 border_color = QColor(overlay_actions.COLORS["surface2"])
                 border_color.setAlpha(150)
                 p.setPen(QPen(border_color, 2))
                 p.setBrush(Qt.BrushStyle.NoBrush)
-                p.drawEllipse(QPointF(cx, cy), MENU_RADIUS, MENU_RADIUS)
+                p.drawEllipse(QPointF(cx, cy), outer_disc_r, outer_disc_r)
 
                 # Draw slices - clockwise entrance sweep during the bloom
                 for i in range(8):
@@ -154,7 +155,8 @@ class RadialMenuPaintingMixin:
             ping_alpha = int(80 * (1.0 - bloom))
             if ping_alpha > 0:
                 ping_t = self._ease_out_expo(bloom)
-                ping_r = CENTER_ZONE_RADIUS + (MENU_RADIUS + 8 - CENTER_ZONE_RADIUS) * ping_t
+                center_r = self._get_center_radius()
+                ping_r = center_r + (self._get_outer_radius() + 8 - center_r) * ping_t
                 ping = QColor(overlay_actions.COLORS.get("accent", "#00d4ff"))
                 ping.setAlpha(ping_alpha)
                 p.setBrush(Qt.BrushStyle.NoBrush)
@@ -272,9 +274,10 @@ class RadialMenuPaintingMixin:
 
     def _draw_minimal_flash(self, p, cx, cy, index, progress):
         """Draw a circular white flash on an icon for minimal mode selection feedback."""
+        icon_r = (overlay_actions.RADIAL_PARAMS or {}).get("icon_radius", ICON_ZONE_RADIUS)
         icon_angle = math.radians(index * 45 - 90)
-        icon_x = cx + ICON_ZONE_RADIUS * math.cos(icon_angle)
-        icon_y = cy + ICON_ZONE_RADIUS * math.sin(icon_angle)
+        icon_x = cx + icon_r * math.cos(icon_angle)
+        icon_y = cy + icon_r * math.sin(icon_angle)
         flash_radius = 30
         p.setBrush(QBrush(QColor(255, 255, 255, int(120 * progress))))
         p.setPen(Qt.PenStyle.NoPen)
@@ -433,10 +436,11 @@ class RadialMenuPaintingMixin:
         h = getattr(self, 'slice_highlights', [0.0] * 8)[index]
         h = self._ease_out_cubic(h)
         action = overlay_actions.ACTIONS[index]
+        params = overlay_actions.RADIAL_PARAMS or {}
 
         start_angle = index * 45 - 22.5 - 90
-        outer_r = MENU_RADIUS - 6
-        inner_r = CENTER_ZONE_RADIUS + 6
+        outer_r = params.get("ring_outer", MENU_RADIUS - 6)
+        inner_r = params.get("ring_inner", CENTER_ZONE_RADIUS + 6)
 
         # Create slice path
         path = QPainterPath()
@@ -490,9 +494,10 @@ class RadialMenuPaintingMixin:
             p.drawPath(path)
 
         # Icon position (center of slice) - hovered icon lifts outward
+        icon_place_r = (overlay_actions.RADIAL_PARAMS or {}).get("icon_radius", ICON_ZONE_RADIUS)
         icon_angle = math.radians(index * 45 - 90)
-        icon_x = cx + (ICON_ZONE_RADIUS + 3.0 * h) * math.cos(icon_angle)
-        icon_y = cy + (ICON_ZONE_RADIUS + 3.0 * h) * math.sin(icon_angle)
+        icon_x = cx + (icon_place_r + 3.0 * h) * math.cos(icon_angle)
+        icon_y = cy + (icon_place_r + 3.0 * h) * math.sin(icon_angle)
 
         # Glow ring - fades in with highlight; icon pops slightly on hover
         icon_radius = 26 + 2.0 * h
@@ -532,9 +537,10 @@ class RadialMenuPaintingMixin:
         action = overlay_actions.ACTIONS[index]
 
         # Icon position - hovered icon lifts outward and pops slightly
+        icon_place_r = (overlay_actions.RADIAL_PARAMS or {}).get("icon_radius", ICON_ZONE_RADIUS)
         icon_angle = math.radians(index * 45 - 90)
-        icon_x = cx + (ICON_ZONE_RADIUS + 3.0 * h) * math.cos(icon_angle)
-        icon_y = cy + (ICON_ZONE_RADIUS + 3.0 * h) * math.sin(icon_angle)
+        icon_x = cx + (icon_place_r + 3.0 * h) * math.cos(icon_angle)
+        icon_y = cy + (icon_place_r + 3.0 * h) * math.sin(icon_angle)
 
         icon_radius = 26 + 2.0 * h
 
@@ -1099,7 +1105,8 @@ class RadialMenuPaintingMixin:
         parent_angle = self.submenu_slice * 45 - 90
 
         # Submenu items positioned in an arc beyond the main menu
-        SUBMENU_RADIUS = MENU_RADIUS + 45
+        outer_radius = self._get_outer_radius()
+        SUBMENU_RADIUS = self._get_submenu_item_radius()
         SUBITEM_RADIUS = 24  # Size of each subitem circle
 
         num_items = len(submenu)
@@ -1114,7 +1121,7 @@ class RadialMenuPaintingMixin:
             eased = self._ease_out_back(item_t)
 
             # Interpolate radius: start at ring edge, end at submenu position
-            anim_radius = MENU_RADIUS + (SUBMENU_RADIUS - MENU_RADIUS) * eased
+            anim_radius = outer_radius + (SUBMENU_RADIUS - outer_radius) * eased
 
             # Interpolate scale: 0.5 -> 1.0
             item_scale = 0.5 + 0.5 * item_t
