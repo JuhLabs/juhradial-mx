@@ -296,8 +296,15 @@ class SettingsPage(Gtk.ScrolledWindow):
         self._outer_radius_scale.set_size_request(170, -1)
         self._outer_radius_scale.set_valign(Gtk.Align.CENTER)
         disable_scroll_on_scale(self._outer_radius_scale)
-        self._outer_radius_scale.connect("value-changed", self._on_outer_radius_changed)
+        self._outer_radius_handler_id = self._outer_radius_scale.connect(
+            "value-changed", self._on_outer_radius_changed
+        )
         outer_row.set_control(self._outer_radius_scale)
+        reset_geometry_btn = Gtk.Button.new_from_icon_name("edit-undo-symbolic")
+        reset_geometry_btn.set_tooltip_text(_("Reset ring size to default"))
+        reset_geometry_btn.set_valign(Gtk.Align.CENTER)
+        reset_geometry_btn.connect("clicked", self._on_reset_ring_geometry)
+        outer_row.set_control(reset_geometry_btn)
         appearance_card.append(outer_row)
 
         inner_row = SettingRow(
@@ -314,7 +321,9 @@ class SettingsPage(Gtk.ScrolledWindow):
         self._inner_radius_scale.set_size_request(170, -1)
         self._inner_radius_scale.set_valign(Gtk.Align.CENTER)
         disable_scroll_on_scale(self._inner_radius_scale)
-        self._inner_radius_scale.connect("value-changed", self._on_inner_radius_changed)
+        self._inner_radius_handler_id = self._inner_radius_scale.connect(
+            "value-changed", self._on_inner_radius_changed
+        )
         inner_row.set_control(self._inner_radius_scale)
         appearance_card.append(inner_row)
 
@@ -559,6 +568,20 @@ class SettingsPage(Gtk.ScrolledWindow):
     def _on_inner_radius_changed(self, scale):
         """Handle inner-radius slider change - applies to both overlay and preview."""
         set_inner_radius(int(scale.get_value()))
+        if hasattr(self, "_theme_preview"):
+            self._theme_preview.queue_draw_preview()
+        self._debounce_overlay_restart()
+
+    def _on_reset_ring_geometry(self, _button):
+        """Reset both ring radii to the theme default (clears config override)."""
+        set_outer_radius(None)
+        set_inner_radius(None)
+        self._outer_radius_scale.handler_block(self._outer_radius_handler_id)
+        self._outer_radius_scale.set_value(MENU_RADIUS)
+        self._outer_radius_scale.handler_unblock(self._outer_radius_handler_id)
+        self._inner_radius_scale.handler_block(self._inner_radius_handler_id)
+        self._inner_radius_scale.set_value(CENTER_ZONE_RADIUS)
+        self._inner_radius_scale.handler_unblock(self._inner_radius_handler_id)
         if hasattr(self, "_theme_preview"):
             self._theme_preview.queue_draw_preview()
         self._debounce_overlay_restart()
