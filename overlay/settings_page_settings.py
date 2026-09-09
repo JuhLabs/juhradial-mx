@@ -299,12 +299,13 @@ class SettingsPage(Gtk.ScrolledWindow):
         self._outer_radius_handler_id = self._outer_radius_scale.connect(
             "value-changed", self._on_outer_radius_changed
         )
-        outer_row.set_control(self._outer_radius_scale)
         reset_geometry_btn = Gtk.Button(label=_("Default Size"))
         reset_geometry_btn.set_tooltip_text(_("Reset ring size to default"))
         reset_geometry_btn.set_valign(Gtk.Align.CENTER)
+        reset_geometry_btn.set_halign(Gtk.Align.START)
         reset_geometry_btn.connect("clicked", self._on_reset_ring_geometry)
         outer_row.set_control(reset_geometry_btn)
+        outer_row.set_control(self._outer_radius_scale)
         appearance_card.append(outer_row)
 
         inner_row = SettingRow(

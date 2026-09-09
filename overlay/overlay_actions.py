@@ -88,6 +88,13 @@ def load_radial_image():
             RADIAL_PARAMS["icon_radius"] = ICON_ZONE_RADIUS * scale
             RADIAL_PARAMS["shadow_offset"] = SHADOW_OFFSET * scale
             RADIAL_PARAMS["submenu_extend"] = SUBMENU_EXTEND * scale
+            # 3D-wheel themes draw a pre-rendered PNG as the ring/border
+            # itself instead of a vector disc - scale it too, or it stays
+            # the default size while the icons/hit-zone move past its edge.
+            default_image_size = MENU_RADIUS * 2 + 10
+            RADIAL_PARAMS["image_size"] = int(
+                RADIAL_PARAMS.get("image_size", default_image_size) * scale
+            )
         if inner_radius is not None:
             RADIAL_PARAMS["ring_inner"] = inner_radius
             RADIAL_PARAMS["center_radius"] = inner_radius
