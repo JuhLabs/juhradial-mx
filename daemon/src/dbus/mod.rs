@@ -24,7 +24,7 @@ pub const DBUS_NAME: &str = "org.kde.juhradialmx";
 
 // Re-export public API
 pub use init::{claim_name, init_dbus_service, init_dbus_service_with_device};
-pub use service::JuhRadialService;
+pub use service::{JuhRadialService, SharedDeviceName};
 
 #[cfg(test)]
 mod tests {

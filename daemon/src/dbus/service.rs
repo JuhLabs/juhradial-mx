@@ -9,6 +9,9 @@ use crate::hidpp::SharedHapticManager;
 use crate::macros::{MacroEngine, MacroRecorder, SharedTriggerMap, TriggerMap};
 use crate::profiles::SharedHardwareProfiles;
 
+/// Shared, live-updatable device name type
+pub type SharedDeviceName = Arc<tokio::sync::RwLock<String>>;
+
 /// JuhRadial MX D-Bus service
 ///
 /// Implements the D-Bus interface for IPC between daemon, KWin overlay, and Plasma widget.
@@ -25,8 +28,11 @@ pub struct JuhRadialService {
     pub(crate) haptic_manager: SharedHapticManager,
     /// Device mode: "logitech" or "generic"
     pub(crate) device_mode: String,
-    /// Detected device name (e.g., "MX Master 4" or "SteelSeries Rival 3")
-    pub(crate) device_name: String,
+    /// Detected device name (e.g., "MX Master 4" or "SteelSeries Rival 3").
+    /// Shared and mutable: the startup-time guess can be wrong (e.g. an evdev
+    /// fallback name for a not-yet-connected Bolt receiver) and gets corrected
+    /// once HID++ actually connects, potentially well after startup.
+    pub(crate) device_name: SharedDeviceName,
     /// Gaming mode state
     pub(crate) gaming_mode: SharedGamingMode,
     /// Macro playback engine
@@ -62,7 +68,7 @@ impl JuhRadialService {
             config,
             haptic_manager,
             device_mode: "logitech".to_string(),
-            device_name: "Unknown".to_string(),
+            device_name: Arc::new(tokio::sync::RwLock::new("Unknown".to_string())),
             gaming_mode,
             macro_engine: Arc::new(Mutex::new(MacroEngine::new())),
             macro_recorder: Arc::new(Mutex::new(MacroRecorder::new())),
@@ -79,7 +85,7 @@ impl JuhRadialService {
         config: SharedConfig,
         haptic_manager: SharedHapticManager,
         device_mode: String,
-        device_name: String,
+        device_name: SharedDeviceName,
         gaming_mode: SharedGamingMode,
         macro_engine: Arc<Mutex<MacroEngine>>,
         macro_recorder: Arc<Mutex<MacroRecorder>>,
@@ -122,7 +128,7 @@ mod tests {
         let service = JuhRadialService::new(battery_state, config, haptic_manager);
         assert_eq!(service.current_profile, "default");
         assert_eq!(service.device_mode, "logitech");
-        assert_eq!(service.device_name, "Unknown");
+        assert_eq!(*service.device_name.try_read().unwrap(), "Unknown");
         let haptics = service.config.read().unwrap().haptics.enabled;
         assert!(haptics);
         assert!(!service.version.is_empty());
@@ -145,7 +151,7 @@ mod tests {
             config,
             haptic_manager,
             "generic".to_string(),
-            "SteelSeries Rival 3".to_string(),
+            Arc::new(tokio::sync::RwLock::new("SteelSeries Rival 3".to_string())),
             gaming_mode,
             macro_engine,
             macro_recorder,
@@ -154,6 +160,9 @@ mod tests {
             hardware_profiles,
         );
         assert_eq!(service.device_mode, "generic");
-        assert_eq!(service.device_name, "SteelSeries Rival 3");
+        assert_eq!(
+            *service.device_name.try_read().unwrap(),
+            "SteelSeries Rival 3"
+        );
     }
 }
