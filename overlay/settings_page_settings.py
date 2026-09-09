@@ -300,7 +300,7 @@ class SettingsPage(Gtk.ScrolledWindow):
             "value-changed", self._on_outer_radius_changed
         )
         outer_row.set_control(self._outer_radius_scale)
-        reset_geometry_btn = Gtk.Button.new_from_icon_name("edit-undo-symbolic")
+        reset_geometry_btn = Gtk.Button(label=_("Default Size"))
         reset_geometry_btn.set_tooltip_text(_("Reset ring size to default"))
         reset_geometry_btn.set_valign(Gtk.Align.CENTER)
         reset_geometry_btn.connect("clicked", self._on_reset_ring_geometry)
