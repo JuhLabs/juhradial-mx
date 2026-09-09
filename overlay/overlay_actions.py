@@ -14,7 +14,13 @@ from PyQt6.QtGui import QColor, QPixmap
 from PyQt6.QtCore import Qt
 from PyQt6.QtSvg import QSvgRenderer
 
-from overlay_constants import MENU_RADIUS
+from overlay_constants import (
+    MENU_RADIUS,
+    CENTER_ZONE_RADIUS,
+    ICON_ZONE_RADIUS,
+    SHADOW_OFFSET,
+    SUBMENU_EXTEND,
+)
 from themes import (
     get_colors,
     load_theme_name,
@@ -66,6 +72,26 @@ def load_radial_image():
     global RADIAL_IMAGE, RADIAL_PARAMS
     image_name = get_radial_image()
     RADIAL_PARAMS = get_radial_params()
+
+    # Layer the user's configured ring geometry on top of the theme's own
+    # radial_params (user config wins). A configured outer radius also scales
+    # the icon zone, shadow spread, and submenu spacing by the same ratio, so
+    # the whole ring resizes as one proportional set rather than piecemeal.
+    user_geometry = load_ring_geometry()
+    outer_radius = user_geometry.get("outer_radius")
+    inner_radius = user_geometry.get("inner_radius")
+    if outer_radius is not None or inner_radius is not None:
+        RADIAL_PARAMS = dict(RADIAL_PARAMS) if RADIAL_PARAMS else {}
+        if outer_radius is not None:
+            scale = outer_radius / MENU_RADIUS
+            RADIAL_PARAMS["ring_outer"] = outer_radius
+            RADIAL_PARAMS["icon_radius"] = ICON_ZONE_RADIUS * scale
+            RADIAL_PARAMS["shadow_offset"] = SHADOW_OFFSET * scale
+            RADIAL_PARAMS["submenu_extend"] = SUBMENU_EXTEND * scale
+        if inner_radius is not None:
+            RADIAL_PARAMS["ring_inner"] = inner_radius
+            RADIAL_PARAMS["center_radius"] = inner_radius
+
     if not image_name:
         RADIAL_IMAGE = None
         return
@@ -560,3 +586,29 @@ def load_minimal_mode():
     except (OSError, ValueError, KeyError):
         pass  # Config file missing or malformed
     return False
+
+
+def load_ring_geometry():
+    """Read radial.outer_radius/inner_radius from config.json.
+
+    Returns {"outer_radius": int|None, "inner_radius": int|None} - None means
+    "use the theme/default radius" (see settings_config.get_ring_geometry,
+    the GTK-side counterpart this mirrors; that module can't be imported here
+    because it pulls in GTK4 (gi), see the note in juhradial-overlay.py).
+    """
+    import json
+    from pathlib import Path
+
+    config_path = Path.home() / ".config" / "juhradial" / "config.json"
+    try:
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            radial = cfg.get("radial", {})
+            return {
+                "outer_radius": radial.get("outer_radius"),
+                "inner_radius": radial.get("inner_radius"),
+            }
+    except (OSError, ValueError, KeyError):
+        pass  # Config file missing or malformed
+    return {"outer_radius": None, "inner_radius": None}

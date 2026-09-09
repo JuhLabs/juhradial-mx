@@ -100,7 +100,8 @@ from PyQt6.QtDBus import (
 from overlay_constants import (
     MENU_RADIUS,
     CENTER_ZONE_RADIUS,
-    WINDOW_SIZE,
+    SHADOW_OFFSET,
+    SUBMENU_EXTEND,
     compute_ring_scale,
     map_and_clamp_menu,
     hover_gate,
@@ -435,7 +436,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # Ring scale: geometry constants are logical (1440p base); the window
         # is sized per-monitor in _apply_ring_scale and painting scales up.
         self.ring_scale = 1.0
-        self.win_px = WINDOW_SIZE
+        self.win_px = self._get_win_px()
         self.setFixedSize(self.win_px, self.win_px)
         self.setMouseTracking(True)
 
@@ -961,6 +962,31 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         params = overlay_actions.RADIAL_PARAMS or {}
         return params.get("center_radius", params.get("ring_inner", CENTER_ZONE_RADIUS))
 
+    def _get_outer_radius(self):
+        params = overlay_actions.RADIAL_PARAMS or {}
+        return params.get("ring_outer", MENU_RADIUS)
+
+    def _get_submenu_extend(self):
+        params = overlay_actions.RADIAL_PARAMS or {}
+        return params.get("submenu_extend", SUBMENU_EXTEND)
+
+    def _get_shadow_offset(self):
+        params = overlay_actions.RADIAL_PARAMS or {}
+        return params.get("shadow_offset", SHADOW_OFFSET)
+
+    def _get_win_px(self, scale=1.0):
+        """Effective window size (before monitor scale) for the current ring geometry."""
+        size = (self._get_outer_radius() + self._get_shadow_offset() + self._get_submenu_extend()) * 2
+        return int(round(size * scale))
+
+    def _get_submenu_item_radius(self):
+        """Distance from center where submenu items sit (default: MENU_RADIUS + 45)."""
+        return self._get_outer_radius() + self._get_submenu_extend() * (45 / SUBMENU_EXTEND)
+
+    def _get_submenu_hit_radius(self):
+        """Outer hit-test boundary for submenu hover (default: MENU_RADIUS + 60)."""
+        return self._get_outer_radius() + self._get_submenu_extend() * (60 / SUBMENU_EXTEND)
+
     def _refresh_media_glyph(self):
         """Refresh the dynamic play/pause glyph without blocking menu input."""
         if self.isVisible() and actions_use_media_state(overlay_actions.ACTIONS):
@@ -1053,10 +1079,11 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         QPainter.scale); hit-testing divides physical offsets by the factor.
         """
         scale = compute_ring_scale(mon.get("height") if mon else None)
-        if abs(scale - self.ring_scale) < 0.01:
+        target_win_px = self._get_win_px(scale)
+        if abs(scale - self.ring_scale) < 0.01 and target_win_px == self.win_px:
             return
         self.ring_scale = scale
-        self.win_px = int(round(WINDOW_SIZE * scale))
+        self.win_px = target_win_px
         self.setFixedSize(self.win_px, self.win_px)
         self._update_kde_mask()
         print(f"OVERLAY: Ring scale {scale:.2f} -> window {self.win_px}px")
@@ -1177,7 +1204,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         distance = math.hypot(dx, dy)
         center_radius = self._get_center_radius()
 
-        if distance < center_radius or distance > MENU_RADIUS:
+        if distance < center_radius or distance > self._get_outer_radius():
             new_slice = -1
         else:
             # Calculate angle from relative position
@@ -1414,7 +1441,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         center_radius = self._get_center_radius()
 
         if (
-            distance < center_radius or distance > MENU_RADIUS + 60
+            distance < center_radius or distance > self._get_submenu_hit_radius()
         ):
             new_slice = -1
         else:
@@ -1431,7 +1458,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                     self._trigger_haptic("slice_change")
                     self.update()
                 return
-            if new_slice == self.submenu_slice or distance > MENU_RADIUS:
+            if new_slice == self.submenu_slice or distance > self._get_outer_radius():
                 if self.highlighted_subitem != -1:
                     self.highlighted_subitem = -1
                     self.update()
@@ -1474,7 +1501,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             return -1
 
         parent_angle = self.submenu_slice * 45 - 90
-        SUBMENU_RADIUS = MENU_RADIUS + 45
+        SUBMENU_RADIUS = self._get_submenu_item_radius()
         SUBITEM_SIZE = 32
 
         num_items = len(submenu)
@@ -1509,7 +1536,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         distance = math.hypot(dx, dy)
         center_radius = self._get_center_radius()
 
-        if distance < center_radius or distance > MENU_RADIUS + 60:
+        if distance < center_radius or distance > self._get_submenu_hit_radius():
             new_slice = -1
         else:
             angle = math.degrees(math.atan2(dx, -dy))
@@ -1525,7 +1552,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                     self._trigger_haptic("slice_change")
                     self.update()
                 return
-            if new_slice == self.submenu_slice or distance > MENU_RADIUS:
+            if new_slice == self.submenu_slice or distance > self._get_outer_radius():
                 if self.highlighted_subitem != -1:
                     self.highlighted_subitem = -1
                     self.update()

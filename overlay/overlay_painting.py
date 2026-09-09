@@ -272,9 +272,10 @@ class RadialMenuPaintingMixin:
 
     def _draw_minimal_flash(self, p, cx, cy, index, progress):
         """Draw a circular white flash on an icon for minimal mode selection feedback."""
+        icon_r = (overlay_actions.RADIAL_PARAMS or {}).get("icon_radius", ICON_ZONE_RADIUS)
         icon_angle = math.radians(index * 45 - 90)
-        icon_x = cx + ICON_ZONE_RADIUS * math.cos(icon_angle)
-        icon_y = cy + ICON_ZONE_RADIUS * math.sin(icon_angle)
+        icon_x = cx + icon_r * math.cos(icon_angle)
+        icon_y = cy + icon_r * math.sin(icon_angle)
         flash_radius = 30
         p.setBrush(QBrush(QColor(255, 255, 255, int(120 * progress))))
         p.setPen(Qt.PenStyle.NoPen)
@@ -490,9 +491,10 @@ class RadialMenuPaintingMixin:
             p.drawPath(path)
 
         # Icon position (center of slice) - hovered icon lifts outward
+        icon_place_r = (overlay_actions.RADIAL_PARAMS or {}).get("icon_radius", ICON_ZONE_RADIUS)
         icon_angle = math.radians(index * 45 - 90)
-        icon_x = cx + (ICON_ZONE_RADIUS + 3.0 * h) * math.cos(icon_angle)
-        icon_y = cy + (ICON_ZONE_RADIUS + 3.0 * h) * math.sin(icon_angle)
+        icon_x = cx + (icon_place_r + 3.0 * h) * math.cos(icon_angle)
+        icon_y = cy + (icon_place_r + 3.0 * h) * math.sin(icon_angle)
 
         # Glow ring - fades in with highlight; icon pops slightly on hover
         icon_radius = 26 + 2.0 * h
@@ -532,9 +534,10 @@ class RadialMenuPaintingMixin:
         action = overlay_actions.ACTIONS[index]
 
         # Icon position - hovered icon lifts outward and pops slightly
+        icon_place_r = (overlay_actions.RADIAL_PARAMS or {}).get("icon_radius", ICON_ZONE_RADIUS)
         icon_angle = math.radians(index * 45 - 90)
-        icon_x = cx + (ICON_ZONE_RADIUS + 3.0 * h) * math.cos(icon_angle)
-        icon_y = cy + (ICON_ZONE_RADIUS + 3.0 * h) * math.sin(icon_angle)
+        icon_x = cx + (icon_place_r + 3.0 * h) * math.cos(icon_angle)
+        icon_y = cy + (icon_place_r + 3.0 * h) * math.sin(icon_angle)
 
         icon_radius = 26 + 2.0 * h
 
