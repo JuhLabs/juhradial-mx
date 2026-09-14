@@ -975,9 +975,15 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         return params.get("shadow_offset", SHADOW_OFFSET)
 
     def _get_win_px(self, scale=1.0):
-        """Effective window size (before monitor scale) for the current ring geometry."""
-        size = (self._get_outer_radius() + self._get_shadow_offset() + self._get_submenu_extend()) * 2
-        return int(round(size * scale))
+        """Effective window size (before monitor scale) for the current ring geometry.
+
+        Always even: window-positioning code (four call sites) floors
+        win_px // 2 for the cursor-centering offset, while painting/hit-testing
+        use true division win_px / 2. An odd win_px would make those diverge
+        by half a pixel, offsetting the drawn ring from where hover is tested.
+        """
+        half = (self._get_outer_radius() + self._get_shadow_offset() + self._get_submenu_extend()) * scale
+        return int(round(half)) * 2
 
     def _get_submenu_item_radius(self):
         """Distance from center where submenu items sit (default: MENU_RADIUS + 45)."""

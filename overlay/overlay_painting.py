@@ -29,7 +29,6 @@ from overlay_constants import (
     MENU_RADIUS,
     CENTER_ZONE_RADIUS,
     ICON_ZONE_RADIUS,
-    WINDOW_SIZE,
 )
 from i18n import _
 
@@ -64,8 +63,8 @@ class RadialMenuPaintingMixin:
         if ring_scale != 1.0:
             p.scale(ring_scale, ring_scale)
 
-        cx = WINDOW_SIZE / 2
-        cy = WINDOW_SIZE / 2
+        cx = self.win_px / 2
+        cy = self.win_px / 2
 
         # Menu open bloom - the dial locks in: scale with a hair of overshoot
         # plus a subtle rotation settle, like a machined wheel clicking home.
