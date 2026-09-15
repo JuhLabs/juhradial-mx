@@ -65,6 +65,9 @@ pub enum GestureEvent {
     ButtonActionEvent {
         action: crate::config::ButtonAction,
         pressed: bool,
+        /// Number of times to execute the action. Physical buttons always use
+        /// one; diverted ThumbWheel notifications batch their configured speed.
+        repeats: u8,
     },
     /// Horizontal scroll from the diverted thumb wheel (sign = direction).
     ThumbwheelScroll { clicks: i32 },
@@ -865,6 +868,7 @@ impl EvdevHandler {
                         .send(GestureEvent::ButtonActionEvent {
                             action,
                             pressed: true,
+                            repeats: 1,
                         })
                         .await;
                 }
@@ -894,6 +898,7 @@ impl EvdevHandler {
                             .send(GestureEvent::ButtonActionEvent {
                                 action,
                                 pressed: false,
+                                repeats: 1,
                             })
                             .await;
                     }
