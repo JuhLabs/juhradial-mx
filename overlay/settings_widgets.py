@@ -128,11 +128,14 @@ class NavButton(Gtk.Button):
 class MouseVisualization(Gtk.DrawingArea):
     """Interactive mouse visualization with hoverable button labels"""
 
-    def __init__(self, on_button_click=None):
+    def __init__(self, on_button_click=None, image_filename='logitechmouse.png', buttons=None):
         super().__init__()
         self.on_button_click = on_button_click
         self.hovered_button = None
         self.mouse_image = None
+        # Per-model button-callout positions; defaults to the MX Master 4
+        # layout so existing callers (no override) are unaffected.
+        self.buttons = buttons if buttons is not None else MOUSE_BUTTONS
         # Store image rect for button positioning
         self.img_rect = (0, 0, 600, 500)  # (x_offset, y_offset, width, height)
         # Actual drawn label rects for hit testing (populated during draw)
@@ -147,9 +150,9 @@ class MouseVisualization(Gtk.DrawingArea):
 
         # Load mouse image
         image_paths = [
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), '../assets/devices/logitechmouse.png'),
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets/devices/logitechmouse.png'),
-            '/usr/share/juhradial/assets/devices/logitechmouse.png',
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), f'../assets/devices/{image_filename}'),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), f'assets/devices/{image_filename}'),
+            f'/usr/share/juhradial/assets/devices/{image_filename}',
         ]
 
         self._cached_pixbuf = None
@@ -194,7 +197,7 @@ class MouseVisualization(Gtk.DrawingArea):
         if self.hovered_button is None:
             img_x, img_y, img_w, img_h = self.img_rect
             hover_radius_sq = 625  # 25^2
-            for btn_id, btn_info in MOUSE_BUTTONS.items():
+            for btn_id, btn_info in self.buttons.items():
                 dot_x = img_x + btn_info['pos'][0] * img_w
                 dot_y = img_y + btn_info['pos'][1] * img_h
                 dx = x - dot_x
@@ -254,7 +257,7 @@ class MouseVisualization(Gtk.DrawingArea):
 
         # Draw button labels (positioned relative to image rect)
         self._label_rects = {}
-        for btn_id, btn_info in MOUSE_BUTTONS.items():
+        for btn_id, btn_info in self.buttons.items():
             self._draw_button_label(cr, btn_id, btn_info)
 
     def _draw_button_label(self, cr, btn_id, btn_info):
