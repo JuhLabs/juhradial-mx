@@ -123,6 +123,15 @@ impl JuhRadialService {
     #[zbus(signal)]
     async fn dpi_changed(emitter: &SignalEmitter<'_>, dpi: u16) -> zbus::Result<()>;
 
+    /// Pushed when the daemon learns a better device name after startup (e.g.
+    /// HID++ finishes connecting over Bolt after the evdev-fallback name was
+    /// already reported). See run_hidraw_loop in main.rs. Named distinctly
+    /// from the `device_name` property's own zbus-generated `device_name_changed`
+    /// invalidation helper, which this signal isn't and can't reuse (no
+    /// `SignalEmitter`/`InterfaceRef` available from main.rs's raw connection).
+    #[zbus(signal)]
+    async fn device_name_refreshed(emitter: &SignalEmitter<'_>, name: String) -> zbus::Result<()>;
+
     // =========================================================================
     // HAPTIC / PROFILE / CONFIG METHODS
     // =========================================================================
@@ -826,7 +835,7 @@ impl JuhRadialService {
     }
 
     async fn get_device_name(&self) -> fdo::Result<String> {
-        Ok(self.device_name.clone())
+        Ok(self.device_name.read().await.clone())
     }
 
     // =========================================================================
@@ -857,8 +866,8 @@ impl JuhRadialService {
     }
 
     #[zbus(property)]
-    async fn device_name(&self) -> &str {
-        &self.device_name
+    async fn device_name(&self) -> String {
+        self.device_name.read().await.clone()
     }
 
     #[zbus(property)]

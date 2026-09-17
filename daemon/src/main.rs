@@ -15,7 +15,7 @@ use tracing_subscriber::FmtSubscriber;
 use juhradiald::{
     battery::{new_shared_state, start_battery_updater_shared, SharedBatteryState},
     config::load_shared_config,
-    dbus::{DBUS_NAME, DBUS_PATH, claim_name, init_dbus_service_with_device},
+    dbus::{DBUS_NAME, DBUS_PATH, SharedDeviceName, claim_name, init_dbus_service_with_device},
     evdev::{EvdevError, EvdevHandler, GestureEvent},
     gaming::new_shared_gaming_mode,
     hidpp::{HapticEvent, SharedHapticManager},
@@ -447,6 +447,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     log_startup_phase(&startup_started_at, "device_mode");
+    // Shared, live-updatable cell: the startup guess above can be wrong (e.g.
+    // an evdev fallback name because HID++ hadn't finished connecting yet
+    // over Bolt) and gets corrected by run_hidraw_loop once HID++ confirms
+    // the real name, potentially well after this point.
+    let device_name_state: SharedDeviceName = Arc::new(tokio::sync::RwLock::new(device_name));
 
     // Initialize gaming mode and macro subsystem
     let gaming_mode = new_shared_gaming_mode(haptic_manager.clone());
@@ -568,7 +573,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         shared_config.clone(),
         haptic_manager,
         device_mode.clone(),
-        device_name.clone(),
+        device_name_state.clone(),
         gaming_mode,
         macro_engine,
         macro_recorder,
@@ -581,7 +586,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(()) => {
             info!(
                 "D-Bus service initialized successfully (mode={}, device={})",
-                device_mode, device_name
+                device_mode,
+                device_name_state.read().await
             );
         }
         Err(e) => {
@@ -799,6 +805,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hidraw_config = shared_config.clone();
     let hidraw_hotplug = hotplug_notify.clone();
     let hidraw_kwin = kwin_context.clone();
+    let hidraw_dbus_connection = dbus_connection.clone();
+    let hidraw_device_name_state = device_name_state.clone();
     let hidraw_handle = tokio::spawn(async move {
         run_hidraw_loop(
             hidraw_tx,
@@ -810,6 +818,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             hidraw_hotplug,
             haptic_manager_for_hidraw,
             hidraw_kwin,
+            hidraw_dbus_connection,
+            hidraw_device_name_state,
         )
         .await
     });
@@ -977,20 +987,21 @@ async fn refresh_hidpp_button_diverts(
     haptic_manager: SharedHapticManager,
     macro_cids: Vec<u16>,
     remapped_cids: Vec<u16>,
-) -> Option<PathBuf> {
+) -> (Option<PathBuf>, Option<String>) {
     match tokio::task::spawn_blocking(move || {
         let mut manager = haptic_manager.lock().unwrap();
         let connected = match manager.connect() {
             Ok(connected) => connected,
             Err(e) => {
                 warn!(error = %e, "HID++ reconnect failed while refreshing button divert");
-                return None;
+                return (None, None);
             }
         };
         if !connected {
             debug!("No MX Master HID++ device available for button divert");
-            return None;
+            return (None, None);
         }
+        let name = manager.get_device_name_string();
 
         match manager.divert_buttons() {
             Ok(n) if n > 0 => info!(count = n, "HID++ gesture buttons diverted"),
@@ -1039,14 +1050,14 @@ async fn refresh_hidpp_button_diverts(
             }
         }
 
-        manager.device_path()
+        (manager.device_path(), name)
     })
     .await
     {
-        Ok(path) => path,
+        Ok(result) => result,
         Err(e) => {
             error!("HID++ button divert refresh task panicked: {:?}", e);
-            None
+            (None, None)
         }
     }
 }
@@ -1149,6 +1160,8 @@ async fn run_hidraw_loop(
     hotplug: Arc<tokio::sync::Notify>,
     haptic_manager: SharedHapticManager,
     kwin: KWinContext,
+    dbus_connection: zbus::Connection,
+    device_name_state: SharedDeviceName,
 ) {
     let HidrawStartup { mut preferred_path } = startup;
     let mut handler = HidrawHandler::new(event_tx);
@@ -1167,14 +1180,36 @@ async fn run_hidraw_loop(
             .read()
             .map(|c| c.remapped_button_cids())
             .unwrap_or_default();
-        if let Some(path) = refresh_hidpp_button_diverts(
+        let (path, name) = refresh_hidpp_button_diverts(
             haptic_manager.clone(),
             macro_cids_for_divert.clone(),
             remapped_cids,
         )
-        .await
-        {
+        .await;
+        if let Some(path) = path {
             preferred_path = Some(path);
+        }
+        if let Some(name) = name {
+            let changed = {
+                let current = device_name_state.read().await;
+                *current != name
+            };
+            if changed {
+                info!(name = %name, "HID++ device name updated");
+                *device_name_state.write().await = name.clone();
+                if let Err(e) = dbus_connection
+                    .emit_signal(
+                        None::<&str>,
+                        DBUS_PATH,
+                        "org.kde.juhradialmx.Daemon",
+                        "DeviceNameRefreshed",
+                        &(name,),
+                    )
+                    .await
+                {
+                    warn!(error = %e, "Failed to emit DeviceNameRefreshed signal");
+                }
+            }
         }
 
         // Re-apply thumb-wheel divert (volatile) and refresh the feature index

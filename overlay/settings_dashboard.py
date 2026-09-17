@@ -35,7 +35,7 @@ from i18n import _
 from settings_sidebar import SidebarMixin, CAIRO_CONVERTER_AVAILABLE
 
 # Layer 1: Config + Theme
-from settings_config import config, get_device_name, get_device_mode, get_device_name_from_daemon, get_minimal_mode, set_minimal_mode, clear_device_mode_cache
+from settings_config import config, get_device_mode, get_device_name_from_daemon, get_minimal_mode, set_minimal_mode, clear_device_mode_cache
 from settings_theme import (
     COLORS,
     CSS,
@@ -46,7 +46,7 @@ from settings_theme import (
 )
 
 # Layer 2: Constants + Widgets
-from settings_constants import MOUSE_BUTTONS, GENERIC_BUTTONS
+from settings_constants import MOUSE_BUTTONS, MOUSE_BUTTONS_MX3, GENERIC_BUTTONS
 from settings_widgets import MouseVisualization, GenericMouseVisualization, _resolve_asset_path
 
 # Layer 3: Dialogs
@@ -697,10 +697,12 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
         divider.add_css_class("header-divider")
         title_box.append(divider)
 
-        # Device badge - use daemon name in generic mode
-        badge_name = (
-            get_device_name_from_daemon() if self._is_generic else get_device_name()
-        )
+        # Device badge - always ask the daemon, which reports the real
+        # device-reported name (HID++ or evdev), not a product-ID guess.
+        # Product IDs like 0xB034 are reused across MX Master generations
+        # (e.g. 3S and 4 share one), so the local guess table is unreliable.
+        badge_name = get_device_name_from_daemon()
+        self._device_name = badge_name
         device_badge = Gtk.Label(label=badge_name.upper())
         device_badge.add_css_class("device-badge")
         device_badge.set_valign(Gtk.Align.CENTER)
@@ -776,7 +778,16 @@ class SettingsWindow(SidebarMixin, Adw.ApplicationWindow):
             buttons_page = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             buttons_page.add_css_class("mouse-stage")
 
-            mouse_viz = MouseVisualization(on_button_click=self._on_mouse_button_click)
+            # MX Master 3/3S share one body/button layout, distinct from the
+            # default MX Master 4 image and callout positions.
+            if "MX Master 3" in self._device_name:
+                mouse_viz = MouseVisualization(
+                    on_button_click=self._on_mouse_button_click,
+                    image_filename="mx_master_3s.png",
+                    buttons=MOUSE_BUTTONS_MX3,
+                )
+            else:
+                mouse_viz = MouseVisualization(on_button_click=self._on_mouse_button_click)
             mouse_viz.set_hexpand(True)
             buttons_page.append(mouse_viz)
 

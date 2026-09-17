@@ -59,6 +59,61 @@ _BASE_MOUSE_BUTTONS = {
     },
 }
 
+# =============================================================================
+# MX MASTER 3 / 3S BUTTON DEFINITIONS
+# Positions for the 3/4 angle product photo in assets/devices/mx_master_3s.png
+# (top-left perspective, same body/button layout on both the 3 and 3S).
+# Coordinates are normalized (0-1) relative to the drawing area.
+# First-pass calibration from visual inspection, not an official diagram or
+# physical hardware - expect to nudge these after seeing the live app.
+# =============================================================================
+_BASE_MOUSE_BUTTONS_MX3 = {
+    "middle": {
+        "name": "Middle Button",
+        "action": "Middle Click",
+        "pos": (0.60, 0.11),  # Top of MagSpeed scroll wheel
+        "line_from": "top",
+    },
+    "shift_wheel": {
+        "name": "Shift Wheel Mode",
+        "action": "SmartShift",
+        "pos": (0.59, 0.37),  # Square button below scroll wheel
+        "line_from": "top",
+    },
+    "forward": {
+        "name": "Forward",
+        "action": "Forward",
+        "pos": (0.26, 0.35),  # Upper thumb button, above the thumb wheel
+        "line_from": "left",
+    },
+    "horizontal_scroll": {
+        "name": "Horizontal Scroll",
+        "action": "Scroll Left/Right",
+        "pos": (0.30, 0.55),  # Ridged thumb wheel
+        "line_from": "left",
+    },
+    "back": {
+        "name": "Back",
+        "action": "Back",
+        "pos": (0.24, 0.42),  # Lower thumb button, just above the wheel
+        "line_from": "left",
+    },
+    "gesture": {
+        "name": "Gestures",
+        "action": "Virtual desktops",
+        "pos": (0.27, 0.62),  # Gesture Button, below the thumb wheel
+        "line_from": "l_up",
+        "label_y": 0.60,
+    },
+    "thumb": {
+        "name": "Show Actions Ring",
+        "action": "Radial Menu",
+        "pos": (0.28, 0.66),  # Same physical area as Gestures
+        "line_from": "l_up",
+        "label_y": 0.70,
+    },
+}
+
 # Generic mouse button definitions (used by GenericMouseVisualization click handler)
 _BASE_GENERIC_BUTTONS = {
     "left_click": {"name": "Left Click", "action": "Left Click"},
@@ -327,6 +382,7 @@ def get_nav_items_for_mode(mode):
 
 
 MOUSE_BUTTONS = {}
+MOUSE_BUTTONS_MX3 = {}
 NAV_ITEMS = []
 DEFAULT_BUTTON_ACTIONS = {}
 BUTTON_ACTIONS = []
@@ -354,6 +410,18 @@ def refresh_translations(_=lambda x: x):
         if action_label in base_action_labels:
             action_label = _(action_label)
         MOUSE_BUTTONS[key] = {
+            **info,
+            "name": _(info["name"]),
+            "action": action_label,
+        }
+
+    existing_actions_mx3 = {key: info.get("action") for key, info in MOUSE_BUTTONS_MX3.items()}
+    MOUSE_BUTTONS_MX3.clear()
+    for key, info in _BASE_MOUSE_BUTTONS_MX3.items():
+        action_label = existing_actions_mx3.get(key, info["action"])
+        if action_label in base_action_labels:
+            action_label = _(action_label)
+        MOUSE_BUTTONS_MX3[key] = {
             **info,
             "name": _(info["name"]),
             "action": action_label,

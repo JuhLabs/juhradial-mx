@@ -9,7 +9,7 @@ use crate::hidpp::SharedHapticManager;
 use crate::macros::{MacroEngine, MacroRecorder, SharedTriggerMap, TriggerMap};
 use crate::profiles::SharedHardwareProfiles;
 
-use super::service::JuhRadialService;
+use super::service::{JuhRadialService, SharedDeviceName};
 use super::DBUS_PATH;
 
 /// Atomically claim a well-known bus name, or report that another connection
@@ -59,7 +59,7 @@ pub async fn init_dbus_service(
         config,
         haptic_manager,
         "logitech".to_string(),
-        "Unknown".to_string(),
+        Arc::new(tokio::sync::RwLock::new("Unknown".to_string())),
         gaming_mode,
         macro_engine,
         macro_recorder,
@@ -78,7 +78,7 @@ pub async fn init_dbus_service_with_device(
     config: SharedConfig,
     haptic_manager: SharedHapticManager,
     device_mode: String,
-    device_name: String,
+    device_name: SharedDeviceName,
     gaming_mode: SharedGamingMode,
     macro_engine: Arc<Mutex<MacroEngine>>,
     macro_recorder: Arc<Mutex<MacroRecorder>>,
