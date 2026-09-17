@@ -22,7 +22,18 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, Gio, Adw
 
 from i18n import _, SUPPORTED_LANGUAGES
-from settings_config import ConfigManager, config
+from settings_config import (
+    ConfigManager,
+    config,
+    disable_scroll_on_scale,
+    get_ring_geometry,
+    set_outer_radius,
+    set_inner_radius,
+    RING_OUTER_RADIUS_MIN,
+    RING_OUTER_RADIUS_MAX,
+    RING_INNER_RADIUS_MIN,
+    RING_INNER_RADIUS_MARGIN,
+)
 from settings_constants import (
     SUPPORTED_DES,
     DE_COMMAND_MAP,
@@ -38,6 +49,7 @@ from settings_widgets import (
     CAIRO_CONVERTER_AVAILABLE,
 )
 from themes import get_theme_list
+from overlay_constants import MENU_RADIUS, CENTER_ZONE_RADIUS
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +144,11 @@ class ThemePreview(Gtk.Box):
             self._swatches.append(dot)
         self._area.queue_draw()
 
+    def queue_draw_preview(self):
+        """Redraw the ring preview without changing theme/colors (e.g. after a
+        ring-geometry slider change)."""
+        self._area.queue_draw()
+
     @staticmethod
     def _draw_swatch(area, cr, w, h, color):
         r, g, b = _hex_rgb(color)
@@ -161,10 +178,17 @@ class ThemePreview(Gtk.Box):
         self._draw_vector_ring(cr, cx, cy, min(width, height) / 2.0 * 0.92)
 
     def _draw_vector_ring(self, cr, cx, cy, R):
-        # Mirrors overlay_painting.py vector mode: MENU_RADIUS=150,
-        # CENTER_ZONE_RADIUS=45, slices span [center+6 .. menu-6].
+        # Mirrors overlay_painting.py vector mode: slices span
+        # [inner+6 .. outer-6], scaled to this preview's own R so it tracks
+        # the user's configured ring geometry (falls back to the
+        # MENU_RADIUS=150/CENTER_ZONE_RADIUS=45 defaults when unset).
         c = self._colors
-        ro, ri, cz = R * 0.96, R * 0.34, R * 0.30
+        geometry = get_ring_geometry()
+        outer_radius = geometry.get("outer_radius") or MENU_RADIUS
+        inner_radius = geometry.get("inner_radius") or CENTER_ZONE_RADIUS
+        ro = R * (outer_radius - 6) / MENU_RADIUS
+        ri = R * (inner_radius + 6) / MENU_RADIUS
+        cz = R * inner_radius / MENU_RADIUS
         br, bg, bb = _hex_rgb(c.get("base") or "#1e1e2e")
         s0r, s0g, s0b = _hex_rgb(c.get("surface0") or "#313244")
         s2r, s2g, s2b = _hex_rgb(c.get("surface2") or "#585b70")
@@ -254,6 +278,55 @@ class SettingsPage(Gtk.ScrolledWindow):
         # Live preview of the selected theme (recolors on change)
         self._theme_preview = ThemePreview(current_theme)
         appearance_card.append(self._theme_preview)
+
+        # Ring geometry: outer/inner radius in pixels (None = theme default).
+        geometry = get_ring_geometry()
+
+        outer_row = SettingRow(
+            _("Ring Size"), _("Outer radius of the Actions Ring, in pixels")
+        )
+        self._outer_radius_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL,
+            RING_OUTER_RADIUS_MIN,
+            RING_OUTER_RADIUS_MAX,
+            5,
+        )
+        self._outer_radius_scale.set_value(geometry.get("outer_radius") or MENU_RADIUS)
+        self._outer_radius_scale.set_draw_value(True)
+        self._outer_radius_scale.set_size_request(170, -1)
+        self._outer_radius_scale.set_valign(Gtk.Align.CENTER)
+        disable_scroll_on_scale(self._outer_radius_scale)
+        self._outer_radius_handler_id = self._outer_radius_scale.connect(
+            "value-changed", self._on_outer_radius_changed
+        )
+        reset_geometry_btn = Gtk.Button(label=_("Default Size"))
+        reset_geometry_btn.set_tooltip_text(_("Reset ring size to default"))
+        reset_geometry_btn.set_valign(Gtk.Align.CENTER)
+        reset_geometry_btn.set_halign(Gtk.Align.START)
+        reset_geometry_btn.connect("clicked", self._on_reset_ring_geometry)
+        outer_row.set_control(reset_geometry_btn)
+        outer_row.set_control(self._outer_radius_scale)
+        appearance_card.append(outer_row)
+
+        inner_row = SettingRow(
+            _("Center Zone"), _("Inner dead-zone radius, in pixels")
+        )
+        self._inner_radius_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL,
+            RING_INNER_RADIUS_MIN,
+            RING_OUTER_RADIUS_MAX - RING_INNER_RADIUS_MARGIN,
+            5,
+        )
+        self._inner_radius_scale.set_value(geometry.get("inner_radius") or CENTER_ZONE_RADIUS)
+        self._inner_radius_scale.set_draw_value(True)
+        self._inner_radius_scale.set_size_request(170, -1)
+        self._inner_radius_scale.set_valign(Gtk.Align.CENTER)
+        disable_scroll_on_scale(self._inner_radius_scale)
+        self._inner_radius_handler_id = self._inner_radius_scale.connect(
+            "value-changed", self._on_inner_radius_changed
+        )
+        inner_row.set_control(self._inner_radius_scale)
+        appearance_card.append(inner_row)
 
         blur_row = SettingRow(
             _("Blur Effect"), _("Enable background blur for radial menu")
@@ -479,6 +552,47 @@ class SettingsPage(Gtk.ScrolledWindow):
             if getattr(self, "_overlay_restart_id", None):
                 GLib.source_remove(self._overlay_restart_id)
             self._overlay_restart_id = GLib.timeout_add(450, self._restart_overlay)
+
+    def _on_outer_radius_changed(self, scale):
+        """Handle outer-radius slider change - applies to both overlay and preview."""
+        set_outer_radius(int(scale.get_value()))
+        # Outer radius also bounds inner radius (RING_INNER_RADIUS_MARGIN);
+        # reflect a server-side clamp of the inner slider back into the UI.
+        geometry = get_ring_geometry()
+        inner = geometry.get("inner_radius")
+        if inner is not None and int(self._inner_radius_scale.get_value()) != inner:
+            self._inner_radius_scale.set_value(inner)
+        if hasattr(self, "_theme_preview"):
+            self._theme_preview.queue_draw_preview()
+        self._debounce_overlay_restart()
+
+    def _on_inner_radius_changed(self, scale):
+        """Handle inner-radius slider change - applies to both overlay and preview."""
+        set_inner_radius(int(scale.get_value()))
+        if hasattr(self, "_theme_preview"):
+            self._theme_preview.queue_draw_preview()
+        self._debounce_overlay_restart()
+
+    def _on_reset_ring_geometry(self, _button):
+        """Reset both ring radii to the theme default (clears config override)."""
+        set_outer_radius(None)
+        set_inner_radius(None)
+        self._outer_radius_scale.handler_block(self._outer_radius_handler_id)
+        self._outer_radius_scale.set_value(MENU_RADIUS)
+        self._outer_radius_scale.handler_unblock(self._outer_radius_handler_id)
+        self._inner_radius_scale.handler_block(self._inner_radius_handler_id)
+        self._inner_radius_scale.set_value(CENTER_ZONE_RADIUS)
+        self._inner_radius_scale.handler_unblock(self._inner_radius_handler_id)
+        if hasattr(self, "_theme_preview"):
+            self._theme_preview.queue_draw_preview()
+        self._debounce_overlay_restart()
+
+    def _debounce_overlay_restart(self):
+        """Restart the overlay (debounced) so rapid slider drags coalesce into
+        ONE restart, same as _on_theme_changed."""
+        if getattr(self, "_overlay_restart_id", None):
+            GLib.source_remove(self._overlay_restart_id)
+        self._overlay_restart_id = GLib.timeout_add(450, self._restart_overlay)
 
     def _restart_overlay(self):
         self._overlay_restart_id = None
