@@ -80,6 +80,12 @@ class _MenuHarness:
     def _get_center_radius(self):
         return 10
 
+    def _get_outer_radius(self):
+        return 100
+
+    def _get_submenu_hit_radius(self):
+        return 160
+
     def _get_subitem_at_position(self, *_args):
         return self._subitem_result
 
