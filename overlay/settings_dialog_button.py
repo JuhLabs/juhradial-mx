@@ -22,6 +22,7 @@ from settings_constants import (
     MOUSE_BUTTONS,
     DEFAULT_BUTTON_ACTIONS,
     BUTTON_ACTIONS,
+    GESTURE_DIRECTION_DEFAULTS,
 )
 
 logger = logging.getLogger(__name__)
@@ -187,6 +188,11 @@ class ButtonConfigDialog(Adw.Window):
 
         content.append(info_box)
 
+        if self.button_id == "gesture":
+            self._build_gesture_direction_rows(content, action_map)
+            self.set_content(content)
+            return
+
         # Scrollable grouped action list
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -261,6 +267,39 @@ class ButtonConfigDialog(Adw.Window):
 
         self.set_content(content)
 
+    def _build_gesture_direction_rows(self, content, action_map):
+        buttons_config = config.get("buttons", default={})
+        configured_directions = buttons_config.get("gesture_directions") or {}
+        action_ids = [action_id for action_id, _ in BUTTON_ACTIONS]
+        action_names = [action_name for _, action_name in BUTTON_ACTIONS]
+
+        group = Adw.PreferencesGroup()
+        group.set_title(_("Directional Gestures"))
+        group.set_description(
+            _("Choose actions for a click or drag from the gesture button.")
+        )
+        self.gesture_direction_rows = {}
+
+        for direction, label in [
+            ("click", _("Click")),
+            ("up", _("Up")),
+            ("down", _("Down")),
+            ("left", _("Left")),
+            ("right", _("Right")),
+        ]:
+            action_id = configured_directions.get(
+                direction, GESTURE_DIRECTION_DEFAULTS[direction]
+            )
+            row = Adw.ComboRow(title=label)
+            row.set_model(Gtk.StringList.new(action_names))
+            row.set_selected(
+                action_ids.index(action_id) if action_id in action_map else 0
+            )
+            group.add(row)
+            self.gesture_direction_rows[direction] = (row, action_ids)
+
+        content.append(group)
+
     def _on_row_activated(self, row):
         """Handle row click - update checkmark and selection"""
         # Clear all checkmarks
@@ -277,6 +316,11 @@ class ButtonConfigDialog(Adw.Window):
 
     def _on_restore_default(self, button):
         """Restore button to default action"""
+        if self.button_id == "gesture":
+            for direction, (row, action_ids) in self.gesture_direction_rows.items():
+                row.set_selected(action_ids.index(GESTURE_DIRECTION_DEFAULTS[direction]))
+            return
+
         default_action = DEFAULT_BUTTON_ACTIONS.get(self.button_id, "Middle Click")
 
         for row in self._all_rows:
@@ -285,6 +329,26 @@ class ButtonConfigDialog(Adw.Window):
                 break
 
     def _on_save(self, button):
+        if self.button_id == "gesture":
+            buttons_config = config.get("buttons", default={})
+            directions = {}
+            click_action_name = None
+
+            for direction, (row, action_ids) in self.gesture_direction_rows.items():
+                action_id = action_ids[row.get_selected()]
+                directions[direction] = action_id
+                if direction == "click":
+                    click_action_name = dict(BUTTON_ACTIONS).get(action_id)
+
+            buttons_config["gesture_directions"] = directions
+            config.set("buttons", buttons_config)
+            if click_action_name:
+                MOUSE_BUTTONS["gesture"]["action"] = click_action_name
+            config.save()
+            logger.info("Gesture directions configured: %s", directions)
+            self.close()
+            return
+
         if self.selected_action:
             action_id, action_name = self.selected_action
 

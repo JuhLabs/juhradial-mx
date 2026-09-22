@@ -151,6 +151,14 @@ _BASE_DEFAULT_BUTTON_ACTIONS = {
     "thumb": "Radial Menu",
 }
 
+_BASE_GESTURE_DIRECTION_DEFAULTS = {
+    "click": "virtual_desktops",
+    "up": "none",
+    "down": "none",
+    "left": "none",
+    "right": "none",
+}
+
 # Available actions for button assignment
 _BASE_BUTTON_ACTIONS = [
     ("middle_click", "Middle Click"),
@@ -385,6 +393,7 @@ MOUSE_BUTTONS = {}
 MOUSE_BUTTONS_MX3 = {}
 NAV_ITEMS = []
 DEFAULT_BUTTON_ACTIONS = {}
+GESTURE_DIRECTION_DEFAULTS = {}
 BUTTON_ACTIONS = []
 RADIAL_ACTIONS = []
 _RADIAL_LABEL_ALIAS_TO_ID = {
@@ -446,6 +455,9 @@ def refresh_translations(_=lambda x: x):
     DEFAULT_BUTTON_ACTIONS.clear()
     for key, label in _BASE_DEFAULT_BUTTON_ACTIONS.items():
         DEFAULT_BUTTON_ACTIONS[key] = _(label)
+
+    GESTURE_DIRECTION_DEFAULTS.clear()
+    GESTURE_DIRECTION_DEFAULTS.update(_BASE_GESTURE_DIRECTION_DEFAULTS)
 
     BUTTON_ACTIONS[:] = [
         (action_id, _(label)) for action_id, label in _BASE_BUTTON_ACTIONS

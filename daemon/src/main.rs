@@ -867,10 +867,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Spawn event processing task with D-Bus connection
+    let config_for_events = shared_config.clone();
     let event_handle = tokio::spawn(async move {
         process_gesture_events(
             &mut event_rx,
             &dbus_connection,
+            config_for_events,
             trigger_map_for_events,
             macro_engine_for_events,
             battery_state_for_events,
@@ -1556,13 +1558,19 @@ async fn run_generic_evdev_loop(
 async fn process_gesture_events(
     event_rx: &mut mpsc::Receiver<GestureEvent>,
     dbus_connection: &zbus::Connection,
+    shared_config: juhradiald::config::SharedConfig,
     trigger_map: Arc<std::sync::RwLock<juhradiald::macros::TriggerMap>>,
     macro_engine: Arc<Mutex<juhradiald::macros::MacroEngine>>,
     battery_state: SharedBatteryState,
 ) {
+    let mut gesture_delta = (0, 0);
+    let mut gesture_press_position = (0, 0);
+
     while let Some(event) = event_rx.recv().await {
         match event {
             GestureEvent::Pressed { x, y } => {
+                gesture_delta = (0, 0);
+                gesture_press_position = (x, y);
                 // HID++ hidraw handler provides cursor coordinates directly
                 info!(x, y, "Gesture button pressed - showing radial menu");
 
@@ -1571,16 +1579,64 @@ async fn process_gesture_events(
                     error!("Failed to emit ShowMenu signal: {}", e);
                 }
             }
-            GestureEvent::Released { duration_ms } => {
-                info!(duration_ms, "Gesture button released");
+            GestureEvent::Released {
+                duration_ms,
+                directional,
+            } => {
+                info!(duration_ms, directional, "Gesture button released");
 
                 // Emit HideMenu signal via D-Bus
                 // Overlay tracks duration internally for tap-to-toggle detection
                 if let Err(e) = emit_hide_menu(dbus_connection).await {
                     error!("Failed to emit HideMenu signal: {}", e);
                 }
+
+                if directional {
+                    let gesture_config = shared_config.read().ok().and_then(|config| {
+                        config.buttons.gesture_directions.clone().map(|directions| {
+                            (directions, config.buttons.gesture_threshold_px)
+                        })
+                    });
+
+                    if let Some((directions, threshold_px)) = gesture_config {
+                        let direction = juhradiald::evdev::classify_gesture_direction(
+                            gesture_delta.0,
+                            gesture_delta.1,
+                            threshold_px,
+                        );
+                        let action = match direction {
+                            juhradiald::evdev::GestureDirection::Up => directions.up,
+                            juhradiald::evdev::GestureDirection::Down => directions.down,
+                            juhradiald::evdev::GestureDirection::Left => directions.left,
+                            juhradiald::evdev::GestureDirection::Right => directions.right,
+                            juhradiald::evdev::GestureDirection::Click => directions.click,
+                        };
+
+                        info!(?direction, %action, "Directional gesture action triggered");
+                        match juhradiald::actions::execute_button_action(action).await {
+                            Ok(true) => {}
+                            Ok(false) => {
+                                if let Err(e) = emit_menu_requested(
+                                    dbus_connection,
+                                    gesture_press_position.0,
+                                    gesture_press_position.1,
+                                )
+                                .await
+                                {
+                                    error!("Failed to emit directional radial menu request: {}", e);
+                                }
+                            }
+                            Err(e) => {
+                                error!(%action, error = %e, "Failed to execute directional gesture action");
+                            }
+                        }
+                    } else {
+                        warn!("Directional gesture released without directional configuration");
+                    }
+                }
             }
             GestureEvent::CursorMoved { x, y } => {
+                gesture_delta = (x, y);
                 // Emit CursorMoved signal for overlay hover detection
                 // x, y are relative to button press point (menu center)
                 if let Err(e) = emit_cursor_moved(dbus_connection, x, y).await {
@@ -2010,12 +2066,21 @@ mod tests {
         assert!(matches!(event, GestureEvent::Pressed { x: 100, y: 200 }));
 
         // Send release event
-        tx.send(GestureEvent::Released { duration_ms: 500 })
+        tx.send(GestureEvent::Released {
+            duration_ms: 500,
+            directional: false,
+        })
             .await
             .unwrap();
 
         let event = rx.recv().await.unwrap();
-        assert!(matches!(event, GestureEvent::Released { duration_ms: 500 }));
+        assert!(matches!(
+            event,
+            GestureEvent::Released {
+                duration_ms: 500,
+                directional: false,
+            }
+        ));
     }
 
     #[tokio::test]
@@ -2033,6 +2098,7 @@ mod tests {
             .unwrap();
             tx.send(GestureEvent::Released {
                 duration_ms: 50 + (i as u64 * 10),
+                directional: false,
             })
             .await
             .unwrap();
@@ -2045,7 +2111,7 @@ mod tests {
 
             let release = rx.recv().await.unwrap();
             assert!(
-                matches!(release, GestureEvent::Released { duration_ms } if duration_ms == 50 + (i as u64 * 10))
+                matches!(release, GestureEvent::Released { duration_ms, directional: false } if duration_ms == 50 + (i as u64 * 10))
             );
         }
 

@@ -117,6 +117,7 @@ JuhRadial MX combines a Rust HID++ daemon, PyQt6 radial overlay, and GTK4/libadw
 |---|---|
 | **Radial menu** | Configurable eight-segment overlay with hold-and-drag or tap-to-open interaction, animations, and 3D themes. |
 | **Button remapping and macros** | Map controls to shortcuts, delays, typed text, repeating loops, system actions, or evdev-backed Gaming Mode. |
+| **Directional gestures** | Assign separate actions to gesture-button clicks and up, down, left, or right drags. |
 | **MX Master 4 haptics** | Tune actuator feedback per event on MX Master 4 hardware: menu open, ring and submenu hover, selections, and application switches. |
 | **Pointer and scroll control** | Adjust 400 to 8000 DPI presets, sensitivity, SmartShift, high-resolution scrolling, and scroll speed. |
 | **Thumb wheel** | Bind the side wheel to volume, zoom, horizontal scrolling, or off, with direction and speed controls. |

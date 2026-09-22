@@ -55,8 +55,8 @@ const PRIMARY_BUTTONS: &[u16] = &[0x110, 0x111, 0x112];
 pub enum GestureEvent {
     /// Gesture button pressed, includes cursor position
     Pressed { x: i32, y: i32 },
-    /// Gesture button released, includes hold duration
-    Released { duration_ms: u64 },
+    /// Gesture button released, includes hold duration and directional mode
+    Released { duration_ms: u64, directional: bool },
     /// Cursor moved while button is held (for hover detection on Wayland)
     CursorMoved { x: i32, y: i32 },
     /// A non-gesture button was pressed/released (for macro trigger detection)
@@ -70,6 +70,41 @@ pub enum GestureEvent {
     ThumbwheelScroll { clicks: i32 },
     /// A device-originated HID++ notification (live hardware state change).
     Hardware(crate::hidpp::notifications::HardwareNotification),
+}
+
+/// Direction inferred from a gesture button drag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GestureDirection {
+    Up,
+    Down,
+    Left,
+    Right,
+    Click,
+}
+
+/// Classify a cursor delta from the gesture button press point.
+pub fn classify_gesture_direction(x: i32, y: i32, threshold_px: u32) -> GestureDirection {
+    let x_abs = i64::from(x).unsigned_abs();
+    let y_abs = i64::from(y).unsigned_abs();
+    let distance_squared = x_abs * x_abs + y_abs * y_abs;
+    let threshold_squared = u64::from(threshold_px) * u64::from(threshold_px);
+
+    if (x == 0 && y == 0) || distance_squared < threshold_squared {
+        return GestureDirection::Click;
+    }
+
+    if x_abs >= y_abs {
+        if x < 0 {
+            GestureDirection::Left
+        } else {
+            GestureDirection::Right
+        }
+    // Screen coordinates increase downward, so negative Y is an upward drag.
+    } else if y < 0 {
+        GestureDirection::Up
+    } else {
+        GestureDirection::Down
+    }
 }
 
 /// Information about a detected input device
@@ -884,7 +919,10 @@ impl EvdevHandler {
                         tracing::info!(duration_ms, "Gesture button released (radial_menu)");
                         let _ = self
                             .event_tx
-                            .send(GestureEvent::Released { duration_ms })
+                            .send(GestureEvent::Released {
+                                duration_ms,
+                                directional: false,
+                            })
                             .await;
                     }
                     Some(action) => {
@@ -1032,10 +1070,57 @@ mod tests {
     fn test_gesture_event_equality() {
         let e1 = GestureEvent::Pressed { x: 100, y: 200 };
         let e2 = GestureEvent::Pressed { x: 100, y: 200 };
-        let e3 = GestureEvent::Released { duration_ms: 500 };
+        let e3 = GestureEvent::Released {
+            duration_ms: 500,
+            directional: false,
+        };
 
         assert_eq!(e1, e2);
         assert_ne!(e1, e3);
+    }
+
+    #[test]
+    fn gesture_direction_classifies_each_cardinal_direction() {
+        assert_eq!(
+            classify_gesture_direction(0, -40, 40),
+            GestureDirection::Up
+        );
+        assert_eq!(
+            classify_gesture_direction(0, 40, 40),
+            GestureDirection::Down
+        );
+        assert_eq!(
+            classify_gesture_direction(-40, 0, 40),
+            GestureDirection::Left
+        );
+        assert_eq!(
+            classify_gesture_direction(40, 0, 40),
+            GestureDirection::Right
+        );
+    }
+
+    #[test]
+    fn gesture_direction_below_threshold_is_click() {
+        assert_eq!(
+            classify_gesture_direction(20, 20, 40),
+            GestureDirection::Click
+        );
+    }
+
+    #[test]
+    fn gesture_direction_exact_diagonal_prefers_horizontal_axis() {
+        assert_eq!(
+            classify_gesture_direction(40, -40, 40),
+            GestureDirection::Right
+        );
+    }
+
+    #[test]
+    fn gesture_direction_zero_movement_is_click() {
+        assert_eq!(
+            classify_gesture_direction(0, 0, 40),
+            GestureDirection::Click
+        );
     }
 
     #[cfg(target_os = "linux")]

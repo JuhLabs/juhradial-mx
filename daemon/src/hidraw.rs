@@ -85,6 +85,8 @@ pub struct HidrawHandler {
     shared_config: Option<crate::config::SharedConfig>,
     /// The action that was triggered on button press (for release handling)
     active_button_action: Option<crate::config::ButtonAction>,
+    /// Whether the current gesture button press uses directional actions.
+    directional_gesture_active: bool,
     /// ThumbWheel feature index (0x2150), used to disambiguate diverted
     /// thumb-wheel rotation notifications from diverted button events.
     thumbwheel_feature_index: Option<u8>,
@@ -140,6 +142,7 @@ impl HidrawHandler {
             active_macro_cid: None,
             shared_config: None,
             active_button_action: None,
+            directional_gesture_active: false,
             thumbwheel_feature_index: None,
             notification_indices: Default::default(),
             kwin_available: None,
@@ -220,6 +223,13 @@ impl HidrawHandler {
             button_cid::HAPTIC => crate::config::ButtonAction::RadialMenu,
             _ => crate::config::ButtonAction::None,
         }
+    }
+
+    fn directional_gestures_enabled(&self) -> bool {
+        self.shared_config
+            .as_ref()
+            .and_then(|config| config.read().ok())
+            .is_some_and(|config| config.buttons.gesture_directions.is_some())
     }
 
     /// Whether a diverted CID should be dispatched as a configured button
@@ -589,7 +599,10 @@ impl HidrawHandler {
             );
         }
 
-        if self.is_action_button(cid) {
+        if cid == button_cid::GESTURE_BUTTON && self.directional_gestures_enabled() {
+            self.active_button_action = Some(crate::config::ButtonAction::RadialMenu);
+            self.handle_gesture_button(true, true).await;
+        } else if self.is_action_button(cid) {
             // Look up configured action for this button
             let action = self.get_action_for_cid(cid);
             tracing::info!(cid, %action, "Button pressed - config action lookup");
@@ -597,7 +610,7 @@ impl HidrawHandler {
             if action == crate::config::ButtonAction::RadialMenu {
                 // Radial menu flow: cursor query + ShowMenu via existing path
                 self.active_button_action = Some(action);
-                self.handle_gesture_button(true).await;
+                        self.handle_gesture_button(true, false).await;
             } else {
                 // Non-radial action: dispatch immediately via event channel
                 self.active_button_action = Some(action);
@@ -634,7 +647,7 @@ impl HidrawHandler {
                 match active_action {
                     Some(crate::config::ButtonAction::RadialMenu) | None => {
                         // Radial menu: send release to hide menu
-                        self.handle_gesture_button(false).await;
+                        self.handle_gesture_button(false, false).await;
                     }
                     Some(action) => {
                         // Non-radial action: send release event (no HideMenu)
@@ -675,10 +688,11 @@ impl HidrawHandler {
     }
 
     /// Handle gesture button press/release
-    async fn handle_gesture_button(&mut self, pressed: bool) {
+    async fn handle_gesture_button(&mut self, pressed: bool, directional: bool) {
         if pressed {
             // Button pressed
             self.press_time = Some(Instant::now());
+            self.directional_gesture_active = directional;
 
             // Desktop-aware cursor query:
             // - KDE: KWin script for accurate multi-monitor Wayland cursor
@@ -728,12 +742,16 @@ impl HidrawHandler {
                 .unwrap_or(0);
 
             self.press_time = None;
+            let directional = std::mem::take(&mut self.directional_gesture_active);
 
             tracing::info!(duration_ms, "Gesture button RELEASED");
 
             let _ = self
                 .event_tx
-                .send(GestureEvent::Released { duration_ms })
+                .send(GestureEvent::Released {
+                    duration_ms,
+                    directional,
+                })
                 .await;
         }
     }
@@ -761,6 +779,7 @@ impl HidrawHandler {
         self.press_time = None;
         self.active_macro_cid = None;
         self.active_button_action = None;
+        self.directional_gesture_active = false;
     }
 }
 

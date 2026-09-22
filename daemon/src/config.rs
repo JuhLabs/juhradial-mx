@@ -223,6 +223,9 @@ impl std::fmt::Display for ButtonAction {
 }
 
 fn default_gesture_action() -> ButtonAction { ButtonAction::VirtualDesktops }
+fn default_gesture_direction_action() -> ButtonAction { ButtonAction::None }
+fn default_gesture_click_action() -> ButtonAction { ButtonAction::VirtualDesktops }
+fn default_gesture_threshold_px() -> u32 { 40 }
 fn default_thumb_action() -> ButtonAction { ButtonAction::RadialMenu }
 fn default_middle_action() -> ButtonAction { ButtonAction::MiddleClick }
 fn default_shift_wheel_action() -> ButtonAction { ButtonAction::Smartshift }
@@ -230,12 +233,51 @@ fn default_forward_action() -> ButtonAction { ButtonAction::Forward }
 fn default_back_action() -> ButtonAction { ButtonAction::Back }
 fn default_horizontal_scroll_action() -> ButtonAction { ButtonAction::ScrollLeftRight }
 
+/// Actions assigned to gesture button drag directions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GestureDirections {
+    #[serde(default = "default_gesture_direction_action")]
+    pub up: ButtonAction,
+
+    #[serde(default = "default_gesture_direction_action")]
+    pub down: ButtonAction,
+
+    #[serde(default = "default_gesture_direction_action")]
+    pub left: ButtonAction,
+
+    #[serde(default = "default_gesture_direction_action")]
+    pub right: ButtonAction,
+
+    #[serde(default = "default_gesture_click_action")]
+    pub click: ButtonAction,
+}
+
+impl Default for GestureDirections {
+    fn default() -> Self {
+        Self {
+            up: default_gesture_direction_action(),
+            down: default_gesture_direction_action(),
+            left: default_gesture_direction_action(),
+            right: default_gesture_direction_action(),
+            click: default_gesture_click_action(),
+        }
+    }
+}
+
 /// Per-button action assignments.
 /// Matches the "buttons" section in config.json written by Settings UI.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ButtonsConfig {
     #[serde(default = "default_gesture_action")]
     pub gesture: ButtonAction,
+
+    /// Presence enables directional gestures; absent keeps legacy gesture-button
+    /// behavior unchanged for existing configuration files.
+    #[serde(default)]
+    pub gesture_directions: Option<GestureDirections>,
+
+    #[serde(default = "default_gesture_threshold_px")]
+    pub gesture_threshold_px: u32,
 
     #[serde(default = "default_thumb_action")]
     pub thumb: ButtonAction,
@@ -260,6 +302,8 @@ impl Default for ButtonsConfig {
     fn default() -> Self {
         Self {
             gesture: default_gesture_action(),
+            gesture_directions: None,
+            gesture_threshold_px: default_gesture_threshold_px(),
             thumb: default_thumb_action(),
             middle: default_middle_action(),
             shift_wheel: default_shift_wheel_action(),
@@ -824,6 +868,42 @@ mod tests {
         // Unspecified buttons use defaults
         assert_eq!(config.buttons.forward, ButtonAction::Forward);
         assert_eq!(config.buttons.back, ButtonAction::Back);
+    }
+
+    #[test]
+    fn test_legacy_gesture_action_keeps_directional_gestures_disabled() {
+        let json = r#"{
+            "buttons": {
+                "gesture": "virtual_desktops"
+            }
+        }"#;
+
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.buttons.gesture, ButtonAction::VirtualDesktops);
+        assert!(config.buttons.gesture_directions.is_none());
+        assert_eq!(config.buttons.gesture_threshold_px, 40);
+    }
+
+    #[test]
+    fn test_gesture_direction_defaults_and_overrides() {
+        let json = r#"{
+            "buttons": {
+                "gesture_directions": {
+                    "up": "copy",
+                    "click": "show_desktop"
+                },
+                "gesture_threshold_px": 64
+            }
+        }"#;
+
+        let config: Config = serde_json::from_str(json).unwrap();
+        let directions = config.buttons.gesture_directions.unwrap();
+        assert_eq!(directions.up, ButtonAction::Copy);
+        assert_eq!(directions.down, ButtonAction::None);
+        assert_eq!(directions.left, ButtonAction::None);
+        assert_eq!(directions.right, ButtonAction::None);
+        assert_eq!(directions.click, ButtonAction::ShowDesktop);
+        assert_eq!(config.buttons.gesture_threshold_px, 64);
     }
 
     #[test]

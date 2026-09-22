@@ -285,7 +285,7 @@ class ButtonsPage(Gtk.ScrolledWindow):
         text_box.append(name_label)
 
         # Action badge
-        action_label = Gtk.Label(label=btn_info["action"])
+        action_label = Gtk.Label(label=self._button_action_label(btn_id))
         action_label.set_halign(Gtk.Align.START)
         action_label.add_css_class("button-action")
         text_box.append(action_label)
@@ -320,7 +320,16 @@ class ButtonsPage(Gtk.ScrolledWindow):
         """Refresh the button action labels after config change"""
         for btn_id, action_label in self.action_labels.items():
             if btn_id in MOUSE_BUTTONS:
-                action_label.set_text(MOUSE_BUTTONS[btn_id]["action"])
+                action_label.set_text(self._button_action_label(btn_id))
+
+    def _button_action_label(self, btn_id):
+        if btn_id == "gesture" and self.config_manager:
+            directions = self.config_manager.get(
+                "buttons", "gesture_directions", default=None
+            )
+            if isinstance(directions, dict):
+                return _("Directional Gestures")
+        return MOUSE_BUTTONS[btn_id]["action"]
 
     def _get_current_slices(self):
         """Get the current radial menu slices from config"""
