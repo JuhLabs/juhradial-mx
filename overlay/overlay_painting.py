@@ -29,6 +29,7 @@ from overlay_constants import (
     MENU_RADIUS,
     CENTER_ZONE_RADIUS,
     ICON_ZONE_RADIUS,
+    SUBMENU_ITEM_SPREAD_DEG,
 )
 from i18n import _
 
@@ -1109,7 +1110,7 @@ class RadialMenuPaintingMixin:
         SUBITEM_RADIUS = 24  # Size of each subitem circle
 
         num_items = len(submenu)
-        spread = 18  # Degrees between items
+        spread = SUBMENU_ITEM_SPREAD_DEG
 
         for i, item in enumerate(submenu):
             is_highlighted = i == self.highlighted_subitem
