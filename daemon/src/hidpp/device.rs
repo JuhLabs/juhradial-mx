@@ -2230,7 +2230,7 @@ impl HidppDevice {
     }
 
     // =========================================================================
-    // Keyboard Backlight (BACKLIGHT2 0x1982) - BETA / UNVERIFIED on hardware
+    // Keyboard Backlight (BACKLIGHT2 0x1982) - BETA, verified on an MX Keys S
     //
     // Only reached for keyboards opened via `open_keyboard()`. The feature index
     // is read from the table populated during `enumerate_features` (0x1982 is on
@@ -2253,7 +2253,8 @@ impl HidppDevice {
     /// Returns the raw payload bytes starting at HID++ byte 4. Per Solaar's
     /// BACKLIGHT2 V3 decoder the layout is:
     ///   `[enabled, options, supported, effects(2B), level, dho(2B), dhi(2B), dpow(2B)]`
-    /// This layout is taken from Solaar and is UNVERIFIED on MX Keys S here.
+    /// Layout from Solaar; the write path that preserves these fields is
+    /// verified on an MX Keys S over Bolt (2026-09-23).
     pub fn query_backlight_config(&mut self) -> Option<Vec<u8>> {
         let feature_index = self.backlight_feature_index()?;
         let resp = self.hidpp_request(feature_index, 0x00, &[])?;
@@ -2278,13 +2279,12 @@ impl HidppDevice {
 
     /// Set keyboard backlight brightness (function 1: setBacklightConfig). BETA.
     ///
-    /// # UNVERIFIED HARDWARE ASSUMPTIONS
-    ///
-    /// This packet is reconstructed from Solaar's BACKLIGHT2 (0x1982)
-    /// implementation and has NOT been validated on real MX Keys S hardware.
-    /// Solaar itself hit a `FeatureCallError` (error 2 = invalid argument) on
-    /// MX Keys S that needed a firmware-specific fix (pwr-Solaar/Solaar
-    /// PR #2230), so treat this as a best-effort scaffold. The write payload is:
+    /// Packet reconstructed from Solaar's BACKLIGHT2 (0x1982) implementation
+    /// and verified on an MX Keys S over Bolt (2026-09-23: levels 0..7 set
+    /// from Settings, acknowledged and visibly applied). Solaar hit a
+    /// `FeatureCallError` (error 2 = invalid argument) on some MX Keys
+    /// firmware (pwr-Solaar/Solaar PR #2230), hence the read-then-preserve
+    /// below. The write payload is:
     ///   `[enabled, options, 0xFF, level, dho(2B LE), dhi(2B LE), dpow(2B LE)]`
     /// where `(options >> 3) & 0x03` selects the mode; mode `0x3` is
     /// manual/permanent brightness, in which `level` is honoured.
@@ -2361,7 +2361,7 @@ impl HidppDevice {
             feature_index,
             brightness = level,
             options = format!("0x{:02X}", options),
-            "Setting keyboard backlight (BETA/UNVERIFIED)"
+            "Setting keyboard backlight"
         );
 
         match self.hidpp_long_request(feature_index, 0x01, &params) {

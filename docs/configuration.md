@@ -284,7 +284,7 @@ Off by default and inert until enabled: with the section absent or every switch 
 | --- | --- | --- | --- |
 | `enabled` | bool | `false` | Master switch for the generic remap path. |
 | `remap` | object | `{}` | Source evdev key code to target key code, as stringified integers (`"58": 29` is CapsLock to Left Ctrl). Only when `enabled` is true and the table is non-empty is the first physical keyboard grabbed and forwarded through a virtual keyboard with these codes rewritten. |
-| `mx_keys.enabled` | bool | `false` | Let the daemon talk HID++ to an MX Keys S for battery readback (`GetKeyboardBattery`), presence from the receiver's pairing table (`GetKeyboardPaired`, true even while the keyboard's radio sleeps) and the backlight (`SetKeyboardBacklight`, unverified on hardware and only sent on an explicit request). |
+| `mx_keys.enabled` | bool | `false` | Let the daemon talk HID++ to an MX Keys S for battery readback (`GetKeyboardBattery`), presence from the receiver's pairing table (`GetKeyboardPaired`, true even while the keyboard's radio sleeps) and the backlight (`SetKeyboardBacklight`, only sent on an explicit request; verified on an MX Keys S). |
 
 `ListKeyboardKeys` returns the evdev key codes of the first keyboard for a remap picker without grabbing it.
 

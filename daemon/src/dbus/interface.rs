@@ -977,12 +977,12 @@ impl JuhRadialService {
         }
     }
 
-    /// Set MX Keys S backlight brightness (0..=100). BETA / UNVERIFIED.
+    /// Set MX Keys S backlight brightness (0..=100). BETA.
     ///
     /// No-op returning `false` unless `keyboard.mx_keys.enabled` is true and a
-    /// keyboard exposing BACKLIGHT2 is present. The packet layout is unverified
-    /// on hardware (see `HidppDevice::set_backlight`); it only runs on this
-    /// explicit call.
+    /// keyboard exposing BACKLIGHT2 is present. Verified on an MX Keys S over
+    /// Bolt (see `HidppDevice::set_backlight`); it only runs on this explicit
+    /// call.
     async fn set_keyboard_backlight(&self, brightness: u8) -> fdo::Result<bool> {
         let enabled = self
             .config

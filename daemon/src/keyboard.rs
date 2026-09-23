@@ -14,8 +14,8 @@
 //!    UNIFIED_BATTERY (0x1004) and a backlight set via BACKLIGHT2 (0x1982). It
 //!    reuses the existing `HidppDevice` abstraction through the keyboard-only
 //!    `HidppDevice::open_keyboard()` constructor, connects lazily, and never
-//!    panics when no keyboard is present. The backlight write is UNVERIFIED on
-//!    hardware (see `HidppDevice::set_backlight`).
+//!    panics when no keyboard is present. The backlight write is verified on
+//!    an MX Keys S over Bolt (see `HidppDevice::set_backlight`).
 //!
 //! SPDX-License-Identifier: GPL-3.0
 
@@ -212,7 +212,7 @@ impl KeyboardManager {
             .unwrap_or(false)
     }
 
-    /// Set backlight brightness (0..=100). BETA / UNVERIFIED (see
+    /// Set backlight brightness (0..=100). BETA (see
     /// `HidppDevice::set_backlight`). Returns whether the command was sent.
     pub fn set_backlight(&mut self, brightness: u8) -> bool {
         if !self.ensure_connected() {
