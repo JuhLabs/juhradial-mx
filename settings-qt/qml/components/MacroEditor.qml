@@ -100,7 +100,7 @@ B.Popup {
             Text {
                 anchors.left: parent.left; anchors.leftMargin: Theme.padCard
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Edit  " + editor.macroName
+                text: qsTr("Edit %1").arg(editor.macroName)
                 color: Theme.textPrimary
                 font.family: Theme.fontDisplay; font.pixelSize: Theme.fsH2; font.weight: Font.DemiBold
                 elide: Text.ElideRight; width: parent.width - 100
@@ -130,7 +130,7 @@ B.Popup {
                 Text {
                     width: parent.width - Theme.padCard * 2
                     visible: stepModel.count === 0
-                    text: "This macro has no steps yet. Add a delay or some text below, or re-record it."
+                    text: qsTr("This macro has no steps yet. Add a delay or some text below, or re-record it.")
                     color: Theme.textMuted; wrapMode: Text.WordWrap
                     font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
                 }
@@ -170,7 +170,7 @@ B.Popup {
                                 anchors.verticalCenter: parent.verticalCenter
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: "Delay"; color: Theme.textBody
+                                    text: qsTr("Delay"); color: Theme.textBody
                                     font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
                                 }
                                 Rectangle {
@@ -189,7 +189,7 @@ B.Popup {
                                 }
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: "ms"; color: Theme.textMuted
+                                    text: qsTr("ms"); color: Theme.textMuted
                                     font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
                                 }
                             }
@@ -204,7 +204,7 @@ B.Popup {
                                     id: txtField
                                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 6
                                     text: model.text
-                                    placeholderText: "text to type"
+                                    placeholderText: qsTr("text to type")
                                     placeholderTextColor: Theme.textMuted
                                     color: Theme.textBody; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
                                     verticalAlignment: Text.AlignVCenter; background: Item {}
@@ -242,12 +242,12 @@ B.Popup {
                 Row {
                     spacing: Theme.gapS
                     PrimaryButton {
-                        text: "Add delay"; ghost: true
+                        text: qsTr("Add delay"); ghost: true
                         onClicked: stepModel.append({ stype: "delay", key: "", button: "",
                             text: "", direction: "", amount: 0, ms: 100 })
                     }
                     PrimaryButton {
-                        text: "Add text"; ghost: true
+                        text: qsTr("Add text"); ghost: true
                         onClicked: stepModel.append({ stype: "text", key: "", button: "",
                             text: "", direction: "", amount: 0, ms: 0 })
                     }
@@ -283,11 +283,11 @@ B.Popup {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Theme.gapS
                 PrimaryButton {
-                    text: "Duplicate"; ghost: true
+                    text: qsTr("Duplicate"); ghost: true
                     onClicked: { Backend.duplicateMacro(editor.macroId); editor.close() }
                 }
                 PrimaryButton {
-                    text: "Save"
+                    text: qsTr("Save")
                     onClicked: editor.save()
                 }
             }

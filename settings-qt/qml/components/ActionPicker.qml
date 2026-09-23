@@ -7,7 +7,7 @@ import QtQuick.Controls.Basic as B
 B.Popup {
     id: pop
     property var actions: []
-    property string title: "Choose an action"
+    property string title: qsTr("Choose an action")
     property string currentId: ""
     signal picked(string id)
 
@@ -42,7 +42,7 @@ B.Popup {
             B.TextField {
                 id: search
                 anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12
-                placeholderText: "Search actions…"
+                placeholderText: qsTr("Search actions…")
                 placeholderTextColor: Theme.textMuted
                 color: Theme.textBody; font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
                 verticalAlignment: Text.AlignVCenter

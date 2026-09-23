@@ -5,13 +5,27 @@ import QtQuick.Effects
 Item {
     id: t
     property bool checked: false
+    // Screen-reader text; SettingRow fills both from its label/desc when empty.
+    property string accessibleName: ""
+    property string accessibleDescription: ""
+    readonly property bool isToggle: true     // SettingRow: a row click toggles
     signal toggled(bool v)
     width: 46; height: 26
     opacity: enabled ? 1.0 : 0.4
     activeFocusOnTab: true
     Keys.onSpacePressed: t._flip()
     Keys.onReturnPressed: t._flip()
+    Keys.onEnterPressed: t._flip()
     function _flip() { checked = !checked; toggled(checked) }
+    function toggle() { if (enabled) _flip() }
+
+    Accessible.role: Accessible.CheckBox
+    Accessible.name: accessibleName
+    Accessible.description: accessibleDescription
+    Accessible.checkable: true
+    Accessible.checked: checked
+    Accessible.onToggleAction: toggle()
+    Accessible.onPressAction: toggle()
 
     RectangularShadow {
         anchors.fill: parent

@@ -74,8 +74,12 @@ def test_icon_style_falls_back_to_monochrome_flag(monkeypatch):
     assert overlay_actions.load_icon_style() == "mono"
     _with_radial(monkeypatch, {"monochrome_icons": False})
     assert overlay_actions.load_icon_style() == "line"
+
+
+def test_icon_style_defaults_to_mono(monkeypatch):
+    # Owner decision for 0.4.5: a config with neither key draws mono icons.
     _with_radial(monkeypatch, {})
-    assert overlay_actions.load_icon_style() == "line"
+    assert overlay_actions.load_icon_style() == "mono"
 
 
 def test_icon_style_rejects_unknown_values(monkeypatch):

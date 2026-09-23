@@ -19,6 +19,14 @@ Item {
     property bool editable: false       // drag the pin to reposition it
     signal clicked
     signal moved(real nx, real ny)
+    // Keyboard: Tab reaches each callout, Return/Space opens its action.
+    activeFocusOnTab: !editable
+    Keys.onReturnPressed: c.clicked()
+    Keys.onEnterPressed: c.clicked()
+    Keys.onSpacePressed: c.clicked()
+    Accessible.role: Accessible.Button
+    Accessible.name: label + ": " + action
+    Accessible.onPressAction: c.clicked()
 
     readonly property real px: nx * width
     readonly property real py: ny * height
@@ -98,5 +106,6 @@ Item {
         }
         MouseArea { id: chipMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor; onClicked: c.clicked() }
+        FocusHalo { active: c.activeFocus; radius: parent.radius; margin: 2 }
     }
 }

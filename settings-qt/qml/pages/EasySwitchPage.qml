@@ -64,7 +64,7 @@ Item {
                         label: "Easy-Switch shortcuts in radial menu"
                         desc: "Show host-switch slices in the gesture menu"
                         Toggle {
-                            checked: Backend.get("radial_menu.easy_switch_shortcuts", true)
+                            checked: Backend.get("radial_menu.easy_switch_shortcuts", false)
                             onToggled: (v) => Backend.setLocal("radial_menu.easy_switch_shortcuts", v)
                         }
                     }

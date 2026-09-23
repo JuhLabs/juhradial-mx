@@ -7,7 +7,7 @@ import QtQuick.Controls.Basic as B
 // Backend.cacheAppIcon(id) so the overlay can draw it on the wheel.
 B.Popup {
     id: pop
-    property string title: "Pick an application"
+    property string title: qsTr("Pick an application")
     signal picked(var app)
 
     modal: true
@@ -61,7 +61,7 @@ B.Popup {
             B.TextField {
                 id: search
                 anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12
-                placeholderText: "Search applications…"
+                placeholderText: qsTr("Search applications…")
                 placeholderTextColor: Theme.textMuted
                 color: Theme.textBody; font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
                 verticalAlignment: Text.AlignVCenter
@@ -130,10 +130,10 @@ B.Popup {
                 anchors.centerIn: parent
                 width: parent.width - 40
                 visible: pop._shown.length === 0
-                title: pop._apps.length === 0 ? "No applications found" : "No match"
+                title: pop._apps.length === 0 ? qsTr("No applications found") : qsTr("No match")
                 body: pop._apps.length === 0
-                      ? "The desktop menu database is empty or unreadable."
-                      : "Try another name, or the command it runs."
+                      ? qsTr("The desktop menu database is empty or unreadable.")
+                      : qsTr("Try another name, or the command it runs.")
             }
         }
     }

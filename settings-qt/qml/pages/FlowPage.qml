@@ -155,7 +155,7 @@ Item {
                             width: 300
                             model: [{ id: "left", name: "Left" }, { id: "right", name: "Right" },
                                     { id: "top", name: "Top" }, { id: "bottom", name: "Bottom" }]
-                            currentId: Backend.get("flow.direction", "left")
+                            currentId: Backend.get("flow.direction", "right")
                             onActivated: (id) => Backend.setLocal("flow.direction", id)
                     }
                         }

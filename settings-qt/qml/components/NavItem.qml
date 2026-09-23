@@ -17,6 +17,11 @@ Item {
     activeFocusOnTab: true
     Keys.onSpacePressed: it.clicked()
     Keys.onReturnPressed: it.clicked()
+    Keys.onEnterPressed: it.clicked()
+    Accessible.role: Accessible.PageTab
+    Accessible.name: label
+    Accessible.selected: active
+    Accessible.onPressAction: it.clicked()
 
     Rectangle {
         id: pill

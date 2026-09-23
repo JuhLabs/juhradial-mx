@@ -9,6 +9,8 @@ import "../components"
 Item {
     id: page
     anchors.fill: parent
+    // The dashboard's bento grid wants a wider column than the other pages.
+    property int contentMaxWidth: Theme.contentMaxWidthWide
 
     // Config-derived values have no NOTIFY, so refresh them on live updates.
     property string wheelMode: Backend.get("scroll.mode", "smartshift")

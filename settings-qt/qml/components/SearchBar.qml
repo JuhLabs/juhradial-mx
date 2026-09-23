@@ -88,7 +88,7 @@ Item {
             anchors.right: clearBtn.left; anchors.rightMargin: 6
             anchors.verticalCenter: parent.verticalCenter
             height: parent.height
-            placeholderText: "Search all settings…"
+            placeholderText: qsTr("Search all settings…")
             placeholderTextColor: Theme.textMuted
             color: Theme.textBody
             font.family: Theme.fontUI; font.pixelSize: Theme.fsBody

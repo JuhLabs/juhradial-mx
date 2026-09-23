@@ -33,7 +33,7 @@ B.Popup {
         Row {
             width: parent.width
             Text {
-                text: "Edit action " + (ed.row + 1)
+                text: qsTr("Edit action %1").arg(ed.row + 1)
                 color: Theme.textPrimary; font.family: Theme.fontUI
                 font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
                 width: parent.width - moveRow.width
@@ -73,13 +73,13 @@ B.Popup {
                 Column {
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width - 38 - changeBtn.width - 24
-                    Text { text: ed.d.label || "—"; color: Theme.textBody; elide: Text.ElideRight
+                    Text { text: ed.d.label || qsTr("No label"); color: Theme.textBody; elide: Text.ElideRight
                         width: parent.width; font.family: Theme.fontUI; font.pixelSize: Theme.fsBody; font.weight: Font.Medium }
                     Text { text: ed.d.type || ""; color: Theme.textMuted
                         font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro }
                 }
                 PrimaryButton {
-                    id: changeBtn; text: "Change"; ghost: true
+                    id: changeBtn; text: qsTr("Change"); ghost: true
                     anchors.verticalCenter: parent.verticalCenter
                     // plugin actions are read when the picker opens, so new plugins show without a restart
                     onClicked: { actPicker.actions = Backend.sliceActions(); actPicker.open() }
@@ -90,7 +90,7 @@ B.Popup {
         // ---- label ----
         Column {
             width: parent.width; spacing: 5
-            Text { text: "Label"; color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall }
+            Text { text: qsTr("Label"); color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall }
             Rectangle {
                 width: parent.width; height: 38; radius: Theme.radiusCtl; color: "#14FFFFFF"
                 border.color: lf.activeFocus ? Theme.accent : Theme.border; border.width: 1
@@ -111,13 +111,13 @@ B.Popup {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width - pickBtn.width
-                    text: (ed.d.type === "url" ? "URL" : (ed.d.type === "shortcut" ? "Shortcut (e.g. ctrl+c)" : "Command"))
+                    text: (ed.d.type === "url" ? qsTr("URL") : (ed.d.type === "shortcut" ? qsTr("Shortcut (e.g. ctrl+c)") : qsTr("Command")))
                     color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
                 }
                 // Pick an installed application instead of typing a command;
                 // its real icon replaces the glyph on the wheel.
                 PrimaryButton {
-                    id: pickBtn; text: "Pick application"; ghost: true
+                    id: pickBtn; text: qsTr("Pick application"); ghost: true
                     visible: ed.d.type === "exec"
                     onClicked: appPicker.open()
                 }
@@ -137,7 +137,7 @@ B.Popup {
         // ---- colour ----
         Column {
             width: parent.width; spacing: 6
-            Text { text: "Colour"; color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall }
+            Text { text: qsTr("Colour"); color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall }
             Row {
                 spacing: 8
                 Repeater {
@@ -161,13 +161,13 @@ B.Popup {
         Row {
             width: parent.width
             Item { width: parent.width - doneBtn.width; height: 1 }
-            PrimaryButton { id: doneBtn; text: "Done"; onClicked: ed.close() }
+            PrimaryButton { id: doneBtn; text: qsTr("Done"); onClicked: ed.close() }
         }
     }
 
     ActionPicker {
         id: actPicker
-        title: "Choose an action"
+        title: qsTr("Choose an action")
         actions: []
         currentId: ed.d.actionId || ""
         onPicked: (id) => { Slices.setAction(ed.row, id); ed.reload() }

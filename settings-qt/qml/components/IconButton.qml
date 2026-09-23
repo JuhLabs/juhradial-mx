@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls.Basic as B
 
 // Ghost circular icon button (line icon via the image://icon provider).
 Item {
@@ -6,6 +7,8 @@ Item {
     property string icon: ""        // icon name, e.g. "list-add-symbolic"
     property color tint: Theme.textBody
     property real diameter: 34
+    // What the button does: shown as a tooltip and read by screen readers.
+    property string tip: ""
     signal clicked
     implicitWidth: diameter; implicitHeight: diameter
     opacity: enabled ? 1.0 : 0.4
@@ -13,6 +16,14 @@ Item {
     activeFocusOnTab: true
     Keys.onSpacePressed: ib.clicked()
     Keys.onReturnPressed: ib.clicked()
+    Keys.onEnterPressed: ib.clicked()
+
+    Accessible.role: Accessible.Button
+    Accessible.name: tip
+    Accessible.onPressAction: ib.clicked()
+    B.ToolTip.visible: tip !== "" && (ma.containsMouse || ib.activeFocus)
+    B.ToolTip.text: tip
+    B.ToolTip.delay: 600
 
     Rectangle {
         anchors.fill: parent; radius: width / 2

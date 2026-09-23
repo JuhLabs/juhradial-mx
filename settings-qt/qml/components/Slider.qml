@@ -10,6 +10,11 @@ Item {
     property real value: 0.5
     property bool showValue: false
     property string suffix: ""
+    // Keyboard steps: 0 = automatic ((to - from) / 20 and / 10).
+    property real stepSize: 0
+    property real pageStep: 0
+    property string accessibleName: ""
+    property string accessibleDescription: ""
     signal moved(real v)
     signal committed(real v)
 
@@ -18,12 +23,32 @@ Item {
 
     activeFocusOnTab: true
     Keys.onLeftPressed: _nudge(-1)
+    Keys.onDownPressed: _nudge(-1)
     Keys.onRightPressed: _nudge(1)
-    function _nudge(dir) {
-        var st = Math.max((to - from) / 20, 1)
-        value = Math.max(from, Math.min(to, value + dir * st))
+    Keys.onUpPressed: _nudge(1)
+    Keys.onPressed: (e) => {
+        if (e.key === Qt.Key_PageUp) { _nudge(1, true); e.accepted = true }
+        else if (e.key === Qt.Key_PageDown) { _nudge(-1, true); e.accepted = true }
+        else if (e.key === Qt.Key_Home) { _setKey(from); e.accepted = true }
+        else if (e.key === Qt.Key_End) { _setKey(to); e.accepted = true }
+    }
+    function _nudge(dir, page) {
+        var st = page ? (pageStep > 0 ? pageStep : Math.max((to - from) / 10, 1))
+                      : (stepSize > 0 ? stepSize : Math.max((to - from) / 20, 1))
+        var v = value + dir * st
+        if (stepSize > 0) v = from + Math.round((v - from) / stepSize) * stepSize
+        _setKey(v)
+    }
+    function _setKey(v) {
+        value = Math.max(from, Math.min(to, v))
         moved(value); committed(value)
     }
+
+    Accessible.role: Accessible.Slider
+    Accessible.name: accessibleName
+    Accessible.description: accessibleDescription
+    Accessible.onIncreaseAction: _nudge(1)
+    Accessible.onDecreaseAction: _nudge(-1)
 
     Rectangle {
         id: track

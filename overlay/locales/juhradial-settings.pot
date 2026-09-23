@@ -1,0 +1,307 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+#: settings-qt/qml/components/BatteryRing.qml:24
+msgid "%1 percent"
+msgstr ""
+
+#: settings-qt/qml/components/BatteryRing.qml:23
+msgid "%1 percent, charging"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:245
+msgid "Add delay"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:250
+msgid "Add text"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1717
+msgid "Added profile: {app}"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:61
+msgid "App profiles"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2364
+msgid "Applied desktop defaults"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2209
+msgid "Autostart: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2315
+msgid "Backup saved as {name}"
+msgstr ""
+
+#: settings-qt/qml/components/BatteryRing.qml:22
+msgid "Battery"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:57
+msgid "Buttons"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:82
+msgid "Change"
+msgstr ""
+
+#: settings-qt/qml/components/BatteryRing.qml:128
+msgid "Charge soon"
+msgstr ""
+
+#: settings-qt/qml/components/BatteryRing.qml:128
+msgid "Charging"
+msgstr ""
+
+#: settings-qt/qml/components/ActionPicker.qml:10 settings-qt/qml/components/SliceEditor.qml:170
+msgid "Choose an action"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:140
+msgid "Colour"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:114
+msgid "Command"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:867
+msgid "Config was corrupt; using defaults (backup: config.json.bad)"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2485
+msgid "Could not open the plugins folder: {error}"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:50
+msgid "Create profile"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:164
+msgid "Daemon connected"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:164
+msgid "Daemon offline"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:56
+msgid "Dashboard"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:173
+msgid "Delay"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:63
+msgid "Devices"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:164
+msgid "Done"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:286
+msgid "Duplicate"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:62
+msgid "Easy-Switch"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:103
+msgid "Edit %1"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:36
+msgid "Edit action %1"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2317
+msgid "Export failed: {error}"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:50
+msgid "First time in %1. Give it its own profile?"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:65
+msgid "Flow"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:64
+msgid "Gaming"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1653
+msgid "Give a slice the AI Assistant action first"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:59
+msgid "Haptics"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2325
+msgid "Import failed: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1582
+msgid "Keyboard not reachable: press a key to wake it, then try again"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:93
+msgid "Label"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:19
+msgid "Macro deleted"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:60
+msgid "Macros"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1273
+msgid "Mouse battery low"
+msgstr ""
+
+#: settings-qt/qml/components/AppPicker.qml:133
+msgid "No applications found"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:152
+msgid "No fades, slides or crossfades in this window."
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:76
+msgid "No label"
+msgstr ""
+
+#: settings-qt/qml/components/AppPicker.qml:133
+msgid "No match"
+msgstr ""
+
+#: settings-qt/qml/components/AppPicker.qml:10
+msgid "Pick an application"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:120
+msgid "Pick application"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1589
+msgid "Pin saved: {slot} = {x}, {y}"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:58
+msgid "Point & Scroll"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1380
+msgid "Pointer acceleration needs GNOME gsettings"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1682
+msgid "Profiles save failed: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1996
+msgid "Recording failed"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:149
+msgid "Reduce motion"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:290
+msgid "Save"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:923
+msgid "Save failed: {error}"
+msgstr ""
+
+#: settings-qt/qml/components/ActionPicker.qml:45
+msgid "Search actions…"
+msgstr ""
+
+#: settings-qt/qml/components/SearchBar.qml:91
+msgid "Search all settings…"
+msgstr ""
+
+#: settings-qt/qml/components/AppPicker.qml:64
+msgid "Search applications…"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:67
+msgid "Settings"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2335
+msgid "Settings imported. The previous files are kept as .bak"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2013
+msgid "Settings restored to defaults"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:114
+msgid "Shortcut (e.g. ctrl+c)"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:218
+msgid "Support"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:225
+msgid "Support JuhRadial MX"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2519
+msgid "System default"
+msgstr ""
+
+#: settings-qt/qml/components/AppPicker.qml:135
+msgid "The desktop menu database is empty or unreadable."
+msgstr ""
+
+#: settings-qt/qml/Main.qml:66
+msgid "Themes"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:133
+msgid "This macro has no steps yet. Add a delay or some text below, or re-record it."
+msgstr ""
+
+#: settings-qt/qml/components/AppPicker.qml:136
+msgid "Try another name, or the command it runs."
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:114
+msgid "URL"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:22
+msgid "Undo"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:151
+msgid "Your desktop asks for less animation, so it is already on."
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:192
+msgid "ms"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:207
+msgid "text to type"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1274
+msgid "{device} is at {percent}%. Time to recharge."
+msgstr ""

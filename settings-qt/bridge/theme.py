@@ -9,7 +9,9 @@ Flipping the theme emits `changed`, re-binding the whole tree at once.
 import json
 import os
 import pathlib
+import subprocess
 import sys
+import threading
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtProperty, pyqtSlot
 
 ASSETS = pathlib.Path(__file__).resolve().parents[1] / "assets"
@@ -59,14 +61,155 @@ WHEELS = [
 ]
 
 
+CONFIG_JSON = _XDG_CONFIG / "juhradial" / "config.json"
+ICON_STYLES = ("line", "classic", "mono")
+
+
+def resolve_icon_style(state, cfg):
+    """The settings window follows the ring: ui_state.json icon_style, then
+    config radial.icon_style, then the legacy monochrome_icons flag, then
+    mono (the 0.4.5 default). Read only; nothing is written back."""
+    style = state.get("icon_style") if isinstance(state, dict) else None
+    if style in ICON_STYLES:
+        return style
+    radial = cfg.get("radial") if isinstance(cfg, dict) else None
+    radial = radial if isinstance(radial, dict) else {}
+    if radial.get("icon_style") in ICON_STYLES:
+        return radial["icon_style"]
+    if "monochrome_icons" in radial:
+        return "mono" if radial["monochrome_icons"] else "line"
+    return "mono"
+
+
+KDEGLOBALS = _XDG_CONFIG / "kdeglobals"
+
+
+def desktop_prefers_reduced_motion(kdeglobals_text="", gsettings_value=""):
+    """KDE: [KDE] AnimationDurationFactor=0; GNOME: enable-animations false."""
+    section = ""
+    for line in kdeglobals_text.splitlines():
+        line = line.strip()
+        if line.startswith("["):
+            section = line
+        elif section == "[KDE]" and line.startswith("AnimationDurationFactor="):
+            try:
+                if float(line.split("=", 1)[1]) <= 0:
+                    return True
+            except ValueError:
+                pass
+    return gsettings_value.strip().lower() == "false"
+
+
+def battery_severity(percent, charging):
+    """One scale for every battery readout: charging, unknown (no reading),
+    critical (<= 10 %), low (11-20 %) or normal."""
+    if charging:
+        return "charging"
+    if percent <= 0:
+        return "unknown"
+    if percent <= 10:
+        return "critical"
+    if percent <= 20:
+        return "low"
+    return "normal"
+
+
 class Theme(QObject):
     changed = pyqtSignal()
+    _desktopMotion = pyqtSignal(bool)
 
-    def __init__(self):
+    BATTERY_OK = "#33D17A"
+    BATTERY_LOW = "#F5A623"
+    BATTERY_CRITICAL = "#F4513B"
+
+    def __init__(self, probe_desktop=True):
         super().__init__()
         self._i = self._load_index()
         self._reduce = self._load_flag("reduce_transparency", False)
-        self._icon_style = self._load_str("icon_style", "line", ("line", "classic", "mono"))
+        self._icon_style = self._load_icon_style()
+        self._motion_setting = self._load_config_flag("app", "reduce_motion")
+        self._desktop_motion = False
+        self._desktopMotion.connect(self._set_desktop_motion)
+        if probe_desktop:
+            # gsettings forks a process: never on the startup path.
+            threading.Thread(target=self._probe_desktop_motion, daemon=True).start()
+
+    def _load_config_flag(self, section, key):
+        try:
+            return bool(json.loads(CONFIG_JSON.read_text()).get(section, {}).get(key, False))
+        except Exception:
+            return False
+
+    def _probe_desktop_motion(self):
+        kde = ""
+        try:
+            kde = KDEGLOBALS.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            pass
+        gnome = ""
+        try:
+            gnome = subprocess.run(
+                ["gsettings", "get", "org.gnome.desktop.interface", "enable-animations"],
+                capture_output=True, text=True, timeout=2).stdout
+        except Exception:
+            pass
+        self._desktopMotion.emit(desktop_prefers_reduced_motion(kde, gnome))
+
+    def _set_desktop_motion(self, v):
+        if bool(v) != self._desktop_motion:
+            self._desktop_motion = bool(v)
+            self.changed.emit()
+
+    # ---- reduce motion: app setting (app.reduce_motion) or the desktop's ----
+    @pyqtProperty(bool, notify=changed)
+    def reduceMotion(self):
+        return self._motion_setting or self._desktop_motion
+
+    @pyqtProperty(bool, notify=changed)
+    def reduceMotionSetting(self):
+        return self._motion_setting
+
+    @pyqtSlot(bool)
+    def setReduceMotion(self, v):
+        """Live switch; Backend.setLocal writes app.reduce_motion."""
+        if bool(v) != self._motion_setting:
+            self._motion_setting = bool(v)
+            self.changed.emit()
+
+    # ---- layout: page content column cap (Main.qml page host) ----
+    @pyqtProperty(int, constant=True)
+    def contentMaxWidth(self):
+        return 920
+
+    @pyqtProperty(int, constant=True)
+    def contentMaxWidthWide(self):
+        return 1240
+
+    # ---- battery: one severity scale everywhere ----
+    @pyqtSlot(int, bool, result=str)
+    def batterySeverity(self, percent, charging):
+        return battery_severity(percent, charging)
+
+    @pyqtSlot(int, bool, result=str)
+    def batteryColor(self, percent, charging):
+        sev = battery_severity(percent, charging)
+        return {"charging": self._t()[2], "critical": self.BATTERY_CRITICAL,
+                "low": self.BATTERY_LOW, "normal": self.BATTERY_OK}.get(sev, TEXT_MUTED)
+
+    @pyqtSlot(int, bool, result=bool)
+    def batteryChargeSoon(self, percent, charging):
+        return not charging and 0 < percent <= 15
+
+    def _load_icon_style(self):
+        try:
+            state = json.loads(UI_STATE.read_text())
+        except Exception:
+            state = {}
+        try:
+            cfg = json.loads(CONFIG_JSON.read_text())
+        except Exception:
+            cfg = {}
+        return resolve_icon_style(state, cfg)
 
     def _load_str(self, key, default, allowed):
         try:
@@ -395,14 +538,14 @@ class Theme(QObject):
     def fsMicro(self):
         return 11
 
-    @pyqtProperty(int, constant=True)
+    @pyqtProperty(int, notify=changed)
     def dShort(self):
-        return 130
+        return 0 if self.reduceMotion else 130
 
-    @pyqtProperty(int, constant=True)
+    @pyqtProperty(int, notify=changed)
     def dMed(self):
-        return 220
+        return 0 if self.reduceMotion else 220
 
-    @pyqtProperty(int, constant=True)
+    @pyqtProperty(int, notify=changed)
     def dLong(self):
-        return 340
+        return 0 if self.reduceMotion else 340

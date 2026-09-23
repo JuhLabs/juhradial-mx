@@ -9,12 +9,30 @@ Item {
     property int step: 1
     property int value: 0
     property string suffix: ""
+    property int pageStep: 0                  // 0 = step * 10
+    property string accessibleName: ""
+    property string accessibleDescription: ""
     signal committed(int v)
     implicitWidth: 138; implicitHeight: 36
 
     activeFocusOnTab: true
     Keys.onLeftPressed: _set(value - step)
+    Keys.onDownPressed: _set(value - step)
     Keys.onRightPressed: _set(value + step)
+    Keys.onUpPressed: _set(value + step)
+    Keys.onPressed: (e) => {
+        const page = pageStep > 0 ? pageStep : step * 10
+        if (e.key === Qt.Key_PageUp) { _set(value + page); e.accepted = true }
+        else if (e.key === Qt.Key_PageDown) { _set(value - page); e.accepted = true }
+        else if (e.key === Qt.Key_Home) { _set(from); e.accepted = true }
+        else if (e.key === Qt.Key_End) { _set(to); e.accepted = true }
+    }
+
+    Accessible.role: Accessible.SpinBox
+    Accessible.name: accessibleName
+    Accessible.description: (value + suffix) + (accessibleDescription ? ". " + accessibleDescription : "")
+    Accessible.onIncreaseAction: _set(value + step)
+    Accessible.onDecreaseAction: _set(value - step)
 
     function _set(v) {
         var nv = Math.max(from, Math.min(to, v))
@@ -36,7 +54,7 @@ Item {
                        : (minusMa.containsMouse ? "#18FFFFFF" : "transparent")
                 Behavior on color { ColorAnimation { duration: Theme.dShort } }
             }
-            Text { anchors.centerIn: parent; text: "−"; color: Theme.textBody
+            Text { anchors.centerIn: parent; text: "\u2212"; color: Theme.textBody  // i18n-ignore
                    opacity: st.value === st.from ? 0.3 : 1.0
                    font.pixelSize: 18; font.family: Theme.fontUI }
             MouseArea { id: minusMa; anchors.fill: parent; hoverEnabled: true

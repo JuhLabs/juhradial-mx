@@ -19,6 +19,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from bridge.theme import Theme          # noqa: E402
 from bridge.backend import Backend      # noqa: E402
+from bridge.i18n import install_translator  # noqa: E402
 
 MONO_DIR = HERE / "assets" / "icons" / "mono"
 NAV_DIR = HERE / "assets" / "icons" / "nav"
@@ -189,6 +190,7 @@ def main():
         # If the name never freed (e.g. pre-update owner without a Quit
         # slot), continue anyway: a visible window beats a silent exit.
 
+    translator = install_translator(app)  # qsTr() -> gettext catalogs; keep the reference for the app's lifetime
     engine = QQmlApplicationEngine()
     engine.addImageProvider("icon", IconProvider())
 

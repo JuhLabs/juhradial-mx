@@ -31,7 +31,10 @@ Item {
             flash.restart()
         }
     }
-    Component.onCompleted: Qt.callLater(_maybeTarget)
+    Component.onCompleted: {
+        Qt.callLater(_maybeTarget)
+        _labelControls(slot.children, 0)
+    }
     Connections { target: Backend; function onSearchTargetChanged() { row._maybeTarget() } }
 
     // Quiet hover wash so the eye finds the row it is pointing at.
@@ -43,7 +46,37 @@ Item {
         color: hoverMa.containsMouse ? "#0AFFFFFF" : "transparent"
         Behavior on color { ColorAnimation { duration: Theme.dShort } }
     }
-    MouseArea { id: hoverMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+    // A row whose control is a switch toggles when clicked anywhere (the
+    // AdwSwitchRow pattern); other rows only get the hover wash.
+    readonly property Item _toggle: {
+        for (let i = 0; i < slot.children.length; i++) {
+            const c = slot.children[i]
+            if (c.isToggle === true) return c
+        }
+        return null
+    }
+    MouseArea {
+        id: hoverMa; anchors.fill: parent; hoverEnabled: true
+        acceptedButtons: row._toggle ? Qt.LeftButton : Qt.NoButton
+        cursorShape: row._toggle && row._toggle.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: if (row._toggle) row._toggle.toggle()
+    }
+
+    // Screen readers: the control speaks the row's label and description.
+    function _labelControls(items, depth) {
+        for (let i = 0; i < items.length; i++) {
+            const c = items[i]
+            if (c.accessibleName !== undefined) {
+                if (c.accessibleName === "") c.accessibleName = Qt.binding(() => row.label)
+                if (c.accessibleDescription !== undefined && c.accessibleDescription === "")
+                    c.accessibleDescription = Qt.binding(() => row.desc)
+            } else if (depth === 0) {
+                _labelControls(c.children, 1)
+            }
+        }
+    }
+    Accessible.role: Accessible.Grouping
+    Accessible.name: label
 
     Rectangle {
         id: hi

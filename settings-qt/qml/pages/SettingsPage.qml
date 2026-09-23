@@ -145,6 +145,16 @@ Item {
                             onToggled: (v) => Theme.setReduceTransparency(v)
                         }
                     }
+                    SettingRow {
+                        label: qsTr("Reduce motion")
+                        desc: Theme.reduceMotion && !Theme.reduceMotionSetting
+                              ? qsTr("Your desktop asks for less animation, so it is already on.")
+                              : qsTr("No fades, slides or crossfades in this window.")
+                        Toggle {
+                            checked: Theme.reduceMotionSetting
+                            onToggled: (v) => { Backend.setLocal("app.reduce_motion", v); Theme.setReduceMotion(v) }
+                        }
+                    }
                 }
             }
 
@@ -201,7 +211,7 @@ Item {
                         ComboBox {
                             width: 200
                             model: Backend.languages()
-                            currentId: Backend.get("language", "en")
+                            currentId: Backend.get("language", "system")
                             onActivated2: (id) => Backend.setLocal("language", id)
                         }
                     }

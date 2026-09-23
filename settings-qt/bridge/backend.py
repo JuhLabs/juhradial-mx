@@ -30,10 +30,12 @@ from PyQt6.QtCore import (
 )
 
 from PyQt6.QtCore import QMetaType, QSize
+
+from bridge.i18n import _
 from PyQt6.QtGui import QIcon
 
 try:
-    from PyQt6.QtDBus import (QDBusArgument, QDBusConnection, QDBusInterface,
+    from PyQt6.QtDBus import (QDBus, QDBusArgument, QDBusConnection,
                               QDBusMessage, QDBusPendingCallWatcher,
                               QDBusPendingReply, QDBusServiceWatcher)
     _HAVE_DBUS = True
@@ -282,11 +284,16 @@ DEFAULT_SLICES = [
 
 DEFAULT_CONFIG = {
     "theme": "phosphor",
+    # Values here are merged into every save, so each must equal what the
+    # overlay/daemon assume when the key is absent (tests/test_config_defaults_parity.py).
+    # Absent on purpose: language (absent = desktop locale; "en" pinned English
+    # on the first unrelated save), pointer.dpi and the scroll device keys (the
+    # daemon replays whatever is present, so a merged default would be forced
+    # onto the mouse at every wake), radial.icon_style (readers default to mono).
     "radial_menu": {"slices": DEFAULT_SLICES,
-                    "easy_switch_shortcuts": True,
-                    "easy_switch_host_os": ["linux", "windows", "macos"]},
+                    "easy_switch_shortcuts": False,
+                    "easy_switch_host_os": ["unknown", "unknown", "unknown"]},
     "blur_enabled": True,
-    "language": "en",
     "desktop_environment": "auto",
     "device_mode": "auto",
     "haptics": {
@@ -295,9 +302,8 @@ DEFAULT_CONFIG = {
                       "confirm": "sharp_state_change", "invalid": "angry_alert"},
         "intensity": 70, "debounce_ms": 20, "slice_debounce_ms": 20, "reentry_debounce_ms": 50,
     },
-    "pointer": {"speed": 5, "dpi": 1600, "acceleration": True},
-    "scroll": {"mode": "smartshift", "smartshift_threshold": 50, "speed": 3,
-               "natural": False, "smooth": True},
+    "pointer": {"speed": 5, "acceleration": True},
+    "scroll": {"speed": 3},
     "thumbwheel": {"mode": "off", "invert": False, "speed": 1},
     "buttons": {k: d for (k, _l, d) in BUTTON_SLOTS},
     # Start at Login defaults on (the installer writes the autostart entry).
@@ -305,11 +311,11 @@ DEFAULT_CONFIG = {
     # wheel "" is the overlay no-op (falsy in _config_wheel_key), so a merged
     # default never overrides the theme-derived wheel for existing users.
     "radial": {"minimal_mode": False, "wheel": "", "click_outside_closes": True},
-    "gaming": {"enabled": False, "suppress_overlay": False, "active_dpi_profile": 1,
+    "gaming": {"enabled": False, "suppress_overlay": True, "active_dpi_profile": 1,
                "dpi_profiles": [{"name": "Precision", "dpi": 400, "color": "blue"},
                                 {"name": "Normal", "dpi": 1000, "color": "green"},
                                 {"name": "Fast", "dpi": 3200, "color": "red"}]},
-    "flow": {"enabled": False, "direction": "left", "edge_trigger": True,
+    "flow": {"enabled": False, "direction": "right", "edge_trigger": True,
              "share_clipboard": True, "edge_sensitivity": 50, "monitor": ""},
 }
 
@@ -358,18 +364,21 @@ class Daemon(QObject):
     gamingModeChanged = pyqtSignal(bool)
     newAppSeen = pyqtSignal(str)
     keyboardBatteryChanged = pyqtSignal(int, bool)
+    linkChanged = pyqtSignal(str, str)
     availabilityChanged = pyqtSignal()
+
+    TIMEOUT_MS = 2000
 
     def __init__(self):
         super().__init__()
-        self._iface = None
         self._available = False
         if not _HAVE_DBUS:
             return
         self._bus = QDBusConnection.sessionBus()
-        self._iface = QDBusInterface(BUS_NAME, OBJ_PATH, IFACE, self._bus)
-        self._iface.setTimeout(2000)
-        self._available = self._iface.isValid()
+        # Raw messages, not QDBusInterface: its constructor introspects the
+        # daemon synchronously on the GUI thread (at startup and after every
+        # daemon restart). Availability comes from the bus daemon instead.
+        self._available = self._registered()
         # Empty service name: survive a daemon restart.
         # Subscribe even while the daemon is down so a later start is heard.
         self._watchers = set()  # pending async calls (keeps the watchers alive)
@@ -386,6 +395,8 @@ class Daemon(QObject):
         self._bus.connect("", OBJ_PATH, IFACE, "NewAppSeen", self._on_new_app)
         # The keyboard linked up (a key press) and the daemon read its battery.
         self._bus.connect("", OBJ_PATH, IFACE, "KeyboardBatteryChanged", self._on_kb_battery)
+        # Mouse reachability (connected/asleep/away/offline).
+        self._bus.connect("", OBJ_PATH, IFACE, "DeviceConnectionChanged", self._on_link)
         self._watcher = QDBusServiceWatcher(
             BUS_NAME, self._bus,
             QDBusServiceWatcher.WatchModeFlag.WatchForRegistration
@@ -393,12 +404,15 @@ class Daemon(QObject):
         self._watcher.serviceRegistered.connect(self._on_service_up)
         self._watcher.serviceUnregistered.connect(self._on_service_down)
 
+    def _registered(self):
+        try:
+            # A QDBusReply is always truthy; the answer is in value().
+            return bool(self._bus.interface().isServiceRegistered(BUS_NAME).value())
+        except Exception:
+            return False
+
     def _on_service_up(self, name=""):
-        # QDBusInterface introspects at construction, so one built while the
-        # daemon was down stays call-dead forever; rebuild it on register.
-        self._iface = QDBusInterface(BUS_NAME, OBJ_PATH, IFACE, self._bus)
-        self._iface.setTimeout(2000)
-        self._available = self._iface.isValid()
+        self._available = True
         self.availabilityChanged.emit()
 
     def _on_service_down(self, name=""):
@@ -409,11 +423,19 @@ class Daemon(QObject):
     def available(self):
         return self._available
 
+    @staticmethod
+    def _message(method, args, iface=IFACE):
+        msg = QDBusMessage.createMethodCall(BUS_NAME, OBJ_PATH, iface, method)
+        if args:
+            msg.setArguments(list(args))
+        return msg
+
     def call(self, method, *args):
-        """Call a daemon method; returns list of reply args, or None on error."""
+        """Blocking daemon call (setters only); list of reply args, or None."""
         if not self._available:
             return None
-        reply = self._iface.call(method, *args)
+        reply = self._bus.call(self._message(method, args), QDBus.CallMode.Block,
+                               self.TIMEOUT_MS)
         if reply.type() == QDBusMessage.MessageType.ErrorMessage:
             return None
         return reply.arguments()
@@ -422,7 +444,7 @@ class Daemon(QObject):
         """Fire-and-forget daemon call (no UI-thread round trip); reply dropped."""
         if not self._available:
             return
-        self._iface.asyncCall(method, *args)
+        self._bus.asyncCall(self._message(method, args), self.TIMEOUT_MS)
 
     def call_then(self, method, callback, *args):
         """Async daemon call; `callback(reply_args or None)` runs on the UI
@@ -431,7 +453,25 @@ class Daemon(QObject):
         if not self._available:
             callback(None)
             return
-        watcher = QDBusPendingCallWatcher(self._iface.asyncCall(method, *args), self)
+        self._watch(self._bus.asyncCall(self._message(method, args), self.TIMEOUT_MS),
+                    method, callback)
+
+    def prop_then(self, name, callback):
+        """Async property read; `callback(value or None)` on the UI thread."""
+        if not self._available:
+            callback(None)
+            return
+        msg = self._message("Get", [IFACE, name], "org.freedesktop.DBus.Properties")
+
+        def _unwrap(result):
+            v = result[0] if result else None
+            if hasattr(v, "variant"):
+                v = v.variant()
+            callback(v)
+        self._watch(self._bus.asyncCall(msg, self.TIMEOUT_MS), name, _unwrap)
+
+    def _watch(self, pending, method, callback):
+        watcher = QDBusPendingCallWatcher(pending, self)
         self._watchers.add(watcher)
 
         def _finished(w):
@@ -483,6 +523,12 @@ class Daemon(QObject):
         a = msg.arguments()
         if len(a) >= 2:
             self.keyboardBatteryChanged.emit(_to_int(a[0]), bool(a[1]))
+
+    @pyqtSlot(QDBusMessage)
+    def _on_link(self, msg):
+        a = msg.arguments()
+        if len(a) >= 2:
+            self.linkChanged.emit(str(a[0]), str(a[1]))
 
     @pyqtSlot(QDBusMessage)
     def _on_new_app(self, msg):
@@ -716,6 +762,11 @@ class Backend(QObject):
     # with takeProfileSuggestion() once its window is active.
     profileSuggested = pyqtSignal()
     searchTargetChanged = pyqtSignal()
+    # False until the first prime round answered (or PRIME_TIMEOUT_MS passed);
+    # pages show placeholders for live readouts until then. Never goes back.
+    primedChanged = pyqtSignal()
+
+    PRIME_TIMEOUT_MS = 3000
 
     @pyqtSlot(str)
     def goTo(self, key):
@@ -781,6 +832,14 @@ class Backend(QObject):
         self._daemon_version = ""
         self._connection = ""
         self._unit_id = ""
+        self._primed = False
+        self._prime_gen = 0
+        # Values the user set during a prime round: a late getter answer must
+        # not overwrite them.
+        self._local_edits = set()
+        # None = the daemon lacks the method (older build): fall back.
+        self._caps_daemon = None
+        self._link_daemon = None
 
         self._gaming_mode = bool(self.get("gaming.enabled", False))
         self._low_batt_notified = False
@@ -797,6 +856,7 @@ class Backend(QObject):
         self._kb_info = None
         self._kb_last_battery = 0
         self.daemon.keyboardBatteryChanged.connect(self._on_keyboard_battery)
+        self.daemon.linkChanged.connect(self._set_link_live)
         self.daemon.availabilityChanged.connect(self._on_daemon_availability)
 
         # prime device state shortly after start (daemon may be warming up)
@@ -804,7 +864,7 @@ class Backend(QObject):
         if self._load_failed:
             # deferred so the QML shell exists before the toast fires
             QTimer.singleShot(800, lambda: self.toast.emit(
-                "Config was corrupt; using defaults (backup: config.json.bad)"))
+                _("Config was corrupt; using defaults (backup: config.json.bad)")))
 
     def _on_daemon_availability(self):
         self._prime()
@@ -860,7 +920,7 @@ class Backend(QObject):
                 os.fsync(f.fileno())
             os.replace(f.name, CONFIG)
         except Exception as e:
-            self.toast.emit(f"Save failed: {e}")
+            self.toast.emit(_("Save failed: {error}").format(error=e))
 
     def _get_path(self, parts, default=None):
         cur = self._cfg
@@ -985,7 +1045,12 @@ class Backend(QObject):
         return "freespin" if threshold == 0 else "smartshift"
 
     def _refresh_wheel_mode(self):
-        ss = self.daemon.call("GetSmartShift")
+        def _done(ss):
+            self._apply_smartshift(ss)
+            self.liveChanged.emit()
+        self.daemon.call_then("GetSmartShift", _done)
+
+    def _apply_smartshift(self, ss):
         if ss and len(ss) >= 2:
             enabled, threshold = bool(ss[0]), _to_int(ss[1])
             self._wheel_mode = self._derive_wheel_mode(enabled, threshold)
@@ -1016,42 +1081,174 @@ class Backend(QObject):
     def hapticsEnabled(self):
         return bool(self.get("haptics.enabled", True))
 
+    @pyqtProperty(bool, notify=primedChanged)
+    def primed(self):
+        return self._primed
+
+    def _set_primed(self):
+        if not self._primed:
+            self._primed = True
+            self.primedChanged.emit()
+
+    @pyqtProperty("QVariantMap", notify=liveChanged)
+    def caps(self):
+        """What the mouse can do. Newer daemon: GetCapabilities; older: the
+        three legacy getters plus the haptics heuristic; {} while unknown."""
+        if self._caps_daemon:
+            return dict(self._caps_daemon)
+        if not self.daemon.available or not self._primed:
+            return {}
+        return {"dpi": self._dpi_supported, "smartshift": self._ss_supported,
+                "thumbwheel": self._tw_supported,
+                "haptics": not self.isGeneric}
+
+    @pyqtProperty(bool, notify=liveChanged)
+    def dpiSupported(self):
+        return bool(self.caps.get("dpi", False))
+
+    @pyqtProperty(bool, notify=liveChanged)
+    def hapticsSupported(self):
+        return bool(self.caps.get("haptics", False))
+
+    @pyqtProperty(str, notify=liveChanged)
+    def linkState(self):
+        """connected | asleep | away | offline (see GetDeviceConnection)."""
+        if not self.daemon.available:
+            return "offline"
+        if self.isGeneric or self._link_daemon is None:
+            return "connected"
+        return self._link_daemon[0]
+
+    @pyqtProperty(str, notify=liveChanged)
+    def transport(self):
+        """bolt | unifying | bluetooth | usb | unknown."""
+        if self._link_daemon and self._link_daemon[1] != "unknown":
+            return self._link_daemon[1]
+        c = (self._connection or "").lower()
+        for key in ("bolt", "unifying", "bluetooth", "usb"):
+            if key in c:
+                return key
+        return "unknown"
+
+    def _set_link_live(self, state, transport):
+        self._link_daemon = (state, transport)
+        self.liveChanged.emit()
+        if state == "connected":
+            self._refresh_caps()
+
+    def _refresh_caps(self):
+        def _done(r):
+            self._caps_daemon = dict(r[0]) if r and isinstance(r[0], dict) else None
+            self.liveChanged.emit()
+        self.daemon.call_then("GetCapabilities", _done)
+
     def _prime(self):
+        """Read every live readout without blocking the UI thread.
+
+        One call in flight at a time: the daemon runs HID++ requests serially,
+        so parallel calls would only queue behind a slow one and time out.
+        Cheap getters (no device I/O) go first so badges fill in at once.
+        """
         d = self.daemon
+        self._prime_gen += 1
+        gen = self._prime_gen
+        self._local_edits = set()
         if not d.available:
             self._device_name = ""
             self._device_mode = ""
             self._daemon_version = ""
             self._connection = ""
+            self._caps_daemon = None
+            self._link_daemon = None
             self.liveChanged.emit()
+            self._set_primed()
             return
-        self._device_name = d.call1("GetDeviceName", default="") or ""
-        # Dev override for device art and callout work on hardware you do not
-        # own (for example JUH_DEVICE_NAME="MX Master 3S" on an MX Master 4).
-        self._device_name = os.environ.get("JUH_DEVICE_NAME") or self._device_name
-        self._unit_id = str(d.call1("GetUnitId", default="") or "")
-        self._device_mode = d.call1("GetDeviceMode", default="") or ""
-        self._connection = self._detect_connection(self._device_mode == "generic")
-        self._daemon_version = str(d.prop("DaemonVersion", "") or "")
-        r = d.call("GetBatteryStatus")
-        if r and len(r) >= 2:
-            self._battery, self._charging = _to_int(r[0]), bool(r[1])
-        dpi = d.call1("GetDpi", default=None)
-        if dpi:
-            self._dpi = _to_int(dpi, self._dpi)
-        es = d.call("GetEasySwitchInfo")
-        if es and len(es) >= 2:
-            nh = _to_int(es[0])
-            if nh > 0:  # receiver-connected mice report 0; keep 3 slots default
-                self._num_hosts, self._cur_host = nh, _to_int(es[1])
-        hn = d.call1("GetHostNames", default=None)
-        if hn:
-            self._host_names = [str(x) for x in hn]
-        self._refresh_wheel_mode()
-        self._ss_supported = bool(d.call1("SmartShiftSupported", default=False))
-        self._tw_supported = bool(d.call1("ThumbwheelSupported", default=False))
-        self._dpi_supported = bool(d.call1("DpiSupported", default=False))
-        self.liveChanged.emit()
+
+        def first(r, default=None):
+            return r[0] if r else default
+
+        def name(r):
+            self._device_name = str(first(r, "") or "")
+            # Dev override for device art and callout work on hardware you
+            # do not own (JUH_DEVICE_NAME="MX Master 3S" on an MX Master 4).
+            self._device_name = os.environ.get("JUH_DEVICE_NAME") or self._device_name
+
+        def mode(r):
+            self._device_mode = str(first(r, "") or "")
+            self._connection = self._detect_connection(self._device_mode == "generic")
+
+        def battery(r):
+            if r and len(r) >= 2:
+                self._battery, self._charging = _to_int(r[0]), bool(r[1])
+
+        def dpi(r):
+            v = first(r)
+            if v and "dpi" not in self._local_edits:
+                self._dpi = _to_int(v, self._dpi)
+
+        def easy_switch(r):
+            if r and len(r) >= 2:
+                nh = _to_int(r[0])
+                if nh > 0:  # receiver-connected mice report 0; keep 3 slots
+                    self._num_hosts, self._cur_host = nh, _to_int(r[1])
+
+        def host_names(r):
+            v = first(r)
+            if v:
+                self._host_names = [str(x) for x in v]
+
+        def link(r):
+            self._link_daemon = (str(r[0]), str(r[1])) if r and len(r) >= 2 else None
+
+        def caps(r):
+            self._caps_daemon = dict(r[0]) if r and isinstance(r[0], dict) else None
+
+        def flag(attr):
+            def _set(r):
+                setattr(self, attr, bool(first(r, False)))
+            return _set
+
+        steps = [
+            ("GetDeviceName", name),
+            ("GetUnitId", lambda r: setattr(self, "_unit_id", str(first(r, "") or ""))),
+            ("GetDeviceMode", mode),
+            ("DaemonVersion", lambda v: setattr(self, "_daemon_version", str(v or ""))),
+            ("GetDeviceConnection", link),
+            ("GetCapabilities", caps),
+            ("GetBatteryStatus", battery),
+            ("GetDpi", dpi),
+            ("GetSmartShift",
+             lambda r: None if "wheel" in self._local_edits else self._apply_smartshift(r)),
+            ("SmartShiftSupported", flag("_ss_supported")),
+            ("ThumbwheelSupported", flag("_tw_supported")),
+            ("DpiSupported", flag("_dpi_supported")),
+            ("GetEasySwitchInfo", easy_switch),
+            ("GetHostNames", host_names),
+        ]
+
+        def run(i):
+            if gen != self._prime_gen:
+                return  # a newer round started (daemon restart)
+            if i == len(steps):
+                self._set_primed()
+                return
+            method, handler = steps[i]
+
+            def done(result):
+                if gen != self._prime_gen:
+                    return
+                try:
+                    handler(result)
+                except Exception as e:
+                    print(f"prime {method} failed: {e}", file=sys.stderr)
+                self.liveChanged.emit()
+                run(i + 1)
+            if method == "DaemonVersion":
+                d.prop_then(method, done)
+            else:
+                d.call_then(method, done)
+        run(0)
+        QTimer.singleShot(self.PRIME_TIMEOUT_MS, self._set_primed)
 
     def _set_battery(self, pct, status):
         self._battery = pct
@@ -1073,8 +1270,9 @@ class Backend(QObject):
             try:
                 subprocess.Popen(
                     ["notify-send", "-a", "JuhRadial MX", "-i", "battery-low-symbolic",
-                     "-u", "critical", "Mouse battery low",
-                     f"MX Master 4 is at {pct}%. Time to recharge."])
+                     "-u", "critical", _("Mouse battery low"),
+                     _("{device} is at {percent}%. Time to recharge.").format(
+                         device=self.deviceName, percent=pct)])
             except Exception:
                 pass
 
@@ -1116,6 +1314,7 @@ class Backend(QObject):
     @pyqtSlot(int)
     def setDpi(self, dpi):
         dpi = max(400, min(8000, int(dpi)))
+        self._local_edits.add("dpi")
         self._dpi = dpi
         self.setLocal("pointer.dpi", dpi)
         self.daemon.call_async("SetDpi", _u16(dpi))
@@ -1134,6 +1333,7 @@ class Backend(QObject):
             # (True, 0) = freespin.
             self.daemon.call("SetSmartShift", True, _u8(0))
         self._wheel_mode = mode
+        self._local_edits.add("wheel")
         self.liveChanged.emit()
 
     @pyqtSlot(int)
@@ -1177,7 +1377,7 @@ class Backend(QObject):
         (adaptive when on, flat when off)."""
         self.setLocal("pointer.acceleration", bool(on))
         if shutil.which("gsettings") is None:
-            self.toast.emit("Pointer acceleration needs GNOME gsettings")
+            self.toast.emit(_("Pointer acceleration needs GNOME gsettings"))
             return
         try:
             subprocess.Popen(["gsettings", "set",
@@ -1379,14 +1579,14 @@ class Backend(QObject):
         r = self.daemon.call("SetKeyboardBacklight", _u8(max(0, min(100, int(level)))))
         if not (r and len(r) >= 1 and r[0]):
             # A sleeping keyboard ignores HID++ until a key press wakes it.
-            self.toast.emit("Keyboard not reachable - press a key to wake it, then try again")
+            self.toast.emit(_("Keyboard not reachable: press a key to wake it, then try again"))
 
     @pyqtSlot(str, float, float)
     def setPinPos(self, slot, nx, ny):
         """Persist a manually-placed callout pin (config.button_pins.<slot>)."""
         self._set_path(["button_pins", slot], {"nx": round(nx, 4), "ny": round(ny, 4)})
         self._save()
-        self.toast.emit(f"Pin saved: {slot} = {nx:.3f}, {ny:.3f}")
+        self.toast.emit(_("Pin saved: {slot} = {x}, {y}").format(slot=slot, x=f"{nx:.3f}", y=f"{ny:.3f}"))
 
     # ---- quick links (the submenu slice's own links, up to four) ----
     def _submenu_row(self):
@@ -1450,7 +1650,7 @@ class Backend(QObject):
                 break
         row = self._submenu_row()
         if row < 0:
-            self.toast.emit("Give a slice the AI Assistant action first")
+            self.toast.emit(_("Give a slice the AI Assistant action first"))
             return
         radial_menu = self._cfg.get("radial_menu")
         if isinstance(radial_menu, dict):
@@ -1479,7 +1679,7 @@ class Backend(QObject):
                 os.fsync(f.fileno())
             os.replace(f.name, PROFILES)
         except Exception as e:
-            self.toast.emit(f"Profiles save failed: {e}")
+            self.toast.emit(_("Profiles save failed: {error}").format(error=e))
 
     @pyqtSlot(result="QVariant")
     def appProfiles(self):
@@ -1514,7 +1714,7 @@ class Backend(QObject):
                        "hires": True, "thumbwheel": "off"}
             self._save_profiles(data)
             self.reloadConfig()
-            self.toast.emit(f"Added profile: {app}")
+            self.toast.emit(_("Added profile: {app}").format(app=app))
 
     # ---- profile suggestions for newly focused apps (NewAppSeen) ----
     # Our own windows and the desktop shell are never worth a profile.
@@ -1793,7 +1993,7 @@ class Backend(QObject):
             data = {}
         if not data.get("actions"):
             # unparseable reply or nothing captured: don't save an empty macro
-            self.toast.emit("Recording failed")
+            self.toast.emit(_("Recording failed"))
             return False
         data["name"] = name or "New macro"
         self.daemon.call("SaveMacro", json.dumps(data))
@@ -1810,7 +2010,7 @@ class Backend(QObject):
         self.reloadConfig()
         self.configChanged.emit()
         self.configReloaded.emit()
-        self.toast.emit("Settings restored to defaults")
+        self.toast.emit(_("Settings restored to defaults"))
 
     # ---- live device name + link ----
     def _set_device_name_live(self, name):
@@ -2006,7 +2206,7 @@ class Backend(QObject):
             elif AUTOSTART.exists():
                 AUTOSTART.unlink()
         except Exception as e:
-            self.toast.emit(f"Autostart: {e}")
+            self.toast.emit(_("Autostart: {error}").format(error=e))
 
     @staticmethod
     def _installed_launcher():
@@ -2112,9 +2312,9 @@ class Backend(QObject):
         path = self._local_path(url)
         ok, msg = self._run_backup("--export", path)
         if ok:
-            self.notify(f"Backup saved as {os.path.basename(path)}", "success")
+            self.notify(_("Backup saved as {name}").format(name=os.path.basename(path)), "success")
         else:
-            self.notify(f"Export failed: {msg}", "danger")
+            self.notify(_("Export failed: {error}").format(error=msg), "danger")
         return ok
 
     @pyqtSlot(str, result=bool)
@@ -2122,7 +2322,7 @@ class Backend(QObject):
         path = self._local_path(url)
         ok, msg = self._run_backup("--import", path)
         if not ok:
-            self.notify(f"Import failed: {msg}", "danger")
+            self.notify(_("Import failed: {error}").format(error=msg), "danger")
             return False
         # The daemon has already reloaded its config and macro triggers; now
         # pick the new files up in this process and rebuild the visible page.
@@ -2132,7 +2332,7 @@ class Backend(QObject):
         self.configChanged.emit()
         self.macrosChanged.emit()
         self.configReloaded.emit()
-        self.notify("Settings imported. The previous files are kept as .bak", "success")
+        self.notify(_("Settings imported. The previous files are kept as .bak"), "success")
         return True
 
     # ---- desktop-environment defaults ----
@@ -2161,7 +2361,7 @@ class Backend(QObject):
         self._set_path(["radial_menu", "slices"], slices)
         self._save()
         self.reloadConfig()
-        self.toast.emit("Applied desktop defaults")
+        self.toast.emit(_("Applied desktop defaults"))
 
     # ---- constants for QML ----
     @pyqtSlot(result="QVariant")
@@ -2282,7 +2482,7 @@ class Backend(QObject):
             subprocess.Popen(["xdg-open", str(PLUGINS_DIR)],
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as e:
-            self.notify(f"Could not open the plugins folder: {e}", "danger")
+            self.notify(_("Could not open the plugins folder: {error}").format(error=e), "danger")
 
     @pyqtSlot(result="QVariant")
     def radialActions(self):
@@ -2316,7 +2516,8 @@ class Backend(QObject):
 
     @pyqtSlot(result="QVariant")
     def languages(self):
-        return [{"id": i, "name": n} for (i, n) in LANGUAGES]
+        return ([{"id": "system", "name": _("System default")}]
+                + [{"id": i, "name": n} for (i, n) in LANGUAGES])
 
     # expose the slice model as a property for QML context binding
     @pyqtProperty(QObject, constant=True)

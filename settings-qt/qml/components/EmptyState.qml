@@ -8,7 +8,11 @@ Item {
     property string spot: ""
     property string title: ""
     property string body: ""
+    // The one action (a PrimaryButton child) goes in the default slot.
     default property alias action: actionSlot.data
+    Accessible.role: Accessible.Grouping
+    Accessible.name: title
+    Accessible.description: body
     implicitHeight: col.implicitHeight + 56
 
     Shape {

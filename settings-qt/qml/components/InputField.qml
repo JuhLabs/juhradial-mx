@@ -12,6 +12,8 @@ Item {
     property string error: ""
     signal accepted
     signal editingFinished
+    property string accessibleName: ""
+    property string accessibleDescription: ""
     implicitWidth: 220
     implicitHeight: 38 + (error !== "" ? errTxt.implicitHeight + 4 : 0)
 
@@ -28,6 +30,8 @@ Item {
         FocusHalo { active: field.activeFocus; radius: Theme.radiusCtl }
         B.TextField {
             id: field
+            Accessible.name: f.accessibleName !== "" ? f.accessibleName : placeholderText
+            Accessible.description: f.error !== "" ? f.error : f.accessibleDescription
             anchors.fill: parent
             anchors.leftMargin: 12; anchors.rightMargin: 10
             placeholderTextColor: Theme.textMuted

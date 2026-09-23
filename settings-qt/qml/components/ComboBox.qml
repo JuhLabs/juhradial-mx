@@ -6,7 +6,11 @@ import QtQuick.Controls.Basic as B
 B.ComboBox {
     id: control
     property string currentId: ""
+    property string accessibleName: ""
+    property string accessibleDescription: ""
     signal activated2(string id)
+    Accessible.name: accessibleName
+    Accessible.description: accessibleDescription
 
     textRole: "name"
     valueRole: "id"
@@ -51,7 +55,7 @@ B.ComboBox {
             Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
             Behavior on color { ColorAnimation { duration: Theme.dShort } }
         }
-        FocusHalo { active: control.activeFocus && !control.popup.visible; radius: Theme.radiusCtl }
+        FocusHalo { active: control.visualFocus && !control.popup.visible; radius: Theme.radiusCtl }
     }
     popup: B.Popup {
         y: control.height + 6

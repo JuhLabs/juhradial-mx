@@ -99,7 +99,7 @@ Item {
                         label: "Show overlay in games"
                         desc: "Keep the radial menu reachable while playing"
                         Toggle {
-                            checked: !Backend.get("gaming.suppress_overlay", false)
+                            checked: !Backend.get("gaming.suppress_overlay", true)
                             onToggled: (v) => Backend.setLocal("gaming.suppress_overlay", !v)
                         }
                     }

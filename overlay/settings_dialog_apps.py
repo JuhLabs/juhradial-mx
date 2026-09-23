@@ -31,6 +31,23 @@ from settings_widgets import SettingsCard, SettingRow
 logger = logging.getLogger(__name__)
 
 
+
+def _profile_smartshift_threshold(existing, global_ui):
+    """SmartShift threshold for an app profile in the PR #123 range 1..49.
+
+    Keeps a valid value the profile already has, else maps the global Point
+    and Scroll sensitivity (1..100 %) the same way the Qt app does (517e0b8).
+    50 is Logitech's ratchet-only endpoint and never a SmartShift threshold.
+    """
+    if isinstance(existing, int) and not isinstance(existing, bool) and 1 <= existing <= 49:
+        return existing
+    try:
+        ui = max(1, min(100, int(global_ui)))
+    except (TypeError, ValueError):
+        ui = 50
+    return 1 + (((ui - 1) * 48 + 49) // 99)
+
+
 class AddApplicationDialog(Adw.Window):
     """Dialog for adding a per-application profile"""
 
@@ -860,10 +877,11 @@ class AppProfileSlicesDialog(Adw.Window):
             hw["dpi"] = int(self.hw_dpi_spin.get_value())
 
         ss_sel = self.hw_smartshift.get_selected()
-        if ss_sel == 1:
-            hw["smartshift"] = {"enabled": True, "threshold": 50}
-        elif ss_sel == 2:
-            hw["smartshift"] = {"enabled": False, "threshold": 50}
+        if ss_sel in (1, 2):
+            threshold = _profile_smartshift_threshold(
+                (self.hardware.get("smartshift") or {}).get("threshold"),
+                config.get("scroll", "smartshift_threshold", default=50))
+            hw["smartshift"] = {"enabled": ss_sel == 1, "threshold": threshold}
 
         hires_sel = self.hw_hires.get_selected()
         if hires_sel == 1:

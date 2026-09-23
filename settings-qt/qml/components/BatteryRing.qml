@@ -3,8 +3,9 @@ import QtQuick.Shapes
 import QtQuick.Effects
 
 // Battery gauge: a glowing ring whose colour is driven by charge level (NOT the
-// theme) plus a detailed battery glyph in the centre. Green when healthy, amber
-// at 50-60%, red below 50%.
+// theme) plus a detailed battery glyph in the centre. One severity scale for
+// the whole app (Theme.batteryColor): green above 20 %, amber 11-20 %, red at
+// 10 % or below, muted while no reading exists.
 Item {
     id: r
     property int percent: 0
@@ -12,8 +13,15 @@ Item {
     property real size: 120
     width: size; height: size
 
-    readonly property color lvl: percent < 50 ? "#F4513B"
-                                 : percent <= 60 ? "#F5A623" : "#33D17A"
+    readonly property color lvl: Theme.batteryColor(percent, false)
+    readonly property bool chargeSoon: Theme.batteryChargeSoon(percent, charging)
+    readonly property int value: percent
+    readonly property int from: 0
+    readonly property int to: 100
+    Accessible.role: Accessible.ProgressBar
+    Accessible.name: qsTr("Battery")
+    Accessible.description: charging ? qsTr("%1 percent, charging").arg(percent)
+                                     : qsTr("%1 percent").arg(percent)
 
     // faint track
     Shape {
@@ -116,8 +124,8 @@ Item {
             }
         }
         Text {
-            visible: r.charging
-            text: "Charging"; color: r.lvl
+            visible: r.charging || r.chargeSoon
+            text: r.charging ? qsTr("Charging") : qsTr("Charge soon"); color: r.lvl
             font.family: Theme.fontUI; font.pixelSize: Math.round(r.size * 0.095); font.weight: Font.Medium
             anchors.horizontalCenter: parent.horizontalCenter
         }

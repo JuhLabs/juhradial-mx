@@ -6,7 +6,12 @@ Item {
     id: seg
     property var model: []
     property string currentId: ""
+    property string accessibleName: ""
+    property string accessibleDescription: ""
     signal activated(string id)
+    Accessible.role: Accessible.Grouping
+    Accessible.name: accessibleName
+    Accessible.description: accessibleDescription
     implicitWidth: 280; implicitHeight: 36
 
     readonly property int _count: model ? model.length : 0
@@ -21,6 +26,14 @@ Item {
     Keys.onReturnPressed: _next()
     Keys.onRightPressed: _next()
     Keys.onLeftPressed: _prev()
+    Keys.onDownPressed: _next()
+    Keys.onUpPressed: _prev()
+    Keys.onPressed: (e) => {
+        if (_count === 0) return
+        const i = e.key === Qt.Key_Home ? 0 : e.key === Qt.Key_End ? _count - 1 : -1
+        if (i < 0) return
+        currentId = model[i].id; activated(currentId); e.accepted = true
+    }
     function _next() {
         if (_count === 0) return
         var i = (_indexOf(currentId) + 1) % _count
@@ -72,6 +85,11 @@ Item {
                     font.weight: seg.currentId === modelData.id ? Font.DemiBold : Font.Medium
                     Behavior on color { ColorAnimation { duration: Theme.dShort } }
                 }
+                Accessible.role: Accessible.RadioButton
+                Accessible.name: modelData.name
+                Accessible.checkable: true
+                Accessible.checked: seg.currentId === modelData.id
+                Accessible.onPressAction: { seg.currentId = modelData.id; seg.activated(modelData.id) }
                 MouseArea {
                     id: segMa
                     anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor

@@ -15,6 +15,10 @@ Item {
     activeFocusOnTab: true
     Keys.onSpacePressed: if (btn.enabled) btn.clicked()
     Keys.onReturnPressed: if (btn.enabled) btn.clicked()
+    Keys.onEnterPressed: if (btn.enabled) btn.clicked()
+    Accessible.role: Accessible.Button
+    Accessible.name: text
+    Accessible.onPressAction: if (btn.enabled) btn.clicked()
 
     readonly property color _base: danger ? Theme.danger : Theme.accent
 
