@@ -152,6 +152,77 @@ Item {
                 }
             }
 
+            // ---- Desktop events (independent of the menu's own haptics) ----
+            GlassCard {
+                Layout.fillWidth: true
+                Layout.preferredHeight: desktopCol.implicitHeight + Theme.padCard * 2
+                Column {
+                    id: desktopCol
+                    anchors.fill: parent; anchors.margins: Theme.padCard
+                    spacing: Theme.gapS
+                    CardHeader {
+                        width: parent.width
+                        title: "Desktop events"
+                        subtitle: "A pulse when the focused app or the monitor under the cursor changes"
+                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/user-desktop-symbolic"
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    SettingRow {
+                        label: "App switch"
+                        desc: "Alt+Tab, the taskbar, or clicking into another window"
+                        Row {
+                            spacing: Theme.gapS
+                            Toggle {
+                                id: tgWin
+                                anchors.verticalCenter: parent.verticalCenter
+                                checked: Backend.get("haptics.window_switch_enabled", true)
+                                onToggled: (v) => Backend.set("haptics.window_switch_enabled", v)
+                            }
+                            IconButton {
+                                anchors.verticalCenter: parent.verticalCenter
+                                icon: "media-playback-start-symbolic"; tint: Theme.accent
+                                enabled: tgWin.checked
+                                onClicked: Backend.testHaptic(cbWin.currentId)
+                            }
+                            ComboBox {
+                                id: cbWin; width: 180
+                                enabled: tgWin.checked
+                                model: Backend.hapticPatterns()
+                                currentId: Backend.get("haptics.per_event.window_switch", "subtle_collision")
+                                onActivated2: (id) => Backend.set("haptics.per_event.window_switch", id)
+                            }
+                        }
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    SettingRow {
+                        label: "Monitor switch"
+                        desc: "The cursor crosses onto another display"
+                        Row {
+                            spacing: Theme.gapS
+                            Toggle {
+                                id: tgMon
+                                anchors.verticalCenter: parent.verticalCenter
+                                checked: Backend.get("haptics.monitor_switch_enabled", true)
+                                onToggled: (v) => Backend.set("haptics.monitor_switch_enabled", v)
+                            }
+                            IconButton {
+                                anchors.verticalCenter: parent.verticalCenter
+                                icon: "media-playback-start-symbolic"; tint: Theme.accent
+                                enabled: tgMon.checked
+                                onClicked: Backend.testHaptic(cbMon.currentId)
+                            }
+                            ComboBox {
+                                id: cbMon; width: 180
+                                enabled: tgMon.checked
+                                model: Backend.hapticPatterns()
+                                currentId: Backend.get("haptics.per_event.monitor_switch", "subtle_collision")
+                                onActivated2: (id) => Backend.set("haptics.per_event.monitor_switch", id)
+                            }
+                        }
+                    }
+                }
+            }
+
             // ---- Default pattern ----
             GlassCard {
                 Layout.fillWidth: true

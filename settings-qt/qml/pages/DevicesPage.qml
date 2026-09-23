@@ -131,9 +131,10 @@ Item {
                                 Layout.preferredWidth: 104; Layout.preferredHeight: 70
                                 Image {
                                     anchors.centerIn: parent
-                                    source: assetsDir + "/devices/mx4_side.png"
-                                    sourceSize.width: 1289; sourceSize.height: 829
-                                    width: 104; height: 67
+                                    readonly property bool mx3: Backend.deviceName.indexOf("MX Master 3") >= 0
+                                    source: assetsDir + (mx3 ? "/devices/mx3_quarter.png" : "/devices/mx4_side.png")
+                                    sourceSize.width: mx3 ? 549 : 1289; sourceSize.height: mx3 ? 804 : 829
+                                    width: mx3 ? 48 : 104; height: mx3 ? 70 : 67
                                     fillMode: Image.PreserveAspectFit; smooth: true; asynchronous: true
                                 }
                             }
@@ -146,10 +147,9 @@ Item {
                                 }
                                 Row {
                                     spacing: Theme.gapS
-                                    Badge {
-                                        text: Backend.isGeneric ? "Generic HID" : "USB receiver"
-                                        dot: true; accent: !Backend.isGeneric
-                                    }
+                                    Badge { visible: Backend.isGeneric; text: "Generic HID"; dot: true }
+                                    // Bolt / Unifying / USB receiver / Bluetooth, read from sysfs
+                                    Badge { text: Backend.connection; dot: true; accent: !Backend.isGeneric }
                                     Badge { text: Backend.deviceMode }
                                     Badge {
                                         visible: !Backend.isGeneric

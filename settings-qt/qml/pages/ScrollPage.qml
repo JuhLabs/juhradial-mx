@@ -135,11 +135,32 @@ Item {
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
                         label: "Scroll speed"
-                        desc: "Lines per wheel notch"
-                        Slider {
-                            width: 200; from: 1; to: 10; showValue: true
-                            value: Backend.get("scroll.speed", 3)
-                            onCommitted: (v) => Backend.setScrollSpeed(Math.round(v))
+                        desc: "Approximate lines per wheel notch"
+                        Row {
+                            spacing: Theme.gapS
+                            // The slider drives a desktop scroll factor (0.5x .. 2x);
+                            // most desktops scroll 3 lines per notch at 1.0x, so show
+                            // the effective line count, not the raw position (0.4.4).
+                            property int step: Backend.get("scroll.speed", 3)
+                            function lines(v) {
+                                var n = 3 * (0.5 + (v - 1) * 0.167)
+                                return (Math.round(n * 10) / 10).toString()
+                            }
+                            Slider {
+                                id: speedSlider
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 200; from: 1; to: 10
+                                value: parent.step
+                                onMoved: (v) => parent.step = Math.round(v)
+                                onCommitted: (v) => { parent.step = Math.round(v); Backend.setScrollSpeed(Math.round(v)) }
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 74
+                                text: "≈ " + parent.lines(parent.step) + " lines"
+                                color: Theme.textBody
+                                font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall
+                            }
                         }
                     }
                 }

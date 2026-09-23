@@ -117,7 +117,10 @@ class IconProvider(QQuickImageProvider):
         style = "line"
         name = sid
         parts = sid.split("/", 1)
-        if len(parts) == 2 and len(parts[0]) in (6, 8) and all(
+        if len(parts) == 2 and parts[0] == "raw":
+            # image://icon/raw/<name>: an application's own themed icon, untinted.
+            tint, name = None, parts[1]
+        elif len(parts) == 2 and len(parts[0]) in (6, 8) and all(
                 c in "0123456789abcdefABCDEF" for c in parts[0]):
             tint, name = "#" + parts[0], parts[1]
         parts = name.split("/", 1)
@@ -127,6 +130,8 @@ class IconProvider(QQuickImageProvider):
         if base.isNull():
             base = QPixmap(w, h)
             base.fill(Qt.GlobalColor.transparent)
+        if tint is None:
+            return base, base.size()
         tinted = QPixmap(base.size())
         tinted.fill(Qt.GlobalColor.transparent)
         p = QPainter(tinted)
@@ -230,13 +235,27 @@ def main():
     if shot:
         import subprocess
         from PyQt6.QtCore import QTimer
+        import PyQt6.sip as sip
+        from PyQt6.QtQuick import QQuickWindow
+
+        window = sip.cast(engine.rootObjects()[0], QQuickWindow)
+        size = os.environ.get("JUH_SHOT_SIZE", "")
+        if "x" in size:
+            w, h = (int(v) for v in size.lower().split("x", 1))
+            window.setWidth(w)
+            window.setHeight(h)
 
         def _grab():
-            # grabWindow() does not expose on this Wayland/KWin setup; use the
-            # native screenshot of the active window instead.
-            subprocess.run(["spectacle", "-b", "-n", "-a", "-o", shot],
-                           check=False)
-            print("shot saved:", shot)
+            # Under xcb (tools/shot.py) grabWindow() renders the real scene
+            # graph and needs no focus. On Wayland it comes back empty, so use
+            # the native active-window screenshot there (which needs focus).
+            if app.platformName() == "xcb":
+                ok = window.grabWindow().save(shot)
+                print(("shot saved: " if ok else "shot FAILED: ") + shot)
+            else:
+                subprocess.run(["spectacle", "-b", "-n", "-a", "-o", shot],
+                               check=False)
+                print("shot saved:", shot)
             app.quit()
         QTimer.singleShot(int(os.environ.get("JUH_SHOT_DELAY", "1600")), _grab)
 

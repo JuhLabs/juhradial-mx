@@ -56,15 +56,18 @@ B.Popup {
                 anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 12
                 Item {
                     width: 38; height: 38; anchors.verticalCenter: parent.verticalCenter
-                    property string btn: (Theme.iconStyle, Theme.sliceButton(ed.d.actionId || ""))
+                    // a picked application icon (absolute path) wins over the family button
+                    property string btn: (ed.d.icon || "").startsWith("/") ? ""
+                                         : (Theme.iconStyle, Theme.sliceButton(ed.d.actionId || ""))
                     Image {
                         anchors.fill: parent; visible: parent.btn !== ""
                         source: parent.btn; sourceSize.width: 96; sourceSize.height: 96
                         smooth: true; fillMode: Image.PreserveAspectFit
                     }
                     ActionIcon {
-                        anchors.centerIn: parent; visible: ((Theme.iconStyle, Theme.sliceButton(ed.d.actionId || ""))) === ""
-                        iconName: ed.d.icon || ""; tint: ed.d.hex || Theme.accent; px: 22
+                        anchors.centerIn: parent; visible: parent.btn === ""
+                        iconName: ed.d.icon || ""; tint: ed.d.hex || Theme.accent
+                        px: (ed.d.icon || "").startsWith("/") ? 30 : 22
                     }
                 }
                 Column {
@@ -102,8 +105,22 @@ B.Popup {
         // ---- command / url ----
         Column {
             width: parent.width; spacing: 5; visible: ed.needsCommand
-            Text { text: (ed.d.type === "url" ? "URL" : (ed.d.type === "shortcut" ? "Shortcut (e.g. ctrl+c)" : "Command"))
-                color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall }
+            Row {
+                width: parent.width
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - pickBtn.width
+                    text: (ed.d.type === "url" ? "URL" : (ed.d.type === "shortcut" ? "Shortcut (e.g. ctrl+c)" : "Command"))
+                    color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                }
+                // Pick an installed application instead of typing a command;
+                // its real icon replaces the glyph on the wheel.
+                PrimaryButton {
+                    id: pickBtn; text: "Pick application"; ghost: true
+                    visible: ed.d.type === "exec"
+                    onClicked: appPicker.open()
+                }
+            }
             Rectangle {
                 width: parent.width; height: 38; radius: Theme.radiusCtl; color: "#14FFFFFF"
                 border.color: cf.activeFocus ? Theme.accent : Theme.border; border.width: 1
@@ -153,5 +170,12 @@ B.Popup {
         actions: Backend.radialActions()
         currentId: ed.d.actionId || ""
         onPicked: (id) => { Slices.setAction(ed.row, id); ed.reload() }
+    }
+    AppPicker {
+        id: appPicker
+        onPicked: (app) => {
+            Slices.setApp(ed.row, app.command, app.name, Backend.cacheAppIcon(app.id))
+            ed.reload()
+        }
     }
 }

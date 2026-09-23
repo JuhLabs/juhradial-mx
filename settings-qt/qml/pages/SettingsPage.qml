@@ -5,6 +5,10 @@ import "../components"
 
 // App-wide preferences: appearance, language/desktop, startup, about and reset.
 Item {
+    id: page
+    // Actions Ring geometry (radial.outer_radius / inner_radius, null = theme default)
+    property var geo: Backend.ringGeometry()
+    function reloadGeo() { geo = Backend.ringGeometry() }
     anchors.fill: parent
 
     Flickable {
@@ -74,6 +78,44 @@ Item {
                         Toggle {
                             checked: Backend.get("blur_enabled", true)
                             onToggled: (v) => Backend.set("blur_enabled", v)
+                        }
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    SettingRow {
+                        label: "Ring size"
+                        desc: "Outer radius of the Actions Ring. Icons, submenus and the centre label scale with it"
+                        Row {
+                            spacing: Theme.gapS
+                            Slider {
+                                id: ringOuter
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 200; showValue: true; suffix: " px"
+                                from: page.geo.outerMin; to: page.geo.outerMax
+                                value: page.geo.outer
+                                onCommitted: (v) => { Backend.setRingOuter(Math.round(v)); page.reloadGeo() }
+                            }
+                        }
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    SettingRow {
+                        label: "Center zone"
+                        desc: "Dead zone in the middle where nothing is selected"
+                        Row {
+                            spacing: Theme.gapS
+                            Slider {
+                                id: ringInner
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 200; showValue: true; suffix: " px"
+                                from: page.geo.innerMin; to: page.geo.outer - page.geo.margin
+                                value: page.geo.inner
+                                onCommitted: (v) => { Backend.setRingInner(Math.round(v)); page.reloadGeo() }
+                            }
+                            PrimaryButton {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Default size"; ghost: true
+                                enabled: page.geo.custom
+                                onClicked: { Backend.resetRingGeometry(); page.reloadGeo() }
+                            }
                         }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }

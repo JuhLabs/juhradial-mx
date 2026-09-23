@@ -19,8 +19,13 @@ Item {
     property string wheelKey: Backend.get("radial.wheel", "none")
     readonly property bool mono: Theme.iconStyle === "mono"
     property bool editPins: false        // drag-to-place marker mode
-    function pinNx(md) { return Backend.get("button_pins." + md.slot + ".nx", md.nx) }
-    function pinNy(md) { return Backend.get("button_pins." + md.slot + ".ny", md.ny) }
+    // MX Master 3/3S share one body, distinct from the MX Master 4 photos and
+    // callout positions (GetDeviceName decides, like the GTK app).
+    readonly property bool isMx3: Backend.deviceName.indexOf("MX Master 3") >= 0
+    readonly property string pinKey: isMx3 ? "button_pins.mx3." : "button_pins."
+    function pinNx(md) { return Backend.get(pinKey + md.slot + ".nx", md.nx) }
+    function pinNy(md) { return Backend.get(pinKey + md.slot + ".ny", md.ny) }
+    property int dirBump: 0              // nudge the gesture callout after a directional change
 
     Component.onCompleted: {
         var a = Backend.buttonActions(), m = {}
@@ -30,7 +35,10 @@ Item {
     }
     function actionName(slot, def) {
         var id = Backend.get("buttons." + slot, def)
-        return actMap[id] || id
+        var text = actMap[id] || id
+        if (slot === "gesture" && (page.dirBump, Backend.get("buttons.gesture_directions.enabled", false)))
+            text += " + drag"
+        return text
     }
 
     // ---- AI quick-links editor (the AI slice's submenu) ----
@@ -40,15 +48,30 @@ Item {
         var links = Backend.aiLinks()
         for (var i = 0; i < links.length; i++)
             aiModel.append({ name: links[i].name || "", url: links[i].url || "",
-                             icon: links[i].icon || "browser" })
+                             icon: links[i].icon || "browser", command: links[i].command || "" })
     }
     function commitAi() {
         var out = []
         for (var i = 0; i < aiModel.count; i++) {
             var it = aiModel.get(i)
-            out.push({ name: it.name, url: it.url, icon: it.icon })
+            out.push({ name: it.name, url: it.url, icon: it.icon, command: it.command })
         }
         Backend.setAiLinks(out)
+    }
+    property int aiPickRow: -1
+    AppPicker {
+        id: linkAppPicker
+        title: "Open an application from the submenu"
+        onPicked: (app) => {
+            if (page.aiPickRow < 0) return
+            var icon = Backend.cacheAppIcon(app.id)
+            aiModel.setProperty(page.aiPickRow, "command", app.command)
+            aiModel.setProperty(page.aiPickRow, "url", "")
+            aiModel.setProperty(page.aiPickRow, "icon", icon)
+            if ((aiModel.get(page.aiPickRow).name || "") === "" || aiModel.get(page.aiPickRow).name === "New link")
+                aiModel.setProperty(page.aiPickRow, "name", app.name)
+            page.commitAi()
+        }
     }
 
     // physical buttons placed on each photo (normalized to the image box)
@@ -62,6 +85,16 @@ Item {
         { slot: "forward", def: "forward", label: "Forward", nx: 0.730, ny: 0.347, cx: 0.96, cy: 0.24 },
         { slot: "back", def: "back", label: "Back", nx: 0.658, ny: 0.461, cx: 0.96, cy: 0.50 },
         { slot: "gesture", def: "virtual_desktops", label: "Gesture", nx: 0.569, ny: 0.567, cx: 0.13, cy: 0.87 }
+    ]
+
+    readonly property var mx3Btns: [
+        { slot: "middle", def: "middle_click", label: "Wheel click", nx: 0.60, ny: 0.11, cx: 1.32, cy: 0.08 },
+        { slot: "shift_wheel", def: "smartshift", label: "Mode shift", nx: 0.59, ny: 0.37, cx: 1.32, cy: 0.36 },
+        { slot: "forward", def: "forward", label: "Forward", nx: 0.26, ny: 0.35, cx: -0.34, cy: 0.20 },
+        { slot: "back", def: "back", label: "Back", nx: 0.24, ny: 0.42, cx: -0.34, cy: 0.38 },
+        { slot: "horizontal_scroll", def: "scroll_left_right", label: "Thumb wheel", nx: 0.30, ny: 0.55, cx: -0.34, cy: 0.56 },
+        { slot: "gesture", def: "virtual_desktops", label: "Gesture", nx: 0.27, ny: 0.62, cx: -0.34, cy: 0.74 },
+        { slot: "thumb", def: "radial_menu", label: "Actions ring", nx: 0.28, ny: 0.66, cx: -0.34, cy: 0.92 }
     ]
 
     ActionPicker {
@@ -100,9 +133,71 @@ Item {
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
 
+                    // ---- MX Master 3/3S: one three-quarter photo ----
+                    Item {
+                        width: parent.width; height: 360
+                        visible: page.isMx3
+                        Shape {
+                            anchors.horizontalCenter: mx3Img.horizontalCenter
+                            y: mx3Img.y + mx3Img.height - 70
+                            width: mx3Img.width * 1.4; height: 110
+                            ShapePath {
+                                strokeWidth: 0
+                                fillGradient: RadialGradient {
+                                    centerX: mx3Img.width * 0.7; centerY: 55
+                                    focalX: mx3Img.width * 0.7; focalY: 55
+                                    centerRadius: mx3Img.width * 0.7
+                                    GradientStop { position: 0.0; color: "#66000000" }
+                                    GradientStop { position: 0.55; color: "#00000000" }
+                                }
+                                startX: 0; startY: 55
+                                PathArc { x: mx3Img.width * 1.4; y: 55; radiusX: mx3Img.width * 0.7; radiusY: 55 }
+                                PathArc { x: 0; y: 55; radiusX: mx3Img.width * 0.7; radiusY: 55 }
+                            }
+                        }
+                        Image {
+                            id: mx3Img
+                            anchors.centerIn: parent
+                            height: parent.height - 44
+                            width: height * (549 / 804)
+                            source: page.isMx3 ? assetsDir + "/devices/mx3_quarter.png" : ""
+                            asynchronous: true
+                            sourceSize.width: 549; sourceSize.height: 804
+                            fillMode: Image.PreserveAspectFit; smooth: true
+                        }
+                        Item {
+                            anchors.fill: mx3Img
+                            Repeater {
+                                model: page.isMx3 ? page.mx3Btns : []
+                                MouseCallout {
+                                    required property var modelData
+                                    cx: modelData.cx; cy: modelData.cy
+                                    editable: page.editPins
+                                    Component.onCompleted: { nx = page.pinNx(modelData); ny = page.pinNy(modelData) }
+                                    onMoved: (mnx, mny) => Backend.setPinPos("mx3." + modelData.slot, mnx, mny)
+                                    label: modelData.label
+                                    action: (page.actMapBump, page.actionName(modelData.slot, modelData.def))
+                                    onClicked: {
+                                        page.pickSlot = modelData.slot
+                                        btnPicker.currentId = Backend.get("buttons." + modelData.slot, modelData.def)
+                                        btnPicker.open()
+                                    }
+                                }
+                            }
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            text: "MX MASTER 3 / 3S"; color: Theme.textMuted
+                            font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                            font.weight: Font.DemiBold; font.letterSpacing: 1.5
+                        }
+                    }
+
                     RowLayout {
                         width: parent.width
                         spacing: Theme.gap
+                        visible: !page.isMx3
 
                         // ---- top view ----
                         Item {
@@ -231,6 +326,63 @@ Item {
                 }
             }
 
+            // ===== Directional gestures (gesture button + drag) =====
+            GlassCard {
+                Layout.fillWidth: true
+                Layout.preferredHeight: dirCol.implicitHeight + Theme.padCard * 2
+                Column {
+                    id: dirCol
+                    anchors.fill: parent; anchors.margins: Theme.padCard
+                    spacing: Theme.gapS
+                    readonly property bool on: (page.dirBump, Backend.get("buttons.gesture_directions.enabled", false))
+                    CardHeader {
+                        width: parent.width
+                        title: "Directional gestures"
+                        subtitle: "Hold the gesture button and drag to run a different action per direction. A press without dragging keeps the gesture button's own action."
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/view-app-grid-symbolic"
+                        Toggle {
+                            checked: dirCol.on
+                            onToggled: (v) => { Backend.set("buttons.gesture_directions.enabled", v); page.dirBump++; page.actMapBump++ }
+                        }
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    Repeater {
+                        model: [
+                            { key: "up", label: "Drag up" }, { key: "down", label: "Drag down" },
+                            { key: "left", label: "Drag left" }, { key: "right", label: "Drag right" }
+                        ]
+                        Column {
+                            required property var modelData
+                            width: parent.width
+                            spacing: Theme.gapS
+                            SettingRow {
+                                label: modelData.label
+                                enabled: dirCol.on
+                                opacity: dirCol.on ? 1.0 : 0.5
+                                ComboBox {
+                                    width: 220
+                                    model: Backend.buttonActions()
+                                    currentId: Backend.get("buttons.gesture_directions." + modelData.key, "none")
+                                    onActivated2: (id) => Backend.set("buttons.gesture_directions." + modelData.key, id)
+                                }
+                            }
+                            Rectangle { width: parent.width; height: 1; color: Theme.border }
+                        }
+                    }
+                    SettingRow {
+                        label: "Drag distance"
+                        desc: "Movement below this many pixels counts as a click"
+                        enabled: dirCol.on
+                        opacity: dirCol.on ? 1.0 : 0.5
+                        Slider {
+                            width: 200; from: 10; to: 400; showValue: true; suffix: " px"
+                            value: Backend.get("buttons.gesture_directions.threshold_px", 40)
+                            onCommitted: (v) => Backend.set("buttons.gesture_directions.threshold_px", Math.round(v / 5) * 5)
+                        }
+                    }
+                }
+            }
+
             // ===== Radial menu =====
             GlassCard {
                 Layout.fillWidth: true
@@ -316,7 +468,7 @@ Item {
                                     required property string hex
                                     required property string label
                                     required property string actionId
-                                    property string btnImg: page.mono ? "" : (Theme.iconStyle, Theme.sliceButton(actionId))
+                                    property string btnImg: (page.mono || icon.startsWith("/")) ? "" : (Theme.iconStyle, Theme.sliceButton(actionId))
                                     width: 60; height: 60
                                     property real ang: (index * 45 - 90) * Math.PI / 180
                                     x: ring.cx + ring.rr * Math.cos(ang) - width / 2
@@ -430,9 +582,9 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "AI Assistant links"
-                        subtitle: "Opens from the AI slice. Brand sites keep their logo; custom links show a globe."
+                        subtitle: "Up to four links or applications under the AI slice. Brand sites keep their logo, other links show a globe."
                         icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/applications-science-symbolic"
-                        Badge { text: aiModel.count + "/6"; accent: true }
+                        Badge { text: aiModel.count + "/4"; accent: true }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
 
@@ -442,11 +594,15 @@ Item {
                             required property int index
                             required property string name
                             required property string url
+                            required property string icon
+                            required property string command
+                            readonly property bool isApp: command !== ""
                             width: aiCol.width
                             spacing: Theme.gapS
                             ActionIcon {
                                 Layout.alignment: Qt.AlignVCenter
-                                iconName: "web-browser-symbolic"; tint: Theme.textMuted; px: 18
+                                iconName: isApp && icon.startsWith("/") ? icon : "web-browser-symbolic"
+                                tint: Theme.textMuted; px: isApp ? 22 : 18
                             }
                             InputField {
                                 id: nf
@@ -457,22 +613,48 @@ Item {
                             InputField {
                                 id: uf
                                 Layout.fillWidth: true
+                                visible: !isApp
                                 mono: true
                                 text: url; placeholder: "https://"
                                 error: (text === "" || text.startsWith("https://") || text.startsWith("http://")) ? "" : "Link must start with https://"
                                 onEditingFinished: { aiModel.setProperty(index, "url", text); page.commitAi() }
                             }
+                            // an application row: its command, read-only; clear turns it back into a link
+                            Rectangle {
+                                Layout.fillWidth: true
+                                visible: isApp
+                                height: 38; radius: Theme.radiusCtl
+                                color: "#0CFFFFFF"; border.color: Theme.border; border.width: 1
+                                Text {
+                                    anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
+                                    verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
+                                    text: "App: " + command; color: Theme.textMuted
+                                    font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall
+                                }
+                            }
+                            IconButton {
+                                icon: "application-x-executable-symbolic"; tint: Theme.textMuted; diameter: 36
+                                onClicked: { page.aiPickRow = index; linkAppPicker.open() }
+                            }
                             IconButton {
                                 icon: "edit-clear-symbolic"; tint: Theme.textMuted; diameter: 36
-                                onClicked: { aiModel.remove(index); page.commitAi() }
+                                onClicked: {
+                                    if (isApp) {
+                                        aiModel.setProperty(index, "command", ""); aiModel.setProperty(index, "icon", "browser")
+                                        aiModel.setProperty(index, "url", "https://")
+                                    } else {
+                                        aiModel.remove(index)
+                                    }
+                                    page.commitAi()
+                                }
                             }
                         }
                     }
 
                     PrimaryButton {
                         text: "Add link"; ghost: true
-                        enabled: aiModel.count < 6
-                        onClicked: { aiModel.append({ name: "New link", url: "https://", icon: "browser" }); page.commitAi() }
+                        enabled: aiModel.count < 4
+                        onClicked: { aiModel.append({ name: "New link", url: "https://", icon: "browser", command: "" }); page.commitAi() }
                     }
                 }
             }

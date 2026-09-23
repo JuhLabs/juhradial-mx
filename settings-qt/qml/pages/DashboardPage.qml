@@ -143,9 +143,10 @@ Item {
                         }
                         Image {
                             anchors.centerIn: parent
-                            source: assetsDir + "/devices/mx4_side.png"
-                            sourceSize.width: 1289; sourceSize.height: 829
-                            width: 200; height: 128
+                            readonly property bool mx3: Backend.deviceName.indexOf("MX Master 3") >= 0
+                            source: assetsDir + (mx3 ? "/devices/mx3_quarter.png" : "/devices/mx4_side.png")
+                            sourceSize.width: mx3 ? 549 : 1289; sourceSize.height: mx3 ? 804 : 829
+                            width: mx3 ? 96 : 200; height: mx3 ? 140 : 128
                             fillMode: Image.PreserveAspectFit
                             smooth: true; asynchronous: true
                         }
@@ -271,7 +272,7 @@ Item {
                                     required property string icon
                                     required property string hex
                                     required property string actionId
-                                    property string btnImg: page.mono ? "" : (Theme.iconStyle, Theme.sliceButton(actionId))
+                                    property string btnImg: (page.mono || icon.startsWith("/")) ? "" : (Theme.iconStyle, Theme.sliceButton(actionId))
                                     width: 36; height: 36
                                     x: ringBox.width / 2 + ringBox.rr * Math.cos((index * 45 - 90) * Math.PI / 180) - width / 2
                                     y: ringBox.height / 2 + ringBox.rr * Math.sin((index * 45 - 90) * Math.PI / 180) - height / 2

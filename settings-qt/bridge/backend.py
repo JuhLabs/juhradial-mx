@@ -21,11 +21,15 @@ import pathlib
 import copy
 import tempfile
 import threading
+import re
 
 from PyQt6.QtCore import (
     QObject, pyqtSlot, pyqtProperty, pyqtSignal, QTimer, QCoreApplication,
     QAbstractListModel, QModelIndex, Qt, QByteArray,
 )
+
+from PyQt6.QtCore import QSize
+from PyQt6.QtGui import QIcon
 
 try:
     from PyQt6.QtDBus import (QDBusConnection, QDBusInterface, QDBusMessage,
@@ -40,6 +44,16 @@ CONFIG_DIR = _XDG_CONFIG / "juhradial"
 CONFIG = CONFIG_DIR / "config.json"
 PROFILES = CONFIG_DIR / "profiles.json"
 AUTOSTART = _XDG_CONFIG / "autostart" / "juhradial-mx.desktop"
+
+# Actions Ring geometry (Settings → Appearance): the overlay's defaults
+# (overlay_constants MENU_RADIUS / CENTER_ZONE_RADIUS) and the clamps the GTK
+# app applies in settings_config; tests/test_settings_qt_parity.py pins both.
+RING_OUTER_DEFAULT, RING_INNER_DEFAULT = 150, 45
+RING_OUTER_MIN, RING_OUTER_MAX = 80, 250
+RING_INNER_MIN, RING_INNER_MARGIN = 20, 30
+
+# Desktop Entry Exec field codes (%f %u %F %U ...) and the literal %%.
+_FIELD_CODE_RE = re.compile(r"%%|%[fFuUdDnNickvm]")
 
 BUS_NAME = "org.kde.juhradialmx"
 OBJ_PATH = "/org/kde/juhradialmx/Daemon"
@@ -260,8 +274,7 @@ DEFAULT_CONFIG = {
     "theme": "phosphor",
     "radial_menu": {"slices": DEFAULT_SLICES,
                     "easy_switch_shortcuts": True,
-                    "easy_switch_host_os": ["linux", "windows", "macos"],
-                    "ai_links": DEFAULT_AI_LINKS},
+                    "easy_switch_host_os": ["linux", "windows", "macos"]},
     "blur_enabled": True,
     "language": "en",
     "desktop_environment": "auto",
@@ -277,7 +290,8 @@ DEFAULT_CONFIG = {
                "natural": False, "smooth": True},
     "thumbwheel": {"mode": "off", "invert": False, "speed": 1},
     "buttons": {k: d for (k, _l, d) in BUTTON_SLOTS},
-    "app": {"start_at_login": False, "show_tray_icon": True},
+    # Start at Login defaults on (the installer writes the autostart entry).
+    "app": {"start_at_login": True, "show_tray_icon": True},
     # wheel "" is the overlay no-op (falsy in _config_wheel_key), so a merged
     # default never overrides the theme-derived wheel for existing users.
     "radial": {"minimal_mode": False, "wheel": "", "click_outside_closes": True},
@@ -318,6 +332,7 @@ class Daemon(QObject):
     dpiChanged = pyqtSignal(int)
     hostChanged = pyqtSignal(int)
     ratchetChanged = pyqtSignal(bool)
+    deviceNameRefreshed = pyqtSignal(str)
     gamingModeChanged = pyqtSignal(bool)
     availabilityChanged = pyqtSignal()
 
@@ -339,6 +354,9 @@ class Daemon(QObject):
         self._bus.connect("", OBJ_PATH, IFACE, "HostChanged", self._on_host)
         self._bus.connect("", OBJ_PATH, IFACE, "RatchetChanged", self._on_ratchet)
         self._bus.connect("", OBJ_PATH, IFACE, "GamingModeChanged", self._on_gaming)
+        # Bolt reports a generic receiver name until the mouse answers; the
+        # daemon re-probes and announces the real model (GTK app parity).
+        self._bus.connect("", OBJ_PATH, IFACE, "DeviceNameRefreshed", self._on_device_name)
         self._watcher = QDBusServiceWatcher(
             BUS_NAME, self._bus,
             QDBusServiceWatcher.WatchModeFlag.WatchForRegistration
@@ -425,6 +443,12 @@ class Daemon(QObject):
         a = msg.arguments()
         if a:
             self.ratchetChanged.emit(bool(a[0]))
+
+    @pyqtSlot(QDBusMessage)
+    def _on_device_name(self, msg):
+        a = msg.arguments()
+        if a:
+            self.deviceNameRefreshed.emit(str(a[0]))
 
     @pyqtSlot(QDBusMessage)
     def _on_gaming(self, msg):
@@ -546,6 +570,33 @@ class SliceModel(QAbstractListModel):
             self.dataChanged.emit(idx, idx, [])
             self._persist()
 
+    @pyqtSlot(int, str, str, str)
+    def setApp(self, row, command, label, icon):
+        """Point a slice at a picked application: exec type, its command and
+        cached icon (an absolute path the overlay draws as-is). The label is
+        replaced only while it is still the preset's own text or empty."""
+        if not (0 <= row < len(self._slices)):
+            return
+        s = self._slices[row]
+        preset = next((lbl for (aid, lbl, *_r) in RADIAL_ACTIONS if aid == s.get("action_id")), None)
+        s["type"] = "exec"
+        s["command"] = command
+        if icon:
+            s["icon"] = icon
+        if label and (not (s.get("label") or "").strip() or s.get("label") == preset):
+            s["label"] = label
+        idx = self.index(row, 0)
+        self.dataChanged.emit(idx, idx, [])
+        self._persist()
+
+    def set_submenu(self, row, items):
+        """Replace the quick links carried by a submenu slice (what the overlay reads)."""
+        if 0 <= row < len(self._slices):
+            self._slices[row]["submenu"] = [dict(i) for i in items]
+            idx = self.index(row, 0)
+            self.dataChanged.emit(idx, idx, [])
+            self._persist()
+
     @pyqtSlot(int, int)
     def swap(self, a, b):
         n = len(self._slices)
@@ -638,11 +689,14 @@ class Backend(QObject):
         self._device_name = ""
         self._device_mode = ""
         self._daemon_version = ""
+        self._connection = ""
 
         self._gaming_mode = bool(self.get("gaming.enabled", False))
         self._low_batt_notified = False
+        self._repair_autostart_if_stale()
 
         self.daemon.batteryChanged.connect(self._set_battery)
+        self.daemon.deviceNameRefreshed.connect(self._set_device_name_live)
         self.daemon.dpiChanged.connect(self._set_dpi_live)
         self.daemon.hostChanged.connect(self._set_host_live)
         self.daemon.ratchetChanged.connect(self._set_ratchet_live)
@@ -832,7 +886,18 @@ class Backend(QObject):
     def _refresh_wheel_mode(self):
         ss = self.daemon.call("GetSmartShift")
         if ss and len(ss) >= 2:
-            self._wheel_mode = self._derive_wheel_mode(bool(ss[0]), _to_int(ss[1]))
+            enabled, threshold = bool(ss[0]), _to_int(ss[1])
+            self._wheel_mode = self._derive_wheel_mode(enabled, threshold)
+            # The sensitivity slider follows the hardware when it was set from
+            # elsewhere (another host, the GTK app): device 1..49 maps back to
+            # the percent scale exactly (PR #123). Untouched when the device
+            # already holds what the config maps to, so the slider never nudges.
+            if enabled and 1 <= threshold <= 49:
+                cur = int(self.get("scroll.smartshift_threshold", 50))
+                if self._dev_threshold(cur) != threshold:
+                    self._set_path(["scroll", "smartshift_threshold"], self._ui_threshold(threshold))
+                    self._save()
+                    self.configChanged.emit()
 
     @pyqtProperty("QStringList", notify=liveChanged)
     def hostNames(self):
@@ -856,10 +921,15 @@ class Backend(QObject):
             self._device_name = ""
             self._device_mode = ""
             self._daemon_version = ""
+            self._connection = ""
             self.liveChanged.emit()
             return
         self._device_name = d.call1("GetDeviceName", default="") or ""
+        # Dev override for device art and callout work on hardware you do not
+        # own (for example JUH_DEVICE_NAME="MX Master 3S" on an MX Master 4).
+        self._device_name = os.environ.get("JUH_DEVICE_NAME") or self._device_name
         self._device_mode = d.call1("GetDeviceMode", default="") or ""
+        self._connection = self._detect_connection(self._device_mode == "generic")
         self._daemon_version = str(d.prop("DaemonVersion", "") or "")
         r = d.call("GetBatteryStatus")
         if r and len(r) >= 2:
@@ -956,10 +1026,21 @@ class Backend(QObject):
 
     @staticmethod
     def _dev_threshold(ui_value):
-        # UI 1..100 -> device 1..254 (higher = more ratchet-like). 0 and 255
-        # are excluded: 0 means freespin and 255 permanent ratchet in the
-        # daemon's SetSmartShift mapping.
-        return max(1, min(254, int(round((100 - ui_value) * 2.55))))
+        """Easy 1% .. Hard 100% -> HID++ automatic disengage threshold 1..49.
+
+        Same mapping as the GTK app since PR #123 (hardware-verified on an
+        MX Master 4): monotonic, higher slider = harder flick before the wheel
+        auto-releases. 0 (free-spin) and 255 (permanent ratchet) stay reserved
+        for the wheel-mode setter, and 50 is Logitech's ratchet-only endpoint.
+        """
+        ui_value = max(1, min(100, int(ui_value)))
+        return 1 + (((ui_value - 1) * 48 + 49) // 99)
+
+    @staticmethod
+    def _ui_threshold(device_threshold):
+        """Inverse of _dev_threshold: device 1..49 -> Easy/Hard percent."""
+        threshold = max(1, min(49, int(device_threshold)))
+        return 1 + (((threshold - 1) * 99) // 48)
 
     @pyqtSlot(bool)
     def setNaturalScroll(self, on):
@@ -1142,30 +1223,74 @@ class Backend(QObject):
         self._save()
         self.toast.emit(f"Pin saved: {slot} = {nx:.3f}, {ny:.3f}")
 
-    # ---- AI submenu quick-links ----
+    # ---- quick links (the submenu slice's own links, up to four) ----
+    def _submenu_row(self):
+        for i, sl in enumerate(self._slices.slices()):
+            if sl.get("type") == "submenu":
+                return i
+        return -1
+
     @pyqtSlot(result="QVariant")
     def aiLinks(self):
-        v = self.get("radial_menu.ai_links")
-        return v if v else [dict(x) for x in DEFAULT_AI_LINKS]
+        """Rows for the quick-links editor: {name, url, icon, command}.
+
+        Read from the submenu slice's `submenu` list, which is what the
+        overlay draws (0.4.3, `submenu_from_config`). A config that only has
+        the older Qt-side radial_menu.ai_links key is shown from that once and
+        moves into the slice on the next save. No links at all shows the AI
+        defaults, exactly like an empty list does on the wheel.
+        """
+        row = self._submenu_row()
+        items = self._slices.slices()[row].get("submenu") if row >= 0 else None
+        if not items:
+            legacy = self.get("radial_menu.ai_links")
+            if isinstance(legacy, list):
+                items = [{"label": l.get("name", ""), "url": l.get("url", "")}
+                         for l in legacy if isinstance(l, dict)]
+        out = []
+        for it in items or []:
+            if not isinstance(it, dict):
+                continue
+            if it.get("type") == "exec":
+                out.append({"name": it.get("label", ""), "url": "",
+                            "icon": it.get("icon", ""), "command": it.get("command", "")})
+            else:
+                out.append({"name": it.get("label", ""), "url": it.get("url", ""),
+                            "icon": "browser", "command": ""})
+        return out[:4] or [{"name": l["name"], "url": l["url"], "icon": l["icon"], "command": ""}
+                           for l in DEFAULT_AI_LINKS]
 
     @pyqtSlot("QVariant")
     def setAiLinks(self, links):
-        """Persist the editable AI-assistant quick-links (name+url, max 6)."""
-        out = []
+        """Persist the quick links into the submenu slice (the overlay reads at
+        most four). Link rows carry {name, url}; application rows carry
+        {name, command, icon} and launch like an exec slice."""
+        items = []
         for l in (links or []):
             if not isinstance(l, dict):
                 continue
-            name = str(l.get("name", "")).strip()
-            url = str(l.get("url", "")).strip()
-            if not name or not url:
+            name = str(l.get("name", "") or "").strip()
+            command = str(l.get("command", "") or "").strip()
+            url = str(l.get("url", "") or "").strip()
+            if not name:
                 continue
-            if "://" not in url:
-                url = "https://" + url
-            out.append({"name": name, "url": url,
-                        "icon": str(l.get("icon", "") or "browser")})
-        self._set_path(["radial_menu", "ai_links"], out[:6])
-        self._save()
-        self.reloadConfig()
+            if command:
+                items.append({"label": name, "type": "exec", "command": command,
+                              "icon": str(l.get("icon", "") or "")})
+            elif url:
+                if "://" not in url:
+                    url = "https://" + url
+                items.append({"label": name, "url": url})
+            if len(items) == 4:
+                break
+        row = self._submenu_row()
+        if row < 0:
+            self.toast.emit("Give a slice the AI Assistant action first")
+            return
+        radial_menu = self._cfg.get("radial_menu")
+        if isinstance(radial_menu, dict):
+            radial_menu.pop("ai_links", None)
+        self._slices.set_submenu(row, items)
         self.configChanged.emit()
 
     # ---- per-app hardware profiles (profiles.json -> hardware{}) ----
@@ -1459,6 +1584,175 @@ class Backend(QObject):
         self.configChanged.emit()
         self.toast.emit("Settings restored to defaults")
 
+    # ---- live device name + link ----
+    def _set_device_name_live(self, name):
+        if name:
+            self._device_name = name
+        self._connection = self._detect_connection(self.isGeneric)
+        self.liveChanged.emit()
+
+    @pyqtProperty(str, notify=liveChanged)
+    def connection(self):
+        """How the mouse is linked: Bolt receiver, Unifying receiver, USB
+        receiver, Bluetooth, or a receiver plus Bluetooth (0.4.4 Devices row)."""
+        return self._connection or ("USB" if self.isGeneric else "USB receiver")
+
+    @staticmethod
+    def _detect_connection(generic=False, hid_root="/sys/bus/hid/devices"):
+        """Read the HID bus from sysfs like the GTK Devices page: entries are
+        BBBB:VVVV:PPPP.NNNN, bus 0005 = Bluetooth and 0003 = USB, Logitech is
+        046D, the Bolt receiver C548, Unifying C52B / C534. Generic mice only
+        tell Bluetooth from USB."""
+        try:
+            names = [n.upper() for n in os.listdir(hid_root)]
+        except OSError:
+            names = []
+        if generic:
+            return "Bluetooth" if any(n.startswith("0005:") for n in names) else "USB"
+        bluetooth, receiver = False, None
+        for name in names:
+            if ":046D:" not in name:
+                continue
+            if name.startswith("0005:"):
+                bluetooth = True
+            elif name.startswith("0003:"):
+                pid = name.split(".")[0].rsplit(":", 1)[-1]
+                if pid == "C548":
+                    receiver = "Bolt receiver"
+                elif pid in ("C52B", "C534"):
+                    receiver = "Unifying receiver"
+                elif receiver is None:
+                    receiver = "USB receiver"
+        if receiver and bluetooth:
+            return receiver + " + Bluetooth"
+        if bluetooth:
+            return "Bluetooth"
+        return receiver or "USB receiver"
+
+    # ---- Actions Ring geometry (Settings → Appearance) ----
+    @pyqtSlot(result="QVariant")
+    def ringGeometry(self):
+        outer = self.get("radial.outer_radius")
+        inner = self.get("radial.inner_radius")
+        return {"outer": int(outer or RING_OUTER_DEFAULT),
+                "inner": int(inner or RING_INNER_DEFAULT),
+                "custom": outer is not None or inner is not None,
+                "outerMin": RING_OUTER_MIN, "outerMax": RING_OUTER_MAX,
+                "innerMin": RING_INNER_MIN, "margin": RING_INNER_MARGIN,
+                "outerDefault": RING_OUTER_DEFAULT, "innerDefault": RING_INNER_DEFAULT}
+
+    @pyqtSlot(int)
+    def setRingOuter(self, value):
+        """Outer radius in px. A too-large centre zone is pulled in with it
+        (same clamps as the GTK app). The overlay re-reads radial.* every
+        time the menu opens, so no daemon reload is involved."""
+        value = int(max(RING_OUTER_MIN, min(RING_OUTER_MAX, int(value))))
+        inner = self.get("radial.inner_radius")
+        if inner is not None and int(inner) > value - RING_INNER_MARGIN:
+            self._set_path(["radial", "inner_radius"],
+                           max(RING_INNER_MIN, value - RING_INNER_MARGIN))
+        self._set_path(["radial", "outer_radius"], value)
+        self._save()
+        self.configChanged.emit()
+
+    @pyqtSlot(int)
+    def setRingInner(self, value):
+        outer = int(self.get("radial.outer_radius") or RING_OUTER_DEFAULT)
+        value = int(max(RING_INNER_MIN, min(int(value), outer - RING_INNER_MARGIN)))
+        self._set_path(["radial", "inner_radius"], value)
+        self._save()
+        self.configChanged.emit()
+
+    @pyqtSlot()
+    def resetRingGeometry(self):
+        """Back to the theme default: null clears the override (what the GTK
+        app writes and what the overlay treats as unset)."""
+        self._set_path(["radial", "outer_radius"], None)
+        self._set_path(["radial", "inner_radius"], None)
+        self._save()
+        self.configChanged.emit()
+
+    # ---- installed applications ("Pick application" for slices and links) ----
+    @staticmethod
+    def _command_for_exec(exec_line):
+        """Plain shell command from a Desktop Entry Exec line: field codes
+        dropped, %% collapsed to one percent (the GTK picker's rule)."""
+        return _FIELD_CODE_RE.sub(lambda m: "%" if m.group(0) == "%%" else "",
+                                  exec_line or "").strip()
+
+    @pyqtSlot(result="QVariant")
+    def listApplications(self):
+        """Installed applications as the desktop menu lists them (Gio), without
+        hidden entries and without Terminal=true ones, which open no window
+        when launched from a slice. Sorted by name."""
+        try:
+            from gi.repository import Gio
+        except Exception:
+            return []
+        out = []
+        for app in Gio.AppInfo.get_all():
+            try:
+                if not app.should_show():
+                    continue
+                desktop = isinstance(app, Gio.DesktopAppInfo)
+                if desktop and app.get_boolean("Terminal"):
+                    continue
+                command = self._command_for_exec(
+                    app.get_string("Exec") if desktop else app.get_commandline())
+                if not command:
+                    continue
+                icon, icon_name = app.get_icon(), ""
+                if isinstance(icon, Gio.ThemedIcon):
+                    names = icon.get_names() or []
+                    icon_name = names[0] if names else ""
+                elif isinstance(icon, Gio.FileIcon):
+                    icon_name = icon.get_file().get_path() or ""
+                out.append({"id": app.get_id() or "",
+                            "name": app.get_display_name() or app.get_name() or "",
+                            "command": command, "icon": icon_name,
+                            "description": app.get_description() or ""})
+            except Exception:
+                continue
+        out.sort(key=lambda a: a["name"].lower())
+        return out
+
+    @pyqtSlot(str, result=str)
+    def cacheAppIcon(self, app_id):
+        """Copy or render an application's icon into ~/.config/juhradial/icons/
+        (the cache the GTK picker uses, which the overlay draws from) and
+        return the absolute path, or "" when the icon cannot be resolved."""
+        try:
+            from gi.repository import Gio
+            app = Gio.DesktopAppInfo.new(app_id) if app_id else None
+        except Exception:
+            return ""
+        icon = app.get_icon() if app is not None else None
+        if icon is None:
+            return ""
+        safe_id = "".join(c if c.isalnum() or c in "-_." else "_" for c in app_id)
+        dest_dir = CONFIG_DIR / "icons"
+        try:
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            if isinstance(icon, Gio.FileIcon):
+                src = icon.get_file().get_path()
+                if not src or not os.path.isfile(src):
+                    return ""
+                dest = dest_dir / (safe_id + (os.path.splitext(src)[1] or ".png"))
+                shutil.copyfile(src, dest)
+                return str(dest)
+            names = icon.get_names() if isinstance(icon, Gio.ThemedIcon) else []
+            for name in names or []:
+                qicon = QIcon.fromTheme(name)
+                if qicon.isNull():
+                    continue
+                pm = qicon.pixmap(QSize(64, 64))
+                dest = dest_dir / (safe_id + ".png")
+                if not pm.isNull() and pm.save(str(dest), "PNG"):
+                    return str(dest)
+        except Exception:
+            return ""
+        return ""
+
     # ---- app / autostart ----
     @pyqtSlot()
     def refreshDevices(self):
@@ -1475,27 +1769,66 @@ class Backend(QObject):
         self.setLocal("app.start_at_login", bool(on))
         try:
             if on:
-                AUTOSTART.parent.mkdir(parents=True, exist_ok=True)
-                launcher = self._find_launcher()
-                AUTOSTART.write_text(
-                    "[Desktop Entry]\nType=Application\nName=JuhRadial MX\n"
-                    f"Exec={launcher}\nX-GNOME-Autostart-enabled=true\nTerminal=false\n")
+                self._write_autostart(self._find_launcher())
             elif AUTOSTART.exists():
                 AUTOSTART.unlink()
         except Exception as e:
             self.toast.emit(f"Autostart: {e}")
 
     @staticmethod
-    def _find_launcher():
-        # juhradial-mx starts daemon + overlay; the bare daemon is a fallback.
-        for name in ("juhradial-mx", "juhradiald"):
-            p = shutil.which(name)
-            if p:
-                return p
-        for c in ("/usr/local/bin/juhradiald", "/usr/bin/juhradiald"):
-            if os.path.exists(c):
+    def _installed_launcher():
+        for c in (shutil.which("juhradial-mx"), "/usr/local/bin/juhradial-mx",
+                  "/usr/bin/juhradial-mx"):
+            if c and os.path.exists(c):
                 return c
-        return "juhradiald"
+        return None
+
+    @classmethod
+    def _find_launcher(cls):
+        """The juhradial-mx launcher (daemon + overlay), or this checkout's
+        script. Never the bare daemon: the systemd unit owns that, and a login
+        entry pointing at it would leave the overlay unstarted (#129)."""
+        installed = cls._installed_launcher()
+        if installed:
+            return installed
+        dev = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "juhradial-mx.sh"
+        return str(dev) if dev.exists() else "juhradial-mx"
+
+    @staticmethod
+    def _write_autostart(exec_path):
+        AUTOSTART.parent.mkdir(parents=True, exist_ok=True)
+        AUTOSTART.write_text(
+            "[Desktop Entry]\nType=Application\nName=JuhRadial MX\n"
+            "Comment=Radial menu for Logitech MX Master\n"
+            f"Exec={exec_path}\nIcon=juhradial-mx\nTerminal=false\n"
+            "Categories=Utility;\nX-GNOME-Autostart-enabled=true\n",
+            encoding="utf-8")
+
+    def _repair_autostart_if_stale(self):
+        """Keep the login entry working without a re-toggle (GTK app parity).
+
+        Creates a missing entry when Start at Login is on and an installed
+        launcher exists (a bare checkout never makes itself the autostart), and
+        rewrites an Exec whose binary is gone: older builds hardcoded
+        /usr/bin/juhradial-mx, which fails with status=127 on curl installs
+        (#32, #129). A valid entry is left alone.
+        """
+        if not self.get("app.start_at_login", True):
+            return
+        try:
+            if not AUTOSTART.exists():
+                installed = self._installed_launcher()
+                if installed:
+                    self._write_autostart(installed)
+                return
+            exec_line = next((ln for ln in AUTOSTART.read_text(encoding="utf-8").splitlines()
+                              if ln.startswith("Exec=")), "")
+            current = exec_line[len("Exec="):].strip().split()
+            if current and os.path.exists(current[0]):
+                return
+            self._write_autostart(self._find_launcher())
+        except OSError:
+            pass
 
     # ---- desktop-environment defaults ----
     @pyqtSlot(str)
