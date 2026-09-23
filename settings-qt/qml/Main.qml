@@ -28,6 +28,16 @@ ApplicationWindow {
         // Pages read Backend.get() when they load; after an import or a
         // restore, re-run the active Loader so the controls show the new file.
         function onConfigReloaded() { const i = nav.current; nav.current = -1; nav.current = i }
+        // A newly focused app without a profile: offer one, now if this window
+        // is in front, otherwise the next time it becomes active.
+        function onProfileSuggested() { if (win.active) win.offerProfile() }
+    }
+    onActiveChanged: if (active) offerProfile()
+    function offerProfile() {
+        const s = Backend.takeProfileSuggestion()
+        if (!s) return
+        toast.show("First time in " + s.name + ". Give it its own profile?", "info", "Create profile",
+                   function() { Backend.addAppProfile(s.app); Backend.goTo("apps"); Backend.reloadPage() })
     }
 
     ListModel {

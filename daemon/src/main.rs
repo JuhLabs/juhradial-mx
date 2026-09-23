@@ -285,6 +285,17 @@ struct Args {
     import: Option<PathBuf>,
 }
 
+/// The lowercased class the first time it is focused in this run, else None.
+/// Profiles are keyed by lowercased class, so "Firefox" and "firefox" are one
+/// application.
+fn first_sighting(seen: &mut HashSet<String>, class: &str) -> Option<String> {
+    let app = class.trim().to_lowercase();
+    if app.is_empty() || !seen.insert(app.clone()) {
+        return None;
+    }
+    Some(app)
+}
+
 /// Config directory the backup commands operate on (XDG aware).
 fn backup_config_dir() -> PathBuf {
     juhradiald::config::Config::default_config_dir()
@@ -828,11 +839,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // so leaving its app restores the global divert/invert instead of
             // latching the profile's state everywhere (issue #127 review).
             let mut thumbwheel_overridden = false;
+            // Classes already announced through NewAppSeen during this run.
+            let mut seen_apps: HashSet<String> = HashSet::new();
             while let Some(class) = active_window_rx.recv().await {
                 if class == current_class {
                     continue;
                 }
                 current_class = class.clone();
+
+                // First focus of an application in this run: Settings decides
+                // whether to offer a profile for it (suppress list, existing
+                // profiles), the daemon only announces it once.
+                if let Some(app) = first_sighting(&mut seen_apps, &class) {
+                    if let Err(e) = profile_connection
+                        .emit_signal(
+                            None::<&str>,
+                            DBUS_PATH,
+                            "org.kde.juhradialmx.Daemon",
+                            "NewAppSeen",
+                            &(app,),
+                        )
+                        .await
+                    {
+                        warn!(error = %e, "Failed to emit NewAppSeen");
+                    }
+                }
 
                 // Window-switch haptic fires on every app-class change,
                 // regardless of whether a hardware profile matches below.
@@ -2213,6 +2244,17 @@ mod tests {
     fn test_args_list_devices() {
         let args = Args::parse_from(["juhradiald", "--list-devices"]);
         assert!(args.list_devices);
+    }
+
+    #[test]
+    fn first_sighting_announces_each_app_once_case_insensitively() {
+        let mut seen = HashSet::new();
+        assert_eq!(first_sighting(&mut seen, "Firefox"), Some("firefox".to_string()));
+        assert_eq!(first_sighting(&mut seen, "firefox"), None);
+        assert_eq!(first_sighting(&mut seen, "FIREFOX "), None);
+        assert_eq!(first_sighting(&mut seen, "org.kde.dolphin"), Some("org.kde.dolphin".to_string()));
+        assert_eq!(first_sighting(&mut seen, ""), None);
+        assert_eq!(first_sighting(&mut seen, "   "), None);
     }
 
     #[test]

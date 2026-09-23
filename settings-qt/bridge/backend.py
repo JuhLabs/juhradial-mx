@@ -239,6 +239,7 @@ SEARCH_INDEX = [
     ("settings", "Language", "Language & desktop", "language interface locale translation"),
     ("settings", "Desktop environment", "Language & desktop", "desktop environment kde gnome cosmic integration"),
     ("settings", "Apply desktop defaults", "Language & desktop", "desktop defaults kde gnome apply actions"),
+    ("apps", "Suggest profiles for new apps", "App profiles", "suggest new app profile prompt first launch toast"),
     ("settings", "Start at login", "Startup", "autostart startup launch boot login"),
     ("settings", "Show tray icon", "Startup", "tray icon system tray notification area"),
     ("settings", "Export settings", "Backup", "export backup zip save copy transfer another machine"),
@@ -295,7 +296,7 @@ DEFAULT_CONFIG = {
     "thumbwheel": {"mode": "off", "invert": False, "speed": 1},
     "buttons": {k: d for (k, _l, d) in BUTTON_SLOTS},
     # Start at Login defaults on (the installer writes the autostart entry).
-    "app": {"start_at_login": True, "show_tray_icon": True},
+    "app": {"start_at_login": True, "show_tray_icon": True, "suggest_profiles": True},
     # wheel "" is the overlay no-op (falsy in _config_wheel_key), so a merged
     # default never overrides the theme-derived wheel for existing users.
     "radial": {"minimal_mode": False, "wheel": "", "click_outside_closes": True},
@@ -350,6 +351,7 @@ class Daemon(QObject):
     ratchetChanged = pyqtSignal(bool)
     deviceNameRefreshed = pyqtSignal(str)
     gamingModeChanged = pyqtSignal(bool)
+    newAppSeen = pyqtSignal(str)
     availabilityChanged = pyqtSignal()
 
     def __init__(self):
@@ -374,6 +376,8 @@ class Daemon(QObject):
         # Bolt reports a generic receiver name until the mouse answers; the
         # daemon re-probes and announces the real model (GTK app parity).
         self._bus.connect("", OBJ_PATH, IFACE, "DeviceNameRefreshed", self._on_device_name)
+        # First focus of an application since the daemon started.
+        self._bus.connect("", OBJ_PATH, IFACE, "NewAppSeen", self._on_new_app)
         self._watcher = QDBusServiceWatcher(
             BUS_NAME, self._bus,
             QDBusServiceWatcher.WatchModeFlag.WatchForRegistration
@@ -466,6 +470,12 @@ class Daemon(QObject):
         return default if v is None else v
 
     # --- signal handlers (the full QDBusMessage is delivered) ---
+    @pyqtSlot(QDBusMessage)
+    def _on_new_app(self, msg):
+        a = msg.arguments()
+        if a:
+            self.newAppSeen.emit(str(a[0]))
+
     @pyqtSlot(QDBusMessage)
     def _on_battery(self, msg):
         a = msg.arguments()
@@ -676,6 +686,9 @@ class Backend(QObject):
     # config.json was replaced wholesale (import, restore defaults): the shell
     # re-instantiates the visible page so its controls read the new values.
     configReloaded = pyqtSignal()
+    # A newly focused application may deserve a profile; the shell asks for it
+    # with takeProfileSuggestion() once its window is active.
+    profileSuggested = pyqtSignal()
     searchTargetChanged = pyqtSignal()
 
     @pyqtSlot(str)
@@ -753,6 +766,8 @@ class Backend(QObject):
         self.daemon.hostChanged.connect(self._set_host_live)
         self.daemon.ratchetChanged.connect(self._set_ratchet_live)
         self.daemon.gamingModeChanged.connect(self._set_gaming_live)
+        self._pending_app = ""
+        self.daemon.newAppSeen.connect(self._on_new_app)
         self.daemon.availabilityChanged.connect(self._on_daemon_availability)
 
         # prime device state shortly after start (daemon may be warming up)
@@ -858,6 +873,11 @@ class Backend(QObject):
         self.configChanged.emit()
 
     # ---- daemon basic ----
+    @pyqtSlot()
+    def reloadPage(self):
+        """Rebuild the visible page so it re-reads config and profiles."""
+        self.configReloaded.emit()
+
     @pyqtSlot()
     def reloadConfig(self):
         self.daemon.call_async("ReloadConfig")
@@ -1450,6 +1470,66 @@ class Backend(QObject):
             self._save_profiles(data)
             self.reloadConfig()
             self.toast.emit(f"Added profile: {app}")
+
+    # ---- profile suggestions for newly focused apps (NewAppSeen) ----
+    # Our own windows and the desktop shell are never worth a profile.
+    IGNORED_APPS = frozenset({
+        "org.kde.juhradialmx.settings", "juhradial-mx", "juhradial mx", "python3",
+        "main.py", "plasmashell", "org.kde.plasmashell", "kwin_wayland", "kwin_x11",
+        "krunner", "org.kde.krunner", "gnome-shell", "org.gnome.shell",
+        "xdg-desktop-portal-kde", "xdg-desktop-portal-gnome", "cosmic-panel",
+        "cosmic-launcher", "cosmic-app-library", "ksmserver-logout-greeter",
+        "org.kde.polkit-kde-authentication-agent-1"})
+    PROMPTED_MAX = 200
+
+    def _should_suggest(self, app):
+        app = (app or "").strip().lower()
+        if not app or app in self.IGNORED_APPS:
+            return False
+        if not self.get("app.suggest_profiles", True):
+            return False
+        if app in (self.get("app.profile_prompted") or []):
+            return False
+        return app not in (self._load_profiles().get("hardware") or {})
+
+    def _on_new_app(self, app):
+        if self._should_suggest(app):
+            self._pending_app = app.strip().lower()
+            self.profileSuggested.emit()
+
+    @staticmethod
+    def _app_display_name(app):
+        """The desktop entry's name for a window class, else the class."""
+        try:
+            from gi.repository import Gio
+            info = None
+            for candidate in (app, app.lower()):
+                try:
+                    info = Gio.DesktopAppInfo.new(candidate + ".desktop")
+                except Exception:
+                    info = None
+                if info is not None:
+                    break
+            if info is None:
+                hits = Gio.DesktopAppInfo.search(app) or []
+                if hits and hits[0]:
+                    info = Gio.DesktopAppInfo.new(hits[0][0])
+            if info is not None and info.get_display_name():
+                return info.get_display_name()
+        except Exception:
+            pass
+        return app
+
+    @pyqtSlot(result="QVariant")
+    def takeProfileSuggestion(self):
+        """The pending suggestion as {app, name}, or None. Taking it records
+        the app so it is offered once, ever."""
+        app, self._pending_app = self._pending_app, ""
+        if not self._should_suggest(app):
+            return None
+        prompted = [a for a in (self.get("app.profile_prompted") or []) if a != app]
+        self.setLocal("app.profile_prompted", (prompted + [app])[-self.PROMPTED_MAX:])
+        return {"app": app, "name": self._app_display_name(app)}
 
     @pyqtSlot(str)
     def removeAppProfile(self, app):

@@ -139,6 +139,12 @@ impl JuhRadialService {
     #[zbus(signal)]
     async fn active_profile_changed(emitter: &SignalEmitter<'_>, app: String) -> zbus::Result<()>;
 
+    /// An application class (lowercased) focused for the first time since the
+    /// daemon started. Broadcast by the focus-change consumer in main.rs; the
+    /// settings app offers to create a profile for it once.
+    #[zbus(signal)]
+    async fn new_app_seen(emitter: &SignalEmitter<'_>, app: String) -> zbus::Result<()>;
+
     // =========================================================================
     // HAPTIC / PROFILE / CONFIG METHODS
     // =========================================================================

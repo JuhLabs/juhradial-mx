@@ -77,6 +77,15 @@ Item {
                             }
                         }
                     }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    SettingRow {
+                        label: "Suggest profiles for new apps"
+                        desc: "The first time you use an app without a profile, Settings offers to create one. Each app is asked about once"
+                        Toggle {
+                            checked: Backend.get("app.suggest_profiles", true)
+                            onToggled: (v) => Backend.setLocal("app.suggest_profiles", v)
+                        }
+                    }
                 }
             }
 

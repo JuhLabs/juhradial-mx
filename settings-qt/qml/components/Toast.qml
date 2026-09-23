@@ -21,7 +21,8 @@ Item {
         hideTimer.restart()
     }
     function hide() { text = ""; hideTimer.stop() }
-    Timer { id: hideTimer; interval: 4200; onTriggered: toast.hide() }
+    // A toast that offers an action stays long enough to reach it.
+    Timer { id: hideTimer; interval: toast.actionLabel !== "" ? 9000 : 4200; onTriggered: toast.hide() }
 
     readonly property color _tint: kind === "success" ? "#2FBF71"
                                  : kind === "warning" ? "#F5B22A"

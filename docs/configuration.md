@@ -459,7 +459,9 @@ The `gaming` section appears once you open the GAMING page. DPI profiles let you
 ```json
 "app": {
   "start_at_login": true,
-  "show_tray_icon": true
+  "show_tray_icon": true,
+  "suggest_profiles": true,
+  "profile_prompted": ["gimp"]
 }
 ```
 
@@ -467,6 +469,8 @@ The `gaming` section appears once you open the GAMING page. DPI profiles let you
 | --- | --- | --- | --- |
 | `start_at_login` | bool | `true` | Launch the overlay/settings helper at login |
 | `show_tray_icon` | bool | `true` | Show the system tray icon |
+| `suggest_profiles` | bool | `true` | Offer to create an app profile the first time an app without one is focused (Settings → App profiles) |
+| `profile_prompted` | list of strings | `[]` | Window classes already offered a profile; each is asked about once (newest 200 kept) |
 
 Toggling **Start at Login** in the SETTINGS page creates or removes `~/.config/autostart/juhradial-mx.desktop`:
 

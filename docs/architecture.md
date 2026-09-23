@@ -203,6 +203,7 @@ Macros and gaming mode:
 | `GamingModeChanged` | `(b enabled)` | Gaming mode toggled. |
 | `DeviceNameRefreshed` | `(s name)` | The mouse's real model name, once HID++ answers after an evdev-name start. |
 | `ActiveProfileChanged` | `(s app)` | Application class whose per-app hardware profile was just applied on focus change; empty when the focus leaves every profiled app. |
+| `NewAppSeen` | `(s app)` | An application class (lowercased) focused for the first time since the daemon started; Settings offers a profile for it once. |
 
 The hardware-readback signals (`BatteryChanged`, `RatchetChanged`, `HostChanged`, `DpiChanged`) are pushed from the hidraw notification path and broadcast directly on the connection; they are declared in the interface so clients can introspect them.
 
