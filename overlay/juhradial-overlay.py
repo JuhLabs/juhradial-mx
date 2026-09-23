@@ -1681,9 +1681,8 @@ def create_tray_icon(app, radial_menu):
 
     def exit_application():
         uid = str(os.getuid())
-        subprocess.run(
-            ["pkill", "-u", uid, "-f", "settings_dashboard.py"], capture_output=True
-        )
+        for pattern in ("settings_dashboard.py", "settings-qt/main.py"):
+            subprocess.run(["pkill", "-u", uid, "-f", pattern], capture_output=True)
         app.quit()
 
     exit_action = menu.addAction(_("Exit"))

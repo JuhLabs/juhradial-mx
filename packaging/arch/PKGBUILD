@@ -15,6 +15,9 @@ depends=(
     'python-gobject'
     'python-cairo'
     'python-cryptography'
+    'python-pyqt6'
+    'qt6-svg'
+    'qt6-declarative'
     'dbus'
 )
 makedepends=(
@@ -73,6 +76,14 @@ package() {
     # Install assets
     install -dm755 "$pkgdir/usr/share/juhradial/assets"
     cp -r assets/* "$pkgdir/usr/share/juhradial/assets/"
+
+    # Qt/QML settings app (tools/ and __pycache__ excluded); the overlay also
+    # resolves wheel skins under /usr/share/juhradial/assets/wheels
+    install -dm755 "$pkgdir/usr/share/juhradial/settings-qt"
+    install -Dm644 settings-qt/main.py "$pkgdir/usr/share/juhradial/settings-qt/main.py"
+    cp -r settings-qt/bridge settings-qt/qml settings-qt/assets "$pkgdir/usr/share/juhradial/settings-qt/"
+    find "$pkgdir/usr/share/juhradial/settings-qt" -type d -name __pycache__ -exec rm -rf {} +
+    cp -r settings-qt/assets/wheels "$pkgdir/usr/share/juhradial/assets/"
 
     # Install desktop file
     install -Dm644 packaging/juhradial-mx.desktop "$pkgdir/usr/share/applications/juhradial-mx.desktop"

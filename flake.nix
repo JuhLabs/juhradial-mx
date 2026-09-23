@@ -71,6 +71,7 @@
             buildInputs = gtkRuntimeLibs ++ (with pkgs; [
               qt6.qtbase
               qt6.qtsvg
+              qt6.qtdeclarative
             ]);
 
             dontBuild = true;
@@ -93,6 +94,13 @@
               # Locale files
               cp -r overlay/locales $out/share/juhradial/
 
+              # Qt/QML settings app (tools/ excluded; GTK dashboard stays as fallback)
+              mkdir -p $out/share/juhradial/settings-qt
+              cp settings-qt/main.py $out/share/juhradial/settings-qt/
+              cp -r settings-qt/bridge settings-qt/qml settings-qt/assets $out/share/juhradial/settings-qt/
+              find $out/share/juhradial/settings-qt -type d -name __pycache__ -exec rm -rf {} +
+              cp -r settings-qt/assets/wheels $out/share/juhradial/assets/
+
               # Assets - radial wheel images, device illustrations, AI icons
               mkdir -p $out/share/juhradial/assets/radial-wheels
               cp assets/radial-wheels/*.png $out/share/juhradial/assets/radial-wheels/
@@ -105,6 +113,9 @@
               # Symlink so ../assets/ relative paths from overlay scripts resolve correctly
               # (overlay_actions.py, juhradial-overlay.py use os.path.dirname(__file__)/../assets/)
               ln -s $out/share/juhradial/assets $out/share/assets
+
+              # Same for ../settings-qt/assets/ lookups (wheel skins in overlay_actions.py)
+              ln -s $out/share/juhradial/settings-qt $out/share/settings-qt
 
               # App icon
               install -Dm644 assets/juhradial-mx.svg $out/share/icons/hicolor/scalable/apps/juhradial-mx.svg
@@ -135,6 +146,10 @@
               cat > $out/bin/juhradial-settings <<LAUNCHER
               #!/bin/bash
               # JuhRadial MX Settings (Nix)
+              # Prefer the Qt/QML settings app; fall back to the GTK dashboard
+              if [ "\''${JUHRADIAL_SETTINGS:-}" != "gtk" ] && ${pythonEnv}/bin/python3 -c "import PyQt6.QtQml" 2>/dev/null; then
+                  exec ${pythonEnv}/bin/python3 $out/share/juhradial/settings-qt/main.py "\$@"
+              fi
               exec ${pythonEnv}/bin/python3 $out/share/juhradial/settings_dashboard.py "\$@"
               LAUNCHER
               chmod 755 $out/bin/juhradial-settings
@@ -154,14 +169,20 @@
             postFixup = let
               typelibPath = pkgs.lib.makeSearchPath "lib/girepository-1.0" gtkRuntimeLibs;
               qtPluginPath = pkgs.lib.makeSearchPath "lib/qt-6/plugins" [ pkgs.qt6.qtbase pkgs.qt6.qtsvg ];
+              qmlImportPath = pkgs.lib.makeSearchPath "lib/qt-6/qml" [ pkgs.qt6.qtdeclarative ];
             in ''
               wrapProgram $out/bin/juhradial-mx \
                 --set GI_TYPELIB_PATH "${typelibPath}" \
                 --set QT_PLUGIN_PATH "${qtPluginPath}" \
                 --prefix PYTHONPATH : "$out/share/juhradial"
 
+              # QML2_IMPORT_PATH is the deprecated Qt 5 spelling; Qt 6 reads
+              # QML_IMPORT_PATH but still honours the old name, so set both.
               wrapProgram $out/bin/juhradial-settings \
                 --set GI_TYPELIB_PATH "${typelibPath}" \
+                --set QT_PLUGIN_PATH "${qtPluginPath}" \
+                --prefix QML_IMPORT_PATH : "${qmlImportPath}" \
+                --prefix QML2_IMPORT_PATH : "${qmlImportPath}" \
                 --prefix PYTHONPATH : "$out/share/juhradial"
             '';
 
@@ -217,7 +238,7 @@
               dbus systemd
               (python3.withPackages (ps: with ps; [ pyqt6 pygobject3 ]))
               gtk4 libadwaita gtk4-layer-shell graphene harfbuzz
-              qt6.qtbase qt6.qtsvg
+              qt6.qtbase qt6.qtsvg qt6.qtdeclarative
               gobject-introspection
             ];
           };

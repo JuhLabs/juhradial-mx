@@ -100,7 +100,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --defaul
 
 - A Wayland compositor (KDE Plasma 6, GNOME, Hyprland, COSMIC, Sway, niri) or X11.
 - Rust toolchain (Cargo >= 1.78) to build the daemon. The installer provides this if needed.
-- Python 3 with PyQt6 (overlay) and GTK4 + libadwaita via PyGObject (settings UI).
+- Python 3 with PyQt6 (overlay and the Qt/QML settings app; QtQuick.Effects needs Qt 6.5 or newer) and GTK4 + libadwaita via PyGObject (the fallback GTK settings app on older Qt).
 - XWayland, used for overlay window positioning on Wayland.
 - A supported mouse (Logitech MX Master 4 / 3S / 3 for full HID++, or any mouse in generic evdev mode). See [FAQ](faq.md) for device coverage.
 
@@ -116,7 +116,7 @@ Family also covers RHEL, CentOS Stream, Rocky, AlmaLinux, Nobara, Ultramarine.
 sudo dnf install -y \
     rust cargo \
     python3 python3-pip \
-    python3-pyqt6 qt6-qtsvg \
+    python3-pyqt6 qt6-qtsvg qt6-qtdeclarative \
     python3-gobject gtk4 libadwaita \
     gtk4-layer-shell \
     python3-cryptography \
@@ -135,7 +135,8 @@ sudo apt-get update
 sudo apt-get install -y \
     rustc cargo \
     python3 python3-pip python3-venv \
-    python3-pyqt6 python3-pyqt6.qtsvg \
+    python3-pyqt6 python3-pyqt6.qtsvg python3-pyqt6.qtqml python3-pyqt6.qtquick \
+    qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-effects \
     python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
     python3-cryptography \
     libdbus-1-dev libsystemd-dev \
@@ -159,7 +160,7 @@ Family also covers Manjaro, EndeavourOS, Garuda, Artix, CachyOS, ArcoLinux, Arch
 sudo pacman -S --noconfirm --needed \
     rust \
     python python-pip \
-    python-pyqt6 qt6-svg \
+    python-pyqt6 qt6-svg qt6-declarative \
     python-gobject gtk4 libadwaita \
     gtk4-layer-shell \
     python-cryptography \
@@ -175,7 +176,7 @@ sudo pacman -S --noconfirm --needed \
 sudo zypper install -y \
     rust cargo \
     python3 python3-pip \
-    python3-PyQt6 \
+    python3-PyQt6 qt6-declarative-imports \
     python3-gobject gtk4 libadwaita-devel \
     python3-cryptography \
     dbus-1-devel systemd-devel \

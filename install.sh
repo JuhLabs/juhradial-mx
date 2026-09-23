@@ -342,7 +342,7 @@ install_deps_fedora() {
     sudo dnf install -y \
         rust cargo \
         python3 python3-pip \
-        python3-pyqt6 qt6-qtsvg \
+        python3-pyqt6 qt6-qtsvg qt6-qtdeclarative \
         python3-gobject gtk4 libadwaita \
         gtk4-layer-shell \
         python3-cryptography \
@@ -356,7 +356,7 @@ install_deps_arch() {
     sudo pacman -S --noconfirm --needed \
         rust \
         python python-pip \
-        python-pyqt6 qt6-svg \
+        python-pyqt6 qt6-svg qt6-declarative \
         python-gobject gtk4 libadwaita \
         gtk4-layer-shell \
         python-cryptography \
@@ -382,13 +382,28 @@ install_deps_debian() {
     if apt-cache show libgtk4-layer-shell0 &> /dev/null; then
         sudo apt-get install -y libgtk4-layer-shell0
     fi
+
+    # The Qt/QML settings app needs QtQuick.Effects, which requires Qt >= 6.5.
+    # Debian 13 / Ubuntu 25.04+ ship it; older releases keep the GTK settings
+    # app (the launcher falls back automatically).
+    if apt-cache show qml6-module-qtquick-effects &> /dev/null; then
+        sudo apt-get install -y \
+            python3-pyqt6.qtqml python3-pyqt6.qtquick \
+            qml6-module-qtqml qml6-module-qtqml-workerscript \
+            qml6-module-qtquick qml6-module-qtquick-window \
+            qml6-module-qtquick-controls qml6-module-qtquick-templates \
+            qml6-module-qtquick-layouts qml6-module-qtquick-shapes \
+            qml6-module-qtquick-effects
+    else
+        log_warning "Qt >= 6.5 QML modules are not available on this release: the Qt settings app is disabled, the GTK settings app is used instead"
+    fi
 }
 
 install_deps_opensuse() {
     sudo zypper install -y \
         rust cargo \
         python3 python3-pip \
-        python3-PyQt6 \
+        python3-PyQt6 qt6-declarative-imports \
         python3-gobject gtk4 libadwaita-devel \
         python3-cryptography \
         dbus-1-devel systemd-devel \
@@ -602,6 +617,20 @@ install_files() {
         sudo cp assets/settings-generated/control-ring.png /usr/share/juhradial/assets/settings-generated/ 2>/dev/null || true
         sudo cp assets/settings-generated/easyswitch.png /usr/share/juhradial/assets/settings-generated/ 2>/dev/null || true
         sudo cp assets/settings-generated/haptics.png /usr/share/juhradial/assets/settings-generated/ 2>/dev/null || true
+    fi
+
+    # Install the Qt/QML settings app (the GTK dashboard stays as fallback for
+    # distros without Qt >= 6.5). tools/ and __pycache__ are not shipped.
+    if [ -d settings-qt ]; then
+        sudo rm -rf /usr/share/juhradial/settings-qt
+        sudo mkdir -p /usr/share/juhradial/settings-qt
+        sudo cp settings-qt/main.py /usr/share/juhradial/settings-qt/
+        sudo cp -r settings-qt/bridge settings-qt/qml settings-qt/assets /usr/share/juhradial/settings-qt/
+        sudo find /usr/share/juhradial/settings-qt -type d -name __pycache__ -exec rm -rf {} +
+        # The overlay resolves wheel skins under /usr/share/juhradial/assets/wheels
+        sudo mkdir -p /usr/share/juhradial/assets
+        sudo cp -r settings-qt/assets/wheels /usr/share/juhradial/assets/
+        log_success "Qt settings app"
     fi
 
     # Install launcher scripts

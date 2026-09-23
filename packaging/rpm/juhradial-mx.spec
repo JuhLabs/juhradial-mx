@@ -26,6 +26,9 @@ Requires:       python3
 Requires:       python3-gobject
 Requires:       python3-cairo
 Requires:       python3-cryptography
+Requires:       python3-pyqt6
+Requires:       qt6-qtsvg
+Requires:       qt6-qtdeclarative
 Requires:       dbus
 
 Recommends:     ydotool
@@ -82,6 +85,14 @@ fi
 # Install assets
 install -dm755 %{buildroot}%{_datadir}/juhradial/assets
 cp -r assets/* %{buildroot}%{_datadir}/juhradial/assets/
+
+# Qt/QML settings app (tools/ and __pycache__ excluded); the overlay also
+# resolves wheel skins under %{_datadir}/juhradial/assets/wheels
+install -dm755 %{buildroot}%{_datadir}/juhradial/settings-qt
+install -Dm644 settings-qt/main.py %{buildroot}%{_datadir}/juhradial/settings-qt/main.py
+cp -r settings-qt/bridge settings-qt/qml settings-qt/assets %{buildroot}%{_datadir}/juhradial/settings-qt/
+find %{buildroot}%{_datadir}/juhradial/settings-qt -type d -name __pycache__ -exec rm -rf {} +
+cp -r settings-qt/assets/wheels %{buildroot}%{_datadir}/juhradial/assets/
 
 # Install desktop file
 install -Dm644 packaging/juhradial-mx.desktop %{buildroot}%{_datadir}/applications/juhradial-mx.desktop

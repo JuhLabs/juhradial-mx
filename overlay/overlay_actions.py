@@ -58,12 +58,46 @@ def load_theme() -> dict:
             # Skip rgba strings, just use the accent color
             continue
 
+    # Honour an explicit accent override from config.json: the Qt settings
+    # app's theme picker writes radial.accent so the overlay's accent matches
+    # the app without dragging in a second palette. Flows to every
+    # COLORS["accent"] paint site (ripple, ping, slice highlight, glow).
+    accent_override = _config_radial_accent()
+    if accent_override:
+        qcolors["accent"] = hex_to_qcolor(accent_override)
+        qcolors["lavender"] = qcolors["accent"]
+
     # Ensure 'lavender' exists (used for accent in ACTIONS)
     if "lavender" not in qcolors and "accent" in qcolors:
         qcolors["lavender"] = qcolors["accent"]
 
     print(f"Loaded theme: {theme_name}")
     return qcolors
+
+
+def _config_radial_section():
+    """The ``radial`` section of config.json, or an empty dict."""
+    import json
+    from pathlib import Path
+
+    try:
+        cfg = json.loads((Path.home() / ".config" / "juhradial" / "config.json").read_text())
+    except (OSError, ValueError):
+        return {}
+    radial = cfg.get("radial") if isinstance(cfg, dict) else None
+    return radial if isinstance(radial, dict) else {}
+
+
+def _config_radial_accent():
+    """Accent hex written by the Qt settings theme picker (radial.accent), or None."""
+    accent = _config_radial_section().get("accent")
+    return accent if isinstance(accent, str) and accent.startswith("#") else None
+
+
+def _config_wheel_key():
+    """Wheel skin key (radial.wheel) chosen in the Qt settings app, or None."""
+    key = _config_radial_section().get("wheel")
+    return key if isinstance(key, str) and key and key != "none" else None
 
 
 def apply_ring_geometry(params, outer_radius, inner_radius):
@@ -103,8 +137,45 @@ def apply_ring_geometry(params, outer_radius, inner_radius):
 
 
 def load_radial_image():
-    """Load the 3D radial wheel image for the current theme, if any."""
+    """Load the radial wheel image.
+
+    A wheel skin chosen in the Qt settings app (``radial.wheel``, independent
+    of the colour theme) takes precedence; otherwise the colour theme's own 3D
+    image, if any. Either way the user's ring geometry is layered on top.
+    """
     global RADIAL_IMAGE, RADIAL_PARAMS
+    user_geometry = load_ring_geometry()
+    outer_radius = user_geometry.get("outer_radius")
+    inner_radius = user_geometry.get("inner_radius")
+
+    wheel_key = _config_wheel_key()
+    if wheel_key:
+        here = os.path.dirname(__file__)
+        fname = f"wheel_{wheel_key}.png"
+        for path in (
+            os.path.join(here, "..", "settings-qt", "assets", "wheels", fname),
+            os.path.join(here, "..", "assets", "wheels", fname),
+            os.path.join("/usr/share/juhradial/assets/wheels", fname),
+        ):
+            if not os.path.exists(path):
+                continue
+            pixmap = QPixmap(path)
+            if pixmap.isNull():
+                continue
+            # Wheel skins share the classic geometry (icons at the standard
+            # angles, transparent centre), so default params plus the user's
+            # ring size place everything correctly.
+            RADIAL_PARAMS = apply_ring_geometry(None, outer_radius, inner_radius)
+            target = (RADIAL_PARAMS or {}).get("image_size", MENU_RADIUS * 2 + 10)
+            RADIAL_IMAGE = pixmap.scaled(
+                target,
+                target,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            print(f"Loaded wheel skin: {path}")
+            return
+
     image_name = get_radial_image()
     RADIAL_PARAMS = get_radial_params()
 
@@ -112,10 +183,7 @@ def load_radial_image():
     # radial_params (user config wins). A configured outer radius also scales
     # the icon zone, shadow spread, and submenu spacing by the same ratio, so
     # the whole ring resizes as one proportional set rather than piecemeal.
-    user_geometry = load_ring_geometry()
-    RADIAL_PARAMS = apply_ring_geometry(
-        RADIAL_PARAMS, user_geometry.get("outer_radius"), user_geometry.get("inner_radius")
-    )
+    RADIAL_PARAMS = apply_ring_geometry(RADIAL_PARAMS, outer_radius, inner_radius)
 
     if not image_name:
         RADIAL_IMAGE = None
@@ -540,13 +608,47 @@ def _requires_settings_relaunch():
     return "kde" not in desktop and "plasma" not in desktop
 
 
-def open_settings():
-    """Launch or refocus the settings dashboard.
+def _settings_qt_script():
+    """Path of the Qt/QML settings app when it is present and runnable, else None.
 
-    KDE's single-instance activation raises an existing window immediately.
-    Other desktops retain the existing kill-and-relaunch behavior, which works
-    around focus restrictions observed on GNOME Wayland.
+    The Qt app needs PyQt6's QML module (and Qt >= 6.5 at runtime); when that
+    import fails the GTK settings app stays the target, as in the launcher
+    script. JUHRADIAL_SETTINGS=gtk forces the GTK app.
     """
+    if os.environ.get("JUHRADIAL_SETTINGS") == "gtk":
+        return None
+    try:
+        import PyQt6.QtQml  # noqa: F401
+    except ImportError:
+        return None
+    here = os.path.dirname(os.path.abspath(__file__))
+    for candidate in (
+        os.path.join(here, "..", "settings-qt", "main.py"),
+        "/usr/share/juhradial/settings-qt/main.py",
+    ):
+        if os.path.exists(candidate):
+            return os.path.normpath(candidate)
+    return None
+
+
+def open_settings():
+    """Launch or refocus the settings app.
+
+    Prefers the Qt/QML settings app, which owns its own single-instance gate
+    (a second launch raises the existing window). The GTK dashboard is the
+    fallback: KDE's single-instance activation raises an existing window
+    immediately, other desktops retain the kill-and-relaunch behaviour, which
+    works around focus restrictions observed on GNOME Wayland.
+    """
+    qt_script = _settings_qt_script()
+    if qt_script:
+        subprocess.Popen(
+            ["python3", qt_script],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return
+
     settings_script = os.path.join(os.path.dirname(__file__), "settings_dashboard.py")
 
     if _requires_settings_relaunch():
