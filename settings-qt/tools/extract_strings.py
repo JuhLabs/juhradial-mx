@@ -33,8 +33,14 @@ def render(found):
     out = ['msgid ""', 'msgstr ""', '"Content-Type: text/plain; charset=UTF-8\\n"', ""]
     for msg in sorted(found):
         out.append("#: " + " ".join(found[msg]))
-        out.append(f'msgid "{msg}"')
-        out.append('msgstr ""')
+        if "(s)" in msg:
+            # qsTr("%n step(s)", "", n) is looked up as a gettext plural
+            out.append(f'msgid "{msg.replace("(s)", "")}"')
+            out.append(f'msgid_plural "{msg.replace("(s)", "s")}"')
+            out += ['msgstr[0] ""', 'msgstr[1] ""']
+        else:
+            out.append(f'msgid "{msg}"')
+            out.append('msgstr ""')
         out.append("")
     return "\n".join(out)
 

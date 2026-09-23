@@ -30,6 +30,7 @@ B.Popup {
         case "settings": return qsTr("Opens JuhRadial MX settings")
         case "emoji": return qsTr("Opens the emoji picker")
         case "plugin": return qsTr("Runs a plugin action")
+        case "macro": return qsTr("Runs a macro")
         case "none": return qsTr("Does nothing")
         default: return t || ""
         }

@@ -30,7 +30,7 @@ sys.path.insert(0, os.fspath(REPO / "settings-qt"))
 ALLOWLIST = {
     "pages/AppsPage.qml", "pages/DashboardPage.qml",
     "pages/DevicesPage.qml", "pages/EasySwitchPage.qml", "pages/FlowPage.qml",
-    "pages/GamingPage.qml", "pages/HapticsPage.qml", "pages/MacrosPage.qml",
+    "pages/GamingPage.qml", "pages/HapticsPage.qml",
     "pages/ScrollPage.qml", "pages/ThemesPage.qml",
 }
 
@@ -120,6 +120,14 @@ def test_qstr_resolves_through_the_gettext_translator(tmp_path):
         assert root.property("m").get(0).property("label").toString() == "Innstillinger"
     finally:
         QCoreApplication.removeTranslator(tr)
+
+
+def test_plurals_read_right_without_a_catalog():
+    from bridge.i18n import GettextTranslator
+    tr = GettextTranslator(gettext.NullTranslations())
+    assert tr.translate("x", "%n step(s)", None, 1) == "%n step"
+    assert tr.translate("x", "%n step(s)", None, 3) == "%n steps"
+    assert tr.translate("x", "Undo", None, -1) is None
 
 
 def test_translator_domain_falls_back_to_the_overlay_catalog(tmp_path):

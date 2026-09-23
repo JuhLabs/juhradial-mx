@@ -178,6 +178,145 @@ CUSTOM_KINDS = ("shortcut", "command", "url", "macro", "plugin")
 SHORTCUT_RE = re.compile(r"^[A-Za-z0-9_]+(\+[A-Za-z0-9_]+)*$")
 # Macro trigger values that belong to a named button slot.
 MACRO_TRIGGER_SLOTS = {"mouse:8": "back", "mouse:9": "forward", "mouse:2": "middle"}
+MACRO_PREFIX = "macro:"
+MODIFIER_KEYS = ("ctrl", "alt", "shift", "super")
+
+
+def new_macro(mid, name, actions):
+    """A macro as the daemon's MacroConfig reads it. Record then Save sent no
+    id (SaveMacro rejected it, audit P0 #1) and no use_standard_delay, whose
+    default replaces every recorded delay with 50 ms."""
+    return {"id": mid, "name": name, "description": "", "repeat_mode": "once",
+            "repeat_count": 3, "actions": list(actions), "standard_delay_ms": 50,
+            "use_standard_delay": False, "assigned_trigger": None}
+
+
+def macro_id_for(name, existing):
+    """A file-safe id from a name ([a-z0-9_]), unique among `existing`."""
+    base = re.sub(r"[^a-z0-9]+", "_", (name or "").lower()).strip("_")[:40] or "macro"
+    mid, n = base, 2
+    while mid in existing:
+        mid, n = f"{base}_{n}", n + 1
+    return mid
+
+
+def macro_rows(actions):
+    """The daemon's flat action list as editor rows: a key press and release
+    (with the modifiers held around it) becomes one "keys" row with its chord
+    ("ctrl+c") and hold time; delays in a row merge."""
+    acts = [a for a in (actions or []) if isinstance(a, dict)]
+    rows, i = [], 0
+
+    def delay_at(j):
+        return int(acts[j].get("ms", 0)) if j < len(acts) and acts[j].get("type") == "delay" else None
+
+    while i < len(acts):
+        a = acts[i]
+        t = a.get("type")
+        if t == "key_down":
+            # modifiers down, one key tapped, modifiers up (delays anywhere)
+            j, mods, hold = i, [], 0
+            while j < len(acts) and (acts[j].get("type") == "delay"
+                                     or (acts[j].get("type") == "key_down"
+                                         and acts[j].get("key") in MODIFIER_KEYS)):
+                if acts[j].get("type") == "delay":
+                    hold += int(acts[j].get("ms", 0))
+                else:
+                    mods.append(acts[j]["key"])
+                j += 1
+            key = None
+            if j < len(acts) and acts[j].get("type") == "key_down" and acts[j].get("key") not in MODIFIER_KEYS:
+                key, j = acts[j].get("key"), j + 1
+                while delay_at(j) is not None:
+                    hold += delay_at(j)
+                    j += 1
+                if j < len(acts) and acts[j].get("type") == "key_up" and acts[j].get("key") == key:
+                    j += 1
+                    left = list(mods)
+                    while left and j < len(acts):
+                        if acts[j].get("type") == "delay":
+                            hold += int(acts[j].get("ms", 0))
+                        elif acts[j].get("type") == "key_up" and acts[j].get("key") in left:
+                            left.remove(acts[j]["key"])
+                        else:
+                            break
+                        j += 1
+                    if not left:
+                        rows.append({"kind": "keys", "chord": "+".join(mods + [key]), "hold": hold})
+                        i = j
+                        continue
+            rows.append({"kind": "raw", "action": dict(a)})
+            i += 1
+        elif t == "delay":
+            ms = int(a.get("ms", 0))
+            if rows and rows[-1]["kind"] == "delay":
+                rows[-1]["ms"] += ms
+            else:
+                rows.append({"kind": "delay", "ms": ms})
+            i += 1
+        elif t == "text":
+            rows.append({"kind": "text", "text": str(a.get("text", ""))})
+            i += 1
+        elif t == "mouse_click":
+            rows.append({"kind": "click", "button": str(a.get("button", "left"))})
+            i += 1
+        elif (t == "mouse_down" and i + 1 < len(acts)
+              and acts[i + 1].get("type") in ("mouse_up", "delay")):
+            # a recorded click: press, (hold), release of the same button
+            j = i + 1 if acts[i + 1].get("type") == "mouse_up" else i + 2
+            if j < len(acts) and acts[j].get("type") == "mouse_up" and acts[j].get("button") == a.get("button"):
+                rows.append({"kind": "click", "button": str(a.get("button", "left"))})
+                i = j + 1
+            else:
+                rows.append({"kind": "raw", "action": dict(a)})
+                i += 1
+        elif t == "scroll":
+            rows.append({"kind": "scroll", "direction": str(a.get("direction", "down")),
+                         "amount": int(a.get("amount", 1))})
+            i += 1
+        else:
+            rows.append({"kind": "raw", "action": dict(a)})
+            i += 1
+    return rows
+
+
+def macro_actions(rows):
+    """Editor rows back to the daemon's flat action list."""
+    out = []
+    for r in rows or []:
+        kind = r.get("kind")
+        if kind == "keys":
+            keys = [k for k in str(r.get("chord", "")).split("+") if k]
+            out += [{"type": "key_down", "key": k} for k in keys]
+            if int(r.get("hold", 0)) > 0:
+                out.append({"type": "delay", "ms": int(r["hold"])})
+            out += [{"type": "key_up", "key": k} for k in reversed(keys)]
+        elif kind == "delay":
+            out.append({"type": "delay", "ms": max(0, int(r.get("ms", 0)))})
+        elif kind == "text":
+            out.append({"type": "text", "text": str(r.get("text", ""))})
+        elif kind == "click":
+            out.append({"type": "mouse_click", "button": str(r.get("button", "left"))})
+        elif kind == "scroll":
+            out.append({"type": "scroll", "direction": str(r.get("direction", "down")),
+                        "amount": max(1, int(r.get("amount", 1)))})
+        elif kind == "raw" and isinstance(r.get("action"), dict):
+            out.append(dict(r["action"]))
+    return out
+
+
+# Starter macros (audit 4.8 #19): (id, name, description, rows)
+MACRO_TEMPLATES = [
+    ("duplicate_line", "Duplicate line", "Copies the current line below itself",
+     [{"kind": "keys", "chord": "Home", "hold": 0}, {"kind": "keys", "chord": "shift+End", "hold": 0},
+      {"kind": "keys", "chord": "ctrl+c", "hold": 0}, {"kind": "keys", "chord": "End", "hold": 0},
+      {"kind": "keys", "chord": "Return", "hold": 0}, {"kind": "keys", "chord": "ctrl+v", "hold": 0}]),
+    ("paste_plain", "Paste as plain text", "Ctrl + Shift + V, understood by most apps",
+     [{"kind": "keys", "chord": "ctrl+shift+v", "hold": 0}]),
+    ("signature", "Type a signature", "Types a greeting you can edit",
+     [{"kind": "text", "text": "Best regards,"}, {"kind": "keys", "chord": "Return", "hold": 0},
+      {"kind": "text", "text": "Your Name"}]),
+]
 
 # Radial-slice action presets: (action_id, label, icon, type, command, color)
 RADIAL_ACTIONS = [
@@ -330,9 +469,10 @@ SEARCH_INDEX = [
     ("haptics", "Invalid", "Feedback patterns", "haptic pattern invalid error action"),
     ("haptics", "Default pattern", "Default pattern", "default haptic pattern fallback vibration"),
     # Macros
-    ("macros", "Macro name", "Macros", "macro name label record replay automation"),
-    ("macros", "Record macro", "Macros", "record macro capture keystrokes new"),
-    ("macros", "Trigger", "Macros", "bind trigger button assign macro invoke hotkey"),
+    ("macros", "Record a macro", "Record", "record macro capture keystrokes new keyboard sequence"),
+    ("macros", "Your macros", "Library", "macro list library run edit rename duplicate delete export import"),
+    ("macros", "Bind to a button", "Library", "bind trigger button assign macro back forward press"),
+    ("macros", "Start from a template", "Library", "template starter example duplicate line signature"),
     # App profiles
     ("apps", "App profiles", "", "per-app application profile dpi smartshift focus window class"),
     ("apps", "Add application", "", "add app profile window class per-app override"),
@@ -495,6 +635,7 @@ class Daemon(QObject):
     keyboardBatteryChanged = pyqtSignal(int, bool)
     linkChanged = pyqtSignal(str, str)
     buttonPressed = pyqtSignal(int)
+    macroPlayback = pyqtSignal(bool)
     availabilityChanged = pyqtSignal()
 
     TIMEOUT_MS = 2000
@@ -529,6 +670,8 @@ class Daemon(QObject):
         self._bus.connect("", OBJ_PATH, IFACE, "DeviceConnectionChanged", self._on_link)
         # A physical button went down (the Buttons tab lights its pin).
         self._bus.connect("", OBJ_PATH, IFACE, "ButtonPressed", self._on_button)
+        self._bus.connect("", OBJ_PATH, IFACE, "MacroPlaybackStarted", self._on_macro_started)
+        self._bus.connect("", OBJ_PATH, IFACE, "MacroPlaybackStopped", self._on_macro_stopped)
         self._watcher = QDBusServiceWatcher(
             BUS_NAME, self._bus,
             QDBusServiceWatcher.WatchModeFlag.WatchForRegistration
@@ -663,6 +806,14 @@ class Daemon(QObject):
             self.linkChanged.emit(str(a[0]), str(a[1]))
 
     @pyqtSlot(QDBusMessage)
+    def _on_macro_started(self, msg):
+        self.macroPlayback.emit(True)
+
+    @pyqtSlot(QDBusMessage)
+    def _on_macro_stopped(self, msg):
+        self.macroPlayback.emit(False)
+
+    @pyqtSlot(QDBusMessage)
     def _on_button(self, msg):
         a = msg.arguments()
         if a:
@@ -791,12 +942,14 @@ class SliceModel(QAbstractListModel):
         """Apply a RADIAL_ACTIONS preset to a slice (keeps the slice colour)."""
         if not (0 <= row < len(self._slices)):
             return
-        if action_id.startswith(PLUGIN_PREFIX):
-            entry = next((a for a in self._backend.pluginActions() if a["id"] == action_id), None)
+        if action_id.startswith((PLUGIN_PREFIX, MACRO_PREFIX)):
+            entries = (self._backend.pluginActions() if action_id.startswith(PLUGIN_PREFIX)
+                       else self._backend.macroActions())
+            entry = next((a for a in entries if a["id"] == action_id), None)
             if entry is None:
                 return
             color = self._slices[row].get("color", "teal")
-            self._slices[row] = {"label": entry["label"], "action_id": "plugin", "type": "plugin",
+            self._slices[row] = {"label": entry["label"], "action_id": entry["type"], "type": entry["type"],
                                  "command": entry["command"], "color": color, "icon": entry["icon"]}
             idx = self.index(row, 0)
             self.dataChanged.emit(idx, idx, [])
@@ -895,6 +1048,8 @@ class Backend(QObject):
     keyboardInfoReady = pyqtSignal("QVariant")
     controlsReady = pyqtSignal("QVariant")
     buttonPressed = pyqtSignal(str)          # slot name, or "0x00D7" for extra controls
+    recordingStatusReady = pyqtSignal("QVariant")
+    macroRunningChanged = pyqtSignal()
     macroBindingsReady = pyqtSignal("QVariant")
     pluginsReady = pyqtSignal("QVariant")
     navRequested = pyqtSignal(str)   # a page asks the shell to switch tabs
@@ -1008,6 +1163,7 @@ class Backend(QObject):
         self._kb_last_battery = 0
         self.daemon.keyboardBatteryChanged.connect(self._on_keyboard_battery)
         self.daemon.linkChanged.connect(self._set_link_live)
+        self.daemon.macroPlayback.connect(self._set_macro_running)
         self.daemon.buttonPressed.connect(
             lambda cid: self.buttonPressed.emit(self.SLOT_CIDS.get(cid, "0x%04X" % cid)))
         self.daemon.availabilityChanged.connect(self._on_daemon_availability)
@@ -2026,163 +2182,344 @@ class Backend(QObject):
             profiles[idx][field] = value
             self.setLocal("gaming.dpi_profiles", profiles)
 
-    # ---- macros ----
-    @pyqtSlot(result="QVariant")
-    def listMacros(self):
+    # ---- macros (the daemon stores them: ~/.config/juhradial/macros) ----
+    def _macros(self):
         raw = self.daemon.call1("ListMacros", default="[]") or "[]"
         try:
-            return json.loads(raw)
-        except Exception:
+            data = json.loads(raw)
+        except (TypeError, ValueError):
             return []
+        return sorted((m for m in data if isinstance(m, dict)),
+                      key=lambda m: (str(m.get("name") or m.get("id") or "")).lower())
 
-    @pyqtSlot(str)
-    def runMacro(self, mid):
-        self.daemon.call("ExecuteMacro", mid)
+    @pyqtSlot(result="QVariant")
+    def listMacros(self):
+        return self._macros()
+
+    def _find_macro(self, mid):
+        return next((m for m in self._macros() if m.get("id") == mid), None)
+
+    def _store_macro(self, m):
+        """Save one macro and rebuild the trigger map; True when the daemon
+        took it (a failed save used to pass silently)."""
+        ok = self.daemon.call("SaveMacro", json.dumps(m)) is not None
+        if not ok:
+            self.notify(_("The macro could not be saved. Is the JuhRadial MX service running?"), "danger")
+        self.daemon.call("ReloadMacroTriggers")
+        self.macrosChanged.emit()
+        return ok
+
+    @pyqtSlot("QVariant", result="QVariant")
+    def macroSummary(self, m):
+        """{steps, ms}: steps as the editor shows them (a key press is one
+        step), ms how long one run takes."""
+        m = m if isinstance(m, dict) else {}
+        acts = m.get("actions") or []
+        fixed = bool(m.get("use_standard_delay", True))
+        std = int(m.get("standard_delay_ms", 50) or 0)
+        ms = sum(std if fixed else int(a.get("ms", 0))
+                 for a in acts if isinstance(a, dict) and a.get("type") == "delay")
+        return {"steps": len(macro_rows(acts)), "ms": ms}
+
+    # recording: record, review the draft, then save or discard
+    @pyqtSlot(result=bool)
+    def startMacroRecording(self):
+        if not self.daemon.available:
+            self.notify(_("Start the JuhRadial MX service to record a macro."), "danger")
+            return False
+        if self.daemon.call("StartMacroRecording") is None:
+            self.notify(_("No keyboard to record from. Your user needs to read /dev/input "
+                          "(the input group)."), "danger")
+            return False
+        self._recording = True
+        self._draft = []
+        self.macrosChanged.emit()
+        return True
 
     @pyqtSlot()
-    def stopMacro(self):
-        self.daemon.call("StopMacro")
-
-    @pyqtSlot(str)
-    def deleteMacro(self, mid):
-        self.daemon.call("DeleteMacro", mid)
-        self.daemon.call("ReloadMacroTriggers")  # drop the deleted macro's binding
-        self.macrosChanged.emit()
-
-    @pyqtSlot(str, result=bool)
-    def saveMacro(self, macro_json):
-        """Persist a full macro (JSON string) and rebuild the trigger map.
-        The daemon's SaveMacro does NOT reload triggers itself, so we must."""
-        r = self.daemon.call("SaveMacro", macro_json)
-        self.daemon.call("ReloadMacroTriggers")
-        self.macrosChanged.emit()
-        return r is not None
-
-    @pyqtSlot(str, str, result=bool)
-    def setMacroMeta(self, mid, field, value):
-        """Edit one top-level field (name/description) of a stored macro."""
-        m = next((x for x in self.listMacros() if x.get("id") == mid), None)
-        if not m:
-            return False
-        m[field] = value
-        self.daemon.call("SaveMacro", json.dumps(m))
-        self.daemon.call("ReloadMacroTriggers")
-        self.macrosChanged.emit()
-        return True
-
-    @pyqtSlot(str, str, result=bool)
-    def setMacroTrigger(self, mid, trigger):
-        """Bind/clear a macro's trigger ('mouse:N', or '' to unbind)."""
-        m = next((x for x in self.listMacros() if x.get("id") == mid), None)
-        if not m:
-            return False
-        m["assigned_trigger"] = trigger or None
-        self.daemon.call("SaveMacro", json.dumps(m))
-        self.daemon.call("ReloadMacroTriggers")
-        self.macrosChanged.emit()
-        return True
-
-    @pyqtSlot(str, result="QVariant")
-    def getMacro(self, mid):
-        """Full stored macro (id/name/actions/repeat_mode/...) or {} if absent."""
-        return next((x for x in self.listMacros() if x.get("id") == mid), {})
-
-    @pyqtSlot(str, "QVariant", result=bool)
-    def saveMacroSteps(self, mid, actions):
-        """Replace a macro's ordered action list and resave (step editor)."""
-        m = next((x for x in self.listMacros() if x.get("id") == mid), None)
-        if not m:
-            return False
-        m["actions"] = [dict(a) for a in (actions or []) if isinstance(a, dict)]
-        self.daemon.call("SaveMacro", json.dumps(m))
-        self.daemon.call("ReloadMacroTriggers")
-        self.macrosChanged.emit()
-        return True
-
-    @pyqtSlot(str, str, int, result=bool)
-    def setMacroRepeat(self, mid, mode, count):
-        """Set repeat mode (once/while_holding/toggle/repeat_n) + count."""
-        m = next((x for x in self.listMacros() if x.get("id") == mid), None)
-        if not m:
-            return False
-        valid = {"once", "while_holding", "toggle", "repeat_n", "sequence"}
-        m["repeat_mode"] = mode if mode in valid else "once"
-        m["repeat_count"] = max(1, min(999, int(count)))
-        self.daemon.call("SaveMacro", json.dumps(m))
-        self.macrosChanged.emit()
-        return True
-
-    @pyqtSlot(str, result=bool)
-    def duplicateMacro(self, mid):
-        """Clone a stored macro under a fresh id (trigger intentionally dropped)."""
-        m = next((x for x in self.listMacros() if x.get("id") == mid), None)
-        if not m:
-            return False
-        existing = {x.get("id") for x in self.listMacros()}
-        base = (m.get("id") or "macro") + "_copy"
-        new_id, n = base, 2
-        while new_id in existing:
-            new_id, n = f"{base}{n}", n + 1
-        clone = dict(m)
-        clone["id"] = new_id
-        clone["name"] = (m.get("name") or "Macro") + " copy"
-        clone["assigned_trigger"] = None  # never inherit a binding (one button, one macro)
-        self.daemon.call("SaveMacro", json.dumps(clone))
-        self.daemon.call("ReloadMacroTriggers")
-        self.macrosChanged.emit()
-        return True
+    def requestRecordingStatus(self):
+        """Async: recordingStatusReady({recording, devices, count, recent})."""
+        def done(args):
+            if not args or len(args) < 3:
+                return
+            try:
+                events = json.loads(args[2])
+            except (TypeError, ValueError):
+                events = []
+            recent = [{"key": str(e.get("key", "")),
+                       "down": e.get("event_type") in ("key_down", "mouse_down"),
+                       "mouse": str(e.get("event_type", "")).startswith("mouse")}
+                      for e in events[-8:] if isinstance(e, dict)]
+            self.recordingStatusReady.emit({"recording": bool(args[0]),
+                                            "devices": [str(d) for d in (args[1] or [])],
+                                            "count": len(events), "recent": recent})
+        self.daemon.call_then("GetRecordingStatus", done)
 
     @pyqtSlot(result="QVariant")
-    def macroRepeatModes(self):
-        return [{"id": "once", "name": "Once"},
-                {"id": "while_holding", "name": "While held"},
-                {"id": "toggle", "name": "Toggle on/off"},
-                {"id": "repeat_n", "name": "Repeat N times"}]
+    def stopMacroRecording(self):
+        """Stop and keep the capture as a draft to review; nothing is saved
+        yet. Returns {steps, ms, rows} or {} when nothing was captured."""
+        self._recording = False
+        r = self.daemon.call("StopMacroRecording")
+        self.macrosChanged.emit()
+        try:
+            data = json.loads(r[0]) if r else {}
+        except (TypeError, ValueError):
+            data = {}
+        self._draft = list(data.get("actions") or [])
+        if not self._draft:
+            self.notify(_("Nothing was recorded. Press some keys while it records."), "info")
+            return {}
+        out = self.macroSummary({"actions": self._draft, "use_standard_delay": False})
+        out["rows"] = macro_rows(self._draft)
+        return out
 
-    @pyqtSlot(result="QVariant")
-    def macroTriggerOptions(self):
-        # mouse:N -> evdev in the daemon; back/forward/side are the realistically
-        # bindable ones (must be a divertable button to actually fire).
-        return [{"value": "", "name": "Not bound"},
-                {"value": "mouse:8", "name": "Back button"},
-                {"value": "mouse:9", "name": "Forward button"},
-                {"value": "mouse:2", "name": "Middle click"},
-                {"value": "mouse:10", "name": "Side / extra button"}]
+    @pyqtSlot(str, result=bool)
+    def saveDraft(self, name):
+        if not self._draft:
+            return False
+        name = (name or "").strip() or _("New macro")
+        m = new_macro(macro_id_for(name, {x.get("id") for x in self._macros()}), name, self._draft)
+        if not self._store_macro(m):
+            return False
+        self._draft = []
+        return True
+
+    @pyqtSlot()
+    def discardDraft(self):
+        self._draft = []
 
     _recording = False
+    _draft = []
 
     @pyqtProperty(bool, notify=macrosChanged)
     def recording(self):
         return self._recording
 
+    # playback
+    _macro_running = False
+
+    @pyqtProperty(bool, notify=macroRunningChanged)
+    def macroRunning(self):
+        return self._macro_running
+
+    def _set_macro_running(self, on):
+        if on != self._macro_running:
+            self._macro_running = on
+            self.macroRunningChanged.emit()
+        if on:
+            # The daemon announces a start, not the end of a finished run.
+            QTimer.singleShot(500, lambda: self.daemon.call_then(
+                "IsMacroRunning", lambda a: self._set_macro_running(bool(a and a[0]))))
+
+    @pyqtSlot(str)
+    def runMacro(self, mid):
+        if self.daemon.call("ExecuteMacro", mid) is not None:
+            self._set_macro_running(True)
+
     @pyqtSlot()
-    def startMacroRecording(self):
-        if self.daemon.available:
-            self.daemon.call("StartMacroRecording")
-            self._recording = True
-            self.macrosChanged.emit()
+    def stopMacro(self):
+        self.daemon.call("StopMacro")
+        self._set_macro_running(False)
+
+    @pyqtSlot(str, "QVariant", bool, int)
+    def testMacro(self, mid, rows, fixed, gap):
+        """Play the editor's unsaved steps once."""
+        m = new_macro(mid or "test", "test", macro_actions(rows))
+        m["use_standard_delay"], m["standard_delay_ms"] = bool(fixed), max(0, int(gap))
+        if self.daemon.call("ExecuteMacroInline", json.dumps(m)) is not None:
+            self._set_macro_running(True)
+
+    # library
+    @pyqtSlot(str, result=str)
+    def deleteMacro(self, mid):
+        """Delete; returns the macro as JSON for Undo (restoreMacro)."""
+        m = self._find_macro(mid)
+        self.daemon.call("DeleteMacro", mid)
+        self.daemon.call("ReloadMacroTriggers")  # drop the deleted macro's binding
+        self.macrosChanged.emit()
+        return json.dumps(m) if m else ""
 
     @pyqtSlot(str, result=bool)
-    def stopMacroRecording(self, name):
-        """Stop recording, name + persist the captured macro. Returns success."""
-        self._recording = False
-        r = self.daemon.call("StopMacroRecording")
-        self.macrosChanged.emit()
-        if not r:
+    def restoreMacro(self, macro_json):
+        try:
+            m = json.loads(macro_json or "")
+        except ValueError:
+            return False
+        return isinstance(m, dict) and bool(m.get("id")) and self._store_macro(m)
+
+    @pyqtSlot(str, result=bool)
+    def saveMacro(self, macro_json):
+        """Persist a full macro (JSON string) and rebuild the trigger map."""
+        try:
+            m = json.loads(macro_json)
+        except ValueError:
+            return False
+        return isinstance(m, dict) and self._store_macro(m)
+
+    @pyqtSlot(str, str, str, result=bool)
+    def setMacroMeta(self, mid, field, value):
+        """Edit one top-level field (name/description) of a stored macro."""
+        m = self._find_macro(mid)
+        if not m or field not in ("name", "description"):
+            return False
+        m[field] = value
+        return self._store_macro(m)
+
+    @pyqtSlot(str, str, result=bool)
+    def setMacroTrigger(self, mid, trigger):
+        """Bind/clear a macro's trigger ('mouse:N', or '' to unbind). One
+        button runs one macro: another macro on the same button is unbound."""
+        macros = self._macros()
+        m = next((x for x in macros if x.get("id") == mid), None)
+        if not m:
+            return False
+        for other in macros:
+            if trigger and other is not m and other.get("assigned_trigger") == trigger:
+                other["assigned_trigger"] = None
+                self.daemon.call("SaveMacro", json.dumps(other))
+                self.notify(_("{name} is no longer bound to that button").format(
+                    name=other.get("name") or other.get("id")), "info")
+        m["assigned_trigger"] = trigger or None
+        return self._store_macro(m)
+
+    @pyqtSlot(str, result="QVariant")
+    def getMacro(self, mid):
+        """Full stored macro (id/name/actions/repeat_mode/...) or {} if absent."""
+        return self._find_macro(mid) or {}
+
+    @pyqtSlot(str, result="QVariant")
+    def macroEditorRows(self, mid):
+        m = self._find_macro(mid) or {}
+        return macro_rows(m.get("actions") or [])
+
+    @pyqtSlot(str, "QVariant", result=bool)
+    def saveMacroRows(self, mid, rows):
+        """Replace a macro's steps from the editor rows."""
+        m = self._find_macro(mid)
+        if not m:
+            return False
+        m["actions"] = macro_actions([dict(r) for r in (rows or []) if isinstance(r, dict)])
+        return self._store_macro(m)
+
+    @pyqtSlot(str, "QVariant", result=bool)
+    def saveMacroSteps(self, mid, actions):
+        """Replace a macro's ordered action list and resave (step editor)."""
+        m = self._find_macro(mid)
+        if not m:
+            return False
+        m["actions"] = [dict(a) for a in (actions or []) if isinstance(a, dict)]
+        return self._store_macro(m)
+
+    @pyqtSlot(str, str, int, result=bool)
+    def setMacroRepeat(self, mid, mode, count):
+        """Set repeat mode (once/while_holding/toggle/repeat_n) + count."""
+        m = self._find_macro(mid)
+        if not m:
+            return False
+        valid = {"once", "while_holding", "toggle", "repeat_n", "sequence"}
+        m["repeat_mode"] = mode if mode in valid else "once"
+        m["repeat_count"] = max(1, min(999, int(count)))
+        return self._store_macro(m)
+
+    @pyqtSlot(str, bool, int, result=bool)
+    def setMacroTiming(self, mid, fixed, gap):
+        """As recorded (fixed=False) or a fixed gap between steps."""
+        m = self._find_macro(mid)
+        if not m:
+            return False
+        m["use_standard_delay"] = bool(fixed)
+        m["standard_delay_ms"] = max(0, min(10000, int(gap)))
+        return self._store_macro(m)
+
+    @pyqtSlot(str, result=str)
+    def duplicateMacro(self, mid):
+        """Clone a stored macro under a fresh id (trigger intentionally
+        dropped); returns the new id ("" on failure)."""
+        m = self._find_macro(mid)
+        if not m:
+            return ""
+        clone = dict(m)
+        clone["name"] = _("{name} copy").format(name=m.get("name") or _("Macro"))
+        clone["id"] = macro_id_for(clone["name"], {x.get("id") for x in self._macros()})
+        clone["assigned_trigger"] = None  # one button, one macro
+        return clone["id"] if self._store_macro(clone) else ""
+
+    @pyqtSlot(result="QVariant")
+    def macroRepeatModes(self):
+        return [{"id": "once", "name": _("Once"), "desc": _("Plays the steps one time.")},
+                {"id": "repeat_n", "name": _("A number of times"), "desc": _("Plays the steps again and again, as often as you set.")},
+                {"id": "while_holding", "name": _("While held"), "desc": _("Repeats while you hold the bound button.")},
+                {"id": "toggle", "name": _("On / off"), "desc": _("The bound button starts it, the next press stops it.")}]
+
+    @pyqtSlot(result="QVariant")
+    def macroTriggerOptions(self):
+        return [{"value": "", "name": _("No button")},
+                {"value": "mouse:8", "name": _("Back button")},
+                {"value": "mouse:9", "name": _("Forward button")},
+                {"value": "mouse:2", "name": _("Wheel click")},
+                {"value": "mouse:10", "name": _("Extra side button")}]
+
+    @pyqtSlot(str, result=str)
+    def triggerForSlot(self, slot):
+        return next((t for t, s in MACRO_TRIGGER_SLOTS.items() if s == slot), "")
+
+    @pyqtSlot(result="QVariant")
+    def macroActions(self):
+        """Saved macros as ring slice actions ("Run macro")."""
+        return [{"id": MACRO_PREFIX + m["id"], "name": _("Macro: {name}").format(name=m.get("name") or m["id"]),
+                 "label": m.get("name") or m["id"], "icon": "media-playback-start-symbolic",
+                 "type": "macro", "command": m["id"], "color": "", "hex": ""}
+                for m in self._macros() if m.get("id")]
+
+    # import / export / templates
+    @pyqtSlot(str, str, result=bool)
+    def exportMacro(self, mid, url):
+        m = self._find_macro(mid)
+        path = self._local_path(url)
+        if not m or not path:
             return False
         try:
-            data = json.loads(r[0]) if isinstance(r[0], str) else {}
-        except Exception:
-            data = {}
-        if not data.get("actions"):
-            # unparseable reply or nothing captured: don't save an empty macro
-            self.toast.emit(_("Recording failed"))
+            export = dict(m)
+            export["assigned_trigger"] = None  # a button is this machine's choice
+            pathlib.Path(path).write_text(json.dumps(export, indent=2))
+        except OSError as e:
+            self.notify(_("Export failed: {error}").format(error=e), "danger")
             return False
-        data["name"] = name or "New macro"
-        self.daemon.call("SaveMacro", json.dumps(data))
-        self.daemon.call("ReloadMacroTriggers")
-        self.macrosChanged.emit()
+        self.notify(_("Macro exported"), "success")
         return True
+
+    @pyqtSlot(str, result=bool)
+    def importMacro(self, url):
+        path = self._local_path(url)
+        try:
+            m = json.loads(pathlib.Path(path).read_text()) if path else None
+        except (OSError, ValueError):
+            m = None
+        if not isinstance(m, dict) or not isinstance(m.get("actions"), list):
+            self.notify(_("That file is not a JuhRadial MX macro."), "danger")
+            return False
+        name = str(m.get("name") or _("Imported macro"))
+        clean = new_macro(macro_id_for(name, {x.get("id") for x in self._macros()}), name,
+                          macro_actions(macro_rows(m["actions"])))
+        for key in ("description", "repeat_mode", "repeat_count", "use_standard_delay", "standard_delay_ms"):
+            if key in m:
+                clean[key] = m[key]
+        return self._store_macro(clean)
+
+    @pyqtSlot(result="QVariant")
+    def macroTemplates(self):
+        return [{"id": t, "name": _(n), "desc": _(d)} for (t, n, d, _r) in MACRO_TEMPLATES]
+
+    @pyqtSlot(str, result=str)
+    def createMacroFromTemplate(self, tid):
+        t = next((x for x in MACRO_TEMPLATES if x[0] == tid), None)
+        if not t:
+            return ""
+        name = _(t[1])
+        m = new_macro(macro_id_for(name, {x.get("id") for x in self._macros()}), name, macro_actions(t[3]))
+        m["description"] = _(t[2])
+        return m["id"] if self._store_macro(m) else ""
 
     # ---- restore defaults ----
     @pyqtSlot(result=bool)
@@ -3032,8 +3369,9 @@ class Backend(QObject):
 
     @pyqtSlot(result="QVariant")
     def sliceActions(self):
-        """The slice editor's picker: built-in actions, then plugin actions."""
-        return self.radialActions() + self.pluginActions()
+        """The slice editor's picker: built-in actions, saved macros, then
+        plugin actions."""
+        return self.radialActions() + self.macroActions() + self.pluginActions()
 
     @pyqtSlot()
     def openPluginsFolder(self):

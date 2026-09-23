@@ -82,6 +82,11 @@ class GettextTranslator(QTranslator):
         try:
             if not source_text:
                 return None
+            # qsTr("%n step(s)", "", n): gettext plural forms, so English
+            # reads "1 step" / "3 steps" and catalogs can add their own.
+            if n >= 0 and "(s)" in source_text:
+                return self._translation.ngettext(source_text.replace("(s)", ""),
+                                                  source_text.replace("(s)", "s"), n)
             if disambiguation:
                 result = self._translation.pgettext(disambiguation, source_text)
             else:
