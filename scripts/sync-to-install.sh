@@ -12,6 +12,9 @@ echo "=== Stopping running processes ==="
 pkill -x juhradiald 2>/dev/null || true
 pkill -f '[j]uhradial-overlay' 2>/dev/null || true
 pkill -f '[j]uhradial-settings' 2>/dev/null || true
+# The Qt settings app runs as "python3 .../settings-qt/main.py", which the
+# pattern above never matches; a stale instance would keep serving the old UI.
+pkill -f '[s]ettings-qt/main\.py' 2>/dev/null || true
 sleep 1
 
 echo "=== Syncing dev -> $INSTALL_DIR ==="
@@ -54,6 +57,16 @@ cp "$DEV_DIR"/overlay/flow/*.py "$SHARE_DIR/flow/"
 # Locales
 mkdir -p "$SHARE_DIR/locales"
 cp -r "$DEV_DIR"/overlay/locales/* "$SHARE_DIR/locales/"
+
+# Qt/QML settings app (mirrors install.sh: main.py + bridge/ + qml/ + assets/,
+# no tools/ or __pycache__) and the wheel skins the overlay resolves
+rm -rf "$SHARE_DIR/settings-qt"
+mkdir -p "$SHARE_DIR/settings-qt"
+cp "$DEV_DIR/settings-qt/main.py" "$SHARE_DIR/settings-qt/"
+cp -r "$DEV_DIR"/settings-qt/bridge "$DEV_DIR"/settings-qt/qml "$DEV_DIR"/settings-qt/assets "$SHARE_DIR/settings-qt/"
+find "$SHARE_DIR/settings-qt" -type d -name __pycache__ -exec rm -rf {} +
+mkdir -p "$SHARE_DIR/assets"
+cp -r "$DEV_DIR"/settings-qt/assets/wheels "$SHARE_DIR/assets/"
 
 # Assets
 mkdir -p "$SHARE_DIR/assets"
