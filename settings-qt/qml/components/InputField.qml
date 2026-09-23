@@ -12,6 +12,7 @@ Item {
     property string error: ""
     signal accepted
     signal editingFinished
+    signal textEdited
     property string accessibleName: ""
     property string accessibleDescription: ""
     implicitWidth: 220
@@ -43,6 +44,7 @@ Item {
             background: Item {}
             onAccepted: f.accepted()
             onEditingFinished: f.editingFinished()
+            onTextEdited: f.textEdited()
         }
     }
     Text {

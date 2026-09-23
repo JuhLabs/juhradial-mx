@@ -2,62 +2,212 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import QtQuick.Shapes
+import QtQuick.Window
 import QtQuick.Controls.Basic as B
 import "../components"
+import "../components/keys.js" as KeyNames
 
-// Buttons: remap the physical buttons by clicking callout pins on real photos of
-// the mouse (top + thumb-side), and edit the 8-slice radial menu with an
-// independent wheel skin. The whole page is the "amazing user-friendly" map.
+// Buttons: remap the physical buttons from callout pins on photos of the
+// mouse (or a plain list), for all apps, this mouse only, or one app; edit
+// the Actions Ring's eight slices; quick links; directional gestures; and any
+// other control the mouse reports.
 Item {
     id: page
     anchors.fill: parent
 
-    // id -> display name for physical button actions
-    property var actMap: ({})
-    property string pickSlot: ""          // which physical button is being edited
-    property int pickSlice: -1            // which radial slice is being edited
+    // ---- state ----
+    property var actMap: ({})             // action id -> display name
+    property string scope: ""             // "" all apps, "@mouse", or an app class
+    property var scopes: []
+    property string pickSlot: ""          // button being edited
+    property int bump: 0                  // re-read bindings after a change
     property string wheelKey: Backend.get("radial.wheel", "none")
     readonly property bool mono: Theme.iconStyle === "mono"
-    property bool editPins: false        // drag-to-place marker mode
-    // MX Master 3/3S share one body, distinct from the MX Master 4 photos and
-    // callout positions (GetDeviceName decides, like the GTK app).
-    readonly property bool isMx3: Backend.deviceName.indexOf("MX Master 3") >= 0
+    property bool editPins: false         // drag-to-place marker mode
+    property string flashSlot: ""         // lit for a moment when pressed on the mouse
+    property var macroBinds: ({})         // slot -> {id, name} of a macro bound to it
+    property int dirBump: 0
+    // MX Master 3/3S share one body; any other named mouse gets the honest
+    // list instead of MX Master 4 photos.
+    readonly property string devName: Backend.deviceName
+    readonly property bool isMx3: devName.indexOf("MX Master 3") >= 0
+    readonly property bool knownArt: devName === "" || devName.indexOf("MX Master") >= 0
+    readonly property bool listView: !knownArt || page.width < 760
+                                     || (page.bump, Backend.get("ui.buttons_list_view", false))
+    readonly property bool scopeIsApp: scope !== "" && scope !== "@mouse"
     readonly property string pinKey: isMx3 ? "button_pins.mx3." : "button_pins."
     function pinNx(md) { return Backend.get(pinKey + md.slot + ".nx", md.nx) }
     function pinNy(md) { return Backend.get(pinKey + md.slot + ".ny", md.ny) }
-    property int dirBump: 0              // nudge the gesture callout after a directional change
-    // Controls the mouse reports beyond the named slots (ListControls),
-    // fetched async: the daemon scans the mouse under its device lock, and a
-    // blocking call here stalled the tab switch. Re-read when the daemon
-    // (re)appears; the inventory does not change while it is connected.
     property var extraControls: []
+    // What a plain press of the gesture button does (the D-pad's centre).
+    readonly property string gestureClickText:
+        (page.bump, actMap[Backend.buttonAction("", "gesture", "virtual_desktops")] || "")
+
     Connections {
         target: Backend
         function onControlsReady(list) { page.extraControls = list }
-        function onAvailabilityChanged() { Backend.requestControls() }
+        function onAvailabilityChanged() { Backend.requestControls(); Backend.requestMacroBindings() }
+        function onButtonPressed(slot) { page.flashSlot = slot; flashTimer.restart() }
+        function onMacroBindingsReady(map) { page.macroBinds = map }
+        function onMacrosChanged() { Backend.requestMacroBindings() }
+        function onConfigReloaded() { page.reloadScopes(); page.bump++ }
     }
+    Timer { id: flashTimer; interval: 600; onTriggered: page.flashSlot = "" }
 
     Component.onCompleted: {
         var a = Backend.buttonActions(), m = {}
         for (var i = 0; i < a.length; i++) m[a[i].id] = a[i].name
         actMap = m
+        reloadScopes()
         loadAi()
         Backend.requestControls()
+        Backend.requestMacroBindings()
     }
-    function actionName(slot, def) {
-        // The thumb wheel is configured by its mode (thumbwheel.mode), not as
-        // a button: buttons.horizontal_scroll was never read by the daemon.
+    function reloadScopes() {
+        scopes = Backend.buttonScopes()
+        if (!scopes.some(function (s) { return s.id === page.scope })) scope = ""
+    }
+
+    // ---- the buttons ----
+    readonly property var allSlots: [
+        { slot: "thumb", def: "radial_menu", label: qsTr("Actions ring") },
+        { slot: "gesture", def: "virtual_desktops", label: qsTr("Gesture") },
+        { slot: "middle", def: "middle_click", label: qsTr("Wheel click") },
+        { slot: "shift_wheel", def: "smartshift", label: qsTr("Mode shift") },
+        { slot: "back", def: "back", label: qsTr("Back") },
+        { slot: "forward", def: "forward", label: qsTr("Forward") },
+        { slot: "horizontal_scroll", def: "scroll_left_right", label: qsTr("Thumb wheel") }
+    ]
+    function slotInfo(slot) {
+        for (var i = 0; i < allSlots.length; i++) if (allSlots[i].slot === slot) return allSlots[i]
+        return { slot: slot, def: "none", label: slot }
+    }
+    // physical buttons placed on each photo (normalized to the image box)
+    readonly property var topBtns: [
+        { slot: "middle", def: "middle_click", label: qsTr("Wheel click"), nx: 0.626, ny: 0.233, cx: 0.90, cy: 0.12 },
+        { slot: "shift_wheel", def: "smartshift", label: qsTr("Mode shift"), nx: 0.62, ny: 0.37, cx: 0.92, cy: 0.46 }
+    ]
+    readonly property var sideBtns: [
+        { slot: "thumb", def: "radial_menu", label: qsTr("Actions ring"), nx: 0.656, ny: 0.644, cx: 0.93, cy: 0.87 },
+        { slot: "horizontal_scroll", def: "scroll_left_right", label: qsTr("Thumb wheel"), nx: 0.619, ny: 0.320, cx: 0.11, cy: 0.10 },
+        { slot: "forward", def: "forward", label: qsTr("Forward"), nx: 0.730, ny: 0.347, cx: 0.96, cy: 0.24 },
+        { slot: "back", def: "back", label: qsTr("Back"), nx: 0.658, ny: 0.461, cx: 0.96, cy: 0.50 },
+        { slot: "gesture", def: "virtual_desktops", label: qsTr("Gesture"), nx: 0.569, ny: 0.567, cx: 0.13, cy: 0.87 }
+    ]
+    readonly property var mx3Btns: [
+        { slot: "middle", def: "middle_click", label: qsTr("Wheel click"), nx: 0.60, ny: 0.11, cx: 1.32, cy: 0.08 },
+        { slot: "shift_wheel", def: "smartshift", label: qsTr("Mode shift"), nx: 0.59, ny: 0.37, cx: 1.32, cy: 0.36 },
+        { slot: "forward", def: "forward", label: qsTr("Forward"), nx: 0.26, ny: 0.35, cx: -0.34, cy: 0.20 },
+        { slot: "back", def: "back", label: qsTr("Back"), nx: 0.24, ny: 0.42, cx: -0.34, cy: 0.38 },
+        { slot: "horizontal_scroll", def: "scroll_left_right", label: qsTr("Thumb wheel"), nx: 0.30, ny: 0.55, cx: -0.34, cy: 0.56 },
+        { slot: "gesture", def: "virtual_desktops", label: qsTr("Gesture"), nx: 0.27, ny: 0.62, cx: -0.34, cy: 0.74 },
+        { slot: "thumb", def: "radial_menu", label: qsTr("Actions ring"), nx: 0.28, ny: 0.66, cx: -0.34, cy: 0.92 }
+    ]
+
+    // ---- what a button does, as text ----
+    function customText(slot) {
+        var c = Backend.customAction(page.scope, slot)
+        if (!c.kind) return qsTr("Custom action (not set)")
+        if (c.kind === "shortcut") return KeyNames.pretty(c.value)
+        if (c.label) return c.label
+        if (c.kind === "url") return c.value.replace(/^(https?:\/\/|mailto:)/i, "")
+        return c.value
+    }
+    function actionText(slot, def) {
+        page.bump
+        // The thumb wheel is set by its mode (thumbwheel.mode), not as a button.
         if (slot === "horizontal_scroll") {
             var tw = Backend.get("thumbwheel.mode", "off"), modes = Backend.thumbwheelModes()
             for (var k = 0; k < modes.length; k++) if (modes[k].id === tw) return modes[k].name
             return tw
         }
-        var id = Backend.get("buttons." + slot, def)
-        var text = actMap[id] || id
+        var id = Backend.buttonAction(page.scope, slot, def)
+        var text = id === "custom" ? customText(slot) : (actMap[id] || id)
         if (slot === "gesture" && (page.dirBump, Backend.get("buttons.gesture_directions.enabled", false)))
-            text += " + drag"
+            text = qsTr("%1 + drag").arg(text)
         return text
     }
+    function isChanged(slot, def) {
+        page.bump
+        if (slot === "horizontal_scroll") return Backend.get("thumbwheel.mode", "off") !== "off"
+        if (page.scope !== "") return Backend.hasOverride(page.scope, slot)
+        return Backend.buttonAction("", slot, def) !== def
+    }
+    // A macro bound to a remapped button never runs: the remap wins.
+    function macroNote(slot, def) {
+        page.bump
+        var m = page.macroBinds[slot]
+        if (!m) return ""
+        return Backend.buttonAction("", slot, def) !== def
+            ? qsTr("Macro “%1” never runs").arg(m.name) : qsTr("Macro: %1").arg(m.name)
+    }
+    readonly property var conflicts: {
+        page.bump
+        var out = []
+        for (var i = 0; i < allSlots.length; i++) {
+            var s = allSlots[i], m = macroBinds[s.slot]
+            if (m && Backend.buttonAction("", s.slot, s.def) !== s.def)
+                out.push({ slot: s.slot, def: s.def, label: s.label, macro: m })
+        }
+        return out
+    }
+
+    // ---- editing ----
+    function openPickerFor(slot, def) {
+        if (slot === "horizontal_scroll") {
+            if (page.scopeIsApp) {
+                Backend.notify(qsTr("An app's thumb wheel is set on the App profiles tab."), "info")
+                return
+            }
+            twPicker.currentId = Backend.get("thumbwheel.mode", "off")
+            twPicker.open()
+            return
+        }
+        page.pickSlot = slot
+        var list = []
+        if (page.scope !== "" && Backend.hasOverride(page.scope, slot))
+            list.push({ id: "__follow", name: qsTr("Same as all apps"), icon: "edit-undo-symbolic", groupName: "" })
+        else if (page.scope === "" && Backend.buttonAction("", slot, def) !== def)
+            list.push({ id: "__default", name: qsTr("Default: %1").arg(actMap[def] || def),
+                        icon: "edit-undo-symbolic", groupName: "" })
+        var names = Backend.hostNames
+        var acts = Backend.buttonActions().map(function (a) {
+            var n = ["host1", "host2", "host3"].indexOf(a.id)
+            if (n >= 0 && names[n]) a.name = qsTr("Switch to %1").arg(names[n])
+            return a
+        })
+        btnPicker.actions = list.concat(acts)
+        btnPicker.currentId = Backend.buttonAction(page.scope, slot, def)
+        btnPicker.title = qsTr("%1 does").arg(slotInfo(slot).label)
+        btnPicker.open()
+    }
+    function pick(slot, id) {
+        if (id === "__follow" || id === "__default") Backend.restoreButton(page.scope, slot)
+        else if (id === "custom") { customEd.openFor(page.scope, slot, slotInfo(slot).label); return }
+        else Backend.setButtonIn(page.scope, slot, id)
+        page.bump++
+    }
+    function resetCard() {
+        var sc = page.scope
+        var snap = Backend.resetButtonMap(sc)
+        page.bump++
+        Window.window.undoToast(sc === "" ? qsTr("Buttons back to their defaults")
+                                          : qsTr("Buttons follow all apps again"),
+                                function () { Backend.undoResetButtonMap(sc, snap); page.bump++ })
+    }
+
+    ActionPicker {
+        id: twPicker
+        title: qsTr("Thumb wheel does")
+        actions: Backend.thumbwheelModes().map(function (m) { return { id: m.id, name: m.name, icon: "input-mouse-symbolic" } })
+        onPicked: (id) => { Backend.setThumbwheelMode(id); page.bump++ }
+    }
+    ActionPicker {
+        id: btnPicker
+        onPicked: (id) => page.pick(page.pickSlot, id)
+    }
+    CustomActionEditor { id: customEd; onSaved: page.bump++ }
+    SliceEditor { id: sliceEd }
 
     // ---- Quick links editor (each submenu slice's own links) ----
     ListModel { id: aiModel }
@@ -85,66 +235,61 @@ Item {
     property int aiPickRow: -1
     AppPicker {
         id: linkAppPicker
-        title: "Open an application from the submenu"
+        title: qsTr("Open an application from the submenu")
         onPicked: (app) => {
             if (page.aiPickRow < 0) return
             var icon = Backend.cacheAppIcon(app.id)
             aiModel.setProperty(page.aiPickRow, "command", app.command)
             aiModel.setProperty(page.aiPickRow, "url", "")
             aiModel.setProperty(page.aiPickRow, "icon", icon)
-            if ((aiModel.get(page.aiPickRow).name || "") === "" || aiModel.get(page.aiPickRow).name === "New link")
+            var cur = aiModel.get(page.aiPickRow).name || ""
+            if (cur === "" || cur === qsTr("New link"))
                 aiModel.setProperty(page.aiPickRow, "name", app.name)
             page.commitAi()
         }
     }
 
-    // physical buttons placed on each photo (normalized to the image box)
-    readonly property var topBtns: [
-        { slot: "middle", def: "middle_click", label: "Wheel click", nx: 0.626, ny: 0.233, cx: 0.90, cy: 0.12 },
-        { slot: "shift_wheel", def: "smartshift", label: "Mode shift", nx: 0.62, ny: 0.37, cx: 0.92, cy: 0.46 }
-    ]
-    readonly property var sideBtns: [
-        { slot: "thumb", def: "radial_menu", label: "Actions ring", nx: 0.656, ny: 0.644, cx: 0.93, cy: 0.87 },
-        { slot: "horizontal_scroll", def: "scroll_left_right", label: "Thumb wheel", nx: 0.619, ny: 0.320, cx: 0.11, cy: 0.10 },
-        { slot: "forward", def: "forward", label: "Forward", nx: 0.730, ny: 0.347, cx: 0.96, cy: 0.24 },
-        { slot: "back", def: "back", label: "Back", nx: 0.658, ny: 0.461, cx: 0.96, cy: 0.50 },
-        { slot: "gesture", def: "virtual_desktops", label: "Gesture", nx: 0.569, ny: 0.567, cx: 0.13, cy: 0.87 }
-    ]
-
-    readonly property var mx3Btns: [
-        { slot: "middle", def: "middle_click", label: "Wheel click", nx: 0.60, ny: 0.11, cx: 1.32, cy: 0.08 },
-        { slot: "shift_wheel", def: "smartshift", label: "Mode shift", nx: 0.59, ny: 0.37, cx: 1.32, cy: 0.36 },
-        { slot: "forward", def: "forward", label: "Forward", nx: 0.26, ny: 0.35, cx: -0.34, cy: 0.20 },
-        { slot: "back", def: "back", label: "Back", nx: 0.24, ny: 0.42, cx: -0.34, cy: 0.38 },
-        { slot: "horizontal_scroll", def: "scroll_left_right", label: "Thumb wheel", nx: 0.30, ny: 0.55, cx: -0.34, cy: 0.56 },
-        { slot: "gesture", def: "virtual_desktops", label: "Gesture", nx: 0.27, ny: 0.62, cx: -0.34, cy: 0.74 },
-        { slot: "thumb", def: "radial_menu", label: "Actions ring", nx: 0.28, ny: 0.66, cx: -0.34, cy: 0.92 }
-    ]
-
-    ActionPicker {
-        id: twPicker
-        title: qsTr("Thumb wheel does")
-        actions: Backend.thumbwheelModes().map(function (m) { return { id: m.id, name: m.name, icon: "input-mouse-symbolic" } })
-        onPicked: (id) => { Backend.setThumbwheelMode(id); page.actMapBump++ }
+    // One callout on a photo; the same for every view.
+    component Callout: MouseCallout {
+        required property var modelData
+        cx: modelData.cx; cy: modelData.cy
+        editable: page.editPins
+        label: modelData.label
+        action: page.actionText(modelData.slot, modelData.def)
+        changed: page.isChanged(modelData.slot, modelData.def)
+        note: page.macroNote(modelData.slot, modelData.def)
+        selected: page.flashSlot === modelData.slot || (btnPicker.opened && page.pickSlot === modelData.slot)
+        Component.onCompleted: { nx = page.pinNx(modelData); ny = page.pinNy(modelData) }
+        onClicked: page.openPickerFor(modelData.slot, modelData.def)
     }
-    function openPickerFor(slot, def) {
-        if (slot === "horizontal_scroll") {
-            twPicker.currentId = Backend.get("thumbwheel.mode", "off")
-            twPicker.open()
-            return
+    // Soft floor shadow under a product photo.
+    component FloorShadow: Shape {
+        required property Item img
+        property real spread: 1.15
+        anchors.horizontalCenter: img.horizontalCenter
+        y: img.y + img.height - 70
+        width: img.width * spread; height: 110
+        ShapePath {
+            strokeWidth: 0
+            fillGradient: RadialGradient {
+                centerX: img.width * spread / 2; centerY: 55
+                focalX: img.width * spread / 2; focalY: 55
+                centerRadius: img.width * spread / 2
+                GradientStop { position: 0.0; color: "#66000000" }
+                GradientStop { position: 0.55; color: "#00000000" }
+            }
+            startX: 0; startY: 55
+            PathArc { x: img.width * spread; y: 55; radiusX: img.width * spread / 2; radiusY: 55 }
+            PathArc { x: 0; y: 55; radiusX: img.width * spread / 2; radiusY: 55 }
         }
-        page.pickSlot = slot
-        btnPicker.currentId = Backend.get("buttons." + slot, def)
-        btnPicker.open()
     }
-    ActionPicker {
-        id: btnPicker
-        title: "Assign button"
-        actions: Backend.buttonActions()
-        onPicked: (id) => { if (page.pickSlot !== "") { Backend.setButton(page.pickSlot, id); page.actMapBump++ } }
+    component ViewLabel: Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        color: Theme.textMuted
+        font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+        font.weight: Font.DemiBold; font.letterSpacing: 1.5
     }
-    SliceEditor { id: sliceEd }
-    property int actMapBump: 0   // nudge callout bindings after a button change
 
     Flickable {
         anchors.fill: parent
@@ -157,6 +302,30 @@ Item {
             width: parent.width
             spacing: Theme.gap
 
+            // ===== Offline banner =====
+            Rectangle {
+                Layout.fillWidth: true
+                visible: !Backend.daemonAvailable
+                implicitHeight: offRow.implicitHeight + 24
+                radius: Theme.radiusCard
+                color: Theme.dangerSubtle; border.width: 1; border.color: Theme.danger
+                RowLayout {
+                    id: offRow
+                    anchors.fill: parent; anchors.margins: 12
+                    spacing: Theme.gap
+                    ActionIcon { iconName: "dialog-warning-symbolic"; tint: Theme.danger; px: 20 }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                        text: qsTr("The JuhRadial MX service is not running. Changes are saved and apply when it starts.")
+                        color: Theme.textBody; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                    }
+                    PrimaryButton {
+                        text: qsTr("Troubleshoot"); ghost: true
+                        onClicked: Backend.goTo("settings")
+                    }
+                }
+            }
+
             // ===== Button mapping =====
             GlassCard {
                 Layout.fillWidth: true
@@ -167,34 +336,156 @@ Item {
                     spacing: Theme.gap
                     CardHeader {
                         width: parent.width
-                        title: "Button mapping"
-                        subtitle: "Click any marker on the mouse to reassign that button"
+                        title: qsTr("Button mapping")
+                        subtitle: page.knownArt
+                                  ? qsTr("Click a marker to reassign a button, or press it on the mouse to find it")
+                                  : qsTr("%1: press a button on the mouse to find it in the list").arg(page.devName)
                         icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/input-mouse-symbolic"
+                        Row {
+                            spacing: 6
+                            IconButton {
+                                visible: page.knownArt && !page.listView
+                                icon: "input-mouse-symbolic"; diameter: 34
+                                tint: page.editPins ? Theme.accent : Theme.textMuted
+                                tip: page.editPins ? qsTr("Done adjusting markers") : qsTr("Adjust markers")
+                                onClicked: page.editPins = !page.editPins
+                            }
+                            IconButton {
+                                visible: page.knownArt && page.width >= 760
+                                icon: page.listView ? "view-grid-symbolic" : "view-list-symbolic"; diameter: 34
+                                tint: Theme.textMuted
+                                tip: page.listView ? qsTr("Show the mouse") : qsTr("Show as a list")
+                                onClicked: { Backend.setLocal("ui.buttons_list_view", !page.listView); page.bump++ }
+                            }
+                            IconButton {
+                                icon: "edit-undo-symbolic"; diameter: 34; tint: Theme.textMuted
+                                tip: page.scope === "" ? qsTr("Reset all buttons to their defaults")
+                                                       : qsTr("Make every button follow all apps")
+                                onClicked: page.resetCard()
+                            }
+                        }
+                    }
+
+                    // scope: all apps, this mouse only, or one app
+                    RowLayout {
+                        width: parent.width
+                        spacing: Theme.gap
+                        Text {
+                            text: qsTr("Editing for")
+                            color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                        }
+                        ComboBox {
+                            Layout.preferredWidth: 240
+                            accessibleName: qsTr("Editing for")
+                            model: page.scopes
+                            currentId: page.scope
+                            onActivated2: (id) => { page.scope = id; page.bump++ }
+                        }
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap
+                            text: page.scope === ""
+                                  ? (page.scopes.length > 1 ? "" : qsTr("Add apps on the App profiles tab to give them their own buttons."))
+                                  : (page.scope === "@mouse"
+                                     ? qsTr("Only this mouse. Buttons you leave alone follow all apps.")
+                                     : qsTr("Only while %1 has focus. Buttons you leave alone follow all apps.").arg(page.scope))
+                            color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                        }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
+
+                    Text {
+                        visible: page.editPins && !page.listView
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: qsTr("Drag each marker onto its button. Positions are saved as you go.")
+                        color: Theme.accent; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                    }
+
+                    // ---- a macro and a remap on the same button ----
+                    Repeater {
+                        model: page.conflicts
+                        Rectangle {
+                            required property var modelData
+                            width: mapCol.width
+                            implicitHeight: cRow.implicitHeight + 16
+                            radius: Theme.radiusCtl
+                            color: Theme.dangerSubtle; border.width: 1; border.color: Theme.danger
+                            RowLayout {
+                                id: cRow
+                                anchors.fill: parent; anchors.margins: 8; anchors.leftMargin: 12
+                                spacing: Theme.gapS
+                                Text {
+                                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                    text: qsTr("%1 is remapped, so the macro “%2” bound to it never runs.")
+                                          .arg(modelData.label).arg(modelData.macro.name)
+                                    color: Theme.textBody; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                                }
+                                PrimaryButton {
+                                    text: qsTr("Keep remap"); ghost: true
+                                    onClicked: { Backend.setMacroTrigger(modelData.macro.id, ""); Backend.requestMacroBindings() }
+                                }
+                                PrimaryButton {
+                                    text: qsTr("Keep macro"); ghost: true
+                                    onClicked: { Backend.restoreButton("", modelData.slot); page.bump++ }
+                                }
+                            }
+                        }
+                    }
+
+                    // ---- list view (narrow windows, other mice, or by choice) ----
+                    Column {
+                        visible: page.listView
+                        width: parent.width
+                        Repeater {
+                            model: page.allSlots
+                            Item {
+                                id: lrow
+                                required property var modelData
+                                width: parent.width; height: srow.height
+                                readonly property bool changed: page.isChanged(modelData.slot, modelData.def)
+                                // lit for a moment when the button is pressed on the mouse
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: -8; anchors.rightMargin: -8
+                                    radius: Theme.radiusCtl
+                                    color: Theme.accentSubtle
+                                    opacity: page.flashSlot === lrow.modelData.slot ? 1 : 0
+                                    Behavior on opacity { NumberAnimation { duration: Theme.dShort } }
+                                }
+                                SettingRow {
+                                    id: srow
+                                    width: parent.width
+                                    label: lrow.modelData.label
+                                    desc: page.actionText(lrow.modelData.slot, lrow.modelData.def)
+                                          + (page.macroNote(lrow.modelData.slot, lrow.modelData.def) !== ""
+                                             ? " · " + page.macroNote(lrow.modelData.slot, lrow.modelData.def) : "")
+                                    Row {
+                                        spacing: 6
+                                        Rectangle {
+                                            visible: lrow.changed
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 6; height: 6; radius: 3; color: Theme.accent
+                                        }
+                                        IconButton {
+                                            visible: lrow.changed && lrow.modelData.slot !== "horizontal_scroll"
+                                            icon: "edit-undo-symbolic"; diameter: 32; tint: Theme.textMuted
+                                            tip: page.scope === "" ? qsTr("Back to the default") : qsTr("Follow all apps")
+                                            onClicked: { Backend.restoreButton(page.scope, lrow.modelData.slot); page.bump++ }
+                                        }
+                                        PrimaryButton {
+                                            text: qsTr("Change"); ghost: true
+                                            onClicked: page.openPickerFor(lrow.modelData.slot, lrow.modelData.def)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // ---- MX Master 3/3S: one three-quarter photo ----
                     Item {
                         width: parent.width; height: 360
-                        visible: page.isMx3
-                        Shape {
-                            anchors.horizontalCenter: mx3Img.horizontalCenter
-                            y: mx3Img.y + mx3Img.height - 70
-                            width: mx3Img.width * 1.4; height: 110
-                            ShapePath {
-                                strokeWidth: 0
-                                fillGradient: RadialGradient {
-                                    centerX: mx3Img.width * 0.7; centerY: 55
-                                    focalX: mx3Img.width * 0.7; focalY: 55
-                                    centerRadius: mx3Img.width * 0.7
-                                    GradientStop { position: 0.0; color: "#66000000" }
-                                    GradientStop { position: 0.55; color: "#00000000" }
-                                }
-                                startX: 0; startY: 55
-                                PathArc { x: mx3Img.width * 1.4; y: 55; radiusX: mx3Img.width * 0.7; radiusY: 55 }
-                                PathArc { x: 0; y: 55; radiusX: mx3Img.width * 0.7; radiusY: 55 }
-                            }
-                        }
+                        visible: page.isMx3 && !page.listView
+                        FloorShadow { img: mx3Img; spread: 1.4 }
                         Image {
                             id: mx3Img
                             anchors.centerIn: parent
@@ -208,58 +499,24 @@ Item {
                         Item {
                             anchors.fill: mx3Img
                             Repeater {
-                                model: page.isMx3 ? page.mx3Btns : []
-                                MouseCallout {
-                                    required property var modelData
-                                    cx: modelData.cx; cy: modelData.cy
-                                    editable: page.editPins
-                                    Component.onCompleted: { nx = page.pinNx(modelData); ny = page.pinNy(modelData) }
-                                    onMoved: (mnx, mny) => Backend.setPinPos("mx3." + modelData.slot, mnx, mny)
-                                    label: modelData.label
-                                    action: (page.actMapBump, page.actionName(modelData.slot, modelData.def))
-                                    onClicked: {
-                                        page.openPickerFor(modelData.slot, modelData.def)
-                                    }
-                                }
+                                model: page.isMx3 && !page.listView ? page.mx3Btns : []
+                                Callout { onMoved: (mnx, mny) => Backend.setPinPos("mx3." + modelData.slot, mnx, mny) }
                             }
                         }
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottom: parent.bottom
-                            text: "MX MASTER 3 / 3S"; color: Theme.textMuted
-                            font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
-                            font.weight: Font.DemiBold; font.letterSpacing: 1.5
-                        }
+                        ViewLabel { text: "MX MASTER 3 / 3S" }  // i18n-ignore
                     }
 
+                    // ---- MX Master 4: top + thumb side ----
                     RowLayout {
                         width: parent.width
                         spacing: Theme.gap
-                        visible: !page.isMx3
+                        visible: !page.isMx3 && !page.listView
 
-                        // ---- top view ----
                         Item {
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
                             Layout.preferredHeight: 300
-                            Shape {
-                                anchors.horizontalCenter: topImg.horizontalCenter
-                                y: topImg.y + topImg.height - 70
-                                width: topImg.width * 1.15; height: 110
-                                ShapePath {
-                                    strokeWidth: 0
-                                    fillGradient: RadialGradient {
-                                        centerX: topImg.width * 0.575; centerY: 55
-                                        focalX: topImg.width * 0.575; focalY: 55
-                                        centerRadius: topImg.width * 0.575
-                                        GradientStop { position: 0.0; color: "#66000000" }
-                                        GradientStop { position: 0.55; color: "#00000000" }
-                                    }
-                                    startX: 0; startY: 55
-                                    PathArc { x: topImg.width * 1.15; y: 55; radiusX: topImg.width * 0.575; radiusY: 55 }
-                                    PathArc { x: 0; y: 55; radiusX: topImg.width * 0.575; radiusY: 55 }
-                                }
-                            }
+                            FloorShadow { img: topImg }
                             Image {
                                 id: topImg
                                 anchors.centerIn: parent
@@ -273,53 +530,18 @@ Item {
                             Item {
                                 anchors.fill: topImg
                                 Repeater {
-                                    model: page.topBtns
-                                    MouseCallout {
-                                        required property var modelData
-                                        cx: modelData.cx; cy: modelData.cy
-                                        editable: page.editPins
-                                        Component.onCompleted: { nx = page.pinNx(modelData); ny = page.pinNy(modelData) }
-                                        onMoved: (mnx, mny) => Backend.setPinPos(modelData.slot, mnx, mny)
-                                        label: modelData.label
-                                        action: (page.actMapBump, page.actionName(modelData.slot, modelData.def))
-                                        onClicked: {
-                                            page.openPickerFor(modelData.slot, modelData.def)
-                                        }
-                                    }
+                                    model: !page.isMx3 && !page.listView ? page.topBtns : []
+                                    Callout { onMoved: (mnx, mny) => Backend.setPinPos(modelData.slot, mnx, mny) }
                                 }
                             }
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom
-                                text: "TOP"; color: Theme.textMuted
-                                font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
-                                font.weight: Font.DemiBold; font.letterSpacing: 1.5
-                            }
+                            ViewLabel { text: qsTr("TOP") }
                         }
 
-                        // ---- thumb-side view ----
                         Item {
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1.5
                             Layout.preferredHeight: 300
-                            Shape {
-                                anchors.horizontalCenter: sideImg.horizontalCenter
-                                y: sideImg.y + sideImg.height - 70
-                                width: sideImg.width * 1.15; height: 110
-                                ShapePath {
-                                    strokeWidth: 0
-                                    fillGradient: RadialGradient {
-                                        centerX: sideImg.width * 0.575; centerY: 55
-                                        focalX: sideImg.width * 0.575; focalY: 55
-                                        centerRadius: sideImg.width * 0.575
-                                        GradientStop { position: 0.0; color: "#66000000" }
-                                        GradientStop { position: 0.55; color: "#00000000" }
-                                    }
-                                    startX: 0; startY: 55
-                                    PathArc { x: sideImg.width * 1.15; y: 55; radiusX: sideImg.width * 0.575; radiusY: 55 }
-                                    PathArc { x: 0; y: 55; radiusX: sideImg.width * 0.575; radiusY: 55 }
-                                }
-                            }
+                            FloorShadow { img: sideImg }
                             Image {
                                 id: sideImg
                                 anchors.centerIn: parent
@@ -333,149 +555,36 @@ Item {
                             Item {
                                 anchors.fill: sideImg
                                 Repeater {
-                                    model: page.sideBtns
-                                    MouseCallout {
-                                        required property var modelData
-                                        cx: modelData.cx; cy: modelData.cy
-                                        editable: page.editPins
-                                        Component.onCompleted: { nx = page.pinNx(modelData); ny = page.pinNy(modelData) }
-                                        onMoved: (mnx, mny) => Backend.setPinPos(modelData.slot, mnx, mny)
-                                        label: modelData.label
-                                        action: (page.actMapBump, page.actionName(modelData.slot, modelData.def))
-                                        onClicked: {
-                                            page.openPickerFor(modelData.slot, modelData.def)
-                                        }
-                                    }
+                                    model: !page.isMx3 && !page.listView ? page.sideBtns : []
+                                    Callout { onMoved: (mnx, mny) => Backend.setPinPos(modelData.slot, mnx, mny) }
                                 }
                             }
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom
-                                text: "THUMB SIDE"; color: Theme.textMuted
-                                font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
-                                font.weight: Font.DemiBold; font.letterSpacing: 1.5
-                            }
+                            ViewLabel { text: qsTr("THUMB SIDE") }
                         }
                     }
                 }
             }
 
-            // ===== Other controls (from the mouse's own REPROG_CONTROLS_V4 inventory) =====
+            // ===== Actions Ring =====
             GlassCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: extraCol.implicitHeight + Theme.padCard * 2
-                visible: page.extraControls.length > 0
+                Layout.preferredHeight: ringCol.implicitHeight + Theme.padCard * 2
                 Column {
-                    id: extraCol
-                    anchors.fill: parent; anchors.margins: Theme.padCard
-                    spacing: Theme.gapS
-                    CardHeader {
-                        width: parent.width
-                        title: "Other controls"
-                        subtitle: "Buttons this mouse reports that have no marker above. Assign an action to divert one; Disabled leaves it native."
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/input-mouse-symbolic"
-                        Badge { text: page.extraControls.length + " found"; accent: true }
-                    }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    Repeater {
-                        model: page.extraControls
-                        Column {
-                            required property var modelData
-                            required property int index
-                            width: parent.width
-                            spacing: Theme.gapS
-                            SettingRow {
-                                label: modelData.name
-                                desc: "Control " + modelData.hex + (modelData.raw_xy ? ", reports raw movement" : "")
-                                ComboBox {
-                                    width: 220
-                                    model: Backend.gestureActions()
-                                    currentId: Backend.get(modelData.key, "none")
-                                    onActivated2: (id) => Backend.set(modelData.key, id)
-                                }
-                            }
-                            Rectangle { width: parent.width; height: 1; color: Theme.border
-                                        visible: index < page.extraControls.length - 1 }
-                        }
-                    }
-                }
-            }
-
-            // ===== Directional gestures (gesture button + drag) =====
-            GlassCard {
-                Layout.fillWidth: true
-                Layout.preferredHeight: dirCol.implicitHeight + Theme.padCard * 2
-                Column {
-                    id: dirCol
-                    anchors.fill: parent; anchors.margins: Theme.padCard
-                    spacing: Theme.gapS
-                    readonly property bool on: (page.dirBump, Backend.get("buttons.gesture_directions.enabled", false))
-                    CardHeader {
-                        width: parent.width
-                        title: "Directional gestures"
-                        subtitle: "Hold the gesture button and drag to run a different action per direction. A press without dragging keeps the gesture button's own action."
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/view-app-grid-symbolic"
-                        Toggle {
-                            checked: dirCol.on
-                            onToggled: (v) => { Backend.set("buttons.gesture_directions.enabled", v); page.dirBump++; page.actMapBump++ }
-                        }
-                    }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    Repeater {
-                        model: [
-                            { key: "up", label: "Drag up" }, { key: "down", label: "Drag down" },
-                            { key: "left", label: "Drag left" }, { key: "right", label: "Drag right" }
-                        ]
-                        Column {
-                            required property var modelData
-                            width: parent.width
-                            spacing: Theme.gapS
-                            SettingRow {
-                                label: modelData.label
-                                enabled: dirCol.on
-                                opacity: dirCol.on ? 1.0 : 0.5
-                                ComboBox {
-                                    width: 220
-                                    model: Backend.gestureActions()
-                                    currentId: Backend.get("buttons.gesture_directions." + modelData.key, "none")
-                                    onActivated2: (id) => Backend.set("buttons.gesture_directions." + modelData.key, id)
-                                }
-                            }
-                            Rectangle { width: parent.width; height: 1; color: Theme.border }
-                        }
-                    }
-                    SettingRow {
-                        label: "Drag distance"
-                        desc: "Movement below this many pixels counts as a click"
-                        enabled: dirCol.on
-                        opacity: dirCol.on ? 1.0 : 0.5
-                        Slider {
-                            width: 200; from: 10; to: 400; showValue: true; suffix: " px"
-                            value: Backend.get("buttons.gesture_directions.threshold_px", 40)
-                            onCommitted: (v) => Backend.set("buttons.gesture_directions.threshold_px", Math.round(v / 5) * 5)
-                        }
-                    }
-                }
-            }
-
-            // ===== Radial menu =====
-            GlassCard {
-                Layout.fillWidth: true
-                Layout.preferredHeight: radialRow.implicitHeight + headRadial.implicitHeight + Theme.padCard * 2 + Theme.gap
-                Column {
+                    id: ringCol
                     anchors.fill: parent; anchors.margins: Theme.padCard
                     spacing: Theme.gap
                     CardHeader {
-                        id: headRadial
                         width: parent.width
-                        title: "Radial menu"
-                        subtitle: "Eight actions under your thumb"
+                        title: qsTr("Actions Ring")
+                        subtitle: qsTr("Eight actions under your thumb. Click a slice to edit it, drag it onto another to swap them.")
                         icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/view-grid-symbolic"
-                        Badge { text: "Click a slice to edit"; accent: true; dot: true }
+                        PrimaryButton {
+                            text: qsTr("Show on screen"); ghost: true
+                            onClicked: Backend.showMenuPreview()
+                        }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     RowLayout {
-                        id: radialRow
                         width: parent.width
                         spacing: Theme.gapL
 
@@ -483,11 +592,22 @@ Item {
                         Item {
                             id: ring
                             Layout.preferredWidth: 320; Layout.preferredHeight: 320
+                            Layout.alignment: Qt.AlignTop
                             readonly property real cx: width / 2
                             readonly property real cy: height / 2
                             readonly property real rr: width * 0.34
                             property int hoverIndex: -1
                             property string hoverLabel: ""
+                            property int dragFrom: -1
+                            property int dragTo: -1
+                            readonly property int litIndex: dragFrom >= 0 ? dragTo : hoverIndex
+                            // Slice under a point on the ring (-1 in the centre).
+                            function indexAt(p) {
+                                var dx = p.x - cx, dy = p.y - cy
+                                if (Math.sqrt(dx * dx + dy * dy) < 50) return -1
+                                var a = Math.atan2(dy, dx) * 180 / Math.PI + 90
+                                return Math.round((((a % 360) + 360) % 360) / 45) % 8
+                            }
                             Image {
                                 anchors.centerIn: parent
                                 width: parent.width; height: parent.height
@@ -501,11 +621,11 @@ Item {
                                 visible: page.wheelKey === "none"
                                 size: parent.width
                             }
-                            // lit slice: an accent arc rides the ring behind the hovered button
+                            // lit slice: an accent arc rides the ring behind the hovered (or drop) slice
                             Shape {
                                 anchors.fill: parent
                                 antialiasing: true
-                                opacity: ring.hoverIndex >= 0 ? 1 : 0
+                                opacity: ring.litIndex >= 0 ? 1 : 0
                                 Behavior on opacity { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
                                 ShapePath {
                                     strokeColor: Theme.accent
@@ -515,7 +635,7 @@ Item {
                                     PathAngleArc {
                                         centerX: ring.cx; centerY: ring.cy
                                         radiusX: ring.rr + 44; radiusY: ring.rr + 44
-                                        startAngle: Math.max(0, ring.hoverIndex) * 45 - 90 - 20
+                                        startAngle: Math.max(0, ring.litIndex) * 45 - 90 - 20
                                         sweepAngle: 40
                                         Behavior on startAngle { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
                                     }
@@ -528,7 +648,7 @@ Item {
                                     PathAngleArc {
                                         centerX: ring.cx; centerY: ring.cy
                                         radiusX: ring.rr + 44; radiusY: ring.rr + 44
-                                        startAngle: Math.max(0, ring.hoverIndex) * 45 - 90 - 20
+                                        startAngle: Math.max(0, ring.litIndex) * 45 - 90 - 20
                                         sweepAngle: 40
                                         Behavior on startAngle { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
                                     }
@@ -544,21 +664,29 @@ Item {
                                     required property string label
                                     required property string actionId
                                     property string btnImg: (page.mono || icon.startsWith("/")) ? "" : (Theme.iconStyle, Theme.sliceButton(actionId))
+                                    readonly property bool lit: slotMa.containsMouse || ring.dragTo === index
                                     width: 60; height: 60
                                     property real ang: (index * 45 - 90) * Math.PI / 180
                                     x: ring.cx + ring.rr * Math.cos(ang) - width / 2
                                     y: ring.cy + ring.rr * Math.sin(ang) - height / 2
-                                    scale: slotMa.containsMouse ? 1.12 : 1.0
-                                    Behavior on scale { NumberAnimation { duration: Theme.dShort; easing.type: Easing.OutCubic } }
+                                    opacity: ring.dragFrom === index ? 0.45 : 1
+
+                                    activeFocusOnTab: true
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: qsTr("Slice %1: %2").arg(index + 1).arg(label)
+                                    Accessible.onPressAction: { sliceEd.row = slot.index; sliceEd.open() }
+                                    Keys.onReturnPressed: { sliceEd.row = slot.index; sliceEd.open() }
+                                    Keys.onSpacePressed: { sliceEd.row = slot.index; sliceEd.open() }
+                                    FocusHalo { active: slot.activeFocus; radius: slot.width / 2 }
 
                                     // glow = state: the hovered button lights in its own colour
                                     RectangularShadow {
                                         anchors.fill: parent
                                         radius: width / 2
-                                        blur: slotMa.containsMouse ? 18 : 10
+                                        blur: slot.lit ? 18 : 10
                                         spread: 0
                                         color: slot.hex
-                                        opacity: slotMa.containsMouse ? 0.75 : 0.28
+                                        opacity: slot.lit ? 0.75 : 0.28
                                         Behavior on opacity { NumberAnimation { duration: Theme.dShort } }
                                         Behavior on blur { NumberAnimation { duration: Theme.dShort } }
                                     }
@@ -574,7 +702,7 @@ Item {
                                     Rectangle {
                                         anchors.fill: parent; radius: width / 2
                                         visible: slot.btnImg === ""
-                                        color: slotMa.containsMouse ? "#2B303B" : "#1B1F28"
+                                        color: slot.lit ? "#2B303B" : "#1B1F28"
                                         border.color: page.mono ? Theme.borderStrong : slot.hex
                                         border.width: 2
                                         Behavior on color { ColorAnimation { duration: Theme.dShort } }
@@ -586,28 +714,50 @@ Item {
                                         tint: page.mono ? Theme.textBody : slot.hex
                                         px: 34
                                     }
+                                    // hover lifts the border, nothing scales
+                                    Rectangle {
+                                        anchors.fill: parent; anchors.margins: -3
+                                        radius: width / 2; color: "transparent"
+                                        border.width: 2; border.color: Theme.accent
+                                        opacity: slot.lit ? 1 : 0
+                                        Behavior on opacity { NumberAnimation { duration: Theme.dShort } }
+                                    }
                                     MouseArea {
                                         id: slotMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
+                                        cursorShape: ring.dragFrom >= 0 ? Qt.ClosedHandCursor : Qt.PointingHandCursor
+                                        preventStealing: true
+                                        property point start
+                                        property bool moved: false
                                         onEntered: { ring.hoverIndex = slot.index; ring.hoverLabel = slot.label }
                                         onExited: if (ring.hoverIndex === slot.index) { ring.hoverIndex = -1; ring.hoverLabel = "" }
-                                        onClicked: {
-                                            sliceEd.row = slot.index
-                                            sliceEd.open()
+                                        onPressed: (m) => { start = Qt.point(m.x, m.y); moved = false }
+                                        onPositionChanged: (m) => {
+                                            if (!pressed) return
+                                            if (!moved && Math.abs(m.x - start.x) + Math.abs(m.y - start.y) > 10) {
+                                                moved = true
+                                                ring.dragFrom = slot.index
+                                            }
+                                            if (moved) ring.dragTo = ring.indexAt(mapToItem(ring, m.x, m.y))
                                         }
+                                        onReleased: {
+                                            if (moved && ring.dragTo >= 0 && ring.dragTo !== slot.index)
+                                                Slices.swap(slot.index, ring.dragTo)
+                                            ring.dragFrom = -1; ring.dragTo = -1
+                                        }
+                                        onClicked: if (!moved) { sliceEd.row = slot.index; sliceEd.open() }
                                     }
                                 }
                             }
                             Rectangle {
                                 anchors.centerIn: parent
                                 width: 84; height: 84; radius: 42
-                                color: "#33000000"; border.color: ring.hoverIndex >= 0 ? Theme.accentFaint : Theme.border; border.width: 1
+                                color: "#33000000"; border.color: ring.litIndex >= 0 ? Theme.accentFaint : Theme.border; border.width: 1
                                 Column {
                                     anchors.centerIn: parent; spacing: 1
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        text: ring.hoverIndex >= 0 ? ring.hoverLabel : "8"
-                                        color: ring.hoverIndex >= 0 ? Theme.textPrimary : Theme.textMuted
+                                        text: ring.dragFrom >= 0 ? qsTr("swap") : (ring.hoverIndex >= 0 ? ring.hoverLabel : "8")
+                                        color: ring.hoverIndex >= 0 || ring.dragFrom >= 0 ? Theme.textPrimary : Theme.textMuted
                                         font.family: ring.hoverIndex >= 0 ? Theme.fontUI : Theme.fontMono
                                         font.pixelSize: ring.hoverIndex >= 0 ? Theme.fsSmall : 20
                                         font.weight: Font.DemiBold
@@ -616,7 +766,7 @@ Item {
                                     }
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        text: ring.hoverIndex >= 0 ? "click to edit" : "actions"
+                                        text: ring.hoverIndex >= 0 ? qsTr("click to edit") : qsTr("actions")
                                         color: Theme.textMuted
                                         font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
                                     }
@@ -624,15 +774,15 @@ Item {
                             }
                         }
 
-                        // ---- wheel skin + hint ----
+                        // ---- wheel skin + ring size ----
                         ColumnLayout {
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignTop
                             spacing: Theme.gapS
-                            SectionHeader { text: "Wheel skin"; Layout.topMargin: 4 }
+                            SectionHeader { text: qsTr("Wheel skin"); Layout.topMargin: 4 }
                             Text {
                                 Layout.fillWidth: true
-                                text: "Pick the look of the radial wheel. This is separate from the app color theme, your eight actions never move."
+                                text: qsTr("The look of the ring. Separate from the app theme: your eight actions never move.")
                                 color: Theme.textMuted; wrapMode: Text.WordWrap
                                 font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
                             }
@@ -641,12 +791,32 @@ Item {
                                 current: page.wheelKey
                                 onSelected: (key) => { page.wheelKey = key; Backend.set("radial.wheel", key) }
                             }
+                            SettingRow {
+                                Layout.fillWidth: true
+                                label: qsTr("Ring size")
+                                desc: (page.bump, Backend.ringGeometry().auto)
+                                      ? qsTr("Automatic: fits each screen")
+                                      : qsTr("Your own size, set in Settings")
+                                Row {
+                                    spacing: Theme.gapS
+                                    Toggle {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        accessibleName: qsTr("Automatic size")
+                                        checked: (page.bump, Backend.ringGeometry().auto)
+                                        onToggled: (v) => { Backend.setAutoFit(v); page.bump++ }
+                                    }
+                                    PrimaryButton {
+                                        text: qsTr("More"); ghost: true
+                                        onClicked: Backend.openSearchResult("settings", qsTr("Automatic size"))
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            // ===== AI quick-links editor =====
+            // ===== Quick links editor =====
             GlassCard {
                 Layout.fillWidth: true
                 Layout.preferredHeight: aiCol.implicitHeight + Theme.padCard * 2
@@ -693,18 +863,17 @@ Item {
                                 tint: Theme.textMuted; px: isApp ? 22 : 18
                             }
                             InputField {
-                                id: nf
                                 Layout.preferredWidth: 160
-                                text: name; placeholder: "Name"
+                                text: name; placeholder: qsTr("Name")
                                 onEditingFinished: { aiModel.setProperty(index, "name", text); page.commitAi() }
                             }
                             InputField {
-                                id: uf
                                 Layout.fillWidth: true
                                 visible: !isApp
                                 mono: true
-                                text: url; placeholder: "https://"
-                                error: (text === "" || text.startsWith("https://") || text.startsWith("http://")) ? "" : "Link must start with https://"
+                                accessibleName: qsTr("Link")
+                                text: url; placeholder: "https://"  // i18n-ignore
+                                error: (text === "" || text.startsWith("https://") || text.startsWith("http://")) ? "" : qsTr("A link starts with https://")
                                 onEditingFinished: { aiModel.setProperty(index, "url", text); page.commitAi() }
                             }
                             // an application row: its command, read-only; clear turns it back into a link
@@ -716,16 +885,18 @@ Item {
                                 Text {
                                     anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
                                     verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
-                                    text: "App: " + command; color: Theme.textMuted
+                                    text: qsTr("App: %1").arg(command); color: Theme.textMuted
                                     font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall
                                 }
                             }
                             IconButton {
                                 icon: "application-x-executable-symbolic"; tint: Theme.textMuted; diameter: 36
+                                tip: qsTr("Open an application instead")
                                 onClicked: { page.aiPickRow = index; linkAppPicker.open() }
                             }
                             IconButton {
                                 icon: "edit-clear-symbolic"; tint: Theme.textMuted; diameter: 36
+                                tip: isApp ? qsTr("Make it a link again") : qsTr("Remove this link")
                                 onClicked: {
                                     if (isApp) {
                                         aiModel.setProperty(index, "command", ""); aiModel.setProperty(index, "icon", "browser")
@@ -740,9 +911,171 @@ Item {
                     }
 
                     PrimaryButton {
-                        text: "Add link"; ghost: true
+                        text: qsTr("Add link"); ghost: true
                         enabled: aiModel.count < 4 && page.linkRow >= 0
-                        onClicked: { aiModel.append({ name: "New link", url: "https://", icon: "browser", command: "" }); page.commitAi() }
+                        onClicked: { aiModel.append({ name: qsTr("New link"), url: "https://", icon: "browser", command: "" }); page.commitAi() }
+                    }
+                }
+            }
+
+            // ===== Directional gestures (gesture button + drag) =====
+            GlassCard {
+                Layout.fillWidth: true
+                Layout.preferredHeight: dirCol.implicitHeight + Theme.padCard * 2
+                Column {
+                    id: dirCol
+                    anchors.fill: parent; anchors.margins: Theme.padCard
+                    spacing: Theme.gap
+                    readonly property bool on: (page.dirBump, Backend.get("buttons.gesture_directions.enabled", false))
+                    function setDir(key, id) { Backend.set("buttons.gesture_directions." + key, id); page.dirBump++ }
+                    function preset(p) {
+                        var map = {
+                            desktops: { up: "task_switcher", down: "show_desktop", left: "switch_desktop_left", right: "switch_desktop_right" },
+                            browser: { up: "tab_reopen", down: "tab_close", left: "back", right: "forward" },
+                            editing: { up: "copy", down: "paste", left: "undo", right: "redo" },
+                            media: { up: "volume_up", down: "volume_down", left: "mute", right: "play_pause" }
+                        }[p]
+                        for (var k in map) Backend.setLocal("buttons.gesture_directions." + k, map[k])
+                        Backend.reloadConfig()
+                        page.dirBump++
+                    }
+                    CardHeader {
+                        width: parent.width
+                        title: qsTr("Directional gestures")
+                        subtitle: qsTr("Hold the gesture button and drag to run a different action per direction. A press without dragging keeps the gesture button's own action.")
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/view-app-grid-symbolic"
+                        Toggle {
+                            checked: dirCol.on
+                            accessibleName: qsTr("Directional gestures")
+                            onToggled: (v) => { Backend.set("buttons.gesture_directions.enabled", v); page.dirBump++; page.bump++ }
+                        }
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border; visible: dirCol.on }
+
+                    // presets
+                    Flow {
+                        visible: dirCol.on
+                        width: parent.width; spacing: Theme.gapS
+                        Text {
+                            height: 38; verticalAlignment: Text.AlignVCenter
+                            text: qsTr("Start from")
+                            color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                        }
+                        PrimaryButton { text: qsTr("Desktops"); ghost: true; onClicked: dirCol.preset("desktops") }
+                        PrimaryButton { text: qsTr("Browser"); ghost: true; onClicked: dirCol.preset("browser") }
+                        PrimaryButton { text: qsTr("Editing"); ghost: true; onClicked: dirCol.preset("editing") }
+                        PrimaryButton { text: qsTr("Media"); ghost: true; onClicked: dirCol.preset("media") }
+                    }
+
+                    // the D-pad: each direction where the drag goes
+                    Grid {
+                        visible: dirCol.on
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        columns: 3; rowSpacing: Theme.gapS; columnSpacing: Theme.gapS
+                        horizontalItemAlignment: Grid.AlignHCenter
+                        verticalItemAlignment: Grid.AlignVCenter
+                        Repeater {
+                            model: [
+                                { key: "" }, { key: "up", label: qsTr("Drag up") }, { key: "" },
+                                { key: "left", label: qsTr("Drag left") }, { key: "click" }, { key: "right", label: qsTr("Drag right") },
+                                { key: "" }, { key: "down", label: qsTr("Drag down") }, { key: "" }
+                            ]
+                            Item {
+                                required property var modelData
+                                width: 200; height: 70
+                                Column {
+                                    visible: modelData.key !== "" && modelData.key !== "click"
+                                    anchors.centerIn: parent
+                                    spacing: 4
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: modelData.label || ""
+                                        color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                                    }
+                                    ComboBox {
+                                        width: 196
+                                        accessibleName: modelData.label || ""
+                                        model: Backend.gestureActions()
+                                        currentId: (page.dirBump, Backend.get("buttons.gesture_directions." + modelData.key, "none"))
+                                        onActivated2: (id) => dirCol.setDir(modelData.key, id)
+                                    }
+                                }
+                                Rectangle {
+                                    visible: modelData.key === "click"
+                                    anchors.centerIn: parent
+                                    width: 150; height: 56; radius: Theme.radiusCtl
+                                    color: Theme.surfaceInset; border.width: 1; border.color: Theme.border
+                                    Column {
+                                        anchors.centerIn: parent; spacing: 2
+                                        Text {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            text: qsTr("Press without dragging")
+                                            color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                                        }
+                                        Text {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            width: Math.min(implicitWidth, 136); elide: Text.ElideRight
+                                            text: page.gestureClickText
+                                            color: Theme.textBody; font.family: Theme.fontUI
+                                            font.pixelSize: Theme.fsSmall; font.weight: Font.DemiBold
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    SettingRow {
+                        visible: dirCol.on
+                        label: qsTr("Drag distance")
+                        desc: qsTr("Movement below this many pixels counts as a press")
+                        Slider {
+                            width: 200; from: 10; to: 400; showValue: true; suffix: " px"
+                            value: Backend.get("buttons.gesture_directions.threshold_px", 40)
+                            onCommitted: (v) => Backend.set("buttons.gesture_directions.threshold_px", Math.round(v / 5) * 5)
+                        }
+                    }
+                }
+            }
+
+            // ===== Other controls (the mouse's own REPROG_CONTROLS_V4 inventory) =====
+            GlassCard {
+                Layout.fillWidth: true
+                Layout.preferredHeight: extraCol.implicitHeight + Theme.padCard * 2
+                visible: page.extraControls.length > 0
+                Column {
+                    id: extraCol
+                    anchors.fill: parent; anchors.margins: Theme.padCard
+                    spacing: Theme.gapS
+                    CardHeader {
+                        width: parent.width
+                        title: qsTr("Other controls")
+                        subtitle: qsTr("Buttons this mouse reports that have no marker above. Assign an action to divert one; Disabled leaves it native.")
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/input-mouse-symbolic"
+                        Badge { text: qsTr("%n found", "", page.extraControls.length); accent: true }
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    Repeater {
+                        model: page.extraControls
+                        Column {
+                            required property var modelData
+                            required property int index
+                            width: parent.width
+                            spacing: Theme.gapS
+                            SettingRow {
+                                label: modelData.name
+                                desc: modelData.raw_xy ? qsTr("Reports raw movement") : ""
+                                Accessible.description: modelData.hex
+                                ComboBox {
+                                    width: 220
+                                    accessibleName: modelData.name
+                                    model: Backend.gestureActions()
+                                    currentId: (page.bump, Backend.buttonAction(page.scope, modelData.hex, "none"))
+                                    onActivated2: (id) => { Backend.setButtonIn(page.scope, modelData.hex, id); page.bump++ }
+                                }
+                            }
+                            Rectangle { width: parent.width; height: 1; color: Theme.border
+                                        visible: index < page.extraControls.length - 1 }
+                        }
                     }
                 }
             }

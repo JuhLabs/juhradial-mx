@@ -111,31 +111,73 @@ BUTTON_SLOTS = [
     ("horizontal_scroll", "Thumb Wheel Click", "scroll_left_right"),
 ]
 
-# (id, label, freedesktop icon) for physical-button assignment (daemon ButtonAction).
+# Picker groups for physical-button actions, in display order.
+BUTTON_GROUPS = [("ring", "Actions Ring and desktop"), ("mouse", "Mouse"),
+                 ("pointer", "Pointer speed"), ("edit", "Editing"),
+                 ("browse", "Tabs and pages"), ("media", "Media"), ("system", "System"),
+                 ("switch", "Easy-Switch"), ("other", "Other")]
+
+# (id, label, freedesktop icon, group) for physical-button assignment
+# (daemon ButtonAction, config.rs).
 BUTTON_ACTIONS = [
-    ("radial_menu", "Radial Menu", "view-grid-symbolic"),
-    ("virtual_desktops", "Virtual Desktops", "view-app-grid-symbolic"),
-    ("middle_click", "Middle Click", "input-mouse-symbolic"),
-    ("back", "Back", "go-previous-symbolic"), ("forward", "Forward", "go-next-symbolic"),
-    ("copy", "Copy", "edit-copy-symbolic"), ("paste", "Paste", "edit-paste-symbolic"),
-    ("undo", "Undo", "edit-undo-symbolic"), ("redo", "Redo", "edit-redo-symbolic"),
-    ("screenshot", "Screenshot", "camera-photo-symbolic"),
-    ("smartshift", "SmartShift", "emblem-synchronizing-symbolic"),
-    ("scroll_left_right", "Scroll Left/Right", "object-flip-horizontal-symbolic"),
-    ("volume_up", "Volume Up", "audio-volume-high-symbolic"),
-    ("volume_down", "Volume Down", "audio-volume-low-symbolic"),
-    ("play_pause", "Play/Pause", "media-playback-start-symbolic"),
-    ("mute", "Mute", "audio-volume-muted-symbolic"),
-    ("zoom_in", "Zoom In", "zoom-in-symbolic"), ("zoom_out", "Zoom Out", "zoom-out-symbolic"),
-    ("show_desktop", "Show Desktop", "user-desktop-symbolic"),
-    ("switch_desktop_left", "Desktop Left", "go-previous-symbolic"),
-    ("switch_desktop_right", "Desktop Right", "go-next-symbolic"),
-    ("task_switcher", "Task Switcher", "view-paged-symbolic"),
-    ("close_window", "Close Window", "window-close-symbolic"),
-    ("lock_screen", "Lock Screen", "system-lock-screen-symbolic"),
-    ("calculator", "Calculator", "accessories-calculator-symbolic"),
-    ("none", "Disabled", "action-unavailable-symbolic"),
+    ("radial_menu", "Actions Ring", "view-grid-symbolic", "ring"),
+    ("virtual_desktops", "Virtual Desktops", "view-app-grid-symbolic", "ring"),
+    ("show_desktop", "Show Desktop", "user-desktop-symbolic", "ring"),
+    ("switch_desktop_left", "Desktop Left", "go-previous-symbolic", "ring"),
+    ("switch_desktop_right", "Desktop Right", "go-next-symbolic", "ring"),
+    ("task_switcher", "Task Switcher", "view-paged-symbolic", "ring"),
+    ("close_window", "Close Window", "window-close-symbolic", "ring"),
+    ("left_click", "Left Click", "input-mouse-symbolic", "mouse"),
+    ("right_click", "Right Click", "input-mouse-symbolic", "mouse"),
+    ("middle_click", "Middle Click", "input-mouse-symbolic", "mouse"),
+    ("back", "Back", "go-previous-symbolic", "mouse"),
+    ("forward", "Forward", "go-next-symbolic", "mouse"),
+    ("scroll_left", "Scroll Left", "go-previous-symbolic", "mouse"),
+    ("scroll_right", "Scroll Right", "go-next-symbolic", "mouse"),
+    ("smartshift", "Switch Ratchet / Free-spin", "emblem-synchronizing-symbolic", "mouse"),
+    ("scroll_left_right", "Scroll Left/Right", "object-flip-horizontal-symbolic", "mouse"),
+    ("dpi_cycle", "Cycle DPI Presets", "utilities-system-monitor-symbolic", "pointer"),
+    ("dpi_up", "DPI Up", "utilities-system-monitor-symbolic", "pointer"),
+    ("dpi_down", "DPI Down", "utilities-system-monitor-symbolic", "pointer"),
+    ("dpi_shift", "Precision DPI While Held", "system-search-symbolic", "pointer"),
+    ("copy", "Copy", "edit-copy-symbolic", "edit"), ("paste", "Paste", "edit-paste-symbolic", "edit"),
+    ("undo", "Undo", "edit-undo-symbolic", "edit"), ("redo", "Redo", "edit-redo-symbolic", "edit"),
+    ("tab_next", "Next Tab", "view-paged-symbolic", "browse"),
+    ("tab_prev", "Previous Tab", "view-paged-symbolic", "browse"),
+    ("tab_close", "Close Tab", "window-close-symbolic", "browse"),
+    ("tab_reopen", "Reopen Closed Tab", "edit-undo-symbolic", "browse"),
+    ("page_up", "Page Up", "view-list-symbolic", "browse"),
+    ("page_down", "Page Down", "view-list-symbolic", "browse"),
+    ("home", "Home", "view-list-symbolic", "browse"), ("end", "End", "view-list-symbolic", "browse"),
+    ("zoom_in", "Zoom In", "zoom-in-symbolic", "browse"),
+    ("zoom_out", "Zoom Out", "zoom-out-symbolic", "browse"),
+    ("play_pause", "Play/Pause", "media-playback-start-symbolic", "media"),
+    ("volume_up", "Volume Up", "audio-volume-high-symbolic", "media"),
+    ("volume_down", "Volume Down", "audio-volume-low-symbolic", "media"),
+    ("mute", "Mute", "audio-volume-muted-symbolic", "media"),
+    ("screenshot", "Screenshot", "camera-photo-symbolic", "system"),
+    ("lock_screen", "Lock Screen", "system-lock-screen-symbolic", "system"),
+    ("calculator", "Calculator", "accessories-calculator-symbolic", "system"),
+    ("gaming_mode", "Gaming Mode On/Off", "gaming", "system"),
+    ("host1", "Switch to Computer 1", "easy-switch", "switch"),
+    ("host2", "Switch to Computer 2", "easy-switch", "switch"),
+    ("host3", "Switch to Computer 3", "easy-switch", "switch"),
+    ("host_next", "Next Computer", "easy-switch", "switch"),
+    ("custom", "Custom Action…", "preferences-desktop-keyboard-shortcuts-symbolic", "other"),
+    ("none", "Disabled", "action-unavailable-symbolic", "other"),
 ]
+# Kept nameable for older configs, never offered: on a button the native
+# thumb-wheel mode does nothing.
+HIDDEN_BUTTON_ACTIONS = {"scroll_left_right"}
+# Not offered for a directional drag or an extra control: the ring cannot
+# open mid-drag, a drag has no hold for the precision DPI.
+DIRECTIONAL_EXCLUDED = {"radial_menu", "dpi_shift", "custom"}
+
+# Custom button actions (buttons.custom.<slot>, daemon CustomAction).
+CUSTOM_KINDS = ("shortcut", "command", "url", "macro", "plugin")
+SHORTCUT_RE = re.compile(r"^[A-Za-z0-9_]+(\+[A-Za-z0-9_]+)*$")
+# Macro trigger values that belong to a named button slot.
+MACRO_TRIGGER_SLOTS = {"mouse:8": "back", "mouse:9": "forward", "mouse:2": "middle"}
 
 # Radial-slice action presets: (action_id, label, icon, type, command, color)
 RADIAL_ACTIONS = [
@@ -260,8 +302,15 @@ SEARCH_INDEX = [
     ("buttons", "Forward", "Button mapping", "forward navigation button remap assign"),
     ("buttons", "Back", "Button mapping", "back navigation button remap assign"),
     ("buttons", "Thumb wheel", "Button mapping", "horizontal scroll thumb wheel click remap"),
-    ("buttons", "Radial menu actions", "Radial menu", "radial slice action edit eight thumb wheel"),
-    ("buttons", "Wheel skin", "Radial menu", "wheel skin appearance icon style azure obsidian"),
+    ("buttons", "Custom action", "Button mapping", "custom shortcut key recorder command url link macro plugin application app"),
+    ("buttons", "Editing for", "Button mapping", "per app profile scope buttons application remap"),
+    ("buttons", "Actions Ring", "Actions Ring", "radial menu slice action edit eight thumb wheel ring"),
+    ("buttons", "Wheel skin", "Actions Ring", "wheel skin appearance icon style azure obsidian"),
+    ("buttons", "Ring size", "Actions Ring", "ring size automatic scale radius preview show on screen"),
+    ("buttons", "Quick links", "Quick links", "quick links submenu ai assistant urls websites apps"),
+    ("buttons", "Directional gestures", "Directional gestures", "gesture drag direction up down left right swipe"),
+    ("buttons", "Drag distance", "Directional gestures", "gesture threshold pixels drag distance click"),
+    ("buttons", "Other controls", "Other controls", "extra controls buttons divert dpi switch side buttons"),
     # Point & Scroll
     ("scroll", "Sensitivity", "Pointer", "dpi pointer tracking speed sensitivity cursor"),
     ("scroll", "Pointer acceleration", "Pointer", "acceleration speed fast slow motion"),
@@ -445,6 +494,7 @@ class Daemon(QObject):
     newAppSeen = pyqtSignal(str)
     keyboardBatteryChanged = pyqtSignal(int, bool)
     linkChanged = pyqtSignal(str, str)
+    buttonPressed = pyqtSignal(int)
     availabilityChanged = pyqtSignal()
 
     TIMEOUT_MS = 2000
@@ -477,6 +527,8 @@ class Daemon(QObject):
         self._bus.connect("", OBJ_PATH, IFACE, "KeyboardBatteryChanged", self._on_kb_battery)
         # Mouse reachability (connected/asleep/away/offline).
         self._bus.connect("", OBJ_PATH, IFACE, "DeviceConnectionChanged", self._on_link)
+        # A physical button went down (the Buttons tab lights its pin).
+        self._bus.connect("", OBJ_PATH, IFACE, "ButtonPressed", self._on_button)
         self._watcher = QDBusServiceWatcher(
             BUS_NAME, self._bus,
             QDBusServiceWatcher.WatchModeFlag.WatchForRegistration
@@ -609,6 +661,12 @@ class Daemon(QObject):
         a = msg.arguments()
         if len(a) >= 2:
             self.linkChanged.emit(str(a[0]), str(a[1]))
+
+    @pyqtSlot(QDBusMessage)
+    def _on_button(self, msg):
+        a = msg.arguments()
+        if a:
+            self.buttonPressed.emit(_to_int(a[0]))
 
     @pyqtSlot(QDBusMessage)
     def _on_new_app(self, msg):
@@ -836,6 +894,8 @@ class Backend(QObject):
     toast = pyqtSignal(str)
     keyboardInfoReady = pyqtSignal("QVariant")
     controlsReady = pyqtSignal("QVariant")
+    buttonPressed = pyqtSignal(str)          # slot name, or "0x00D7" for extra controls
+    macroBindingsReady = pyqtSignal("QVariant")
     pluginsReady = pyqtSignal("QVariant")
     navRequested = pyqtSignal(str)   # a page asks the shell to switch tabs
     # config.json was replaced wholesale (import, restore defaults): the shell
@@ -948,6 +1008,8 @@ class Backend(QObject):
         self._kb_last_battery = 0
         self.daemon.keyboardBatteryChanged.connect(self._on_keyboard_battery)
         self.daemon.linkChanged.connect(self._set_link_live)
+        self.daemon.buttonPressed.connect(
+            lambda cid: self.buttonPressed.emit(self.SLOT_CIDS.get(cid, "0x%04X" % cid)))
         self.daemon.availabilityChanged.connect(self._on_daemon_availability)
 
         # prime device state shortly after start (daemon may be warming up)
@@ -1560,11 +1622,6 @@ class Backend(QObject):
         self.setLocal("thumbwheel.speed", max(1, min(8, int(sp))))
         self.reloadConfig()
 
-    # ---- buttons ----
-    @pyqtSlot(str, str)
-    def setButton(self, slot, action_id):
-        self.set(f"buttons.{slot}", action_id)
-
     @pyqtSlot(str)
     def setDeviceMode(self, mode):
         """Force device mode (auto/generic); daemon re-evaluates on reload."""
@@ -1921,6 +1978,10 @@ class Backend(QObject):
                  "hires": bool(obj.get("hires", True)),
                  "thumbwheel": str(obj.get("thumbwheel", "off"))}
         data = self._load_profiles()
+        old = (data.get("hardware") or {}).get(app) or {}
+        for key in ("buttons", "custom"):  # edited on the Buttons tab
+            if old.get(key):
+                entry[key] = old[key]
         data.setdefault("hardware", {})[app] = entry
         self._save_profiles(data)
         self.reloadConfig()
@@ -2693,14 +2754,238 @@ class Backend(QObject):
 
     @pyqtSlot(result="QVariant")
     def buttonActions(self):
-        # "custom" has no editor yet: offering it assigned a do-nothing action.
-        return [{"id": i, "name": n, "icon": ic} for (i, n, ic) in BUTTON_ACTIONS if i != "custom"]
+        """Every button action with its picker group. `hidden` ones only name
+        old config values."""
+        groups = dict(BUTTON_GROUPS)
+        return [{"id": i, "name": _(n), "icon": ic, "group": g, "groupName": _(groups[g]),
+                 "hidden": i in HIDDEN_BUTTON_ACTIONS}
+                for (i, n, ic, g) in BUTTON_ACTIONS]
 
     @pyqtSlot(result="QVariant")
     def gestureActions(self):
-        """Actions a directional drag can run (the ring cannot open mid-drag,
-        so the daemon ignores radial_menu there; do not offer it)."""
-        return [a for a in self.buttonActions() if a["id"] != "radial_menu"]
+        """Actions a directional drag or an extra control can run."""
+        return [a for a in self.buttonActions()
+                if a["id"] not in DIRECTIONAL_EXCLUDED and not a["hidden"]]
+
+    # ---- button map, per scope ----
+    #   ""       all apps: config.json buttons.<slot> / buttons.controls.<hex>
+    #   "@mouse" this mouse only: the same keys under devices.<unit id>
+    #   <class>  one app: profiles.json hardware.<class>.buttons / .custom
+    MOUSE_SCOPE = "@mouse"
+
+    @staticmethod
+    def _button_key(slot):
+        return f"buttons.controls.{slot}" if slot.lower().startswith("0x") else f"buttons.{slot}"
+
+    def _mouse_prefix(self):
+        return f"devices.{self._unit_id}." if self._unit_id else ""
+
+    def _app_entry(self, app):
+        return ((self._load_profiles().get("hardware") or {}).get(app) or {})
+
+    def _own(self, scope, slot):
+        """The scope's own action for a slot; None = it follows all apps."""
+        if scope == self.MOUSE_SCOPE:
+            prefix = self._mouse_prefix()
+            return self.get(prefix + self._button_key(slot)) if prefix else None
+        if scope:
+            return (self._app_entry(scope).get("buttons") or {}).get(slot)
+        return None
+
+    @pyqtSlot(result="QVariant")
+    def buttonScopes(self):
+        """The mapping card's scope switcher: all apps, this mouse (when its
+        unit id is known), then each app profile."""
+        out = [{"id": "", "name": _("All apps")}]
+        if self._unit_id:
+            out.append({"id": self.MOUSE_SCOPE, "name": _("This mouse only")})
+        apps = sorted((self._load_profiles().get("hardware") or {}).keys())
+        return out + [{"id": a, "name": a} for a in apps]
+
+    @pyqtSlot(str, str, str, result=str)
+    def buttonAction(self, scope, slot, default):
+        """A slot's action in a scope, falling back to all apps."""
+        own = self._own(scope, slot)
+        if own:
+            return str(own)
+        return str(self.get(self._button_key(slot), default))
+
+    @pyqtSlot(str, str, result=bool)
+    def hasOverride(self, scope, slot):
+        return self._own(scope, slot) is not None
+
+    def _edit_app(self, scope, fn):
+        data = self._load_profiles()
+        entry = data.setdefault("hardware", {}).setdefault(scope, {})
+        fn(entry)
+        for key in ("buttons", "custom"):
+            if key in entry and not entry[key]:
+                del entry[key]
+        self._save_profiles(data)
+        self.reloadConfig()
+
+    def _drop_mouse_keys(self, slot):
+        prefix = self._mouse_prefix()
+        buttons = self.get(prefix + "buttons") if prefix else None
+        if not isinstance(buttons, dict):
+            return
+        if slot.lower().startswith("0x"):
+            (buttons.get("controls") or {}).pop(slot, None)
+        else:
+            buttons.pop(slot, None)
+        (buttons.get("custom") or {}).pop(slot, None)
+        self.set(prefix + "buttons", buttons)
+
+    @pyqtSlot(str, str, str)
+    def setButtonIn(self, scope, slot, action_id):
+        if scope == self.MOUSE_SCOPE:
+            if self._mouse_prefix():
+                self.set(self._mouse_prefix() + self._button_key(slot), action_id)
+            return
+        if not scope:
+            self.set(self._button_key(slot), action_id)
+            return
+        self._edit_app(scope, lambda e: e.setdefault("buttons", {}).__setitem__(slot, action_id))
+
+    @pyqtSlot(str, str)
+    def restoreButton(self, scope, slot):
+        """A scoped button follows all apps again; a global one goes back to
+        its default and forgets its custom action."""
+        if scope == self.MOUSE_SCOPE:
+            self._drop_mouse_keys(slot)
+            return
+        if scope:
+            def drop(e):
+                (e.get("buttons") or {}).pop(slot, None)
+                (e.get("custom") or {}).pop(slot, None)
+            self._edit_app(scope, drop)
+            return
+        default = next((d for (k, _n, d) in BUTTON_SLOTS if k == slot), "none")
+        custom = self.get("buttons.custom") or {}
+        if slot in custom:
+            del custom[slot]
+            self.setLocal("buttons.custom", custom)
+        self.set(self._button_key(slot), default)
+
+    @pyqtSlot(str, result=str)
+    def resetButtonMap(self, scope):
+        """Reset the mapping card; returns what Undo puts back (JSON)."""
+        if scope == self.MOUSE_SCOPE:
+            prefix = self._mouse_prefix()
+            snap = {"buttons": copy.deepcopy(self.get(prefix + "buttons") or {})} if prefix else {}
+            if prefix:
+                self.set(prefix + "buttons", {})
+            return json.dumps(snap)
+        if scope:
+            entry = self._app_entry(scope)
+            snap = {"buttons": entry.get("buttons") or {}, "custom": entry.get("custom") or {}}
+            self._edit_app(scope, lambda e: (e.pop("buttons", None), e.pop("custom", None)))
+            return json.dumps(snap)
+        snap = {"buttons": copy.deepcopy(self.get("buttons") or {}),
+                "thumbwheel_mode": self.get("thumbwheel.mode", "off")}
+        for (slot, _n, default) in BUTTON_SLOTS:
+            if slot != "horizontal_scroll":
+                self.setLocal(f"buttons.{slot}", default)
+        # Extra controls are not on this card: keep their custom actions.
+        self.setLocal("buttons.custom", {k: v for k, v in (self.get("buttons.custom") or {}).items()
+                                         if k.lower().startswith("0x")})
+        self.setLocal("thumbwheel.mode", "off")
+        self.reloadConfig()
+        return json.dumps(snap)
+
+    @pyqtSlot(str, str)
+    def undoResetButtonMap(self, scope, snapshot):
+        try:
+            snap = json.loads(snapshot or "{}")
+        except ValueError:
+            return
+        if scope == self.MOUSE_SCOPE:
+            if self._mouse_prefix() and "buttons" in snap:
+                self.set(self._mouse_prefix() + "buttons", snap["buttons"])
+            return
+        if scope:
+            def put(e):
+                e["buttons"], e["custom"] = snap.get("buttons") or {}, snap.get("custom") or {}
+            self._edit_app(scope, put)
+            return
+        self.setLocal("buttons", snap.get("buttons") or {})
+        self.setLocal("thumbwheel.mode", snap.get("thumbwheel_mode", "off"))
+        self.reloadConfig()
+
+    @staticmethod
+    def _clean_custom(obj):
+        """A custom action as the daemon runs it, or None when it cannot run."""
+        if not isinstance(obj, dict):
+            return None
+        kind = str(obj.get("kind", ""))
+        value = str(obj.get("value", "")).strip()
+        if kind not in CUSTOM_KINDS or not value:
+            return None
+        if kind == "shortcut" and not SHORTCUT_RE.match(value):
+            return None
+        if kind == "url":
+            low = value.lower()
+            scheme = next((p for p in ("https://", "http://", "mailto:") if low.startswith(p)), None)
+            if scheme is None or len(value) == len(scheme):
+                return None
+        out = {"kind": kind, "value": value}
+        for extra in ("label", "icon"):
+            if isinstance(obj.get(extra), str) and obj[extra]:
+                out[extra] = obj[extra]
+        return out
+
+    def _custom_map(self, scope):
+        if scope == self.MOUSE_SCOPE:
+            return self.get(self._mouse_prefix() + "buttons.custom") if self._mouse_prefix() else None
+        if scope:
+            return self._app_entry(scope).get("custom")
+        return self.get("buttons.custom")
+
+    @pyqtSlot(str, str, result="QVariant")
+    def customAction(self, scope, slot):
+        """A slot's custom action in a scope ({} = none), falling back to all
+        apps like the daemon does."""
+        own = (self._custom_map(scope) or {}).get(slot) if scope else None
+        return dict(own or (self.get("buttons.custom") or {}).get(slot) or {})
+
+    @pyqtSlot(str, str, "QVariant", result=bool)
+    def setCustomAction(self, scope, slot, obj):
+        """Save a button's custom action and set the button to it."""
+        clean = self._clean_custom(obj)
+        if clean is None:
+            self.notify(_("That custom action cannot run: check the shortcut, link or command."), "danger")
+            return False
+        if scope and scope != self.MOUSE_SCOPE:
+            def put(e):
+                e.setdefault("custom", {})[slot] = clean
+                e.setdefault("buttons", {})[slot] = "custom"
+            self._edit_app(scope, put)
+            return True
+        prefix = self._mouse_prefix() if scope == self.MOUSE_SCOPE else ""
+        if scope == self.MOUSE_SCOPE and not prefix:
+            return False
+        custom = self.get(prefix + "buttons.custom") or {}
+        custom[slot] = clean
+        self.setLocal(prefix + "buttons.custom", custom)
+        self.set(prefix + self._button_key(slot), "custom")
+        return True
+
+    @pyqtSlot()
+    def requestMacroBindings(self):
+        """Async: macroBindingsReady({slot: {id, name}}) for macros bound to a
+        named button (the Buttons tab shows them next to its remaps)."""
+        def done(args):
+            try:
+                macros = json.loads(args[0] if args else "[]")
+            except (TypeError, ValueError):
+                macros = []
+            out = {}
+            for m in macros if isinstance(macros, list) else []:
+                slot = MACRO_TRIGGER_SLOTS.get(str((m or {}).get("assigned_trigger") or ""))
+                if slot:
+                    out[slot] = {"id": m.get("id", ""), "name": m.get("name") or m.get("id", "")}
+            self.macroBindingsReady.emit(out)
+        self.daemon.call_then("ListMacros", done)
 
     # ---- plugins (~/.config/juhradial/plugins/<folder>/plugin.json) ----
     def _plugins(self):

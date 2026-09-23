@@ -16,6 +16,8 @@ Item {
     property string label: ""
     property string action: ""
     property bool selected: false
+    property bool changed: false        // differs from the default: a dot on the chip
+    property string note: ""            // a third line (a macro on the same button)
     property bool editable: false       // drag the pin to reposition it
     signal clicked
     signal moved(real nx, real ny)
@@ -25,7 +27,7 @@ Item {
     Keys.onEnterPressed: c.clicked()
     Keys.onSpacePressed: c.clicked()
     Accessible.role: Accessible.Button
-    Accessible.name: label + ": " + action
+    Accessible.name: label + ": " + action + (note !== "" ? ", " + note : "")
     Accessible.onPressAction: c.clicked()
 
     readonly property real px: nx * width
@@ -95,13 +97,26 @@ Item {
         Column {
             id: chipCol
             anchors.centerIn: parent; spacing: 1
-            Text {
-                text: c.label; color: Theme.textMuted
-                font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro; font.weight: Font.Medium
+            Row {
+                spacing: 5
+                Text {
+                    text: c.label; color: Theme.textMuted
+                    font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro; font.weight: Font.Medium
+                }
+                Rectangle {
+                    visible: c.changed
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 6; height: 6; radius: 3; color: Theme.accent
+                }
             }
             Text {
                 text: c.action; color: c.hot ? Theme.accent : Theme.textBody
                 font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall; font.weight: Font.DemiBold
+            }
+            Text {
+                visible: c.note !== ""
+                text: c.note; color: Theme.danger
+                font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro; font.weight: Font.Medium
             }
         }
         MouseArea { id: chipMa; anchors.fill: parent; hoverEnabled: true

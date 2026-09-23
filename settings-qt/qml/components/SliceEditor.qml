@@ -19,7 +19,21 @@ B.Popup {
     function reload() { ed.d = Slices.sliceAt(ed.row) }
     onAboutToShow: reload()
 
-    readonly property bool needsCommand: ["exec", "shortcut", "url"].indexOf(d.type || "") >= 0
+    readonly property bool needsCommand: ["exec", "url"].indexOf(d.type || "") >= 0
+    // What a slice does, in plain words (the raw type is an implementation detail).
+    function typeWords(t) {
+        switch (t) {
+        case "exec": return qsTr("Runs a command")
+        case "shortcut": return qsTr("Presses a shortcut")
+        case "url": return qsTr("Opens a link")
+        case "submenu": return qsTr("Opens quick links")
+        case "settings": return qsTr("Opens JuhRadial MX settings")
+        case "emoji": return qsTr("Opens the emoji picker")
+        case "plugin": return qsTr("Runs a plugin action")
+        case "none": return qsTr("Does nothing")
+        default: return t || ""
+        }
+    }
 
     background: Rectangle {
         radius: Theme.radiusCard; color: Theme.surfaceGlassHi
@@ -75,7 +89,7 @@ B.Popup {
                     width: parent.width - 38 - changeBtn.width - 24
                     Text { text: ed.d.label || qsTr("No label"); color: Theme.textBody; elide: Text.ElideRight
                         width: parent.width; font.family: Theme.fontUI; font.pixelSize: Theme.fsBody; font.weight: Font.Medium }
-                    Text { text: ed.d.type || ""; color: Theme.textMuted
+                    Text { text: ed.typeWords(ed.d.type); color: Theme.textMuted
                         font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro }
                 }
                 PrimaryButton {
@@ -111,7 +125,7 @@ B.Popup {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width - pickBtn.width
-                    text: (ed.d.type === "url" ? qsTr("URL") : (ed.d.type === "shortcut" ? qsTr("Shortcut (e.g. ctrl+c)") : qsTr("Command")))
+                    text: ed.d.type === "url" ? qsTr("Link") : qsTr("Command")
                     color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
                 }
                 // Pick an installed application instead of typing a command;
@@ -134,6 +148,17 @@ B.Popup {
             }
         }
 
+        // ---- shortcut: recorded, not typed (PgUp, F13 and friends) ----
+        Column {
+            width: parent.width; spacing: 5; visible: ed.d.type === "shortcut"
+            Text { text: qsTr("Shortcut"); color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall }
+            KeyRecorder {
+                width: parent.width
+                value: ed.d.type === "shortcut" ? (ed.d.command || "") : ""
+                onEdited: (v) => { Slices.setCommand(ed.row, v); ed.reload() }
+            }
+        }
+
         // ---- colour ----
         Column {
             width: parent.width; spacing: 6
@@ -145,10 +170,11 @@ B.Popup {
                     Rectangle {
                         required property var modelData
                         width: 28; height: 28; radius: 14; color: modelData.hex
-                        border.width: ed.d.color === modelData.name ? 3 : 1
-                        border.color: ed.d.color === modelData.name ? Theme.textPrimary : Theme.border
-                        scale: cma.containsMouse || ed.d.color === modelData.name ? 1.12 : 1.0
-                        Behavior on scale { NumberAnimation { duration: Theme.dShort; easing.type: Easing.OutCubic } }
+                        border.width: ed.d.color === modelData.name ? 3 : (cma.containsMouse ? 2 : 1)
+                        border.color: ed.d.color === modelData.name || cma.containsMouse ? Theme.textPrimary : Theme.border
+                        Accessible.role: Accessible.RadioButton
+                        Accessible.name: modelData.name
+                        Accessible.checked: ed.d.color === modelData.name
                         MouseArea {
                             id: cma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: { Slices.setColor(ed.row, modelData.name); ed.reload() }
