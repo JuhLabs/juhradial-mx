@@ -1080,6 +1080,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 )
             elif cmd_type == "settings":
                 overlay_actions.open_settings()
+            elif cmd_type == "plugin":
+                # "<folder>/<action id>"; the daemon reads the manifest and runs it.
+                self.daemon_iface.asyncCall("RunPluginAction", cmd)
             elif cmd_type == "submenu":
                 self.submenu_active = True
                 self.submenu_slice = self.highlighted_slice

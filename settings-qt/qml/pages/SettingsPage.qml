@@ -308,6 +308,62 @@ Item {
                 }
             }
 
+            // ---- Plugins ----
+            GlassCard {
+                id: pluginCard
+                Layout.fillWidth: true
+                Layout.preferredHeight: pluginCol.implicitHeight + Theme.padCard * 2
+                property var rows: []
+                property bool loading: true
+                function reload() { loading = true; Backend.requestPlugins() }
+                Component.onCompleted: reload()
+                Connections {
+                    target: Backend
+                    function onPluginsReady(list) { pluginCard.rows = list; pluginCard.loading = false }
+                }
+                Column {
+                    id: pluginCol
+                    anchors.fill: parent; anchors.margins: Theme.padCard
+                    spacing: Theme.gapS
+                    CardHeader {
+                        width: parent.width
+                        title: "Plugins"; subtitle: "Actions from plugin folders, offered in the slice action picker"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/folder-symbolic"
+                        Row {
+                            spacing: Theme.gapS
+                            IconButton {
+                                icon: "view-refresh-symbolic"; tint: Theme.textMuted; diameter: 32
+                                onClicked: pluginCard.reload()
+                            }
+                            PrimaryButton { text: "Open folder"; ghost: true; onClicked: Backend.openPluginsFolder() }
+                        }
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    Text {
+                        visible: !pluginCard.loading && pluginCard.rows.length === 0
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: "No plugins installed. A plugin is a folder in ~/.config/juhradial/plugins with a plugin.json that declares actions (a command, a D-Bus call or a script). New plugins appear here and in the slice picker without a restart."
+                        color: Theme.textMuted
+                        font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                    }
+                    Repeater {
+                        model: pluginCard.rows
+                        SettingRow {
+                            required property var modelData
+                            label: modelData.name + (modelData.version ? "  " + modelData.version : "")
+                            desc: modelData.error !== "" ? modelData.folder + ": " + modelData.error
+                                                         : (modelData.description || modelData.folder)
+                            Badge {
+                                text: modelData.error !== "" ? "Not loaded"
+                                      : modelData.actions + (modelData.actions === 1 ? " action" : " actions")
+                                accent: modelData.error === ""
+                                tint: modelData.error !== "" ? Theme.danger : Theme.accent
+                            }
+                        }
+                    }
+                }
+            }
+
             // ---- About & reset ----
             GlassCard {
                 Layout.fillWidth: true

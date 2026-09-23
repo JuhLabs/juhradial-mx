@@ -910,6 +910,27 @@ impl JuhRadialService {
         }
     }
 
+    /// Every plugin folder under ~/.config/juhradial/plugins as JSON: name,
+    /// version, description, author, actions (`ref`, `id`, `label`, `icon`,
+    /// `kind` and its parameters), and `error` for a folder that failed to
+    /// load. Read from disk on each call, so new plugins need no restart.
+    async fn list_plugins(&self) -> fdo::Result<String> {
+        let plugins = crate::plugins::load_all(&crate::plugins::plugins_dir());
+        serde_json::to_string(&plugins).map_err(|e| fdo::Error::Failed(format!("JSON error: {}", e)))
+    }
+
+    /// Run the plugin action `<folder>/<id>`. False when it does not exist or
+    /// could not be started (the reason is in the journal).
+    async fn run_plugin_action(&self, reference: String) -> fdo::Result<bool> {
+        match crate::plugins::run(&crate::plugins::plugins_dir(), &reference).await {
+            Ok(()) => Ok(true),
+            Err(e) => {
+                tracing::warn!(plugin_action = %reference, error = %e, "Plugin action failed");
+                Ok(false)
+            }
+        }
+    }
+
     /// Battery for an MX Keys S keyboard: `(percent, charging)`.
     ///
     /// Returns `(0, false)` unless `keyboard.mx_keys.enabled` is true and a

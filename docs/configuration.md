@@ -16,6 +16,7 @@ All configuration lives in `~/.config/juhradial/` (or `$XDG_CONFIG_HOME/juhradia
 | `icons/` | Settings app | Application icons imported for radial slices and quick links |
 | `themes/` | You | Custom overlay themes (see [Themes](#themes)) |
 | `flow_keys/` | Overlay | Flow pairing identity; never exported |
+| `plugins/<name>/plugin.json` | You | Plugin actions for radial slices (see [Plugins](plugins.md)); not part of backups |
 | `~/.config/autostart/juhradial-mx.desktop` | Settings app | Login autostart entry (created/removed by the Start at Login toggle) |
 
 !!! note

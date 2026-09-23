@@ -57,6 +57,10 @@ RING_INNER_MIN, RING_INNER_MARGIN = 20, 30
 # Desktop Entry Exec field codes (%f %u %F %U ...) and the literal %%.
 _FIELD_CODE_RE = re.compile(r"%%|%[fFuUdDnNickvm]")
 
+# Picker ids for plugin actions: "plugin:<folder>/<action id>" (ListPlugins).
+PLUGIN_PREFIX = "plugin:"
+PLUGINS_DIR = CONFIG_DIR / "plugins"
+
 BUS_NAME = "org.kde.juhradialmx"
 OBJ_PATH = "/org/kde/juhradialmx/Daemon"
 IFACE = "org.kde.juhradialmx.Daemon"
@@ -244,6 +248,7 @@ SEARCH_INDEX = [
     ("settings", "Show tray icon", "Startup", "tray icon system tray notification area"),
     ("settings", "Export settings", "Backup", "export backup zip save copy transfer another machine"),
     ("settings", "Import settings", "Backup", "import restore backup zip transfer another machine"),
+    ("settings", "Plugins", "Plugins", "plugins extensions manifest plugin.json actions third party"),
     ("settings", "Restore defaults", "About", "reset restore defaults factory"),
 ]
 
@@ -602,6 +607,17 @@ class SliceModel(QAbstractListModel):
         """Apply a RADIAL_ACTIONS preset to a slice (keeps the slice colour)."""
         if not (0 <= row < len(self._slices)):
             return
+        if action_id.startswith(PLUGIN_PREFIX):
+            entry = next((a for a in self._backend.pluginActions() if a["id"] == action_id), None)
+            if entry is None:
+                return
+            color = self._slices[row].get("color", "teal")
+            self._slices[row] = {"label": entry["label"], "action_id": "plugin", "type": "plugin",
+                                 "command": entry["command"], "color": color, "icon": entry["icon"]}
+            idx = self.index(row, 0)
+            self.dataChanged.emit(idx, idx, [])
+            self._persist()
+            return
         for aid, label, icon, atype, command, color in RADIAL_ACTIONS:
             if aid == action_id:
                 self._slices[row] = {"label": label, "action_id": aid, "type": atype,
@@ -691,6 +707,7 @@ class Backend(QObject):
     toast = pyqtSignal(str)
     keyboardInfoReady = pyqtSignal("QVariant")
     controlsReady = pyqtSignal("QVariant")
+    pluginsReady = pyqtSignal("QVariant")
     navRequested = pyqtSignal(str)   # a page asks the shell to switch tabs
     # config.json was replaced wholesale (import, restore defaults): the shell
     # re-instantiates the visible page so its controls read the new values.
@@ -2209,6 +2226,63 @@ class Backend(QObject):
     @pyqtSlot(result="QVariant")
     def buttonActions(self):
         return [{"id": i, "name": n, "icon": ic} for (i, n, ic) in BUTTON_ACTIONS]
+
+    # ---- plugins (~/.config/juhradial/plugins/<folder>/plugin.json) ----
+    def _plugins(self):
+        raw = self.daemon.call1("ListPlugins", default="[]") or "[]"
+        try:
+            data = json.loads(raw)
+            return data if isinstance(data, list) else []
+        except Exception:
+            return []
+
+    @staticmethod
+    def _plugin_rows(data):
+        """Installed plugins for the Settings card: folder, name, version,
+        description, action count and the load error, if any."""
+        try:
+            data = json.loads(data or "[]")
+        except Exception:
+            data = []
+        return [{"folder": p.get("folder", ""), "name": p.get("name", ""),
+                 "version": p.get("version", ""), "description": p.get("description", ""),
+                 "actions": len(p.get("actions") or []), "error": p.get("error") or ""}
+                for p in (data if isinstance(data, list) else []) if isinstance(p, dict)]
+
+    @pyqtSlot()
+    def requestPlugins(self):
+        """Async plugin list; pluginsReady carries the rows."""
+        self.daemon.call_then("ListPlugins", lambda a: self.pluginsReady.emit(
+            self._plugin_rows(a[0] if a else "[]")))
+
+    @pyqtSlot(result="QVariant")
+    def pluginActions(self):
+        """Every valid plugin action as an ActionPicker entry. The label shown
+        in the picker carries the plugin name; `label` is the slice label."""
+        out = []
+        for p in self._plugins():
+            for a in p.get("actions") or []:
+                ref = a.get("ref", "")
+                if not ref:
+                    continue
+                out.append({"id": PLUGIN_PREFIX + ref, "name": f"{p.get('name', '')}: {a.get('label', ref)}",
+                            "label": a.get("label", ref), "icon": a.get("icon", ""),
+                            "type": "plugin", "command": ref, "color": "", "hex": ""})
+        return out
+
+    @pyqtSlot(result="QVariant")
+    def sliceActions(self):
+        """The slice editor's picker: built-in actions, then plugin actions."""
+        return self.radialActions() + self.pluginActions()
+
+    @pyqtSlot()
+    def openPluginsFolder(self):
+        try:
+            PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
+            subprocess.Popen(["xdg-open", str(PLUGINS_DIR)],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            self.notify(f"Could not open the plugins folder: {e}", "danger")
 
     @pyqtSlot(result="QVariant")
     def radialActions(self):

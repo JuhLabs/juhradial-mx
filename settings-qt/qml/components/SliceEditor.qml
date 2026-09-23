@@ -81,7 +81,8 @@ B.Popup {
                 PrimaryButton {
                     id: changeBtn; text: "Change"; ghost: true
                     anchors.verticalCenter: parent.verticalCenter
-                    onClicked: actPicker.open()
+                    // plugin actions are read when the picker opens, so new plugins show without a restart
+                    onClicked: { actPicker.actions = Backend.sliceActions(); actPicker.open() }
                 }
             }
         }
@@ -167,7 +168,7 @@ B.Popup {
     ActionPicker {
         id: actPicker
         title: "Choose an action"
-        actions: Backend.radialActions()
+        actions: []
         currentId: ed.d.actionId || ""
         onPicked: (id) => { Slices.setAction(ed.row, id); ed.reload() }
     }

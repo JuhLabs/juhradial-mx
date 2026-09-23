@@ -20,6 +20,7 @@ pub mod hidraw;
 pub mod keyboard;
 pub mod macros;
 pub mod performance_monitor;
+pub mod plugins;
 pub mod presets;
 pub mod profiles;
 pub mod theme;

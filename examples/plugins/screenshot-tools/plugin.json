@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "name": "Screenshot tools",
+  "version": "1.0.0",
+  "description": "Region and full-screen captures with the desktop's own screenshot tool",
+  "author": "JuhLabs",
+  "actions": [
+    {
+      "id": "region-to-clipboard",
+      "label": "Region to clipboard",
+      "icon": "applets-screenshooter-symbolic",
+      "description": "Drag a rectangle; the capture lands on the clipboard",
+      "exec": "spectacle --background --region --copy-image 2>/dev/null || gnome-screenshot --area --clipboard"
+    },
+    {
+      "id": "screen-to-pictures",
+      "label": "Screen to Pictures",
+      "icon": "applets-screenshooter-symbolic",
+      "description": "Full screen, saved to ~/Pictures without a dialog",
+      "exec": "spectacle --background --fullscreen --output \"$HOME/Pictures/Screenshot_$(date +%Y%m%d_%H%M%S).png\" 2>/dev/null || gnome-screenshot --file=\"$HOME/Pictures/Screenshot_$(date +%Y%m%d_%H%M%S).png\""
+    }
+  ]
+}

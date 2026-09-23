@@ -485,6 +485,27 @@ fn reap_in_background(mut child: std::process::Child, input: &str, tool: &'stati
     });
 }
 
+/// Start `program` with `args` in `cwd` (a plugin script) with the session
+/// environment a GUI helper needs. Non-blocking like a shell command; the
+/// exit status is logged when the program ends.
+pub fn spawn_program(program: &std::path::Path, args: &[String], cwd: &std::path::Path) -> Result<(), ActionError> {
+    let mut command = Command::new(program);
+    command.args(args).current_dir(cwd);
+    apply_session_env(&mut command);
+    let mut child = command.spawn().map_err(|e| {
+        ActionError::ExecutionFailed(format!("{}: {}", program.display(), e))
+    })?;
+    let name = program.display().to_string();
+    tokio::task::spawn_blocking(move || match child.wait() {
+        Ok(status) if !status.success() => {
+            tracing::warn!(program = %name, code = status.code().unwrap_or(-1), "Plugin script exited with an error")
+        }
+        Err(e) => tracing::warn!(program = %name, error = %e, "Could not reap plugin script"),
+        _ => {}
+    });
+    Ok(())
+}
+
 /// Session variables a spawned helper needs and the daemon does not inherit.
 const SESSION_VARS: [&str; 6] = [
     "DISPLAY",
