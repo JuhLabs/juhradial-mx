@@ -403,7 +403,12 @@ async fn run_link_watcher_linux(config: SharedConfig, connection: zbus::Connecti
         loop {
             tokio::select! {
                 event = rx.recv() => match event {
-                    Some(()) => announce_keyboard_battery(&connection).await,
+                    Some(()) => {
+                        announce_keyboard_battery(&connection).await;
+                        // Link-ups that queued while this read ran (a first
+                        // connect can take seconds) are answered by it.
+                        while rx.try_recv().is_ok() {}
+                    }
                     None => break,
                 },
                 _ = tokio::time::sleep(Duration::from_secs(5)) => {
