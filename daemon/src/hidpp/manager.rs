@@ -229,6 +229,11 @@ impl HapticManager {
         }
     }
 
+    /// Unit id of the connected device (DEVICE_INFORMATION), if known.
+    pub fn unit_id(&self) -> Option<u32> {
+        self.device.as_ref().and_then(|d| d.unit_id())
+    }
+
     /// The device's REPROG_CONTROLS_V4 inventory (a fresh read-only scan);
     /// empty without a connected device or without the feature.
     pub fn list_controls(&mut self) -> Vec<crate::hidpp::controls::ControlInfo> {

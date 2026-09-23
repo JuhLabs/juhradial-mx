@@ -109,6 +109,19 @@ pub struct HidppDevice {
     /// cleared by the next matched reply. 0x04 means the paired device's
     /// radio is parked (idle or on another host): see `link_parked()`.
     last_receiver_error: Option<u8>,
+    /// Unit id from DEVICE_INFORMATION (0x0003): unique per physical device,
+    /// the key for per-device config overrides (`devices.0xXXXXXXXX`).
+    unit_id: Option<u32>,
+}
+
+/// Unit id from a `getDeviceInfo` reply (bytes 5..9, big-endian); zero means
+/// the device reports none.
+fn parse_unit_id(resp: &[u8]) -> Option<u32> {
+    if resp.len() < 9 {
+        return None;
+    }
+    let id = u32::from_be_bytes([resp[5], resp[6], resp[7], resp[8]]);
+    (id != 0).then_some(id)
 }
 
 /// Receiver error "connection request failed": the device is paired but not
@@ -433,6 +446,7 @@ impl HidppDevice {
                     thumbwheel_feature_index: None,
                     controls: Vec::new(),
                     last_receiver_error: None,
+                    unit_id: None,
                     device_path: device_path.clone(),
                 };
 
@@ -467,10 +481,12 @@ impl HidppDevice {
                     continue;
                 }
 
+                hidpp.read_unit_id();
                 tracing::info!(
                     path = %device_path.display(),
                     device_index,
                     connection = %connection_type,
+                    unit_id = hidpp.unit_id.map(|u| format!("0x{:08X}", u)).unwrap_or_default(),
                     haptic_supported = hidpp.haptic_supported,
                     mx4_haptic_supported = hidpp.mx4_haptic_supported,
                     reprog_controls = hidpp.reprog_controls_supported,
@@ -663,6 +679,7 @@ impl HidppDevice {
                     thumbwheel_feature_index: None,
                     controls: Vec::new(),
                     last_receiver_error: None,
+                    unit_id: None,
                     device_path: device_path.clone(),
                 };
 
@@ -1602,6 +1619,20 @@ impl HidppDevice {
     }
 
     /// Get connection type
+    /// Read the unit id from DEVICE_INFORMATION (0x0003, function 0). READ-ONLY.
+    fn read_unit_id(&mut self) {
+        if let Some(idx) = self.get_feature_index(features::DEVICE_INFORMATION) {
+            if let Some(resp) = self.hidpp_request(idx, 0x00, &[]) {
+                self.unit_id = parse_unit_id(&resp);
+            }
+        }
+    }
+
+    /// The device's unit id, when DEVICE_INFORMATION reported one.
+    pub fn unit_id(&self) -> Option<u32> {
+        self.unit_id
+    }
+
     /// True when the receiver last answered "connection request failed" for
     /// this device: paired, but its radio is parked (idle or on another
     /// Easy-Switch host). Callers should wait rather than rescan.
@@ -2577,6 +2608,14 @@ mod button_divert_tests {
         let mouse_motion = [0x02, 0x01, 0x8F, 0x00, 0x0D, 0x04, 0x00];
         assert_eq!(receiver_error_code(&mouse_motion, 1), None);
         assert_eq!(receiver_error_code(&parked[..5], 1), None);
+    }
+
+    #[test]
+    fn unit_id_is_read_big_endian_and_zero_means_none() {
+        let reply = [0x11, 0x02, 0x03, 0x01, 0x03, 0x12, 0x34, 0xAB, 0xCD, 0x00, 0x03];
+        assert_eq!(parse_unit_id(&reply), Some(0x1234ABCD));
+        assert_eq!(parse_unit_id(&[0x11, 0x02, 0x03, 0x01, 0x03, 0, 0, 0, 0]), None);
+        assert_eq!(parse_unit_id(&reply[..8]), None);
     }
 
     #[test]

@@ -218,7 +218,15 @@ impl JuhRadialService {
         tracing::info!("ReloadConfig called - reloading configuration from disk");
 
         match Config::load_default() {
-            Ok(new_config) => {
+            Ok(mut new_config) => {
+                // Keep the connected mouse's per-device overrides on top of
+                // the freshly loaded file.
+                let active_unit = self.config.read().ok().and_then(|c| c.active_unit.clone());
+                if let Some(unit) = active_unit.as_deref() {
+                    if new_config.apply_device_overrides(unit) {
+                        tracing::info!(unit, "Per-device overrides applied on reload");
+                    }
+                }
                 let haptic_config = new_config.haptics.clone();
                 let thumbwheel_config = new_config.thumbwheel.clone();
                 let remapped_cids = new_config.remapped_button_cids();
@@ -859,6 +867,15 @@ impl JuhRadialService {
     // issuing the request inline mirrors the existing SetDpi / GetDpi handlers
     // (these run on the zbus executor, not Tokio).
     // =========================================================================
+
+    /// Unit id of the connected mouse as the `devices` config key
+    /// ("0x1234ABCD"), or "" when unknown.
+    async fn get_unit_id(&self) -> fdo::Result<String> {
+        match self.haptic_manager.lock() {
+            Ok(manager) => Ok(manager.unit_id().map(Config::unit_key).unwrap_or_default()),
+            Err(_) => Ok(String::new()),
+        }
+    }
 
     /// The connected mouse's REPROG_CONTROLS_V4 inventory as a JSON array:
     /// one object per control with `cid`, `hex`, `name` and the decoded

@@ -155,6 +155,8 @@ Item {
                                         visible: !Backend.isGeneric
                                         text: "Host " + (Backend.currentHost + 1) + " of " + Backend.numHosts
                                     }
+                                    // unit id = the key for per-device overrides (config `devices`)
+                                    Badge { visible: Backend.unitId !== ""; text: "Unit " + Backend.unitId }
                                 }
                             }
                             Column {

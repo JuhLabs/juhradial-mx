@@ -35,6 +35,8 @@ pub mod features {
     pub const I_FEATURE_SET: u16 = 0x0001;
     /// Device name and type (READ-ONLY)
     pub const DEVICE_NAME: u16 = 0x0005;
+    /// Device information (0x0003): unit id, transport, model id. READ-ONLY.
+    pub const DEVICE_INFORMATION: u16 = 0x0003;
     /// Battery status (READ-ONLY) - older devices
     pub const BATTERY_STATUS: u16 = 0x1000;
     /// Unified Battery (READ-ONLY) - newer devices like MX Master 4
@@ -189,6 +191,7 @@ pub mod allowed_features {
         features::I_ROOT,
         features::I_FEATURE_SET,
         features::DEVICE_NAME,
+        features::DEVICE_INFORMATION,
         features::BATTERY_STATUS,
         features::LED_CONTROL,
         features::FORCE_FEEDBACK,

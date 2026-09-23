@@ -236,6 +236,21 @@ How modes behave:
 - `off` and `scroll` use the wheel's native hardware behaviour and are **not** diverted, so horizontal scroll works reliably on every compositor.
 - `volume` and `zoom` are diverted: each rotation tick is re-injected as Volume Up/Down or Ctrl +/- the number of times set by `speed`.
 
+## Per-device overrides (`devices`)
+
+Every setting in this file applies to whichever mouse is connected. To keep separate settings per mouse (two mice on one machine, or a travel mouse with its own button map), add a `devices` block keyed by the mouse's unit id, which Settings → Devices shows as "Unit 0x…" (`GetUnitId` on D-Bus). Any subset of the top-level keys is allowed and is deep-merged over the top-level values while that mouse is connected; the file itself is never rewritten.
+
+```json
+"devices": {
+  "0x1234ABCD": {
+    "buttons": { "back": "undo", "forward": "redo" },
+    "thumbwheel": { "mode": "zoom" }
+  }
+}
+```
+
+Single-mouse configs without a `devices` block behave exactly as before.
+
 ## Keyboard (beta)
 
 Off by default and inert until enabled: with the section absent or every switch `false` the daemon never opens, grabs or talks to a keyboard, so a mouse-only install is unaffected.

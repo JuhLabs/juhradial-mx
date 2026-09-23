@@ -712,6 +712,7 @@ class Backend(QObject):
         self._device_mode = ""
         self._daemon_version = ""
         self._connection = ""
+        self._unit_id = ""
 
         self._gaming_mode = bool(self.get("gaming.enabled", False))
         self._low_batt_notified = False
@@ -950,6 +951,7 @@ class Backend(QObject):
         # Dev override for device art and callout work on hardware you do not
         # own (for example JUH_DEVICE_NAME="MX Master 3S" on an MX Master 4).
         self._device_name = os.environ.get("JUH_DEVICE_NAME") or self._device_name
+        self._unit_id = str(d.call1("GetUnitId", default="") or "")
         self._device_mode = d.call1("GetDeviceMode", default="") or ""
         self._connection = self._detect_connection(self._device_mode == "generic")
         self._daemon_version = str(d.prop("DaemonVersion", "") or "")
@@ -1637,6 +1639,11 @@ class Backend(QObject):
             self._device_name = name
         self._connection = self._detect_connection(self.isGeneric)
         self.liveChanged.emit()
+
+    @pyqtProperty(str, notify=liveChanged)
+    def unitId(self):
+        """The mouse's unit id as the config `devices` key ("0x1234ABCD"), or ""."""
+        return self._unit_id
 
     @pyqtProperty(str, notify=liveChanged)
     def connection(self):

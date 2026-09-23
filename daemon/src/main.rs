@@ -364,10 +364,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             let path = manager.device_path();
             let name = manager.get_device_name_string();
-            (connect_result, divert_result, path, name)
+            let unit = manager.unit_id();
+            (connect_result, divert_result, path, name, unit)
         })
         .await
         .expect("HID++ probe task panicked");
+
+        // Per-device overrides (config `devices.<unit>`): select the connected
+        // mouse before the reassigned-button diverts below read the config.
+        if let Some(unit) = probe.4 {
+            let key = juhradiald::config::Config::unit_key(unit);
+            if let Ok(mut cfg) = shared_config.write() {
+                let applied = cfg.apply_device_overrides(&key);
+                info!(unit = %key, applied, "HID++ device unit id");
+            }
+        }
 
         match probe.0 {
             Ok(true) => {
@@ -1010,19 +1021,19 @@ async fn refresh_hidpp_button_diverts(
     haptic_manager: SharedHapticManager,
     macro_cids: Vec<u16>,
     remapped_cids: Vec<u16>,
-) -> (Option<PathBuf>, Option<String>) {
+) -> (Option<PathBuf>, Option<String>, Option<u32>) {
     match tokio::task::spawn_blocking(move || {
         let mut manager = haptic_manager.lock().unwrap();
         let connected = match manager.connect() {
             Ok(connected) => connected,
             Err(e) => {
                 warn!(error = %e, "HID++ reconnect failed while refreshing button divert");
-                return (None, None);
+                return (None, None, None);
             }
         };
         if !connected {
             debug!("No MX Master HID++ device available for button divert");
-            return (None, None);
+            return (None, None, None);
         }
         let name = manager.get_device_name_string();
 
@@ -1073,14 +1084,14 @@ async fn refresh_hidpp_button_diverts(
             }
         }
 
-        (manager.device_path(), name)
+        (manager.device_path(), name, manager.unit_id())
     })
     .await
     {
         Ok(result) => result,
         Err(e) => {
             error!("HID++ button divert refresh task panicked: {:?}", e);
-            (None, None)
+            (None, None, None)
         }
     }
 }
@@ -1207,7 +1218,7 @@ async fn run_hidraw_loop(
             .read()
             .map(|c| c.remapped_button_cids())
             .unwrap_or_default();
-        let (path, name) = refresh_hidpp_button_diverts(
+        let (path, name, unit) = refresh_hidpp_button_diverts(
             haptic_manager.clone(),
             macro_cids_for_divert.clone(),
             remapped_cids,
@@ -1215,6 +1226,35 @@ async fn run_hidraw_loop(
         .await;
         if let Some(path) = path {
             preferred_path = Some(path);
+        }
+        // A different mouse (or the first connect after startup without one)
+        // selects its own `devices.<unit>` overrides; when they change the
+        // button map, divert once more so the new map is live immediately.
+        if let Some(unit) = unit {
+            let key = juhradiald::config::Config::unit_key(unit);
+            let is_new = config_for_divert
+                .read()
+                .map(|c| c.active_unit.as_deref() != Some(key.as_str()))
+                .unwrap_or(false);
+            if is_new {
+                let applied = config_for_divert
+                    .write()
+                    .map(|mut c| c.apply_device_overrides(&key))
+                    .unwrap_or(false);
+                info!(unit = %key, applied, "Per-device overrides selected for the connected mouse");
+                if applied {
+                    let remapped = config_for_divert
+                        .read()
+                        .map(|c| c.remapped_button_cids())
+                        .unwrap_or_default();
+                    let _ = refresh_hidpp_button_diverts(
+                        haptic_manager.clone(),
+                        macro_cids_for_divert.clone(),
+                        remapped,
+                    )
+                    .await;
+                }
+            }
         }
         if let Some(name) = name {
             let changed = {

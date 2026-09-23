@@ -544,9 +544,38 @@ pub struct Config {
     #[serde(default)]
     pub keyboard: KeyboardConfig,
 
+    /// Per-device overrides keyed by unit id ("0x1234ABCD", as `GetUnitId`
+    /// reports it): any subset of this file's keys, deep-merged over the
+    /// top-level values when that device connects. Single-mouse users never
+    /// need this; two mice on one machine keep separate button maps with it.
+    #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
+    pub devices: std::collections::HashMap<String, serde_json::Value>,
+
+    /// Unit key whose overrides are currently applied (not serialized).
+    #[serde(skip)]
+    pub active_unit: Option<String>,
+
     /// Configuration file path (not serialized)
     #[serde(skip)]
     pub config_path: Option<PathBuf>,
+}
+
+/// Recursively merge `over` into `base`: objects merge key by key, anything
+/// else is replaced.
+fn deep_merge(base: &mut serde_json::Value, over: &serde_json::Value) {
+    match (base, over) {
+        (serde_json::Value::Object(b), serde_json::Value::Object(o)) => {
+            for (k, v) in o {
+                match b.get_mut(k) {
+                    Some(existing) => deep_merge(existing, v),
+                    None => {
+                        b.insert(k.clone(), v.clone());
+                    }
+                }
+            }
+        }
+        (b, o) => *b = o.clone(),
+    }
 }
 
 fn default_theme() -> String {
@@ -562,6 +591,8 @@ impl Default for Config {
             buttons: ButtonsConfig::default(),
             thumbwheel: ThumbwheelConfig::default(),
             keyboard: KeyboardConfig::default(),
+            devices: std::collections::HashMap::new(),
+            active_unit: None,
             config_path: None,
         }
     }
@@ -659,6 +690,48 @@ impl Config {
         }
 
         Ok(config)
+    }
+
+    /// Config key for a unit id: "0x" plus eight upper-case hex digits.
+    pub fn unit_key(unit_id: u32) -> String {
+        format!("0x{:08X}", unit_id)
+    }
+
+    fn device_override(&self, unit_key: &str) -> Option<&serde_json::Value> {
+        let norm = |k: &str| k.trim().trim_start_matches("0x").trim_start_matches("0X").to_uppercase();
+        let want = norm(unit_key);
+        self.devices.iter().find(|(k, _)| norm(k) == want).map(|(_, v)| v)
+    }
+
+    /// Select the connected device: remember its unit key and, when
+    /// `devices` has an entry for it, deep-merge that entry over this config.
+    /// Returns whether an override was applied. The base file is never
+    /// changed; `ReloadConfig` re-applies the same unit.
+    pub fn apply_device_overrides(&mut self, unit_key: &str) -> bool {
+        self.active_unit = Some(unit_key.to_string());
+        let overrides = match self.device_override(unit_key) {
+            Some(v) if v.is_object() => v.clone(),
+            _ => return false,
+        };
+        let mut base = match serde_json::to_value(&*self) {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+        deep_merge(&mut base, &overrides);
+        match serde_json::from_value::<Config>(base) {
+            Ok(mut merged) => {
+                merged.haptics.validate();
+                merged.config_path = self.config_path.clone();
+                merged.devices = std::mem::take(&mut self.devices);
+                merged.active_unit = Some(unit_key.to_string());
+                *self = merged;
+                true
+            }
+            Err(e) => {
+                tracing::warn!(unit = unit_key, error = %e, "Per-device overrides ignored (not valid config)");
+                false
+            }
+        }
     }
 
     /// Check if haptics are enabled
@@ -1268,6 +1341,30 @@ mod tests {
         assert_eq!(config.action_for_cid(button_cid::FORWARD_BUTTON), ButtonAction::Forward);
         assert_eq!(config.action_for_cid(button_cid::SMART_SHIFT), ButtonAction::Smartshift);
         assert_eq!(config.action_for_cid(9999), ButtonAction::None); // Unknown CID
+    }
+
+    #[test]
+    fn device_overrides_merge_over_the_base_config() {
+        let json = r#"{
+            "buttons": {"back": "copy", "forward": "paste"},
+            "thumbwheel": {"mode": "volume", "speed": 4},
+            "devices": {"0x1234abcd": {"buttons": {"back": "undo"}, "thumbwheel": {"speed": 2}}}
+        }"#;
+        let mut config: Config = serde_json::from_str(json).unwrap();
+        assert!(!config.apply_device_overrides("0xDEADBEEF"));
+        assert_eq!(config.active_unit.as_deref(), Some("0xDEADBEEF"));
+        assert_eq!(config.buttons.back, ButtonAction::Copy);
+        assert!(config.apply_device_overrides(&Config::unit_key(0x1234ABCD)));
+        assert_eq!(config.buttons.back, ButtonAction::Undo);
+        assert_eq!(config.buttons.forward, ButtonAction::Paste, "untouched keys keep the base value");
+        assert_eq!(config.thumbwheel.speed, 2);
+        assert_eq!(config.thumbwheel.mode, ThumbwheelMode::Volume);
+        assert_eq!(config.devices.len(), 1, "the overrides map survives the merge");
+        assert_eq!(Config::unit_key(0xAB), "0x000000AB");
+        // a bad override never poisons the config
+        let mut bad: Config = serde_json::from_str(r#"{"devices": {"0x1": {"buttons": {"back": "no_such"}}}}"#).unwrap();
+        assert!(!bad.apply_device_overrides("0x00000001"));
+        assert_eq!(bad.buttons.back, ButtonAction::Back);
     }
 
     #[test]
