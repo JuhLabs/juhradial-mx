@@ -32,6 +32,12 @@ from PyQt6.QtCore import (
 from PyQt6.QtCore import QMetaType, QSize
 
 from bridge.i18n import _
+
+
+def QDesktopServicesOpen(url):
+    """Open a URL or file in the user's default app."""
+    from PyQt6.QtGui import QDesktopServices
+    QDesktopServices.openUrl(QUrl(url))
 from PyQt6.QtGui import QIcon
 
 try:
@@ -159,9 +165,51 @@ EASY_SWITCH_OS = [("linux", "Linux"), ("windows", "Windows"), ("macos", "macOS")
                   ("unknown", "Unknown")]
 DESKTOP_ENVS = [("auto", "Auto-detect"), ("kde", "KDE Plasma"), ("gnome", "GNOME"),
                 ("cosmic", "COSMIC"), ("generic", "Generic / Other")]
-LANGUAGES = [("en", "English"), ("de", "Deutsch"), ("fr", "Francais"),
-             ("es", "Espanol"), ("it", "Italiano"), ("pt_BR", "Portugues"),
-             ("ru", "Russian"), ("ja", "Japanese"), ("ko", "Korean"), ("zh_CN", "Chinese")]
+# Every locale shipped in overlay/locales, in its own language.
+LANGUAGES = [("en", "English"), ("ar", "العربية"), ("de", "Deutsch"),
+             ("es", "Español"), ("fr", "Français"), ("hi", "हिन्दी"),
+             ("it", "Italiano"), ("ja", "日本語"), ("ko", "한국어"),
+             ("nb", "Norsk bokmål"), ("nl", "Nederlands"), ("pl", "Polski"),
+             ("pt_BR", "Português (Brasil)"), ("ru", "Русский"), ("sv", "Svenska"),
+             ("th", "ไทย"), ("tr", "Türkçe"), ("uk", "Українська"), ("zh_CN", "简体中文")]
+
+# Ring geometry mirrors of overlay_constants (tests/test_settings_page_backend.py
+# pins them): the overlay scales the ring to each monitor by its height.
+RING_SCALE_REFERENCE_HEIGHT = 1440
+RING_SCALE_MIN, RING_SCALE_MAX = 0.8, 2.0
+ICON_SCALE_MIN, ICON_SCALE_MAX = 0.6, 1.6
+
+REPO_URL = "https://github.com/JuhLabs/juhradial-mx"
+DOCS_URL = "https://juhlabs.github.io/juhradial-mx/"
+RELEASES_API = "https://api.github.com/repos/JuhLabs/juhradial-mx/releases/latest"
+UPDATE_CACHE = pathlib.Path(os.environ.get("XDG_CACHE_HOME", str(pathlib.Path.home() / ".cache"))) \
+    / "juhradial" / "update.json"
+UPDATE_INTERVAL_S = 24 * 3600
+
+
+def version_tuple(v):
+    """'v0.4.5' / '0.4.5' -> (0, 4, 5); anything unparsable -> ()."""
+    parts = re.findall(r"\d+", str(v or "").lstrip("vV").split("-")[0])
+    return tuple(int(x) for x in parts[:3])
+
+
+def resolve_auto_fit(radial):
+    """Same rule as overlay_actions.resolve_auto_fit: unset = on unless the
+    user already chose a ring or icon size."""
+    auto = radial.get("auto_fit") if isinstance(radial, dict) else None
+    if isinstance(auto, bool):
+        return auto
+    radial = radial if isinstance(radial, dict) else {}
+    return all(radial.get(k) is None for k in ("outer_radius", "inner_radius", "icon_scale"))
+
+
+def detect_desktop_key(env=None):
+    """Desktop-defaults key for Auto-detect: kde, gnome, cosmic or generic."""
+    desk = (env if env is not None else os.environ).get("XDG_CURRENT_DESKTOP", "").lower()
+    for key in ("kde", "gnome", "cosmic"):
+        if key in desk:
+            return key
+    return "generic"
 
 # ---------------------------------------------------------------------------
 # Global search index. One entry per searchable setting across every tab.
@@ -237,11 +285,19 @@ SEARCH_INDEX = [
     # Themes
     ("themes", "Color theme", "Color theme", "theme color accent wallpaper appearance"),
     # Settings
-    ("settings", "Theme", "Appearance", "theme color accent appearance style"),
-    ("settings", "Menu background blur", "Appearance", "blur background menu frost radial"),
+    ("settings", "Theme", "Window", "theme color accent appearance style"),
+    ("settings", "Reduce transparency", "Window", "transparency glass solid cards contrast gpu"),
+    ("settings", "Reduce motion", "Window", "motion animation fade reduce accessibility"),
+    ("settings", "Automatic size", "Radial menu", "automatic fit monitor screen size ring auto"),
+    ("settings", "Ring size", "Radial menu", "ring size radius bigger smaller outer"),
+    ("settings", "Center zone", "Radial menu", "center centre zone dead zone inner radius"),
+    ("settings", "Icon size", "Radial menu", "icon size bigger smaller slice icons scale"),
+    ("settings", "Icon style", "Radial menu", "icon style line classic mono monochrome glyphs"),
+    ("settings", "Menu background blur", "Radial menu", "blur background menu frost radial"),
     ("settings", "Simplified wheel", "Radial menu", "simplified wheel minimal mode icons only"),
-    ("settings", "Monochrome icons", "Radial menu", "monochrome icons flat single-colour glyphs"),
     ("settings", "Click outside to close", "Radial menu", "click outside dismiss close menu ring tap away"),
+    ("settings", "Check for updates", "Startup", "update new version release notify"),
+    ("settings", "Troubleshooting", "Troubleshooting", "troubleshoot restart daemon overlay log diagnostics bug report"),
     ("settings", "Language", "Language & desktop", "language interface locale translation"),
     ("settings", "Desktop environment", "Language & desktop", "desktop environment kde gnome cosmic integration"),
     ("settings", "Apply desktop defaults", "Language & desktop", "desktop defaults kde gnome apply actions"),
@@ -307,7 +363,8 @@ DEFAULT_CONFIG = {
     "thumbwheel": {"mode": "off", "invert": False, "speed": 1},
     "buttons": {k: d for (k, _l, d) in BUTTON_SLOTS},
     # Start at Login defaults on (the installer writes the autostart entry).
-    "app": {"start_at_login": True, "show_tray_icon": True, "suggest_profiles": True},
+    "app": {"start_at_login": True, "show_tray_icon": True, "suggest_profiles": True,
+            "check_updates": True},
     # wheel "" is the overlay no-op (falsy in _config_wheel_key), so a merged
     # default never overrides the theme-derived wheel for existing users.
     "radial": {"minimal_mode": False, "wheel": "", "click_outside_closes": True},
@@ -776,8 +833,11 @@ class Backend(QObject):
     @pyqtSlot(result="QVariant")
     def searchIndex(self):
         """Every searchable setting: {tab, tabKey, label, section, keywords}."""
-        return [{"tabKey": tk, "tab": TAB_LABELS.get(tk, tk), "label": lbl,
-                 "section": sec, "keywords": kw}
+        # Labels go through the same catalog as the pages' qsTr(), so the
+        # result shows, and flashes, the row under its translated label;
+        # English keywords keep matching in every language.
+        return [{"tabKey": tk, "tab": _(TAB_LABELS.get(tk, tk)), "label": _(lbl),
+                 "section": _(sec), "keywords": kw + " " + lbl.lower()}
                 for (tk, lbl, sec, kw) in SEARCH_INDEX]
 
     @pyqtProperty(str, notify=searchTargetChanged)
@@ -840,6 +900,11 @@ class Backend(QObject):
         # None = the daemon lacks the method (older build): fall back.
         self._caps_daemon = None
         self._link_daemon = None
+        # Language the running UI was built with (a change needs a restart).
+        from bridge import i18n as _i18n
+        self._start_language = _i18n.configured_language(CONFIG) or "system"
+        self._update = self._read_update_cache()
+        self._net = None
 
         self._gaming_mode = bool(self.get("gaming.enabled", False))
         self._low_batt_notified = False
@@ -861,6 +926,8 @@ class Backend(QObject):
 
         # prime device state shortly after start (daemon may be warming up)
         QTimer.singleShot(150, self._prime)
+        # daily update check, off the startup path
+        QTimer.singleShot(4000, lambda: self.checkForUpdates(False))
         if self._load_failed:
             # deferred so the QML shell exists before the toast fires
             QTimer.singleShot(800, lambda: self.toast.emit(
@@ -2002,15 +2069,43 @@ class Backend(QObject):
         return True
 
     # ---- restore defaults ----
-    @pyqtSlot()
+    @pyqtSlot(result=bool)
     def restoreDefaults(self):
+        """Reset config.json (macros and app profiles are kept). The previous
+        file is copied to config.json.before-reset first, so Undo works."""
+        try:
+            if CONFIG.exists():
+                shutil.copy2(CONFIG, CONFIG.with_name("config.json.before-reset"))
+        except OSError as e:
+            self.notify(_("Could not back up the settings, nothing was reset: {error}").format(error=e), "danger")
+            return False
         self._cfg = copy.deepcopy(DEFAULT_CONFIG)
         self._save()
+        self._after_config_replaced()
+        return True
+
+    @pyqtSlot(result=bool)
+    def undoRestoreDefaults(self):
+        return self._restore_file(CONFIG.with_name("config.json.before-reset"), CONFIG)
+
+    def _restore_file(self, src, dst):
+        try:
+            if not src.exists():
+                return False
+            shutil.copy2(src, dst)
+        except OSError as e:
+            self.notify(_("Undo failed: {error}").format(error=e), "danger")
+            return False
+        self._load()
+        self._after_config_replaced()
+        return True
+
+    def _after_config_replaced(self):
         self._slices.load(self.get("radial_menu.slices") or [])
         self.reloadConfig()
         self.configChanged.emit()
+        self.macrosChanged.emit()
         self.configReloaded.emit()
-        self.toast.emit(_("Settings restored to defaults"))
 
     # ---- live device name + link ----
     def _set_device_name_live(self, name):
@@ -2067,9 +2162,16 @@ class Backend(QObject):
     def ringGeometry(self):
         outer = self.get("radial.outer_radius")
         inner = self.get("radial.inner_radius")
+        icon = self.get("radial.icon_scale")
+        try:
+            icon = max(ICON_SCALE_MIN, min(ICON_SCALE_MAX, float(icon)))
+        except (TypeError, ValueError):
+            icon = 1.0
         return {"outer": int(outer or RING_OUTER_DEFAULT),
                 "inner": int(inner or RING_INNER_DEFAULT),
-                "custom": outer is not None or inner is not None,
+                "icon": icon, "iconMin": ICON_SCALE_MIN, "iconMax": ICON_SCALE_MAX,
+                "auto": resolve_auto_fit(self.get("radial") or {}),
+                "custom": outer is not None or inner is not None or self.get("radial.icon_scale") is not None,
                 "outerMin": RING_OUTER_MIN, "outerMax": RING_OUTER_MAX,
                 "innerMin": RING_INNER_MIN, "margin": RING_INNER_MARGIN,
                 "outerDefault": RING_OUTER_DEFAULT, "innerDefault": RING_INNER_DEFAULT}
@@ -2102,8 +2204,45 @@ class Backend(QObject):
         app writes and what the overlay treats as unset)."""
         self._set_path(["radial", "outer_radius"], None)
         self._set_path(["radial", "inner_radius"], None)
+        self._set_path(["radial", "icon_scale"], None)
         self._save()
         self.configChanged.emit()
+
+    @pyqtSlot(float)
+    def setIconScale(self, value):
+        """Slice icon size, a multiplier on top of the ring size (owner ask)."""
+        value = round(max(ICON_SCALE_MIN, min(ICON_SCALE_MAX, float(value))), 2)
+        self._set_path(["radial", "icon_scale"], value)
+        self._save()
+        self.configChanged.emit()
+
+    @pyqtSlot(bool)
+    def setAutoFit(self, on):
+        """Automatic: the ring, centre zone and icons fit the monitor. The
+        manual values stay in the file for when it is turned off again."""
+        self._set_path(["radial", "auto_fit"], bool(on))
+        self._save()
+        self.configChanged.emit()
+
+    @pyqtSlot(int, result=float)
+    def screenRingScale(self, screen_height):
+        """The factor the overlay applies on a screen this tall
+        (overlay_constants.compute_ring_scale)."""
+        if screen_height <= 0:
+            return 1.0
+        return max(RING_SCALE_MIN, min(RING_SCALE_MAX, screen_height / RING_SCALE_REFERENCE_HEIGHT))
+
+    @pyqtSlot()
+    def showMenuPreview(self):
+        """Open the real ring (the only faithful preview) where the pointer
+        is; the daemon's ShowMenu takes the menu centre."""
+        from PyQt6.QtGui import QCursor
+        pos = QCursor.pos()
+        self.daemon.call_async("ShowMenu", pos.x(), pos.y())
+
+    @pyqtProperty(bool, constant=True)
+    def isKde(self):
+        return "kde" in os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
 
     # ---- installed applications ("Pick application" for slices and links) ----
     @staticmethod
@@ -2317,6 +2456,46 @@ class Backend(QObject):
             self.notify(_("Export failed: {error}").format(error=msg), "danger")
         return ok
 
+    @pyqtSlot(str, result="QVariant")
+    def inspectBackup(self, url):
+        """What a backup holds, read before anything is replaced."""
+        import zipfile
+        path = self._local_path(url)
+        info = {"ok": False, "error": "", "created": "", "version": "",
+                "config": False, "profiles": False, "macros": 0, "icons": 0, "themes": 0}
+        try:
+            with zipfile.ZipFile(path) as z:
+                names = z.namelist()
+                if "manifest.json" in names:
+                    m = json.loads(z.read("manifest.json").decode("utf-8"))
+                    info["created"] = str(m.get("created", m.get("created_at", "")))
+                    info["version"] = str(m.get("version", m.get("app_version", "")))
+        except (OSError, ValueError, zipfile.BadZipFile) as e:
+            info["error"] = str(e)
+            return info
+        info["config"] = "config.json" in names
+        info["profiles"] = "profiles.json" in names
+        for key, prefix in (("macros", "macros/"), ("icons", "icons/"), ("themes", "themes/")):
+            info[key] = sum(1 for n in names if n.startswith(prefix) and not n.endswith("/"))
+        info["ok"] = info["config"] or info["profiles"]
+        if not info["ok"]:
+            info["error"] = _("This is not a JuhRadial MX backup.")
+        return info
+
+    @pyqtSlot(result=bool)
+    def undoImport(self):
+        """Put back the config.json and profiles.json the import replaced
+        (the daemon keeps them as .bak); macros and icons stay imported."""
+        done = self._restore_file(CONFIG.with_name("config.json.bak"), CONFIG)
+        prof_bak = PROFILES.with_name("profiles.json.bak")
+        if prof_bak.exists():
+            try:
+                shutil.copy2(prof_bak, PROFILES)
+                done = True
+            except OSError:
+                pass
+        return done
+
     @pyqtSlot(str, result=bool)
     def importBackup(self, url):
         path = self._local_path(url)
@@ -2336,9 +2515,28 @@ class Backend(QObject):
         return True
 
     # ---- desktop-environment defaults ----
-    @pyqtSlot(str)
-    def applyDeDefaults(self, de_key):
-        cmds = {
+    def _de_changes(self, de_key):
+        """(key, [(label, old command, new command)]) for Apply desktop defaults."""
+        if de_key in ("", "auto"):
+            de_key = detect_desktop_key()
+        cmds = self._de_commands(de_key)
+        changes = []
+        for s in self._slices.slices():
+            aid = s.get("action_id", "")
+            if aid in cmds and (s.get("type"), s.get("command", "")) != cmds[aid]:
+                new = cmds[aid][1] or _("built-in emoji picker")
+                changes.append((s.get("label", aid), s.get("command", ""), new))
+        return de_key, changes
+
+    @pyqtSlot(str, result="QVariant")
+    def deDefaultsPreview(self, de_key):
+        key, changes = self._de_changes(de_key)
+        name = dict(DESKTOP_ENVS).get(key, key)
+        return {"desktop": name, "changes": [{"label": l, "old": o, "to": n} for (l, o, n) in changes]}
+
+    @staticmethod
+    def _de_commands(de_key):
+        return {
             "kde": {"screenshot": ("exec", "spectacle"), "files": ("exec", "dolphin"),
                     "new_note": ("exec", "kwrite"), "emoji": ("emoji", ""),
                     "lock": ("exec", "loginctl lock-session")},
@@ -2352,6 +2550,14 @@ class Backend(QObject):
                         "new_note": ("exec", "xdg-open"), "emoji": ("exec", "ibus emoji"),
                         "lock": ("exec", "loginctl lock-session")},
         }.get(de_key, {})
+
+    @pyqtSlot(str)
+    def applyDeDefaults(self, de_key):
+        de_key, changes = self._de_changes(de_key)
+        if not changes:
+            self.notify(_("Already matches your desktop"), "info")
+            return
+        cmds = self._de_commands(de_key)
         slices = self._slices.slices()
         for s in slices:
             aid = s.get("action_id", "")
@@ -2361,7 +2567,7 @@ class Backend(QObject):
         self._set_path(["radial_menu", "slices"], slices)
         self._save()
         self.reloadConfig()
-        self.toast.emit(_("Applied desktop defaults"))
+        self.notify(_("Applied desktop defaults to {count} actions").format(count=len(changes)), "success")
 
     # ---- constants for QML ----
     @pyqtSlot(result="QVariant")
@@ -2513,6 +2719,247 @@ class Backend(QObject):
     @pyqtSlot(result="QVariant")
     def desktopEnvs(self):
         return [{"id": i, "name": n} for (i, n) in DESKTOP_ENVS]
+
+    # ---- language: takes effect on the next start ----
+    @pyqtProperty(bool, notify=configChanged)
+    def languageNeedsRestart(self):
+        lang = self.get("language") or "system"
+        return lang != self._start_language
+
+    @pyqtSlot()
+    def restartApp(self):
+        """Start a fresh settings window, then quit this one (the new process
+        waits until this one released the single-instance name)."""
+        main = pathlib.Path(__file__).resolve().parents[1] / "main.py"
+        try:
+            subprocess.Popen(["sh", "-c", 'sleep 0.8; exec "$0" "$1"', sys.executable, str(main)],
+                             start_new_session=True)
+        except OSError as e:
+            self.notify(_("Could not restart: {error}").format(error=e), "danger")
+            return
+        QCoreApplication.quit()
+
+    # ---- update check: GitHub's latest release, at most once a day ----
+    updateChanged = pyqtSignal()
+
+    def _read_update_cache(self):
+        try:
+            return json.loads(UPDATE_CACHE.read_text())
+        except (OSError, ValueError):
+            return {}
+
+    def _write_update_cache(self):
+        try:
+            UPDATE_CACHE.parent.mkdir(parents=True, exist_ok=True)
+            UPDATE_CACHE.write_text(json.dumps(self._update))
+        except OSError:
+            pass
+
+    @pyqtProperty(bool, notify=updateChanged)
+    def updateAvailable(self):
+        latest = version_tuple(self._update.get("latest"))
+        return bool(latest) and latest > version_tuple(self.appVersion)
+
+    @pyqtProperty(str, notify=updateChanged)
+    def latestVersion(self):
+        return str(self._update.get("latest") or "").lstrip("vV")
+
+    @pyqtProperty(str, notify=updateChanged)
+    def latestReleaseUrl(self):
+        return str(self._update.get("url") or (REPO_URL + "/releases"))
+
+    @pyqtProperty(str, notify=updateChanged)
+    def updateStatus(self):
+        """Plain-language line for the Settings row."""
+        if self._update.get("checking"):
+            return _("Checking…")
+        if self._update.get("error"):
+            return _("Could not reach GitHub. Trying again tomorrow.")
+        if self.updateAvailable:
+            return _("Version {version} is available.").format(version=self.latestVersion)
+        if self._update.get("checked"):
+            return _("You have the latest version.")
+        return _("Not checked yet.")
+
+    @pyqtSlot(bool)
+    def checkForUpdates(self, force):
+        """Ask GitHub for the latest release. Only this one request is made,
+        only when app.check_updates is on (or Check now was pressed), and at
+        most once a day; nothing about this machine is sent."""
+        if not force and not self.get("app.check_updates", True):
+            return
+        if not force and time.time() - float(self._update.get("checked") or 0) < UPDATE_INTERVAL_S:
+            return
+        try:
+            from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest
+        except ImportError:
+            return
+        if self._net is None:
+            self._net = QNetworkAccessManager(self)
+        req = QNetworkRequest(QUrl(RELEASES_API))
+        req.setRawHeader(b"User-Agent", b"JuhRadialMX-settings")
+        req.setRawHeader(b"Accept", b"application/vnd.github+json")
+        req.setTransferTimeout(10000)
+        self._update["checking"] = True
+        self.updateChanged.emit()
+        reply = self._net.get(req)
+        reply.finished.connect(lambda: self._on_update_reply(reply))
+
+    def _on_update_reply(self, reply):
+        try:
+            self._update.pop("checking", None)
+            self._update["checked"] = time.time()
+            from PyQt6.QtNetwork import QNetworkReply
+            err = reply.error()
+            if err != QNetworkReply.NetworkError.NoError:
+                # 404 = no release published yet: not an error for the user.
+                self._update["error"] = err != QNetworkReply.NetworkError.ContentNotFoundError
+            else:
+                data = json.loads(bytes(reply.readAll()).decode("utf-8", "replace"))
+                self._update["latest"] = str(data.get("tag_name") or "")
+                self._update["url"] = str(data.get("html_url") or "")
+                self._update["error"] = False
+            self._write_update_cache()
+        except Exception as e:
+            print(f"update check failed: {e}", file=sys.stderr)
+            self._update["error"] = True
+        finally:
+            reply.deleteLater()
+            self.updateChanged.emit()
+
+    # ---- troubleshooting ----
+    @pyqtSlot(result="QVariant")
+    def serviceStatus(self):
+        return {"daemon": self.daemon.available, "overlay": self._overlay_running(),
+                "app": self.appVersion, "daemonVersion": self.daemonVersion,
+                "desktop": os.environ.get("XDG_CURRENT_DESKTOP", "") or "unknown",
+                "session": os.environ.get("XDG_SESSION_TYPE", "") or "unknown"}
+
+    def _system_info(self):
+        st = self.serviceStatus()
+        caps = ", ".join(sorted(k for k, v in self.caps.items() if v)) or "unknown"
+        return "\n".join([
+            f"JuhRadial MX {st['app']} (daemon {st['daemonVersion']})",
+            f"Desktop: {st['desktop']} ({st['session']})",
+            f"Daemon running: {'yes' if st['daemon'] else 'no'}, overlay running: {'yes' if st['overlay'] else 'no'}",
+            f"Device: {self.deviceName} ({self.deviceMode}), unit {self._unit_id or '-'}",
+            f"Link: {self.linkState} via {self.transport}",
+            f"Capabilities: {caps}",
+            f"OS: {self._os_name()}",
+        ])
+
+    @staticmethod
+    def _os_name():
+        try:
+            for line in pathlib.Path("/etc/os-release").read_text().splitlines():
+                if line.startswith("PRETTY_NAME="):
+                    return line.split("=", 1)[1].strip('"')
+        except OSError:
+            pass
+        return sys.platform
+
+    @pyqtSlot()
+    def copySystemInfo(self):
+        from PyQt6.QtGui import QGuiApplication
+        QGuiApplication.clipboard().setText(self._system_info())
+        self.notify(_("System information copied"), "success")
+
+    @pyqtSlot()
+    def reportBug(self):
+        from urllib.parse import quote
+        body = "**What happened**\n\n\n**Steps**\n\n\n**System**\n```\n" + self._system_info() + "\n```\n"
+        QDesktopServicesOpen(REPO_URL + "/issues/new?labels=bug&body=" + quote(body))
+
+    @pyqtSlot()
+    def openLog(self):
+        """One text file with the daemon journal and the overlay log."""
+        runtime = pathlib.Path(os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir())
+        out = runtime / "juhradial-diagnostics.txt"
+        parts = [self._system_info(), ""]
+        try:
+            r = subprocess.run(["journalctl", "--user", "-u", "juhradialmx-daemon", "-n", "300",
+                                "--no-pager"], capture_output=True, text=True, timeout=5)
+            parts += ["== daemon (journalctl) ==", r.stdout or r.stderr]
+        except (OSError, subprocess.SubprocessError) as e:
+            parts += ["== daemon ==", str(e)]
+        overlay_log = runtime / "juhradial-overlay.log"
+        try:
+            parts += ["== overlay ==", overlay_log.read_text(errors="replace")[-40000:]]
+        except OSError:
+            parts += ["== overlay ==", "no log"]
+        try:
+            out.write_text("\n".join(parts))
+        except OSError as e:
+            self.notify(_("Could not write the log: {error}").format(error=e), "danger")
+            return
+        QDesktopServicesOpen(QUrl.fromLocalFile(str(out)).toString())
+
+    @pyqtSlot()
+    def restartDaemon(self):
+        try:
+            subprocess.Popen(["systemctl", "--user", "restart", "juhradialmx-daemon.service"],
+                             start_new_session=True)
+            self.notify(_("Restarting the background service…"), "info")
+        except OSError as e:
+            self.notify(_("Could not restart the service: {error}").format(error=e), "danger")
+
+    @pyqtSlot()
+    def restartOverlay(self):
+        """Stop the running overlay (by its bus name's owner) and start it
+        again through the launcher, which starts whatever is not running."""
+        pid = self._overlay_pid()
+        if pid:
+            try:
+                os.kill(pid, 15)
+            except OSError:
+                pass
+        launcher = self._find_launcher()
+        try:
+            subprocess.Popen(["sh", "-c", 'sleep 1; exec "$0"', launcher], start_new_session=True,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.notify(_("Restarting the radial menu…"), "info")
+        except OSError as e:
+            self.notify(_("Could not start the radial menu: {error}").format(error=e), "danger")
+
+    @staticmethod
+    def _overlay_pid():
+        if not _HAVE_DBUS:
+            return 0
+        try:
+            reply = QDBusConnection.sessionBus().interface().servicePid("org.kde.juhradialmx.overlay")
+            return int(reply.value() or 0)
+        except Exception:
+            return 0
+
+    # ---- autostart health (the #129 / #32 failures were invisible) ----
+    @pyqtSlot(result="QVariant")
+    def autostartStatus(self):
+        on = bool(self.get("app.start_at_login", True))
+        if not on:
+            return {"ok": True, "text": ""}
+        if not AUTOSTART.exists():
+            return {"ok": False, "text": _("The login entry is missing.")}
+        exec_line = next((ln for ln in AUTOSTART.read_text(encoding="utf-8").splitlines()
+                          if ln.startswith("Exec=")), "")
+        cmd = exec_line[len("Exec="):].strip().split()
+        if not cmd or not os.path.exists(cmd[0]):
+            return {"ok": False, "text": _("The login entry points at a program that is gone.")}
+        return {"ok": True, "text": _("Starts at login with {path}").format(path=cmd[0])}
+
+    @pyqtSlot()
+    def repairAutostart(self):
+        try:
+            self._write_autostart(self._find_launcher())
+            self.notify(_("Login entry repaired"), "success")
+        except OSError as e:
+            self.notify(_("Autostart: {error}").format(error=e), "danger")
+        self.configChanged.emit()
+
+    @pyqtProperty("QVariantMap", constant=True)
+    def links(self):
+        return {"docs": DOCS_URL, "repo": REPO_URL, "changelog": REPO_URL + "/blob/master/CHANGELOG.md",
+                "license": REPO_URL + "/blob/master/LICENSE", "plugins": DOCS_URL + "plugins/",
+                "releases": REPO_URL + "/releases"}
 
     @pyqtSlot(result="QVariant")
     def languages(self):

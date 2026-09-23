@@ -127,3 +127,35 @@ def test_apply_ring_geometry_default_ring_is_identity_scale():
     assert params["icon_scale"] == 1.0
     assert params["center_font_size"] == 11
     assert params["icon_radius"] == ICON_ZONE_RADIUS
+
+
+# ---- Settings > Radial menu: Automatic and Icon size (owner asks, 0.4.5) ----
+
+def _radial(monkeypatch, radial):
+    monkeypatch.setattr(overlay_actions, "_config_radial_section", lambda: radial)
+
+
+def test_automatic_is_on_for_an_untouched_config_and_off_for_a_manual_ring(monkeypatch):
+    assert overlay_actions.resolve_auto_fit({}) is True
+    # An existing manual ring keeps its size after the upgrade.
+    assert overlay_actions.resolve_auto_fit({"outer_radius": 180}) is False
+    assert overlay_actions.resolve_auto_fit({"icon_scale": 1.2}) is False
+    assert overlay_actions.resolve_auto_fit({"outer_radius": 180, "auto_fit": True}) is True
+
+
+def test_automatic_ignores_but_keeps_the_manual_values(monkeypatch):
+    _radial(monkeypatch, {"outer_radius": 200, "inner_radius": 60, "icon_scale": 1.4, "auto_fit": True})
+    assert overlay_actions.load_ring_geometry() == {"outer_radius": None, "inner_radius": None, "icon_scale": 1.0}
+    _radial(monkeypatch, {"outer_radius": 200, "inner_radius": 60, "icon_scale": 1.4, "auto_fit": False})
+    assert overlay_actions.load_ring_geometry() == {"outer_radius": 200, "inner_radius": 60, "icon_scale": 1.4}
+
+
+def test_icon_scale_is_clamped_and_multiplies_only_the_icons(monkeypatch):
+    _radial(monkeypatch, {"icon_scale": 9, "auto_fit": False})
+    assert overlay_actions.load_ring_geometry()["icon_scale"] == overlay_actions.ICON_SCALE_MAX
+    _radial(monkeypatch, {"icon_scale": "junk", "auto_fit": False})
+    assert overlay_actions.load_ring_geometry()["icon_scale"] == 1.0
+    theme = {"icon_scale": 1.0, "ring_outer": 150}
+    params = overlay_actions.apply_ring_geometry(theme, None, None, 1.5)
+    assert params["icon_scale"] == 1.5 and params["ring_outer"] == 150
+    assert overlay_actions.apply_ring_geometry(theme, None, None, 1.0) is theme

@@ -69,6 +69,7 @@ os.environ["QT_QPA_PLATFORM"] = "xcb;wayland"
 import math
 import shlex
 import subprocess
+from pathlib import Path
 
 from PyQt6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PyQt6.QtCore import (
@@ -78,6 +79,7 @@ from PyQt6.QtCore import (
     QEasingCurve,
     QTimer,
     QRectF,
+    QFileSystemWatcher,
 )
 from PyQt6.QtGui import (
     QPainter,
@@ -133,6 +135,7 @@ from overlay_cursor import (
 import overlay_actions
 from overlay_media import MediaStateQuery, actions_use_media_state
 from overlay_painting import RadialMenuPaintingMixin
+import overlay_blur
 from i18n import _
 
 
@@ -171,6 +174,11 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.win_px = self._get_win_px()
         self.setFixedSize(self.win_px, self.win_px)
         self.setMouseTracking(True)
+
+        # Full-screen catcher shown behind the ring in toggle mode so a click
+        # anywhere outside the ring dismisses the menu (issue #59, opt-out via
+        # radial.click_outside_closes).
+        self._scrim = _DismissScrim(lambda: self._close_menu(execute=False), self)
 
         # Pre-set circular mask on KDE so the very first frame is shaped
         if IS_KDE:
@@ -648,6 +656,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # centered wheel, especially on Nvidia, so it was removed.)
         if IS_KDE:
             self._update_kde_mask()
+            self._apply_blur()
 
         self.show()
         self.raise_()
@@ -842,6 +851,21 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.move(pos.x() + 1, pos.y())
         QTimer.singleShot(0, lambda: self.move(pos.x(), pos.y()))
 
+    def _apply_blur(self):
+        """Frost what lies behind the ring disc (Settings > Menu background
+        blur, KWin only). Re-applied on every open: the window size follows
+        the monitor and the ring size can change between opens."""
+        try:
+            on = bool(overlay_actions._config_section("blur_enabled", True))
+            rects = []
+            if on:
+                outer = (overlay_actions.RADIAL_PARAMS or {}).get("ring_outer", MENU_RADIUS - 6)
+                half = self.win_px // 2
+                rects = overlay_blur.circle_strips(half, half, outer * self.ring_scale)
+            overlay_blur.set_blur_behind(self.winId(), rects)
+        except Exception as e:  # never let a cosmetic effect break the menu
+            print(f"OVERLAY: blur-behind skipped: {e}")
+
     def _update_kde_mask(self):
         """Set circular window mask on KDE to eliminate rectangular artifact."""
         if not IS_KDE:
@@ -926,7 +950,14 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self.toggle_mode = True
             # Start cursor polling for hover detection in toggle mode
             self.cursor_timer.start()
-            # Menu stays open - user will click to select or tap again to close
+            # Menu stays open - user will click to select or tap again to close.
+            # A full-screen scrim behind the ring makes a click anywhere
+            # outside the ring dismiss it (issue #59).
+            if self._click_outside_closes():
+                self._scrim.cover_all()
+                self._scrim.show()
+                self._scrim.lower()   # keep below the ring window
+                self.raise_()
         else:
             # Normal hold-and-release - close and execute
             self._close_menu(execute=True)
@@ -935,7 +966,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
     def on_cursor_moved(self, dx, dy):
         """Handle cursor movement from daemon (relative to menu center)."""
         # dx, dy are relative offsets from menu center (button press point),
-        # in physical pixels — convert to the ring's logical space first.
+        # in physical pixels, convert to the ring's logical space first.
         dx /= self.ring_scale
         dy /= self.ring_scale
         if not self._hover_gate("daemon", dx, dy):
@@ -976,12 +1007,27 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self.move(x - half, y - half)
             print(f"OVERLAY: COSMIC reposition to ({x}, {y})")
 
+    @staticmethod
+    def _click_outside_closes():
+        """Whether a click outside the ring dismisses the open menu (issue #59).
+        Defaults on; opt out with config radial.click_outside_closes = false."""
+        return bool(overlay_actions._config_radial_section().get("click_outside_closes", True))
+
+    def hideEvent(self, event):
+        # Whatever path hides the ring, never leave the scrim up: an orphaned
+        # scrim invisibly swallows every click on the desktop.
+        if self._scrim is not None and self._scrim.isVisible():
+            self._scrim.hide()
+        super().hideEvent(event)
+
     def _close_menu(self, execute=True):
         import time
         # Record the close time so on_show can debounce the daemon's duplicate
         # MenuRequested on every close path, not just the toggle-close branch.
         self._menu_closed_at = time.time()
         self.cursor_timer.stop()
+        if self._scrim is not None:
+            self._scrim.hide()
         self.toggle_mode = False  # Reset toggle mode
 
         print(
@@ -1359,6 +1405,102 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self._close_menu(execute=False)
 
 
+class _DismissScrim(QWidget):
+    """Transparent full-desktop catcher placed behind the ring while the menu is
+    open in toggle mode. A click anywhere on it (outside the ring window)
+    dismisses the menu without executing an action (issue #59). It paints a
+    1/255-alpha fill (imperceptible) rather than nothing: on KDE, KWin shows a
+    frozen cached-wallpaper sheet behind fully unpainted areas of XWayland
+    windows (the artifact the ring's circular mask exists for), so the scrim
+    must present real pixels. It only swallows the dismiss click; the ring
+    stays on top and receives slice clicks."""
+
+    def __init__(self, on_dismiss, ring):
+        super().__init__()
+        self._on_dismiss = on_dismiss
+        self._ring = ring
+        # BypassWindowManagerHint keeps the scrim in the same override-redirect
+        # stacking layer as the ring, so lower()/raise_() order is honoured.
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
+            | Qt.WindowType.WindowDoesNotAcceptFocus
+            | Qt.WindowType.BypassWindowManagerHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        # Failsafe: a scrim that outlives the ring silently swallows every
+        # desktop click. While visible, verify the ring is still up; if not,
+        # hide ourselves no matter which code path closed the menu.
+        self._watchdog = QTimer(self)
+        self._watchdog.setInterval(400)
+        self._watchdog.timeout.connect(self._check_ring)
+
+    def _check_ring(self):
+        if not self._ring.isVisible():
+            self.hide()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 1))
+        painter.end()
+
+    def showEvent(self, event):
+        self._watchdog.start()
+        super().showEvent(event)
+
+    def hideEvent(self, event):
+        self._watchdog.stop()
+        super().hideEvent(event)
+
+    def cover_all(self):
+        """Resize to span every screen (Qt/XWayland space)."""
+        from PyQt6.QtGui import QGuiApplication
+        rect = None
+        for screen in QGuiApplication.screens():
+            g = screen.geometry()
+            rect = g if rect is None else rect.united(g)
+        if rect is not None:
+            self.setGeometry(rect)
+
+    def mousePressEvent(self, event):
+        # Hide FIRST so the scrim can never survive its own dismiss click,
+        # even if the dismiss callback raises.
+        self.hide()
+        self._on_dismiss()
+
+
+def tray_icon_wanted():
+    """Settings > Startup > Show tray icon (app.show_tray_icon, default on).
+    Hidden, the app stays reachable from the launcher and the notifications
+    (low battery) still arrive through notify-send."""
+    import json
+    try:
+        cfg = json.loads((Path.home() / ".config" / "juhradial" / "config.json").read_text())
+        return bool((cfg.get("app") or {}).get("show_tray_icon", True))
+    except (OSError, ValueError, AttributeError):
+        return True
+
+
+def follow_tray_setting(app, tray):
+    """Show or hide the tray icon live when Settings flips the toggle.
+
+    Settings saves config.json atomically (temp file + rename), which drops a
+    file watch, so watch the directory and re-read after a short debounce.
+    """
+    folder = str(Path.home() / ".config" / "juhradial")
+    watcher = QFileSystemWatcher([folder], app)
+    debounce = QTimer(app)
+    debounce.setSingleShot(True)
+    debounce.setInterval(250)
+    debounce.timeout.connect(lambda: tray.setVisible(tray_icon_wanted()))
+    watcher.directoryChanged.connect(lambda _path: debounce.start())
+    return watcher
+
+
 def create_tray_icon(app, radial_menu):
     """Create system tray icon with menu"""
     icon = QIcon.fromTheme("juhradial-mx")
@@ -1424,7 +1566,7 @@ def create_tray_icon(app, radial_menu):
     exit_action.triggered.connect(exit_application)
 
     tray.setContextMenu(menu)
-    tray.show()
+    tray.setVisible(tray_icon_wanted())
     # Tooltip (device, battery, host, profile) and icon badge follow the daemon.
     tray.status = TrayStatus(tray, icon, parent=tray)
 
@@ -1469,6 +1611,7 @@ if __name__ == "__main__":
     w = RadialMenu()
     app.processEvents()
     app.tray = create_tray_icon(app, w)
+    app.tray_watch = follow_tray_setting(app, app.tray)
 
     # Start Flow server if enabled in config
     # NOTE: Cannot import settings_config here - it imports GTK4 (gi)

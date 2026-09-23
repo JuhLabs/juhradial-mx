@@ -78,6 +78,61 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+7"; onActivated: nav.current = 6 }
     Shortcut { sequence: "Ctrl+8"; onActivated: nav.current = 7 }
     Shortcut { sequence: "Ctrl+9"; onActivated: nav.current = 8 }
+    Shortcut { sequence: "Ctrl+0"; onActivated: nav.current = 9 }
+    Shortcut { sequence: "Ctrl+,"; onActivated: nav.current = navModel.count - 1 }
+    Shortcut { sequences: ["Ctrl+Tab", "Ctrl+PgDown"]; onActivated: nav.current = (nav.current + 1) % navModel.count }
+    Shortcut { sequences: ["Ctrl+Shift+Tab", "Ctrl+PgUp"]; onActivated: nav.current = (nav.current + navModel.count - 1) % navModel.count }
+    Shortcut { sequences: ["Ctrl+W", "Ctrl+Q"]; onActivated: Backend.quitApp() }
+    Shortcut { sequences: ["F1", "Ctrl+?", "Ctrl+/"]; onActivated: keySheet.open() }
+
+    // Keyboard shortcut sheet (F1).
+    Popup {
+        id: keySheet
+        anchors.centerIn: parent
+        width: 420; padding: Theme.pad
+        modal: true; dim: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        background: Rectangle {
+            color: Theme.surfaceGlassHi; radius: Theme.radiusCard
+            border.width: 1; border.color: Theme.borderStrong
+        }
+        contentItem: Column {
+            spacing: Theme.gapS
+            Text {
+                text: qsTr("Keyboard shortcuts")
+                color: Theme.textPrimary
+                font.family: Theme.fontUI; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
+                bottomPadding: Theme.gapS
+            }
+            Repeater {
+                model: [
+                    { k: "Ctrl+K", d: qsTr("Search all settings") },
+                    { k: "Ctrl+1 … Ctrl+0", d: qsTr("Go to tab 1 to 10") },
+                    { k: "Ctrl+,", d: qsTr("Settings") },
+                    { k: "Ctrl+Tab", d: qsTr("Next tab (Shift for previous)") },
+                    { k: "Tab, Space, Enter", d: qsTr("Move between and use controls") },
+                    { k: "Arrows, PgUp, PgDn", d: qsTr("Change sliders and choices") },
+                    { k: "Ctrl+W", d: qsTr("Close the window") },
+                    { k: "F1", d: qsTr("This list") }
+                ]
+                Row {
+                    required property var modelData
+                    spacing: Theme.gapL
+                    Text {
+                        width: 150
+                        text: modelData.k  // i18n-ignore (key names)
+                        color: Theme.textBody
+                        font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall
+                    }
+                    Text {
+                        text: modelData.d
+                        color: Theme.textMuted
+                        font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                    }
+                }
+            }
+        }
+    }
 
     // ---- background z-stack: wallpaper -> dim scrim -> vignette ----
     Image {

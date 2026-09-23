@@ -10,6 +10,34 @@ msgstr ""
 msgid "%1 percent, charging"
 msgstr ""
 
+#: settings-qt/qml/pages/SettingsPage.qml:820
+msgid "%1: %2 to %3"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:615
+msgid "%n action(s)"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:778
+msgid "%n icon(s)"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:777
+msgid "%n macro file(s)"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:779
+msgid "%n theme(s)"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:603
+msgid "A plugin is a folder with a plugin.json that adds actions: a command, a D-Bus call or a script. They show up in the slice picker without a restart."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:639
+msgid "About"
+msgstr ""
+
 #: settings-qt/qml/components/MacroEditor.qml:245
 msgid "Add delay"
 msgstr ""
@@ -18,23 +46,63 @@ msgstr ""
 msgid "Add text"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1717
+#: settings-qt/bridge/backend.py:1784
 msgid "Added profile: {app}"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:250
+msgid "After a quick tap the menu stays open; a click anywhere outside the ring closes it"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:726
+msgid "All files (*)"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2558
+msgid "Already matches your desktop"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:648
+msgid "App"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:61
 msgid "App profiles"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2364
-msgid "Applied desktop defaults"
+#: settings-qt/bridge/backend.py:2570
+msgid "Applied desktop defaults to {count} actions"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2209
+#: settings-qt/qml/pages/SettingsPage.qml:831
+msgid "Apply"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:402
+msgid "Apply desktop defaults…"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:459
+msgid "Asks GitHub once a day; nothing about you is sent."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:92
+msgid "Automatic size"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2348 settings-qt/bridge/backend.py:2955
 msgid "Autostart: {error}"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2315
+#: settings-qt/qml/pages/SettingsPage.qml:537
+msgid "Background service"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:494
+msgid "Backup"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2454
 msgid "Backup saved as {name}"
 msgstr ""
 
@@ -42,12 +110,44 @@ msgstr ""
 msgid "Battery"
 msgstr ""
 
+#: settings-qt/qml/pages/SettingsPage.qml:130
+msgid "Bigger or smaller slice icons, the ring stays the same"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:57
 msgid "Buttons"
 msgstr ""
 
+#: settings-qt/qml/pages/SettingsPage.qml:851
+msgid "Buttons, ring slices, pointer and scroll, haptics, gaming, Flow and these settings go back to their defaults. Your macros and app profiles stay. A copy is kept so you can undo."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:693
+msgid "By JuhLabs, with code from @gcarmin, @frizikk and @iceteaSA, and fixes shaped by everyone who reported an issue."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:787 settings-qt/qml/pages/SettingsPage.qml:829 settings-qt/qml/pages/SettingsPage.qml:858
+msgid "Cancel"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:759
+msgid "Cannot import this file"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:115
+msgid "Center zone"
+msgstr ""
+
 #: settings-qt/qml/components/SliceEditor.qml:82
 msgid "Change"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:114
+msgid "Change sliders and choices"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:675
+msgid "Changelog"
 msgstr ""
 
 #: settings-qt/qml/components/BatteryRing.qml:128
@@ -58,8 +158,36 @@ msgstr ""
 msgid "Charging"
 msgstr ""
 
+#: settings-qt/qml/pages/SettingsPage.qml:531
+msgid "Check again"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:458
+msgid "Check for updates"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:471
+msgid "Check now"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2775
+msgid "Checking…"
+msgstr ""
+
 #: settings-qt/qml/components/ActionPicker.qml:10 settings-qt/qml/components/SliceEditor.qml:170
 msgid "Choose an action"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:163
+msgid "Classic"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:249
+msgid "Click outside to close"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:115
+msgid "Close the window"
 msgstr ""
 
 #: settings-qt/qml/components/SliceEditor.qml:140
@@ -70,23 +198,59 @@ msgstr ""
 msgid "Command"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:867
+#: settings-qt/bridge/backend.py:934
 msgid "Config was corrupt; using defaults (backup: config.json.bad)"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2485
+#: settings-qt/qml/pages/SettingsPage.qml:561
+msgid "Copy system info"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2080
+msgid "Could not back up the settings, nothing was reset: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2691
 msgid "Could not open the plugins folder: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2777
+msgid "Could not reach GitHub. Trying again tomorrow."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2904
+msgid "Could not restart the service: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2738
+msgid "Could not restart: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2922
+msgid "Could not start the radial menu: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2893
+msgid "Could not write the log: {error}"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:50
 msgid "Create profile"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:164
+#: settings-qt/qml/pages/SettingsPage.qml:275
+msgid "Currently %1"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:649
+msgid "Daemon"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:219
 msgid "Daemon connected"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:164
+#: settings-qt/qml/Main.qml:219
 msgid "Daemon offline"
 msgstr ""
 
@@ -94,16 +258,40 @@ msgstr ""
 msgid "Dashboard"
 msgstr ""
 
+#: settings-qt/qml/pages/SettingsPage.qml:116
+msgid "Dead zone in the middle where nothing is selected"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:146
+msgid "Default sizes"
+msgstr ""
+
 #: settings-qt/qml/components/MacroEditor.qml:173
 msgid "Delay"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:386
+msgid "Desktop environment"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:650
+msgid "Device mode"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:63
 msgid "Devices"
 msgstr ""
 
+#: settings-qt/qml/pages/SettingsPage.qml:673
+msgid "Documentation"
+msgstr ""
+
 #: settings-qt/qml/components/SliceEditor.qml:164
 msgid "Done"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:465
+msgid "Download %1"
 msgstr ""
 
 #: settings-qt/qml/components/MacroEditor.qml:286
@@ -122,8 +310,24 @@ msgstr ""
 msgid "Edit action %1"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2317
+#: settings-qt/qml/pages/SettingsPage.qml:716
+msgid "Export JuhRadial MX settings"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2456
 msgid "Export failed: {error}"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:499
+msgid "Export settings"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:502
+msgid "Export…"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:586
+msgid "Extra actions for the ring, from plugin folders"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:50
@@ -134,28 +338,128 @@ msgstr ""
 msgid "Flow"
 msgstr ""
 
+#: settings-qt/qml/pages/SettingsPage.qml:361
+msgid "For this window and the radial menu"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:240
+msgid "Frost what is behind the ring"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:64
 msgid "Gaming"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1653
+#: settings-qt/qml/pages/SettingsPage.qml:674
+msgid "GitHub"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1720
 msgid "Give a slice the AI Assistant action first"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:110
+msgid "Go to tab 1 to 10"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:59
 msgid "Haptics"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2325
+#: settings-qt/qml/pages/SettingsPage.qml:232
+msgid "Hide the ring and show only the action icons"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:156
+msgid "How the slice icons are drawn, in the ring and in this window"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:269
+msgid "How this settings window looks"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:595
+msgid "How to write one"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:129
+msgid "Icon size"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:155
+msgid "Icon style"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:790
+msgid "Import"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:724
+msgid "Import JuhRadial MX settings"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2504
 msgid "Import failed: {error}"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1582
+#: settings-qt/qml/pages/SettingsPage.qml:507
+msgid "Import settings"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:759
+msgid "Import this backup?"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:510
+msgid "Import…"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:355
+msgid "Interface language and desktop integration"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:494
+msgid "Keep a copy of your setup or move it to another machine"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1649
 msgid "Keyboard not reachable: press a key to wake it, then try again"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:102
+msgid "Keyboard shortcuts"
 msgstr ""
 
 #: settings-qt/qml/components/SliceEditor.qml:93
 msgid "Label"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:360
+msgid "Language"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:355
+msgid "Language & desktop"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:426
+msgid "Launch behaviour, tray and updates"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:676
+msgid "License"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:162
+msgid "Line"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2953
+msgid "Login entry repaired"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:592
+msgid "Look for new plugins"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:19
@@ -166,15 +470,35 @@ msgstr ""
 msgid "Macros"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1273
+#: settings-qt/qml/pages/SettingsPage.qml:766
+msgid "Made %1"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:239
+msgid "Menu background blur"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:161
+msgid "Mono"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1340
 msgid "Mouse battery low"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:113
+msgid "Move between and use controls"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:112
+msgid "Next tab (Shift for previous)"
 msgstr ""
 
 #: settings-qt/qml/components/AppPicker.qml:133
 msgid "No applications found"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:152
+#: settings-qt/qml/pages/SettingsPage.qml:336
 msgid "No fades, slides or crossfades in this window."
 msgstr ""
 
@@ -186,6 +510,54 @@ msgstr ""
 msgid "No match"
 msgstr ""
 
+#: settings-qt/qml/pages/SettingsPage.qml:602
+msgid "No plugins yet"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:687
+msgid "No telemetry. JuhRadial MX sends nothing about you; the only network request is the optional daily update check."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2782
+msgid "Not checked yet."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:614
+msgid "Not loaded"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:539
+msgid "Not running. Buttons, haptics and the ring do not work without it."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:549
+msgid "Not running. The gesture button has nothing to open."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:82
+msgid "On this screen: %1 px across"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:500
+msgid "One zip file with your configuration, profiles, macros, slice icons and themes. Flow pairing keys stay on this machine"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:241
+msgid "Only KDE Plasma can frost the background behind the ring"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:560
+msgid "Open log"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:604 settings-qt/qml/pages/SettingsPage.qml:623
+msgid "Open plugins folder"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:103
+msgid "Outer radius. Icons, submenus and the centre label scale with it"
+msgstr ""
+
 #: settings-qt/qml/components/AppPicker.qml:10
 msgid "Pick an application"
 msgstr ""
@@ -194,40 +566,132 @@ msgstr ""
 msgid "Pick application"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1589
+#: settings-qt/qml/pages/SettingsPage.qml:387
+msgid "Picks the screenshot tool, file manager and note app for the default slices"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1656
 msgid "Pin saved: {slot} = {x}, {y}"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:586
+msgid "Plugins"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:58
 msgid "Point & Scroll"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1380
+#: settings-qt/bridge/backend.py:1447
 msgid "Pointer acceleration needs GNOME gsettings"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1682
+#: settings-qt/qml/components/RingPreview.qml:31
+msgid "Preview of the radial menu"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1749
 msgid "Profiles save failed: {error}"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1996
+#: settings-qt/qml/pages/SettingsPage.qml:57 settings-qt/qml/pages/SettingsPage.qml:547
+msgid "Radial menu"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2063
 msgid "Recording failed"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:149
+#: settings-qt/qml/pages/SettingsPage.qml:333
 msgid "Reduce motion"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:325
+msgid "Reduce transparency"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:439
+msgid "Repair"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:774
+msgid "Replaces: %1"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:562
+msgid "Report a bug"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:700
+msgid "Resets every setting on these tabs. Macros and app profiles are kept, and Undo brings your settings back."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:541 settings-qt/qml/pages/SettingsPage.qml:551
+msgid "Restart"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:380
+msgid "Restart now"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2902
+msgid "Restarting the background service…"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2920
+msgid "Restarting the radial menu…"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:860
+msgid "Restore"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:699
+msgid "Restore defaults"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:845
+msgid "Restore defaults?"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:702
+msgid "Restore defaults…"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:102
+msgid "Ring size"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:94
+msgid "Ring, centre zone and icons fit each monitor. Turn off to set them yourself."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:432
+msgid "Run JuhRadial MX automatically when you log in"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:548
+msgid "Running"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:538
+msgid "Running, version %1"
 msgstr ""
 
 #: settings-qt/qml/components/MacroEditor.qml:290
 msgid "Save"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:923
+#: settings-qt/bridge/backend.py:990
 msgid "Save failed: {error}"
 msgstr ""
 
 #: settings-qt/qml/components/ActionPicker.qml:45
 msgid "Search actions…"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:109
+msgid "Search all settings"
 msgstr ""
 
 #: settings-qt/qml/components/SearchBar.qml:91
@@ -238,15 +702,23 @@ msgstr ""
 msgid "Search applications…"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:67
+#: settings-qt/qml/pages/SettingsPage.qml:508
+msgid "See what a backup holds before it replaces anything. The current files are kept, and Undo puts them back"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:111
 msgid "Settings"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2335
+#: settings-qt/qml/pages/SettingsPage.qml:794
+msgid "Settings imported"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2514
 msgid "Settings imported. The previous files are kept as .bak"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2013
+#: settings-qt/qml/pages/SettingsPage.qml:865
 msgid "Settings restored to defaults"
 msgstr ""
 
@@ -254,28 +726,100 @@ msgstr ""
 msgid "Shortcut (e.g. ctrl+c)"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:218
+#: settings-qt/qml/pages/SettingsPage.qml:60
+msgid "Show on screen"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:450
+msgid "Show tray icon"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:231
+msgid "Simplified wheel"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:57
+msgid "Size, icons and behaviour of the on-screen ring"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:326
+msgid "Solid cards instead of frosted glass. Easier to read, lighter on the GPU."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:541 settings-qt/qml/pages/SettingsPage.qml:551
+msgid "Start"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:431
+msgid "Start at login"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2947
+msgid "Starts at login with {path}"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:426
+msgid "Startup"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:273
 msgid "Support"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:225
+#: settings-qt/qml/Main.qml:280
 msgid "Support JuhRadial MX"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2519
+#: settings-qt/bridge/backend.py:2966
 msgid "System default"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2865
+msgid "System information copied"
 msgstr ""
 
 #: settings-qt/qml/components/AppPicker.qml:135
 msgid "The desktop menu database is empty or unreadable."
 msgstr ""
 
+#: settings-qt/bridge/backend.py:2941
+msgid "The login entry is missing."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2946
+msgid "The login entry points at a program that is gone."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:374
+msgid "The new language is used after a restart."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:407
+msgid "The slices already match %1"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:274
+msgid "Theme"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:66
 msgid "Themes"
 msgstr ""
 
+#: settings-qt/bridge/backend.py:2482
+msgid "This is not a JuhRadial MX backup."
+msgstr ""
+
+#: settings-qt/qml/Main.qml:116
+msgid "This list"
+msgstr ""
+
 #: settings-qt/qml/components/MacroEditor.qml:133
 msgid "This macro has no steps yet. Add a delay or some text below, or re-record it."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:527
+msgid "Troubleshooting"
 msgstr ""
 
 #: settings-qt/qml/components/AppPicker.qml:136
@@ -290,18 +834,78 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:151
+#: settings-qt/bridge/backend.py:2097
+msgid "Undo failed: {error}"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:809
+msgid "Use the %1 apps?"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2779
+msgid "Version {version} is available."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:639
+msgid "Versions, links and credits"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:310
+msgid "Wallpapers and wheel skins in Themes"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:451
+msgid "When hidden, open Settings from your app launcher. Notifications still appear."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:527
+msgid "When something does not respond"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:269
+msgid "Window"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2781
+msgid "You have the latest version."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:335
 msgid "Your desktop asks for less animation, so it is already on."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:95
+msgid "Your own sizes below, scaled to each monitor."
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:718 settings-qt/qml/pages/SettingsPage.qml:726
+msgid "Zip archive (*.zip)"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:776
+msgid "app profiles"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2527
+msgid "built-in emoji picker"
 msgstr ""
 
 #: settings-qt/qml/components/MacroEditor.qml:192
 msgid "ms"
 msgstr ""
 
+#: settings-qt/qml/pages/SettingsPage.qml:820
+msgid "nothing"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:775
+msgid "settings"
+msgstr ""
+
 #: settings-qt/qml/components/MacroEditor.qml:207
 msgid "text to type"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1274
+#: settings-qt/bridge/backend.py:1341
 msgid "{device} is at {percent}%. Time to recharge."
 msgstr ""

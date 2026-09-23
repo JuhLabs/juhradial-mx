@@ -75,6 +75,18 @@ def load_theme() -> dict:
     return qcolors
 
 
+def _config_section(key, default=None):
+    """A top-level config.json value (read fresh), or `default`."""
+    import json
+    from pathlib import Path
+
+    try:
+        cfg = json.loads((Path.home() / ".config" / "juhradial" / "config.json").read_text())
+    except (OSError, ValueError):
+        return default
+    return cfg.get(key, default) if isinstance(cfg, dict) else default
+
+
 def _config_radial_section():
     """The ``radial`` section of config.json, or an empty dict."""
     import json
@@ -100,7 +112,10 @@ def _config_wheel_key():
     return key if isinstance(key, str) and key and key != "none" else None
 
 
-def apply_ring_geometry(params, outer_radius, inner_radius):
+ICON_SCALE_MIN, ICON_SCALE_MAX = 0.6, 1.6
+
+
+def apply_ring_geometry(params, outer_radius, inner_radius, icon_scale=1.0):
     """Layer the user's ring geometry (Settings → Appearance) over theme params.
 
     A configured outer radius scales everything that is sized in pixels by the
@@ -110,9 +125,12 @@ def apply_ring_geometry(params, outer_radius, inner_radius):
     label themselves. Without that last group a bigger ring only spread the
     default-sized icons further apart (#134 follow-up).
 
+    ``icon_scale`` (Settings > Icon size) multiplies the slice icons on top of
+    that, so icons can grow or shrink without changing the ring.
+
     Returns the params unchanged (same object) when nothing is configured.
     """
-    if outer_radius is None and inner_radius is None:
+    if outer_radius is None and inner_radius is None and icon_scale == 1.0:
         return params
     params = dict(params) if params else {}
     if outer_radius is not None:
@@ -133,6 +151,8 @@ def apply_ring_geometry(params, outer_radius, inner_radius):
     if inner_radius is not None:
         params["ring_inner"] = inner_radius
         params["center_radius"] = inner_radius
+    if icon_scale != 1.0:
+        params["icon_scale"] = params.get("icon_scale", 1.0) * icon_scale
     return params
 
 
@@ -147,6 +167,7 @@ def load_radial_image():
     user_geometry = load_ring_geometry()
     outer_radius = user_geometry.get("outer_radius")
     inner_radius = user_geometry.get("inner_radius")
+    icon_scale = user_geometry.get("icon_scale", 1.0)
 
     wheel_key = _config_wheel_key()
     if wheel_key:
@@ -165,7 +186,7 @@ def load_radial_image():
             # Wheel skins share the classic geometry (icons at the standard
             # angles, transparent centre), so default params plus the user's
             # ring size place everything correctly.
-            RADIAL_PARAMS = apply_ring_geometry(None, outer_radius, inner_radius)
+            RADIAL_PARAMS = apply_ring_geometry(None, outer_radius, inner_radius, icon_scale)
             target = (RADIAL_PARAMS or {}).get("image_size", MENU_RADIUS * 2 + 10)
             RADIAL_IMAGE = pixmap.scaled(
                 target,
@@ -183,7 +204,7 @@ def load_radial_image():
     # radial_params (user config wins). A configured outer radius also scales
     # the icon zone, shadow spread, and submenu spacing by the same ratio, so
     # the whole ring resizes as one proportional set rather than piecemeal.
-    RADIAL_PARAMS = apply_ring_geometry(RADIAL_PARAMS, outer_radius, inner_radius)
+    RADIAL_PARAMS = apply_ring_geometry(RADIAL_PARAMS, outer_radius, inner_radius, icon_scale)
 
     if not image_name:
         RADIAL_IMAGE = None
@@ -875,27 +896,34 @@ def load_icon_style():
 ICON_STYLE = load_icon_style()
 
 
+def resolve_auto_fit(radial):
+    """Settings > Radial menu > Automatic. Unset: on unless the user already
+    chose a size (so an existing manual ring looks the same after upgrade)."""
+    auto = radial.get("auto_fit")
+    if isinstance(auto, bool):
+        return auto
+    return all(radial.get(k) is None for k in ("outer_radius", "inner_radius", "icon_scale"))
+
+
 def load_ring_geometry():
-    """Read radial.outer_radius/inner_radius from config.json.
+    """Ring geometry from config.json radial.*.
 
-    Returns {"outer_radius": int|None, "inner_radius": int|None} - None means
-    "use the theme/default radius" (see settings_config.get_ring_geometry,
-    the GTK-side counterpart this mirrors; that module can't be imported here
-    because it pulls in GTK4 (gi), see the note in juhradial-overlay.py).
+    Returns {"outer_radius": int|None, "inner_radius": int|None,
+    "icon_scale": float}. None means "use the theme/default radius". With
+    Automatic on (radial.auto_fit) the manual values stay in the file but are
+    ignored: the ring uses its defaults, which the overlay already scales to
+    the monitor it opens on (compute_ring_scale). Mirrors
+    settings_config.get_ring_geometry for the outer/inner keys (that module
+    pulls in GTK4 and cannot be imported here).
     """
-    import json
-    from pathlib import Path
-
-    config_path = Path.home() / ".config" / "juhradial" / "config.json"
+    radial = _config_radial_section()
+    if resolve_auto_fit(radial):
+        return {"outer_radius": None, "inner_radius": None, "icon_scale": 1.0}
+    icon = radial.get("icon_scale")
     try:
-        if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-            radial = cfg.get("radial", {})
-            return {
-                "outer_radius": radial.get("outer_radius"),
-                "inner_radius": radial.get("inner_radius"),
-            }
-    except (OSError, ValueError, KeyError):
-        pass  # Config file missing or malformed
-    return {"outer_radius": None, "inner_radius": None}
+        icon = max(ICON_SCALE_MIN, min(ICON_SCALE_MAX, float(icon)))
+    except (TypeError, ValueError):
+        icon = 1.0
+    return {"outer_radius": radial.get("outer_radius"),
+            "inner_radius": radial.get("inner_radius"),
+            "icon_scale": icon}

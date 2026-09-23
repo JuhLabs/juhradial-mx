@@ -249,9 +249,11 @@ def main():
 
         def _grab():
             # Under xcb (tools/shot.py) grabWindow() renders the real scene
-            # graph and needs no focus. On Wayland it comes back empty, so use
-            # the native active-window screenshot there (which needs focus).
-            if app.platformName() == "xcb":
+            # graph and needs no focus; offscreen renders the software scene
+            # graph (no glass effects, exact layout, any window height). On
+            # Wayland it comes back empty, so use the native active-window
+            # screenshot there (which needs focus).
+            if app.platformName() in ("xcb", "offscreen"):
                 ok = window.grabWindow().save(shot)
                 print(("shot saved: " if ok else "shot FAILED: ") + shot)
             else:
