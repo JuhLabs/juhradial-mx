@@ -1465,6 +1465,54 @@ async fn fetch_notification_indices(
     .unwrap_or_default()
 }
 
+/// Run a button's custom action (Settings > Buttons > Custom): a recorded
+/// shortcut, a command, a URL, a saved macro or a plugin action.
+async fn run_custom_action(
+    custom: &juhradiald::config::CustomAction,
+    macro_engine: &Arc<Mutex<juhradiald::macros::MacroEngine>>,
+) {
+    use juhradiald::actions::{Action, ActionExecutor, ActionType};
+    let value = custom.value.trim();
+    if value.is_empty() {
+        warn!(kind = %custom.kind, "Custom button action has no value");
+        return;
+    }
+    let result = match custom.kind.as_str() {
+        "shortcut" => ActionExecutor::execute(&Action {
+            action_type: ActionType::Shortcut(value.to_string()),
+            label: None,
+            icon: None,
+        })
+        .await
+        .map_err(|e| e.to_string()),
+        "command" => ActionExecutor::execute(&Action {
+            action_type: ActionType::Command(value.to_string()),
+            label: None,
+            icon: None,
+        })
+        .await
+        .map_err(|e| e.to_string()),
+        "url" => juhradiald::actions::open_url(value).map_err(|e| e.to_string()),
+        "macro" => match juhradiald::macros::storage::load_macro(value) {
+            Ok(config) => match macro_engine.lock() {
+                Ok(mut engine) => {
+                    engine.execute(config);
+                    Ok(())
+                }
+                Err(e) => Err(e.to_string()),
+            },
+            Err(e) => Err(e.to_string()),
+        },
+        "plugin" => juhradiald::plugins::run(&juhradiald::plugins::plugins_dir(), value)
+            .await
+            .map_err(|e| e.to_string()),
+        other => Err(format!("unknown custom action kind {other:?}")),
+    };
+    if let Err(e) = result {
+        error!(kind = %custom.kind, error = %e, "Custom button action failed");
+    }
+}
+
 /// Write the effective pointer/scroll state to the mouse. False when a write
 /// failed (the next trigger retries).
 async fn replay_pointer_state(
@@ -2066,8 +2114,20 @@ async fn process_gesture_events(
                     }
                 }
             }
-            GestureEvent::ButtonActionEvent { action, pressed } => {
-                if pressed {
+            GestureEvent::ButtonActionEvent { action, pressed, source } => {
+                if pressed && action == juhradiald::config::ButtonAction::Custom {
+                    let slot = source.map(juhradiald::config::Config::slot_for_cid);
+                    let custom = slot.as_deref().and_then(|slot| {
+                        shared_config.read().ok().and_then(|c| c.custom_action(slot).cloned())
+                    });
+                    match custom {
+                        Some(custom) => {
+                            info!(slot = ?slot, kind = %custom.kind, "Custom button action");
+                            run_custom_action(&custom, &macro_engine).await;
+                        }
+                        None => warn!(slot = ?slot, "Button set to custom but no custom action is saved for it"),
+                    }
+                } else if pressed {
                     info!(%action, "Button action triggered");
                     match juhradiald::actions::execute_button_action(action).await {
                         Ok(true) => {

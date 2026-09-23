@@ -328,6 +328,24 @@ pub struct ButtonsConfig {
     /// control at its native behaviour and clears its divert on reload.
     #[serde(default)]
     pub controls: std::collections::HashMap<String, ButtonAction>,
+
+    /// What a button set to `custom` does, keyed by slot name (`back`,
+    /// `middle`, ...) or control CID (`0x00D7`): a recorded shortcut, a
+    /// command, a URL, a saved macro or a plugin action.
+    #[serde(default)]
+    pub custom: std::collections::HashMap<String, CustomAction>,
+}
+
+/// A button's custom action (Settings > Buttons > Custom).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CustomAction {
+    /// shortcut | command | url | macro | plugin
+    #[serde(default)]
+    pub kind: String,
+    /// The shortcut ("ctrl+shift+t"), command line, URL, macro id or plugin
+    /// reference ("folder/action").
+    #[serde(default)]
+    pub value: String,
 }
 
 impl Default for ButtonsConfig {
@@ -342,6 +360,7 @@ impl Default for ButtonsConfig {
             back: default_back_action(),
             horizontal_scroll: default_horizontal_scroll_action(),
             controls: std::collections::HashMap::new(),
+            custom: std::collections::HashMap::new(),
         }
     }
 }
@@ -775,6 +794,30 @@ impl Config {
             button_cid::SMART_SHIFT => self.buttons.shift_wheel,
             _ => self.extra_control_action(cid).unwrap_or(ButtonAction::None),
         }
+    }
+
+    /// The config key a CID's button action lives under: the named slot, or
+    /// the `buttons.controls` key form "0x00D7" (also the `buttons.custom` key).
+    pub fn slot_for_cid(cid: u16) -> String {
+        use crate::hidraw::button_cid;
+        match cid {
+            button_cid::GESTURE_BUTTON => "gesture".into(),
+            button_cid::HAPTIC => "thumb".into(),
+            button_cid::MIDDLE_BUTTON => "middle".into(),
+            button_cid::BACK_BUTTON => "back".into(),
+            button_cid::FORWARD_BUTTON => "forward".into(),
+            button_cid::SMART_SHIFT => "shift_wheel".into(),
+            other => format!("0x{other:04X}"),
+        }
+    }
+
+    /// The custom action for a slot or control key (case-insensitive hex).
+    pub fn custom_action(&self, source: &str) -> Option<&CustomAction> {
+        self.buttons
+            .custom
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case(source))
+            .map(|(_, v)| v)
     }
 
     /// Action configured under `buttons.controls` for a CID, if any.

@@ -534,7 +534,7 @@ impl HidrawHandler {
                 for _ in 0..repeats {
                     let _ = self
                         .event_tx
-                        .send(GestureEvent::ButtonActionEvent { action, pressed: true })
+                        .send(GestureEvent::ButtonActionEvent { action, pressed: true, source: None })
                         .await;
                 }
             }
@@ -629,6 +629,7 @@ impl HidrawHandler {
                     .send(GestureEvent::ButtonActionEvent {
                         action,
                         pressed: true,
+                        source: Some(cid),
                     })
                     .await;
             }
@@ -689,6 +690,7 @@ impl HidrawHandler {
                             .send(GestureEvent::ButtonActionEvent {
                                 action,
                                 pressed: false,
+                                source: None,
                             })
                             .await;
                     }
@@ -969,10 +971,12 @@ mod tests {
                 GestureEvent::ButtonActionEvent {
                     action: crate::config::ButtonAction::VirtualDesktops,
                     pressed: true,
+                    source: Some(button_cid::GESTURE_BUTTON),
                 },
                 GestureEvent::ButtonActionEvent {
                     action: crate::config::ButtonAction::VirtualDesktops,
                     pressed: false,
+                    source: None,
                 },
             ]
         );
@@ -995,10 +999,12 @@ mod tests {
                 GestureEvent::ButtonActionEvent {
                     action: crate::config::ButtonAction::Copy,
                     pressed: true,
+                    source: Some(button_cid::BACK_BUTTON),
                 },
                 GestureEvent::ButtonActionEvent {
                     action: crate::config::ButtonAction::Copy,
                     pressed: false,
+                    source: None,
                 },
             ]
         );

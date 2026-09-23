@@ -731,6 +731,23 @@ fn next_wheel_mode(mode: u8) -> u8 {
     }
 }
 
+/// Open a web or mail link in the user's browser (custom button action).
+/// Only http, https and mailto: the value comes from config.json.
+pub fn open_url(url: &str) -> Result<(), ActionError> {
+    let lower = url.to_ascii_lowercase();
+    if !(lower.starts_with("https://") || lower.starts_with("http://") || lower.starts_with("mailto:")) {
+        return Err(ActionError::ExecutionFailed(format!("not a web link: {url}")));
+    }
+    let mut cmd = Command::new("xdg-open");
+    cmd.arg(url);
+    apply_session_env(&mut cmd);
+    let child = cmd
+        .spawn()
+        .map_err(|e| ActionError::ExecutionFailed(format!("xdg-open failed: {e}")))?;
+    reap_in_background(child, url, "xdg-open");
+    Ok(())
+}
+
 /// A mouse button the daemon can click on the user's behalf.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MouseButton {
@@ -1057,6 +1074,13 @@ fn button_action_to_shortcut(action: ButtonAction) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn open_url_refuses_anything_but_web_and_mail_links() {
+        assert!(open_url("file:///etc/passwd").is_err());
+        assert!(open_url("javascript:alert(1)").is_err());
+        assert!(open_url("--help").is_err());
+    }
 
     #[test]
     fn mouse_button_codes_match_ydotool_and_x11() {

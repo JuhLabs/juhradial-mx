@@ -69,6 +69,9 @@ pub enum GestureEvent {
     ButtonActionEvent {
         action: crate::config::ButtonAction,
         pressed: bool,
+        /// CID of the button that fired (resolves `custom` actions via
+        /// Config::slot_for_cid); None for synthetic presses.
+        source: Option<u16>,
     },
     /// Horizontal scroll from the diverted thumb wheel (sign = direction).
     ThumbwheelScroll { clicks: i32 },
@@ -897,6 +900,7 @@ impl EvdevHandler {
                         .send(GestureEvent::ButtonActionEvent {
                             action,
                             pressed: true,
+                            source: Some(crate::hidraw::button_cid::GESTURE_BUTTON),
                         })
                         .await;
                 }
@@ -926,6 +930,7 @@ impl EvdevHandler {
                             .send(GestureEvent::ButtonActionEvent {
                                 action,
                                 pressed: false,
+                                source: Some(crate::hidraw::button_cid::GESTURE_BUTTON),
                             })
                             .await;
                     }
