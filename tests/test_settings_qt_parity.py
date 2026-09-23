@@ -320,3 +320,44 @@ def test_device_name_refresh_updates_the_live_name(backend):
 def test_start_at_login_defaults_on_like_the_gtk_app_and_installer():
     assert bk.DEFAULT_CONFIG["app"]["start_at_login"] is True
     assert "ai_links" not in bk.DEFAULT_CONFIG["radial_menu"]
+
+
+# ---------------------------------------------------------------------------
+# App profiles: SmartShift threshold round-trips through profiles.json
+# ---------------------------------------------------------------------------
+
+def _app_profile(backend, app):
+    return next(p for p in backend.appProfiles() if p["app"] == app)
+
+
+def test_app_profile_threshold_reads_back_what_was_saved(backend, tmp_path, monkeypatch):
+    monkeypatch.setattr(bk, "PROFILES", tmp_path / "profiles.json")
+    for ui in (1, 25, 50, 75, 100):
+        backend.saveAppProfile("firefox", {"dpi": 1600, "smartshiftEnabled": True,
+                                           "smartshiftThreshold": ui, "hires": True,
+                                           "thumbwheel": "off"})
+        shown = _app_profile(backend, "firefox")["smartshiftThreshold"]
+        assert abs(shown - ui) <= 2, (ui, shown)
+        # saving what the page shows must not drift the stored value
+        stored = json.loads((tmp_path / "profiles.json").read_text())["hardware"]["firefox"]
+        assert bk.Backend._dev_threshold(shown) == stored["smartshift"]["threshold"]
+
+
+def test_new_app_profile_uses_the_global_default_threshold(backend, tmp_path, monkeypatch):
+    monkeypatch.setattr(bk, "PROFILES", tmp_path / "profiles.json")
+    backend.addAppProfile("Firefox")
+    stored = json.loads((tmp_path / "profiles.json").read_text())["hardware"]["firefox"]
+    assert stored["smartshift"]["threshold"] == bk.Backend._dev_threshold(50)
+    assert 1 <= stored["smartshift"]["threshold"] <= 49
+    assert _app_profile(backend, "firefox")["smartshiftThreshold"] in (49, 50, 51)
+
+
+def test_legacy_app_profile_thresholds_clamp_into_range(backend, tmp_path, monkeypatch):
+    # Older Qt builds wrote 128; the GTK dialog writes 50. Both sit above the
+    # PR #123 range and read back as the hardest setting instead of garbage.
+    monkeypatch.setattr(bk, "PROFILES", tmp_path / "profiles.json")
+    (tmp_path / "profiles.json").write_text(json.dumps({"hardware": {
+        "a": {"smartshift": {"enabled": True, "threshold": 128}},
+        "b": {"smartshift": {"enabled": True, "threshold": 50}}}}))
+    assert _app_profile(backend, "a")["smartshiftThreshold"] == 100
+    assert _app_profile(backend, "b")["smartshiftThreshold"] == 100

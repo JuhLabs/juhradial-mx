@@ -1422,10 +1422,11 @@ class Backend(QObject):
         out = []
         for app, h in hw.items():
             ss = h.get("smartshift") or {}
-            # profiles.json stores the device threshold (1-254, what the daemon
-            # sends to the mouse); the UI slider speaks sensitivity % (1-100).
-            dev_thr = int(ss.get("threshold", 128))
-            ui_thr = max(1, min(100, 100 - int(round(dev_thr / 2.55))))
+            # profiles.json stores the device threshold the daemon sends to the
+            # mouse; the slider speaks sensitivity % through the PR #123
+            # mapping, the same one saveAppProfile writes with.
+            dev_thr = _to_int(ss.get("threshold"), self._dev_threshold(50))
+            ui_thr = self._ui_threshold(dev_thr)
             out.append({"app": app,
                         "dpi": int(h.get("dpi", 1600)),
                         "smartshiftEnabled": bool(ss.get("enabled", True)),
@@ -1443,7 +1444,8 @@ class Backend(QObject):
         data = self._load_profiles()
         hw = data.setdefault("hardware", {})
         if app not in hw:
-            hw[app] = {"dpi": 1600, "smartshift": {"enabled": True, "threshold": 128},
+            hw[app] = {"dpi": 1600,
+                       "smartshift": {"enabled": True, "threshold": self._dev_threshold(50)},
                        "hires": True, "thumbwheel": "off"}
             self._save_profiles(data)
             self.reloadConfig()
@@ -1465,7 +1467,7 @@ class Backend(QObject):
             return
         entry = {"dpi": max(400, min(8000, int(obj.get("dpi", 1600)))),
                  "smartshift": {"enabled": bool(obj.get("smartshiftEnabled", True)),
-                                # UI sensitivity % -> device threshold 1-254,
+                                # UI sensitivity % -> device threshold 1..49,
                                 # same conversion as the global scroll slider.
                                 "threshold": self._dev_threshold(
                                     max(1, min(100, int(obj.get("smartshiftThreshold", 50)))))},
