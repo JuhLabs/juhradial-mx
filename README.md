@@ -12,7 +12,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.4.4-cyan.svg" alt="Version 0.4.4">
+      <img src="https://img.shields.io/badge/version-0.4.5-cyan.svg" alt="Version 0.4.5">
     </a>
     <a href="https://juhlabs.github.io/juhradial-mx/">
       <img src="https://img.shields.io/badge/docs-juhlabs.github.io-4FEFC9.svg" alt="Documentation">
@@ -28,6 +28,9 @@
     </a>
     <a href="https://github.com/JuhLabs/juhradial-mx/stargazers">
       <img src="https://img.shields.io/github/stars/JuhLabs/juhradial-mx?style=flat&color=yellow" alt="GitHub Stars">
+    </a>
+    <a href="https://github.com/JuhLabs/juhradial-mx/releases">
+      <img src="https://img.shields.io/github/downloads/JuhLabs/juhradial-mx/total?style=flat&color=4FEFC9&label=downloads" alt="Total downloads">
     </a>
   </p>
 </div>

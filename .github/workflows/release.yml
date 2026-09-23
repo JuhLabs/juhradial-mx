@@ -1,0 +1,162 @@
+# JuhRadial MX release pipeline
+#
+# Runs on every v* tag. Builds the Linux release tarball (source snapshot plus
+# a prebuilt daemon), writes SHA256SUMS, and attaches everything to a DRAFT
+# GitHub Release whose notes come from the matching CHANGELOG.md section.
+# Publishing the draft is a manual step by a maintainer.
+#
+# The tarball is what install.sh downloads first (see fetch_release), so every
+# one-line install counts toward the repository's download total.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build assets for, e.g. v0.4.5"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    name: Linux x86_64 tarball
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - name: Validate tag name
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$'; then
+            echo "refusing to build for tag '$TAG'" >&2
+            exit 1
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Resolve version
+        id: meta
+        run: |
+          tag="$TAG"
+          version="${tag#v}"
+          version="${version%-rc*}"
+          cargo_version="$(sed -n 's/^version = "\([0-9.]*\)"/\1/p' daemon/Cargo.toml | head -1)"
+          if [ "$version" != "$cargo_version" ]; then
+            echo "tag $tag does not match daemon/Cargo.toml version $cargo_version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev pkg-config libudev-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: daemon -> target
+
+      - name: Build daemon
+        working-directory: daemon
+        run: cargo build --release --locked
+
+      - name: Run daemon tests
+        working-directory: daemon
+        run: cargo test --release --locked
+
+      - name: Assemble tarball
+        run: |
+          set -euo pipefail
+          version="${{ steps.meta.outputs.version }}"
+          name="juhradial-mx-${version}-linux-x86_64"
+          stage="$(mktemp -d)/$name"
+          mkdir -p "$stage"
+          # Source snapshot (what install.sh needs) plus the prebuilt daemon.
+          git archive HEAD | tar -x -C "$stage"
+          install -Dm755 daemon/target/release/juhradiald "$stage/daemon/target/release/juhradiald"
+          rm -rf "$stage/.github" "$stage/settings-qt/.venv"
+          echo "$version" > "$stage/VERSION"
+          mkdir -p dist
+          tar -C "$(dirname "$stage")" -czf "dist/$name.tar.gz" "$name"
+          (cd dist && sha256sum "$name.tar.gz" > SHA256SUMS)
+          ls -l dist
+
+      - name: Smoke test the prebuilt daemon
+        run: |
+          tmp="$(mktemp -d)"
+          tar -xzf dist/juhradial-mx-*-linux-x86_64.tar.gz -C "$tmp"
+          "$tmp"/juhradial-mx-*/daemon/target/release/juhradiald --version
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: linux-x86_64
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    name: Draft GitHub Release
+    needs: [linux]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.linux.outputs.tag }}
+
+      - name: Download artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          version="${{ needs.linux.outputs.version }}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { on=1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "No CHANGELOG.md section for $version; using a stub." >&2
+            printf 'Release %s. See CHANGELOG.md.\n' "$version" > notes.md
+          fi
+          cat notes.md
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ needs.linux.outputs.tag }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" assets/* --clobber
+            gh release edit "$tag" --notes-file notes.md
+          else
+            gh release create "$tag" assets/* --draft --title "JuhRadial MX $tag" --notes-file notes.md
+          fi

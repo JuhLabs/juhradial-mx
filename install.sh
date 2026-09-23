@@ -431,8 +431,50 @@ install_dependencies() {
 }
 
 # ── Repository ───────────────────────────────────────────────────────
+
+# Latest release tarball (source snapshot plus a prebuilt daemon). Preferred
+# over a git clone: it is what the Release workflow publishes, it counts toward
+# the project's download total, and the prebuilt daemon skips a full Rust
+# build on most machines. Returns 1 when no release asset is available so the
+# caller can fall back to git. Set JUHRADIAL_FROM_SOURCE=1 to always clone.
+fetch_release() {
+    [ "${JUHRADIAL_FROM_SOURCE:-0}" = "1" ] && return 1
+    command -v tar >/dev/null 2>&1 || return 1
+    [ "$(uname -m)" = "x86_64" ] || return 1
+
+    local api url tmp tarball top uid gid
+    api="https://api.github.com/repos/JuhLabs/juhradial-mx/releases/latest"
+    url="$(curl -fsSL -H 'Accept: application/vnd.github+json' "$api" 2>/dev/null \
+        | grep -o '"browser_download_url": *"[^"]*linux-x86_64\.tar\.gz"' \
+        | head -1 | sed 's/.*"\(https[^"]*\)"/\1/')"
+    [ -n "$url" ] || return 1
+
+    log_info "Downloading $(basename "$url")..."
+    tmp="$(mktemp -d)"
+    tarball="$tmp/release.tar.gz"
+    curl -fsSL -o "$tarball" "$url" || { rm -rf "$tmp"; return 1; }
+    tar -xzf "$tarball" -C "$tmp" || { rm -rf "$tmp"; return 1; }
+    top="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
+    [ -f "$top/daemon/Cargo.toml" ] || { rm -rf "$tmp"; return 1; }
+
+    uid="$(id -u)"
+    gid="$(id -g)"
+    [ -e "$INSTALL_DIR" ] && sudo rm -rf "$INSTALL_DIR"
+    sudo install -d -o "$uid" -g "$gid" "$INSTALL_DIR"
+    cp -a "$top"/. "$INSTALL_DIR"/
+    rm -rf "$tmp"
+    cd "$INSTALL_DIR"
+    log_success "Release $(cat VERSION 2>/dev/null || echo '?') unpacked"
+    return 0
+}
+
 clone_repo() {
     step "Fetching source"
+
+    if fetch_release; then
+        return 0
+    fi
+    log_info "No release tarball available; fetching from git"
 
     # Use numeric IDs for ownership: the primary group is not always named after
     # the user (issue #52 hit a chown failure on Arch where the group differs).
@@ -487,10 +529,17 @@ ensure_rust_toolchain() {
 
 build_project() {
     step "Building daemon"
-    ensure_rust_toolchain
-    log_info "Compiling Rust daemon..."
     cd "$INSTALL_DIR"
 
+    # A release tarball ships a prebuilt daemon; use it when it runs here
+    # (same architecture, compatible glibc) and only compile otherwise.
+    if [ -x daemon/target/release/juhradiald ] && daemon/target/release/juhradiald --version >/dev/null 2>&1; then
+        log_success "Using the prebuilt daemon ($(daemon/target/release/juhradiald --version 2>/dev/null | head -1))"
+        return 0
+    fi
+
+    ensure_rust_toolchain
+    log_info "Compiling Rust daemon..."
     cd daemon
     cargo build --release
     cd ..
