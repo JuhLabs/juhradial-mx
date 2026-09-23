@@ -18,6 +18,9 @@ ASSETS = pathlib.Path(__file__).resolve().parents[1] / "assets"
 _XDG_CONFIG = pathlib.Path(os.environ.get("XDG_CONFIG_HOME",
                                           str(pathlib.Path.home() / ".config")))
 UI_STATE = _XDG_CONFIG / "juhradial" / "ui_state.json"
+_XDG_CACHE = pathlib.Path(os.environ.get("XDG_CACHE_HOME",
+                                         str(pathlib.Path.home() / ".cache")))
+SPOT_CACHE = _XDG_CACHE / "juhradial" / "spots"
 
 # Fixed dark scaffold (design brief)
 BG_BASE = "#0A0A0A"
@@ -62,6 +65,34 @@ class Theme(QObject):
     def __init__(self):
         super().__init__()
         self._i = self._load_index()
+        self._reduce = self._load_flag("reduce_transparency", False)
+        self._icon_style = self._load_str("icon_style", "line", ("line", "classic", "mono"))
+
+    def _load_str(self, key, default, allowed):
+        try:
+            v = str(json.loads(UI_STATE.read_text()).get(key, default))
+            return v if v in allowed else default
+        except Exception:
+            return default
+
+    def _load_flag(self, key, default):
+        try:
+            return bool(json.loads(UI_STATE.read_text()).get(key, default))
+        except Exception:
+            return default
+
+    def _save_state(self, key, value):
+        try:
+            state = {}
+            if UI_STATE.exists():
+                state = json.loads(UI_STATE.read_text())
+            state[key] = value
+            UI_STATE.parent.mkdir(parents=True, exist_ok=True)
+            tmp = UI_STATE.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(state, indent=2))
+            os.replace(tmp, UI_STATE)
+        except Exception as e:
+            print(f"ui state save failed: {e}", file=sys.stderr)
 
     # ---- persistence (separate UI-state file; never touches config.json) ----
     def _load_index(self):
@@ -108,7 +139,9 @@ class Theme(QObject):
     # ---- radial wheel (independent of colour theme) ----
     @pyqtSlot(result="QVariantList")
     def wheelList(self):
-        out = []
+        # "Classic" is the overlay's own vector ring (radial.wheel = "none"),
+        # the 0.4.4 default; it has no image, the QML draws its preview.
+        out = [{"name": "Classic", "key": "none", "image": ""}]
         for name, key in WHEELS:
             p = ASSETS / "wheels" / f"wheel_{key}.png"
             out.append({"name": name, "key": key,
@@ -125,9 +158,69 @@ class Theme(QObject):
         """Custom circular button image for a radial action, or "" if none.
 
         When present the editor shows this in place of the generic ring+icon.
+        "classic" serves the pre-0.4.5 glossy orbs from slices/classic/;
+        "mono" returns "" so the editor draws flat single-colour glyphs.
         """
+        if self._icon_style == "mono":
+            return ""
+        if self._icon_style == "classic":
+            p = ASSETS / "slices" / "classic" / f"btn_{action_id}.png"
+            if p.exists():
+                return p.as_uri()
         p = ASSETS / "slices" / f"btn_{action_id}.png"
         return p.as_uri() if p.exists() else ""
+
+    # ---- icon style: "line" (24-grid SVG family), "classic" (0.4.4 sets) or
+    #      "mono" (flat single-colour glyphs, no coloured wheel buttons) ----
+    @pyqtProperty(str, notify=changed)
+    def iconStyle(self):
+        return self._icon_style
+
+    @pyqtSlot(str)
+    def setIconStyle(self, style):
+        style = str(style)
+        if style in ("line", "classic", "mono") and style != self._icon_style:
+            self._icon_style = style
+            self._save_state("icon_style", style)
+            self.changed.emit()
+
+    # ---- spot illustrations (SVG, theme-coloured by substituting #ACCENT) ----
+    @pyqtSlot(str, result=str)
+    def spot(self, name):
+        """File URL of the spot illustration `name` recoloured to the current
+        accent. SVG masters use the literal token #ACCENT; the substituted copy
+        is cached per accent so VectorImage can load it as a plain file. Falls
+        back to the legacy PNG when no SVG master exists."""
+        svg = ASSETS / "spots" / f"{name}.svg"
+        if svg.exists():
+            accent = self._t()[2].lstrip("#").upper()
+            out = SPOT_CACHE / f"{name}-{accent}.svg"
+            try:
+                if not out.exists() or out.stat().st_mtime < svg.stat().st_mtime:
+                    SPOT_CACHE.mkdir(parents=True, exist_ok=True)
+                    text = svg.read_text(encoding="utf-8").replace("#ACCENT", "#" + accent)
+                    tmp = out.with_suffix(".tmp")
+                    tmp.write_text(text, encoding="utf-8")
+                    os.replace(tmp, out)
+                return out.as_uri()
+            except Exception as e:
+                print(f"spot cache failed: {e}", file=sys.stderr)
+                return svg.as_uri()
+        png = ASSETS / "spots" / f"{name}.png"
+        return png.as_uri() if png.exists() else ""
+
+    # ---- accessibility: solid cards instead of frosted sampling ----
+    @pyqtProperty(bool, notify=changed)
+    def reduceTransparency(self):
+        return self._reduce
+
+    @pyqtSlot(bool)
+    def setReduceTransparency(self, v):
+        v = bool(v)
+        if v != self._reduce:
+            self._reduce = v
+            self._save_state("reduce_transparency", v)
+            self.changed.emit()
 
     @pyqtProperty(int, notify=changed)
     def index(self):
@@ -197,6 +290,21 @@ class Theme(QObject):
     @pyqtProperty(str, constant=True)
     def surfaceInset(self):
         return _argb("#000000", 0.28)
+
+    # Frosted-glass material: tint laid over the blurred wallpaper sample
+    # (GlassCard). The solid surfaceGlass above is the reduce-transparency
+    # fallback, so both must read as the same material.
+    @pyqtProperty(str, constant=True)
+    def glassTint(self):
+        return _argb("#14161C", 0.62)
+
+    @pyqtProperty(str, constant=True)
+    def glassTintRail(self):
+        return _argb("#0F1116", 0.66)
+
+    @pyqtProperty(str, constant=True)
+    def borderLit(self):
+        return _argb("#FFFFFF", 0.14)
 
     @pyqtProperty(str, constant=True)
     def border(self):

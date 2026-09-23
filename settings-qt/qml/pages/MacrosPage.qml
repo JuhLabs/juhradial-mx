@@ -53,7 +53,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.hasMacros
                     ? headerCol.implicitHeight + Theme.gap + listCol.implicitHeight + Theme.padCard * 2
-                    : headerCol.implicitHeight + 300 + Theme.padCard * 2
+                    : headerCol.implicitHeight + 320 + Theme.padCard * 2
 
                 Item {
                     anchors.fill: parent
@@ -71,7 +71,7 @@ Item {
                             width: parent.width
                             title: "Macros"
                             subtitle: "Record and replay key and mouse sequences"
-                            icon: "image://icon/" + Theme.accent.toString().slice(1) + "/applications-development-symbolic"
+                            icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/applications-development-symbolic"
 
                             // trailing: live recording indicator + record/stop toggle
                             Row {
@@ -115,24 +115,11 @@ Item {
                         SettingRow {
                             label: "Macro name"
                             desc: "Used when you save the next recording"
-                            Rectangle {
-                                width: 220; height: 38; radius: Theme.radiusCtl
-                                color: "#14FFFFFF"
-                                border.width: 1
-                                border.color: nameField.activeFocus ? Theme.accent : Theme.border
-                                Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
-                                B.TextField {
-                                    id: nameField
-                                    anchors.fill: parent
-                                    anchors.leftMargin: 12; anchors.rightMargin: 12
-                                    placeholderText: "New macro"
-                                    placeholderTextColor: Theme.textMuted
-                                    color: Theme.textBody
-                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
-                                    verticalAlignment: Text.AlignVCenter
-                                    background: Item {}
-                                    onAccepted: if (!Backend.recording) Backend.startMacroRecording()
-                                }
+                            InputField {
+                                id: nameField
+                                width: 240
+                                placeholder: "New macro"
+                                onAccepted: if (!Backend.recording) Backend.startMacroRecording()
                             }
                         }
 
@@ -156,34 +143,14 @@ Item {
                         anchors.bottom: parent.bottom
 
                         // Empty state (no macros, not recording)
-                        Column {
+                        EmptyState {
                             visible: !root.hasMacros && !Backend.recording
-                            anchors.centerIn: parent
-                            spacing: Theme.gapS
-            Image {
-                                source: assetsDir + "/spots/spot_macros.png"
-                                sourceSize.width: 1024; sourceSize.height: 1024
-                                width: 176; height: 176
-                                fillMode: Image.PreserveAspectFit
-                                smooth: true
-                                anchors.horizontalCenter: parent.horizontalCenter
-                            }
-                            Text {
-                                text: "No macros yet"
-                                color: Theme.textBody
-                                font.family: Theme.fontUI; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
-                                anchors.horizontalCenter: parent.horizontalCenter
-                            }
-                            Text {
-                                text: "Record a macro to automate repetitive actions"
-                                color: Theme.textMuted
-                                font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                                anchors.horizontalCenter: parent.horizontalCenter
-                            }
-                            Item { width: 1; height: Theme.gapS }
+                            anchors.fill: parent
+                            spot: "spot_macros"
+                            title: "No macros yet"
+                            body: "Record a key or mouse sequence once, then bind it to a button or a ring slice."
                             PrimaryButton {
-                                text: "Record"
-                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: "Start recording"; ghost: true
                                 onClicked: Backend.startMacroRecording()
                             }
                         }
@@ -292,36 +259,32 @@ Item {
                                             icon: "user-trash-symbolic"
                                             tint: Theme.textMuted
                                             onClicked: {
-                                                if (modelData.id !== undefined && modelData.id !== null)
+                                                if (modelData.id !== undefined && modelData.id !== null) {
                                                     Backend.deleteMacro(String(modelData.id))
+                                                    Backend.notify("Macro deleted", "info")
+                                                }
                                             }
                                         }
                                     }
 
-                                    // Editable macro name (fills the remaining width)
-                                    Rectangle {
+                                    // Editable macro name
+                                    Row {
                                         anchors.left: parent.left
                                         anchors.leftMargin: 12
                                         anchors.right: rowCtl.left
                                         anchors.rightMargin: Theme.gapS
                                         anchors.verticalCenter: parent.verticalCenter
-                                        height: 38
-                                        radius: Theme.radiusCtl
-                                        color: "#14FFFFFF"
-                                        border.width: 1
-                                        border.color: nameEdit.activeFocus ? Theme.accent : Theme.border
-                                        Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
-                                        B.TextField {
+                                        spacing: Theme.gapS
+                                        ActionIcon {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            iconName: "macros"; tint: Theme.accent; px: 18
+                                        }
+                                        InputField {
                                             id: nameEdit
-                                            anchors.fill: parent
-                                            anchors.leftMargin: 12; anchors.rightMargin: 10
+                                            width: Math.min(280, parent.width - 30)
+                                            anchors.verticalCenter: parent.verticalCenter
                                             text: modelData.name ? modelData.name : ""
-                                            placeholderText: "Untitled macro"
-                                            placeholderTextColor: Theme.textMuted
-                                            color: Theme.textBody
-                                            font.family: Theme.fontUI; font.pixelSize: Theme.fsBody; font.weight: Font.DemiBold
-                                            verticalAlignment: Text.AlignVCenter
-                                            background: Item {}
+                                            placeholder: "Untitled macro"
                                             onEditingFinished: {
                                                 if (modelData.id !== undefined && modelData.id !== null
                                                         && text !== (modelData.name || ""))

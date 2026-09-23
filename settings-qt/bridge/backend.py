@@ -568,6 +568,8 @@ class SliceModel(QAbstractListModel):
 class Backend(QObject):
     configChanged = pyqtSignal()
     liveChanged = pyqtSignal()
+    # UI toast requests (text, kind). Pages call notify(); Main.qml shows it.
+    toastRequested = pyqtSignal(str, str)
     availabilityChanged = pyqtSignal()
     macrosChanged = pyqtSignal()
     toast = pyqtSignal(str)
@@ -774,7 +776,12 @@ class Backend(QObject):
 
     @pyqtProperty(str, constant=True)
     def appVersion(self):
-        return "0.5.0-dev"
+        # settings-qt/VERSION is one of the sites scripts/bump-version.sh keeps
+        # in step with daemon/Cargo.toml (tests/test_version_consistency.py).
+        try:
+            return (pathlib.Path(__file__).resolve().parents[1] / "VERSION").read_text().strip()
+        except OSError:
+            return "dev"
 
     @pyqtProperty(str, notify=liveChanged)
     def daemonVersion(self):
@@ -1522,6 +1529,10 @@ class Backend(QObject):
     @pyqtSlot(result="QVariant")
     def buttonSlots(self):
         return [{"slot": k, "name": n, "default": d} for (k, n, d) in BUTTON_SLOTS]
+
+    @pyqtSlot(str, str)
+    def notify(self, text, kind="info"):
+        self.toastRequested.emit(text, kind)
 
     @pyqtSlot(result="QVariant")
     def buttonActions(self):

@@ -1,7 +1,7 @@
 import QtQuick
 
 // Numeric stepper: [-]  value suffix  [+]. Emits committed(int) on every change
-// (suitable for D-Bus/hardware writes; values are discrete).
+// (suitable for D-Bus/hardware writes; values are discrete). Mono readout.
 Item {
     id: st
     property int from: 0
@@ -10,7 +10,7 @@ Item {
     property int value: 0
     property string suffix: ""
     signal committed(int v)
-    implicitWidth: 132; implicitHeight: 36
+    implicitWidth: 138; implicitHeight: 36
 
     activeFocusOnTab: true
     Keys.onLeftPressed: _set(value - step)
@@ -23,9 +23,9 @@ Item {
 
     Rectangle {
         anchors.fill: parent; radius: Theme.radiusCtl
-        color: "#14FFFFFF"; border.width: 1
-        border.color: st.activeFocus ? Theme.accent : Theme.border
+        color: "#12FFFFFF"; border.width: 1; border.color: Theme.border
     }
+    FocusHalo { active: st.activeFocus; radius: Theme.radiusCtl }
     Row {
         anchors.fill: parent
         Item {
@@ -48,7 +48,7 @@ Item {
             Text {
                 anchors.centerIn: parent
                 text: st.value + st.suffix; color: Theme.textPrimary
-                font.family: Theme.fontUI; font.pixelSize: Theme.fsBody; font.weight: Font.DemiBold
+                font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall; font.weight: Font.DemiBold
             }
         }
         Item {

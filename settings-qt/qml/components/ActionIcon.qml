@@ -6,7 +6,7 @@ Image {
     property string iconName: ""
     property color tint: Theme.textBody
     property int px: 22
-    source: iconName !== "" ? "image://icon/" + tint.toString().slice(1) + "/" + iconName : ""
+    source: iconName !== "" ? "image://icon/" + tint.toString().slice(1) + "/" + Theme.iconStyle + "/" + iconName : ""
     sourceSize.width: px * 2; sourceSize.height: px * 2
     width: px; height: px; smooth: true; fillMode: Image.PreserveAspectFit
 }

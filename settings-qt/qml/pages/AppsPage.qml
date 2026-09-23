@@ -41,29 +41,6 @@ Item {
             width: parent.width
             spacing: Theme.gap
 
-            // ===== Intro =====
-            GlassCard {
-                Layout.fillWidth: true
-                Layout.preferredHeight: introCol.implicitHeight + Theme.padCard * 2
-                Column {
-                    id: introCol
-                    anchors.fill: parent; anchors.margins: Theme.padCard
-                    spacing: Theme.gapS
-                    CardHeader {
-                        width: parent.width
-                        title: "App profiles"
-                        subtitle: "Per-app DPI, scroll and thumb-wheel, applied automatically when that app is focused"
-                        icon: "image://icon/" + page._accent + "/applications-system-symbolic"
-                    }
-                    Text {
-                        width: parent.width
-                        text: "An app is identified by its window class (for example firefox, code, gimp). These override the global hardware settings only while that app is focused."
-                        color: Theme.textMuted; wrapMode: Text.WordWrap
-                        font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                    }
-                }
-            }
-
             // ===== Add application =====
             GlassCard {
                 Layout.fillWidth: true
@@ -71,35 +48,33 @@ Item {
                 Column {
                     id: addCol
                     anchors.fill: parent; anchors.margins: Theme.padCard
-                    spacing: Theme.gap
+                    spacing: Theme.gapS
                     CardHeader {
                         width: parent.width
-                        title: "Add application"
-                        subtitle: "Enter a window class in lowercase, then add a profile"
-                        icon: "image://icon/" + page._accent + "/list-add-symbolic"
+                        title: "App profiles"
+                        subtitle: "Per-app DPI, scroll and thumb-wheel settings, applied while that app is focused"
+                        icon: "image://icon/" + page._accent + "/" + Theme.iconStyle + "/apps"
+                        Badge { text: appModel.count + (appModel.count === 1 ? " profile" : " profiles"); accent: appModel.count > 0 }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    RowLayout {
-                        width: parent.width
-                        spacing: Theme.gapS
-                        Rectangle {
-                            Layout.fillWidth: true; Layout.preferredHeight: 38
-                            radius: Theme.radiusCtl; color: "#14FFFFFF"
-                            border.color: appField.activeFocus ? Theme.accent : Theme.border
-                            border.width: 1
-                            B.TextField {
+                    SettingRow {
+                        label: "Add application"
+                        desc: "Window class in lowercase, for example firefox, code or gimp"
+                        Row {
+                            spacing: Theme.gapS
+                            InputField {
                                 id: appField
-                                anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 6
-                                placeholderText: "Window class (e.g. firefox)"
-                                placeholderTextColor: Theme.textMuted
-                                color: Theme.textBody; font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
-                                verticalAlignment: Text.AlignVCenter; background: Item {}
+                                width: 260; mono: true
+                                placeholder: "window class"
+                                anchors.verticalCenter: parent.verticalCenter
                                 onAccepted: page.addFromField()
                             }
-                        }
-                        PrimaryButton {
-                            text: "Add"
-                            onClicked: page.addFromField()
+                            PrimaryButton {
+                                text: "Add"
+                                enabled: appField.text.trim() !== ""
+                                anchors.verticalCenter: parent.verticalCenter
+                                onClicked: page.addFromField()
+                            }
                         }
                     }
                 }
@@ -108,15 +83,13 @@ Item {
             // ===== Empty state =====
             GlassCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 96
+                Layout.preferredHeight: 300
                 visible: appModel.count === 0
-                Text {
-                    anchors.centerIn: parent
-                    width: parent.width - Theme.padCard * 2
-                    text: "No app profiles yet, add one above."
-                    horizontalAlignment: Text.AlignHCenter
-                    color: Theme.textMuted; wrapMode: Text.WordWrap
-                    font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
+                EmptyState {
+                    anchors.fill: parent; anchors.margins: 10
+                    spot: "spot_apps"
+                    title: "No app profiles yet"
+                    body: "Add a window class above. Its overrides apply the moment that app takes focus and lift when it loses it."
                 }
             }
 
@@ -160,10 +133,10 @@ Item {
                             width: parent.width
                             title: card.app
                             subtitle: "Overrides while " + card.app + " is focused"
-                            icon: "image://icon/" + page._accent + "/application-x-executable-symbolic"
+                            icon: "image://icon/" + page._accent + "/" + Theme.iconStyle + "/application-x-executable-symbolic"
                             IconButton {
-                                icon: "edit-clear-symbolic"; tint: Theme.textMuted; diameter: 36
-                                onClicked: { Backend.removeAppProfile(card.app); page.loadApps() }
+                                icon: "user-trash-symbolic"; tint: Theme.textMuted; diameter: 36
+                                onClicked: { Backend.removeAppProfile(card.app); page.loadApps(); Backend.notify("Profile for " + card.app + " removed", "info") }
                             }
                         }
                         Rectangle { width: parent.width; height: 1; color: Theme.border }

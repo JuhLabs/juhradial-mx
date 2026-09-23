@@ -28,6 +28,7 @@ SITES = {
     "packaging/rpm/juhradial-mx.spec": r"^Version:\s*(\d+\.\d+\.\d+)$",
     "README.md": r'img\.shields\.io/badge/version-(\d+\.\d+\.\d+)-cyan\.svg',
     ".github/SECURITY.md": r"^\| (\d+\.\d+\.\d+)\s*\| :white_check_mark: Current release \|",
+    "settings-qt/VERSION": r"^(\d+\.\d+\.\d+)$",
 }
 
 

@@ -7,7 +7,7 @@ Item {
     id: page
     anchors.fill: parent
 
-    readonly property string _ic: "image://icon/" + Theme.accent.toString().slice(1) + "/"
+    readonly property string _ic: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/"
 
     // Muted label (left) + bold value (right) line. Values bind to live props.
     component StatusRow: Item {
@@ -24,7 +24,7 @@ Item {
         Text {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             text: sr.value; color: Theme.textPrimary
-            font.family: Theme.fontUI; font.pixelSize: Theme.fsBody; font.weight: Font.DemiBold
+            font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall; font.weight: Font.DemiBold
         }
     }
 
@@ -58,7 +58,7 @@ Item {
                 spacing: 2
                 Text {
                     text: mt.value; color: mt.valueColor
-                    font.family: Theme.fontUI; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
+                    font.family: Theme.fontMono; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
                 }
                 Text {
                     text: mt.label; color: Theme.textMuted
@@ -102,57 +102,135 @@ Item {
                 }
             }
 
-            // ---- Hero ----
+            // ---- Connected devices roster ----
             GlassCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 160
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: Theme.pad
-                    spacing: Theme.pad
-                    Image {
-                        source: assetsDir + "/devices/mx4_side.png"
-                        sourceSize.width: 1289; sourceSize.height: 829
-                        Layout.preferredHeight: 124
-                        Layout.preferredWidth: 193
-                        fillMode: Image.PreserveAspectFit
-                        smooth: true
-                        Layout.alignment: Qt.AlignVCenter
-                    }
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.alignment: Qt.AlignVCenter
-                        spacing: Theme.gapS
-                        Text {
-                            text: Backend.deviceName; color: Theme.textPrimary
-                            font.family: Theme.fontUI; font.pixelSize: Theme.fsH2; font.weight: Font.DemiBold
-                            Layout.fillWidth: true; elide: Text.ElideRight
+                Layout.preferredHeight: rosterCol.implicitHeight + Theme.padCard * 2
+                Column {
+                    id: rosterCol
+                    anchors.fill: parent; anchors.margins: Theme.padCard
+                    spacing: Theme.gapS
+                    CardHeader {
+                        width: parent.width
+                        title: "Connected devices"; subtitle: "Everything the daemon is talking to right now"
+                        icon: page._ic + "devices"
+                        IconButton {
+                            icon: "view-refresh-symbolic"; tint: Theme.textMuted; diameter: 32
+                            onClicked: { Backend.refreshDevices(); kbCard.reload() }
                         }
-                        Row {
-                            spacing: Theme.gapS
-                            Badge {
-                                text: Backend.isGeneric ? "Generic device" : "USB Receiver"
-                                dot: true
-                                accent: !Backend.isGeneric
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+
+                    // mouse row
+                    Item {
+                        width: parent.width; height: 84
+                        RowLayout {
+                            anchors.fill: parent
+                            spacing: Theme.gapL
+                            Item {
+                                Layout.preferredWidth: 104; Layout.preferredHeight: 70
+                                Image {
+                                    anchors.centerIn: parent
+                                    source: assetsDir + "/devices/mx4_side.png"
+                                    sourceSize.width: 1289; sourceSize.height: 829
+                                    width: 104; height: 67
+                                    fillMode: Image.PreserveAspectFit; smooth: true; asynchronous: true
+                                }
                             }
-                            Badge { text: Backend.deviceMode }
-                        }
-                        Text {
-                            text: Backend.isGeneric
-                                  ? "Standard HID mouse"
-                                  : "Connected on host " + (Backend.currentHost + 1) + " of " + Backend.numHosts
-                            color: Theme.textMuted
-                            font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                            Layout.fillWidth: true; elide: Text.ElideRight
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 4
+                                Text {
+                                    text: Backend.deviceName; color: Theme.textPrimary
+                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
+                                    Layout.fillWidth: true; elide: Text.ElideRight
+                                }
+                                Row {
+                                    spacing: Theme.gapS
+                                    Badge {
+                                        text: Backend.isGeneric ? "Generic HID" : "USB receiver"
+                                        dot: true; accent: !Backend.isGeneric
+                                    }
+                                    Badge { text: Backend.deviceMode }
+                                    Badge {
+                                        visible: !Backend.isGeneric
+                                        text: "Host " + (Backend.currentHost + 1) + " of " + Backend.numHosts
+                                    }
+                                }
+                            }
+                            Column {
+                                Layout.alignment: Qt.AlignVCenter
+                                spacing: 2
+                                Text {
+                                    anchors.right: parent.right
+                                    text: Backend.battery + "%"; color: Theme.textPrimary
+                                    font.family: Theme.fontMono; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
+                                }
+                                Text {
+                                    anchors.right: parent.right
+                                    text: Backend.charging ? "charging" : "battery"; color: Theme.textMuted
+                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                                }
+                            }
                         }
                     }
-                    BatteryRing {
-                        Layout.alignment: Qt.AlignVCenter
-                        Layout.preferredWidth: 96
-                        Layout.preferredHeight: 96
-                        percent: Backend.battery
-                        charging: Backend.charging
-                        size: 96
+
+                    // keyboard row (beta)
+                    Rectangle { width: parent.width; height: 1; color: Theme.border; visible: kbCard.kb.enabled }
+                    Item {
+                        width: parent.width; height: 72
+                        visible: kbCard.kb.enabled
+                        RowLayout {
+                            anchors.fill: parent
+                            spacing: Theme.gapL
+                            Item {
+                                Layout.preferredWidth: 104; Layout.preferredHeight: 60
+                                Rectangle {
+                                    anchors.centerIn: parent
+                                    width: 54; height: 54; radius: 14
+                                    color: kbCard.kb.present ? Theme.accentSubtle : "#12FFFFFF"
+                                    border.width: 1; border.color: kbCard.kb.present ? Theme.accentFaint : Theme.border
+                                    ActionIcon {
+                                        anchors.centerIn: parent
+                                        iconName: "keyboard"; px: 26
+                                        tint: kbCard.kb.present ? Theme.accent : Theme.textMuted
+                                    }
+                                }
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 4
+                                Text {
+                                    text: kbCard.kb.present ? "MX Keys S" : "MX Keys S (not detected)"
+                                    color: kbCard.kb.present ? Theme.textPrimary : Theme.textMuted
+                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
+                                    Layout.fillWidth: true; elide: Text.ElideRight
+                                }
+                                Row {
+                                    spacing: Theme.gapS
+                                    Badge { text: "Beta" }
+                                    Badge {
+                                        visible: kbCard.kb.present
+                                        text: kbCard.kb.sleeping ? "Asleep, press a key" : "Awake"
+                                        dot: true; accent: kbCard.kb.present && !kbCard.kb.sleeping
+                                    }
+                                    Badge { visible: kbCard.kb.present && kbCard.kb.charging; text: "Charging"; accent: true }
+                                }
+                            }
+                            Column {
+                                Layout.alignment: Qt.AlignVCenter
+                                spacing: 2
+                                visible: kbCard.kb.present
+                                Text {
+                                    anchors.right: parent.right
+                                    text: kbCard.kb.sleeping ? "--" : kbCard.kb.battery + "%"; color: Theme.textPrimary
+                                    font.family: Theme.fontMono; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
+                                }
+                                Text {
+                                    anchors.right: parent.right
+                                    text: "battery"; color: Theme.textMuted
+                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -213,8 +291,8 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "Keyboard"
-                        subtitle: "MX Keys S battery and backlight, plus generic keyboards"
-                        icon: page._ic + "input-keyboard-symbolic"
+                        subtitle: "MX Keys S backlight over HID++, plus generic keyboards"
+                        icon: page._ic + "keyboard"
                         Badge { text: "Beta" }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
@@ -235,14 +313,6 @@ Item {
                         text: "No compatible keyboard detected yet. Connect an MX Keys S (Bolt receiver or Bluetooth); the card refreshes when you reopen this page."
                         color: Theme.textMuted; wrapMode: Text.WordWrap
                         font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                    }
-                    SettingRow {
-                        visible: kbCard.kb.present
-                        label: "Keyboard battery"
-                        desc: kbCard.kb.sleeping
-                              ? "Keyboard is sleeping - press any key, then reopen this page"
-                              : kbCard.kb.battery + "%" + (kbCard.kb.charging ? " · charging" : "")
-                        Badge { text: kbCard.kb.sleeping ? "asleep" : kbCard.kb.battery + "%" }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border
                                 visible: kbCard.kb.present }
@@ -277,7 +347,7 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "Status"; subtitle: "Live device state"
-                        icon: page._ic + "utilities-system-monitor-symbolic"
+                        icon: page._ic + "dashboard"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     GridLayout {

@@ -19,18 +19,26 @@ Item {
     activeFocusOnTab: true
     Keys.onSpacePressed: _next()
     Keys.onReturnPressed: _next()
-    function _next() {   // cycle to the next segment
+    Keys.onRightPressed: _next()
+    Keys.onLeftPressed: _prev()
+    function _next() {
         if (_count === 0) return
         var i = (_indexOf(currentId) + 1) % _count
+        currentId = model[i].id
+        activated(currentId)
+    }
+    function _prev() {
+        if (_count === 0) return
+        var i = (_indexOf(currentId) + _count - 1) % _count
         currentId = model[i].id
         activated(currentId)
     }
 
     Rectangle {
         anchors.fill: parent; radius: height / 2
-        color: Theme.surfaceInset; border.width: 1
-        border.color: seg.activeFocus ? Theme.accent : Theme.border
+        color: Theme.surfaceInset; border.width: 1; border.color: Theme.border
     }
+    FocusHalo { active: seg.activeFocus; radius: seg.height / 2 }
     Rectangle {
         id: pill
         width: seg._segW - 4; height: parent.height - 6
@@ -38,6 +46,10 @@ Item {
         x: 2 + seg._indexOf(seg.currentId) * seg._segW
         color: Theme.accent
         Behavior on x { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
+        Rectangle {
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            anchors.margins: 1; height: 1; radius: 1; color: "#33FFFFFF"
+        }
     }
     Row {
         anchors.fill: parent
@@ -47,7 +59,7 @@ Item {
                 width: seg._segW; height: seg.height
                 required property var modelData
                 required property int index
-                Rectangle {   // hover wash on non-current segments
+                Rectangle {
                     anchors.fill: parent; anchors.margins: 3
                     radius: height / 2; color: "#12FFFFFF"
                     visible: segMa.containsMouse && seg.currentId !== modelData.id

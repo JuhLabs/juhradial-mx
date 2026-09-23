@@ -1,8 +1,11 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Shapes
 import "../components"
 
-// Landing dashboard: device hero, live stats, status badges, system info.
+// Landing dashboard: the device on a lit stage, one instrument strip of live
+// readouts, the radial preview and the button map. No hero-metric tiles, no
+// hover scaling: hover lifts a border, light means state.
 Item {
     id: page
     anchors.fill: parent
@@ -15,8 +18,8 @@ Item {
     function _cap(s) { return s.length ? s.charAt(0).toUpperCase() + s.slice(1) : s }
 
     property var actMap: ({})
-    property string wheelKey: Backend.get("radial.wheel", "azure")
-    property bool mono: Backend.get("radial.monochrome_icons", false)
+    property string wheelKey: Backend.get("radial.wheel", "none")
+    readonly property bool mono: Theme.iconStyle === "mono"
     Component.onCompleted: {
         var a = Backend.buttonActions(), m = {}
         for (var i = 0; i < a.length; i++) m[a[i].id] = a[i].name
@@ -33,7 +36,64 @@ Item {
             page.wheelMode = Backend.get("scroll.mode", "smartshift")
             page.gamingOn = Backend.get("gaming.enabled", false)
             page.flowOn = Backend.get("flow.enabled", false)
-            page.wheelKey = Backend.get("radial.wheel", "azure")
+            page.wheelKey = Backend.get("radial.wheel", "none")
+        }
+    }
+
+    // One readout cell of the instrument strip: icon, mono value, muted label.
+    component Instrument: Item {
+        id: cell
+        property string icon: ""
+        property string value: ""
+        property string label: ""
+        property string toTab: ""
+        property bool live: false
+        property bool last: false
+        Layout.fillWidth: true
+        Layout.preferredHeight: 72
+        Rectangle {
+            anchors.fill: parent; anchors.margins: 6
+            radius: Theme.radiusCtl
+            color: cellMa.containsMouse ? "#12FFFFFF" : "transparent"
+            Behavior on color { ColorAnimation { duration: Theme.dShort } }
+        }
+        Row {
+            anchors.left: parent.left; anchors.leftMargin: 18
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 12
+            Rectangle {
+                width: 34; height: 34; radius: 10
+                anchors.verticalCenter: parent.verticalCenter
+                color: cell.live ? Theme.accentSubtle : "#12FFFFFF"
+                border.width: 1; border.color: cell.live ? Theme.accentFaint : Theme.border
+                ActionIcon {
+                    anchors.centerIn: parent
+                    iconName: cell.icon; px: 18
+                    tint: cell.live ? Theme.accent : Theme.textBody
+                }
+            }
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+                Text {
+                    text: cell.value; color: Theme.textPrimary
+                    font.family: Theme.fontMono; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
+                }
+                Text {
+                    text: cell.label; color: Theme.textMuted
+                    font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                }
+            }
+        }
+        Rectangle {
+            visible: !cell.last
+            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+            width: 1; height: parent.height - 28; color: Theme.border
+        }
+        MouseArea {
+            id: cellMa; anchors.fill: parent; hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: if (cell.toTab !== "") Backend.goTo(cell.toTab)
         }
     }
 
@@ -48,161 +108,121 @@ Item {
             width: parent.width
             spacing: Theme.gap
 
-            // ---- Hero ----
+            // ---- Hero: the device on a lit stage ----
             GlassCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 170
+                Layout.preferredHeight: 176
                 RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.pad
                     spacing: Theme.pad
 
-                    Image {
-                        source: assetsDir + "/devices/mx4_side.png"
-                        sourceSize.width: 1289; sourceSize.height: 829
-                        Layout.preferredHeight: 124
-                        Layout.preferredWidth: 193
-                        fillMode: Image.PreserveAspectFit
-                        smooth: true
+                    Item {
+                        Layout.preferredWidth: 210; Layout.preferredHeight: 134
                         Layout.alignment: Qt.AlignVCenter
+                        // stage: a soft accent pool under the device (light is state:
+                        // it only glows while the daemon is connected)
+                        Shape {
+                            anchors.centerIn: parent
+                            width: 230; height: 90
+                            y: parent.height - 62
+                            opacity: Backend.daemonAvailable ? 1 : 0.35
+                            Behavior on opacity { NumberAnimation { duration: Theme.dLong } }
+                            ShapePath {
+                                strokeWidth: 0
+                                fillGradient: RadialGradient {
+                                    centerX: 115; centerY: 45; centerRadius: 115
+                                    focalX: 115; focalY: 45
+                                    GradientStop { position: 0.0; color: Backend.daemonAvailable ? Theme.accentSubtle : "#20FFFFFF" }
+                                    GradientStop { position: 0.6; color: "#00000000" }
+                                }
+                                startX: 0; startY: 45
+                                PathArc { x: 230; y: 45; radiusX: 115; radiusY: 45 }
+                                PathArc { x: 0; y: 45; radiusX: 115; radiusY: 45 }
+                            }
+                        }
+                        Image {
+                            anchors.centerIn: parent
+                            source: assetsDir + "/devices/mx4_side.png"
+                            sourceSize.width: 1289; sourceSize.height: 829
+                            width: 200; height: 128
+                            fillMode: Image.PreserveAspectFit
+                            smooth: true; asynchronous: true
+                        }
                     }
 
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter
                         spacing: Theme.gapS
-
                         Text {
                             text: Backend.deviceName
                             color: Theme.textPrimary
-                            font.family: Theme.fontUI
-                            font.pixelSize: Theme.fsH2
-                            font.weight: Font.DemiBold
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
+                            font.family: Theme.fontDisplay; font.pixelSize: Theme.fsH1; font.weight: Font.DemiBold
+                            Layout.fillWidth: true; elide: Text.ElideRight
                         }
-                        Badge {
-                            text: Backend.daemonAvailable ? "Connected" : "Daemon offline"
-                            accent: Backend.daemonAvailable
-                            dot: Backend.daemonAvailable
+                        Row {
+                            spacing: Theme.gapS
+                            Badge {
+                                text: Backend.daemonAvailable ? "Connected" : "Daemon offline"
+                                accent: Backend.daemonAvailable
+                                dot: true
+                            }
+                            Badge { visible: !Backend.isGeneric; text: "HID++ " + Backend.deviceMode }
+                            Badge { visible: Backend.numHosts > 1; text: "Host " + (Backend.currentHost + 1) + " of " + Backend.numHosts }
                         }
                         Text {
                             text: Backend.daemonAvailable
                                   ? "Gesture button, thumb wheel and haptics ready."
                                   : "Start the JuhRadial daemon to control this device."
                             color: Theme.textMuted
-                            font.family: Theme.fontUI
-                            font.pixelSize: Theme.fsSmall
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
+                            font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                            Layout.fillWidth: true; elide: Text.ElideRight
                         }
                     }
 
                     BatteryRing {
                         percent: Backend.battery
                         charging: Backend.charging
-                        size: 120
+                        size: 118
                         Layout.alignment: Qt.AlignVCenter
                     }
                 }
             }
 
-            // ---- Live stat tiles (each links to its tab) ----
-            GridLayout {
-                Layout.fillWidth: true
-                columns: 4
-                columnSpacing: Theme.gap
-                rowSpacing: Theme.gap
-
-                component StatCard: GlassCard {
-                    id: statCard
-                    property string toTab: ""
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 96
-                    scale: scMa.containsMouse ? 1.03 : 1.0
-                    Behavior on scale { NumberAnimation { duration: Theme.dShort; easing.type: Easing.OutCubic } }
-                    MouseArea {
-                        id: scMa; anchors.fill: parent; hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: if (statCard.toTab !== "") Backend.goTo(statCard.toTab)
-                    }
-                }
-
-                StatCard {
-                    toTab: "scroll"
-                    StatTile { anchors.fill: parent; value: Backend.dpi; label: "DPI"; icon: "input-mouse-symbolic" }
-                }
-                StatCard {
-                    toTab: "scroll"
-                    StatTile { anchors.fill: parent; value: page._cap(Backend.wheelMode !== "" ? Backend.wheelMode : page.wheelMode); label: "Wheel mode"; icon: "view-list-symbolic" }
-                }
-                StatCard {
-                    toTab: "themes"
-                    // theme tile: wallpaper thumbnail + accent + name
-                    Column {
-                        anchors.centerIn: parent; spacing: 7
-                        Rectangle {
-                            width: 64; height: 38; radius: 9; clip: true
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            color: Theme.surfaceSolid
-                            border.color: Theme.border; border.width: 1
-                            Image {
-                                anchors.fill: parent
-                                source: Theme.wallpaper
-                                sourceSize.width: 256; sourceSize.height: 152
-                                asynchronous: true
-                                fillMode: Image.PreserveAspectCrop; smooth: true
-                            }
-                            Rectangle {
-                                anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 4
-                                width: 12; height: 12; radius: 6; color: Theme.accent
-                                border.color: "#55FFFFFF"; border.width: 1
-                            }
-                        }
-                        Text {
-                            text: Theme.name; color: Theme.textPrimary
-                            font.family: Theme.fontUI; font.pixelSize: Theme.fsBody; font.weight: Font.DemiBold
-                            anchors.horizontalCenter: parent.horizontalCenter
-                        }
-                    }
-                }
-                StatCard {
-                    toTab: "haptics"
-                    StatTile { anchors.fill: parent; value: Backend.hapticsEnabled ? "On" : "Off"; label: "Haptics"; icon: "audio-volume-medium-symbolic" }
-                }
-            }
-
-            // ---- At a glance ----
+            // ---- Instrument strip: every live readout in one card ----
             GlassCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: glanceCol.implicitHeight + Theme.padCard * 2
-                Column {
-                    id: glanceCol
-                    anchors.fill: parent; anchors.margins: Theme.padCard
-                    spacing: Theme.gapS
-                    CardHeader {
-                        width: parent.width
-                        title: "At a glance"; subtitle: "Current mode and paired hosts"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/view-grid-symbolic"
+                Layout.preferredHeight: 74
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    spacing: 0
+                    Instrument { icon: "input-mouse-symbolic"; value: Backend.dpi; label: "DPI"; toTab: "scroll" }
+                    Instrument {
+                        icon: "view-list-symbolic"
+                        value: page._cap(Backend.wheelMode !== "" ? Backend.wheelMode : page.wheelMode)
+                        label: "Wheel mode"; toTab: "scroll"
                     }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    Flow {
-                        width: parent.width
-                        spacing: Theme.gapS
-                        topPadding: 2
-                        Badge {
-                            text: "Easy-Switch host " + (Backend.currentHost + 1)
-                            dot: true
-                        }
-                        Badge { text: Backend.numHosts + " paired hosts" }
-                        Badge {
-                            text: "Gaming " + (page.gamingOn ? "on" : "off")
-                            accent: page.gamingOn; dot: page.gamingOn
-                        }
-                        Badge {
-                            text: "Flow " + (page.flowOn ? "on" : "off")
-                            accent: page.flowOn; dot: page.flowOn
-                        }
+                    Instrument {
+                        icon: "audio-volume-medium-symbolic"
+                        value: Backend.hapticsEnabled ? "On" : "Off"; label: "Haptics"
+                        live: Backend.hapticsEnabled; toTab: "haptics"
+                    }
+                    Instrument {
+                        icon: "easy-switch"
+                        value: (Backend.currentHost + 1) + " / " + Math.max(1, Backend.numHosts)
+                        label: "Easy-Switch host"; live: Backend.numHosts > 1; toTab: "easyswitch"
+                    }
+                    Instrument {
+                        icon: "applications-development-symbolic"
+                        value: page.gamingOn ? "On" : "Off"; label: "Gaming mode"
+                        live: page.gamingOn; toTab: "gaming"
+                    }
+                    Instrument {
+                        icon: "view-dual-symbolic"
+                        value: page.flowOn ? "On" : "Off"; label: "Flow"
+                        live: page.flowOn; toTab: "flow"; last: true
                     }
                 }
             }
@@ -214,18 +234,16 @@ Item {
 
                 GlassCard {
                     id: radialCard
-                    Layout.preferredWidth: 300
-                    Layout.preferredHeight: 300
-                    scale: radMa.containsMouse ? 1.015 : 1.0
-                    Behavior on scale { NumberAnimation { duration: Theme.dShort; easing.type: Easing.OutCubic } }
+                    Layout.preferredWidth: 310
+                    Layout.preferredHeight: 312
                     Column {
                         anchors.fill: parent; anchors.margins: Theme.padCard
                         spacing: Theme.gapS
                         CardHeader {
                             width: parent.width
                             title: "Radial menu"; subtitle: "Your eight thumb actions"
-                            icon: "image://icon/" + Theme.accent.toString().slice(1) + "/view-grid-symbolic"
-                            Badge { text: "Edit" }
+                            icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/view-grid-symbolic"
+                            Badge { text: "Edit"; accent: radMa.containsMouse }
                         }
                         Item {
                             id: ringBox
@@ -236,9 +254,15 @@ Item {
                                 anchors.centerIn: parent
                                 width: Math.min(parent.width, parent.height)
                                 height: width
-                                source: Theme.wheelImage(page.wheelKey)
+                                visible: page.wheelKey !== "none"
+                                source: page.wheelKey !== "none" ? Theme.wheelImage(page.wheelKey) : ""
                                 sourceSize.width: 512; sourceSize.height: 512
                                 fillMode: Image.PreserveAspectFit; smooth: true
+                            }
+                            ClassicWheel {
+                                anchors.centerIn: parent
+                                visible: page.wheelKey === "none"
+                                size: Math.min(parent.width, parent.height)
                             }
                             Repeater {
                                 model: Slices
@@ -247,8 +271,8 @@ Item {
                                     required property string icon
                                     required property string hex
                                     required property string actionId
-                                    property string btnImg: page.mono ? "" : Theme.sliceButton(actionId)
-                                    width: 34; height: 34
+                                    property string btnImg: page.mono ? "" : (Theme.iconStyle, Theme.sliceButton(actionId))
+                                    width: 36; height: 36
                                     x: ringBox.width / 2 + ringBox.rr * Math.cos((index * 45 - 90) * Math.PI / 180) - width / 2
                                     y: ringBox.height / 2 + ringBox.rr * Math.sin((index * 45 - 90) * Math.PI / 180) - height / 2
                                     Image {
@@ -256,9 +280,15 @@ Item {
                                         source: btnImg; sourceSize.width: 128; sourceSize.height: 128
                                         smooth: true; fillMode: Image.PreserveAspectFit
                                     }
+                                    Rectangle {
+                                        anchors.fill: parent; radius: width / 2
+                                        visible: btnImg === ""
+                                        color: "#1B1F28"; border.width: 1.5
+                                        border.color: page.mono ? Theme.borderStrong : hex
+                                    }
                                     ActionIcon {
                                         anchors.centerIn: parent; visible: btnImg === ""
-                                        iconName: icon; tint: hex; px: 18
+                                        iconName: icon; tint: page.mono ? Theme.textBody : hex; px: 18
                                     }
                                 }
                             }
@@ -274,26 +304,30 @@ Item {
                 GlassCard {
                     id: bmapCard
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 300
-                    scale: bmMa.containsMouse ? 1.012 : 1.0
-                    Behavior on scale { NumberAnimation { duration: Theme.dShort; easing.type: Easing.OutCubic } }
+                    Layout.preferredHeight: 312
                     Column {
                         anchors.fill: parent; anchors.margins: Theme.padCard
                         spacing: 2
                         CardHeader {
                             width: parent.width
                             title: "Button map"; subtitle: "Current physical button actions"
-                            icon: "image://icon/" + Theme.accent.toString().slice(1) + "/input-mouse-symbolic"
-                            Badge { text: "Edit" }
+                            icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/input-mouse-symbolic"
+                            Badge { text: "Edit"; accent: bmMa.containsMouse }
                         }
                         Item { width: 1; height: 4 }
                         Rectangle { width: parent.width; height: 1; color: Theme.border }
                         Repeater {
                             model: Backend.buttonSlots()
                             Item {
+                                id: mapRow
                                 required property var modelData
                                 required property int index
                                 width: parent.width; height: 32
+                                Rectangle {
+                                    anchors.fill: parent; anchors.leftMargin: -8; anchors.rightMargin: -8
+                                    radius: 8; color: rowHov.hovered ? "#0CFFFFFF" : "transparent"
+                                }
+                                HoverHandler { id: rowHov }
                                 Text {
                                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                                     text: modelData.name; color: Theme.textBody
@@ -302,6 +336,7 @@ Item {
                                 Rectangle {
                                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                                     radius: 7; color: Theme.accentSubtle
+                                    border.width: 1; border.color: Theme.accentFaint
                                     implicitWidth: actT.implicitWidth + 18; height: 24
                                     Text {
                                         id: actT; anchors.centerIn: parent
@@ -328,35 +363,33 @@ Item {
             // ---- System ----
             GlassCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: sysCol.implicitHeight + Theme.padCard * 2
-                Column {
-                    id: sysCol
-                    anchors.fill: parent; anchors.margins: Theme.padCard
-                    spacing: Theme.gapS
-                    SectionHeader { text: "System" }
-                    Flow {
-                        width: parent.width
-                        spacing: Theme.gapL
-                        Repeater {
-                            model: [
-                                { l: "Daemon", v: Backend.daemonVersion },
-                                { l: "App", v: Backend.appVersion },
-                                { l: "Device mode", v: Backend.deviceMode }
-                            ]
-                            Row {
-                                required property var modelData
-                                spacing: 6
-                                Text {
-                                    text: modelData.l; color: Theme.textMuted
-                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                                Text {
-                                    text: modelData.v; color: Theme.textBody
-                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                                    font.weight: Font.DemiBold
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
+                Layout.preferredHeight: sysRow.implicitHeight + Theme.padCard * 2
+                Flow {
+                    id: sysRow
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.margins: Theme.padCard
+                    spacing: Theme.gapL
+                    Repeater {
+                        model: [
+                            { l: "Daemon", v: Backend.daemonVersion },
+                            { l: "App", v: Backend.appVersion },
+                            { l: "Device mode", v: Backend.deviceMode },
+                            { l: "Theme", v: Theme.name }
+                        ]
+                        Row {
+                            required property var modelData
+                            spacing: 6
+                            Text {
+                                text: modelData.l; color: Theme.textMuted
+                                font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                text: modelData.v; color: Theme.textBody
+                                font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall
+                                font.weight: Font.DemiBold
+                                anchors.verticalCenter: parent.verticalCenter
                             }
                         }
                     }

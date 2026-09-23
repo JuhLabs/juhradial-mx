@@ -1,16 +1,16 @@
 import QtQuick
 import QtQuick.Effects
 
-// Sidebar nav row. Brand rule "light is state": the active row lights up (a
-// bloomed accent filament + a soft glow behind its icon), inactive rows stay
-// quiet. Machined depth on the active pill via a hairline top sheen.
+// Sidebar nav row. "Light is state": only the active row carries accent (the
+// filament and its bloom); inactive rows are graphite and white. Hover is a
+// quiet wash, never a glow.
 Item {
     id: it
     property string label
-    property string icon: ""
+    property string icon: ""        // nav icon name (assets/icons/nav/<name>.svg)
     property bool active: false
     signal clicked
-    height: 48
+    height: 44
     anchors.left: parent ? parent.left : undefined
     anchors.right: parent ? parent.right : undefined
 
@@ -18,79 +18,54 @@ Item {
     Keys.onSpacePressed: it.clicked()
     Keys.onReturnPressed: it.clicked()
 
-    // ---- pill background ----
     Rectangle {
         id: pill
         anchors.fill: parent
         anchors.leftMargin: 8; anchors.rightMargin: 8
-        anchors.topMargin: 3; anchors.bottomMargin: 3
+        anchors.topMargin: 2; anchors.bottomMargin: 2
         radius: Theme.radiusCtl
-        color: it.active ? Theme.accentSubtle : (ma.containsMouse ? "#12FFFFFF" : "transparent")
-        border.width: (it.active || it.activeFocus) ? 1 : 0
-        border.color: it.activeFocus ? Theme.accent
-                      : (it.active ? Theme.accentFaint : "transparent")
-        Behavior on color { ColorAnimation { duration: 130 } }
-
-        // machined top-edge sheen, only on the lit row
-        Rectangle {
-            anchors.top: parent.top; anchors.topMargin: 1
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: parent.width - 20; height: 1; radius: 1
-            color: "#18FFFFFF"
-            opacity: it.active ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: 160 } }
-        }
+        color: it.active ? Theme.accentSubtle : (ma.containsMouse ? "#0FFFFFFF" : "transparent")
+        border.width: it.active ? 1 : 0
+        border.color: Theme.accentFaint
+        Behavior on color { ColorAnimation { duration: Theme.dShort } }
+        FocusHalo { active: it.activeFocus; radius: Theme.radiusCtl; margin: 2 }
     }
 
-    // ---- accent filament (the "power LED"): crisp bar + soft bloom ----
+    // accent filament: crisp bar + bloom, the row's power LED
     Item {
         x: 10; width: 3
-        height: parent.height - 24
+        height: parent.height - 20
         anchors.verticalCenter: parent.verticalCenter
         opacity: it.active ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-        Rectangle {   // bloom
-            anchors.centerIn: parent
-            width: 9; height: parent.height + 10; radius: 5
-            color: Theme.accent; opacity: 0.30
+        Behavior on opacity { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
+        RectangularShadow {
+            anchors.fill: parent
+            radius: 1.5; blur: 10; spread: 1
+            color: Theme.accentGlow
         }
-        Rectangle {   // crisp core
-            anchors.fill: parent; radius: 2; color: Theme.accent
-        }
+        Rectangle { anchors.fill: parent; radius: 1.5; color: Theme.accent }
     }
 
-    // ---- icon (+ glow when active) ----
-    Item {
-        id: iconWrap
-        width: 22; height: 22; x: 26
+    Image {
+        id: ico
+        x: 26; width: 20; height: 20
         anchors.verticalCenter: parent.verticalCenter
-
-        MultiEffect {   // blurred copy behind = soft accent glow, active only
-            anchors.fill: ico
-            source: ico
-            visible: it.active
-            blurEnabled: true; blur: 1.0; blurMax: 22
-            opacity: 0.85
-        }
-        Image {
-            id: ico
-            source: it.icon
-            visible: it.icon !== ""
-            sourceSize.width: 44; sourceSize.height: 44
-            anchors.fill: parent; smooth: true
-            opacity: it.active ? 1.0 : (ma.containsMouse ? 0.9 : 0.5)
-            Behavior on opacity { NumberAnimation { duration: 130 } }
-        }
+        visible: it.icon !== ""
+        source: it.icon !== ""
+                ? "image://icon/" + (it.active ? "FFFFFF" : (ma.containsMouse ? "E8EAED" : "9AA3B2")) + "/" + Theme.iconStyle + "/" + it.icon
+                : ""
+        sourceSize.width: 40; sourceSize.height: 40
+        smooth: true
     }
 
     Text {
         anchors.verticalCenter: parent.verticalCenter
-        x: it.icon !== "" ? 60 : 28
+        x: it.icon !== "" ? 58 : 28
         text: it.label
         font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
         font.weight: it.active ? Font.DemiBold : Font.Medium
-        color: it.active ? Theme.textPrimary : Theme.textMuted
-        Behavior on color { ColorAnimation { duration: 130 } }
+        color: it.active ? Theme.textPrimary : (ma.containsMouse ? Theme.textBody : Theme.textMuted)
+        Behavior on color { ColorAnimation { duration: Theme.dShort } }
     }
 
     MouseArea {

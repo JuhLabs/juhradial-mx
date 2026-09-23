@@ -41,13 +41,17 @@ B.ComboBox {
             c.beginPath(); c.moveTo(1, 1); c.lineTo(width / 2, height - 1); c.lineTo(width - 1, 1); c.stroke()
         }
     }
-    background: Rectangle {
-        radius: Theme.radiusCtl
-        color: control.pressed ? "#26FFFFFF" : (control.hovered ? "#1CFFFFFF" : "#14FFFFFF")
-        border.width: 1
-        border.color: control.activeFocus || control.popup.visible ? Theme.accent : Theme.border
-        Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
-        Behavior on color { ColorAnimation { duration: Theme.dShort } }
+    background: Item {
+        Rectangle {
+            anchors.fill: parent
+            radius: Theme.radiusCtl
+            color: control.pressed ? "#26FFFFFF" : (control.hovered ? "#1AFFFFFF" : "#12FFFFFF")
+            border.width: 1
+            border.color: control.popup.visible ? Theme.accent : (control.hovered ? Theme.borderStrong : Theme.border)
+            Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
+            Behavior on color { ColorAnimation { duration: Theme.dShort } }
+        }
+        FocusHalo { active: control.activeFocus && !control.popup.visible; radius: Theme.radiusCtl }
     }
     popup: B.Popup {
         y: control.height + 6
@@ -64,6 +68,11 @@ B.ComboBox {
         background: Rectangle {
             radius: 12; color: Theme.surfaceGlassHi
             border.color: Theme.borderStrong; border.width: 1
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                anchors.leftMargin: 12; anchors.rightMargin: 12; anchors.topMargin: 1
+                height: 1; color: Theme.borderLit
+            }
         }
         contentItem: ListView {
             clip: true

@@ -1,6 +1,7 @@
 import QtQuick
 
-// Accent-filled (default) or ghost button. Emits clicked().
+// Accent-filled (default), ghost or danger button. One filled button per view.
+// Hover brightens, press darkens; nothing scales.
 Item {
     id: btn
     property string text: ""
@@ -20,21 +21,20 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.radiusCtl
-        color: btn.ghost ? ((ma.containsMouse && btn.enabled) ? "#1CFFFFFF" : "transparent")
+        color: btn.ghost ? ((ma.pressed && btn.enabled) ? "#26FFFFFF"
+                            : ((ma.containsMouse && btn.enabled) ? "#1AFFFFFF" : "#0EFFFFFF"))
                          : ((ma.pressed && btn.enabled) ? Qt.darker(btn._base, 1.12)
                             : ((ma.containsMouse && btn.enabled) ? Qt.lighter(btn._base, 1.08) : btn._base))
-        border.width: btn.ghost ? 1 : 0
-        border.color: Theme.borderStrong
+        border.width: 1
+        border.color: btn.ghost ? (ma.containsMouse ? Theme.borderStrong : Theme.border) : "transparent"
         Behavior on color { ColorAnimation { duration: Theme.dShort } }
-        scale: ma.pressed && btn.enabled ? 0.97 : 1.0
-        Behavior on scale { NumberAnimation { duration: Theme.dShort; easing.type: Easing.OutCubic } }
+        Rectangle {   // lit top edge on the filled button
+            visible: !btn.ghost
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            anchors.margins: 1; height: 1; radius: 1; color: "#33FFFFFF"
+        }
     }
-    Rectangle {   // focus ring
-        anchors.fill: parent; anchors.margins: -3
-        radius: Theme.radiusCtl + 3; color: "transparent"
-        border.color: Theme.accent; border.width: 1
-        visible: btn.activeFocus
-    }
+    FocusHalo { active: btn.activeFocus; radius: Theme.radiusCtl }
     Text {
         id: lbl
         anchors.centerIn: parent

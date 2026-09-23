@@ -29,7 +29,7 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "Appearance"; subtitle: "Theme and menu styling"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/preferences-desktop-theme-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/preferences-desktop-theme-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
@@ -48,10 +48,9 @@ Item {
                                         width: 18; height: 18; radius: 9
                                         color: modelData.accent
                                         border.width: Theme.index === index ? 2 : 1
-                                        border.color: Theme.index === index ? Theme.textPrimary : Theme.border
+                                        border.color: Theme.index === index ? Theme.textPrimary
+                                                      : (swMa.containsMouse ? "#AAFFFFFF" : Theme.border)
                                         Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
-                                        scale: swMa.containsMouse || Theme.index === index ? 1.18 : 1.0
-                                        Behavior on scale { NumberAnimation { duration: Theme.dShort; easing.type: Easing.OutCubic } }
                                         MouseArea {
                                             id: swMa; anchors.fill: parent; hoverEnabled: true
                                             cursorShape: Qt.PointingHandCursor
@@ -77,6 +76,29 @@ Item {
                             onToggled: (v) => Backend.set("blur_enabled", v)
                         }
                     }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    SettingRow {
+                        label: "Icon style"
+                        desc: "Line: the 0.4.5 family. Classic: the glossy 0.4.4 buttons. Mono: flat single-colour glyphs"
+                        SegmentedControl {
+                            width: 270
+                            model: [{ id: "line", name: "Line" }, { id: "classic", name: "Classic" }, { id: "mono", name: "Mono" }]
+                            currentId: Theme.iconStyle
+                            onActivated: (id) => {
+                                Theme.setIconStyle(id)
+                                Backend.setLocal("radial.monochrome_icons", id === "mono")
+                            }
+                        }
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    SettingRow {
+                        label: "Reduce transparency"
+                        desc: "Solid cards instead of frosted glass. Easier to read, lighter on the GPU."
+                        Toggle {
+                            checked: Theme.reduceTransparency
+                            onToggled: (v) => Theme.setReduceTransparency(v)
+                        }
+                    }
                 }
             }
 
@@ -91,7 +113,7 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "Radial menu"; subtitle: "How the on-screen wheel looks"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/view-grid-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/view-grid-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
@@ -100,15 +122,6 @@ Item {
                         Toggle {
                             checked: Backend.get("radial.minimal_mode", false)
                             onToggled: (v) => Backend.setLocal("radial.minimal_mode", v)
-                        }
-                    }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    SettingRow {
-                        label: "Monochrome icons"
-                        desc: "Use flat single-colour glyphs instead of the coloured buttons"
-                        Toggle {
-                            checked: Backend.get("radial.monochrome_icons", false)
-                            onToggled: (v) => Backend.setLocal("radial.monochrome_icons", v)
                         }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
@@ -134,7 +147,7 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "Language & desktop"; subtitle: "Interface language and desktop integration"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/preferences-desktop-locale-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/preferences-desktop-locale-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
@@ -146,11 +159,15 @@ Item {
                             onActivated2: (id) => Backend.setLocal("language", id)
                         }
                     }
-                    Text {
-                        leftPadding: 2
-                        text: "Restart the app to fully apply a new language."
-                        color: Theme.textMuted
-                        font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                    Row {
+                        leftPadding: 2; spacing: Theme.gapS
+                        Badge { text: "Restart to apply"; anchors.verticalCenter: parent.verticalCenter }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "A new language is picked up on the next start."
+                            color: Theme.textMuted
+                            font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                        }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
@@ -189,7 +206,7 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "Startup"; subtitle: "Launch behaviour and tray presence"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/system-run-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/system-run-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
@@ -222,31 +239,47 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "About"; subtitle: "Version and reset"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/help-about-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/help-about-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    Column {
+                    Flow {
                         width: parent.width
-                        spacing: 4
+                        spacing: Theme.gapL
+                        Repeater {
+                            model: [
+                                { l: "App", v: Backend.appVersion },
+                                { l: "Daemon", v: Backend.daemonVersion },
+                                { l: "Device mode", v: Backend.deviceMode }
+                            ]
+                            Row {
+                                required property var modelData
+                                spacing: 6
+                                Text {
+                                    text: modelData.l; color: Theme.textMuted
+                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: modelData.v; color: Theme.textBody
+                                    font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall; font.weight: Font.DemiBold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+                        }
+                    }
+                    Row {
+                        spacing: 6
                         Text {
-                            text: "App version " + Backend.appVersion
+                            text: "JuhRadial MX by JuhLabs."
                             color: Theme.textMuted
                             font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                            anchors.verticalCenter: parent.verticalCenter
                         }
                         Text {
-                            text: "Daemon version " + Backend.daemonVersion
+                            text: "Free and open source. If it earns its keep, you can support it."
                             color: Theme.textMuted
                             font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                        }
-                        Text {
-                            text: "Device mode " + Backend.deviceMode
-                            color: Theme.textMuted
-                            font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                        }
-                        Text {
-                            text: "JuhRadial MX by JuhLabs"
-                            color: Theme.textMuted
-                            font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                            anchors.verticalCenter: parent.verticalCenter
                         }
                     }
                     Item {
@@ -289,6 +322,11 @@ Item {
             radius: Theme.radiusCard
             border.width: 1
             border.color: Theme.borderStrong
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                anchors.leftMargin: Theme.radiusCard; anchors.rightMargin: Theme.radiusCard; anchors.topMargin: 1
+                height: 1; color: Theme.borderLit
+            }
         }
 
         contentItem: Column {
@@ -317,7 +355,7 @@ Item {
                 PrimaryButton {
                     text: "Restore"
                     danger: true
-                    onClicked: { Backend.restoreDefaults(); confirmPopup.close() }
+                    onClicked: { Backend.restoreDefaults(); confirmPopup.close(); Backend.notify("Defaults restored", "success") }
                 }
             }
         }

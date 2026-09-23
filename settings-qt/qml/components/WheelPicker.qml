@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 
 // Horizontal gallery of radial-wheel skins (independent of the colour theme).
 // Reads Theme.wheelList(); current = config radial.wheel. selected(key) fires.
@@ -12,6 +13,30 @@ Flickable {
     flickableDirection: Flickable.HorizontalFlick
     boundsBehavior: Flickable.StopAtBounds
     clip: true
+
+    // edge fades: the strip scrolls horizontally
+    Rectangle {
+        parent: wp; z: 2
+        anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
+        width: 40
+        visible: wp.contentWidth > wp.width && wp.contentX < wp.contentWidth - wp.width - 1
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: "#00000000" }
+            GradientStop { position: 1.0; color: "#8C000000" }
+        }
+    }
+    Rectangle {
+        parent: wp; z: 2
+        anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+        width: 40
+        visible: wp.contentX > 1
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: "#8C000000" }
+            GradientStop { position: 1.0; color: "#00000000" }
+        }
+    }
 
     Row {
         id: row
@@ -27,18 +52,28 @@ Flickable {
                     anchors.fill: parent; radius: 14
                     color: cell.sel ? Theme.accentSubtle : "#10FFFFFF"
                     border.width: cell.sel ? 2 : 1
-                    border.color: cell.sel ? Theme.accent : Theme.border
+                    border.color: cell.sel ? Theme.accent : (hov.hovered ? Theme.borderStrong : Theme.border)
                     Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
-                    scale: hov.hovered ? 1.04 : 1.0
-                    Behavior on scale { NumberAnimation { duration: Theme.dShort; easing.type: Easing.OutCubic } }
+                    RectangularShadow {
+                        anchors.fill: parent; radius: 14; blur: 14
+                        color: Theme.accentGlow; z: -1
+                        opacity: cell.sel ? 0.55 : 0
+                        Behavior on opacity { NumberAnimation { duration: Theme.dMed } }
+                    }
                 }
                 Column {
                     anchors.centerIn: parent; spacing: 6
-                    Image {
-                        source: modelData.image
-                        sourceSize.width: 144; sourceSize.height: 144
-                        width: 72; height: 72; smooth: true
+                    Item {
+                        width: 72; height: 72
                         anchors.horizontalCenter: parent.horizontalCenter
+                        Image {
+                            anchors.fill: parent
+                            visible: modelData.image !== ""
+                            source: modelData.image
+                            sourceSize.width: 144; sourceSize.height: 144
+                            smooth: true
+                        }
+                        ClassicWheel { anchors.fill: parent; visible: modelData.image === ""; size: 72 }
                     }
                     Text {
                         text: modelData.name

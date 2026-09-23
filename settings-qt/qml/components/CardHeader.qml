@@ -17,12 +17,20 @@ Item {
         anchors.rightMargin: 12
         anchors.verticalCenter: parent.verticalCenter
         spacing: 12
-        Image {
+        // icon chip: the accent glyph sits in a quiet inset tile
+        Rectangle {
             visible: h.icon !== ""
-            source: h.icon
-            sourceSize.width: 40; sourceSize.height: 40
-            Layout.preferredWidth: 20; Layout.preferredHeight: 20
+            Layout.preferredWidth: 34; Layout.preferredHeight: 34
             Layout.alignment: Qt.AlignVCenter
+            radius: 10
+            color: Theme.accentFaint
+            border.width: 1; border.color: Theme.accentFaint
+            Image {
+                anchors.centerIn: parent
+                source: h.icon
+                sourceSize.width: 40; sourceSize.height: 40
+                width: 19; height: 19; smooth: true
+            }
         }
         ColumnLayout {
             Layout.fillWidth: true; spacing: 2

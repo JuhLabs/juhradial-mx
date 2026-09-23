@@ -80,7 +80,7 @@ B.Popup {
             Item {
                                 width: 30; height: 30
                                 anchors.verticalCenter: parent.verticalCenter
-                                property string btn: Theme.sliceButton(modelData.id || "")
+                                property string btn: (Theme.iconStyle, Theme.sliceButton(modelData.id || ""))
                                 Image {
                                     anchors.fill: parent; visible: parent.btn !== ""
                                     source: parent.btn; sourceSize.width: 96; sourceSize.height: 96

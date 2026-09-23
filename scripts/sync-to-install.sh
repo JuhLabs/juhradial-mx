@@ -62,7 +62,7 @@ cp -r "$DEV_DIR"/overlay/locales/* "$SHARE_DIR/locales/"
 # no tools/ or __pycache__) and the wheel skins the overlay resolves
 rm -rf "$SHARE_DIR/settings-qt"
 mkdir -p "$SHARE_DIR/settings-qt"
-cp "$DEV_DIR/settings-qt/main.py" "$SHARE_DIR/settings-qt/"
+cp "$DEV_DIR/settings-qt/main.py" "$DEV_DIR/settings-qt/VERSION" "$SHARE_DIR/settings-qt/"
 cp -r "$DEV_DIR"/settings-qt/bridge "$DEV_DIR"/settings-qt/qml "$DEV_DIR"/settings-qt/assets "$SHARE_DIR/settings-qt/"
 find "$SHARE_DIR/settings-qt" -type d -name __pycache__ -exec rm -rf {} +
 mkdir -p "$SHARE_DIR/assets"
@@ -84,3 +84,13 @@ cp "$DEV_DIR"/assets/settings-generated/haptics.png "$SHARE_DIR/assets/settings-
 
 echo ""
 echo "Done! Use your keyboard shortcut to start JuhRadial MX."
+
+# The daemon runs as the invoking user's systemd unit; pkill above stopped it,
+# so bring it back under the user manager (not root's) before handing over.
+if [ -n "${SUDO_USER:-}" ]; then
+    echo "=== Restarting juhradialmx-daemon.service for $SUDO_USER ==="
+    sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "$SUDO_USER")" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u "$SUDO_USER")/bus" \
+        systemctl --user restart juhradialmx-daemon.service 2>/dev/null || \
+        echo "(no user unit; start the daemon with juhradial-mx)"
+fi

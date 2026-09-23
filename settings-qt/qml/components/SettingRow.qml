@@ -6,7 +6,7 @@ Item {
     property string desc: ""
     default property alias control: slot.data
     width: parent ? parent.width : 400
-    height: Math.max(52, col.implicitHeight + 22)
+    height: Math.max(56, col.implicitHeight + 24)
 
     // Global-search highlight: when Backend flags this row's label as the search
     // target, scroll it into view and flash an accent wash. Both completion and
@@ -33,6 +33,17 @@ Item {
     }
     Component.onCompleted: Qt.callLater(_maybeTarget)
     Connections { target: Backend; function onSearchTargetChanged() { row._maybeTarget() } }
+
+    // Quiet hover wash so the eye finds the row it is pointing at.
+    Rectangle {
+        anchors.fill: parent
+        anchors.leftMargin: -8; anchors.rightMargin: -8
+        anchors.topMargin: 2; anchors.bottomMargin: 2
+        radius: Theme.radiusCtl
+        color: hoverMa.containsMouse ? "#0AFFFFFF" : "transparent"
+        Behavior on color { ColorAnimation { duration: Theme.dShort } }
+    }
+    MouseArea { id: hoverMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
 
     Rectangle {
         id: hi

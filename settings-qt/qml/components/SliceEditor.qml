@@ -56,14 +56,14 @@ B.Popup {
                 anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; spacing: 12
                 Item {
                     width: 38; height: 38; anchors.verticalCenter: parent.verticalCenter
-                    property string btn: Theme.sliceButton(ed.d.actionId || "")
+                    property string btn: (Theme.iconStyle, Theme.sliceButton(ed.d.actionId || ""))
                     Image {
                         anchors.fill: parent; visible: parent.btn !== ""
                         source: parent.btn; sourceSize.width: 96; sourceSize.height: 96
                         smooth: true; fillMode: Image.PreserveAspectFit
                     }
                     ActionIcon {
-                        anchors.centerIn: parent; visible: (Theme.sliceButton(ed.d.actionId || "")) === ""
+                        anchors.centerIn: parent; visible: ((Theme.iconStyle, Theme.sliceButton(ed.d.actionId || ""))) === ""
                         iconName: ed.d.icon || ""; tint: ed.d.hex || Theme.accent; px: 22
                     }
                 }

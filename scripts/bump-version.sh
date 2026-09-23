@@ -11,6 +11,7 @@
 #   flake.nix                                  version = "..." (both packages)
 #   README.md                                  version badge
 #   .github/SECURITY.md                        "Current release" row
+#   settings-qt/VERSION                        the Qt settings app's own version string
 #
 # CHANGELOG.md is deliberately not touched: renaming [Unreleased] to the
 # version heading is a release-time editorial step.
@@ -39,6 +40,7 @@ sed -i "s/^pkgver=.*/pkgver=$NEW/" packaging/arch/PKGBUILD
 sed -i "s/^Version:\([[:space:]]*\).*/Version:\1$NEW/" packaging/rpm/juhradial-mx.spec
 sed -i "s/version = \"[0-9.]*\";/version = \"$NEW\";/g" flake.nix
 sed -i "s#img.shields.io/badge/version-[0-9.]*-cyan.svg\" alt=\"Version [0-9.]*\"#img.shields.io/badge/version-$NEW-cyan.svg\" alt=\"Version $NEW\"#" README.md
+printf '%s\n' "$NEW" > settings-qt/VERSION
 
 # SECURITY.md: the previous "Current release" row loses the label, the new
 # version is inserted as the current one right under the table header.

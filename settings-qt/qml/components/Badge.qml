@@ -14,9 +14,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: height / 2
-        color: Qt.rgba(b.tint.r, b.tint.g, b.tint.b, 0.14)
+        color: Qt.rgba(b.tint.r, b.tint.g, b.tint.b, b.accent ? 0.16 : 0.10)
         border.width: 1
-        border.color: Qt.rgba(b.tint.r, b.tint.g, b.tint.b, 0.45)
+        border.color: Qt.rgba(b.tint.r, b.tint.g, b.tint.b, b.accent ? 0.5 : 0.3)
     }
     Row {
         id: row

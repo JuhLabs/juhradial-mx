@@ -659,7 +659,7 @@ install_files() {
     if [ -d settings-qt ]; then
         sudo rm -rf /usr/share/juhradial/settings-qt
         sudo mkdir -p /usr/share/juhradial/settings-qt
-        sudo cp settings-qt/main.py /usr/share/juhradial/settings-qt/
+        sudo cp settings-qt/main.py settings-qt/VERSION /usr/share/juhradial/settings-qt/
         sudo cp -r settings-qt/bridge settings-qt/qml settings-qt/assets /usr/share/juhradial/settings-qt/
         sudo find /usr/share/juhradial/settings-qt -type d -name __pycache__ -exec rm -rf {} +
         # The overlay resolves wheel skins under /usr/share/juhradial/assets/wheels

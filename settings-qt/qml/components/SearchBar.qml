@@ -16,6 +16,8 @@ Item {
 
     Component.onCompleted: _all = Backend.searchIndex()
 
+    function focusInput() { field.forceActiveFocus(); field.selectAll() }
+
     function _score(e, q) {
         var lbl = (e.label || "").toLowerCase()
         var hay = (lbl + " " + (e.section || "") + " " + (e.tab || "") + " "
@@ -73,7 +75,7 @@ Item {
 
         Image {
             id: glass
-            source: "image://icon/" + (field.activeFocus ? Theme.accent.toString().slice(1) : "9AA3B2") + "/system-search-symbolic"
+            source: "image://icon/" + (field.activeFocus ? Theme.accent.toString().slice(1) : "9AA3B2") + "/" + Theme.iconStyle + "/system-search-symbolic"
             sourceSize.width: 32; sourceSize.height: 32
             width: 16; height: 16; smooth: true
             anchors.left: parent.left; anchors.leftMargin: 12
@@ -113,7 +115,7 @@ Item {
             visible: field.text.length > 0
             Image {
                 anchors.centerIn: parent
-                source: "image://icon/9AA3B2/edit-clear-symbolic"
+                source: "image://icon/9AA3B2/" + Theme.iconStyle + "/edit-clear-symbolic"
                 sourceSize.width: 28; sourceSize.height: 28
                 width: 15; height: 15; smooth: true
                 opacity: clearMa.containsMouse ? 1.0 : 0.7

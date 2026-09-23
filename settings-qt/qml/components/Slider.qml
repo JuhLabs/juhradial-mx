@@ -2,6 +2,7 @@ import QtQuick
 
 // Continuous slider. `value` is real in [from,to]. Emits moved() live while
 // dragging and committed() once on release (throttle D-Bus / hardware writes).
+// The readout is mono: "mono means numbers".
 Item {
     id: s
     property real from: 0
@@ -12,7 +13,7 @@ Item {
     signal moved(real v)
     signal committed(real v)
 
-    width: 220; height: 24
+    width: 220; height: 26
     readonly property real _frac: (to > from) ? (value - from) / (to - from) : 0
 
     activeFocusOnTab: true
@@ -24,34 +25,30 @@ Item {
         moved(value); committed(value)
     }
 
-    Rectangle {   // focus ring
-        anchors.fill: parent; anchors.margins: -4
-        radius: Theme.radiusCtl; color: "transparent"
-        border.color: Theme.accent; border.width: 1
-        visible: s.activeFocus
-    }
     Rectangle {
         id: track
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
-        width: s.showValue ? parent.width - valLbl.width - 12 : parent.width
-        height: 5; radius: 3; color: "#26FFFFFF"
+        width: s.showValue ? parent.width - valLbl.width - 14 : parent.width
+        height: 6; radius: 3; color: "#26FFFFFF"
+        border.width: 1; border.color: "#0AFFFFFF"
     }
     Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: track.left
-        height: 5; radius: 3; width: track.width * s._frac
+        height: 6; radius: 3; width: Math.max(6, track.width * s._frac)
         color: Theme.accent
         Behavior on width { enabled: !ma.pressed; NumberAnimation { duration: 90 } }
     }
     Rectangle {
         id: knob
-        width: ma.pressed ? 20 : 17; height: width; radius: width / 2
+        width: ma.pressed ? 20 : 18; height: width; radius: width / 2
         color: "white"; border.color: Theme.accent; border.width: 2
         anchors.verticalCenter: parent.verticalCenter
         x: track.x + (track.width - width) * s._frac
         Behavior on width { NumberAnimation { duration: 90 } }
         Behavior on x { enabled: !ma.pressed; NumberAnimation { duration: 90 } }
+        FocusHalo { active: s.activeFocus; radius: knob.width / 2; margin: 3 }
     }
     Text {
         id: valLbl
@@ -59,9 +56,9 @@ Item {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         text: Math.round(s.value) + s.suffix
-        color: Theme.textBody; font.family: Theme.fontUI
+        color: Theme.textBody; font.family: Theme.fontMono
         font.pixelSize: Theme.fsSmall; font.weight: Font.Medium
-        width: visible ? Math.max(34, implicitWidth) : 0
+        width: visible ? Math.max(38, implicitWidth) : 0
         horizontalAlignment: Text.AlignRight
     }
     MouseArea {

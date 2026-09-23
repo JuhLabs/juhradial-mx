@@ -28,7 +28,7 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "Pointer"; subtitle: "Tracking speed (DPI) and acceleration"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/input-mouse-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/input-mouse-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
@@ -89,7 +89,7 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "Scroll wheel"; subtitle: "MagSpeed ratchet, SmartShift and direction"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/view-list-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/scroll"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
@@ -157,7 +157,7 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: "Thumb wheel"; subtitle: "The side wheel under your thumb"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/media-seek-forward-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/media-seek-forward-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {

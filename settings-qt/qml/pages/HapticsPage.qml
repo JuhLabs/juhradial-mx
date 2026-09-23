@@ -36,7 +36,7 @@ Item {
                         width: parent.width
                         title: "Haptic feedback"
                         subtitle: "Vibration on menu open, slice change and confirm"
-                        icon: "image://icon/" + root._accent + "/audio-volume-medium-symbolic"
+                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/haptics"
                         Toggle {
                             checked: Backend.get("haptics.enabled", true)
                             onToggled: (v) => { Backend.set("haptics.enabled", v); root.masterOn = v }
@@ -75,7 +75,7 @@ Item {
                         width: parent.width
                         title: "Feedback patterns"
                         subtitle: "A distinct vibration for each menu event"
-                        icon: "image://icon/" + root._accent + "/view-list-symbolic"
+                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/view-list-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
@@ -84,7 +84,7 @@ Item {
                             spacing: Theme.gapS
                             IconButton {
                                 anchors.verticalCenter: parent.verticalCenter
-                                icon: "media-playback-start-symbolic"
+                                icon: "media-playback-start-symbolic"; tint: Theme.accent
                                 onClicked: Backend.testHaptic(cbMenu.currentId)
                             }
                             ComboBox {
@@ -102,7 +102,7 @@ Item {
                             spacing: Theme.gapS
                             IconButton {
                                 anchors.verticalCenter: parent.verticalCenter
-                                icon: "media-playback-start-symbolic"
+                                icon: "media-playback-start-symbolic"; tint: Theme.accent
                                 onClicked: Backend.testHaptic(cbSlice.currentId)
                             }
                             ComboBox {
@@ -120,7 +120,7 @@ Item {
                             spacing: Theme.gapS
                             IconButton {
                                 anchors.verticalCenter: parent.verticalCenter
-                                icon: "media-playback-start-symbolic"
+                                icon: "media-playback-start-symbolic"; tint: Theme.accent
                                 onClicked: Backend.testHaptic(cbConfirm.currentId)
                             }
                             ComboBox {
@@ -138,7 +138,7 @@ Item {
                             spacing: Theme.gapS
                             IconButton {
                                 anchors.verticalCenter: parent.verticalCenter
-                                icon: "media-playback-start-symbolic"
+                                icon: "media-playback-start-symbolic"; tint: Theme.accent
                                 onClicked: Backend.testHaptic(cbInvalid.currentId)
                             }
                             ComboBox {
@@ -166,7 +166,7 @@ Item {
                         width: parent.width
                         title: "Default pattern"
                         subtitle: "Used for any event without its own pattern"
-                        icon: "image://icon/" + root._accent + "/starred-symbolic"
+                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/starred-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {

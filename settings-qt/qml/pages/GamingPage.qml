@@ -57,46 +57,40 @@ Item {
                     id: masterCol
                     anchors.fill: parent; anchors.margins: Theme.padCard
                     spacing: Theme.gapS
-                    Item {
+                    CardHeader {
                         width: parent.width
-                        height: Math.max(90, heroRow.implicitHeight)
-                        RowLayout {
-                            id: heroRow
-                            anchors.left: parent.left; anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: Theme.pad
-                            Image {
-                                source: assetsDir + "/spots/spot_gaming.png"
-                                sourceSize.width: 256; sourceSize.height: 256
-                                Layout.preferredWidth: 90; Layout.preferredHeight: 90
-                                fillMode: Image.PreserveAspectFit
-                                smooth: true
-                                Layout.alignment: Qt.AlignVCenter
-                            }
-                            ColumnLayout {
+                        title: "Gaming mode"
+                        subtitle: "Hide the radial overlay and flick between DPI profiles mid-game"
+                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/gaming"
+                        Toggle {
+                            checked: Backend.gamingMode
+                            onToggled: (v) => Backend.setGamingMode(v)
+                        }
+                    }
+                    // off-state intro: the spot lives here only while the mode is off
+                    Rectangle { width: parent.width; height: 1; color: Theme.border; visible: !Backend.gamingMode }
+                    RowLayout {
+                        width: parent.width
+                        visible: !Backend.gamingMode
+                        spacing: Theme.pad
+                        SpotImage { name: "spot_gaming"; size: 84; Layout.alignment: Qt.AlignVCenter }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            spacing: 4
+                            Text {
                                 Layout.fillWidth: true
-                                Layout.alignment: Qt.AlignVCenter
-                                spacing: 4
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: "Gaming mode"
-                                    color: Theme.textPrimary
-                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsH2
-                                    font.weight: Font.DemiBold
-                                    elide: Text.ElideRight
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: "Hide the radial overlay and flick between DPI profiles mid-game."
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                                    wrapMode: Text.WordWrap
-                                }
+                                text: "Precision, Normal and Fast at a flick of the mode-shift button."
+                                color: Theme.textBody
+                                font.family: Theme.fontUI; font.pixelSize: Theme.fsBody; font.weight: Font.Medium
+                                wrapMode: Text.WordWrap
                             }
-                            Toggle {
-                                Layout.alignment: Qt.AlignVCenter
-                                checked: Backend.gamingMode
-                                onToggled: (v) => Backend.setGamingMode(v)
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Turn gaming mode on to keep the overlay out of fullscreen games."
+                                color: Theme.textMuted
+                                font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                                wrapMode: Text.WordWrap
                             }
                         }
                     }
@@ -124,7 +118,7 @@ Item {
                         width: parent.width
                         title: "DPI profiles"
                         subtitle: "Three speeds you can flick between mid-game"
-                        icon: "image://icon/" + root._accent + "/input-mouse-symbolic"
+                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/input-mouse-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
 
@@ -135,13 +129,13 @@ Item {
                             required property var modelData
                             required property int index
                             width: parent.width
-                            height: 54
+                            height: 56
                             radius: Theme.radiusCtl
                             property bool active: root.activeIdx === index
                             color: active ? Theme.accentSubtle
                                           : (rowMa.containsMouse ? "#0CFFFFFF" : "transparent")
                             border.width: 1
-                            border.color: active ? Theme.accent : "transparent"
+                            border.color: active ? Theme.accentFaint : "transparent"
                             Behavior on color { ColorAnimation { duration: Theme.dShort } }
                             Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
 
@@ -166,31 +160,15 @@ Item {
                                     border.width: 1; border.color: Theme.border
                                 }
 
-                                // Editable profile name, styled like the ActionPicker search field.
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 34
+                                // Editable profile name
+                                InputField {
+                                    id: nameField
+                                    Layout.preferredWidth: 220
                                     Layout.alignment: Qt.AlignVCenter
-                                    radius: Theme.radiusCtl
-                                    color: "#14FFFFFF"
-                                    border.width: 1
-                                    border.color: nameField.activeFocus ? Theme.accent : Theme.border
-                                    Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
-                                    B.TextField {
-                                        id: nameField
-                                        anchors.fill: parent
-                                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                                        text: profRow.modelData.name
-                                        color: Theme.textBody
-                                        font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
-                                        font.weight: Font.Medium
-                                        verticalAlignment: Text.AlignVCenter
-                                        selectByMouse: true
-                                        background: Item {}
-                                        onEditingFinished: Backend.setGamingProfile(profRow.index, "name", text)
-                                    }
+                                    text: profRow.modelData.name
+                                    onEditingFinished: Backend.setGamingProfile(profRow.index, "name", text)
                                 }
-
+                                Item { Layout.fillWidth: true }
                                 Badge {
                                     Layout.alignment: Qt.AlignVCenter
                                     visible: profRow.active

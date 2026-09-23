@@ -8,8 +8,9 @@ import os
 import sys
 import pathlib
 
-from PyQt6.QtGui import QGuiApplication, QIcon, QPixmap, QPainter, QColor
-from PyQt6.QtCore import QSize, Qt, QObject, pyqtSlot
+from PyQt6.QtGui import QGuiApplication, QIcon, QPixmap, QPainter, QColor, QImage
+from PyQt6.QtCore import QSize, Qt, QObject, QRectF, pyqtSlot
+from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtDBus import QDBus, QDBusConnection, QDBusMessage
 from PyQt6.QtQml import QQmlApplicationEngine
 from PyQt6.QtQuick import QQuickImageProvider
@@ -20,6 +21,11 @@ from bridge.theme import Theme          # noqa: E402
 from bridge.backend import Backend      # noqa: E402
 
 MONO_DIR = HERE / "assets" / "icons" / "mono"
+NAV_DIR = HERE / "assets" / "icons" / "nav"
+ICON_DIRS = (MONO_DIR, NAV_DIR)
+CLASSIC_DIRS = (HERE / "assets" / "icons" / "classic" / "mono",
+                HERE / "assets" / "icons" / "classic" / "nav")
+ICON_STYLES = ("line", "classic", "mono")
 DBUS_SERVICE = "org.kde.juhradialmx.settings"
 
 
@@ -55,34 +61,68 @@ class SingleInstance(QObject):
 class IconProvider(QQuickImageProvider):
     """Resolve icon names for QML, tinted to a requested colour.
 
-    QML usage: image://icon/<hex>/<icon-name>  (hex optional, defaults white).
-    Icons are monochrome and would vanish on the dark UI, so we composite them
-    with the requested colour. The bespoke Phosphor mono set
-    (assets/icons/mono/<name>.png) is preferred over the freedesktop theme for a
-    cohesive line style, then re-tinted by alpha; unknown names fall back to the
-    system icon theme.
+    QML usage: image://icon/<hex>/<style>/<icon-name>  (hex and style optional;
+    white and "line" by default). "classic" resolves the pre-0.4.5 sets under
+    assets/icons/classic first. One line-icon family (24-grid SVG masters in assets/icons/mono and
+    assets/icons/nav) is rendered by QSvgRenderer at the exact requested pixel
+    size, so glyphs stay crisp at every scale factor, then tinted by alpha.
+    Legacy PNG masters and the freedesktop theme remain as fallbacks so every
+    icon name a user config references keeps resolving.
     """
 
     def __init__(self):
         super().__init__(QQuickImageProvider.ImageType.Pixmap)
 
+    @staticmethod
+    def _render_svg(path, w, h):
+        renderer = QSvgRenderer(str(path))
+        if not renderer.isValid():
+            return QPixmap()
+        img = QImage(w, h, QImage.Format.Format_ARGB32_Premultiplied)
+        img.fill(0)
+        p = QPainter(img)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        ds = renderer.defaultSize()
+        if ds.width() > 0 and ds.height() > 0:
+            s = min(w / ds.width(), h / ds.height())
+            rw, rh = ds.width() * s, ds.height() * s
+            renderer.render(p, QRectF((w - rw) / 2, (h - rh) / 2, rw, rh))
+        else:
+            renderer.render(p, QRectF(0, 0, w, h))
+        p.end()
+        return QPixmap.fromImage(img)
+
+    def _base(self, name, w, h, style="line"):
+        dirs = (CLASSIC_DIRS + ICON_DIRS) if style == "classic" else ICON_DIRS
+        for d in dirs:
+            svg = d / (name + ".svg")
+            if svg.exists():
+                pm = self._render_svg(svg, w, h)
+                if not pm.isNull():
+                    return pm
+        for d in dirs:
+            png = d / (name + ".png")
+            if png.exists():
+                return QPixmap(str(png)).scaled(
+                    w, h, Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation)
+        icon = QIcon.fromTheme(name)
+        return icon.pixmap(QSize(w, h)) if not icon.isNull() else QPixmap()
+
     def requestPixmap(self, sid, requested):
         w = requested.width() if requested.width() > 0 else 64
         h = requested.height() if requested.height() > 0 else 64
         tint = "#FFFFFF"
+        style = "line"
         name = sid
         parts = sid.split("/", 1)
         if len(parts) == 2 and len(parts[0]) in (6, 8) and all(
                 c in "0123456789abcdefABCDEF" for c in parts[0]):
             tint, name = "#" + parts[0], parts[1]
-        mono = MONO_DIR / (name + ".png")
-        if mono.exists():
-            base = QPixmap(str(mono)).scaled(
-                w, h, Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation)
-        else:
-            icon = QIcon.fromTheme(name)
-            base = icon.pixmap(QSize(w, h)) if not icon.isNull() else QPixmap()
+        parts = name.split("/", 1)
+        if len(parts) == 2 and parts[0] in ICON_STYLES:
+            style, name = parts[0], parts[1]
+        base = self._base(name, w, h, style)
         if base.isNull():
             base = QPixmap(w, h)
             base.fill(Qt.GlobalColor.transparent)

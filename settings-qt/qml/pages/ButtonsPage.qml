@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
+import QtQuick.Shapes
 import QtQuick.Controls.Basic as B
 import "../components"
 
@@ -15,8 +16,8 @@ Item {
     property var actMap: ({})
     property string pickSlot: ""          // which physical button is being edited
     property int pickSlice: -1            // which radial slice is being edited
-    property string wheelKey: Backend.get("radial.wheel", "azure")
-    property bool mono: Backend.get("radial.monochrome_icons", false)
+    property string wheelKey: Backend.get("radial.wheel", "none")
+    readonly property bool mono: Theme.iconStyle === "mono"
     property bool editPins: false        // drag-to-place marker mode
     function pinNx(md) { return Backend.get("button_pins." + md.slot + ".nx", md.nx) }
     function pinNy(md) { return Backend.get("button_pins." + md.slot + ".ny", md.ny) }
@@ -95,7 +96,7 @@ Item {
                         width: parent.width
                         title: "Button mapping"
                         subtitle: "Click any marker on the mouse to reassign that button"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/input-mouse-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/input-mouse-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
 
@@ -108,6 +109,24 @@ Item {
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
                             Layout.preferredHeight: 300
+                            Shape {
+                                anchors.horizontalCenter: topImg.horizontalCenter
+                                y: topImg.y + topImg.height - 70
+                                width: topImg.width * 1.15; height: 110
+                                ShapePath {
+                                    strokeWidth: 0
+                                    fillGradient: RadialGradient {
+                                        centerX: topImg.width * 0.575; centerY: 55
+                                        focalX: topImg.width * 0.575; focalY: 55
+                                        centerRadius: topImg.width * 0.575
+                                        GradientStop { position: 0.0; color: "#66000000" }
+                                        GradientStop { position: 0.55; color: "#00000000" }
+                                    }
+                                    startX: 0; startY: 55
+                                    PathArc { x: topImg.width * 1.15; y: 55; radiusX: topImg.width * 0.575; radiusY: 55 }
+                                    PathArc { x: 0; y: 55; radiusX: topImg.width * 0.575; radiusY: 55 }
+                                }
+                            }
                             Image {
                                 id: topImg
                                 anchors.centerIn: parent
@@ -117,15 +136,6 @@ Item {
                                 asynchronous: true
                                 sourceSize.width: 820; sourceSize.height: 1178
                                 fillMode: Image.PreserveAspectFit; smooth: true
-                                layer.enabled: true
-                                layer.effect: MultiEffect {
-                                    shadowEnabled: true
-                                    shadowColor: "#000000"
-                                    shadowBlur: 0.7
-                                    shadowOpacity: 0.45
-                                    shadowHorizontalOffset: 0
-                                    shadowVerticalOffset: 0
-                                }
                             }
                             Item {
                                 anchors.fill: topImg
@@ -161,6 +171,24 @@ Item {
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1.5
                             Layout.preferredHeight: 300
+                            Shape {
+                                anchors.horizontalCenter: sideImg.horizontalCenter
+                                y: sideImg.y + sideImg.height - 70
+                                width: sideImg.width * 1.15; height: 110
+                                ShapePath {
+                                    strokeWidth: 0
+                                    fillGradient: RadialGradient {
+                                        centerX: sideImg.width * 0.575; centerY: 55
+                                        focalX: sideImg.width * 0.575; focalY: 55
+                                        centerRadius: sideImg.width * 0.575
+                                        GradientStop { position: 0.0; color: "#66000000" }
+                                        GradientStop { position: 0.55; color: "#00000000" }
+                                    }
+                                    startX: 0; startY: 55
+                                    PathArc { x: sideImg.width * 1.15; y: 55; radiusX: sideImg.width * 0.575; radiusY: 55 }
+                                    PathArc { x: 0; y: 55; radiusX: sideImg.width * 0.575; radiusY: 55 }
+                                }
+                            }
                             Image {
                                 id: sideImg
                                 anchors.centerIn: parent
@@ -170,15 +198,6 @@ Item {
                                 asynchronous: true
                                 sourceSize.width: 1289; sourceSize.height: 829
                                 fillMode: Image.PreserveAspectFit; smooth: true
-                                layer.enabled: true
-                                layer.effect: MultiEffect {
-                                    shadowEnabled: true
-                                    shadowColor: "#000000"
-                                    shadowBlur: 0.7
-                                    shadowOpacity: 0.45
-                                    shadowHorizontalOffset: 0
-                                    shadowVerticalOffset: 0
-                                }
                             }
                             Item {
                                 anchors.fill: sideImg
@@ -224,7 +243,7 @@ Item {
                         width: parent.width
                         title: "Radial menu"
                         subtitle: "Eight actions under your thumb"
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/view-grid-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/view-grid-symbolic"
                         Badge { text: "Click a slice to edit"; accent: true; dot: true }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
@@ -240,12 +259,53 @@ Item {
                             readonly property real cx: width / 2
                             readonly property real cy: height / 2
                             readonly property real rr: width * 0.34
+                            property int hoverIndex: -1
+                            property string hoverLabel: ""
                             Image {
                                 anchors.centerIn: parent
                                 width: parent.width; height: parent.height
-                                source: Theme.wheelImage(page.wheelKey)
+                                visible: page.wheelKey !== "none"
+                                source: page.wheelKey !== "none" ? Theme.wheelImage(page.wheelKey) : ""
                                 sourceSize.width: 512; sourceSize.height: 512
                                 smooth: true; fillMode: Image.PreserveAspectFit
+                            }
+                            ClassicWheel {
+                                anchors.centerIn: parent
+                                visible: page.wheelKey === "none"
+                                size: parent.width
+                            }
+                            // lit slice: an accent arc rides the ring behind the hovered button
+                            Shape {
+                                anchors.fill: parent
+                                antialiasing: true
+                                opacity: ring.hoverIndex >= 0 ? 1 : 0
+                                Behavior on opacity { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
+                                ShapePath {
+                                    strokeColor: Theme.accent
+                                    strokeWidth: 3
+                                    fillColor: "transparent"
+                                    capStyle: ShapePath.RoundCap
+                                    PathAngleArc {
+                                        centerX: ring.cx; centerY: ring.cy
+                                        radiusX: ring.rr + 44; radiusY: ring.rr + 44
+                                        startAngle: Math.max(0, ring.hoverIndex) * 45 - 90 - 20
+                                        sweepAngle: 40
+                                        Behavior on startAngle { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
+                                    }
+                                }
+                                ShapePath {
+                                    strokeColor: Theme.accentGlow
+                                    strokeWidth: 12
+                                    fillColor: "transparent"
+                                    capStyle: ShapePath.RoundCap
+                                    PathAngleArc {
+                                        centerX: ring.cx; centerY: ring.cy
+                                        radiusX: ring.rr + 44; radiusY: ring.rr + 44
+                                        startAngle: Math.max(0, ring.hoverIndex) * 45 - 90 - 20
+                                        sweepAngle: 40
+                                        Behavior on startAngle { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
+                                    }
+                                }
                             }
                             Repeater {
                                 model: Slices
@@ -256,7 +316,7 @@ Item {
                                     required property string hex
                                     required property string label
                                     required property string actionId
-                                    property string btnImg: page.mono ? "" : Theme.sliceButton(actionId)
+                                    property string btnImg: page.mono ? "" : (Theme.iconStyle, Theme.sliceButton(actionId))
                                     width: 60; height: 60
                                     property real ang: (index * 45 - 90) * Math.PI / 180
                                     x: ring.cx + ring.rr * Math.cos(ang) - width / 2
@@ -264,23 +324,24 @@ Item {
                                     scale: slotMa.containsMouse ? 1.12 : 1.0
                                     Behavior on scale { NumberAnimation { duration: Theme.dShort; easing.type: Easing.OutCubic } }
 
-                                    // custom generated button (fills the circle) with a soft glow
+                                    // glow = state: the hovered button lights in its own colour
+                                    RectangularShadow {
+                                        anchors.fill: parent
+                                        radius: width / 2
+                                        blur: slotMa.containsMouse ? 18 : 10
+                                        spread: 0
+                                        color: slot.hex
+                                        opacity: slotMa.containsMouse ? 0.75 : 0.28
+                                        Behavior on opacity { NumberAnimation { duration: Theme.dShort } }
+                                        Behavior on blur { NumberAnimation { duration: Theme.dShort } }
+                                    }
+                                    // composed button (disc + glyph)
                                     Image {
                                         anchors.fill: parent
                                         visible: slot.btnImg !== ""
                                         source: slot.btnImg
                                         sourceSize.width: 256; sourceSize.height: 256
                                         smooth: true; fillMode: Image.PreserveAspectFit
-                                        layer.enabled: slot.btnImg !== ""
-                                        layer.effect: MultiEffect {
-                                            shadowEnabled: true
-                                            shadowColor: slot.hex
-                                            shadowBlur: slotMa.containsMouse ? 0.9 : 0.45
-                                            shadowOpacity: slotMa.containsMouse ? 0.85 : 0.5
-                                            shadowHorizontalOffset: 0
-                                            shadowVerticalOffset: 0
-                                            Behavior on shadowBlur { NumberAnimation { duration: Theme.dShort } }
-                                        }
                                     }
                                     // fallback: dark disc + tinted glyph (also monochrome mode)
                                     Rectangle {
@@ -301,6 +362,8 @@ Item {
                                     MouseArea {
                                         id: slotMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
+                                        onEntered: { ring.hoverIndex = slot.index; ring.hoverLabel = slot.label }
+                                        onExited: if (ring.hoverIndex === slot.index) { ring.hoverIndex = -1; ring.hoverLabel = "" }
                                         onClicked: {
                                             sliceEd.row = slot.index
                                             sliceEd.open()
@@ -310,12 +373,26 @@ Item {
                             }
                             Rectangle {
                                 anchors.centerIn: parent
-                                width: 70; height: 70; radius: 35
-                                color: "#22000000"; border.color: Theme.border; border.width: 1
-                                Text {
-                                    anchors.centerIn: parent; text: "8"
-                                    color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: 20
-                                    font.weight: Font.DemiBold
+                                width: 84; height: 84; radius: 42
+                                color: "#33000000"; border.color: ring.hoverIndex >= 0 ? Theme.accentFaint : Theme.border; border.width: 1
+                                Column {
+                                    anchors.centerIn: parent; spacing: 1
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: ring.hoverIndex >= 0 ? ring.hoverLabel : "8"
+                                        color: ring.hoverIndex >= 0 ? Theme.textPrimary : Theme.textMuted
+                                        font.family: ring.hoverIndex >= 0 ? Theme.fontUI : Theme.fontMono
+                                        font.pixelSize: ring.hoverIndex >= 0 ? Theme.fsSmall : 20
+                                        font.weight: Font.DemiBold
+                                        width: Math.min(implicitWidth, 72); elide: Text.ElideRight
+                                        horizontalAlignment: Text.AlignHCenter
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: ring.hoverIndex >= 0 ? "click to edit" : "actions"
+                                        color: Theme.textMuted
+                                        font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                                    }
                                 }
                             }
                         }
@@ -354,7 +431,7 @@ Item {
                         width: parent.width
                         title: "AI Assistant links"
                         subtitle: "Opens from the AI slice. Brand sites keep their logo; custom links show a globe."
-                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/applications-science-symbolic"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/applications-science-symbolic"
                         Badge { text: aiModel.count + "/6"; accent: true }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
@@ -367,31 +444,23 @@ Item {
                             required property string url
                             width: aiCol.width
                             spacing: Theme.gapS
-                            Rectangle {
-                                Layout.preferredWidth: 150; Layout.preferredHeight: 38
-                                radius: Theme.radiusCtl; color: "#14FFFFFF"
-                                border.color: nf.activeFocus ? Theme.accent : Theme.border; border.width: 1
-                                B.TextField {
-                                    id: nf
-                                    anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 6
-                                    text: name; placeholderText: "Name"; placeholderTextColor: Theme.textMuted
-                                    color: Theme.textBody; font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
-                                    verticalAlignment: Text.AlignVCenter; background: Item {}
-                                    onEditingFinished: { aiModel.setProperty(index, "name", text); page.commitAi() }
-                                }
+                            ActionIcon {
+                                Layout.alignment: Qt.AlignVCenter
+                                iconName: "web-browser-symbolic"; tint: Theme.textMuted; px: 18
                             }
-                            Rectangle {
-                                Layout.fillWidth: true; Layout.preferredHeight: 38
-                                radius: Theme.radiusCtl; color: "#14FFFFFF"
-                                border.color: uf.activeFocus ? Theme.accent : Theme.border; border.width: 1
-                                B.TextField {
-                                    id: uf
-                                    anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 6
-                                    text: url; placeholderText: "https://…"; placeholderTextColor: Theme.textMuted
-                                    color: Theme.textBody; font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
-                                    verticalAlignment: Text.AlignVCenter; background: Item {}
-                                    onEditingFinished: { aiModel.setProperty(index, "url", text); page.commitAi() }
-                                }
+                            InputField {
+                                id: nf
+                                Layout.preferredWidth: 160
+                                text: name; placeholder: "Name"
+                                onEditingFinished: { aiModel.setProperty(index, "name", text); page.commitAi() }
+                            }
+                            InputField {
+                                id: uf
+                                Layout.fillWidth: true
+                                mono: true
+                                text: url; placeholder: "https://"
+                                error: (text === "" || text.startsWith("https://") || text.startsWith("http://")) ? "" : "Link must start with https://"
+                                onEditingFinished: { aiModel.setProperty(index, "url", text); page.commitAi() }
                             }
                             IconButton {
                                 icon: "edit-clear-symbolic"; tint: Theme.textMuted; diameter: 36

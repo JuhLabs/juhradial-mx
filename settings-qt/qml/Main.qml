@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import QtQuick.Effects
 import "components"
 
 ApplicationWindow {
@@ -22,6 +21,7 @@ ApplicationWindow {
                 if (navModel.get(i).key === key) { nav.current = i; break }
             }
         }
+        function onToastRequested(text, kind) { toast.show(text, kind) }
     }
 
     ListModel {
@@ -39,6 +39,18 @@ ApplicationWindow {
         ListElement { label: "Themes"; page: "ThemesPage"; key: "themes"; logitechOnly: false }
         ListElement { label: "Settings"; page: "SettingsPage"; key: "settings"; logitechOnly: false }
     }
+
+    // ---- keyboard: Ctrl+K search, Ctrl+1..9 tabs ----
+    Shortcut { sequences: ["Ctrl+K", "Ctrl+F"]; onActivated: search.focusInput() }
+    Shortcut { sequence: "Ctrl+1"; onActivated: nav.current = 0 }
+    Shortcut { sequence: "Ctrl+2"; onActivated: nav.current = 1 }
+    Shortcut { sequence: "Ctrl+3"; onActivated: nav.current = 2 }
+    Shortcut { sequence: "Ctrl+4"; onActivated: nav.current = 3 }
+    Shortcut { sequence: "Ctrl+5"; onActivated: nav.current = 4 }
+    Shortcut { sequence: "Ctrl+6"; onActivated: nav.current = 5 }
+    Shortcut { sequence: "Ctrl+7"; onActivated: nav.current = 6 }
+    Shortcut { sequence: "Ctrl+8"; onActivated: nav.current = 7 }
+    Shortcut { sequence: "Ctrl+9"; onActivated: nav.current = 8 }
 
     // ---- background z-stack: wallpaper -> dim scrim -> vignette ----
     Image {
@@ -74,60 +86,110 @@ ApplicationWindow {
         spacing: 16
 
         GlassCard {
-            Layout.preferredWidth: 272
+            rail: true
+            Layout.preferredWidth: 256
             Layout.fillHeight: true
             Column {
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 3
+                id: railCol
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                anchors.margins: 12
+                spacing: 2
                 Item {
                     id: brand
                     width: parent.width
-                    height: 80
-                    property bool hovered: brandHover.hovered
+                    height: 76
                     Image {
                         id: logoImg
                         source: assetsDir + "/logo/icons/juhradial-mx-256.png"
-                        sourceSize.width: 220; sourceSize.height: 220
-                        width: 74; height: 74; smooth: true
-                        x: 0
+                        sourceSize.width: 160; sourceSize.height: 160
+                        width: 54; height: 54; smooth: true
+                        x: 8
                         anchors.verticalCenter: parent.verticalCenter
-                        scale: brand.hovered ? 1.05 : 1.0
-                        Behavior on scale { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutBack } }
-                        // light is state: the orb glows accent only while the
-                        // daemon is connected, else a neutral ambient shadow.
-                        layer.enabled: true
-                        layer.effect: MultiEffect {
-                            shadowEnabled: true
-                            shadowColor: Backend.daemonAvailable ? Theme.accent : "#000000"
-                            shadowBlur: 0.62
-                            shadowOpacity: Backend.daemonAvailable ? 0.55 : 0.4
-                            shadowHorizontalOffset: 0
-                            shadowVerticalOffset: 0
-                        }
                     }
-                    Text {
+                    Column {
                         anchors.left: logoImg.right; anchors.leftMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width - logoImg.width - 14
-                        text: "JuhRadial <font color='" + Theme.accent + "'>MX</font>"
-                        textFormat: Text.StyledText
-                        color: Theme.textPrimary
-                        font.family: Theme.fontUI; font.pixelSize: 21; font.weight: Font.DemiBold
-                        elide: Text.ElideRight
+                        spacing: 2
+                        Text {
+                            text: "JuhRadial <font color='" + Theme.accent + "'>MX</font>"
+                            textFormat: Text.StyledText
+                            color: Theme.textPrimary
+                            font.family: Theme.fontDisplay; font.pixelSize: 19; font.weight: Font.DemiBold
+                        }
+                        Row {
+                            spacing: 6
+                            Rectangle {
+                                width: 7; height: 7; radius: 4
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: Backend.daemonAvailable ? Theme.accent : Theme.textMuted
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: Backend.daemonAvailable ? "Daemon connected" : "Daemon offline"
+                                color: Theme.textMuted
+                                font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                            }
+                        }
                     }
-                    HoverHandler { id: brandHover }
                 }
                 Rectangle { width: parent.width; height: 1; color: Theme.border }
-                Item { width: 1; height: 6 }
+                Item { width: 1; height: 8 }
                 Repeater {
                     model: navModel
                     NavItem {
                         label: model.label
-                        icon: assetsDir + "/icons/nav/" + model.key + ".png"
+                        icon: model.key
                         active: nav.current === index
                         visible: !(model.logitechOnly && Backend.isGeneric)
                         onClicked: nav.current = index
+                    }
+                }
+            }
+            // footer: version + a small, quiet support link
+            Column {
+                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                anchors.margins: 12
+                spacing: 8
+                Rectangle { width: parent.width; height: 1; color: Theme.border }
+                Item {
+                    width: parent.width; height: 28
+                    Text {
+                        anchors.left: parent.left; anchors.leftMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "v" + Backend.appVersion
+                        color: Theme.textMuted
+                        font.family: Theme.fontMono; font.pixelSize: Theme.fsMicro
+                    }
+                    Item {
+                        id: support
+                        anchors.right: parent.right; anchors.rightMargin: 4
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: supRow.width + 16; height: 26
+                        Rectangle {
+                            anchors.fill: parent; radius: 8
+                            color: supMa.containsMouse ? "#12FFFFFF" : "transparent"
+                            Behavior on color { ColorAnimation { duration: Theme.dShort } }
+                        }
+                        Row {
+                            id: supRow
+                            anchors.centerIn: parent; spacing: 6
+                            ActionIcon {
+                                iconName: "heart"; px: 13
+                                tint: supMa.containsMouse ? Theme.textBody : Theme.textMuted
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                text: "Support"
+                                color: supMa.containsMouse ? Theme.textBody : Theme.textMuted
+                                font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro; font.weight: Font.Medium
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+                        MouseArea {
+                            id: supMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Qt.openUrlExternally("https://paypal.me/LangbachHermstad")
+                        }
                     }
                 }
             }
@@ -148,16 +210,45 @@ ApplicationWindow {
                 }
                 Item { Layout.fillWidth: true; Layout.preferredWidth: 1 }
                 SearchBar {
+                    id: search
                     Layout.fillWidth: true
                     Layout.maximumWidth: 460
                     Layout.minimumWidth: 220
                     Layout.alignment: Qt.AlignVCenter
                 }
                 Item { Layout.fillWidth: true; Layout.preferredWidth: 1 }
-                Text {
-                    text: Backend.deviceName + "   v" + Backend.appVersion
-                    color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                Row {
+                    spacing: Theme.gapS
                     Layout.alignment: Qt.AlignVCenter
+                    Badge {
+                        text: Backend.deviceName
+                        accent: Backend.daemonAvailable; dot: Backend.daemonAvailable
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    // battery as a quiet mono readout; the ring lives on the Dashboard
+                    Rectangle {
+                        visible: !Backend.isGeneric
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitWidth: batRow.width + 18; implicitHeight: 24; radius: 12
+                        color: "#12FFFFFF"; border.width: 1; border.color: Theme.border
+                        Row {
+                            id: batRow
+                            anchors.centerIn: parent; spacing: 6
+                            ActionIcon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                iconName: Backend.charging ? "battery-full-charging-symbolic"
+                                          : (Backend.battery < 20 ? "battery-low-symbolic" : "battery-good-symbolic")
+                                tint: Backend.battery < 20 && !Backend.charging ? Theme.danger : Theme.textBody
+                                px: 14
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: Backend.battery + "%"
+                                color: Theme.textBody
+                                font.family: Theme.fontMono; font.pixelSize: Theme.fsMicro; font.weight: Font.DemiBold
+                            }
+                        }
+                    }
                 }
             }
             StackLayout {
@@ -175,7 +266,7 @@ ApplicationWindow {
                         opacity: active ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
                         transform: Translate {
-                            y: pageLoader.active ? 0 : 10
+                            y: pageLoader.active ? 0 : 8
                             Behavior on y { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
                         }
                     }
@@ -184,71 +275,5 @@ ApplicationWindow {
         }
     }
 
-    // ---- startup loader: the JuhRadial MX orb, glowing + breathing, inside a
-    //      rotating accent ring. Replaces the bare spinner. ----
-    Rectangle {
-        id: splash
-        anchors.fill: parent
-        color: Theme.bgBase
-        visible: opacity > 0.01
-
-        Column {
-            anchors.centerIn: parent
-            spacing: 26
-
-            Item {
-                width: 156; height: 156
-                anchors.horizontalCenter: parent.horizontalCenter
-
-                BusyRing {
-                    size: 156
-                    color: Theme.accent
-                    anchors.centerIn: parent
-                    opacity: 0.9
-                }
-
-                Image {
-                    id: splashLogo
-                    source: assetsDir + "/logo/icons/juhradial-mx-256.png"
-                    sourceSize.width: 256; sourceSize.height: 256
-                    width: 96; height: 96; smooth: true
-                    anchors.centerIn: parent
-                    // glowing orb that breathes; the glow pulses with the scale
-                    layer.enabled: true
-                    layer.effect: MultiEffect {
-                        shadowEnabled: true
-                        shadowColor: Theme.accent
-                        shadowBlur: 1.0
-                        shadowOpacity: 0.55 + (splashLogo.scale - 0.94) * 2.4
-                        shadowHorizontalOffset: 0
-                        shadowVerticalOffset: 0
-                    }
-                    SequentialAnimation on scale {
-                        running: splash.visible
-                        loops: Animation.Infinite
-                        NumberAnimation { from: 0.94; to: 1.06; duration: 950; easing.type: Easing.InOutSine }
-                        NumberAnimation { from: 1.06; to: 0.94; duration: 950; easing.type: Easing.InOutSine }
-                    }
-                }
-            }
-
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: "JuhRadial <font color='" + Theme.accent + "'>MX</font>"
-                textFormat: Text.StyledText
-                color: Theme.textPrimary
-                font.family: Theme.fontDisplay; font.pixelSize: 19; font.weight: Font.DemiBold
-            }
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: "Loading your device…"
-                color: Theme.textMuted
-                font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-            }
-        }
-
-        Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.OutCubic } }
-        Component.onCompleted: hideSplash.start()
-        Timer { id: hideSplash; interval: 1100; onTriggered: splash.opacity = 0 }
-    }
+    Toast { id: toast }
 }

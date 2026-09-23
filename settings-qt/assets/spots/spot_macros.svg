@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="spot_macros_body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3A4150"/>
+      <stop offset="1" stop-color="#1B1F28"/>
+    </linearGradient>
+    <linearGradient id="spot_macros_face" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#4B5364"/>
+      <stop offset="0.55" stop-color="#2A303C"/>
+      <stop offset="1" stop-color="#1B1F28"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="256" cy="447" rx="216" ry="27" fill="#000000" fill-opacity="0.08"/>
+  <ellipse cx="256" cy="443" rx="190" ry="19" fill="#000000" fill-opacity="0.25"/>
+  <path d="M28 153c0-43 35-78 78-78h300c43 0 78 35 78 78v225c0 43-35 78-78 78H106c-43 0-78-35-78-78V153Z" fill="url(#spot_macros_body)"/>
+  <path d="M42 145c0-36 29-65 65-65h298c36 0 65 29 65 65v205c0 36-29 65-65 65H107c-36 0-65-29-65-65V145Z" fill="url(#spot_macros_face)"/>
+  <path d="M108 80h296c36 0 66 29 66 65v14c-18-31-40-46-77-46H119c-37 0-59 15-77 46v-14c0-36 30-65 66-65Z" fill="#4B5364"/>
+  <path d="M108 96h296c23 0 43 11 55 28-15-9-32-13-52-13H105c-20 0-37 4-52 13 12-17 32-28 55-28Z" fill="#E8EAED" fill-opacity="0.10"/>
+  <path d="m278 160-75 105h48l-21 87 79-113h-49l18-79Z" fill="#ACCENT" fill-opacity="0.15" stroke="#ACCENT" stroke-opacity="0.15" stroke-width="30" stroke-linejoin="round"/>
+  <path d="m278 160-75 105h48l-21 87 79-113h-49l18-79Z" fill="#ACCENT" fill-opacity="0.35" stroke="#ACCENT" stroke-opacity="0.35" stroke-width="14" stroke-linejoin="round"/>
+  <path d="m278 160-75 105h48l-21 87 79-113h-49l18-79Z" fill="#ACCENT"/>
+</svg>

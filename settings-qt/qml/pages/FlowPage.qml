@@ -65,7 +65,7 @@ Item {
                         width: parent.width
                         title: "Flow"
                         subtitle: "Move the cursor and copy between nearby computers"
-                        icon: "image://icon/" + root._accent + "/view-dual-symbolic"
+                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/flow"
                         Toggle {
                             checked: Backend.get("flow.enabled", false)
                             onToggled: (v) => { Backend.setLocal("flow.enabled", v); root.flowOn = v }
@@ -80,14 +80,7 @@ Item {
                         width: parent.width
                         visible: !root.flowOn
                         spacing: Theme.pad
-                        Image {
-                            source: assetsDir + "/spots/spot_flow.png"
-                            sourceSize.width: 256; sourceSize.height: 256
-                            Layout.preferredWidth: 104; Layout.preferredHeight: 104
-                            fillMode: Image.PreserveAspectFit
-                            smooth: true
-                            Layout.alignment: Qt.AlignVCenter
-                        }
+                        SpotImage { name: "spot_flow"; size: 104; Layout.alignment: Qt.AlignVCenter }
                         ColumnLayout {
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignVCenter
@@ -152,69 +145,59 @@ Item {
                         width: parent.width
                         title: "Behaviour"
                         subtitle: "When and how the cursor crosses to the next machine"
-                        icon: "image://icon/" + root._accent + "/preferences-system-symbolic"
+                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/preferences-system-symbolic"
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    HoverRow {
-                        SettingRow {
-                            label: "Switch edge"
-                            desc: "Which screen edge hands off to the next computer"
-                            SegmentedControl {
-                                width: 300
-                                model: [{ id: "left", name: "Left" }, { id: "right", name: "Right" },
-                                        { id: "top", name: "Top" }, { id: "bottom", name: "Bottom" }]
-                                currentId: Backend.get("flow.direction", "left")
-                                onActivated: (id) => Backend.setLocal("flow.direction", id)
-                            }
-                        }
+                    SettingRow {
+                        label: "Switch edge"
+                        desc: "Which screen edge hands off to the next computer"
+                        SegmentedControl {
+                            width: 300
+                            model: [{ id: "left", name: "Left" }, { id: "right", name: "Right" },
+                                    { id: "top", name: "Top" }, { id: "bottom", name: "Bottom" }]
+                            currentId: Backend.get("flow.direction", "left")
+                            onActivated: (id) => Backend.setLocal("flow.direction", id)
                     }
+                        }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    HoverRow {
-                        SettingRow {
-                            label: "Move cursor to edge to switch"
-                            desc: "Cross over by pushing the pointer past the edge"
-                            Toggle {
-                                checked: Backend.get("flow.edge_trigger", true)
-                                onToggled: (v) => Backend.setLocal("flow.edge_trigger", v)
-                            }
-                        }
+                    SettingRow {
+                        label: "Move cursor to edge to switch"
+                        desc: "Cross over by pushing the pointer past the edge"
+                        Toggle {
+                            checked: Backend.get("flow.edge_trigger", true)
+                            onToggled: (v) => Backend.setLocal("flow.edge_trigger", v)
                     }
+                        }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    HoverRow {
-                        SettingRow {
-                            label: "Share clipboard"
-                            desc: "Copy on one computer, paste on the other"
-                            Toggle {
-                                checked: Backend.get("flow.share_clipboard", true)
-                                onToggled: (v) => Backend.setLocal("flow.share_clipboard", v)
-                            }
-                        }
+                    SettingRow {
+                        label: "Share clipboard"
+                        desc: "Copy on one computer, paste on the other"
+                        Toggle {
+                            checked: Backend.get("flow.share_clipboard", true)
+                            onToggled: (v) => Backend.setLocal("flow.share_clipboard", v)
                     }
+                        }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    HoverRow {
-                        SettingRow {
-                            label: "Edge sensitivity"
-                            desc: "How firmly you must push to cross over"
-                            Slider {
-                                width: 240; from: 0; to: 100; showValue: true; suffix: "%"
-                                value: Backend.get("flow.edge_sensitivity", 50)
-                                onCommitted: (v) => Backend.setLocal("flow.edge_sensitivity", Math.round(v))
-                            }
-                        }
+                    SettingRow {
+                        label: "Edge sensitivity"
+                        desc: "How firmly you must push to cross over"
+                        Slider {
+                            width: 240; from: 0; to: 100; showValue: true; suffix: "%"
+                            value: Backend.get("flow.edge_sensitivity", 50)
+                            onCommitted: (v) => Backend.setLocal("flow.edge_sensitivity", Math.round(v))
                     }
+                        }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    HoverRow {
-                        SettingRow {
-                            label: "Monitor"
-                            desc: "Which display the handoff edge belongs to"
-                            ComboBox {
-                                width: 180
-                                model: [{ id: "", name: "Auto" }]
-                                currentId: Backend.get("flow.monitor", "")
-                                onActivated2: (id) => Backend.setLocal("flow.monitor", id)
-                            }
-                        }
+                    SettingRow {
+                        label: "Monitor"
+                        desc: "Which display the handoff edge belongs to"
+                        ComboBox {
+                            width: 180
+                            model: [{ id: "", name: "Auto" }]
+                            currentId: Backend.get("flow.monitor", "")
+                            onActivated2: (id) => Backend.setLocal("flow.monitor", id)
                     }
+                        }
                 }
             }
             Item { Layout.fillHeight: true; Layout.fillWidth: true; Layout.preferredHeight: 4 }

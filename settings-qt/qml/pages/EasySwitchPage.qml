@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import "../components"
 
 // Logitech Easy-Switch: pair up to 3 hosts and jump between them.
@@ -7,7 +8,7 @@ Item {
     id: page
     anchors.fill: parent
 
-    readonly property string _ic: "image://icon/" + Theme.accent.toString().slice(1) + "/"
+    readonly property string _ic: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/"
 
     Flickable {
         anchors.fill: parent
@@ -51,48 +52,13 @@ Item {
                     anchors.fill: parent; anchors.margins: Theme.padCard
                     spacing: Theme.gapS
 
-                    // Hero header with illustration
-                    Item {
-                        id: esHeader
+                    CardHeader {
                         width: parent.width
-                        height: 80
-                        Image {
-                            id: spotImg
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            source: assetsDir + "/spots/spot_devices.png"
-                            sourceSize.width: 160; sourceSize.height: 160
-                            width: 80; height: 80
-                            fillMode: Image.PreserveAspectFit
-                            smooth: true; opacity: 0.92
-                        }
-                        RowLayout {
-                            anchors.left: parent.left
-                            anchors.right: spotImg.left
-                            anchors.rightMargin: Theme.gapL
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 12
-                            ActionIcon {
-                                Layout.alignment: Qt.AlignVCenter
-                                iconName: "network-wireless-symbolic"; tint: Theme.accent; px: 26
-                            }
-                            ColumnLayout {
-                                Layout.fillWidth: true; spacing: 3
-                                Text {
-                                    text: "Easy-Switch"; color: Theme.textPrimary
-                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsH2; font.weight: Font.DemiBold
-                                    Layout.fillWidth: true; elide: Text.ElideRight
-                                }
-                                Text {
-                                    text: "Pair up to 3 computers and jump between them"
-                                    color: Theme.textMuted
-                                    font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                                    Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                }
-                            }
-                        }
+                        title: "Easy-Switch"
+                        subtitle: "Pair up to 3 computers and jump between them"
+                        icon: page._ic + "easyswitch"
+                        Badge { text: "Host " + (Backend.currentHost + 1) + " active"; accent: true; dot: true }
                     }
-
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
                         label: "Easy-Switch shortcuts in radial menu"
@@ -128,10 +94,16 @@ Item {
                             radius: Theme.radiusCtl
                             color: active ? Theme.accentSubtle
                                           : (cardMa.containsMouse ? "#14FFFFFF" : "#0CFFFFFF")
-                            border.width: active ? 2 : 1
-                            border.color: active ? Theme.accent : Theme.border
+                            border.width: 1
+                            border.color: active ? Theme.accent : (cardMa.containsMouse ? Theme.borderStrong : Theme.border)
                             Behavior on color { ColorAnimation { duration: Theme.dShort } }
                             Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
+                            RectangularShadow {
+                                anchors.fill: parent; radius: Theme.radiusCtl; blur: 16
+                                color: Theme.accentGlow; z: -1
+                                opacity: hostCard.active ? 0.5 : 0
+                                Behavior on opacity { NumberAnimation { duration: Theme.dMed } }
+                            }
 
                             // Clicking a non-active slot switches to it. Declared first so
                             // the ComboBox and Switch button on top intercept their own clicks.

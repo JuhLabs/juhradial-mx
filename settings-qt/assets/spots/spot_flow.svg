@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="spot_flow_screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2A303C"/>
+      <stop offset="1" stop-color="#0F1116"/>
+    </linearGradient>
+    <linearGradient id="spot_flow_frame" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4B5364"/>
+      <stop offset="1" stop-color="#1B1F28"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="256" cy="451" rx="220" ry="25" fill="#000000" fill-opacity="0.08"/>
+  <ellipse cx="256" cy="447" rx="192" ry="17" fill="#000000" fill-opacity="0.25"/>
+  <rect x="18" y="91" width="230" height="278" rx="22" fill="url(#spot_flow_frame)"/>
+  <rect x="28" y="101" width="210" height="244" rx="13" fill="url(#spot_flow_screen)"/>
+  <rect x="264" y="91" width="230" height="278" rx="22" fill="url(#spot_flow_frame)"/>
+  <rect x="274" y="101" width="210" height="244" rx="13" fill="url(#spot_flow_screen)"/>
+  <path d="M72 296V185l80 76-40 5 24 49-24 12-23-50-17 19Z" fill="#E8EAED"/>
+  <path d="M78 282v-83l60 57-34 4 24 50-13 7-24-52-13 17Z" fill="#4B5364"/>
+  <path d="M165 256C226 221 288 303 354 252c33-25 62-17 91 4" fill="none" stroke="#ACCENT" stroke-opacity="0.15" stroke-width="18" stroke-linecap="round"/>
+  <path d="M165 256C226 221 288 303 354 252c33-25 62-17 91 4" fill="none" stroke="#ACCENT" stroke-opacity="0.35" stroke-width="10" stroke-linecap="round" stroke-dasharray="1 22"/>
+  <path d="M165 256C226 221 288 303 354 252c33-25 62-17 91 4" fill="none" stroke="#ACCENT" stroke-width="5" stroke-linecap="round" stroke-dasharray="1 22"/>
+  <path d="M111 369h44v48H96c-13 0-24 9-27 21h129c-3-12-14-21-27-21h-60v-48Z" fill="#2A303C"/>
+  <path d="M357 369h44v48h-59c-13 0-24 9-27 21h129c-3-12-14-21-27-21h-60v-48Z" fill="#2A303C"/>
+  <rect x="93" y="417" width="82" height="8" rx="4" fill="#4B5364"/>
+  <rect x="339" y="417" width="82" height="8" rx="4" fill="#4B5364"/>
+</svg>
