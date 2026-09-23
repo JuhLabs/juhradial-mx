@@ -149,7 +149,8 @@ impl JuhRadialService {
 
     /// Trigger haptic feedback for a specific event
     async fn trigger_haptic(&self, event: &str) -> fdo::Result<()> {
-        tracing::info!(event, "TriggerHaptic D-Bus method called");
+        // Hot path: fires on every radial slice change, so keep logging at debug.
+        tracing::debug!(event, "TriggerHaptic D-Bus method called");
         let haptic_event = match event {
             "menu_appear" => HapticEvent::MenuAppear,
             "slice_change" => HapticEvent::SliceChange,
@@ -163,21 +164,22 @@ impl JuhRadialService {
             }
         };
 
-        tracing::debug!("Attempting to lock haptic_manager");
-        match self.haptic_manager.lock() {
+        // try_lock, not lock: this runs on the single zbus executor thread
+        // that also dispatches ShowMenuAtCursor, so blocking on a busy haptic
+        // manager stalls the menu. A late haptic is worthless, drop it.
+        match self.haptic_manager.try_lock() {
             Ok(mut manager) => {
                 if haptic_event == HapticEvent::MonitorSwitch && !manager.is_monitor_switch_enabled() {
                     tracing::debug!("Monitor-switch haptic disabled, skipping emit");
                     return Ok(());
                 }
-                tracing::debug!("Lock acquired, calling emit()");
                 match manager.emit(haptic_event) {
-                    Ok(()) => tracing::info!("Haptic emit succeeded"),
+                    Ok(()) => tracing::debug!("Haptic emit succeeded"),
                     Err(e) => tracing::warn!(error = %e, "Haptic emit failed"),
                 }
             }
             Err(e) => {
-                tracing::error!(error = %e, "Failed to lock haptic manager");
+                tracing::debug!(error = %e, "Haptic manager busy, dropping haptic event");
             }
         }
 
@@ -192,13 +194,15 @@ impl JuhRadialService {
     async fn trigger_haptic_pattern(&self, name: &str) -> fdo::Result<()> {
         tracing::info!(name, "TriggerHapticPattern D-Bus method called");
         let pattern = Mx4HapticPattern::from_name(name);
-        match self.haptic_manager.lock() {
+        // try_lock for the same reason as trigger_haptic: never stall the
+        // zbus executor thread behind a busy haptic manager.
+        match self.haptic_manager.try_lock() {
             Ok(mut manager) => {
                 if let Err(e) = manager.pulse_pattern(pattern) {
                     tracing::warn!(error = %e, "Haptic test pattern failed");
                 }
             }
-            Err(e) => tracing::error!(error = %e, "Failed to lock haptic manager"),
+            Err(e) => tracing::debug!(error = %e, "Haptic manager busy, dropping test pattern"),
         }
         Ok(())
     }
@@ -836,6 +840,93 @@ impl JuhRadialService {
 
     async fn get_device_name(&self) -> fdo::Result<String> {
         Ok(self.device_name.read().await.clone())
+    }
+
+    // =========================================================================
+    // KEYBOARD METHODS (BETA, opt-in) - consumed by the Qt settings app
+    //
+    // All three are safe no-ops on a mouse-only system. The HID++ paths only
+    // run when the user has enabled MX Keys S support; locking the std Mutex and
+    // issuing the request inline mirrors the existing SetDpi / GetDpi handlers
+    // (these run on the zbus executor, not Tokio).
+    // =========================================================================
+
+    /// Battery for an MX Keys S keyboard: `(percent, charging)`.
+    ///
+    /// Returns `(0, false)` unless `keyboard.mx_keys.enabled` is true and a
+    /// keyboard is present. Never panics on a mouse-only system.
+    async fn get_keyboard_battery(&self) -> fdo::Result<(u8, bool)> {
+        let enabled = self
+            .config
+            .read()
+            .map(|c| c.keyboard.mx_keys.enabled)
+            .unwrap_or(false);
+        if !enabled {
+            return Ok((0, false));
+        }
+        match crate::keyboard::manager().lock() {
+            Ok(mut mgr) => Ok(mgr.query_battery().unwrap_or((0, false))),
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock keyboard manager for battery");
+                Ok((0, false))
+            }
+        }
+    }
+
+    /// Whether a keyboard is paired to a connected receiver.
+    ///
+    /// Answered from the receiver's pairing table, so it stays `true` while
+    /// the keyboard's radio deep-sleeps (when `GetKeyboardBattery` returns
+    /// `(0, false)` because the keyboard ignores pings until a key wakes it).
+    /// Returns `false` unless `keyboard.mx_keys.enabled` is true.
+    async fn get_keyboard_paired(&self) -> fdo::Result<bool> {
+        let enabled = self
+            .config
+            .read()
+            .map(|c| c.keyboard.mx_keys.enabled)
+            .unwrap_or(false);
+        if !enabled {
+            return Ok(false);
+        }
+        match crate::keyboard::manager().lock() {
+            Ok(mut mgr) => Ok(mgr.keyboard_paired()),
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock keyboard manager for presence");
+                Ok(false)
+            }
+        }
+    }
+
+    /// Set MX Keys S backlight brightness (0..=100). BETA / UNVERIFIED.
+    ///
+    /// No-op returning `false` unless `keyboard.mx_keys.enabled` is true and a
+    /// keyboard exposing BACKLIGHT2 is present. The packet layout is unverified
+    /// on hardware (see `HidppDevice::set_backlight`); it only runs on this
+    /// explicit call.
+    async fn set_keyboard_backlight(&self, brightness: u8) -> fdo::Result<bool> {
+        let enabled = self
+            .config
+            .read()
+            .map(|c| c.keyboard.mx_keys.enabled)
+            .unwrap_or(false);
+        if !enabled {
+            tracing::info!("SetKeyboardBacklight ignored - MX Keys S support disabled");
+            return Ok(false);
+        }
+        match crate::keyboard::manager().lock() {
+            Ok(mut mgr) => Ok(mgr.set_backlight(brightness)),
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock keyboard manager for backlight");
+                Ok(false)
+            }
+        }
+    }
+
+    /// List the evdev key codes (decimal strings) of the first physical
+    /// keyboard, for the settings UI to populate a remap picker. READ-ONLY: it
+    /// never grabs the keyboard. Empty when none is found.
+    async fn list_keyboard_keys(&self) -> fdo::Result<Vec<String>> {
+        Ok(crate::keyboard::list_keyboard_key_codes())
     }
 
     // =========================================================================

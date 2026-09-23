@@ -874,8 +874,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
     });
 
+    // Spawn the keyboard remap loop (BETA, opt-in). It idles unless the user
+    // has enabled keyboard remapping AND defined remap entries, so a default
+    // install never grabs the keyboard. Detached and designed to never return,
+    // so it is intentionally NOT part of the shutdown select! below.
+    let keyboard_config = shared_config.clone();
+    let keyboard_hotplug = hotplug_notify.clone();
+    let _keyboard_handle = tokio::spawn(async move {
+        juhradiald::keyboard::run_keyboard_remap_loop(keyboard_config, keyboard_hotplug).await;
+    });
+
     // Spawn event processing task with D-Bus connection
     let config_for_events = shared_config.clone();
+    let hotplug_for_events = hotplug_notify.clone();
     let event_handle = tokio::spawn(async move {
         process_gesture_events(
             &mut event_rx,
@@ -884,6 +895,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             trigger_map_for_events,
             macro_engine_for_events,
             battery_state_for_events,
+            hotplug_for_events,
         )
         .await
     });
@@ -1577,6 +1589,7 @@ async fn process_gesture_events(
     trigger_map: Arc<std::sync::RwLock<juhradiald::macros::TriggerMap>>,
     macro_engine: Arc<Mutex<juhradiald::macros::MacroEngine>>,
     battery_state: SharedBatteryState,
+    hotplug: Arc<tokio::sync::Notify>,
 ) {
     while let Some(event) = event_rx.recv().await {
         match event {
@@ -1704,7 +1717,10 @@ async fn process_gesture_events(
                 }
             }
             GestureEvent::Hardware(note) => {
-                if let Err(e) = emit_hardware_notification(dbus_connection, &battery_state, note).await {
+                if let Err(e) =
+                    emit_hardware_notification(dbus_connection, &battery_state, &hotplug, note)
+                        .await
+                {
                     tracing::warn!(?note, error = %e, "Failed to emit hardware notification signal");
                 }
             }
@@ -1719,6 +1735,7 @@ async fn process_gesture_events(
 async fn emit_hardware_notification(
     connection: &zbus::Connection,
     battery_state: &SharedBatteryState,
+    hotplug: &tokio::sync::Notify,
     note: juhradiald::hidpp::notifications::HardwareNotification,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use juhradiald::hidpp::notifications::HardwareNotification as HN;
@@ -1747,6 +1764,10 @@ async fn emit_hardware_notification(
         }
         HN::HostChanged { host } => {
             info!(host, "Easy-Switch host changed (notification)");
+            // Volatile button diverts + thumb-wheel reporting are lost when the
+            // mouse returns from another Easy-Switch host. Wake run_hidraw_loop
+            // (the same path device hotplug uses) so it re-applies them.
+            hotplug.notify_waiters();
             connection
                 .emit_signal(None::<&str>, DBUS_PATH, iface, "HostChanged", &(host,))
                 .await?;

@@ -172,13 +172,6 @@ impl HidrawHandler {
         self.gesture_tracker = Some(tracker);
     }
 
-    fn directional_gestures_enabled(&self) -> bool {
-        self.shared_config
-            .as_ref()
-            .and_then(|c| c.read().ok())
-            .map(|c| c.directional_gestures_enabled())
-            .unwrap_or(false)
-    }
 
     /// Register CIDs that are diverted for macro triggers (not gesture buttons)
     pub fn set_macro_cids(&mut self, cids: Vec<u16>) {
@@ -227,36 +220,7 @@ impl HidrawHandler {
         std::mem::take(&mut self.divert_refresh_needed)
     }
 
-    /// Look up the configured action for a CID from shared config
-    fn get_action_for_cid(&self, cid: u16) -> crate::config::ButtonAction {
-        if let Some(ref config) = self.shared_config {
-            if let Ok(cfg) = config.read() {
-                return cfg.action_for_cid(cid);
-            }
-        }
-        // Fallback: gesture/haptic buttons default to radial menu
-        match cid {
-            button_cid::GESTURE_BUTTON => crate::config::ButtonAction::VirtualDesktops,
-            button_cid::HAPTIC => crate::config::ButtonAction::RadialMenu,
-            _ => crate::config::ButtonAction::None,
-        }
-    }
 
-    /// Whether a diverted CID should be dispatched as a configured button
-    /// action. Gesture and haptic buttons always are; the other reprogrammable
-    /// buttons (back/forward/middle/shift-wheel) only when the user reassigned
-    /// them away from their native default, which matches what divert applies.
-    fn is_action_button(&self, cid: u16) -> bool {
-        if cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC {
-            return true;
-        }
-        if let Some(ref config) = self.shared_config {
-            if let Ok(cfg) = config.read() {
-                return cfg.remapped_button_cids().contains(&cid);
-            }
-        }
-        false
-    }
 
     /// Find the Logitech hidraw device for HID++ button events
     ///
@@ -589,27 +553,44 @@ impl HidrawHandler {
         // A CID of 0 means all buttons released
         let pressed = cid != 0;
 
-        // Whether this CID maps to a configured action (gesture/haptic, or a
-        // reassigned back/forward/middle/shift-wheel) or is the release marker.
-        let is_known = self.is_action_button(cid) || cid == 0;
+        // One config read per event: whether this CID dispatches as a
+        // configured action (gesture/haptic always; back/forward/middle/
+        // shift-wheel only when reassigned, matching what divert applies),
+        // which action, and whether the gesture button is in directional
+        // mode, without re-locking per lookup.
+        let (is_action, action, directional) =
+            match self.shared_config.as_ref().and_then(|c| c.read().ok()) {
+                Some(cfg) => {
+                    let is_action = cid == button_cid::GESTURE_BUTTON
+                        || cid == button_cid::HAPTIC
+                        || cfg.remapped_button_cids().contains(&cid);
+                    (is_action, cfg.action_for_cid(cid), cfg.directional_gestures_enabled())
+                }
+                None => {
+                    // Fallback: gesture/haptic buttons default to radial menu
+                    let action = match cid {
+                        button_cid::GESTURE_BUTTON => crate::config::ButtonAction::VirtualDesktops,
+                        button_cid::HAPTIC => crate::config::ButtonAction::RadialMenu,
+                        _ => crate::config::ButtonAction::None,
+                    };
+                    (
+                        cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC,
+                        action,
+                        false,
+                    )
+                }
+            };
 
-        if is_known {
-            tracing::info!(
-                cid = cid,
-                pressed = pressed,
-                raw_bytes = format!("{:02X} {:02X} {:02X}", data[4], data[5], data[6]),
-                "Diverted button event"
-            );
-        } else {
-            tracing::debug!(
-                cid = cid,
-                pressed = pressed,
-                raw_bytes = format!("{:02X} {:02X} {:02X}", data[4], data[5], data[6]),
-                "Diverted button event (unknown CID)"
-            );
-        }
+        // Hot path: fires on every press/release, so keep logging at debug.
+        tracing::debug!(
+            cid = cid,
+            pressed = pressed,
+            known = is_action || cid == 0,
+            raw_bytes = format!("{:02X} {:02X} {:02X}", data[4], data[5], data[6]),
+            "Diverted button event"
+        );
 
-        if cid == button_cid::GESTURE_BUTTON && self.directional_gestures_enabled() {
+        if cid == button_cid::GESTURE_BUTTON && directional {
             // Directional gesture: track the drag only. No cursor query and
             // no Pressed event, so the radial overlay never opens for it.
             self.press_time = Some(Instant::now());
@@ -618,11 +599,9 @@ impl HidrawHandler {
             if let Some(tracker) = &self.gesture_tracker {
                 tracker.start();
             }
-            tracing::info!(cid, "Gesture button pressed (directional)");
-        } else if self.is_action_button(cid) {
-            // Look up configured action for this button
-            let action = self.get_action_for_cid(cid);
-            tracing::info!(cid, %action, "Button pressed - config action lookup");
+            tracing::debug!(cid, "Gesture button pressed (directional)");
+        } else if is_action {
+            tracing::debug!(cid, %action, "Button pressed - config action lookup");
 
             if action == crate::config::ButtonAction::RadialMenu {
                 // Radial menu flow: cursor query + ShowMenu via existing path
@@ -643,7 +622,7 @@ impl HidrawHandler {
         } else if self.macro_cids.contains(&cid) {
             // Diverted macro button pressed - forward as MacroTriggered
             if let Some(key_code) = cid_to_evdev_keycode(cid) {
-                tracing::info!(
+                tracing::debug!(
                     cid = cid,
                     key_code = format!("0x{:04X}", key_code),
                     "Macro button pressed (diverted)"
@@ -691,7 +670,7 @@ impl HidrawHandler {
                             .map(|t| t.elapsed().as_millis() as u64)
                             .unwrap_or(0);
                         self.press_time = None;
-                        tracing::info!(duration_ms, %action, "Button released (non-radial action)");
+                        tracing::debug!(duration_ms, %action, "Button released (non-radial action)");
                         let _ = self
                             .event_tx
                             .send(GestureEvent::ButtonActionEvent {
@@ -705,7 +684,7 @@ impl HidrawHandler {
             if let Some(macro_cid) = self.active_macro_cid.take() {
                 // Forward release event for the macro button
                 if let Some(key_code) = cid_to_evdev_keycode(macro_cid) {
-                    tracing::info!(
+                    tracing::debug!(
                         cid = macro_cid,
                         key_code = format!("0x{:04X}", key_code),
                         "Macro button released (diverted)"

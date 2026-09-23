@@ -34,6 +34,9 @@ const DEFAULT_SLICE_DEBOUNCE_MS: u64 = 20;
 /// Default re-entry debounce time (milliseconds)
 const DEFAULT_REENTRY_DEBOUNCE_MS: u64 = 50;
 
+/// Default master haptic intensity (0-100), matching `HapticConfig`.
+const DEFAULT_INTENSITY: u8 = 70;
+
 /// HID++ haptic manager
 pub struct HapticManager {
     /// Optional HID++ device connection
@@ -44,6 +47,10 @@ pub struct HapticManager {
     pub(crate) per_event: PerEventPattern,
     /// Whether haptics are enabled
     enabled: bool,
+    /// Master haptic strength, 0-100. On the MX Master 4 (fixed firmware
+    /// waveforms) this is a gate: 0 silences haptics, non-zero plays at native
+    /// amplitude. On legacy force-feedback devices it scales pulse amplitude.
+    intensity: u8,
     /// Whether the window-switch haptic is enabled (independent of `enabled`,
     /// which gates all haptics)
     window_switch_enabled: bool,
@@ -79,6 +86,7 @@ impl HapticManager {
             default_pattern: Mx4HapticPattern::SubtleCollision,
             per_event: PerEventPattern::default(),
             enabled,
+            intensity: DEFAULT_INTENSITY,
             window_switch_enabled: true,
             monitor_switch_enabled: true,
             last_pulse_ms: 0,
@@ -110,6 +118,7 @@ impl HapticManager {
                 monitor_switch: Mx4HapticPattern::from_name(&config.per_event.monitor_switch),
             },
             enabled: config.enabled,
+            intensity: config.intensity.clamp(0, 100),
             window_switch_enabled: config.window_switch_enabled,
             monitor_switch_enabled: config.monitor_switch_enabled,
             last_pulse_ms: 0,
@@ -137,6 +146,7 @@ impl HapticManager {
             monitor_switch: Mx4HapticPattern::from_name(&config.per_event.monitor_switch),
         };
         self.enabled = config.enabled;
+        self.intensity = config.intensity.clamp(0, 100);
         self.window_switch_enabled = config.window_switch_enabled;
         self.monitor_switch_enabled = config.monitor_switch_enabled;
         self.debounce_ms = config.debounce_ms;
@@ -146,6 +156,7 @@ impl HapticManager {
         tracing::debug!(
             default_pattern = %self.default_pattern,
             enabled = self.enabled,
+            intensity = self.intensity,
             debounce_ms = self.debounce_ms,
             slice_debounce_ms = self.slice_debounce_ms,
             reentry_debounce_ms = self.reentry_debounce_ms,
@@ -317,8 +328,8 @@ impl HapticManager {
 
     /// Send a haptic pulse (runtime only, no memory writes)
     pub fn pulse(&mut self, haptic: HapticPulse) -> Result<(), HapticError> {
-        // Check if haptics are enabled
-        if !self.enabled {
+        // Silenced when disabled or at zero intensity.
+        if self.is_muted() {
             return Ok(());
         }
 
@@ -378,7 +389,7 @@ impl HapticManager {
     /// MX4-only (named waveforms); respects enabled + debounce. No-op on legacy
     /// or absent devices.
     pub fn pulse_pattern(&mut self, pattern: Mx4HapticPattern) -> Result<(), HapticError> {
-        if !self.enabled {
+        if self.is_muted() {
             return Ok(());
         }
         let now = SystemTime::now()
@@ -387,6 +398,11 @@ impl HapticManager {
             .as_millis() as u64;
         if now.saturating_sub(self.last_pulse_ms) < self.debounce_ms {
             return Ok(());
+        }
+        // The device may have been dropped by handle_disconnect(); try to
+        // restore it (no-op while connected or during the reconnect cooldown).
+        if self.device.is_none() {
+            self.reconnect_if_needed();
         }
         let device = match &mut self.device {
             Some(d) if d.mx4_haptic_supported() => d,
@@ -422,12 +438,18 @@ impl HapticManager {
     }
 
     pub fn emit(&mut self, event: HapticEvent) -> Result<(), HapticError> {
-        tracing::debug!(event = %event, enabled = self.enabled, has_device = self.device.is_some(), "HapticManager.emit() called");
+        tracing::debug!(event = %event, enabled = self.enabled, intensity = self.intensity, has_device = self.device.is_some(), "HapticManager.emit() called");
 
-        // Check if haptics are enabled
-        if !self.enabled {
-            tracing::debug!("Haptic disabled - returning early");
+        // Silenced when disabled or at zero intensity.
+        if self.is_muted() {
+            tracing::debug!(enabled = self.enabled, intensity = self.intensity, "Haptic silenced - returning early");
             return Ok(());
+        }
+
+        // The device may have been dropped by handle_disconnect(); try to
+        // restore it (no-op while connected or during the reconnect cooldown).
+        if self.device.is_none() {
+            self.reconnect_if_needed();
         }
 
         // Check if device is available (legacy haptic OR MX4 haptic)
@@ -483,7 +505,11 @@ impl HapticManager {
         // Fallback to legacy intensity/duration-based pulses (non-MX4 devices)
         let base_profile = event.base_profile();
         let pulse_pattern = event.pattern();
-        let legacy_intensity: u8 = 50;
+        // Legacy force-feedback pulses DO carry an intensity byte, so scale the
+        // base amplitude (50) by the master intensity (0-100). MX4 devices never
+        // reach here - they are handled by the fixed-waveform path above, which
+        // has no amplitude control.
+        let legacy_intensity: u8 = (50u16 * self.intensity as u16 / 100) as u8;
 
         tracing::debug!(
             event = %event,
@@ -525,7 +551,7 @@ impl HapticManager {
 
     /// Emit a haptic event asynchronously (non-blocking)
     pub fn emit_async(&mut self, event: HapticEvent) {
-        if !self.enabled {
+        if self.is_muted() {
             return;
         }
 
@@ -542,7 +568,7 @@ impl HapticManager {
 
     /// Emit a slice change haptic with smart debouncing
     pub fn emit_slice_change(&mut self, slice_index: u8) -> bool {
-        if !self.enabled {
+        if self.is_muted() {
             return false;
         }
 
@@ -633,6 +659,16 @@ impl HapticManager {
     /// Check if haptics are enabled
     pub fn is_enabled(&self) -> bool {
         self.enabled
+    }
+
+    /// Whether haptic output is currently silenced (disabled or zero intensity).
+    ///
+    /// The MX Master 4 plays fixed firmware waveforms with no per-call amplitude
+    /// byte, so intensity can only gate playback on that hardware: 0 == off, any
+    /// non-zero value plays at native amplitude. Legacy force-feedback devices
+    /// additionally scale the pulse amplitude in `emit()`.
+    fn is_muted(&self) -> bool {
+        !self.enabled || self.intensity == 0
     }
 
     /// Get the default haptic pattern
@@ -852,7 +888,7 @@ impl HapticManager {
             Some(device) => {
                 match device.query_battery() {
                     Ok(v) => Ok(v),
-                    Err(HapticError::IoError(_)) | Err(HapticError::CommunicationError) => {
+                    Err(HapticError::IoError(_)) => {
                         self.handle_disconnect();
                         if let Ok(true) = self.connect() {
                             match self.device.as_mut() {
@@ -863,6 +899,10 @@ impl HapticManager {
                             Err(HapticError::DeviceNotFound)
                         }
                     }
+                    // CommunicationError is a mere timeout (mouse idle, or away
+                    // on another Easy-Switch host and not answering pings yet):
+                    // the fd is healthy, so keep the device handle instead of a
+                    // multi-second rediscovery that drops a working connection.
                     Err(e) => Err(e),
                 }
             }

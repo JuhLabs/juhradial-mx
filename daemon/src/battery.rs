@@ -7,6 +7,7 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -232,9 +233,10 @@ impl BatteryHandler {
         // Send request
         device.write_all(&request).map_err(BatteryError::IoError)?;
 
-        // Read response with timeout (non-blocking, so we poll)
+        // Read response with timeout: wait on poll(2) instead of sleeping in
+        // fixed 10ms steps (1000ms budget matching the previous 100 x 10ms)
         let mut response = [0u8; 20];
-        let mut attempts = 0;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1000);
 
         loop {
             match device.read(&mut response) {
@@ -272,19 +274,21 @@ impl BatteryHandler {
                     // Short read, continue
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // No data yet
+                    // No data yet - block until readable or out of budget
+                    if !crate::hidpp::device::wait_readable(device.as_raw_fd(), deadline) {
+                        return Err(BatteryError::Timeout);
+                    }
+                    // Data ready: read it before re-checking the deadline
+                    continue;
                 }
                 Err(e) => {
                     return Err(BatteryError::IoError(e));
                 }
             }
 
-            attempts += 1;
-            if attempts > 100 {
+            if std::time::Instant::now() >= deadline {
                 return Err(BatteryError::Timeout);
             }
-
-            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
 
@@ -495,10 +499,10 @@ pub async fn start_battery_updater_shared(
 ) {
     let mut consecutive_errors = 0u32;
 
-    // The HID++ battery query polls hidraw with std::thread::sleep(10ms) up to
-    // 100 times (~1s worst case). Holding a std::sync::Mutex across that
-    // blocking I/O while running on a tokio worker is the canonical recipe for
-    // task starvation. Run every query on the blocking thread pool instead.
+    // The HID++ battery query blocks on poll(2) for up to ~1s worst case.
+    // Holding a std::sync::Mutex across that blocking I/O while running on a
+    // tokio worker is the canonical recipe for task starvation. Run every
+    // query on the blocking thread pool instead.
     async fn run_query(
         haptic_manager: crate::hidpp::SharedHapticManager,
     ) -> Result<(u8, bool), crate::hidpp::HapticError> {

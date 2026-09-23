@@ -16,6 +16,7 @@ pub mod gaming;
 pub mod gesture;
 pub mod hidpp;
 pub mod hidraw;
+pub mod keyboard;
 pub mod macros;
 pub mod performance_monitor;
 pub mod presets;

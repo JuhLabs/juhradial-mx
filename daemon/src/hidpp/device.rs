@@ -8,6 +8,7 @@ use std::collections::HashSet;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 
 use super::constants::{blocklisted_features, features, report_type};
@@ -17,6 +18,38 @@ use super::patterns::Mx4HapticPattern;
 
 /// Software ID for HID++ message tracking
 const SOFTWARE_ID: u8 = 0x01;
+
+/// Wait for `fd` to become readable, up to `deadline`.
+///
+/// Used by the HID++ request loops (here and in the battery module) instead of
+/// fixed 10ms sleeps, so responses are picked up the moment they arrive.
+/// Returns false on timeout or poll error; retries on EINTR with the remaining
+/// budget.
+pub(crate) fn wait_readable(fd: std::os::unix::io::RawFd, deadline: std::time::Instant) -> bool {
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            return false;
+        }
+        let mut pfd = libc::pollfd {
+            fd,
+            events: libc::POLLIN,
+            revents: 0,
+        };
+        // Round up so a sub-millisecond remainder does not busy-spin.
+        let timeout_ms = remaining.as_millis().clamp(1, i32::MAX as u128) as libc::c_int;
+        let ret = unsafe { libc::poll(&mut pfd, 1, timeout_ms) };
+        if ret > 0 {
+            return true;
+        }
+        if ret == 0 {
+            return false;
+        }
+        if std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted {
+            return false;
+        }
+    }
+}
 
 /// HID++ device wrapper for communication with MX Master 4
 ///
@@ -418,6 +451,198 @@ impl HidppDevice {
         None
     }
 
+    /// Device index of the first KEYBOARD paired to the receiver at
+    /// `device_path`, read from the receiver's own pairing table.
+    ///
+    /// Sends the HID++ 1.0 "fake device arrival" sequence (enable wireless
+    /// notifications on register 0x00, re-announce via register 0x02) and
+    /// parses the 0x41 connection notifications it triggers. The receiver
+    /// answers without a device radio round-trip, so this finds a keyboard
+    /// even while it is deep-asleep - the state every ping-based scan misses.
+    pub fn find_keyboard_index_on_receiver(device_path: &std::path::Path) -> Option<u8> {
+        let mut device = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(device_path)
+            .ok()?;
+
+        device
+            .write_all(&[0x10, 0xFF, 0x80, 0x00, 0x00, 0x01, 0x00])
+            .ok()?;
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        device
+            .write_all(&[0x10, 0xFF, 0x80, 0x02, 0x02, 0x00, 0x00])
+            .ok()?;
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
+        let fd = device.as_raw_fd();
+        let mut buf = [0u8; 32];
+        while wait_readable(fd, deadline) {
+            let n = match device.read(&mut buf) {
+                Ok(n) => n,
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+                Err(_) => break,
+            };
+            // 0x41 connection notification: byte 1 = device index, byte 4 low
+            // nibble = device kind (0x01 = keyboard).
+            if n >= 5 && buf[0] == 0x10 && buf[2] == 0x41 {
+                tracing::debug!(
+                    path = %device_path.display(),
+                    device_index = buf[1],
+                    kind = buf[4] & 0x0F,
+                    "Fake-arrival notification"
+                );
+                if buf[4] & 0x0F == 0x01 {
+                    return Some(buf[1]);
+                }
+            }
+        }
+        tracing::debug!(path = %device_path.display(), "Fake-arrival: no keyboard announced");
+        None
+    }
+
+    /// Whether any connected receiver has a keyboard in its pairing table.
+    ///
+    /// Presence, not reachability: stays true while the keyboard's radio
+    /// sleeps, which is exactly when `open_keyboard` cannot validate it.
+    /// Direct-Bluetooth keyboards are not covered (they validate normally).
+    pub fn any_paired_keyboard() -> bool {
+        Self::find_all_devices()
+            .into_iter()
+            .filter(|(_, ct)| matches!(ct, ConnectionType::Bolt | ConnectionType::Unifying))
+            .any(|(path, _)| Self::find_keyboard_index_on_receiver(&path).is_some())
+    }
+
+    /// Open the first HID++ 2.0 KEYBOARD (MX Keys S and friends).
+    ///
+    /// BETA / additive: this mirrors [`Self::open`] but accepts a keyboard
+    /// instead of a mouse, and is the ONLY entry point that does so. The mouse
+    /// `open()` path filters on DPI support (0x2201); keyboards never report
+    /// DPI, so here a keyboard is a validated HID++ 2.0 device that has NO DPI
+    /// but does expose a battery feature (every MX keyboard does). It is a
+    /// completely separate function, so the existing mouse path is unchanged.
+    ///
+    /// Returns `None` when no compatible keyboard is found. Conservative by
+    /// construction: it only READS during discovery (ping + feature enumerate).
+    ///
+    /// LIMITATION: HID++ validation needs the keyboard's radio awake, and an
+    /// idle MX Keys parks its radio within seconds and ignores pings until a
+    /// key press wakes it. Use [`Self::any_paired_keyboard`] for presence.
+    pub fn open_keyboard() -> Option<Self> {
+        let candidates = Self::find_all_devices();
+        if candidates.is_empty() {
+            tracing::debug!("No Logitech HID++ devices found (keyboard scan)");
+            return None;
+        }
+
+        for (device_path, connection_type) in candidates {
+            let mut designated: Option<u8> = None;
+            let indices_to_try: Vec<u8> = match connection_type {
+                ConnectionType::Usb => vec![0xFF],
+                ConnectionType::Bluetooth => vec![0xFF],
+                ConnectionType::Bolt | ConnectionType::Unifying => {
+                    // Ask the receiver's pairing table which slot holds a
+                    // keyboard (answers even while the keyboard sleeps) and
+                    // probe that slot first; keep the exhaustive scan as
+                    // fallback for receivers that ignore fake-arrival.
+                    let mut order: Vec<u8> = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06];
+                    if let Some(kb) = Self::find_keyboard_index_on_receiver(&device_path) {
+                        designated = Some(kb);
+                        order.retain(|i| *i != kb);
+                        order.insert(0, kb);
+                    }
+                    order
+                }
+            };
+
+            let device = match OpenOptions::new()
+                .read(true)
+                .write(true)
+                .custom_flags(libc::O_NONBLOCK)
+                .open(&device_path)
+            {
+                Ok(f) => f,
+                Err(e) => {
+                    tracing::debug!(path = %device_path.display(), error = %e, "Failed to open hidraw (keyboard scan)");
+                    continue;
+                }
+            };
+
+            for device_index in &indices_to_try {
+                let device_clone = match device.try_clone() {
+                    Ok(d) => d,
+                    Err(_) => continue,
+                };
+
+                let mut hidpp = Self {
+                    device: device_clone,
+                    device_index: *device_index,
+                    connection_type,
+                    feature_table: std::collections::HashMap::new(),
+                    haptic_supported: false,
+                    haptic_feature_index: None,
+                    mx4_haptic_supported: false,
+                    mx4_haptic_feature_index: None,
+                    dpi_supported: false,
+                    dpi_feature_index: None,
+                    smartshift_supported: false,
+                    smartshift_feature_index: None,
+                    smartshift_is_enhanced: false,
+                    battery_supported: false,
+                    battery_feature_index: None,
+                    is_unified_battery: false,
+                    reprog_controls_supported: false,
+                    reprog_controls_feature_index: None,
+                    thumbwheel_supported: false,
+                    thumbwheel_feature_index: None,
+                    device_path: device_path.clone(),
+                };
+
+                // The pairing-table-designated keyboard slot gets a 1s budget:
+                // a dozing keyboard re-establishes its radio link before its
+                // first answer (hundreds of ms), and concurrent receiver
+                // traffic stretches that further. Speculative slots keep the
+                // fast budget so empty receivers stay cheap to scan.
+                let attempts = if designated == Some(*device_index) { 100 } else { 20 };
+                if !hidpp.validate_hidpp20_with_attempts(attempts) {
+                    continue;
+                }
+
+                hidpp.enumerate_features();
+
+                // Keyboard signature: HID++ 2.0, battery present, NO DPI sensor.
+                // (Mice report DPI 0x2201; keyboards never do — same heuristic the
+                // mouse `open()` uses to skip keyboards, inverted here.)
+                if hidpp.dpi_supported {
+                    tracing::debug!(
+                        path = %device_path.display(),
+                        device_index,
+                        "HID++ device has DPI (a mouse) - not a keyboard, skipping"
+                    );
+                    continue;
+                }
+                if !hidpp.battery_supported {
+                    continue;
+                }
+
+                tracing::info!(
+                    path = %device_path.display(),
+                    device_index,
+                    connection = %connection_type,
+                    backlight = hidpp.feature_table.contains_key(&features::BACKLIGHT2),
+                    reprog_controls = hidpp.reprog_controls_supported,
+                    "Connected to HID++ keyboard (BETA)"
+                );
+
+                return Some(hidpp);
+            }
+        }
+
+        tracing::debug!("No HID++ keyboard found among candidates");
+        None
+    }
+
     /// Drain any pending data from the device buffer
     ///
     /// This prevents reading stale responses from previous requests.
@@ -441,9 +666,10 @@ impl HidppDevice {
 
     /// Send a HID++ request with a custom max attempt count.
     ///
-    /// Each attempt polls at 10ms intervals. Use a lower max_attempts for
-    /// fast-fail scenarios (e.g., device discovery pings) to avoid
-    /// hammering receivers with long blocking waits on empty slots.
+    /// Each attempt is worth 10ms of timeout budget (the fd is waited on with
+    /// poll(2), so responses are handled as soon as they arrive). Use a lower
+    /// max_attempts for fast-fail scenarios (e.g., device discovery pings) to
+    /// avoid hammering receivers with long blocking waits on empty slots.
     fn hidpp_request_with_timeout(&mut self, feature_index: u8, function: u8, params: &[u8], max_attempts: u32) -> Option<Vec<u8>> {
         // Bluetooth-connected devices do not expose the short (0x10) HID++
         // report — their HID descriptor only contains the long (0x11) report.
@@ -481,9 +707,12 @@ impl HidppDevice {
             return None;
         }
 
-        // Read response with timeout (non-blocking, so we poll)
+        // Read response with timeout: wait on poll(2) instead of sleeping in
+        // fixed 10ms steps (same total budget, ~5ms less latency per round
+        // trip, and shorter mutex hold windows upstream).
         let mut response = [0u8; 20];
-        let mut attempts = 0u32;
+        let deadline = std::time::Instant::now()
+            + std::time::Duration::from_millis(max_attempts as u64 * 10);
 
         loop {
             match self.device.read(&mut response) {
@@ -558,7 +787,13 @@ impl HidppDevice {
                     // Short read, continue
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // No data yet
+                    // No data yet - block until readable or out of budget
+                    if !wait_readable(self.device.as_raw_fd(), deadline) {
+                        tracing::debug!(feature_index, function, max_attempts, "HID++ request timeout");
+                        return None;
+                    }
+                    // Data ready: read it before re-checking the deadline
+                    continue;
                 }
                 Err(e) => {
                     tracing::debug!(error = %e, "Error reading HID++ response");
@@ -566,13 +801,10 @@ impl HidppDevice {
                 }
             }
 
-            attempts += 1;
-            if attempts > max_attempts {
+            if std::time::Instant::now() >= deadline {
                 tracing::debug!(feature_index, function, max_attempts, "HID++ request timeout");
                 return None;
             }
-
-            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
 
@@ -635,9 +867,10 @@ impl HidppDevice {
             return None;
         }
 
-        // Read response with timeout (same as hidpp_request)
+        // Read response with timeout (same poll(2) approach as hidpp_request,
+        // 1000ms budget matching the previous 100 x 10ms attempts)
         let mut response = [0u8; 20];
-        let mut attempts = 0;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1000);
 
         loop {
             match self.device.read(&mut response) {
@@ -676,20 +909,25 @@ impl HidppDevice {
                     }
                 }
                 Ok(_) => {}
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    // No data yet - block until readable or out of budget
+                    if !wait_readable(self.device.as_raw_fd(), deadline) {
+                        tracing::debug!(feature_index, function, "HID++ long request timeout");
+                        return None;
+                    }
+                    // Data ready: read it before re-checking the deadline
+                    continue;
+                }
                 Err(e) => {
                     tracing::debug!(error = %e, "Error reading HID++ long response");
                     return None;
                 }
             }
 
-            attempts += 1;
-            if attempts > 100 {
+            if std::time::Instant::now() >= deadline {
                 tracing::debug!(feature_index, function, "HID++ long request timeout");
                 return None;
             }
-
-            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
 
@@ -711,6 +949,22 @@ impl HidppDevice {
             }
         }
 
+        false
+    }
+
+    /// [`Self::validate_hidpp20`] with a custom attempt budget (10ms each).
+    ///
+    /// A dozing wireless device needs its radio link re-established before it
+    /// answers the first ping (hundreds of ms on Bolt), which the default
+    /// 200ms budget misses; discovery paths that KNOW a slot holds a device
+    /// pass a larger budget instead of failing on every scan.
+    fn validate_hidpp20_with_attempts(&mut self, max_attempts: u32) -> bool {
+        let params = [0x00, 0x00, 0xAA];
+        if let Some(response) = self.hidpp_request_with_timeout(0x00, 0x01, &params, max_attempts) {
+            if response.len() >= 7 && response[6] == 0xAA {
+                return true;
+            }
+        }
         false
     }
 
@@ -1820,6 +2074,150 @@ impl HidppDevice {
     /// Check if battery feature is supported
     pub fn battery_supported(&self) -> bool {
         self.battery_supported
+    }
+
+    // =========================================================================
+    // Keyboard Backlight (BACKLIGHT2 0x1982) - BETA / UNVERIFIED on hardware
+    //
+    // Only reached for keyboards opened via `open_keyboard()`. The feature index
+    // is read from the table populated during `enumerate_features` (0x1982 is on
+    // the safelist, never blocklisted), so no extra struct field or change to
+    // the mouse enumerate path is needed.
+    // =========================================================================
+
+    /// Whether the device advertises the BACKLIGHT2 feature (0x1982).
+    pub fn backlight_supported(&self) -> bool {
+        self.feature_table.contains_key(&features::BACKLIGHT2)
+    }
+
+    /// Discovered BACKLIGHT2 feature index, if present.
+    pub fn backlight_feature_index(&self) -> Option<u8> {
+        self.feature_table.get(&features::BACKLIGHT2).copied()
+    }
+
+    /// Read the current backlight configuration (function 0, READ-ONLY).
+    ///
+    /// Returns the raw payload bytes starting at HID++ byte 4. Per Solaar's
+    /// BACKLIGHT2 V3 decoder the layout is:
+    ///   `[enabled, options, supported, effects(2B), level, dho(2B), dhi(2B), dpow(2B)]`
+    /// This layout is taken from Solaar and is UNVERIFIED on MX Keys S here.
+    pub fn query_backlight_config(&mut self) -> Option<Vec<u8>> {
+        let feature_index = self.backlight_feature_index()?;
+        let resp = self.hidpp_request(feature_index, 0x00, &[])?;
+        if resp.len() < 6 {
+            return None;
+        }
+        Some(resp[4..].to_vec())
+    }
+
+    /// Raw getBacklightInfo payload (fn 2): `[numberOfLevel, currentLevel, ..]`.
+    ///
+    /// `None` when the feature version lacks the function (older BACKLIGHT2
+    /// revisions only implement get/set config).
+    pub fn query_backlight_info(&mut self) -> Option<Vec<u8>> {
+        let feature_index = self.backlight_feature_index()?;
+        let resp = self.hidpp_long_request(feature_index, 0x02, &[])?;
+        if resp.len() < 6 {
+            return None;
+        }
+        Some(resp[4..].to_vec())
+    }
+
+    /// Set keyboard backlight brightness (function 1: setBacklightConfig). BETA.
+    ///
+    /// # UNVERIFIED HARDWARE ASSUMPTIONS
+    ///
+    /// This packet is reconstructed from Solaar's BACKLIGHT2 (0x1982)
+    /// implementation and has NOT been validated on real MX Keys S hardware.
+    /// Solaar itself hit a `FeatureCallError` (error 2 = invalid argument) on
+    /// MX Keys S that needed a firmware-specific fix (pwr-Solaar/Solaar
+    /// PR #2230), so treat this as a best-effort scaffold. The write payload is:
+    ///   `[enabled, options, 0xFF, level, dho(2B LE), dhi(2B LE), dpow(2B LE)]`
+    /// where `(options >> 3) & 0x03` selects the mode; mode `0x3` is
+    /// manual/permanent brightness, in which `level` is honoured.
+    ///
+    /// To minimise the chance of an invalid-argument rejection we READ the
+    /// current config first and PRESERVE the device-reported `options` bits and
+    /// dim durations, only forcing: enabled + manual mode + the requested level.
+    ///
+    /// Unlike the mouse HID++ paths, this WRITES a stored keyboard setting (the
+    /// backlight level persists, like DPI). It only runs when a caller has opted
+    /// into MX Keys S support and issues an explicit request. Returns
+    /// `Err(NotSupported)` when the feature is absent.
+    ///
+    /// `brightness` is a percent (clamped `0..=100`) mapped onto the device's
+    /// discrete level range from getBacklightInfo. Packet layout and level
+    /// mapping hardware-verified on MX Keys S (BACKLIGHT2 v3, 8 levels).
+    pub fn set_backlight(&mut self, brightness: u8) -> Result<(), HapticError> {
+        let feature_index = match self.backlight_feature_index() {
+            Some(idx) => idx,
+            None => {
+                tracing::debug!("BACKLIGHT2 not available, cannot set backlight");
+                return Err(HapticError::NotSupported);
+            }
+        };
+
+        // Device levels are DISCRETE: getBacklightInfo reports numberOfLevel
+        // (8 on MX Keys S, hardware-verified). Sending a raw percent as the
+        // level is rejected with INVALID_ARGUMENT, so map percent onto
+        // 0..=n-1. Older feature versions without getBacklightInfo fall back
+        // to the MX Keys' 8 levels.
+        let pct = brightness.min(100) as u32;
+        let n_levels = self
+            .query_backlight_info()
+            .and_then(|info| info.first().copied())
+            .filter(|&n| (2..=16).contains(&n))
+            .unwrap_or(8) as u32;
+        let level = ((pct * (n_levels - 1) + 50) / 100) as u8;
+
+        // Preserve device-reported options + dim durations from a fresh read so
+        // only brightness + mode change. Falls back to zeros if the read fails.
+        let current = self.query_backlight_config();
+        let mut options = current.as_ref().and_then(|c| c.get(1).copied()).unwrap_or(0);
+        // Force the mode bits (3-4) to manual (0x3): clear then set.
+        options = (options & !0x18) | (0x3 << 3);
+        let (dho, dhi, dpow) = match current.as_ref() {
+            // Payload offsets (Solaar V3 get layout): level=5, dho=6..8,
+            // dhi=8..10, dpow=10..12.
+            Some(c) if c.len() >= 12 => (
+                u16::from_le_bytes([c[6], c[7]]),
+                u16::from_le_bytes([c[8], c[9]]),
+                u16::from_le_bytes([c[10], c[11]]),
+            ),
+            _ => (0u16, 0u16, 0u16),
+        };
+
+        // Always enabled=1: level 0 in manual mode turns the glow off, while
+        // enabled=0 disables the whole backlight feature (hardware-verified
+        // write sequence on MX Keys S).
+        let enabled: u8 = 1;
+        let params: [u8; 10] = [
+            enabled,
+            options,
+            0xFF,
+            level,
+            (dho & 0xFF) as u8,
+            (dho >> 8) as u8,
+            (dhi & 0xFF) as u8,
+            (dhi >> 8) as u8,
+            (dpow & 0xFF) as u8,
+            (dpow >> 8) as u8,
+        ];
+
+        tracing::info!(
+            feature_index,
+            brightness = level,
+            options = format!("0x{:02X}", options),
+            "Setting keyboard backlight (BETA/UNVERIFIED)"
+        );
+
+        match self.hidpp_long_request(feature_index, 0x01, &params) {
+            Some(_) => Ok(()),
+            None => {
+                tracing::warn!("Backlight set returned no response (firmware may reject this layout)");
+                Err(HapticError::CommunicationError)
+            }
+        }
     }
 
     // =========================================================================

@@ -86,6 +86,18 @@ pub mod features {
     /// Event [0] thumbwheelEvent carries the signed rotation delta while diverted.
     pub const THUMB_WHEEL: u16 = 0x2150;
 
+    /// BACKLIGHT2 - Keyboard backlight / illumination control (0x1982)
+    ///
+    /// Present on MX Keys / MX Keys S / Craft and similar keyboards (BETA here).
+    /// Functions:
+    /// - [0] getBacklightConfig() (READ-ONLY)
+    /// - [1] setBacklightConfig(enabled, options, ...) - stores the backlight
+    ///   setting on the keyboard (PERSISTS, like ADJUSTABLE_DPI). This is the
+    ///   expected behaviour for a keyboard backlight and does NOT touch the
+    ///   mouse's cross-platform compatibility.
+    /// - [2] getBacklightInfo() (READ-ONLY)
+    pub const BACKLIGHT2: u16 = 0x1982;
+
     /// Change Host - Easy-Switch device slot switching (READ-ONLY safe)
     /// Functions: [0] getHostInfo (returns numHosts, currentHost), [1] setHost(slot)
     /// Used for reading current Easy-Switch status - we only use function 0
@@ -187,6 +199,7 @@ pub mod allowed_features {
         features::REPROG_CONTROLS_V4,
         features::THUMB_WHEEL,
         features::WIRELESS_DEVICE_STATUS,
+        features::BACKLIGHT2,
     ];
 
     /// Check if a feature ID is explicitly allowed

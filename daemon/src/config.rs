@@ -84,6 +84,19 @@ pub struct HapticConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
 
+    /// Master haptic strength, 0-100 (default 70).
+    ///
+    /// HARDWARE NOTE: the MX Master 4 plays fixed firmware waveforms selected
+    /// by ID; its HID++ play command (`send_haptic_pattern`) carries no
+    /// amplitude byte, so per-call strength scaling is impossible on that
+    /// device. There `intensity` acts as a master gate: 0 silences haptics,
+    /// any non-zero value plays the waveform at its native firmware amplitude.
+    /// On legacy force-feedback devices (0x8123, `send_haptic_pulse`) the pulse
+    /// DOES take an intensity byte, so there `intensity` scales amplitude for
+    /// real. Clamped to 0..=100 on load.
+    #[serde(default = "default_intensity")]
+    pub intensity: u8,
+
     /// Default haptic pattern (fallback when event-specific not set)
     #[serde(default = "default_pattern")]
     pub default_pattern: String,
@@ -118,6 +131,7 @@ pub struct HapticConfig {
 }
 
 fn default_true() -> bool { true }
+fn default_intensity() -> u8 { 70 }
 fn default_pattern() -> String { "subtle_collision".to_string() }
 fn default_debounce() -> u64 { 20 }
 fn default_slice_debounce() -> u64 { 20 }
@@ -127,6 +141,7 @@ impl Default for HapticConfig {
     fn default() -> Self {
         Self {
             enabled: true,
+            intensity: default_intensity(),
             default_pattern: default_pattern(),
             per_event: HapticEventConfig::default(),
             debounce_ms: 20,
@@ -141,6 +156,7 @@ impl Default for HapticConfig {
 impl HapticConfig {
     /// Validate all values
     pub fn validate(&mut self) {
+        self.intensity = self.intensity.clamp(0, 100);
         self.per_event.validate();
     }
 
@@ -427,6 +443,59 @@ impl ThumbwheelConfig {
 }
 
 // ============================================================================
+// Keyboard Configuration (BETA, opt-in)
+// ============================================================================
+
+/// MX Keys S HID++ options (battery readback + backlight). BETA.
+///
+/// Off by default. While disabled the daemon never opens or talks HID++ to any
+/// keyboard, so a normal mouse-only setup is completely unaffected. Even when
+/// enabled, the HID++ paths only run in response to an explicit D-Bus call.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MxKeysConfig {
+    /// Allow the daemon to talk HID++ to an MX Keys S keyboard for battery
+    /// readback and backlight control. Volatile reads are safe; the backlight
+    /// SET is UNVERIFIED on hardware (see `hidpp::device::HidppDevice::set_backlight`).
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+/// Generic keyboard remap + MX Keys S support. BETA, opt-in.
+///
+/// The whole section is inert unless `enabled` is true:
+/// - `enabled` false (default): no keyboard is ever grabbed, opened, or remapped.
+/// - `enabled` true + non-empty `remap`: the first physical keyboard is grabbed
+///   (EVIOCGRAB) and its events forwarded through a virtual keyboard with the
+///   listed source evdev key codes rewritten to their targets.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct KeyboardConfig {
+    /// Master switch for the generic remap path. Off by default.
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Generic remap table: source evdev key code -> target evdev key code.
+    /// JSON object with stringified integer keys, e.g. `{"58": 29}`
+    /// (CapsLock -> LeftCtrl). Empty by default; an empty table never triggers
+    /// a device grab.
+    #[serde(default)]
+    pub remap: std::collections::HashMap<u16, u16>,
+
+    /// MX Keys S HID++ options (battery + backlight). Independent of the
+    /// generic remap switch above.
+    #[serde(default)]
+    pub mx_keys: MxKeysConfig,
+}
+
+impl KeyboardConfig {
+    /// Whether the generic remap path should grab a keyboard: only when enabled
+    /// AND at least one remap entry exists. Prevents a misconfigured-but-enabled
+    /// section from grabbing the keyboard with an empty (identity) table.
+    pub fn remap_active(&self) -> bool {
+        self.enabled && !self.remap.is_empty()
+    }
+}
+
+// ============================================================================
 // Main Configuration
 // ============================================================================
 
@@ -453,6 +522,10 @@ pub struct Config {
     #[serde(default)]
     pub thumbwheel: ThumbwheelConfig,
 
+    /// Keyboard support (generic remap + MX Keys S). BETA, opt-in, off by default.
+    #[serde(default)]
+    pub keyboard: KeyboardConfig,
+
     /// Configuration file path (not serialized)
     #[serde(skip)]
     pub config_path: Option<PathBuf>,
@@ -470,6 +543,7 @@ impl Default for Config {
             blur_enabled: true,
             buttons: ButtonsConfig::default(),
             thumbwheel: ThumbwheelConfig::default(),
+            keyboard: KeyboardConfig::default(),
             config_path: None,
         }
     }
@@ -791,6 +865,52 @@ mod tests {
         assert!(haptic.window_switch_enabled);
         assert_eq!(haptic.per_event.monitor_switch, "subtle_collision");
         assert!(haptic.monitor_switch_enabled);
+    }
+
+    #[test]
+    fn test_haptic_intensity_default() {
+        // Field default must match the Settings UI default (70).
+        assert_eq!(HapticConfig::default().intensity, 70);
+        assert_eq!(default_intensity(), 70);
+    }
+
+    #[test]
+    fn test_haptic_intensity_serde_roundtrip() {
+        // Explicit value survives a serialize/deserialize round-trip.
+        let mut cfg = HapticConfig::default();
+        cfg.intensity = 42;
+        let json = serde_json::to_string(&cfg).unwrap();
+        assert!(json.contains("\"intensity\":42"), "serialized: {json}");
+        let back: HapticConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.intensity, 42);
+    }
+
+    #[test]
+    fn test_haptic_intensity_from_partial_json() {
+        // The Settings UI writes intensity as part of the haptics block.
+        let json = r#"{"haptics": {"intensity": 30}}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.haptics.intensity, 30);
+    }
+
+    #[test]
+    fn test_haptic_intensity_missing_uses_default() {
+        // Older configs without the field fall back to the default (no drop).
+        let json = r#"{"haptics": {"enabled": true}}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.haptics.intensity, 70);
+    }
+
+    #[test]
+    fn test_haptic_intensity_clamped_on_validate() {
+        // Out-of-range values are clamped to 0..=100 on load.
+        let mut high: HapticConfig = serde_json::from_str(r#"{"intensity": 250}"#).unwrap();
+        high.validate();
+        assert_eq!(high.intensity, 100);
+
+        let mut ok: HapticConfig = serde_json::from_str(r#"{"intensity": 55}"#).unwrap();
+        ok.validate();
+        assert_eq!(ok.intensity, 55);
     }
 
     #[test]
@@ -1125,5 +1245,65 @@ mod tests {
                 .remapped_button_cids()
                 .contains(&button_cid::BACK_BUTTON)
         );
+    }
+
+    // ========================================================================
+    // Keyboard Config Tests (BETA)
+    // ========================================================================
+
+    #[test]
+    fn test_keyboard_defaults_disabled() {
+        let kb = KeyboardConfig::default();
+        assert!(!kb.enabled);
+        assert!(kb.remap.is_empty());
+        assert!(!kb.mx_keys.enabled);
+        // Nothing should grab the keyboard with defaults.
+        assert!(!kb.remap_active());
+    }
+
+    #[test]
+    fn test_keyboard_remap_active_requires_enabled_and_entries() {
+        let mut kb = KeyboardConfig::default();
+        kb.remap.insert(58, 29); // CapsLock -> LeftCtrl, but still disabled
+        assert!(!kb.remap_active());
+
+        kb.enabled = true;
+        assert!(kb.remap_active());
+
+        kb.remap.clear();
+        // Enabled but empty table must NOT grab.
+        assert!(!kb.remap_active());
+    }
+
+    #[test]
+    fn test_config_without_keyboard_section_backward_compat() {
+        // Existing configs with no "keyboard" section must still parse.
+        let json = r#"{"theme": "catppuccin-mocha"}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(!config.keyboard.enabled);
+        assert!(config.keyboard.remap.is_empty());
+        assert!(!config.keyboard.mx_keys.enabled);
+    }
+
+    #[test]
+    fn test_config_keyboard_json_roundtrip() {
+        let json = r#"{
+            "keyboard": {
+                "enabled": true,
+                "remap": {"58": 29, "1": 14},
+                "mx_keys": {"enabled": true}
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(config.keyboard.enabled);
+        assert_eq!(config.keyboard.remap.get(&58), Some(&29));
+        assert_eq!(config.keyboard.remap.get(&1), Some(&14));
+        assert!(config.keyboard.mx_keys.enabled);
+        assert!(config.keyboard.remap_active());
+
+        // Round-trips back through serialization (string keys in JSON).
+        let out = serde_json::to_string(&config).unwrap();
+        let reparsed: Config = serde_json::from_str(&out).unwrap();
+        assert_eq!(reparsed.keyboard.remap.get(&58), Some(&29));
     }
 }

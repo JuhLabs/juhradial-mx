@@ -43,6 +43,7 @@ systemctl --user restart juhradialmx-daemon.service
   "blur_enabled": true,
   "buttons": { ... },
   "thumbwheel": { ... },
+  "keyboard": { ... },
   "radial": { "minimal_mode": false },
   "radial_menu": { ... },
   "scroll": { ... },
@@ -63,6 +64,7 @@ systemctl --user restart juhradialmx-daemon.service
 | `blur_enabled` | bool | Overlay blur effect (auto-disabled on slow GPUs) |
 | `buttons` | object | Physical button action assignments |
 | `thumbwheel` | object | Thumb-wheel behaviour (volume / scroll / zoom / off) |
+| `keyboard` | object | Keyboard support, beta and off by default (generic remap table, MX Keys S battery and backlight) |
 | `radial` | object | Radial menu display options (`minimal_mode`) |
 | `radial_menu` | object | The 8 radial slices, easy-switch options |
 | `scroll` | object | Scroll direction, smoothness, SmartShift |
@@ -79,6 +81,7 @@ systemctl --user restart juhradialmx-daemon.service
 ```json
 "haptics": {
   "enabled": true,
+  "intensity": 70,
   "default_pattern": "subtle_collision",
   "per_event": {
     "menu_appear": "damp_state_change",
@@ -99,6 +102,7 @@ systemctl --user restart juhradialmx-daemon.service
 | Field | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `enabled` | bool | `true` | Master toggle for haptic feedback |
+| `intensity` | int | `70` | Master strength 0-100. `0` silences every pulse. The MX Master 4's firmware waveforms have no amplitude byte, so on that mouse any non-zero value plays at native strength; legacy force-feedback devices scale their pulse amplitude by it. |
 | `default_pattern` | string | `subtle_collision` | Fallback waveform when no per-event pattern is set |
 | `per_event.menu_appear` | string | `damp_state_change` | Pulse when the radial menu opens |
 | `per_event.slice_change` | string | `subtle_collision` | Pulse when hovering a different slice |
@@ -216,6 +220,26 @@ How modes behave:
 
 - `off` and `scroll` use the wheel's native hardware behaviour and are **not** diverted, so horizontal scroll works reliably on every compositor.
 - `volume` and `zoom` are diverted: each rotation tick is re-injected as Volume Up/Down or Ctrl +/- the number of times set by `speed`.
+
+## Keyboard (beta)
+
+Off by default and inert until enabled: with the section absent or every switch `false` the daemon never opens, grabs or talks to a keyboard, so a mouse-only install is unaffected.
+
+```json
+"keyboard": {
+  "enabled": false,
+  "remap": { "58": 29 },
+  "mx_keys": { "enabled": false }
+}
+```
+
+| Field | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `enabled` | bool | `false` | Master switch for the generic remap path. |
+| `remap` | object | `{}` | Source evdev key code to target key code, as stringified integers (`"58": 29` is CapsLock to Left Ctrl). Only when `enabled` is true and the table is non-empty is the first physical keyboard grabbed and forwarded through a virtual keyboard with these codes rewritten. |
+| `mx_keys.enabled` | bool | `false` | Let the daemon talk HID++ to an MX Keys S for battery readback (`GetKeyboardBattery`), presence from the receiver's pairing table (`GetKeyboardPaired`, true even while the keyboard's radio sleeps) and the backlight (`SetKeyboardBacklight`, unverified on hardware and only sent on an explicit request). |
+
+`ListKeyboardKeys` returns the evdev key codes of the first keyboard for a remap picker without grabbing it.
 
 ## Radial menu
 

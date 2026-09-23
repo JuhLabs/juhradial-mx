@@ -129,6 +129,7 @@ fn test_from_config() {
 
     let config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "subtle_collision".to_string(),
         per_event: Default::default(),
         debounce_ms: 30,
@@ -149,6 +150,7 @@ fn test_from_config_disabled() {
 
     let config = HapticConfig {
         enabled: false,
+        intensity: 70,
         default_pattern: "subtle_collision".to_string(),
         per_event: Default::default(),
         debounce_ms: 20,
@@ -171,6 +173,7 @@ fn test_update_from_config() {
 
     let new_config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "sharp_state_change".to_string(),
         per_event: Default::default(),
         debounce_ms: 25,
@@ -331,6 +334,7 @@ fn test_from_config_with_per_event() {
 
     let config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "subtle_collision".to_string(),
         per_event: HapticEventConfig {
             menu_appear: "damp_state_change".to_string(),
@@ -369,6 +373,7 @@ fn test_update_from_config_with_per_event() {
 
     let new_config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "angry_alert".to_string(),
         per_event: HapticEventConfig {
             menu_appear: "sharp_state_change".to_string(),
@@ -663,6 +668,7 @@ fn test_from_config_with_slice_debounce() {
 
     let config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "subtle_collision".to_string(),
         per_event: Default::default(),
         debounce_ms: 20,
@@ -687,6 +693,7 @@ fn test_update_from_config_with_slice_debounce() {
 
     let new_config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "subtle_collision".to_string(),
         per_event: Default::default(),
         debounce_ms: 20,
