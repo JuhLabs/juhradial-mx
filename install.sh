@@ -483,8 +483,43 @@ fetch_release() {
     return 0
 }
 
+# Install from a checkout already on this machine (development builds, or a
+# release tarball unpacked by hand): JUHRADIAL_LOCAL_TREE=/path/to/checkout.
+# Copies the tree into INSTALL_DIR without .git, cargo's target directory
+# (except an already-built release daemon, which build_project then reuses),
+# the Qt app's local venv, and bytecode caches.
+install_from_local_tree() {
+    local src="$1" uid gid
+    [ -f "$src/daemon/Cargo.toml" ] || return 1
+    uid="$(id -u)"
+    gid="$(id -g)"
+    log_info "Installing from local tree $src"
+    [ -e "$INSTALL_DIR" ] && sudo rm -rf "$INSTALL_DIR"
+    sudo install -d -o "$uid" -g "$gid" "$INSTALL_DIR"
+    tar -C "$src" \
+        --exclude=./.git \
+        --exclude=./daemon/target \
+        --exclude=./settings-qt/.venv \
+        --exclude=__pycache__ \
+        -cf - . | tar -C "$INSTALL_DIR" -xf -
+    if [ -x "$src/daemon/target/release/juhradiald" ]; then
+        install -Dm755 "$src/daemon/target/release/juhradiald" "$INSTALL_DIR/daemon/target/release/juhradiald"
+    fi
+    cd "$INSTALL_DIR"
+    log_success "Local tree copied"
+    return 0
+}
+
 clone_repo() {
     step "Fetching source"
+
+    if [ -n "${JUHRADIAL_LOCAL_TREE:-}" ]; then
+        if install_from_local_tree "$JUHRADIAL_LOCAL_TREE"; then
+            return 0
+        fi
+        log_error "JUHRADIAL_LOCAL_TREE=$JUHRADIAL_LOCAL_TREE is not a JuhRadial MX checkout"
+        exit 1
+    fi
 
     if fetch_release; then
         return 0
