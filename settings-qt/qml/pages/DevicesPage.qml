@@ -186,16 +186,15 @@ Item {
                             spacing: Theme.gapL
                             Item {
                                 Layout.preferredWidth: 104; Layout.preferredHeight: 60
-                                Rectangle {
+                                // MX Keys S product render; dimmed until the keyboard answers
+                                Image {
                                     anchors.centerIn: parent
-                                    width: 54; height: 54; radius: 14
-                                    color: kbCard.kb.present ? Theme.accentSubtle : "#12FFFFFF"
-                                    border.width: 1; border.color: kbCard.kb.present ? Theme.accentFaint : Theme.border
-                                    ActionIcon {
-                                        anchors.centerIn: parent
-                                        iconName: "keyboard"; px: 26
-                                        tint: kbCard.kb.present ? Theme.accent : Theme.textMuted
-                                    }
+                                    source: assetsDir + "/devices/mx_keys_s.png"
+                                    sourceSize.width: 208; sourceSize.height: 82
+                                    width: 104; height: 41
+                                    fillMode: Image.PreserveAspectFit; smooth: true; asynchronous: true
+                                    opacity: kbCard.kb.present ? 1 : 0.45
+                                    Behavior on opacity { NumberAnimation { duration: Theme.dMed } }
                                 }
                             }
                             ColumnLayout {
