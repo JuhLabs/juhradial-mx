@@ -29,13 +29,13 @@ from PyQt6.QtCore import (
     QAbstractListModel, QModelIndex, Qt, QByteArray, QUrl,
 )
 
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QMetaType, QSize
 from PyQt6.QtGui import QIcon
 
 try:
-    from PyQt6.QtDBus import (QDBusConnection, QDBusInterface, QDBusMessage,
-                              QDBusPendingCallWatcher, QDBusPendingReply,
-                              QDBusServiceWatcher)
+    from PyQt6.QtDBus import (QDBusArgument, QDBusConnection, QDBusInterface,
+                              QDBusMessage, QDBusPendingCallWatcher,
+                              QDBusPendingReply, QDBusServiceWatcher)
     _HAVE_DBUS = True
 except Exception:  # pragma: no cover - QtDBus should be present
     _HAVE_DBUS = False
@@ -306,6 +306,18 @@ DEFAULT_CONFIG = {
     "flow": {"enabled": False, "direction": "left", "edge_trigger": True,
              "share_clipboard": True, "edge_sensitivity": 50, "monitor": ""},
 }
+
+
+def _u8(v):
+    """A D-Bus byte (`y`). PyQt6 sends a plain Python int as int32 (`i`), and
+    the daemon (zbus) rejects a call whose signature differs from the declared
+    one before the handler runs, so every byte argument must be typed."""
+    return QDBusArgument(max(0, min(255, int(v))), QMetaType.Type.UChar.value)
+
+
+def _u16(v):
+    """A D-Bus uint16 (`q`); see _u8."""
+    return QDBusArgument(max(0, min(65535, int(v))), QMetaType.Type.UShort.value)
 
 
 def _to_int(v, default=0):
@@ -1042,7 +1054,7 @@ class Backend(QObject):
         dpi = max(400, min(8000, int(dpi)))
         self._dpi = dpi
         self.setLocal("pointer.dpi", dpi)
-        self.daemon.call_async("SetDpi", dpi)
+        self.daemon.call_async("SetDpi", _u16(dpi))
         self.liveChanged.emit()
 
     @pyqtSlot(str)
@@ -1050,20 +1062,20 @@ class Backend(QObject):
         self.setLocal("scroll.mode", mode)
         thr = int(self.get("scroll.smartshift_threshold", 50))
         if mode == "smartshift":
-            self.daemon.call("SetSmartShift", True, self._dev_threshold(thr))
+            self.daemon.call("SetSmartShift", True, _u8(self._dev_threshold(thr)))
         elif mode == "ratchet":
             # (False, _) = permanently ratcheted (autoDisengage 255).
-            self.daemon.call("SetSmartShift", False, 0)
+            self.daemon.call("SetSmartShift", False, _u8(0))
         elif mode == "freespin":
             # (True, 0) = freespin.
-            self.daemon.call("SetSmartShift", True, 0)
+            self.daemon.call("SetSmartShift", True, _u8(0))
         self._wheel_mode = mode
         self.liveChanged.emit()
 
     @pyqtSlot(int)
     def setSmartShiftThreshold(self, ui_value):
         self.setLocal("scroll.smartshift_threshold", int(ui_value))
-        self.daemon.call("SetSmartShift", True, self._dev_threshold(ui_value))
+        self.daemon.call("SetSmartShift", True, _u8(self._dev_threshold(ui_value)))
 
     @staticmethod
     def _dev_threshold(ui_value):
@@ -1284,7 +1296,7 @@ class Backend(QObject):
     @pyqtSlot(int)
     def setKeyboardBacklight(self, level):
         """Set MX Keys S backlight 0..100% (mapped to the device's levels)."""
-        r = self.daemon.call("SetKeyboardBacklight", max(0, min(100, int(level))))
+        r = self.daemon.call("SetKeyboardBacklight", _u8(max(0, min(100, int(level)))))
         if not (r and len(r) >= 1 and r[0]):
             # A sleeping keyboard ignores HID++ until a key press wakes it.
             self.toast.emit("Keyboard not reachable - press a key to wake it, then try again")
@@ -1457,7 +1469,7 @@ class Backend(QObject):
     # ---- easy-switch ----
     @pyqtSlot(int)
     def switchHost(self, host):
-        self.daemon.call_async("SetHost", host)
+        self.daemon.call_async("SetHost", _u8(host))
         self._cur_host = host
         self.liveChanged.emit()
 

@@ -22,6 +22,9 @@ ApplicationWindow {
             }
         }
         function onToastRequested(text, kind) { toast.show(text, kind) }
+        // Backend.toast (plain text) had no listener, so "keyboard not
+        // reachable", autostart errors and the corrupt-config notice vanished.
+        function onToast(text) { toast.show(text, "info") }
         // Pages read Backend.get() when they load; after an import or a
         // restore, re-run the active Loader so the controls show the new file.
         function onConfigReloaded() { const i = nav.current; nav.current = -1; nav.current = i }
