@@ -2,7 +2,7 @@
 # Build: rpmbuild -ba juhradial-mx.spec
 
 Name:           juhradial-mx
-Version:        0.4.3
+Version:        0.4.5
 Release:        1%{?dist}
 Summary:        Beautiful radial menu for Logitech MX Master mice on Linux
 
@@ -121,6 +121,9 @@ install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdi
 %{_udevrulesdir}/99-juhradialmx.rules
 %{_udevrulesdir}/60-ydotool-uinput.rules
 %changelog
+* Wed Sep 23 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5-1
+- Release 0.4.5 (see CHANGELOG.md)
+
 * Sat Aug 15 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.3-1
 - Editable quick links in the radial submenu (#105)
 - Radial menu performance wave: frame-coalesced cursor updates, skipped
