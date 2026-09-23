@@ -33,7 +33,8 @@ from PyQt6.QtGui import QIcon
 
 try:
     from PyQt6.QtDBus import (QDBusConnection, QDBusInterface, QDBusMessage,
-                              QDBusPendingCallWatcher, QDBusServiceWatcher)
+                              QDBusPendingCallWatcher, QDBusPendingReply,
+                              QDBusServiceWatcher)
     _HAVE_DBUS = True
 except Exception:  # pragma: no cover - QtDBus should be present
     _HAVE_DBUS = False
@@ -407,13 +408,22 @@ class Daemon(QObject):
         self._watchers.add(watcher)
 
         def _finished(w):
+            # PyQt6 binds no reply() on the watcher; QDBusPendingReply wraps
+            # it. Everything runs inside a Qt slot, where an unhandled Python
+            # exception is fatal (PyQt6 aborts the process), so guard it.
             self._watchers.discard(w)
-            msg = w.reply()
-            w.deleteLater()
-            if msg.type() == QDBusMessage.MessageType.ErrorMessage:
-                callback(None)
-            else:
-                callback(msg.arguments())
+            try:
+                reply = QDBusPendingReply(w)
+                result = None if reply.isError() else list(reply.reply().arguments())
+            except Exception as e:  # pragma: no cover - defensive
+                print(f"async {method} reply failed: {e}", file=sys.stderr)
+                result = None
+            finally:
+                w.deleteLater()
+            try:
+                callback(result)
+            except Exception as e:
+                print(f"async {method} callback failed: {e}", file=sys.stderr)
         watcher.finished.connect(_finished)
 
     def call1(self, method, *args, default=None):
