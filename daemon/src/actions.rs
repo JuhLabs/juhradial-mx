@@ -205,6 +205,16 @@ impl ActionExecutor {
                 "home" => 102, "end" => 107, "tab" => 15, "escape" | "esc" => 1,
                 "space" => 57, "return" | "enter" => 28, "delete" => 111,
                 "print" => 99,
+                "page_up" | "prior" => 104, "page_down" | "next" => 109,
+                "insert" => 110, "backspace" => 14, "pause" => 119, "menu" => 127,
+                "f1" => 59, "f2" => 60, "f3" => 61, "f4" => 62, "f5" => 63, "f6" => 64,
+                "f7" => 65, "f8" => 66, "f9" => 67, "f10" => 68, "f11" => 87, "f12" => 88,
+                "f13" => 183, "f14" => 184, "f15" => 185, "f16" => 186, "f17" => 187,
+                "f18" => 188, "f19" => 189, "f20" => 190, "f21" => 191, "f22" => 192,
+                "f23" => 193, "f24" => 194,
+                "comma" => 51, "period" => 52, "slash" => 53, "semicolon" => 39,
+                "apostrophe" => 40, "bracketleft" => 26, "bracketright" => 27,
+                "backslash" => 43, "grave" => 41,
                 "xf86audioraisevolume" => 115,
                 "xf86audiolowervolume" => 114,
                 "xf86audiomute" => 113,
@@ -731,6 +741,111 @@ fn next_wheel_mode(mode: u8) -> u8 {
     }
 }
 
+/// A key chord as Settings records it: "+"-joined key names, nothing else.
+pub fn is_shortcut_text(keys: &str) -> bool {
+    !keys.is_empty()
+        && keys.len() <= 64
+        && keys.split('+').all(|k| !k.is_empty() && k.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+}
+
+/// Easy-Switch the mouse to host slot 1-3, or the next slot. Switching to
+/// the slot the mouse is on already does nothing (the link would drop and
+/// come back for no reason).
+async fn switch_host(action: ButtonAction) -> Result<(), ActionError> {
+    let manager = DEVICE
+        .get()
+        .cloned()
+        .ok_or_else(|| ActionError::ExecutionFailed("no HID++ device".into()))?;
+    tokio::task::spawn_blocking(move || {
+        let mut m = manager
+            .lock()
+            .map_err(|_| ActionError::ExecutionFailed("device lock poisoned".into()))?;
+        let (hosts, current) = m
+            .get_easy_switch_info()
+            .ok_or_else(|| ActionError::ExecutionFailed("Easy-Switch not readable".into()))?;
+        let target = match target_host(action, hosts, current) {
+            Some(t) => t,
+            None => return Ok(()),
+        };
+        m.set_current_host(target).map_err(ActionError::ExecutionFailed)?;
+        crate::link_state::report(crate::link_state::LinkState::Away, None);
+        Ok(())
+    })
+    .await
+    .map_err(|e| ActionError::ExecutionFailed(e.to_string()))?
+}
+
+/// 0-based slot a host action switches to; None when it is the current slot
+/// or outside the slots the mouse has.
+fn target_host(action: ButtonAction, hosts: u8, current: u8) -> Option<u8> {
+    let hosts = hosts.clamp(1, 3);
+    let target = match action {
+        ButtonAction::Host1 => 0,
+        ButtonAction::Host2 => 1,
+        ButtonAction::Host3 => 2,
+        ButtonAction::HostNext => (current + 1) % hosts,
+        _ => return None,
+    };
+    (target < hosts && target != current).then_some(target)
+}
+
+/// DPI step for DPI up / down, and the sensor range used when the mouse does
+/// not report one (MX Master 4: 200 to 8000).
+const DPI_STEP: u16 = 200;
+const DPI_RANGE_FALLBACK: (u16, u16) = (200, 8000);
+
+/// Where a DPI action lands from `current`: the next preset (wrapping), or
+/// one step up or down inside the sensor range.
+pub fn next_dpi(action: ButtonAction, current: u16, presets: &[u16], range: (u16, u16)) -> Option<u16> {
+    let (lo, hi) = range;
+    match action {
+        ButtonAction::DpiUp => Some(current.saturating_add(DPI_STEP).clamp(lo, hi)),
+        ButtonAction::DpiDown => Some(current.saturating_sub(DPI_STEP).clamp(lo, hi)),
+        ButtonAction::DpiCycle => {
+            let mut p: Vec<u16> = presets.iter().copied().filter(|d| (lo..=hi).contains(d)).collect();
+            p.sort_unstable();
+            p.dedup();
+            p.iter().copied().find(|&d| d > current).or_else(|| p.first().copied())
+        }
+        _ => None,
+    }
+}
+
+/// Read the mouse's DPI and sensor range (lowest, highest).
+pub async fn read_dpi() -> Option<(u16, (u16, u16))> {
+    let manager = DEVICE.get().cloned()?;
+    tokio::task::spawn_blocking(move || {
+        let mut m = manager.lock().ok()?;
+        let dpi = m.get_dpi()?;
+        let range = m
+            .get_dpi_list()
+            .filter(|l| !l.is_empty())
+            .map(|l| (*l.iter().min().unwrap_or(&DPI_RANGE_FALLBACK.0), *l.iter().max().unwrap_or(&DPI_RANGE_FALLBACK.1)))
+            .unwrap_or(DPI_RANGE_FALLBACK);
+        Some((dpi, range))
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
+/// Write a DPI to the mouse (DPI button actions).
+pub async fn write_dpi(dpi: u16) -> Result<(), ActionError> {
+    let manager = DEVICE
+        .get()
+        .cloned()
+        .ok_or_else(|| ActionError::ExecutionFailed("no HID++ device".into()))?;
+    tokio::task::spawn_blocking(move || {
+        manager
+            .lock()
+            .map_err(|_| ActionError::ExecutionFailed("device lock poisoned".into()))?
+            .set_dpi(dpi)
+            .map_err(|e| ActionError::ExecutionFailed(e.to_string()))
+    })
+    .await
+    .map_err(|e| ActionError::ExecutionFailed(e.to_string()))?
+}
+
 /// Open a web or mail link in the user's browser (custom button action).
 /// Only http, https and mailto: the value comes from config.json.
 pub fn open_url(url: &str) -> Result<(), ActionError> {
@@ -846,8 +961,31 @@ pub async fn execute_button_action(action: ButtonAction) -> Result<bool, ActionE
             click_mouse_button(MouseButton::Forward)?;
             Ok(true)
         }
-        ButtonAction::Custom => {
-            tracing::warn!("Custom button action not yet implemented");
+        ButtonAction::LeftClick => {
+            click_mouse_button(MouseButton::Left)?;
+            Ok(true)
+        }
+        ButtonAction::RightClick => {
+            click_mouse_button(MouseButton::Right)?;
+            Ok(true)
+        }
+        ButtonAction::ScrollLeft | ButtonAction::ScrollRight => {
+            execute_horizontal_scroll(if action == ButtonAction::ScrollRight { 1 } else { -1 }).await?;
+            Ok(true)
+        }
+        ButtonAction::Host1 | ButtonAction::Host2 | ButtonAction::Host3 | ButtonAction::HostNext => {
+            switch_host(action).await?;
+            Ok(true)
+        }
+        // Need the slot (custom) or daemon state (DPI, gaming mode): the
+        // event loop in main.rs runs these before calling here.
+        ButtonAction::Custom
+        | ButtonAction::DpiCycle
+        | ButtonAction::DpiUp
+        | ButtonAction::DpiDown
+        | ButtonAction::DpiShift
+        | ButtonAction::GamingMode => {
+            tracing::warn!(%action, "Action needs the daemon event loop; ignored here");
             Ok(true)
         }
         // Desktop-portable presets resolve per-DE (see presets.rs)
@@ -1068,12 +1206,75 @@ fn button_action_to_shortcut(action: ButtonAction) -> Option<&'static str> {
         ButtonAction::ZoomIn => Some("ctrl+KP_Add"),
         ButtonAction::ZoomOut => Some("ctrl+KP_Subtract"),
         ButtonAction::ScrollLeftRight => None, // Handled by hardware, not keyboard shortcut
+        ButtonAction::TabNext => Some("ctrl+Tab"),
+        ButtonAction::TabPrev => Some("ctrl+shift+Tab"),
+        ButtonAction::TabClose => Some("ctrl+w"),
+        ButtonAction::TabReopen => Some("ctrl+shift+t"),
+        ButtonAction::PageUp => Some("Page_Up"),
+        ButtonAction::PageDown => Some("Page_Down"),
+        ButtonAction::Home => Some("Home"),
+        ButtonAction::End => Some("End"),
         _ => None,
     }
 }
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn host_actions_pick_the_slot_and_skip_the_current_one() {
+        assert_eq!(target_host(ButtonAction::Host2, 3, 0), Some(1));
+        assert_eq!(target_host(ButtonAction::Host1, 3, 0), None);
+        assert_eq!(target_host(ButtonAction::HostNext, 3, 2), Some(0));
+        assert_eq!(target_host(ButtonAction::HostNext, 3, 0), Some(1));
+        assert_eq!(target_host(ButtonAction::Host3, 2, 0), None);
+        assert_eq!(target_host(ButtonAction::Copy, 3, 0), None);
+    }
+
+    #[test]
+    fn dpi_actions_step_within_range_and_cycle_presets() {
+        let range = (200, 8000);
+        assert_eq!(next_dpi(ButtonAction::DpiUp, 1600, &[], range), Some(1800));
+        assert_eq!(next_dpi(ButtonAction::DpiUp, 7900, &[], range), Some(8000));
+        assert_eq!(next_dpi(ButtonAction::DpiDown, 300, &[], range), Some(200));
+        let presets = [3200, 800, 1600, 60_000];
+        assert_eq!(next_dpi(ButtonAction::DpiCycle, 800, &presets, range), Some(1600));
+        assert_eq!(next_dpi(ButtonAction::DpiCycle, 1000, &presets, range), Some(1600));
+        assert_eq!(next_dpi(ButtonAction::DpiCycle, 3200, &presets, range), Some(800));
+        assert_eq!(next_dpi(ButtonAction::DpiCycle, 800, &[], range), None);
+        assert_eq!(next_dpi(ButtonAction::Copy, 800, &presets, range), None);
+    }
+
+    #[test]
+    fn recorder_keys_have_evdev_codes() {
+        for keys in ["ctrl+Page_Up", "Page_Down", "shift+F13", "F24", "Insert", "ctrl+alt+Print",
+                     "super+comma", "ctrl+BackSpace", "Home", "End"] {
+            assert!(ActionExecutor::shortcut_to_evdev_codes(keys).is_some(), "{keys}");
+        }
+        assert_eq!(ActionExecutor::shortcut_to_evdev_codes("F13"), Some(vec![183]));
+        assert_eq!(ActionExecutor::shortcut_to_evdev_codes("ctrl+Page_Up"), Some(vec![29, 104]));
+    }
+
+    #[test]
+    fn new_vocabulary_shortcuts() {
+        assert_eq!(button_action_to_shortcut(ButtonAction::TabReopen), Some("ctrl+shift+t"));
+        assert_eq!(button_action_to_shortcut(ButtonAction::PageDown), Some("Page_Down"));
+        for a in [ButtonAction::TabNext, ButtonAction::TabPrev, ButtonAction::TabClose,
+                  ButtonAction::PageUp, ButtonAction::Home, ButtonAction::End] {
+            let keys = button_action_to_shortcut(a).unwrap();
+            assert!(ActionExecutor::shortcut_to_evdev_codes(keys).is_some(), "{keys}");
+        }
+    }
+
+    #[test]
+    fn shortcut_text_is_key_names_only() {
+        assert!(is_shortcut_text("ctrl+shift+Page_Up"));
+        assert!(is_shortcut_text("XF86AudioPlay"));
+        assert!(!is_shortcut_text(""));
+        assert!(!is_shortcut_text("ctrl++"));
+        assert!(!is_shortcut_text("ctrl+c; rm -rf ~"));
+        assert!(!is_shortcut_text("--help"));
+    }
 
     #[test]
     fn open_url_refuses_anything_but_web_and_mail_links() {

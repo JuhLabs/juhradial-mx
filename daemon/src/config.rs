@@ -202,6 +202,33 @@ pub enum ButtonAction {
     Calculator,
     None,
     Custom,
+    // Wider vocabulary (audit P1 #3).
+    LeftClick,
+    RightClick,
+    /// Horizontal scroll one step (X11 buttons 6 and 7).
+    ScrollLeft,
+    ScrollRight,
+    /// Next preset in `pointer.dpi_presets`.
+    DpiCycle,
+    DpiUp,
+    DpiDown,
+    /// Hold for `pointer.dpi_shift` (precision), release restores.
+    DpiShift,
+    TabNext,
+    TabPrev,
+    TabClose,
+    TabReopen,
+    PageUp,
+    PageDown,
+    Home,
+    End,
+    /// Easy-Switch to host slot 1, 2 or 3, or the next slot.
+    Host1,
+    Host2,
+    Host3,
+    HostNext,
+    /// Turn gaming mode on or off.
+    GamingMode,
 }
 
 impl std::fmt::Display for ButtonAction {
@@ -234,6 +261,27 @@ impl std::fmt::Display for ButtonAction {
             ButtonAction::Calculator => write!(f, "calculator"),
             ButtonAction::None => write!(f, "none"),
             ButtonAction::Custom => write!(f, "custom"),
+            ButtonAction::LeftClick => write!(f, "left_click"),
+            ButtonAction::RightClick => write!(f, "right_click"),
+            ButtonAction::ScrollLeft => write!(f, "scroll_left"),
+            ButtonAction::ScrollRight => write!(f, "scroll_right"),
+            ButtonAction::DpiCycle => write!(f, "dpi_cycle"),
+            ButtonAction::DpiUp => write!(f, "dpi_up"),
+            ButtonAction::DpiDown => write!(f, "dpi_down"),
+            ButtonAction::DpiShift => write!(f, "dpi_shift"),
+            ButtonAction::TabNext => write!(f, "tab_next"),
+            ButtonAction::TabPrev => write!(f, "tab_prev"),
+            ButtonAction::TabClose => write!(f, "tab_close"),
+            ButtonAction::TabReopen => write!(f, "tab_reopen"),
+            ButtonAction::PageUp => write!(f, "page_up"),
+            ButtonAction::PageDown => write!(f, "page_down"),
+            ButtonAction::Home => write!(f, "home"),
+            ButtonAction::End => write!(f, "end"),
+            ButtonAction::Host1 => write!(f, "host1"),
+            ButtonAction::Host2 => write!(f, "host2"),
+            ButtonAction::Host3 => write!(f, "host3"),
+            ButtonAction::HostNext => write!(f, "host_next"),
+            ButtonAction::GamingMode => write!(f, "gaming_mode"),
         }
     }
 }
@@ -574,6 +622,16 @@ pub struct Config {
     #[serde(skip)]
     pub active_unit: Option<String>,
 
+    /// The focused app whose profile carries button overrides, with those
+    /// overrides (profiles.json `hardware.<class>.buttons` and `.custom`,
+    /// keyed like `buttons.custom`). Set on focus change, not serialized.
+    #[serde(skip)]
+    pub active_app: Option<String>,
+    #[serde(skip)]
+    pub app_buttons: std::collections::HashMap<String, ButtonAction>,
+    #[serde(skip)]
+    pub app_custom: std::collections::HashMap<String, CustomAction>,
+
     /// Configuration file path (not serialized)
     #[serde(skip)]
     pub config_path: Option<PathBuf>,
@@ -612,6 +670,9 @@ impl Default for Config {
             keyboard: KeyboardConfig::default(),
             devices: std::collections::HashMap::new(),
             active_unit: None,
+            active_app: None,
+            app_buttons: std::collections::HashMap::new(),
+            app_custom: std::collections::HashMap::new(),
             config_path: None,
         }
     }
@@ -743,6 +804,9 @@ impl Config {
                 merged.config_path = self.config_path.clone();
                 merged.devices = std::mem::take(&mut self.devices);
                 merged.active_unit = Some(unit_key.to_string());
+                merged.active_app = self.active_app.take();
+                merged.app_buttons = std::mem::take(&mut self.app_buttons);
+                merged.app_custom = std::mem::take(&mut self.app_custom);
                 *self = merged;
                 true
             }
@@ -782,9 +846,13 @@ impl Config {
         }
     }
 
-    /// Get the configured action for a HID++ CID (Control ID)
+    /// Get the configured action for a HID++ CID (Control ID): the focused
+    /// app's override first, then the global assignment.
     pub fn action_for_cid(&self, cid: u16) -> ButtonAction {
         use crate::hidraw::button_cid;
+        if let Some(action) = self.app_button(cid) {
+            return action;
+        }
         match cid {
             button_cid::GESTURE_BUTTON => self.buttons.gesture,
             button_cid::HAPTIC => self.buttons.thumb,
@@ -811,13 +879,46 @@ impl Config {
         }
     }
 
-    /// The custom action for a slot or control key (case-insensitive hex).
+    /// The custom action for a slot or control key (case-insensitive hex),
+    /// the focused app's own first.
     pub fn custom_action(&self, source: &str) -> Option<&CustomAction> {
-        self.buttons
-            .custom
+        fn find<'a>(
+            map: &'a std::collections::HashMap<String, CustomAction>,
+            source: &str,
+        ) -> Option<&'a CustomAction> {
+            map.iter().find(|(k, _)| k.eq_ignore_ascii_case(source)).map(|(_, v)| v)
+        }
+        if self.app_buttons.keys().any(|k| k.eq_ignore_ascii_case(source)) {
+            if let Some(custom) = find(&self.app_custom, source) {
+                return Some(custom);
+            }
+        }
+        find(&self.buttons.custom, source)
+    }
+
+    /// The focused app's override for a CID, if its profile has one.
+    fn app_button(&self, cid: u16) -> Option<ButtonAction> {
+        if self.app_buttons.is_empty() {
+            return None;
+        }
+        let slot = Self::slot_for_cid(cid);
+        self.app_buttons
             .iter()
-            .find(|(k, _)| k.eq_ignore_ascii_case(source))
-            .map(|(_, v)| v)
+            .find(|(k, _)| k.eq_ignore_ascii_case(&slot) || parse_control_cid(k) == Some(cid))
+            .map(|(_, action)| *action)
+    }
+
+    /// Select the focused app's button overrides (None = no profiled app, or
+    /// one without button overrides).
+    pub fn set_app_overrides(
+        &mut self,
+        app: Option<String>,
+        buttons: std::collections::HashMap<String, ButtonAction>,
+        custom: std::collections::HashMap<String, CustomAction>,
+    ) {
+        self.active_app = app;
+        self.app_buttons = buttons;
+        self.app_custom = custom;
     }
 
     /// Action configured under `buttons.controls` for a CID, if any.
@@ -832,7 +933,13 @@ impl Config {
     /// Every CID named under `buttons.controls` (any action, including `none`),
     /// so a reload can clear the divert of a control returned to native.
     pub fn extra_control_cids(&self) -> Vec<u16> {
-        let mut cids: Vec<u16> = self.buttons.controls.keys().filter_map(|k| parse_control_cid(k)).collect();
+        let mut cids: Vec<u16> = self
+            .buttons
+            .controls
+            .keys()
+            .chain(self.app_buttons.keys())
+            .filter_map(|k| parse_control_cid(k))
+            .collect();
         cids.sort_unstable();
         cids.dedup();
         cids
@@ -845,17 +952,16 @@ impl Config {
     pub fn remapped_button_cids(&self) -> Vec<u16> {
         use crate::hidraw::button_cid;
         let mut cids = Vec::new();
-        if self.buttons.back != ButtonAction::Back {
-            cids.push(button_cid::BACK_BUTTON);
-        }
-        if self.buttons.forward != ButtonAction::Forward {
-            cids.push(button_cid::FORWARD_BUTTON);
-        }
-        if self.buttons.middle != ButtonAction::MiddleClick {
-            cids.push(button_cid::MIDDLE_BUTTON);
-        }
-        if self.buttons.shift_wheel != ButtonAction::Smartshift {
-            cids.push(button_cid::SMART_SHIFT);
+        // Effective actions: a focused app's override counts too.
+        for (cid, native) in [
+            (button_cid::BACK_BUTTON, ButtonAction::Back),
+            (button_cid::FORWARD_BUTTON, ButtonAction::Forward),
+            (button_cid::MIDDLE_BUTTON, ButtonAction::MiddleClick),
+            (button_cid::SMART_SHIFT, ButtonAction::Smartshift),
+        ] {
+            if self.action_for_cid(cid) != native {
+                cids.push(cid);
+            }
         }
         // Extra controls carry an action only when one is configured; the
         // named slots above stay authoritative for their own CIDs.
@@ -866,7 +972,8 @@ impl Config {
             {
                 continue;
             }
-            if self.extra_control_action(cid).is_some_and(|a| a != ButtonAction::None) {
+            let action = self.app_button(cid).or_else(|| self.extra_control_action(cid));
+            if action.is_some_and(|a| a != ButtonAction::None) {
                 cids.push(cid);
             }
         }
@@ -1408,6 +1515,50 @@ mod tests {
         let mut bad: Config = serde_json::from_str(r#"{"devices": {"0x1": {"buttons": {"back": "no_such"}}}}"#).unwrap();
         assert!(!bad.apply_device_overrides("0x00000001"));
         assert_eq!(bad.buttons.back, ButtonAction::Back);
+    }
+
+    #[test]
+    fn app_button_overrides_win_while_the_app_is_focused() {
+        use crate::hidraw::button_cid;
+        use std::collections::HashMap;
+        let mut config = Config::default();
+        config.buttons.custom.insert("back".into(), CustomAction { kind: "url".into(), value: "https://a".into() });
+        assert!(config.remapped_button_cids().is_empty());
+
+        let buttons = HashMap::from([
+            ("back".to_string(), ButtonAction::Custom),
+            ("0x00D7".to_string(), ButtonAction::TabClose),
+            ("middle".to_string(), ButtonAction::MiddleClick),
+        ]);
+        let custom = HashMap::from([("back".to_string(), CustomAction { kind: "shortcut".into(), value: "F13".into() })]);
+        config.set_app_overrides(Some("firefox".into()), buttons, custom);
+        assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Custom);
+        assert_eq!(config.action_for_cid(0x00D7), ButtonAction::TabClose);
+        assert_eq!(config.custom_action("back").map(|c| c.value.as_str()), Some("F13"));
+        let remapped = config.remapped_button_cids();
+        assert!(remapped.contains(&button_cid::BACK_BUTTON));
+        assert!(remapped.contains(&0x00D7));
+        assert!(!remapped.contains(&button_cid::MIDDLE_BUTTON), "native middle stays native");
+
+        // Selecting the connected mouse keeps the app's overrides.
+        assert!(!config.apply_device_overrides("0x00000001"));
+        assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Custom);
+
+        config.set_app_overrides(None, HashMap::new(), HashMap::new());
+        assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Back);
+        assert_eq!(config.custom_action("back").map(|c| c.value.as_str()), Some("https://a"));
+        assert!(config.remapped_button_cids().is_empty());
+    }
+
+    #[test]
+    fn button_action_display_matches_its_config_id() {
+        use ButtonAction as A;
+        for a in [A::RadialMenu, A::Custom, A::LeftClick, A::RightClick, A::ScrollLeft, A::ScrollRight,
+                  A::DpiCycle, A::DpiUp, A::DpiDown, A::DpiShift, A::TabNext, A::TabPrev, A::TabClose,
+                  A::TabReopen, A::PageUp, A::PageDown, A::Home, A::End, A::Host1, A::Host2, A::Host3,
+                  A::HostNext, A::GamingMode] {
+            assert_eq!(serde_json::to_value(a).unwrap(), serde_json::Value::String(a.to_string()));
+        }
     }
 
     #[test]

@@ -85,3 +85,13 @@ def test_pickers_offer_only_working_actions(backend):
 
 def test_thumb_wheel_default_is_named_for_what_it_does():
     assert dict(bk.THUMBWHEEL_MODES)["off"] == "Horizontal scroll (default)"
+
+
+def test_ring_shortcut_slices_run_through_the_daemon():
+    """Copy / Paste / Undo slices are type "shortcut": the overlay had no
+    branch for them, so they did nothing. The daemon presses the chord."""
+    src = (REPO / "overlay" / "juhradial-overlay.py").read_text(encoding="utf-8")
+    assert 'elif cmd_type == "shortcut":' in src
+    assert 'self.daemon_iface.asyncCall("RunShortcut", cmd)' in src
+    iface = (REPO / "daemon" / "src" / "dbus" / "interface.rs").read_text(encoding="utf-8")
+    assert "async fn run_shortcut(&self, keys: String)" in iface

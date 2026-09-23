@@ -84,6 +84,37 @@ impl JuhRadialService {
         Ok(())
     }
 
+    /// Press a key chord ("ctrl+shift+t", "F13") for a ring slice of type
+    /// `shortcut`: the daemon owns the uinput path native Wayland windows
+    /// need. Runs on its own thread like ExecutePreset.
+    async fn run_shortcut(&self, keys: String) -> fdo::Result<()> {
+        let keys = keys.trim().to_string();
+        if !crate::actions::is_shortcut_text(&keys) {
+            return Err(fdo::Error::InvalidArgs(format!("Not a key chord: {keys:?}")));
+        }
+        tracing::info!(keys = %keys, "RunShortcut called");
+        std::thread::spawn(move || {
+            let rt = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+                Ok(rt) => rt,
+                Err(e) => {
+                    tracing::error!(error = %e, "Failed to build runtime for shortcut");
+                    return;
+                }
+            };
+            rt.block_on(async move {
+                let action = crate::actions::Action {
+                    action_type: crate::actions::ActionType::Shortcut(keys),
+                    label: None,
+                    icon: None,
+                };
+                if let Err(e) = crate::actions::ActionExecutor::execute(&action).await {
+                    tracing::warn!(error = %e, "Shortcut failed");
+                }
+            });
+        });
+        Ok(())
+    }
+
     // =========================================================================
     // MENU SIGNALS
     // =========================================================================
@@ -145,6 +176,10 @@ impl JuhRadialService {
     /// applied on focus change, or "" when the focus left every profiled
     /// app. Broadcast by the focus-change consumer in main.rs; the overlay's
     /// tray shows it as the active profile.
+    /// A physical button went down (CID); Settings lights its marker.
+    #[zbus(signal)]
+    async fn button_pressed(emitter: &SignalEmitter<'_>, cid: u16) -> zbus::Result<()>;
+
     #[zbus(signal)]
     async fn active_profile_changed(emitter: &SignalEmitter<'_>, app: String) -> zbus::Result<()>;
 
@@ -249,11 +284,25 @@ impl JuhRadialService {
             Ok(mut new_config) => {
                 // Keep the connected mouse's per-device overrides on top of
                 // the freshly loaded file.
-                let active_unit = self.config.read().ok().and_then(|c| c.active_unit.clone());
+                let (active_unit, active_app) = self
+                    .config
+                    .read()
+                    .map(|c| (c.active_unit.clone(), c.active_app.clone()))
+                    .unwrap_or_default();
                 if let Some(unit) = active_unit.as_deref() {
                     if new_config.apply_device_overrides(unit) {
                         tracing::info!(unit, "Per-device overrides applied on reload");
                     }
+                }
+                // The focused app's button overrides, as profiles.json has
+                // them now (a Settings save may have just changed them).
+                let hardware = crate::profiles::load_hardware_profiles();
+                if let Some(app) = active_app {
+                    let (buttons, custom) = hardware
+                        .get(&app)
+                        .map(|p| (p.buttons.clone(), p.custom.clone()))
+                        .unwrap_or_default();
+                    new_config.set_app_overrides(Some(app), buttons, custom);
                 }
                 let haptic_config = new_config.haptics.clone();
                 let thumbwheel_config = new_config.thumbwheel.clone();
@@ -354,7 +403,6 @@ impl JuhRadialService {
                 // Refresh the shared per-app hardware profile map from
                 // profiles.json so a UI save takes effect without a daemon
                 // restart. The focus-change consumer reads this map directly.
-                let hardware = crate::profiles::load_hardware_profiles();
                 match self.hardware_profiles.write() {
                     Ok(mut map) => {
                         tracing::info!(count = hardware.len(), "Per-app hardware profiles reloaded");
@@ -433,6 +481,8 @@ impl JuhRadialService {
                 match manager.set_dpi(dpi) {
                     Ok(()) => {
                         tracing::info!(dpi, "DPI set successfully");
+                        // Settings speaks for pointer.dpi again.
+                        crate::replay::set_session_dpi(None);
                         Ok(())
                     }
                     Err(e) => {

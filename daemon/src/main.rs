@@ -991,6 +991,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if !profile_changed {
                     continue;
                 }
+                apply_app_button_overrides(
+                    &hw_config,
+                    &hw_manager,
+                    (!active_profile.is_empty()).then(|| active_profile.clone()),
+                    hw.as_ref(),
+                )
+                .await;
                 // Entering, switching or leaving a profile: write the full
                 // effective state, so a setting the previous profile changed
                 // returns to the global value (config.json, else the device
@@ -1019,9 +1026,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         prior
                     };
-                    let globals = juhradiald::replay::globals_from_config(
-                        &juhradiald::replay::load_raw_config(),
-                        unit_key.as_deref(),
+                    let globals = juhradiald::replay::with_session_dpi(
+                        juhradiald::replay::globals_from_config(
+                            &juhradiald::replay::load_raw_config(),
+                            unit_key.as_deref(),
+                        ),
                     )
                     .or(base.unwrap_or_default());
                     let state = juhradiald::replay::effective_state(globals, hw.as_ref(), gaming_dpi);
@@ -1176,15 +1185,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Spawn event processing task with D-Bus connection
     let config_for_events = shared_config.clone();
     let hotplug_for_events = hotplug_notify.clone();
+    let gaming_for_events = replay_ctx.gaming_mode.clone();
     let event_handle = tokio::spawn(async move {
+        let actions = ActionContext {
+            connection: dbus_connection.clone(),
+            config: config_for_events,
+            macro_engine: macro_engine_for_events,
+            gaming_mode: gaming_for_events,
+            shift_restore: None,
+        };
         process_gesture_events(
             &mut event_rx,
             &dbus_connection,
-            config_for_events,
             trigger_map_for_events,
-            macro_engine_for_events,
             battery_state_for_events,
             hotplug_for_events,
+            actions,
         )
         .await
     });
@@ -1463,6 +1479,203 @@ async fn fetch_notification_indices(
     })
     .await
     .unwrap_or_default()
+}
+
+/// Point the shared config at the focused app's button overrides (P1 #2)
+/// and divert exactly the buttons whose effective action changed from or
+/// to their native behaviour.
+async fn apply_app_button_overrides(
+    config: &juhradiald::config::SharedConfig,
+    manager: &SharedHapticManager,
+    app: Option<String>,
+    profile: Option<&juhradiald::profiles::HardwareProfile>,
+) {
+    let (buttons, custom) = profile
+        .map(|p| (p.buttons.clone(), p.custom.clone()))
+        .unwrap_or_default();
+    let changed: Vec<(u16, bool)> = match config.write() {
+        Ok(mut c) => {
+            let before: HashSet<u16> = c.remapped_button_cids().into_iter().collect();
+            c.set_app_overrides(app, buttons, custom);
+            let after: HashSet<u16> = c.remapped_button_cids().into_iter().collect();
+            before
+                .symmetric_difference(&after)
+                .map(|cid| (*cid, after.contains(cid)))
+                .collect()
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to lock config for per-app buttons");
+            return;
+        }
+    };
+    if changed.is_empty() {
+        return;
+    }
+    let manager = manager.clone();
+    let _ = tokio::task::spawn_blocking(move || {
+        if let Ok(mut m) = manager.lock() {
+            for (cid, divert) in changed {
+                match m.set_button_divert(cid, divert) {
+                    Ok(_) => info!(cid = format!("0x{:04X}", cid), divert, "Per-app button divert"),
+                    Err(e) => warn!(cid = format!("0x{:04X}", cid), error = %e, "Per-app button divert failed"),
+                }
+            }
+        }
+    })
+    .await;
+}
+
+/// Runs button actions for the event loop. Custom, DPI and gaming-mode
+/// actions need the slot or daemon state and run here; the rest go to
+/// `execute_button_action`.
+struct ActionContext {
+    connection: zbus::Connection,
+    config: juhradiald::config::SharedConfig,
+    macro_engine: Arc<Mutex<juhradiald::macros::MacroEngine>>,
+    gaming_mode: juhradiald::gaming::SharedGamingMode,
+    /// DPI to put back when the held DPI-shift button is released.
+    shift_restore: Option<u16>,
+}
+
+impl ActionContext {
+    async fn run(&mut self, action: juhradiald::config::ButtonAction, pressed: bool, source: Option<u16>) {
+        use juhradiald::config::ButtonAction as A;
+        match (action, pressed) {
+            (A::DpiShift, true) => self.dpi_shift(true).await,
+            (A::DpiShift, false) => self.dpi_shift(false).await,
+            (_, false) => debug!(%action, "Button action released (no-op)"),
+            (A::Custom, true) => self.custom(source).await,
+            (A::DpiCycle | A::DpiUp | A::DpiDown, true) => self.dpi_step(action).await,
+            (A::GamingMode, true) => self.toggle_gaming().await,
+            (_, true) => {
+                info!(%action, "Button action triggered");
+                match juhradiald::actions::execute_button_action(action).await {
+                    Ok(true) => {}
+                    // RadialMenu goes through the Pressed path.
+                    Ok(false) => warn!(%action, "Button action wants the radial menu here; ignoring"),
+                    Err(e) => error!(%action, error = %e, "Failed to execute button action"),
+                }
+            }
+        }
+    }
+
+    async fn custom(&self, source: Option<u16>) {
+        let slot = source.map(juhradiald::config::Config::slot_for_cid);
+        let custom = slot
+            .as_deref()
+            .and_then(|slot| self.config.read().ok().and_then(|c| c.custom_action(slot).cloned()));
+        match custom {
+            Some(custom) => {
+                info!(slot = ?slot, kind = %custom.kind, "Custom button action");
+                run_custom_action(&custom, &self.macro_engine).await;
+            }
+            None => warn!(slot = ?slot, "Button set to custom but no custom action is saved for it"),
+        }
+    }
+
+    /// DPI cycle / up / down. The new DPI outlives a wake (session DPI) and
+    /// Settings follows it through DpiChanged.
+    async fn dpi_step(&self, action: juhradiald::config::ButtonAction) {
+        let Some((current, range)) = juhradiald::actions::read_dpi().await else {
+            warn!(%action, "DPI action: the mouse's DPI is not readable");
+            return;
+        };
+        let presets = pointer_setting("dpi_presets")
+            .and_then(|v| v.as_array().cloned())
+            .map(|a| a.iter().filter_map(|d| d.as_u64()).filter_map(|d| u16::try_from(d).ok()).collect::<Vec<_>>())
+            .filter(|p| !p.is_empty())
+            .unwrap_or_else(|| vec![800, 1600, 3200]);
+        let Some(dpi) = juhradiald::actions::next_dpi(action, current, &presets, range) else {
+            return;
+        };
+        if dpi == current {
+            return;
+        }
+        match juhradiald::actions::write_dpi(dpi).await {
+            Ok(()) => {
+                info!(%action, from = current, to = dpi, "DPI changed by a button");
+                juhradiald::replay::set_session_dpi(Some(dpi));
+                let _ = self
+                    .connection
+                    .emit_signal(None::<&str>, DBUS_PATH, "org.kde.juhradialmx.Daemon", "DpiChanged", &(dpi,))
+                    .await;
+            }
+            Err(e) => error!(%action, error = %e, "DPI action failed"),
+        }
+    }
+
+    /// Hold for the precision DPI (`pointer.dpi_shift`, default 400), release
+    /// to put the previous DPI back.
+    async fn dpi_shift(&mut self, pressed: bool) {
+        if !pressed {
+            if let Some(dpi) = self.shift_restore.take() {
+                if let Err(e) = juhradiald::actions::write_dpi(dpi).await {
+                    error!(error = %e, dpi, "DPI shift: restoring the DPI failed");
+                }
+            }
+            return;
+        }
+        if self.shift_restore.is_some() {
+            return;
+        }
+        let Some((current, (lo, hi))) = juhradiald::actions::read_dpi().await else {
+            warn!("DPI shift: the mouse's DPI is not readable");
+            return;
+        };
+        let shift = pointer_setting("dpi_shift")
+            .and_then(|v| v.as_u64())
+            .and_then(|d| u16::try_from(d).ok())
+            .unwrap_or(400)
+            .clamp(lo, hi);
+        match juhradiald::actions::write_dpi(shift).await {
+            Ok(()) => self.shift_restore = Some(current),
+            Err(e) => error!(error = %e, dpi = shift, "DPI shift failed"),
+        }
+    }
+
+    async fn toggle_gaming(&self) {
+        let gaming = self.gaming_mode.clone();
+        // enable()/disable() write the DPI over HID++ (blocking).
+        let enabled = tokio::task::spawn_blocking(move || {
+            let mut gm = gaming.write().ok()?;
+            let on = !gm.is_enabled();
+            if on {
+                gm.enable();
+            } else {
+                gm.disable();
+            }
+            Some(on)
+        })
+        .await
+        .ok()
+        .flatten();
+        if let Some(enabled) = enabled {
+            info!(enabled, "Gaming mode toggled by a button");
+            let _ = self
+                .connection
+                .emit_signal(None::<&str>, DBUS_PATH, "org.kde.juhradialmx.Daemon", "GamingModeChanged", &(enabled,))
+                .await;
+        }
+    }
+}
+
+/// A `pointer.<key>` value from config.json.
+fn pointer_setting(key: &str) -> Option<serde_json::Value> {
+    juhradiald::replay::load_raw_config().get("pointer")?.get(key).cloned()
+}
+
+/// Tell Settings which physical button was pressed (it lights the pin).
+/// Detached, so the press itself (ring, action) never waits on the bus.
+fn emit_button_pressed(connection: &zbus::Connection, cid: u16) {
+    let connection = connection.clone();
+    tokio::spawn(async move {
+        if let Err(e) = connection
+            .emit_signal(None::<&str>, DBUS_PATH, "org.kde.juhradialmx.Daemon", "ButtonPressed", &(cid,))
+            .await
+        {
+            tracing::trace!(error = %e, "Failed to emit ButtonPressed");
+        }
+    });
 }
 
 /// Run a button's custom action (Settings > Buttons > Custom): a recorded
@@ -2009,12 +2222,13 @@ async fn run_generic_evdev_loop(
 async fn process_gesture_events(
     event_rx: &mut mpsc::Receiver<GestureEvent>,
     dbus_connection: &zbus::Connection,
-    shared_config: juhradiald::config::SharedConfig,
     trigger_map: Arc<std::sync::RwLock<juhradiald::macros::TriggerMap>>,
-    macro_engine: Arc<Mutex<juhradiald::macros::MacroEngine>>,
     battery_state: SharedBatteryState,
     hotplug: Arc<tokio::sync::Notify>,
+    mut actions: ActionContext,
 ) {
+    let shared_config = actions.config.clone();
+    let macro_engine = actions.macro_engine.clone();
     while let Some(event) = event_rx.recv().await {
         match event {
             GestureEvent::GestureReleased { dx, dy, duration_ms } => {
@@ -2029,14 +2243,18 @@ async fn process_gesture_events(
                     (direction, cfg.gesture_direction_action(direction))
                 });
                 match resolved {
-                    Some((direction, juhradiald::config::ButtonAction::RadialMenu)) => {
-                        warn!(?direction, "radial_menu cannot be a directional gesture action; ignoring");
+                    Some((
+                        direction,
+                        action @ (juhradiald::config::ButtonAction::RadialMenu
+                        | juhradiald::config::ButtonAction::DpiShift),
+                    )) => {
+                        // A drag has no hold to show the ring for or to keep
+                        // the precision DPI during.
+                        warn!(?direction, %action, "not a directional gesture action; ignoring");
                     }
                     Some((direction, action)) => {
                         info!(duration_ms, dx, dy, ?direction, %action, "Directional gesture");
-                        if let Err(e) = juhradiald::actions::execute_button_action(action).await {
-                            error!(%action, error = %e, "Failed to execute directional gesture action");
-                        }
+                        actions.run(action, true, None).await;
                     }
                     None => warn!("Directional gesture dropped: config lock poisoned"),
                 }
@@ -2068,6 +2286,11 @@ async fn process_gesture_events(
                 }
             }
             GestureEvent::MacroTriggered { key_code, pressed } => {
+                if pressed {
+                    if let Some(cid) = juhradiald::hidraw::evdev_keycode_to_cid(key_code) {
+                        emit_button_pressed(dbus_connection, cid);
+                    }
+                }
                 // Look up TriggerMap for a macro bound to this button
                 let macro_id = {
                     match trigger_map.read() {
@@ -2115,36 +2338,15 @@ async fn process_gesture_events(
                 }
             }
             GestureEvent::ButtonActionEvent { action, pressed, source } => {
-                if pressed && action == juhradiald::config::ButtonAction::Custom {
-                    let slot = source.map(juhradiald::config::Config::slot_for_cid);
-                    let custom = slot.as_deref().and_then(|slot| {
-                        shared_config.read().ok().and_then(|c| c.custom_action(slot).cloned())
-                    });
-                    match custom {
-                        Some(custom) => {
-                            info!(slot = ?slot, kind = %custom.kind, "Custom button action");
-                            run_custom_action(&custom, &macro_engine).await;
-                        }
-                        None => warn!(slot = ?slot, "Button set to custom but no custom action is saved for it"),
+                if pressed {
+                    if let Some(cid) = source {
+                        emit_button_pressed(dbus_connection, cid);
                     }
-                } else if pressed {
-                    info!(%action, "Button action triggered");
-                    match juhradiald::actions::execute_button_action(action).await {
-                        Ok(true) => {
-                            // Action was handled directly
-                        }
-                        Ok(false) => {
-                            // Should not happen (RadialMenu goes through Pressed path)
-                            warn!("ButtonActionEvent with radial_menu - unexpected");
-                        }
-                        Err(e) => {
-                            error!(%action, error = %e, "Failed to execute button action");
-                        }
-                    }
-                } else {
-                    // Button released for non-radial action - no HideMenu needed
-                    tracing::debug!(%action, "Button action released (no-op)");
                 }
+                actions.run(action, pressed, source).await;
+            }
+            GestureEvent::ButtonSeen { cid } => {
+                emit_button_pressed(dbus_connection, cid);
             }
             GestureEvent::ThumbwheelScroll { clicks } => {
                 tracing::debug!(clicks, "Thumb-wheel horizontal scroll");

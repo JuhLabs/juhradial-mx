@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use crate::actions::{get_default_actions, Action};
-use crate::config::{ButtonAction, ThumbwheelMode};
+use crate::config::{ButtonAction, CustomAction, ThumbwheelMode};
 
 /// Current schema version for profiles.json
 ///
@@ -101,10 +101,15 @@ pub struct HardwareProfile {
     pub thumbwheel: Option<ThumbwheelMode>,
 
     /// Per-button action overrides keyed by button name (gesture/thumb/middle/
-    /// back/forward/shift_wheel). Recorded in the schema; applied via config, not
-    /// by `apply_hardware_profile` (which only touches volatile device state).
+    /// back/forward/shift_wheel) or control CID ("0x00D7"). Applied through
+    /// the shared config on focus change (`Config::set_app_overrides`), not by
+    /// `apply_hardware_profile` (which only touches volatile device state).
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub buttons: HashMap<String, ButtonAction>,
+
+    /// What this app's buttons set to `custom` do, keyed like `buttons`.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub custom: HashMap<String, CustomAction>,
 }
 
 impl ProfilesConfig {
@@ -691,6 +696,7 @@ mod tests {
                 hires: Some(true),
                 thumbwheel: Some(ThumbwheelMode::Zoom),
                 buttons: HashMap::new(),
+                custom: HashMap::new(),
             },
         );
         let json = serde_json::to_string(&config).unwrap();

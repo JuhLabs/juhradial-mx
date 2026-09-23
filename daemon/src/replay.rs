@@ -26,6 +26,25 @@ pub const REPLAY_DEBOUNCE: Duration = Duration::from_secs(2);
 /// The class whose hardware profile is applied right now (None = globals).
 pub type SharedActiveProfile = Arc<RwLock<Option<String>>>;
 
+/// DPI chosen with a DPI button action (cycle, up, down) this session. It
+/// replaces `pointer.dpi` in replay so a wake does not undo the button;
+/// `SetDpi` from Settings clears it.
+static SESSION_DPI: RwLock<Option<u16>> = RwLock::new(None);
+
+pub fn set_session_dpi(dpi: Option<u16>) {
+    if let Ok(mut cell) = SESSION_DPI.write() {
+        *cell = dpi;
+    }
+}
+
+/// Global state with the session DPI on top.
+pub fn with_session_dpi(mut globals: DeviceState) -> DeviceState {
+    if let Some(dpi) = SESSION_DPI.read().ok().and_then(|cell| *cell) {
+        globals.dpi = Some(dpi);
+    }
+    globals
+}
+
 pub fn new_shared_active_profile() -> SharedActiveProfile {
     Arc::new(RwLock::new(None))
 }
@@ -200,7 +219,7 @@ impl ReplayContext {
 
     /// The state to replay now for the given unit key.
     pub fn effective(&self, unit_key: Option<&str>) -> DeviceState {
-        let globals = globals_from_config(&load_raw_config(), unit_key);
+        let globals = with_session_dpi(globals_from_config(&load_raw_config(), unit_key));
         effective_state(globals, self.active_hardware_profile().as_ref(), self.gaming_dpi())
     }
 }

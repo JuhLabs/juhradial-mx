@@ -1129,6 +1129,11 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             elif cmd_type == "plugin":
                 # "<folder>/<action id>"; the daemon reads the manifest and runs it.
                 self.daemon_iface.asyncCall("RunPluginAction", cmd)
+            elif cmd_type == "shortcut":
+                # Key chords go through the daemon, which has the uinput
+                # path native Wayland windows need (this branch was missing,
+                # so Copy/Paste/Undo slices did nothing).
+                self.daemon_iface.asyncCall("RunShortcut", cmd)
             elif cmd_type == "submenu":
                 self.submenu_active = True
                 self.submenu_slice = self.highlighted_slice

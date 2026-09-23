@@ -73,6 +73,8 @@ pub enum GestureEvent {
         /// Config::slot_for_cid); None for synthetic presses.
         source: Option<u16>,
     },
+    /// A diverted button went down (Settings lights its pin).
+    ButtonSeen { cid: u16 },
     /// Horizontal scroll from the diverted thumb wheel (sign = direction).
     ThumbwheelScroll { clicks: i32 },
     /// A device-originated HID++ notification (live hardware state change).
@@ -825,7 +827,7 @@ impl EvdevHandler {
 
         if let Some(ref config) = self.shared_config {
             if let Ok(cfg) = config.read() {
-                return cfg.buttons.thumb;
+                return cfg.action_for_cid(crate::hidraw::button_cid::HAPTIC);
             }
         }
         // Default fallback

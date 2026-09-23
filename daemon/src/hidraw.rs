@@ -603,6 +603,15 @@ impl HidrawHandler {
             "Diverted button event"
         );
 
+        // Settings lights the pin of whatever went down. Action presses
+        // carry their CID already (ButtonActionEvent.source).
+        let sends_action = is_action
+            && action != crate::config::ButtonAction::RadialMenu
+            && !(cid == button_cid::GESTURE_BUTTON && directional);
+        if pressed && !sends_action {
+            let _ = self.event_tx.send(GestureEvent::ButtonSeen { cid }).await;
+        }
+
         if cid == button_cid::GESTURE_BUTTON && directional {
             // Directional gesture: track the drag only. No cursor query and
             // no Pressed event, so the radial overlay never opens for it.
@@ -936,7 +945,12 @@ mod tests {
         h.handle_button_event(&diverted_button_report(button_cid::GESTURE_BUTTON))
             .await;
         assert!(tracker.is_active());
-        assert!(drain(&mut rx).is_empty(), "press must not emit Pressed");
+        // Only the pin-lighting notice, never Pressed.
+        assert_eq!(
+            drain(&mut rx),
+            vec![GestureEvent::ButtonSeen { cid: button_cid::GESTURE_BUTTON }],
+            "press must not emit Pressed"
+        );
 
         // What the evdev loop feeds while the button is held.
         tracker.accumulate(-70, 12);
