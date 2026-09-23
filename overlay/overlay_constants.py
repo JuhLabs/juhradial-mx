@@ -13,7 +13,8 @@ import time as _time_mod
 
 __all__ = [
     "MENU_RADIUS", "SHADOW_OFFSET", "CENTER_ZONE_RADIUS", "ICON_ZONE_RADIUS",
-    "SUBMENU_EXTEND", "WINDOW_SIZE", "compute_ring_scale", "map_logical_to_screen",
+    "SUBMENU_EXTEND", "SUBMENU_ITEM_SPREAD_DEG", "WINDOW_SIZE",
+    "compute_ring_scale", "map_logical_to_screen",
     "hyprland_menu_center", "HOVER_ARM_DISTANCE", "hover_is_armed", "hover_gate",
     "IS_HYPRLAND", "IS_GNOME", "IS_COSMIC", "IS_KDE", "IS_SWAY", "IS_NIRI", "IS_X11",
     "_HAS_XWAYLAND",
@@ -28,6 +29,14 @@ SHADOW_OFFSET = 12
 CENTER_ZONE_RADIUS = 45
 ICON_ZONE_RADIUS = 100
 SUBMENU_EXTEND = 80  # Extra space for submenu items beyond main menu
+
+# Angular spacing between submenu items, in degrees. Shared by the painter and
+# the hit-test so the two cannot drift apart: the painter placed items 18 deg
+# apart while the hit-test assumed 15 deg, so every item except the middle of
+# the fan was tested at the wrong angle (the error grows with distance from the
+# fan centre, making the outermost items of a large submenu unreachable).
+SUBMENU_ITEM_SPREAD_DEG = 18
+
 WINDOW_SIZE = (MENU_RADIUS + SHADOW_OFFSET + SUBMENU_EXTEND) * 2
 
 # Hover stays disarmed until the pointer has travelled this far (logical ring
