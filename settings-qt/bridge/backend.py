@@ -656,6 +656,7 @@ class Backend(QObject):
     macrosChanged = pyqtSignal()
     toast = pyqtSignal(str)
     keyboardInfoReady = pyqtSignal("QVariant")
+    controlsReady = pyqtSignal("QVariant")
     navRequested = pyqtSignal(str)   # a page asks the shell to switch tabs
     searchTargetChanged = pyqtSignal()
 
@@ -1253,19 +1254,26 @@ class Backend(QObject):
         """Non-blocking keyboardInfo(): the three keyboard calls can each take
         seconds while the daemon probes the receiver, and running them inline
         froze the Devices page on open. keyboardInfoReady carries the dict."""
+        # One call at a time, in the order the blocking version used: the
+        # daemon's pairing-table probe listens on the receiver for 500 ms and
+        # misses its answer when its own battery scan runs at the same time
+        # (three concurrent calls read "not detected" for a paired keyboard).
         state = {}
-        expected = ("GetKeyboardBattery", "GetKeyboardPaired", "ListKeyboardKeys")
+        order = ("GetKeyboardBattery", "GetKeyboardPaired", "ListKeyboardKeys")
 
-        def _store(name):
+        def step(i):
+            if i == len(order):
+                self.keyboardInfoReady.emit(self._keyboard_info(
+                    state["GetKeyboardBattery"], state["GetKeyboardPaired"],
+                    state["ListKeyboardKeys"]))
+                return
+            name = order[i]
+
             def _cb(args):
                 state[name] = args
-                if all(k in state for k in expected):
-                    self.keyboardInfoReady.emit(self._keyboard_info(
-                        state["GetKeyboardBattery"], state["GetKeyboardPaired"],
-                        state["ListKeyboardKeys"]))
-            return _cb
-        for name in expected:
-            self.daemon.call_then(name, _store(name))
+                step(i + 1)
+            self.daemon.call_then(name, _cb)
+        step(0)
 
     @pyqtSlot(int)
     def setKeyboardBacklight(self, level):
@@ -1941,10 +1949,22 @@ class Backend(QObject):
     def listControls(self):
         """Every control the connected mouse reports, decoded by the daemon
         (see ListControls). Empty when the daemon is down or the mouse has no
-        REPROG_CONTROLS_V4 feature."""
-        raw = self.daemon.call1("ListControls", default="[]") or "[]"
+        REPROG_CONTROLS_V4 feature. Blocking: the daemon scans the mouse under
+        its device lock, so pages use requestControls() instead."""
+        return self._parse_controls(self.daemon.call1("ListControls", default="[]"))
+
+    @pyqtSlot()
+    def requestControls(self):
+        """Async listControls(): controlsReady fires with the assignable
+        extras (see extraControls) once the daemon has answered."""
+        self.daemon.call_then(
+            "ListControls",
+            lambda args: self.controlsReady.emit(
+                self._extra_of(self._parse_controls(args[0] if args else "[]"))))
+
+    def _parse_controls(self, raw):
         try:
-            items = json.loads(raw)
+            items = json.loads(raw or "[]")
         except (TypeError, ValueError):
             return []
         out = []
@@ -1962,7 +1982,11 @@ class Backend(QObject):
     def extraControls(self):
         """Divertable, non-virtual controls without a named slot (and never the
         primary clicks): the ones a user can assign under Other controls."""
-        return [c for c in self.listControls()
+        return self._extra_of(self.listControls())
+
+    @staticmethod
+    def _extra_of(controls):
+        return [c for c in controls
                 if c.get("divertable") and not c.get("virtual") and not c["slot"]
                 and int(c.get("cid", 0)) not in (0x0050, 0x0051)]
 

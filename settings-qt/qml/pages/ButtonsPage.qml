@@ -26,13 +26,15 @@ Item {
     function pinNx(md) { return Backend.get(pinKey + md.slot + ".nx", md.nx) }
     function pinNy(md) { return Backend.get(pinKey + md.slot + ".ny", md.ny) }
     property int dirBump: 0              // nudge the gesture callout after a directional change
-    // Controls the mouse reports beyond the named slots (ListControls);
-    // re-read when the daemon comes back or the device name refreshes.
-    property var extraControls: Backend.extraControls()
+    // Controls the mouse reports beyond the named slots (ListControls),
+    // fetched async: the daemon scans the mouse under its device lock, and a
+    // blocking call here stalled the tab switch. Re-read when the daemon
+    // (re)appears; the inventory does not change while it is connected.
+    property var extraControls: []
     Connections {
         target: Backend
-        function onLiveChanged() { page.extraControls = Backend.extraControls() }
-        function onAvailabilityChanged() { page.extraControls = Backend.extraControls() }
+        function onControlsReady(list) { page.extraControls = list }
+        function onAvailabilityChanged() { Backend.requestControls() }
     }
 
     Component.onCompleted: {
@@ -40,6 +42,7 @@ Item {
         for (var i = 0; i < a.length; i++) m[a[i].id] = a[i].name
         actMap = m
         loadAi()
+        Backend.requestControls()
     }
     function actionName(slot, def) {
         var id = Backend.get("buttons." + slot, def)
