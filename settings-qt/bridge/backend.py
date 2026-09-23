@@ -1019,7 +1019,7 @@ class Backend(QObject):
         if self._charging or pct > 20:
             self._low_batt_notified = False
             return
-        if pct <= 15 and not self._low_batt_notified:
+        if pct <= 15 and not self._low_batt_notified and not self._overlay_running():
             self._low_batt_notified = True
             try:
                 subprocess.Popen(
@@ -1028,6 +1028,21 @@ class Backend(QObject):
                      f"MX Master 4 is at {pct}%. Time to recharge."])
             except Exception:
                 pass
+
+    @staticmethod
+    def _overlay_running():
+        """True while the overlay owns its bus name: it raises the low-battery
+        notification itself then (tray badge + notify-send), so the settings
+        app stays quiet instead of sending a second one."""
+        if not _HAVE_DBUS:
+            return False
+        try:
+            # A QDBusReply is always truthy; the answer is in value().
+            reply = QDBusConnection.sessionBus().interface().isServiceRegistered(
+                "org.kde.juhradialmx.overlay")
+            return bool(reply.value())
+        except Exception:
+            return False
 
     def _set_gaming_live(self, on):
         self._gaming_mode = bool(on)

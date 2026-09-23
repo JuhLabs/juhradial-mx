@@ -132,6 +132,13 @@ impl JuhRadialService {
     #[zbus(signal)]
     async fn device_name_refreshed(emitter: &SignalEmitter<'_>, name: String) -> zbus::Result<()>;
 
+    /// The application class whose per-app hardware profile the daemon just
+    /// applied on focus change, or "" when the focus left every profiled
+    /// app. Broadcast by the focus-change consumer in main.rs; the overlay's
+    /// tray shows it as the active profile.
+    #[zbus(signal)]
+    async fn active_profile_changed(emitter: &SignalEmitter<'_>, app: String) -> zbus::Result<()>;
+
     // =========================================================================
     // HAPTIC / PROFILE / CONFIG METHODS
     // =========================================================================

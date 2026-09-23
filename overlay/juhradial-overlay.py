@@ -115,6 +115,7 @@ from overlay_constants import (
     _HAS_XWAYLAND,
     _log,
 )
+from overlay_tray import TrayStatus
 from overlay_cursor import (
     _refresh_monitors,
     get_monitor_at_cursor,
@@ -1421,6 +1422,8 @@ def create_tray_icon(app, radial_menu):
 
     tray.setContextMenu(menu)
     tray.show()
+    # Tooltip (device, battery, host, profile) and icon badge follow the daemon.
+    tray.status = TrayStatus(tray, icon, parent=tray)
 
     return tray
 

@@ -815,11 +815,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Profiles override only the thumb-wheel mode; the invert setting is
         // global, so read it live from the shared config (issue #127).
         let hw_config = shared_config.clone();
+        // The tray tooltip and badge follow the applied profile.
+        let profile_connection = dbus_connection.clone();
         if !hw_profiles.read().map(|m| m.is_empty()).unwrap_or(true) {
             info!("Per-app hardware profiles configured; focus-change application active");
         }
         tokio::spawn(async move {
             let mut current_class = String::new();
+            // Class whose hardware profile is applied right now ("" = none).
+            let mut active_profile = String::new();
             // True while the last applied profile overrode the thumb wheel,
             // so leaving its app restores the global divert/invert instead of
             // latching the profile's state everywhere (issue #127 review).
@@ -878,6 +882,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .await;
                 }
                 thumbwheel_overridden = thumbwheel_overridden || profile_sets_tw;
+
+                // ActiveProfileChanged carries the app class whose profile is
+                // now applied, or "" once the focus leaves profiled apps.
+                let now_active = if hw.is_some() { class.to_lowercase() } else { String::new() };
+                if now_active != active_profile {
+                    active_profile = now_active.clone();
+                    if let Err(e) = profile_connection
+                        .emit_signal(
+                            None::<&str>,
+                            DBUS_PATH,
+                            "org.kde.juhradialmx.Daemon",
+                            "ActiveProfileChanged",
+                            &(now_active,),
+                        )
+                        .await
+                    {
+                        warn!(error = %e, "Failed to emit ActiveProfileChanged");
+                    }
+                }
 
                 let Some(hw) = hw else { continue };
                 info!(class = %class, "Applying per-app hardware profile");
