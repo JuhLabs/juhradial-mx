@@ -26,6 +26,14 @@ Item {
     function pinNx(md) { return Backend.get(pinKey + md.slot + ".nx", md.nx) }
     function pinNy(md) { return Backend.get(pinKey + md.slot + ".ny", md.ny) }
     property int dirBump: 0              // nudge the gesture callout after a directional change
+    // Controls the mouse reports beyond the named slots (ListControls);
+    // re-read when the daemon comes back or the device name refreshes.
+    property var extraControls: Backend.extraControls()
+    Connections {
+        target: Backend
+        function onLiveChanged() { page.extraControls = Backend.extraControls() }
+        function onAvailabilityChanged() { page.extraControls = Backend.extraControls() }
+    }
 
     Component.onCompleted: {
         var a = Backend.buttonActions(), m = {}
@@ -321,6 +329,47 @@ Item {
                                 font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
                                 font.weight: Font.DemiBold; font.letterSpacing: 1.5
                             }
+                        }
+                    }
+                }
+            }
+
+            // ===== Other controls (from the mouse's own REPROG_CONTROLS_V4 inventory) =====
+            GlassCard {
+                Layout.fillWidth: true
+                Layout.preferredHeight: extraCol.implicitHeight + Theme.padCard * 2
+                visible: page.extraControls.length > 0
+                Column {
+                    id: extraCol
+                    anchors.fill: parent; anchors.margins: Theme.padCard
+                    spacing: Theme.gapS
+                    CardHeader {
+                        width: parent.width
+                        title: "Other controls"
+                        subtitle: "Buttons this mouse reports that have no marker above. Assign an action to divert one; Disabled leaves it native."
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/input-mouse-symbolic"
+                        Badge { text: page.extraControls.length + " found"; accent: true }
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    Repeater {
+                        model: page.extraControls
+                        Column {
+                            required property var modelData
+                            required property int index
+                            width: parent.width
+                            spacing: Theme.gapS
+                            SettingRow {
+                                label: modelData.name
+                                desc: "Control " + modelData.hex + (modelData.raw_xy ? ", reports raw movement" : "")
+                                ComboBox {
+                                    width: 220
+                                    model: Backend.buttonActions()
+                                    currentId: Backend.get(modelData.key, "none")
+                                    onActivated2: (id) => Backend.set(modelData.key, id)
+                                }
+                            }
+                            Rectangle { width: parent.width; height: 1; color: Theme.border
+                                        visible: index < page.extraControls.length - 1 }
                         }
                     }
                 }

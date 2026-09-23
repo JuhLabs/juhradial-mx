@@ -169,6 +169,21 @@ calculator         none                custom
 
 `none` disables the button. `custom` reserves the slot for a user-defined action configured in the UI.
 
+### Other controls (`buttons.controls`)
+
+Mice expose more remappable controls than the named slots above (side buttons on an MX Anywhere, the DPI switch on an MX Vertical). The daemon enumerates them from the HID++ `REPROG_CONTROLS_V4` feature and publishes the list on D-Bus as `ListControls` (a JSON array with each control's id, name and capability bits). Any divertable control can carry an action keyed by its control id:
+
+```json
+"buttons": {
+  "controls": {
+    "0x00D7": "copy",
+    "0x00FD": "zoom_in"
+  }
+}
+```
+
+Keys are the control id in hex (`0x00D7`) or decimal. A control with an action is diverted to the daemon; `none` (or removing the key and reloading) hands it back to the mouse. Settings → Buttons lists these under "Other controls" whenever the connected mouse reports any.
+
 ### Directional gestures
 
 The gesture button can run a different action per drag direction. Hold it, move the mouse, release: the dominant axis picks the action, and a press that moves less than `threshold_px` is a click that runs `buttons.gesture` (or `click`, when set). Off by default; Settings → Buttons → Gesture Button has the switch, the four pickers, and the threshold.

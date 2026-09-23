@@ -320,6 +320,14 @@ pub struct ButtonsConfig {
 
     #[serde(default = "default_horizontal_scroll_action")]
     pub horizontal_scroll: ButtonAction,
+
+    /// Actions for controls beyond the named slots, keyed by HID++ control id
+    /// as reported by `ListControls` ("0x00D7", decimal accepted). Lets any
+    /// divertable control the mouse exposes (MX Anywhere side buttons, the
+    /// MX Vertical DPI switch) carry an action; a `none` entry keeps the
+    /// control at its native behaviour and clears its divert on reload.
+    #[serde(default)]
+    pub controls: std::collections::HashMap<String, ButtonAction>,
 }
 
 impl Default for ButtonsConfig {
@@ -333,8 +341,18 @@ impl Default for ButtonsConfig {
             forward: default_forward_action(),
             back: default_back_action(),
             horizontal_scroll: default_horizontal_scroll_action(),
+            controls: std::collections::HashMap::new(),
         }
     }
+}
+
+/// Parse a `buttons.controls` key: "0x00D7", "00D7"-style hex, or decimal.
+pub fn parse_control_cid(key: &str) -> Option<u16> {
+    let key = key.trim();
+    if let Some(hex) = key.strip_prefix("0x").or_else(|| key.strip_prefix("0X")) {
+        return u16::from_str_radix(hex, 16).ok();
+    }
+    key.parse::<u16>().ok()
 }
 
 // ============================================================================
@@ -682,8 +700,26 @@ impl Config {
             button_cid::BACK_BUTTON => self.buttons.back,
             button_cid::FORWARD_BUTTON => self.buttons.forward,
             button_cid::SMART_SHIFT => self.buttons.shift_wheel,
-            _ => ButtonAction::None,
+            _ => self.extra_control_action(cid).unwrap_or(ButtonAction::None),
         }
+    }
+
+    /// Action configured under `buttons.controls` for a CID, if any.
+    fn extra_control_action(&self, cid: u16) -> Option<ButtonAction> {
+        self.buttons
+            .controls
+            .iter()
+            .find(|(key, _)| parse_control_cid(key) == Some(cid))
+            .map(|(_, action)| *action)
+    }
+
+    /// Every CID named under `buttons.controls` (any action, including `none`),
+    /// so a reload can clear the divert of a control returned to native.
+    pub fn extra_control_cids(&self) -> Vec<u16> {
+        let mut cids: Vec<u16> = self.buttons.controls.keys().filter_map(|k| parse_control_cid(k)).collect();
+        cids.sort_unstable();
+        cids.dedup();
+        cids
     }
 
     /// CIDs of the non-gesture buttons (back, forward, middle, shift-wheel) the
@@ -704,6 +740,19 @@ impl Config {
         }
         if self.buttons.shift_wheel != ButtonAction::Smartshift {
             cids.push(button_cid::SMART_SHIFT);
+        }
+        // Extra controls carry an action only when one is configured; the
+        // named slots above stay authoritative for their own CIDs.
+        for cid in self.extra_control_cids() {
+            if Self::managed_button_cids().contains(&cid)
+                || cid == button_cid::GESTURE_BUTTON
+                || cid == button_cid::HAPTIC
+            {
+                continue;
+            }
+            if self.extra_control_action(cid).is_some_and(|a| a != ButtonAction::None) {
+                cids.push(cid);
+            }
         }
         cids
     }
@@ -1219,6 +1268,25 @@ mod tests {
         assert_eq!(config.action_for_cid(button_cid::FORWARD_BUTTON), ButtonAction::Forward);
         assert_eq!(config.action_for_cid(button_cid::SMART_SHIFT), ButtonAction::Smartshift);
         assert_eq!(config.action_for_cid(9999), ButtonAction::None); // Unknown CID
+    }
+
+    #[test]
+    fn extra_controls_carry_actions_and_diverts() {
+        use crate::hidraw::button_cid;
+        let json = r#"{"buttons": {"controls": {"0x00D7": "copy", "253": "zoom_in", "0x00FE": "none", "junk": "paste", "0x0053": "undo"}}}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.action_for_cid(0x00D7), ButtonAction::Copy);
+        assert_eq!(config.action_for_cid(253), ButtonAction::ZoomIn);
+        assert_eq!(config.action_for_cid(0x00FE), ButtonAction::None);
+        // the named back slot wins over a controls entry for the same CID
+        assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Back);
+        let remapped = config.remapped_button_cids();
+        assert!(remapped.contains(&0x00D7) && remapped.contains(&253));
+        assert!(!remapped.contains(&0x00FE), "a none entry is not diverted");
+        assert!(!remapped.contains(&button_cid::BACK_BUTTON));
+        assert_eq!(config.extra_control_cids(), vec![0x0053, 0x00D7, 0x00FD, 0x00FE]);
+        assert_eq!(parse_control_cid(" 0X1a0 "), Some(0x01A0));
+        assert_eq!(parse_control_cid("junk"), None);
     }
 
     #[test]

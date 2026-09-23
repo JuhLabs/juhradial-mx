@@ -15,6 +15,7 @@
 //! This is more reliable than hidapi library for Logitech devices.
 
 pub mod constants;
+pub mod controls;
 pub mod device;
 pub mod error;
 pub mod manager;

@@ -33,7 +33,7 @@ from PyQt6.QtGui import QIcon
 
 try:
     from PyQt6.QtDBus import (QDBusConnection, QDBusInterface, QDBusMessage,
-                              QDBusServiceWatcher)
+                              QDBusPendingCallWatcher, QDBusServiceWatcher)
     _HAVE_DBUS = True
 except Exception:  # pragma: no cover - QtDBus should be present
     _HAVE_DBUS = False
@@ -348,6 +348,7 @@ class Daemon(QObject):
         self._available = self._iface.isValid()
         # Empty service name: survive a daemon restart.
         # Subscribe even while the daemon is down so a later start is heard.
+        self._watchers = set()  # pending async calls (keeps the watchers alive)
         self._bus.connect("", OBJ_PATH, IFACE, "BatteryChanged",
                           self._on_battery)
         self._bus.connect("", OBJ_PATH, IFACE, "DpiChanged", self._on_dpi)
@@ -394,6 +395,26 @@ class Daemon(QObject):
         if not self._available:
             return
         self._iface.asyncCall(method, *args)
+
+    def call_then(self, method, callback, *args):
+        """Async daemon call; `callback(reply_args or None)` runs on the UI
+        thread when the reply lands, so a slow method (a keyboard HID++ probe
+        can take seconds) never stalls page changes."""
+        if not self._available:
+            callback(None)
+            return
+        watcher = QDBusPendingCallWatcher(self._iface.asyncCall(method, *args), self)
+        self._watchers.add(watcher)
+
+        def _finished(w):
+            self._watchers.discard(w)
+            msg = w.reply()
+            w.deleteLater()
+            if msg.type() == QDBusMessage.MessageType.ErrorMessage:
+                callback(None)
+            else:
+                callback(msg.arguments())
+        watcher.finished.connect(_finished)
 
     def call1(self, method, *args, default=None):
         r = self.call(method, *args)
@@ -624,6 +645,7 @@ class Backend(QObject):
     availabilityChanged = pyqtSignal()
     macrosChanged = pyqtSignal()
     toast = pyqtSignal(str)
+    keyboardInfoReady = pyqtSignal("QVariant")
     navRequested = pyqtSignal(str)   # a page asks the shell to switch tabs
     searchTargetChanged = pyqtSignal()
 
@@ -1194,19 +1216,44 @@ class Backend(QObject):
     # ships keyboard support is installed.
     @pyqtSlot(result="QVariant")
     def keyboardInfo(self):
+        """Blocking variant (tests, scripts). Pages use requestKeyboardInfo()."""
+        battery = self.daemon.call("GetKeyboardBattery")
+        paired = self.daemon.call("GetKeyboardPaired")
+        keys = self.daemon.call("ListKeyboardKeys")
+        return self._keyboard_info(battery, paired, keys)
+
+    def _keyboard_info(self, battery, paired, keys):
         enabled = bool(self.get("keyboard.mx_keys.enabled", False))
-        r = self.daemon.call("GetKeyboardBattery")
         pct, charging = 0, False
-        if r and len(r) >= 2:
-            pct, charging = _to_int(r[0]), bool(r[1])
+        if battery and len(battery) >= 2:
+            pct, charging = _to_int(battery[0]), bool(battery[1])
         # Paired = receiver pairing table; true even while the keyboard's radio
         # sleeps (battery reads 0 then). Distinguishes "asleep" from "absent".
-        paired = bool(self.daemon.call1("GetKeyboardPaired", default=False))
-        present = paired or pct > 0 or charging
-        keys = self.daemon.call1("ListKeyboardKeys", default=None) or []
+        is_paired = bool(paired[0]) if paired else False
+        present = is_paired or pct > 0 or charging
+        key_list = keys[0] if keys and keys[0] else []
         return {"present": present, "enabled": enabled, "battery": pct,
                 "charging": charging, "sleeping": present and pct == 0,
-                "keyCount": len(keys)}
+                "keyCount": len(key_list), "pending": False}
+
+    @pyqtSlot()
+    def requestKeyboardInfo(self):
+        """Non-blocking keyboardInfo(): the three keyboard calls can each take
+        seconds while the daemon probes the receiver, and running them inline
+        froze the Devices page on open. keyboardInfoReady carries the dict."""
+        state = {}
+        expected = ("GetKeyboardBattery", "GetKeyboardPaired", "ListKeyboardKeys")
+
+        def _store(name):
+            def _cb(args):
+                state[name] = args
+                if all(k in state for k in expected):
+                    self.keyboardInfoReady.emit(self._keyboard_info(
+                        state["GetKeyboardBattery"], state["GetKeyboardPaired"],
+                        state["ListKeyboardKeys"]))
+            return _cb
+        for name in expected:
+            self.daemon.call_then(name, _store(name))
 
     @pyqtSlot(int)
     def setKeyboardBacklight(self, level):
@@ -1866,6 +1913,41 @@ class Backend(QObject):
     @pyqtSlot(str, str)
     def notify(self, text, kind="info"):
         self.toastRequested.emit(text, kind)
+
+    # ---- dynamic control inventory (REPROG_CONTROLS_V4 via ListControls) ----
+    # CIDs the named button slots already cover; anything else divertable is
+    # offered in the "Other controls" card and stored under buttons.controls.
+    SLOT_CIDS = {0x0052: "middle", 0x0053: "back", 0x0056: "forward",
+                 0x00C3: "gesture", 0x00C4: "shift_wheel", 0x01A0: "thumb"}
+
+    @pyqtSlot(result="QVariant")
+    def listControls(self):
+        """Every control the connected mouse reports, decoded by the daemon
+        (see ListControls). Empty when the daemon is down or the mouse has no
+        REPROG_CONTROLS_V4 feature."""
+        raw = self.daemon.call1("ListControls", default="[]") or "[]"
+        try:
+            items = json.loads(raw)
+        except (TypeError, ValueError):
+            return []
+        out = []
+        for c in items if isinstance(items, list) else []:
+            if not isinstance(c, dict):
+                continue
+            cid = int(c.get("cid", 0))
+            c = dict(c)
+            c["slot"] = self.SLOT_CIDS.get(cid, "")
+            c["key"] = "buttons.controls." + c.get("hex", "0x%04X" % cid)
+            out.append(c)
+        return out
+
+    @pyqtSlot(result="QVariant")
+    def extraControls(self):
+        """Divertable, non-virtual controls without a named slot (and never the
+        primary clicks): the ones a user can assign under Other controls."""
+        return [c for c in self.listControls()
+                if c.get("divertable") and not c.get("virtual") and not c["slot"]
+                and int(c.get("cid", 0)) not in (0x0050, 0x0051)]
 
     @pyqtSlot(result="QVariant")
     def buttonActions(self):

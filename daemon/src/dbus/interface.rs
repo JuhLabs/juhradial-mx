@@ -222,9 +222,14 @@ impl JuhRadialService {
                 let haptic_config = new_config.haptics.clone();
                 let thumbwheel_config = new_config.thumbwheel.clone();
                 let remapped_cids = new_config.remapped_button_cids();
+                // Extra controls (buttons.controls) from both the new and the
+                // outgoing config, so a key that was removed still gets its
+                // divert cleared below.
+                let mut extra_cids = new_config.extra_control_cids();
 
                 match self.config.write() {
                     Ok(mut config) => {
+                        extra_cids.extend(config.extra_control_cids());
                         *config = new_config;
                         tracing::info!(
                             haptics_enabled = config.haptics.enabled,
@@ -279,7 +284,11 @@ impl JuhRadialService {
                         // quick when connected and return immediately when not.
                         let remapped: std::collections::HashSet<u16> =
                             remapped_cids.into_iter().collect();
-                        for cid in Config::managed_button_cids() {
+                        let mut managed: Vec<u16> = Config::managed_button_cids().to_vec();
+                        managed.extend(extra_cids);
+                        managed.sort_unstable();
+                        managed.dedup();
+                        for cid in managed {
                             let _ = manager.set_button_divert(cid, remapped.contains(&cid));
                         }
 
@@ -850,6 +859,20 @@ impl JuhRadialService {
     // issuing the request inline mirrors the existing SetDpi / GetDpi handlers
     // (these run on the zbus executor, not Tokio).
     // =========================================================================
+
+    /// The connected mouse's REPROG_CONTROLS_V4 inventory as a JSON array:
+    /// one object per control with `cid`, `hex`, `name` and the decoded
+    /// capability bits (see `hidpp::controls`). `[]` without a device or the
+    /// feature. Read-only on the device; the scan is cached per connection.
+    async fn list_controls(&self) -> fdo::Result<String> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => Ok(crate::hidpp::controls::controls_to_json(&manager.list_controls())),
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for list_controls");
+                Ok("[]".to_string())
+            }
+        }
+    }
 
     /// Battery for an MX Keys S keyboard: `(percent, charging)`.
     ///

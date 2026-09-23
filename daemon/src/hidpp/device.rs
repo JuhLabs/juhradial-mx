@@ -5,6 +5,8 @@
 //! button divert, haptics, DPI, SmartShift, battery, and Easy-Switch.
 
 use std::collections::HashSet;
+
+use super::controls::ControlInfo;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
@@ -100,6 +102,52 @@ pub struct HidppDevice {
     thumbwheel_feature_index: Option<u8>,
     /// Path to the hidraw device we connected to
     device_path: PathBuf,
+    /// REPROG_CONTROLS_V4 inventory from the last `list_controls()` scan
+    /// (connection-scoped; empty until scanned).
+    controls: Vec<ControlInfo>,
+    /// HID++ 1.0 error the receiver answered to our last request (`0x8F`),
+    /// cleared by the next matched reply. 0x04 means the paired device's
+    /// radio is parked (idle or on another host): see `link_parked()`.
+    last_receiver_error: Option<u8>,
+}
+
+/// Receiver error "connection request failed": the device is paired but not
+/// linked right now (radio parked after idling, or switched to another host).
+pub const RECEIVER_ERR_CONNECT_FAIL: u8 = 0x04;
+
+/// HID++ 1.0 receiver error (`0x8F`) answering one of our requests. The
+/// receiver speaks for a paired device that cannot answer; the code sits at
+/// byte 5 (0x04 connection failed, 0x09 resource error, ...).
+fn receiver_error_code(response: &[u8], device_index: u8) -> Option<u8> {
+    if response.len() >= 6
+        && (response[0] == report_type::SHORT || response[0] == report_type::LONG)
+        && response[1] == device_index
+        && response[2] == 0x8F
+    {
+        Some(response[5])
+    } else {
+        None
+    }
+}
+
+/// UNIFIED_BATTERY (0x1004) percent: the reported state of charge, or an
+/// estimate from the level flags (critical 0x01, low 0x02, good 0x04, full
+/// 0x08) for firmware that reports levels only.
+fn unified_battery_percent(state_of_charge: u8, level_flags: u8) -> u8 {
+    if state_of_charge > 0 {
+        return state_of_charge;
+    }
+    if level_flags & 0x08 != 0 {
+        90
+    } else if level_flags & 0x04 != 0 {
+        55
+    } else if level_flags & 0x02 != 0 {
+        20
+    } else if level_flags & 0x01 != 0 {
+        5
+    } else {
+        0
+    }
 }
 
 trait ButtonDivertIo {
@@ -165,6 +213,21 @@ fn set_button_diverts_with_io(
     }
 
     diverted
+}
+
+/// Enumerate every control with one REPROG_CONTROLS_V4 scan (getCount, then
+/// getCidInfo per index). Replies that fail to decode are skipped.
+fn list_controls_with_io(io: &mut impl ButtonDivertIo, feature_index: u8) -> Vec<ControlInfo> {
+    let count = match io.short_request(feature_index, 0x00, &[]) {
+        Some(resp) if resp.len() >= 5 => resp[4],
+        _ => return Vec::new(),
+    };
+    (0..count)
+        .filter_map(|index| {
+            io.short_request(feature_index, 0x01, &[index, 0, 0])
+                .and_then(|resp| ControlInfo::from_report(&resp))
+        })
+        .collect()
 }
 
 impl HidppDevice {
@@ -368,6 +431,8 @@ impl HidppDevice {
                     reprog_controls_feature_index: None,
                     thumbwheel_supported: false,
                     thumbwheel_feature_index: None,
+                    controls: Vec::new(),
+                    last_receiver_error: None,
                     device_path: device_path.clone(),
                 };
 
@@ -596,6 +661,8 @@ impl HidppDevice {
                     reprog_controls_feature_index: None,
                     thumbwheel_supported: false,
                     thumbwheel_feature_index: None,
+                    controls: Vec::new(),
+                    last_receiver_error: None,
                     device_path: device_path.clone(),
                 };
 
@@ -737,6 +804,7 @@ impl HidppDevice {
                             && resp_sw_id == SOFTWARE_ID
                         {
                             tracing::debug!("HID++ request matched! Returning response");
+                            self.last_receiver_error = None;
                             return Some(response[..len].to_vec());
                         }
                         // Check for error response (0xFF feature_index indicates error)
@@ -764,8 +832,13 @@ impl HidppDevice {
                             );
                             return None;
                         }
-                        // Legacy error check (0x8F)
+                        // HID++ 1.0 receiver error (0x8F): the paired device
+                        // cannot answer (0x04 = radio parked). Remembered so
+                        // callers can tell "asleep" from a real failure.
                         if response[2] == 0x8F {
+                            if let Some(code) = receiver_error_code(&response[..len], self.device_index) {
+                                self.last_receiver_error = Some(code);
+                            }
                             tracing::debug!("HID++ legacy error response: {:02X?}", &response[..len]);
                             return None;
                         }
@@ -886,6 +959,7 @@ impl HidppDevice {
                         && resp_sw_id == SOFTWARE_ID
                     {
                         tracing::debug!("HID++ long request matched: {:02X?}", &response[..len]);
+                        self.last_receiver_error = None;
                         return Some(response[..len].to_vec());
                     }
 
@@ -905,6 +979,14 @@ impl HidppDevice {
                             "HID++ error response to long request: {:02X?}",
                             &response[..len]
                         );
+                        return None;
+                    }
+                    // Receiver error (0x8F) for our device: fail now instead
+                    // of waiting out the 1 s deadline (a parked mouse made
+                    // every setCidReporting call cost a full second).
+                    if let Some(code) = receiver_error_code(&response[..len], self.device_index) {
+                        self.last_receiver_error = Some(code);
+                        tracing::debug!(code, "HID++ receiver error to long request: {:02X?}", &response[..len]);
                         return None;
                     }
                 }
@@ -1379,6 +1461,28 @@ impl HidppDevice {
         ))
     }
 
+    /// Scan the REPROG_CONTROLS_V4 inventory and cache it for this connection.
+    ///
+    /// READ-ONLY on the device (getCount + getCidInfo). Empty when the feature
+    /// is absent. `cached_controls()` returns the last result without I/O.
+    pub fn list_controls(&mut self) -> Vec<ControlInfo> {
+        let feature_index = match self.reprog_controls_feature_index {
+            Some(idx) => idx,
+            None => return Vec::new(),
+        };
+        if !self.controls.is_empty() {
+            return self.controls.clone();
+        }
+        self.controls = list_controls_with_io(self, feature_index);
+        tracing::debug!(count = self.controls.len(), "REPROG_CONTROLS_V4 inventory scanned");
+        self.controls.clone()
+    }
+
+    /// The inventory from the last `list_controls()` scan (may be empty).
+    pub fn cached_controls(&self) -> &[ControlInfo] {
+        &self.controls
+    }
+
     // =========================================================================
     // ThumbWheel (0x2150)
     // =========================================================================
@@ -1498,6 +1602,13 @@ impl HidppDevice {
     }
 
     /// Get connection type
+    /// True when the receiver last answered "connection request failed" for
+    /// this device: paired, but its radio is parked (idle or on another
+    /// Easy-Switch host). Callers should wait rather than rescan.
+    pub fn link_parked(&self) -> bool {
+        self.last_receiver_error == Some(RECEIVER_ERR_CONNECT_FAIL)
+    }
+
     pub fn connection_type(&self) -> ConnectionType {
         self.connection_type
     }
@@ -2035,7 +2146,7 @@ impl HidppDevice {
                 );
 
                 if self.is_unified_battery && resp.len() >= 8 {
-                    let percentage = resp[4];
+                    let percentage = unified_battery_percent(resp[4], resp[5]);
                     let charging_status = resp[7];
                     let charging = (1..=3).contains(&charging_status);
 
@@ -2435,6 +2546,53 @@ mod button_divert_tests {
         response[5] = (cid & 0xFF) as u8;
         response[8] = flags;
         response
+    }
+
+    #[test]
+    fn list_controls_decodes_every_index_and_skips_bad_replies() {
+        let mut io = MockButtonDivertIo {
+            short_responses: VecDeque::from(vec![
+                Some(count_response(3)),
+                Some(control_response(0x00C3, 0x31)),
+                None,
+                Some(control_response(0x01A0, 0x20)),
+            ]),
+            ..Default::default()
+        };
+        let controls = list_controls_with_io(&mut io, 0x0B);
+        assert_eq!(controls.iter().map(|c| c.cid).collect::<Vec<_>>(), vec![0x00C3, 0x01A0]);
+        assert!(controls[0].divertable() && controls[0].mouse_button());
+        assert_eq!(io.short_requests.len(), 4);
+        assert_eq!(io.short_requests[1].params, vec![0, 0, 0]);
+        assert_eq!(io.short_requests[3].params, vec![2, 0, 0]);
+        assert!(io.long_requests.is_empty(), "the inventory scan must never write");
+    }
+
+    #[test]
+    fn receiver_errors_are_recognised_only_for_our_device() {
+        // 10 01 8F 00 0D 04 00: receiver says device 1 is paired but not linked
+        let parked = [0x10, 0x01, 0x8F, 0x00, 0x0D, 0x04, 0x00];
+        assert_eq!(receiver_error_code(&parked, 1), Some(RECEIVER_ERR_CONNECT_FAIL));
+        assert_eq!(receiver_error_code(&parked, 2), None);
+        let mouse_motion = [0x02, 0x01, 0x8F, 0x00, 0x0D, 0x04, 0x00];
+        assert_eq!(receiver_error_code(&mouse_motion, 1), None);
+        assert_eq!(receiver_error_code(&parked[..5], 1), None);
+    }
+
+    #[test]
+    fn unified_battery_percent_falls_back_to_level_flags() {
+        assert_eq!(unified_battery_percent(73, 0x04), 73);
+        assert_eq!(unified_battery_percent(0, 0x08), 90);
+        assert_eq!(unified_battery_percent(0, 0x04), 55);
+        assert_eq!(unified_battery_percent(0, 0x02), 20);
+        assert_eq!(unified_battery_percent(0, 0x01), 5);
+        assert_eq!(unified_battery_percent(0, 0x00), 0);
+    }
+
+    #[test]
+    fn list_controls_without_count_is_empty() {
+        let mut io = MockButtonDivertIo::default();
+        assert!(list_controls_with_io(&mut io, 0x0B).is_empty());
     }
 
     #[test]

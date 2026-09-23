@@ -199,7 +199,7 @@ Item {
                             ColumnLayout {
                                 Layout.fillWidth: true; spacing: 4
                                 Text {
-                                    text: kbCard.kb.present ? "MX Keys S" : "MX Keys S (not detected)"
+                                    text: (kbCard.kb.present || kbCard.kb.pending) ? "MX Keys S" : "MX Keys S (not detected)"
                                     color: kbCard.kb.present ? Theme.textPrimary : Theme.textMuted
                                     font.family: Theme.fontUI; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
                                     Layout.fillWidth: true; elide: Text.ElideRight
@@ -208,9 +208,9 @@ Item {
                                     spacing: Theme.gapS
                                     Badge { text: "Beta" }
                                     Badge {
-                                        visible: kbCard.kb.present
-                                        text: kbCard.kb.sleeping ? "Asleep, press a key" : "Awake"
-                                        dot: true; accent: kbCard.kb.present && !kbCard.kb.sleeping
+                                        visible: kbCard.kb.present || kbCard.kb.pending
+                                        text: kbCard.kb.pending ? "Checking" : (kbCard.kb.sleeping ? "Asleep, press a key" : "Awake")
+                                        dot: true; accent: kbCard.kb.present && !kbCard.kb.sleeping && !kbCard.kb.pending
                                     }
                                     Badge { visible: kbCard.kb.present && kbCard.kb.charging; text: "Charging"; accent: true }
                                 }
@@ -278,9 +278,17 @@ Item {
                 id: kbCard
                 Layout.fillWidth: true
                 Layout.preferredHeight: kbCol.implicitHeight + Theme.padCard * 2
-                property var kb: ({ present: false, enabled: false, battery: 0, charging: false, sleeping: false, keyCount: 0 })
-                function reload() { kb = Backend.keyboardInfo() }
+                property var kb: ({ present: false, enabled: Backend.get("keyboard.mx_keys.enabled", false),
+                                    battery: 0, charging: false, sleeping: false, keyCount: 0, pending: true })
+                // The keyboard probe runs async in the daemon's own time; the
+                // card shows "Checking" until keyboardInfoReady lands, so
+                // opening this page never waits on HID++.
+                function reload() { kb = Object.assign({}, kb, { pending: true }); Backend.requestKeyboardInfo() }
                 Component.onCompleted: reload()
+                Connections {
+                    target: Backend
+                    function onKeyboardInfoReady(info) { kbCard.kb = info }
+                }
                 // Daemon needs a moment to reload config and query the keyboard
                 // over HID++ after the enable toggle; then refresh the card.
                 Timer { id: kbReload; interval: 1200; onTriggered: kbCard.reload() }
@@ -308,7 +316,7 @@ Item {
                         }
                     }
                     Text {
-                        visible: kbCard.kb.enabled && !kbCard.kb.present
+                        visible: kbCard.kb.enabled && !kbCard.kb.present && !kbCard.kb.pending
                         width: parent.width
                         text: "No compatible keyboard detected yet. Connect an MX Keys S (Bolt receiver or Bluetooth); the card refreshes when you reopen this page."
                         color: Theme.textMuted; wrapMode: Text.WordWrap

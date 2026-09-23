@@ -229,6 +229,15 @@ impl HapticManager {
         }
     }
 
+    /// The device's REPROG_CONTROLS_V4 inventory (a fresh read-only scan);
+    /// empty without a connected device or without the feature.
+    pub fn list_controls(&mut self) -> Vec<crate::hidpp::controls::ControlInfo> {
+        match &mut self.device {
+            Some(device) => device.list_controls(),
+            None => Vec::new(),
+        }
+    }
+
     /// Enable or disable the volatile divert for a single button by CID.
     pub fn set_button_divert(&mut self, cid: u16, divert: bool) -> Result<bool, HapticError> {
         match &mut self.device {

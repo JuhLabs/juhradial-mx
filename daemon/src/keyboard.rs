@@ -66,6 +66,9 @@ pub struct KeyboardManager {
     /// the D-Bus executor (blocking other calls = UI lag spikes), and the
     /// settings UI polls on every page open, so failures are rate-limited.
     last_connect_fail: Option<std::time::Instant>,
+    /// Until when the keyboard counts as asleep after the receiver reported
+    /// its radio parked, so repeated UI polls cost no receiver traffic.
+    asleep_until: Option<std::time::Instant>,
 }
 
 /// How long a POSITIVE pairing-table presence probe stays valid.
@@ -76,6 +79,8 @@ const PAIRED_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(15)
 const PAIRED_NEG_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(5);
 /// Minimum spacing between failed connect scans.
 const CONNECT_RETRY_BACKOFF: std::time::Duration = std::time::Duration::from_secs(3);
+/// How long a "radio parked" answer stays valid before the next battery probe.
+const ASLEEP_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(2);
 
 impl KeyboardManager {
     /// Create an unconnected manager.
@@ -84,6 +89,7 @@ impl KeyboardManager {
             device: None,
             paired_cache: None,
             last_connect_fail: None,
+            asleep_until: None,
         }
     }
 
@@ -135,12 +141,28 @@ impl KeyboardManager {
     /// is present or the query fails. Drops the connection on IO error so the
     /// next call reconnects.
     pub fn query_battery(&mut self) -> Option<(u8, bool)> {
+        if let Some(until) = self.asleep_until {
+            if std::time::Instant::now() < until {
+                return None;
+            }
+        }
         if !self.ensure_connected() {
             return None;
         }
         match self.device.as_mut()?.query_battery() {
-            Ok(v) => Some(v),
+            Ok(v) => {
+                self.asleep_until = None;
+                Some(v)
+            }
             Err(e) => {
+                if self.device.as_ref().is_some_and(|d| d.link_parked()) {
+                    // Paired but its radio is parked (idle, or on another
+                    // Easy-Switch host). Keep the connection: dropping it made
+                    // every Settings open rescan two receivers for seconds.
+                    tracing::debug!("Keyboard radio parked; keeping the connection, reporting asleep");
+                    self.asleep_until = Some(std::time::Instant::now() + ASLEEP_CACHE_TTL);
+                    return None;
+                }
                 tracing::debug!(error = %e, "Keyboard battery query failed; dropping connection");
                 self.device = None;
                 None
