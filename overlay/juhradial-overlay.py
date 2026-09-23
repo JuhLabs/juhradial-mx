@@ -1509,7 +1509,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
 
         parent_angle = self.submenu_slice * 45 - 90
         SUBMENU_RADIUS = self._get_submenu_item_radius()
-        SUBITEM_SIZE = 32
+        SUBITEM_SIZE = self._subitem_hit_radius()
 
         num_items = len(submenu)
         spread = SUBMENU_ITEM_SPREAD_DEG

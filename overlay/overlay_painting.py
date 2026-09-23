@@ -37,6 +37,36 @@ from i18n import _
 class RadialMenuPaintingMixin:
     """Mixin providing all paint/draw methods for RadialMenu."""
 
+    # Ring-size scaling: a configured outer radius sets ``ui_scale`` in
+    # RADIAL_PARAMS (overlay_actions.apply_ring_geometry). Everything sized in
+    # pixels rather than derived from a radius reads it here, so the drawn
+    # size and the matching hit radius cannot drift apart.
+    def _get_ui_scale(self):
+        return (overlay_actions.RADIAL_PARAMS or {}).get("ui_scale", 1.0)
+
+    def _subitem_paint_radius(self):
+        """Radius of a drawn submenu item circle (24 px at the default ring)."""
+        return 24 * self._get_ui_scale()
+
+    def _subitem_hit_radius(self):
+        """Hover radius around a submenu item (32 px at the default ring).
+
+        Kept a step larger than the drawn radius so the fan stays forgiving;
+        both follow ui_scale together.
+        """
+        return 32 * self._get_ui_scale()
+
+    def _paint_origin(self):
+        """Ring centre in painter (logical) space.
+
+        win_px is the device-pixel window size and paintEvent applies
+        p.scale(ring_scale), so dividing by ring_scale lands the drawn centre
+        on win_px / 2 device px, exactly where hit-testing measures from
+        (#147). At ring_scale 1.0 this is plain win_px / 2.
+        """
+        half = self.win_px / 2 / getattr(self, "ring_scale", 1.0)
+        return half, half
+
     def paintEvent(self, event):
         # During COSMIC XWayland cursor sync, paint a near-invisible fill
         # instead of the radial menu.  Alpha 2/255 ≈ 0.8% opacity black —
@@ -70,8 +100,7 @@ class RadialMenuPaintingMixin:
         # ring at win_px / 2 * ring_scale device px while hit-testing measured
         # from win_px / 2, leaving the visible ring offset from its own hit
         # regions by (ring_scale - 1) * win_px / 2 px down and right.
-        cx = self.win_px / 2 / ring_scale
-        cy = self.win_px / 2 / ring_scale
+        cx, cy = self._paint_origin()
 
         # Menu open bloom - the dial locks in: scale with a hair of overshoot
         # plus a subtle rotation settle, like a machined wheel clicking home.
@@ -506,7 +535,7 @@ class RadialMenuPaintingMixin:
         icon_y = cy + (icon_place_r + 3.0 * h) * math.sin(icon_angle)
 
         # Glow ring - fades in with highlight; icon pops slightly on hover
-        icon_radius = 26 + 2.0 * h
+        icon_radius = (26 + 2.0 * h) * self._get_ui_scale()
         if h > 0:
             glow = QColor(255, 255, 255, int(40 * h))
             p.setBrush(Qt.BrushStyle.NoBrush)
@@ -1113,7 +1142,7 @@ class RadialMenuPaintingMixin:
         # Submenu items positioned in an arc beyond the main menu
         outer_radius = self._get_outer_radius()
         SUBMENU_RADIUS = self._get_submenu_item_radius()
-        SUBITEM_RADIUS = 24  # Size of each subitem circle
+        SUBITEM_RADIUS = self._subitem_paint_radius()
 
         num_items = len(submenu)
         spread = SUBMENU_ITEM_SPREAD_DEG

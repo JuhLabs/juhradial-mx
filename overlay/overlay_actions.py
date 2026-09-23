@@ -66,6 +66,42 @@ def load_theme() -> dict:
     return qcolors
 
 
+def apply_ring_geometry(params, outer_radius, inner_radius):
+    """Layer the user's ring geometry (Settings → Appearance) over theme params.
+
+    A configured outer radius scales everything that is sized in pixels by the
+    same ratio (outer_radius / MENU_RADIUS): the icon zone, shadow spread,
+    submenu spacing, the 3D wheel image, and, via ``ui_scale``, ``icon_scale``
+    and the centre font sizes, the icons, badges, submenu items and centre
+    label themselves. Without that last group a bigger ring only spread the
+    default-sized icons further apart (#134 follow-up).
+
+    Returns the params unchanged (same object) when nothing is configured.
+    """
+    if outer_radius is None and inner_radius is None:
+        return params
+    params = dict(params) if params else {}
+    if outer_radius is not None:
+        scale = outer_radius / MENU_RADIUS
+        params["ring_outer"] = outer_radius
+        params["icon_radius"] = ICON_ZONE_RADIUS * scale
+        params["shadow_offset"] = SHADOW_OFFSET * scale
+        params["submenu_extend"] = SUBMENU_EXTEND * scale
+        # 3D-wheel themes draw a pre-rendered PNG as the ring/border
+        # itself instead of a vector disc - scale it too, or it stays
+        # the default size while the icons/hit-zone move past its edge.
+        default_image_size = MENU_RADIUS * 2 + 10
+        params["image_size"] = int(params.get("image_size", default_image_size) * scale)
+        params["ui_scale"] = scale
+        params["icon_scale"] = params.get("icon_scale", 1.0) * scale
+        params["center_font_size"] = params.get("center_font_size", 11) * scale
+        params["center_min_font_size"] = params.get("center_min_font_size", 7) * scale
+    if inner_radius is not None:
+        params["ring_inner"] = inner_radius
+        params["center_radius"] = inner_radius
+    return params
+
+
 def load_radial_image():
     """Load the 3D radial wheel image for the current theme, if any."""
     global RADIAL_IMAGE, RADIAL_PARAMS
@@ -77,26 +113,9 @@ def load_radial_image():
     # the icon zone, shadow spread, and submenu spacing by the same ratio, so
     # the whole ring resizes as one proportional set rather than piecemeal.
     user_geometry = load_ring_geometry()
-    outer_radius = user_geometry.get("outer_radius")
-    inner_radius = user_geometry.get("inner_radius")
-    if outer_radius is not None or inner_radius is not None:
-        RADIAL_PARAMS = dict(RADIAL_PARAMS) if RADIAL_PARAMS else {}
-        if outer_radius is not None:
-            scale = outer_radius / MENU_RADIUS
-            RADIAL_PARAMS["ring_outer"] = outer_radius
-            RADIAL_PARAMS["icon_radius"] = ICON_ZONE_RADIUS * scale
-            RADIAL_PARAMS["shadow_offset"] = SHADOW_OFFSET * scale
-            RADIAL_PARAMS["submenu_extend"] = SUBMENU_EXTEND * scale
-            # 3D-wheel themes draw a pre-rendered PNG as the ring/border
-            # itself instead of a vector disc - scale it too, or it stays
-            # the default size while the icons/hit-zone move past its edge.
-            default_image_size = MENU_RADIUS * 2 + 10
-            RADIAL_PARAMS["image_size"] = int(
-                RADIAL_PARAMS.get("image_size", default_image_size) * scale
-            )
-        if inner_radius is not None:
-            RADIAL_PARAMS["ring_inner"] = inner_radius
-            RADIAL_PARAMS["center_radius"] = inner_radius
+    RADIAL_PARAMS = apply_ring_geometry(
+        RADIAL_PARAMS, user_geometry.get("outer_radius"), user_geometry.get("inner_radius")
+    )
 
     if not image_name:
         RADIAL_IMAGE = None
