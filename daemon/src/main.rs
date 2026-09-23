@@ -1042,6 +1042,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         juhradiald::keyboard::run_keyboard_remap_loop(keyboard_config, keyboard_hotplug).await;
     });
 
+    // MX Keys S link watcher (BETA, opt-in with keyboard.mx_keys.enabled):
+    // pushes KeyboardBatteryChanged when a key press re-links the keyboard,
+    // so Settings stops showing "asleep" the moment the user types.
+    let link_config = shared_config.clone();
+    let link_connection = dbus_connection.clone();
+    let _keyboard_link_handle = tokio::spawn(async move {
+        juhradiald::keyboard::run_keyboard_link_watcher(link_config, link_connection).await;
+    });
+
     // Spawn event processing task with D-Bus connection
     let config_for_events = shared_config.clone();
     let hotplug_for_events = hotplug_notify.clone();

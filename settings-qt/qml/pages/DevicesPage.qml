@@ -220,14 +220,19 @@ Item {
                                 Layout.alignment: Qt.AlignVCenter
                                 spacing: 2
                                 visible: kbCard.kb.present
+                                // Parked radio: the last reading this session, marked as such;
+                                // the daemon pushes a fresh one on the next key press.
+                                readonly property bool stale: kbCard.kb.sleeping && (kbCard.kb.lastBattery || 0) > 0
                                 Text {
                                     anchors.right: parent.right
-                                    text: kbCard.kb.sleeping ? "--" : kbCard.kb.battery + "%"; color: Theme.textPrimary
+                                    text: !kbCard.kb.sleeping ? kbCard.kb.battery + "%"
+                                          : (parent.stale ? kbCard.kb.lastBattery + "%" : "--")
+                                    color: parent.stale ? Theme.textMuted : Theme.textPrimary
                                     font.family: Theme.fontMono; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
                                 }
                                 Text {
                                     anchors.right: parent.right
-                                    text: "battery"; color: Theme.textMuted
+                                    text: parent.stale ? "last reading" : "battery"; color: Theme.textMuted
                                     font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
                                 }
                             }

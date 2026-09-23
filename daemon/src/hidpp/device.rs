@@ -589,10 +589,16 @@ impl HidppDevice {
     /// sleeps, which is exactly when `open_keyboard` cannot validate it.
     /// Direct-Bluetooth keyboards are not covered (they validate normally).
     pub fn any_paired_keyboard() -> bool {
+        Self::find_paired_keyboard().is_some()
+    }
+
+    /// The receiver hidraw node and slot holding a paired keyboard, from the
+    /// receivers' pairing tables (answers while the keyboard sleeps).
+    pub fn find_paired_keyboard() -> Option<(PathBuf, u8)> {
         Self::find_all_devices()
             .into_iter()
             .filter(|(_, ct)| matches!(ct, ConnectionType::Bolt | ConnectionType::Unifying))
-            .any(|(path, _)| Self::find_keyboard_index_on_receiver(&path).is_some())
+            .find_map(|(path, _)| Self::find_keyboard_index_on_receiver(&path).map(|idx| (path, idx)))
     }
 
     /// Open the first HID++ 2.0 KEYBOARD (MX Keys S and friends).
@@ -1601,6 +1607,11 @@ impl HidppDevice {
     /// Get the hidraw device path this device is connected to
     pub fn device_path(&self) -> &std::path::Path {
         &self.device_path
+    }
+
+    /// HID++ device index: the receiver slot, or 0xFF for a direct link.
+    pub fn device_index(&self) -> u8 {
+        self.device_index
     }
 
     /// Check if any haptic feedback is supported (MX4 or legacy)

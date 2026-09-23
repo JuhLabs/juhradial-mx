@@ -352,6 +352,7 @@ class Daemon(QObject):
     deviceNameRefreshed = pyqtSignal(str)
     gamingModeChanged = pyqtSignal(bool)
     newAppSeen = pyqtSignal(str)
+    keyboardBatteryChanged = pyqtSignal(int, bool)
     availabilityChanged = pyqtSignal()
 
     def __init__(self):
@@ -378,6 +379,8 @@ class Daemon(QObject):
         self._bus.connect("", OBJ_PATH, IFACE, "DeviceNameRefreshed", self._on_device_name)
         # First focus of an application since the daemon started.
         self._bus.connect("", OBJ_PATH, IFACE, "NewAppSeen", self._on_new_app)
+        # The keyboard linked up (a key press) and the daemon read its battery.
+        self._bus.connect("", OBJ_PATH, IFACE, "KeyboardBatteryChanged", self._on_kb_battery)
         self._watcher = QDBusServiceWatcher(
             BUS_NAME, self._bus,
             QDBusServiceWatcher.WatchModeFlag.WatchForRegistration
@@ -470,6 +473,12 @@ class Daemon(QObject):
         return default if v is None else v
 
     # --- signal handlers (the full QDBusMessage is delivered) ---
+    @pyqtSlot(QDBusMessage)
+    def _on_kb_battery(self, msg):
+        a = msg.arguments()
+        if len(a) >= 2:
+            self.keyboardBatteryChanged.emit(_to_int(a[0]), bool(a[1]))
+
     @pyqtSlot(QDBusMessage)
     def _on_new_app(self, msg):
         a = msg.arguments()
@@ -768,6 +777,9 @@ class Backend(QObject):
         self.daemon.gamingModeChanged.connect(self._set_gaming_live)
         self._pending_app = ""
         self.daemon.newAppSeen.connect(self._on_new_app)
+        self._kb_info = None
+        self._kb_last_battery = 0
+        self.daemon.keyboardBatteryChanged.connect(self._on_keyboard_battery)
         self.daemon.availabilityChanged.connect(self._on_daemon_availability)
 
         # prime device state shortly after start (daemon may be warming up)
@@ -1298,9 +1310,24 @@ class Backend(QObject):
         is_paired = bool(paired[0]) if paired else False
         present = is_paired or pct > 0 or charging
         key_list = keys[0] if keys and keys[0] else []
+        if pct > 0:
+            self._kb_last_battery = pct
         return {"present": present, "enabled": enabled, "battery": pct,
                 "charging": charging, "sleeping": present and pct == 0,
-                "keyCount": len(key_list), "pending": False}
+                "keyCount": len(key_list), "pending": False,
+                "lastBattery": self._kb_last_battery}
+
+    def _on_keyboard_battery(self, pct, charging):
+        """KeyboardBatteryChanged: the keyboard is awake right now."""
+        if pct <= 0:
+            return
+        self._kb_last_battery = pct
+        info = dict(self._kb_info or {
+            "enabled": bool(self.get("keyboard.mx_keys.enabled", False)), "keyCount": 0})
+        info.update({"present": True, "battery": pct, "charging": bool(charging),
+                     "sleeping": False, "pending": False, "lastBattery": pct})
+        self._kb_info = info
+        self.keyboardInfoReady.emit(info)
 
     @pyqtSlot()
     def requestKeyboardInfo(self):
@@ -1316,9 +1343,10 @@ class Backend(QObject):
 
         def step(i):
             if i == len(order):
-                self.keyboardInfoReady.emit(self._keyboard_info(
+                self._kb_info = self._keyboard_info(
                     state["GetKeyboardBattery"], state["GetKeyboardPaired"],
-                    state["ListKeyboardKeys"]))
+                    state["ListKeyboardKeys"])
+                self.keyboardInfoReady.emit(self._kb_info)
                 return
             name = order[i]
 

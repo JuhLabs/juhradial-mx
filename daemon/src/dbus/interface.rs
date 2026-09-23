@@ -145,6 +145,12 @@ impl JuhRadialService {
     #[zbus(signal)]
     async fn new_app_seen(emitter: &SignalEmitter<'_>, app: String) -> zbus::Result<()>;
 
+    /// MX Keys S battery read right after the keyboard's radio linked up (a
+    /// key press). Broadcast by keyboard::run_keyboard_link_watcher while
+    /// keyboard.mx_keys.enabled is on.
+    #[zbus(signal)]
+    async fn keyboard_battery_changed(emitter: &SignalEmitter<'_>, percent: u8, charging: bool) -> zbus::Result<()>;
+
     // =========================================================================
     // HAPTIC / PROFILE / CONFIG METHODS
     // =========================================================================
