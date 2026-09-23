@@ -586,8 +586,15 @@ fn with_session_env<T>(f: impl FnOnce(&HashMap<String, String>) -> T) -> T {
     };
     if stale {
         let vars = read_systemd_user_environment();
-        let settled = vars.contains_key("WAYLAND_DISPLAY") || vars.contains_key("DISPLAY");
-        *cached = Some(SessionEnv { vars, settled, read_at: Instant::now() });
+        let now = Instant::now();
+        let has_display = vars.contains_key("WAYLAND_DISPLAY") || vars.contains_key("DISPLAY");
+        let display_since = match cached.as_ref().and_then(|env| env.display_since) {
+            Some(since) if has_display => Some(since),
+            _ if has_display => Some(now),
+            _ => None,
+        };
+        let settled = session_env_settled(&vars, display_since, now);
+        *cached = Some(SessionEnv { vars, settled, display_since, read_at: now });
     }
 
     match cached.as_ref() {
@@ -596,15 +603,37 @@ fn with_session_env<T>(f: impl FnOnce(&HashMap<String, String>) -> T) -> T {
     }
 }
 
-/// How long to wait before re-reading a session environment that still has no
-/// display variables in it.
+/// How long to wait before re-reading a session environment that is not
+/// settled yet.
 const SESSION_ENV_RETRY: Duration = Duration::from_secs(2);
+
+/// How long a display may be visible without `XDG_CURRENT_DESKTOP` before the
+/// environment counts as final anyway (bare window managers never set it).
+pub const SESSION_DESKTOP_GRACE: Duration = Duration::from_secs(180);
 
 struct SessionEnv {
     vars: HashMap<String, String>,
-    /// The display variables have arrived, so this will not change again.
+    /// The session finished publishing, so this will not change again.
     settled: bool,
+    /// When a display variable was first seen.
+    display_since: Option<Instant>,
     read_at: Instant,
+}
+
+/// A session publishes in stages and can export `DISPLAY` before
+/// `XDG_CURRENT_DESKTOP` (issue #138), so a display alone is not final: wait
+/// for the desktop name too, or for [`SESSION_DESKTOP_GRACE`] after the
+/// display appeared.
+fn session_env_settled(
+    vars: &HashMap<String, String>,
+    display_since: Option<Instant>,
+    now: Instant,
+) -> bool {
+    let Some(since) = display_since else {
+        return false;
+    };
+    vars.contains_key("XDG_CURRENT_DESKTOP")
+        || now.saturating_duration_since(since) >= SESSION_DESKTOP_GRACE
 }
 
 fn read_systemd_user_environment() -> HashMap<String, String> {
@@ -911,6 +940,26 @@ fn button_action_to_shortcut(action: ButtonAction) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn session_env_waits_for_the_desktop_name_after_the_display() {
+        let now = Instant::now();
+        let display_only: HashMap<String, String> =
+            [("DISPLAY".to_string(), ":0".to_string())].into_iter().collect();
+        assert!(!session_env_settled(&display_only, None, now));
+        assert!(!session_env_settled(&display_only, Some(now), now));
+        assert!(session_env_settled(
+            &display_only,
+            Some(now),
+            now + SESSION_DESKTOP_GRACE
+        ));
+        let mut full = display_only.clone();
+        full.insert("XDG_CURRENT_DESKTOP".into(), "KDE".into());
+        assert!(session_env_settled(&full, Some(now), now));
+        let desktop_only: HashMap<String, String> =
+            [("XDG_CURRENT_DESKTOP".to_string(), "KDE".to_string())].into_iter().collect();
+        assert!(!session_env_settled(&desktop_only, None, now));
+    }
     use super::*;
 
     #[test]

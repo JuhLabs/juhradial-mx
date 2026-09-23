@@ -23,7 +23,7 @@ use juhradiald::{
     macros::{MacroEngine, MacroRecorder, TriggerMap},
     new_shared_haptic_manager,
     profiles::{ProfileManager, SharedHardwareProfiles},
-    window_tracker::WindowTracker,
+    window_tracker::{tracker_decision, TrackerDecision, WindowTracker},
 };
 
 use std::collections::HashMap;
@@ -36,7 +36,7 @@ use std::sync::{Arc, Mutex, RwLock};
 /// failure modes. The previous 2-second cadence opened every evdev node on
 /// every tick (including the MX mouse currently streaming events through
 /// another task), causing visible cursor stutter every 2 seconds. 60 seconds
-/// matches the cost of a missed hotplug — barely perceptible — without
+/// matches the cost of a missed hotplug, barely perceptible, without
 /// generating periodic contention on active input devices.
 const DEVICE_POLL_INTERVAL_SECS: u64 = 60;
 
@@ -453,7 +453,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let haptic_manager = new_shared_haptic_manager(&haptic_config);
 
     // Try to connect to MX Master 4 for haptic feedback and divert gesture buttons.
-    // HID++ probing does blocking hidraw I/O with std::thread::sleep — running it
+    // HID++ probing does blocking hidraw I/O with std::thread::sleep, running it
     // directly on the tokio runtime stalls every other task (evdev, hidraw, dbus)
     // for up to ~1.5s on cold start. spawn_blocking moves it onto the blocking
     // thread pool so the runtime keeps servicing input events during startup.
@@ -584,7 +584,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let macro_evdev_codes: HashSet<u16>;
     {
         // Pull what we need out of the trigger map, then drop the write lock
-        // before we await on the blocking divert task — clippy's
+        // before we await on the blocking divert task, clippy's
         // `await_holding_lock` lint is correct: a std RwLock guard is poisoned
         // territory across an await.
         let pending_cids: Vec<(u16, u16)>;
@@ -684,6 +684,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the settings UI saves. Both the D-Bus service and the focus-change
     // consumer hold a clone, so a UI save reaches the consumer without restart.
     let hardware_profiles: SharedHardwareProfiles = Arc::new(RwLock::new(HashMap::new()));
+
+    // Pointer/scroll replay after reconnect or wake needs the focused app's
+    // profile and the gaming DPI, owned elsewhere; share them.
+    let replay_ctx = juhradiald::replay::ReplayContext {
+        gaming_mode: gaming_mode.clone(),
+        hardware_profiles: hardware_profiles.clone(),
+        active_profile: juhradiald::replay::new_shared_active_profile(),
+    };
 
     // Export the D-Bus service on the connection that already holds the
     // single-instance name claim from startup.
@@ -796,13 +804,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let watch_tx = active_window_tx.clone();
         tokio::spawn(async move {
             let started = Instant::now();
+            // Started inside the session (not by systemd at default.target):
+            // the process environment is already complete.
+            let env_from_process = std::env::var_os("DISPLAY").is_some()
+                || std::env::var_os("WAYLAND_DISPLAY").is_some();
             let tracker = loop {
                 let tracker = WindowTracker::new();
-                if tracker.is_available() {
-                    break Some(tracker);
-                }
-                if started.elapsed() >= WINDOW_TRACKER_WAIT {
-                    break None;
+                match tracker_decision(
+                    tracker.desktop(),
+                    tracker.is_available(),
+                    env_from_process,
+                    started.elapsed(),
+                    WINDOW_TRACKER_WAIT,
+                ) {
+                    TrackerDecision::Start => break Some(tracker),
+                    TrackerDecision::GiveUp => break None,
+                    TrackerDecision::Wait => {}
                 }
                 sleep(Duration::from_secs(2)).await;
             };
@@ -855,6 +872,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let hw_config = shared_config.clone();
         // The tray tooltip and badge follow the applied profile.
         let profile_connection = dbus_connection.clone();
+        let focus_replay = replay_ctx.clone();
         if !hw_profiles.read().map(|m| m.is_empty()).unwrap_or(true) {
             info!("Per-app hardware profiles configured; focus-change application active");
         }
@@ -868,6 +886,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut thumbwheel_overridden = false;
             // Classes already announced through NewAppSeen during this run.
             let mut seen_apps: HashSet<String> = HashSet::new();
+            // Device state before the first profile applied: what leaving
+            // profiled apps restores for settings config.json does not name.
+            let mut baseline: Option<juhradiald::replay::DeviceState> = None;
             while let Some(class) = active_window_rx.recv().await {
                 if class == current_class {
                     continue;
@@ -944,8 +965,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // ActiveProfileChanged carries the app class whose profile is
                 // now applied, or "" once the focus leaves profiled apps.
                 let now_active = if hw.is_some() { class.to_lowercase() } else { String::new() };
-                if now_active != active_profile {
+                let entering = active_profile.is_empty() && !now_active.is_empty();
+                let profile_changed = now_active != active_profile;
+                if profile_changed {
                     active_profile = now_active.clone();
+                    if let Ok(mut cell) = focus_replay.active_profile.write() {
+                        *cell = (!now_active.is_empty()).then(|| now_active.clone());
+                    }
                     if let Err(e) = profile_connection
                         .emit_signal(
                             None::<&str>,
@@ -960,22 +986,63 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
-                let Some(hw) = hw else { continue };
-                info!(class = %class, "Applying per-app hardware profile");
+                if !profile_changed {
+                    continue;
+                }
+                // Entering, switching or leaving a profile: write the full
+                // effective state, so a setting the previous profile changed
+                // returns to the global value (config.json, else the device
+                // state from before the first profile) instead of latching.
+                match &hw {
+                    Some(_) => info!(class = %class, "Applying per-app hardware profile"),
+                    None => info!("Focus left profiled apps; restoring global pointer and scroll state"),
+                }
                 let mgr = hw_manager.clone();
-                let thumbwheel_invert = hw_config
+                let (thumbwheel_invert, unit_key) = hw_config
                     .read()
-                    .map(|c| c.thumbwheel.invert)
-                    .unwrap_or(false);
-                let _ = tokio::task::spawn_blocking(move || {
-                    match mgr.lock() {
-                        Ok(mut m) => {
-                            juhradiald::profiles::apply_hardware_profile(&hw, &mut m, thumbwheel_invert)
+                    .map(|c| (c.thumbwheel.invert, c.active_unit.clone()))
+                    .unwrap_or((false, None));
+                let gaming_dpi = focus_replay.gaming_dpi();
+                let prior = baseline;
+                let captured = tokio::task::spawn_blocking(move || {
+                    let mut m = match mgr.lock() {
+                        Ok(m) => m,
+                        Err(e) => {
+                            error!(error = %e, "Failed to lock haptic manager for hardware profile");
+                            return prior;
                         }
-                        Err(e) => error!(error = %e, "Failed to lock haptic manager for hardware profile"),
+                    };
+                    let base = if entering {
+                        Some(juhradiald::replay::read_device_state(&mut m))
+                    } else {
+                        prior
+                    };
+                    let globals = juhradiald::replay::globals_from_config(
+                        &juhradiald::replay::load_raw_config(),
+                        unit_key.as_deref(),
+                    )
+                    .or(base.unwrap_or_default());
+                    let state = juhradiald::replay::effective_state(globals, hw.as_ref(), gaming_dpi);
+                    let (tried, failed) = juhradiald::replay::apply(&mut *m, &state);
+                    debug!(tried, failed, "Profile pointer/scroll state written");
+                    if let Some(hw) = &hw {
+                        // Thumb-wheel override (the global restore is above).
+                        let tw_only = juhradiald::profiles::HardwareProfile {
+                            thumbwheel: hw.thumbwheel,
+                            ..Default::default()
+                        };
+                        juhradiald::profiles::apply_hardware_profile(
+                            &tw_only,
+                            &mut m,
+                            thumbwheel_invert,
+                            globals.natural.unwrap_or(false),
+                        );
                     }
+                    base
                 })
-                .await;
+                .await
+                .unwrap_or(prior);
+                baseline = if active_profile.is_empty() { None } else { captured };
             }
         });
     }
@@ -997,12 +1064,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hidraw_dbus_connection = dbus_connection.clone();
     let hidraw_device_name_state = device_name_state.clone();
     let hidraw_tracker = gesture_tracker.clone();
+    let hidraw_replay = replay_ctx.clone();
+
+    // Publish mouse reachability transitions (connected/asleep/away/offline).
+    {
+        let conn = dbus_connection.clone();
+        let mut rx = juhradiald::link_state::subscribe();
+        tokio::spawn(async move {
+            while rx.changed().await.is_ok() {
+                let (state, transport) = *rx.borrow_and_update();
+                info!(state = state.as_str(), transport = transport.as_str(), "Mouse link changed");
+                if let Err(e) = conn
+                    .emit_signal(
+                        None::<&str>,
+                        DBUS_PATH,
+                        "org.kde.juhradialmx.Daemon",
+                        "DeviceConnectionChanged",
+                        &(state.as_str(), transport.as_str()),
+                    )
+                    .await
+                {
+                    warn!(error = %e, "Failed to emit DeviceConnectionChanged");
+                }
+            }
+        });
+    }
     let hidraw_handle = tokio::spawn(async move {
         run_hidraw_loop(
             hidraw_tx,
             HidrawStartup {
                 preferred_path: mx4_hidraw_path,
                 gesture_tracker: hidraw_tracker,
+                replay: hidraw_replay,
             },
             macro_cids,
             hidraw_config,
@@ -1188,6 +1281,7 @@ fn list_logitech_devices() {
 struct HidrawStartup {
     preferred_path: Option<PathBuf>,
     gesture_tracker: juhradiald::gesture::SharedGestureTracker,
+    replay: juhradiald::replay::ReplayContext,
 }
 
 #[derive(Clone)]
@@ -1369,6 +1463,32 @@ async fn fetch_notification_indices(
     .unwrap_or_default()
 }
 
+/// Write the effective pointer/scroll state to the mouse. False when a write
+/// failed (the next trigger retries).
+async fn replay_pointer_state(
+    manager: SharedHapticManager,
+    ctx: juhradiald::replay::ReplayContext,
+    unit_key: Option<String>,
+) -> bool {
+    let result = tokio::task::spawn_blocking(move || {
+        let state = ctx.effective(unit_key.as_deref());
+        if state == juhradiald::replay::DeviceState::default() {
+            return (0, 0);
+        }
+        match manager.lock() {
+            Ok(mut m) => juhradiald::replay::apply(&mut *m, &state),
+            Err(_) => (0, 1),
+        }
+    })
+    .await
+    .unwrap_or((0, 1));
+    let (tried, failed) = result;
+    if tried > 0 || failed > 0 {
+        info!(tried, failed, "Replayed pointer and scroll state");
+    }
+    failed == 0
+}
+
 async fn run_hidraw_loop(
     event_tx: mpsc::Sender<GestureEvent>,
     startup: HidrawStartup,
@@ -1383,7 +1503,9 @@ async fn run_hidraw_loop(
     let HidrawStartup {
         mut preferred_path,
         gesture_tracker,
+        replay,
     } = startup;
+    let mut replay_gate = juhradiald::replay::ReplayGate::default();
     let mut handler = HidrawHandler::new(event_tx);
     let macro_cids_for_divert = macro_cids.clone();
     let config_for_thumbwheel = shared_config.clone();
@@ -1407,8 +1529,24 @@ async fn run_hidraw_loop(
             remapped_cids,
         )
         .await;
+        let refreshed = path.is_some();
         if let Some(path) = path {
             preferred_path = Some(path);
+        }
+        {
+            use juhradiald::link_state::{report, LinkState, Transport};
+            let (transport, index, known) = haptic_manager
+                .lock()
+                .map(|m| (m.connection_type(), m.device_index(), m.device_path().is_some()))
+                .unwrap_or((None, None, false));
+            handler.set_mouse_device_index(index);
+            if refreshed {
+                report(LinkState::Connected, transport.map(Transport::from));
+            } else if known {
+                report(LinkState::Asleep, None);
+            } else {
+                report(LinkState::Offline, None);
+            }
         }
         // A different mouse (or the first connect after startup without one)
         // selects its own `devices.<unit>` overrides; when they change the
@@ -1473,6 +1611,19 @@ async fn run_hidraw_loop(
         // reader correct across hotplug/host-switch re-enumeration.
         let note_indices = fetch_notification_indices(haptic_manager.clone()).await;
         handler.set_notification_indices(note_indices);
+
+        // The mouse answered: re-apply DPI, SmartShift, hi-res and natural
+        // scroll (they do not survive every wake/host return), once per wake.
+        // Runs before the listener opens so replies never interleave with it.
+        if refreshed && replay_gate.should_run(Instant::now()) {
+            let unit_key = config_for_divert
+                .read()
+                .ok()
+                .and_then(|c| c.active_unit.clone());
+            if replay_pointer_state(haptic_manager.clone(), replay.clone(), unit_key).await {
+                replay_gate.record_success(Instant::now());
+            }
+        }
 
         // The manager's device path is ping-verified: it is the receiver
         // interface where the mouse actually answered HID++, and therefore

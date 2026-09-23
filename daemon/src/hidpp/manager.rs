@@ -927,6 +927,29 @@ impl HapticManager {
         }
     }
 
+    /// Link facts of the known mouse (no I/O): transport, receiver slot, and
+    /// whether the receiver last reported its link as parked.
+    pub fn connection_type(&self) -> Option<crate::hidpp::ConnectionType> {
+        self.device.as_ref().map(|d| d.connection_type())
+    }
+
+    pub fn device_index(&self) -> Option<u8> {
+        self.device.as_ref().map(|d| d.device_index())
+    }
+
+    pub fn link_parked(&self) -> bool {
+        self.device.as_ref().is_some_and(|d| d.link_parked())
+    }
+
+    /// Capability flags of the known mouse; empty when none is known yet.
+    /// Never connects (answers from the cached feature table).
+    pub fn capabilities(&self) -> std::collections::HashMap<String, bool> {
+        self.device
+            .as_ref()
+            .map(|d| d.capabilities())
+            .unwrap_or_default()
+    }
+
     /// Check if battery feature is supported
     pub fn battery_supported(&self) -> bool {
         self.device.as_ref().map(|d| d.battery_supported()).unwrap_or(false)

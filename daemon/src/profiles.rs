@@ -539,6 +539,7 @@ pub fn apply_hardware_profile(
     profile: &HardwareProfile,
     manager: &mut crate::hidpp::HapticManager,
     thumbwheel_invert: bool,
+    natural_scroll: bool,
 ) {
     if let Some(dpi) = profile.dpi {
         match manager.set_dpi(dpi) {
@@ -555,8 +556,9 @@ pub fn apply_hardware_profile(
     }
 
     if let Some(hires) = profile.hires {
-        // invert/target unchanged from device default (false) for per-app apply.
-        match manager.set_hiresscroll_mode(hires, false, false) {
+        // Natural scroll is a global setting: keep the user's invert bit
+        // (forcing it off flipped scroll direction in profiled apps).
+        match manager.set_hiresscroll_mode(hires, natural_scroll, false) {
             Ok(()) => tracing::info!(hires, "Hardware profile: HiRes scroll applied"),
             Err(e) => tracing::warn!(error = %e, "Hardware profile: set_hiresscroll_mode failed"),
         }

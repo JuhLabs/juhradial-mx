@@ -97,6 +97,14 @@ impl GamingMode {
     }
 
     /// Check if gaming mode is enabled
+    /// DPI of the active gaming preset while gaming mode is on.
+    pub fn active_dpi(&self) -> Option<u16> {
+        if !self.enabled {
+            return None;
+        }
+        self.dpi_manager.active_profile().map(|p| p.dpi)
+    }
+
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }

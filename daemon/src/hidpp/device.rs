@@ -112,6 +112,9 @@ pub struct HidppDevice {
     /// Unit id from DEVICE_INFORMATION (0x0003): unique per physical device,
     /// the key for per-device config overrides (`devices.0xXXXXXXXX`).
     unit_id: Option<u32>,
+    /// True once `divert_buttons` saw the gesture button (CID 0x00C3) in the
+    /// REPROG_CONTROLS_V4 table (connection-scoped; read by GetCapabilities).
+    gesture_button_seen: bool,
 }
 
 /// Unit id from a `getDeviceInfo` reply (bytes 5..9, big-endian); zero means
@@ -278,7 +281,7 @@ impl HidppDevice {
                 // HID++ lives on the vendor-specific HID interface (input2 on
                 // both Bolt and Unifying receivers; sometimes input1 on direct
                 // USB / Bluetooth). Receiver hidraw nodes for input0/input1 are
-                // boot mouse / consumer interfaces — pinging them never works
+                // boot mouse / consumer interfaces, pinging them never works
                 // and just stalls the receiver firmware for the timeout window
                 // (200ms × 6 device indices = 1.2s wasted per non-HID++ node).
                 let is_input2 = uevent.contains("input2");
@@ -393,7 +396,7 @@ impl HidppDevice {
                             "Permission denied opening hidraw device. Node should be root:input \
                              mode 0660; this daemon's user must be in the 'input' group. Run \
                              'sudo usermod -aG input $USER' then REBOOT (or log out and back in) \
-                             so the systemd --user manager inherits the group — a session that \
+                             so the systemd --user manager inherits the group, a session that \
                              predates the group change cannot access the device (issue #52)."
                         );
                     } else {
@@ -410,7 +413,7 @@ impl HidppDevice {
             // First pass: short ping per slot. If nothing answers on this
             // candidate, the receiver may be in deep-sleep (post-suspend, or
             // mouse idle on its radio). Send a wake stimulus and retry once
-            // before giving up — the previous "replug to make it work"
+            // before giving up, the previous "replug to make it work"
             // symptom was a sleeping receiver that never got woken.
             let mut woke_attempted = false;
             let mut pass = 0u8;
@@ -447,10 +450,11 @@ impl HidppDevice {
                     controls: Vec::new(),
                     last_receiver_error: None,
                     unit_id: None,
+                    gesture_button_seen: false,
                     device_path: device_path.clone(),
                 };
 
-                // Try HID++ validation — uses fast 200ms timeout per slot.
+                // Try HID++ validation, uses fast 200ms timeout per slot.
                 // Responsive devices reply within ~20ms; empty slots never reply.
                 // No retry/sleep: the first ping already wakes the radio, and a
                 // second attempt just adds latency that can stall the receiver.
@@ -505,10 +509,10 @@ impl HidppDevice {
                 pass = 1;
                 tracing::debug!(
                     path = %device_path.display(),
-                    "No slots responded — sending wake ping and retrying once"
+                    "No slots responded, sending wake ping and retrying once"
                 );
                 if let Ok(mut wake_fd) = device.try_clone() {
-                    // Broadcast ping on slot 0xFF — receivers route this
+                    // Broadcast ping on slot 0xFF, receivers route this
                     // to all paired devices and start their radios.
                     let mut wake = [0u8; 7];
                     wake[0] = report_type::SHORT;
@@ -686,6 +690,7 @@ impl HidppDevice {
                     controls: Vec::new(),
                     last_receiver_error: None,
                     unit_id: None,
+                    gesture_button_seen: false,
                     device_path: device_path.clone(),
                 };
 
@@ -702,7 +707,7 @@ impl HidppDevice {
                 hidpp.enumerate_features();
 
                 // Keyboard signature: HID++ 2.0, battery present, NO DPI sensor.
-                // (Mice report DPI 0x2201; keyboards never do — same heuristic the
+                // (Mice report DPI 0x2201; keyboards never do, same heuristic the
                 // mouse `open()` uses to skip keyboards, inverted here.)
                 if hidpp.dpi_supported {
                     tracing::debug!(
@@ -762,7 +767,7 @@ impl HidppDevice {
     /// avoid hammering receivers with long blocking waits on empty slots.
     fn hidpp_request_with_timeout(&mut self, feature_index: u8, function: u8, params: &[u8], max_attempts: u32) -> Option<Vec<u8>> {
         // Bluetooth-connected devices do not expose the short (0x10) HID++
-        // report — their HID descriptor only contains the long (0x11) report.
+        // report, their HID descriptor only contains the long (0x11) report.
         // A short write there is dropped and never answered, so route every
         // request through the long path. Makes HID++ validation, feature
         // enumeration and haptics work over Bluetooth.
@@ -989,7 +994,7 @@ impl HidppDevice {
                     // Check for error response. Gate on the report type and
                     // device index first: on Bluetooth the same hidraw fd also
                     // carries 0x02 mouse-motion reports where byte 2 is
-                    // coordinate data — an ungated 0xFF check misparses pointer
+                    // coordinate data, an ungated 0xFF check misparses pointer
                     // motion as a HID++ error (feature enumeration then fails
                     // whenever the mouse is moving).
                     if (response[0] == report_type::SHORT || response[0] == report_type::LONG)
@@ -1332,6 +1337,9 @@ impl HidppDevice {
             let cid = ((resp[4] as u16) << 8) | (resp[5] as u16);
             let flags = resp[8];
             let divertable = (flags & 0x20) != 0;
+            if cid == GESTURE_BUTTON_CID {
+                self.gesture_button_seen = true;
+            }
 
             tracing::debug!(
                 index = i,
@@ -1649,6 +1657,20 @@ impl HidppDevice {
     /// Easy-Switch host). Callers should wait rather than rescan.
     pub fn link_parked(&self) -> bool {
         self.last_receiver_error == Some(RECEIVER_ERR_CONNECT_FAIL)
+    }
+
+    /// True when the last `divert_buttons` scan found the gesture button
+    /// (CID 0x00C3). No I/O.
+    pub fn gesture_button_seen(&self) -> bool {
+        self.gesture_button_seen
+    }
+
+    /// Capability flags from the cached feature table (no I/O).
+    pub fn capabilities(&self) -> std::collections::HashMap<String, bool> {
+        crate::hidpp::capabilities::capability_map(
+            |id| self.feature_table.contains_key(&id),
+            self.gesture_button_seen,
+        )
     }
 
     pub fn connection_type(&self) -> ConnectionType {

@@ -132,6 +132,15 @@ impl JuhRadialService {
     #[zbus(signal)]
     async fn device_name_refreshed(emitter: &SignalEmitter<'_>, name: String) -> zbus::Result<()>;
 
+    /// Mouse reachability changed (see GetDeviceConnection). Clients re-read
+    /// GetCapabilities when it becomes "connected".
+    #[zbus(signal)]
+    async fn device_connection_changed(
+        emitter: &SignalEmitter<'_>,
+        state: String,
+        transport: String,
+    ) -> zbus::Result<()>;
+
     /// The application class whose per-app hardware profile the daemon just
     /// applied on focus change, or "" when the focus left every profiled
     /// app. Broadcast by the focus-change consumer in main.rs; the overlay's
@@ -439,6 +448,24 @@ impl JuhRadialService {
         }
     }
 
+    /// Mouse reachability: (connected|asleep|away|offline, bolt|unifying|bluetooth|usb|unknown).
+    async fn get_device_connection(&self) -> fdo::Result<(String, String)> {
+        let (state, transport) = crate::link_state::current();
+        Ok((state.as_str().to_string(), transport.as_str().to_string()))
+    }
+
+    /// What the connected mouse can do, from its HID++ feature table.
+    /// Never touches the device; empty until a mouse has been seen.
+    async fn get_capabilities(&self) -> fdo::Result<std::collections::HashMap<String, bool>> {
+        match self.haptic_manager.lock() {
+            Ok(manager) => Ok(manager.capabilities()),
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for get_capabilities");
+                Ok(std::collections::HashMap::new())
+            }
+        }
+    }
+
     async fn dpi_supported(&self) -> fdo::Result<bool> {
         match self.haptic_manager.lock() {
             Ok(mut manager) => Ok(manager.dpi_supported()),
@@ -627,6 +654,7 @@ impl JuhRadialService {
                 match manager.set_current_host(host_index) {
                     Ok(()) => {
                         tracing::info!(host_index, "Switched to Easy-Switch host");
+                        crate::link_state::report(crate::link_state::LinkState::Away, None);
                         Ok(true)
                     }
                     Err(e) => {

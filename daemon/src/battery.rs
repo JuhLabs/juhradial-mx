@@ -507,8 +507,20 @@ pub async fn start_battery_updater_shared(
         haptic_manager: crate::hidpp::SharedHapticManager,
     ) -> Result<(u8, bool), crate::hidpp::HapticError> {
         tokio::task::spawn_blocking(move || {
+            use crate::link_state::{report, LinkState, Transport};
             let mut manager = haptic_manager.lock().unwrap();
-            manager.query_battery()
+            let result = manager.query_battery();
+            // The poll doubles as the reachability probe between wakes.
+            match &result {
+                Ok(_) => {
+                    report(LinkState::Connected, manager.connection_type().map(Transport::from));
+                }
+                Err(_) if manager.link_parked() => {
+                    report(LinkState::Asleep, None);
+                }
+                Err(_) => {}
+            }
+            result
         })
         .await
         .expect("battery query task panicked")

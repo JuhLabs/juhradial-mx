@@ -14,6 +14,7 @@
 //! Uses direct hidraw device access (same approach as battery module).
 //! This is more reliable than hidapi library for Logitech devices.
 
+pub mod capabilities;
 pub mod constants;
 pub mod controls;
 pub mod device;

@@ -53,6 +53,40 @@ if (typeof workspace.windowActivated !== "undefined") {
 }
 "#;
 
+/// What the startup retry loop should do with a freshly built tracker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrackerDecision {
+    Start,
+    Wait,
+    GiveUp,
+}
+
+/// Decide whether to bind the window tracker now (issue #138).
+///
+/// A session can publish `DISPLAY` before `XDG_CURRENT_DESKTOP`, so an
+/// available tracker with an "unknown" desktop would bind the X11 xprop path
+/// and never install the KDE scripts. Start only once the desktop is known,
+/// or at once when the daemon's own environment already had a display (it was
+/// started inside the session, where the process env is complete). After
+/// `max_wait` fall back to whatever is available (bare window managers).
+pub fn tracker_decision(
+    desktop: &str,
+    available: bool,
+    env_from_process: bool,
+    waited: std::time::Duration,
+    max_wait: std::time::Duration,
+) -> TrackerDecision {
+    let timed_out = waited >= max_wait;
+    if available && (desktop != "unknown" || env_from_process || timed_out) {
+        return TrackerDecision::Start;
+    }
+    if timed_out {
+        TrackerDecision::GiveUp
+    } else {
+        TrackerDecision::Wait
+    }
+}
+
 /// Tracks the active window via the desktop-appropriate source.
 pub struct WindowTracker {
     de: &'static str,
@@ -489,6 +523,43 @@ fn parse_wm_class(text: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn tracker_waits_for_the_desktop_when_display_comes_first() {
+        use std::time::Duration;
+        let max = Duration::from_secs(180);
+        // DISPLAY published, XDG_CURRENT_DESKTOP not yet (#138 edge).
+        assert_eq!(
+            tracker_decision("unknown", true, false, Duration::from_secs(4), max),
+            TrackerDecision::Wait
+        );
+        assert_eq!(
+            tracker_decision("kde", true, false, Duration::from_secs(6), max),
+            TrackerDecision::Start
+        );
+    }
+
+    #[test]
+    fn tracker_starts_at_once_inside_the_session_and_falls_back_after_the_window() {
+        use std::time::Duration;
+        let max = Duration::from_secs(180);
+        assert_eq!(
+            tracker_decision("unknown", true, true, Duration::ZERO, max),
+            TrackerDecision::Start
+        );
+        assert_eq!(
+            tracker_decision("unknown", true, false, max, max),
+            TrackerDecision::Start
+        );
+        assert_eq!(
+            tracker_decision("unknown", false, false, max, max),
+            TrackerDecision::GiveUp
+        );
+        assert_eq!(
+            tracker_decision("unknown", false, false, Duration::from_secs(1), max),
+            TrackerDecision::Wait
+        );
+    }
     use super::*;
     use std::fs;
     use std::os::unix::fs::PermissionsExt;

@@ -100,6 +100,8 @@ pub struct HidrawHandler {
     /// its existing refresh path; the loop reads the flag via
     /// `take_divert_refresh_needed()`.
     divert_refresh_needed: bool,
+    /// Receiver slot of the mouse (link-down notifications for it mean away).
+    mouse_device_index: Option<u8>,
     /// Timestamp of the last accepted refresh trigger, for debouncing.
     last_refresh_trigger: Option<Instant>,
     /// Native KWin scripting client backed by the daemon's session connection.
@@ -148,6 +150,7 @@ impl HidrawHandler {
             notification_indices: Default::default(),
             kwin_available: None,
             divert_refresh_needed: false,
+            mouse_device_index: None,
             last_refresh_trigger: None,
             kwin_scripting: None,
             gesture_tracker: None,
@@ -180,6 +183,10 @@ impl HidrawHandler {
 
     /// Register the ThumbWheel feature index so diverted rotation notifications
     /// can be told apart from diverted button events (both use function id 0).
+    pub fn set_mouse_device_index(&mut self, index: Option<u8>) {
+        self.mouse_device_index = index;
+    }
+
     pub fn set_thumbwheel_feature_index(&mut self, index: Option<u8>) {
         self.thumbwheel_feature_index = index;
     }
@@ -321,7 +328,7 @@ impl HidrawHandler {
                         "Permission denied opening {:?}. The node should be root:input mode 0660 \
                          (check: ls -l {:?}) and this daemon's user must be in the 'input' group. \
                          Fix: sudo usermod -aG input $USER, then REBOOT (or fully log out and back \
-                         in) so the systemd --user manager picks up the group — a stale session \
+                         in) so the systemd --user manager picks up the group, a stale session \
                          that predates the group change cannot access the device. See issue #52.",
                         path, path
                     );
@@ -372,7 +379,7 @@ impl HidrawHandler {
                     // Short read, ignore
                 }
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    // No data available — sleep before retry. The previous 1ms
+                    // No data available, sleep before retry. The previous 1ms
                     // poll generated 1000 wakeups/sec on an idle mouse, which
                     // contended with the evdev forwarding task on the same
                     // tokio runtime. 10ms still keeps button latency well below
@@ -420,6 +427,12 @@ impl HidrawHandler {
         if report_type == HIDPP_SHORT && feature_index == RECEIVER_CONNECTION_SUB_ID {
             if data.len() >= 5 && (data[4] & 0x40) == 0 {
                 self.flag_divert_refresh("receiver device-connection notification");
+            } else if data.len() >= 5 && Some(data[1]) == self.mouse_device_index {
+                // Link-up is reported as connected once the refresh it
+                // triggers reaches the mouse; link-down means it left.
+                if crate::link_state::report(crate::link_state::LinkState::Away, None) {
+                    tracing::info!("Mouse link down (another host or switched off)");
+                }
             }
             return;
         }
@@ -1001,6 +1014,21 @@ mod tests {
         h.process_hidpp_report(&report).await;
         assert!(h.take_divert_refresh_needed());
         // take() consumes the flag
+        assert!(!h.take_divert_refresh_needed());
+    }
+
+    // A link-down for the mouse's own slot publishes "away"; another slot's
+    // does not touch the mouse state.
+    #[tokio::test]
+    async fn receiver_link_down_for_the_mouse_slot_reports_away() {
+        use crate::link_state::{self, LinkState, Transport};
+        let mut h = test_handler();
+        h.set_mouse_device_index(Some(0x02));
+        link_state::report(LinkState::Connected, Some(Transport::Bolt));
+        h.process_hidpp_report(&[0x10, 0x01, 0x41, 0x04, 0x42, 0x00, 0x00]).await;
+        assert_eq!(link_state::current().0, LinkState::Connected);
+        h.process_hidpp_report(&[0x10, 0x02, 0x41, 0x04, 0x42, 0x00, 0x00]).await;
+        assert_eq!(link_state::current().0, LinkState::Away);
         assert!(!h.take_divert_refresh_needed());
     }
 
