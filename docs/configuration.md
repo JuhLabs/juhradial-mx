@@ -13,6 +13,9 @@ All configuration lives in `~/.config/juhradial/` (or `$XDG_CONFIG_HOME/juhradia
 | `config.json` | Settings app, daemon | Main configuration: haptics, buttons, thumb-wheel, theme, scroll, flow, gaming, app and device settings |
 | `profiles.json` | Settings app, daemon | Per-application radial layouts and per-app hardware overrides |
 | `macros/<uuid>.json` | Settings app | One file per saved macro |
+| `icons/` | Settings app | Application icons imported for radial slices and quick links |
+| `themes/` | You | Custom overlay themes (see [Themes](#themes)) |
+| `flow_keys/` | Overlay | Flow pairing identity; never exported |
 | `~/.config/autostart/juhradial-mx.desktop` | Settings app | Login autostart entry (created/removed by the Start at Login toggle) |
 
 !!! note
@@ -33,6 +36,19 @@ systemctl --user restart juhradialmx-daemon.service
 !!! warning
     The daemon writes only VOLATILE HID++ state to the device (no onboard-memory writes). Diverts and hardware overrides are re-applied on reconnect, on radio wake (power switch / sleep, where the receiver's device nodes never disappear), and on `ReloadConfig` (which re-diverts the gesture and haptic buttons too), so the mouse comes back to your configured state automatically.
 
+
+## Backup and restore
+
+Settings → Settings → Backup exports everything under `~/.config/juhradial/` that describes your setup into one zip file, and imports such a file again on this machine or another one. The daemon binary offers the same two commands, which is what the Settings buttons run:
+
+```bash
+juhradiald --export ~/juhradial-backup.zip
+juhradiald --import ~/juhradial-backup.zip
+```
+
+The archive holds `manifest.json` (format version, app version, creation time, file list), `config.json`, `profiles.json`, and every file in `macros/`, `icons/` and `themes/`. Flow pairing keys (`flow_keys/`), UI state and scratch files (`.tmp`, `.bak`, `.bad`) stay on the machine.
+
+Import validates before it writes: the manifest must be JuhRadial's and of a format this build understands, every entry must be one of the files above (absolute paths, `..`, nested directories and anything else are refused, so a tampered archive cannot write elsewhere), and every JSON entry must parse as an object. Only then does it keep the current `config.json` and `profiles.json` as `config.json.bak` and `profiles.json.bak`, write each file atomically, and ask a running daemon to reload its configuration and macro triggers. Files on disk that the archive does not mention (extra macros or icons) are left in place.
 
 ## Top-level structure of config.json
 

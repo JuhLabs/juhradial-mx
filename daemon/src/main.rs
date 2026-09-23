@@ -275,11 +275,104 @@ struct Args {
     /// List all Logitech devices and exit
     #[arg(long)]
     list_devices: bool,
+
+    /// Write the configuration (config, profiles, macros, icons, themes) to a zip file and exit
+    #[arg(long, value_name = "FILE", conflicts_with = "import")]
+    export: Option<PathBuf>,
+
+    /// Restore a zip written by --export (the current config.json and profiles.json are kept as .bak) and exit
+    #[arg(long, value_name = "FILE")]
+    import: Option<PathBuf>,
+}
+
+/// Config directory the backup commands operate on (XDG aware).
+fn backup_config_dir() -> PathBuf {
+    juhradiald::config::Config::default_config_dir()
+        .unwrap_or_else(juhradiald::profiles::get_config_dir)
+}
+
+/// `juhradiald --export FILE`: no logging, no bus name, no device access.
+fn run_export(dest: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = backup_config_dir();
+    match juhradiald::backup::export(&dir, dest) {
+        Ok(files) => {
+            println!(
+                "Exported {} file(s) from {} to {}",
+                files.len(),
+                dir.display(),
+                dest.display()
+            );
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("Export failed: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+/// `juhradiald --import FILE`: restore, then ask a running daemon to reload.
+async fn run_import(src: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = backup_config_dir();
+    let report = match juhradiald::backup::import(&dir, src) {
+        Ok(report) => report,
+        Err(e) => {
+            eprintln!("Import failed: {}", e);
+            std::process::exit(1);
+        }
+    };
+    println!(
+        "Imported {} file(s) from a {} backup into {}",
+        report.files.len(),
+        report.version,
+        dir.display()
+    );
+    for bak in &report.backed_up {
+        println!("Previous {} kept as {}", bak.trim_end_matches(".bak"), bak);
+    }
+    if reload_running_daemon().await {
+        println!("Running daemon reloaded");
+    } else {
+        println!("No running daemon to reload; the import applies on the next start");
+    }
+    Ok(())
+}
+
+/// ReloadConfig plus ReloadMacroTriggers on the daemon that owns the bus
+/// name, if any. False when no daemon answers.
+async fn reload_running_daemon() -> bool {
+    let Ok(connection) = zbus::Connection::session().await else {
+        return false;
+    };
+    let Ok(proxy) = zbus::proxy::Proxy::new(
+        &connection,
+        DBUS_NAME,
+        DBUS_PATH,
+        "org.kde.juhradialmx.Daemon",
+    )
+    .await
+    else {
+        return false;
+    };
+    if proxy.call_method("ReloadConfig", &()).await.is_err() {
+        return false;
+    }
+    let _ = proxy.call_method("ReloadMacroTriggers", &()).await;
+    true
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+
+    // Backup commands run before logging and before the bus-name claim: they
+    // must work while a daemon is running and print only their own summary.
+    if let Some(dest) = args.export.as_deref() {
+        return run_export(dest);
+    }
+    if let Some(src) = args.import.as_deref() {
+        return run_import(src).await;
+    }
 
     // Initialize logging
     let level = if args.verbose {
@@ -2097,6 +2190,19 @@ mod tests {
     fn test_args_list_devices() {
         let args = Args::parse_from(["juhradiald", "--list-devices"]);
         assert!(args.list_devices);
+    }
+
+    #[test]
+    fn test_args_export_and_import_take_a_file_and_exclude_each_other() {
+        let args = Args::parse_from(["juhradiald", "--export", "/tmp/backup.zip"]);
+        assert_eq!(args.export.as_deref(), Some(Path::new("/tmp/backup.zip")));
+        assert!(args.import.is_none());
+        let args = Args::parse_from(["juhradiald", "--import", "b.zip"]);
+        assert_eq!(args.import.as_deref(), Some(Path::new("b.zip")));
+        assert!(Args::try_parse_from(["juhradiald", "--export", "a.zip", "--import", "b.zip"]).is_err());
+        assert!(Args::try_parse_from(["juhradiald", "--export"]).is_err());
+        let args = Args::parse_from(["juhradiald"]);
+        assert!(args.export.is_none() && args.import.is_none());
     }
 
     #[tokio::test]

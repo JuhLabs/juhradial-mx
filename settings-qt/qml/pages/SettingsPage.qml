@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic as QQC
+import QtQuick.Dialogs
 import "../components"
 
 // App-wide preferences: appearance, language/desktop, startup, about and reset.
@@ -273,6 +274,40 @@ Item {
                 }
             }
 
+            // ---- Backup ----
+            GlassCard {
+                Layout.fillWidth: true
+                Layout.preferredHeight: backupCol.implicitHeight + Theme.padCard * 2
+                Column {
+                    id: backupCol
+                    anchors.fill: parent; anchors.margins: Theme.padCard
+                    spacing: Theme.gapS
+                    CardHeader {
+                        width: parent.width
+                        title: "Backup"; subtitle: "Keep a copy of your setup or move it to another machine"
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/document-save-symbolic"
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    SettingRow {
+                        label: "Export settings"
+                        desc: "One zip file with your configuration, profiles, macros, slice icons and themes. Flow pairing keys stay on this machine"
+                        PrimaryButton {
+                            text: "Export…"; ghost: true
+                            onClicked: { exportDialog.selectedFile = Backend.suggestedBackupUrl(); exportDialog.open() }
+                        }
+                    }
+                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    SettingRow {
+                        label: "Import settings"
+                        desc: "Restore a backup made here or on another machine. The current config.json and profiles.json are kept as .bak"
+                        PrimaryButton {
+                            text: "Import…"; ghost: true
+                            onClicked: importDialog.open()
+                        }
+                    }
+                }
+            }
+
             // ---- About & reset ----
             GlassCard {
                 Layout.fillWidth: true
@@ -350,6 +385,23 @@ Item {
             }
             Item { Layout.fillWidth: true; Layout.preferredHeight: 4 }
         }
+    }
+
+    // ---- Backup file dialogs (native where the platform offers one) ----
+    FileDialog {
+        id: exportDialog
+        title: "Export JuhRadial MX settings"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Zip archive (*.zip)"]
+        defaultSuffix: "zip"
+        onAccepted: Backend.exportBackup(selectedFile.toString())
+    }
+    FileDialog {
+        id: importDialog
+        title: "Import JuhRadial MX settings"
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["Zip archive (*.zip)", "All files (*)"]
+        onAccepted: Backend.importBackup(selectedFile.toString())
     }
 
     // ---- Restore-defaults confirmation (dark glass) ----

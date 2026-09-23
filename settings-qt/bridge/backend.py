@@ -21,11 +21,12 @@ import pathlib
 import copy
 import tempfile
 import threading
+import time
 import re
 
 from PyQt6.QtCore import (
     QObject, pyqtSlot, pyqtProperty, pyqtSignal, QTimer, QCoreApplication,
-    QAbstractListModel, QModelIndex, Qt, QByteArray,
+    QAbstractListModel, QModelIndex, Qt, QByteArray, QUrl,
 )
 
 from PyQt6.QtCore import QSize
@@ -240,6 +241,8 @@ SEARCH_INDEX = [
     ("settings", "Apply desktop defaults", "Language & desktop", "desktop defaults kde gnome apply actions"),
     ("settings", "Start at login", "Startup", "autostart startup launch boot login"),
     ("settings", "Show tray icon", "Startup", "tray icon system tray notification area"),
+    ("settings", "Export settings", "Backup", "export backup zip save copy transfer another machine"),
+    ("settings", "Import settings", "Backup", "import restore backup zip transfer another machine"),
     ("settings", "Restore defaults", "About", "reset restore defaults factory"),
 ]
 
@@ -658,6 +661,9 @@ class Backend(QObject):
     keyboardInfoReady = pyqtSignal("QVariant")
     controlsReady = pyqtSignal("QVariant")
     navRequested = pyqtSignal(str)   # a page asks the shell to switch tabs
+    # config.json was replaced wholesale (import, restore defaults): the shell
+    # re-instantiates the visible page so its controls read the new values.
+    configReloaded = pyqtSignal()
     searchTargetChanged = pyqtSignal()
 
     @pyqtSlot(str)
@@ -1649,6 +1655,7 @@ class Backend(QObject):
         self._slices.load(self.get("radial_menu.slices") or [])
         self.reloadConfig()
         self.configChanged.emit()
+        self.configReloaded.emit()
         self.toast.emit("Settings restored to defaults")
 
     # ---- live device name + link ----
@@ -1901,6 +1908,78 @@ class Backend(QObject):
             self._write_autostart(self._find_launcher())
         except OSError:
             pass
+
+    # ---- backup: one implementation, in the daemon binary ----
+    # `juhradiald --export FILE` / `--import FILE` (daemon/src/backup.rs) own
+    # the archive format and the validation; the app only runs them.
+    @staticmethod
+    def _daemon_binary():
+        """The installed daemon, or this checkout's release build."""
+        dev = (pathlib.Path(__file__).resolve().parents[2]
+               / "daemon" / "target" / "release" / "juhradiald")
+        for c in (shutil.which("juhradiald"), "/usr/local/bin/juhradiald",
+                  "/usr/bin/juhradiald", str(dev)):
+            if c and os.path.isfile(c) and os.access(c, os.X_OK):
+                return c
+        return None
+
+    @staticmethod
+    def _local_path(url):
+        """A QML file url (or a plain path) as a filesystem path."""
+        return QUrl(url).toLocalFile() if url.startswith("file:") else url
+
+    @pyqtSlot(result=str)
+    def suggestedBackupUrl(self):
+        """Pre-filled target for the export dialog: a dated name in
+        ~/Downloads when that exists, else in the home directory."""
+        folder = pathlib.Path.home() / "Downloads"
+        if not folder.is_dir():
+            folder = pathlib.Path.home()
+        name = time.strftime("juhradial-backup-%Y%m%d-%H%M.zip")
+        return QUrl.fromLocalFile(str(folder / name)).toString()
+
+    def _run_backup(self, flag, path):
+        """Run `juhradiald <flag> <path>`; returns (ok, message)."""
+        binary = self._daemon_binary()
+        if not binary:
+            return False, "juhradiald not found"
+        try:
+            r = subprocess.run([binary, flag, path], capture_output=True,
+                               text=True, timeout=60)
+        except (OSError, subprocess.SubprocessError) as e:
+            return False, str(e)
+        if r.returncode != 0:
+            lines = r.stderr.strip().splitlines() or r.stdout.strip().splitlines()
+            return False, lines[-1] if lines else f"exit status {r.returncode}"
+        return True, r.stdout.strip()
+
+    @pyqtSlot(str, result=bool)
+    def exportBackup(self, url):
+        path = self._local_path(url)
+        ok, msg = self._run_backup("--export", path)
+        if ok:
+            self.notify(f"Backup saved as {os.path.basename(path)}", "success")
+        else:
+            self.notify(f"Export failed: {msg}", "danger")
+        return ok
+
+    @pyqtSlot(str, result=bool)
+    def importBackup(self, url):
+        path = self._local_path(url)
+        ok, msg = self._run_backup("--import", path)
+        if not ok:
+            self.notify(f"Import failed: {msg}", "danger")
+            return False
+        # The daemon has already reloaded its config and macro triggers; now
+        # pick the new files up in this process and rebuild the visible page.
+        self._load()
+        self._slices.load(self.get("radial_menu.slices") or [])
+        self.reloadConfig()
+        self.configChanged.emit()
+        self.macrosChanged.emit()
+        self.configReloaded.emit()
+        self.notify("Settings imported. The previous files are kept as .bak", "success")
+        return True
 
     # ---- desktop-environment defaults ----
     @pyqtSlot(str)

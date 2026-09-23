@@ -4,6 +4,7 @@
 
 pub mod accessibility;
 pub mod actions;
+pub mod backup;
 pub mod battery;
 pub mod bundled_themes;
 pub mod compositor;
