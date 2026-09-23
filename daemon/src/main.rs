@@ -798,6 +798,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create channel for gesture events
     let (event_tx, mut event_rx) = mpsc::channel::<GestureEvent>(32);
 
+    // Directional gestures: one tracker shared by the press owners (hidraw or
+    // evdev) and the MX evdev loop that sees the mouse's relative motion.
+    let gesture_tracker = juhradiald::gesture::GestureTracker::new_shared();
+
     // Spawn the HID++ hidraw handler (reads button events directly from mouse).
     // Button divert is volatile and is reset by Easy-Switch host changes, so
     // this loop owns re-applying diverts whenever the mouse hotplugs/reconnects.
@@ -807,11 +811,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hidraw_kwin = kwin_context.clone();
     let hidraw_dbus_connection = dbus_connection.clone();
     let hidraw_device_name_state = device_name_state.clone();
+    let hidraw_tracker = gesture_tracker.clone();
     let hidraw_handle = tokio::spawn(async move {
         run_hidraw_loop(
             hidraw_tx,
             HidrawStartup {
                 preferred_path: mx4_hidraw_path,
+                gesture_tracker: hidraw_tracker,
             },
             macro_cids,
             hidraw_config,
@@ -839,6 +845,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hotplug_for_mx = hotplug_notify.clone();
     let evdev_config = shared_config.clone();
     let evdev_kwin = kwin_context.clone();
+    let evdev_tracker = gesture_tracker.clone();
     let evdev_handle = tokio::spawn(async move {
         run_evdev_loop(
             evdev_tx,
@@ -846,6 +853,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             hotplug_for_mx,
             evdev_config,
             evdev_kwin,
+            evdev_tracker,
         )
         .await
     });
@@ -867,10 +875,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Spawn event processing task with D-Bus connection
+    let config_for_events = shared_config.clone();
     let event_handle = tokio::spawn(async move {
         process_gesture_events(
             &mut event_rx,
             &dbus_connection,
+            config_for_events,
             trigger_map_for_events,
             macro_engine_for_events,
             battery_state_for_events,
@@ -971,6 +981,7 @@ fn list_logitech_devices() {
 
 struct HidrawStartup {
     preferred_path: Option<PathBuf>,
+    gesture_tracker: juhradiald::gesture::SharedGestureTracker,
 }
 
 #[derive(Clone)]
@@ -1163,7 +1174,10 @@ async fn run_hidraw_loop(
     dbus_connection: zbus::Connection,
     device_name_state: SharedDeviceName,
 ) {
-    let HidrawStartup { mut preferred_path } = startup;
+    let HidrawStartup {
+        mut preferred_path,
+        gesture_tracker,
+    } = startup;
     let mut handler = HidrawHandler::new(event_tx);
     let macro_cids_for_divert = macro_cids.clone();
     let config_for_thumbwheel = shared_config.clone();
@@ -1172,6 +1186,7 @@ async fn run_hidraw_loop(
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
+    handler.set_gesture_tracker(gesture_tracker);
 
     loop {
         // Re-read the reassigned buttons each cycle so a config change is
@@ -1352,12 +1367,14 @@ async fn run_evdev_loop(
     hotplug: Arc<tokio::sync::Notify>,
     shared_config: juhradiald::config::SharedConfig,
     kwin: KWinContext,
+    gesture_tracker: juhradiald::gesture::SharedGestureTracker,
 ) {
     let mut handler = EvdevHandler::new(event_tx.clone());
     handler.set_suppressed_keys(suppressed_keys);
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
+    handler.set_gesture_tracker(gesture_tracker);
 
     let mut logged_waiting = false;
 
@@ -1556,12 +1573,37 @@ async fn run_generic_evdev_loop(
 async fn process_gesture_events(
     event_rx: &mut mpsc::Receiver<GestureEvent>,
     dbus_connection: &zbus::Connection,
+    shared_config: juhradiald::config::SharedConfig,
     trigger_map: Arc<std::sync::RwLock<juhradiald::macros::TriggerMap>>,
     macro_engine: Arc<Mutex<juhradiald::macros::MacroEngine>>,
     battery_state: SharedBatteryState,
 ) {
     while let Some(event) = event_rx.recv().await {
         match event {
+            GestureEvent::GestureReleased { dx, dy, duration_ms } => {
+                // Directional gesture: classify the drag and run the configured
+                // action. This path never touches ShowMenu/HideMenu.
+                let resolved = shared_config.read().ok().map(|cfg| {
+                    let direction = juhradiald::gesture::classify(
+                        dx,
+                        dy,
+                        cfg.buttons.gesture_directions.threshold_px,
+                    );
+                    (direction, cfg.gesture_direction_action(direction))
+                });
+                match resolved {
+                    Some((direction, juhradiald::config::ButtonAction::RadialMenu)) => {
+                        warn!(?direction, "radial_menu cannot be a directional gesture action; ignoring");
+                    }
+                    Some((direction, action)) => {
+                        info!(duration_ms, dx, dy, ?direction, %action, "Directional gesture");
+                        if let Err(e) = juhradiald::actions::execute_button_action(action).await {
+                            error!(%action, error = %e, "Failed to execute directional gesture action");
+                        }
+                    }
+                    None => warn!("Directional gesture dropped: config lock poisoned"),
+                }
+            }
             GestureEvent::Pressed { x, y } => {
                 // HID++ hidraw handler provides cursor coordinates directly
                 info!(x, y, "Gesture button pressed - showing radial menu");

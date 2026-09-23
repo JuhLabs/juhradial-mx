@@ -13,6 +13,7 @@ pub mod dbus;
 pub mod device_descriptor;
 pub mod evdev;
 pub mod gaming;
+pub mod gesture;
 pub mod hidpp;
 pub mod hidraw;
 pub mod macros;

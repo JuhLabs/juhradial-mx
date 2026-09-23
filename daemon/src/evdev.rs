@@ -57,6 +57,10 @@ pub enum GestureEvent {
     Pressed { x: i32, y: i32 },
     /// Gesture button released, includes hold duration
     Released { duration_ms: u64 },
+    /// Directional gesture finished: the press owner classifies nothing, it
+    /// hands the accumulated cursor delta to the event processor. Never
+    /// paired with `Pressed`/`Released`, so the overlay is not involved.
+    GestureReleased { dx: i32, dy: i32, duration_ms: u64 },
     /// Cursor moved while button is held (for hover detection on Wayland)
     CursorMoved { x: i32, y: i32 },
     /// A non-gesture button was pressed/released (for macro trigger detection)
@@ -129,6 +133,12 @@ pub struct EvdevHandler {
     kwin_available: Option<crate::compositor::KWinAvailability>,
     /// Native KWin scripting client backed by the daemon's session connection.
     kwin_scripting: Option<crate::compositor::KWinScripting>,
+    /// Cursor-delta tracker for directional gestures. Fed from this loop's
+    /// REL events; started and finished by the HID++ handler that owns the
+    /// diverted gesture button. The evdev button path is not involved: on
+    /// this path BTN_BACK is the ring button (`buttons.thumb`), not the
+    /// gesture button.
+    gesture_tracker: Option<crate::gesture::SharedGestureTracker>,
 }
 
 impl EvdevHandler {
@@ -153,6 +163,7 @@ impl EvdevHandler {
             active_button_action: None,
             kwin_available: None,
             kwin_scripting: None,
+            gesture_tracker: None,
         }
     }
 
@@ -177,12 +188,19 @@ impl EvdevHandler {
             active_button_action: None,
             kwin_available: None,
             kwin_scripting: None,
+            gesture_tracker: None,
         }
     }
 
     /// Set the shared configuration for button action lookup
     pub fn set_shared_config(&mut self, config: crate::config::SharedConfig) {
         self.shared_config = Some(config);
+    }
+
+    /// Share the directional-gesture tracker. This loop feeds it relative
+    /// motion whenever the HID++ handler has started it for a press.
+    pub fn set_gesture_tracker(&mut self, tracker: crate::gesture::SharedGestureTracker) {
+        self.gesture_tracker = Some(tracker);
     }
 
     /// Share the live KWin availability flag so the gesture handler can pick the
@@ -725,17 +743,31 @@ impl EvdevHandler {
         use evdev::{EventType, RelativeAxisCode, SynchronizationCode};
 
         match event.event_type() {
-            EventType::RELATIVE if self.menu_active => match RelativeAxisCode(event.code()) {
-                RelativeAxisCode::REL_X => {
-                    self.pending_cursor_dx += event.value();
-                    self.pending_cursor_update = true;
+            EventType::RELATIVE => {
+                let axis = RelativeAxisCode(event.code());
+                // Directional gestures: the tracker ignores samples unless a
+                // press has started it, so this costs one atomic load per REL.
+                if let Some(tracker) = &self.gesture_tracker {
+                    match axis {
+                        RelativeAxisCode::REL_X => tracker.accumulate(event.value(), 0),
+                        RelativeAxisCode::REL_Y => tracker.accumulate(0, event.value()),
+                        _ => {}
+                    }
                 }
-                RelativeAxisCode::REL_Y => {
-                    self.pending_cursor_dy += event.value();
-                    self.pending_cursor_update = true;
+                if self.menu_active {
+                    match axis {
+                        RelativeAxisCode::REL_X => {
+                            self.pending_cursor_dx += event.value();
+                            self.pending_cursor_update = true;
+                        }
+                        RelativeAxisCode::REL_Y => {
+                            self.pending_cursor_dy += event.value();
+                            self.pending_cursor_update = true;
+                        }
+                        _ => {}
+                    }
                 }
-                _ => {}
-            },
+            }
             EventType::SYNCHRONIZATION if event.code() == SynchronizationCode::SYN_DROPPED.0 => {
                 self.discard_pending_cursor_frame();
             }
@@ -1002,6 +1034,51 @@ mod tests {
         let mut handler = EvdevHandler::new(tx);
         handler.activate_cursor_tracking();
         (handler, rx)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn all_events(rx: &mut mpsc::Receiver<GestureEvent>) -> Vec<GestureEvent> {
+        let mut events = Vec::new();
+        while let Ok(event) = rx.try_recv() {
+            events.push(event);
+        }
+        events
+    }
+
+    /// The evdev loop feeds the shared tracker only while the HID++ handler
+    /// has started it for a directional press, and that motion never turns
+    /// into CursorMoved events while the radial menu is inactive.
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn rel_motion_feeds_tracker_only_while_started() {
+        let (tx, mut rx) = mpsc::channel(16);
+        let mut handler = EvdevHandler::new(tx);
+        let tracker = crate::gesture::GestureTracker::new_shared();
+        handler.set_gesture_tracker(tracker.clone());
+
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 9))
+            .await;
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+        assert_eq!(tracker.finish(), (0, 0), "inactive tracker must ignore motion");
+
+        tracker.start();
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 30))
+            .await;
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_Y, -55))
+            .await;
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+        assert!(
+            all_events(&mut rx).is_empty(),
+            "no CursorMoved while the menu is inactive"
+        );
+        assert_eq!(tracker.finish(), (30, -55));
     }
 
     #[test]

@@ -229,6 +229,53 @@ fn default_shift_wheel_action() -> ButtonAction { ButtonAction::Smartshift }
 fn default_forward_action() -> ButtonAction { ButtonAction::Forward }
 fn default_back_action() -> ButtonAction { ButtonAction::Back }
 fn default_horizontal_scroll_action() -> ButtonAction { ButtonAction::ScrollLeftRight }
+fn default_direction_action() -> ButtonAction { ButtonAction::None }
+fn default_gesture_threshold_px() -> u32 { 40 }
+
+/// Directional gestures on the gesture button: hold, drag, and a different
+/// action fires per direction. Matches `buttons.gesture_directions` written by
+/// Settings. Absent or `enabled: false` keeps the single-action behaviour of
+/// `buttons.gesture` exactly as before, so existing configs are unaffected.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GestureDirectionsConfig {
+    #[serde(default)]
+    pub enabled: bool,
+
+    #[serde(default = "default_direction_action")]
+    pub up: ButtonAction,
+
+    #[serde(default = "default_direction_action")]
+    pub down: ButtonAction,
+
+    #[serde(default = "default_direction_action")]
+    pub left: ButtonAction,
+
+    #[serde(default = "default_direction_action")]
+    pub right: ButtonAction,
+
+    /// Action for a press with no drag. `None` falls back to `buttons.gesture`,
+    /// so the plain click keeps whatever the user already had assigned.
+    #[serde(default)]
+    pub click: Option<ButtonAction>,
+
+    /// Movement below this many pixels counts as a click.
+    #[serde(default = "default_gesture_threshold_px")]
+    pub threshold_px: u32,
+}
+
+impl Default for GestureDirectionsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            up: default_direction_action(),
+            down: default_direction_action(),
+            left: default_direction_action(),
+            right: default_direction_action(),
+            click: None,
+            threshold_px: default_gesture_threshold_px(),
+        }
+    }
+}
 
 /// Per-button action assignments.
 /// Matches the "buttons" section in config.json written by Settings UI.
@@ -236,6 +283,9 @@ fn default_horizontal_scroll_action() -> ButtonAction { ButtonAction::ScrollLeft
 pub struct ButtonsConfig {
     #[serde(default = "default_gesture_action")]
     pub gesture: ButtonAction,
+
+    #[serde(default)]
+    pub gesture_directions: GestureDirectionsConfig,
 
     #[serde(default = "default_thumb_action")]
     pub thumb: ButtonAction,
@@ -260,6 +310,7 @@ impl Default for ButtonsConfig {
     fn default() -> Self {
         Self {
             gesture: default_gesture_action(),
+            gesture_directions: GestureDirectionsConfig::default(),
             thumb: default_thumb_action(),
             middle: default_middle_action(),
             shift_wheel: default_shift_wheel_action(),
@@ -528,6 +579,25 @@ impl Config {
         &self.haptics.default_pattern
     }
 
+    /// Whether the gesture button resolves to per-direction actions.
+    pub fn directional_gestures_enabled(&self) -> bool {
+        self.buttons.gesture_directions.enabled
+    }
+
+    /// Action for a classified gesture. A click falls back to the plain
+    /// `buttons.gesture` assignment when no explicit click action is set.
+    pub fn gesture_direction_action(&self, direction: crate::gesture::GestureDirection) -> ButtonAction {
+        use crate::gesture::GestureDirection;
+        let d = &self.buttons.gesture_directions;
+        match direction {
+            GestureDirection::Up => d.up,
+            GestureDirection::Down => d.down,
+            GestureDirection::Left => d.left,
+            GestureDirection::Right => d.right,
+            GestureDirection::Click => d.click.unwrap_or(self.buttons.gesture),
+        }
+    }
+
     /// Get the configured action for a HID++ CID (Control ID)
     pub fn action_for_cid(&self, cid: u16) -> ButtonAction {
         use crate::hidraw::button_cid;
@@ -640,6 +710,65 @@ impl std::error::Error for ConfigError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_gesture_config_keeps_directional_gestures_off() {
+        let json = r#"{ "buttons": { "gesture": "copy" } }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(!config.directional_gestures_enabled());
+        assert_eq!(config.buttons.gesture, ButtonAction::Copy);
+        assert_eq!(config.buttons.gesture_directions, GestureDirectionsConfig::default());
+        assert_eq!(config.buttons.gesture_directions.threshold_px, 40);
+    }
+
+    #[test]
+    fn gesture_directions_parse_partial_section_and_fall_back_for_click() {
+        use crate::gesture::GestureDirection;
+        let json = r#"{
+            "buttons": {
+                "gesture": "virtual_desktops",
+                "gesture_directions": {
+                    "enabled": true,
+                    "up": "show_desktop",
+                    "left": "switch_desktop_left",
+                    "threshold_px": 64
+                }
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(config.directional_gestures_enabled());
+        assert_eq!(config.gesture_direction_action(GestureDirection::Up), ButtonAction::ShowDesktop);
+        assert_eq!(config.gesture_direction_action(GestureDirection::Down), ButtonAction::None);
+        assert_eq!(config.gesture_direction_action(GestureDirection::Left), ButtonAction::SwitchDesktopLeft);
+        assert_eq!(config.gesture_direction_action(GestureDirection::Right), ButtonAction::None);
+        assert_eq!(config.gesture_direction_action(GestureDirection::Click), ButtonAction::VirtualDesktops);
+        assert_eq!(config.buttons.gesture_directions.threshold_px, 64);
+    }
+
+    #[test]
+    fn gesture_directions_explicit_click_overrides_gesture_action() {
+        use crate::gesture::GestureDirection;
+        let json = r#"{
+            "buttons": {
+                "gesture": "virtual_desktops",
+                "gesture_directions": { "enabled": true, "click": "task_switcher" }
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.gesture_direction_action(GestureDirection::Click), ButtonAction::TaskSwitcher);
+    }
+
+    #[test]
+    fn gesture_directions_disabled_section_is_inert() {
+        let json = r#"{
+            "buttons": {
+                "gesture_directions": { "enabled": false, "up": "copy" }
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(!config.directional_gestures_enabled());
+        assert_eq!(config.action_for_cid(crate::hidraw::button_cid::GESTURE_BUTTON), ButtonAction::VirtualDesktops);
+    }
 
     #[test]
     fn test_default_config() {

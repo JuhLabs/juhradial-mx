@@ -165,6 +165,33 @@ calculator         none                custom
 
 `none` disables the button. `custom` reserves the slot for a user-defined action configured in the UI.
 
+### Directional gestures
+
+The gesture button can run a different action per drag direction. Hold it, move the mouse, release: the dominant axis picks the action, and a press that moves less than `threshold_px` is a click that runs `buttons.gesture` (or `click`, when set). Off by default; Settings → Buttons → Gesture Button has the switch, the four pickers, and the threshold.
+
+```json
+"buttons": {
+  "gesture": "virtual_desktops",
+  "gesture_directions": {
+    "enabled": true,
+    "up": "show_desktop",
+    "down": "task_switcher",
+    "left": "switch_desktop_left",
+    "right": "switch_desktop_right",
+    "threshold_px": 40
+  }
+}
+```
+
+| Field | Meaning | Default |
+| --- | --- | --- |
+| `enabled` | Turn directional gestures on. Absent or `false` keeps the single-action behaviour exactly as before. | `false` |
+| `up`, `down`, `left`, `right` | Action for a drag in that direction. Any button action except `radial_menu`. | `none` |
+| `click` | Action for a press without a drag. Omit it to keep using `buttons.gesture`. | unset |
+| `threshold_px` | Movement below this many pixels counts as a click. | `40` |
+
+The drag is measured from the mouse's own relative motion, so it works on every compositor, and a directional press never opens the radial menu. This applies to the HID++-diverted gesture button (the normal state on the MX Master 4, 3S and 3); it is not available on the evdev-only fallback path.
+
 !!! warning
     The gesture and actions-ring (thumb) buttons are always diverted to the daemon. The back, forward, middle, and shift-wheel buttons are only HID++-diverted when you reassign them away from their native default. Leaving one at its default keeps the firmware behaviour intact (and reassigning back to the default releases the divert without a reconnect). Reassigning `horizontal_scroll` is recorded in the schema but the thumb wheel's native scroll is handled by the `thumbwheel` section below.
 

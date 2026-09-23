@@ -104,6 +104,10 @@ pub struct HidrawHandler {
     last_refresh_trigger: Option<Instant>,
     /// Native KWin scripting client backed by the daemon's session connection.
     kwin_scripting: Option<crate::compositor::KWinScripting>,
+    /// Cursor-delta tracker for directional gestures, fed by the evdev loop.
+    gesture_tracker: Option<crate::gesture::SharedGestureTracker>,
+    /// The press in flight is a directional gesture (no radial menu traffic).
+    directional_press: bool,
 }
 
 /// Map HID++ CID to evdev key code for macro trigger forwarding
@@ -146,6 +150,8 @@ impl HidrawHandler {
             divert_refresh_needed: false,
             last_refresh_trigger: None,
             kwin_scripting: None,
+            gesture_tracker: None,
+            directional_press: false,
         }
     }
 
@@ -158,6 +164,20 @@ impl HidrawHandler {
     /// Reuse the daemon's native D-Bus connection for KWin cursor scripts.
     pub fn set_kwin_scripting(&mut self, scripting: crate::compositor::KWinScripting) {
         self.kwin_scripting = Some(scripting);
+    }
+
+    /// Share the directional-gesture tracker (started here on a directional
+    /// press, accumulated by the evdev loop, read back on release).
+    pub fn set_gesture_tracker(&mut self, tracker: crate::gesture::SharedGestureTracker) {
+        self.gesture_tracker = Some(tracker);
+    }
+
+    fn directional_gestures_enabled(&self) -> bool {
+        self.shared_config
+            .as_ref()
+            .and_then(|c| c.read().ok())
+            .map(|c| c.directional_gestures_enabled())
+            .unwrap_or(false)
     }
 
     /// Register CIDs that are diverted for macro triggers (not gesture buttons)
@@ -589,7 +609,17 @@ impl HidrawHandler {
             );
         }
 
-        if self.is_action_button(cid) {
+        if cid == button_cid::GESTURE_BUTTON && self.directional_gestures_enabled() {
+            // Directional gesture: track the drag only. No cursor query and
+            // no Pressed event, so the radial overlay never opens for it.
+            self.press_time = Some(Instant::now());
+            self.directional_press = true;
+            self.active_button_action = None;
+            if let Some(tracker) = &self.gesture_tracker {
+                tracker.start();
+            }
+            tracing::info!(cid, "Gesture button pressed (directional)");
+        } else if self.is_action_button(cid) {
             // Look up configured action for this button
             let action = self.get_action_for_cid(cid);
             tracing::info!(cid, %action, "Button pressed - config action lookup");
@@ -629,7 +659,25 @@ impl HidrawHandler {
             }
         } else if cid == 0 {
             // All buttons released
-            if self.press_time.is_some() {
+            if self.press_time.is_some() && self.directional_press {
+                self.directional_press = false;
+                self.active_button_action = None;
+                let duration_ms = self
+                    .press_time
+                    .map(|t| t.elapsed().as_millis() as u64)
+                    .unwrap_or(0);
+                self.press_time = None;
+                let (dx, dy) = self
+                    .gesture_tracker
+                    .as_ref()
+                    .map(|t| t.finish())
+                    .unwrap_or((0, 0));
+                tracing::info!(duration_ms, dx, dy, "Gesture button released (directional)");
+                let _ = self
+                    .event_tx
+                    .send(GestureEvent::GestureReleased { dx, dy, duration_ms })
+                    .await;
+            } else if self.press_time.is_some() {
                 let active_action = self.active_button_action.take();
                 match active_action {
                     Some(crate::config::ButtonAction::RadialMenu) | None => {
@@ -761,6 +809,7 @@ impl HidrawHandler {
         self.press_time = None;
         self.active_macro_cid = None;
         self.active_button_action = None;
+        self.directional_press = false;
     }
 }
 
@@ -841,6 +890,126 @@ mod tests {
         // ignores send failures anyway.
         let (tx, _rx) = mpsc::channel(4);
         HidrawHandler::new(tx)
+    }
+
+    /// Handler wired like `run_hidraw_loop`: shared config with directional
+    /// gestures set as requested, plus the tracker the evdev loop would feed.
+    fn directional_handler(
+        enabled: bool,
+    ) -> (
+        HidrawHandler,
+        mpsc::Receiver<GestureEvent>,
+        crate::gesture::SharedGestureTracker,
+    ) {
+        let (tx, rx) = mpsc::channel(8);
+        let mut h = HidrawHandler::new(tx);
+        let config = crate::config::new_shared_config();
+        config.write().unwrap().buttons.gesture_directions.enabled = enabled;
+        config.write().unwrap().buttons.back = crate::config::ButtonAction::Copy;
+        h.set_shared_config(config);
+        let tracker = crate::gesture::GestureTracker::new_shared();
+        h.set_gesture_tracker(tracker.clone());
+        (h, rx, tracker)
+    }
+
+    /// REPROG_CONTROLS_V4 divertedButtonsEvent: bytes 4-5 carry the first
+    /// pressed CID (big endian); CID 0 means everything released.
+    fn diverted_button_report(cid: u16) -> [u8; 20] {
+        let mut report = [0u8; 20];
+        report[0] = 0x11;
+        report[1] = 0x02;
+        report[2] = 0x0b;
+        report[4] = (cid >> 8) as u8;
+        report[5] = cid as u8;
+        report
+    }
+
+    fn drain(rx: &mut mpsc::Receiver<GestureEvent>) -> Vec<GestureEvent> {
+        let mut events = Vec::new();
+        while let Ok(event) = rx.try_recv() {
+            events.push(event);
+        }
+        events
+    }
+
+    /// A directional press must never reach the overlay: no Pressed/Released
+    /// (which would open the ring, stick it in toggle mode on a quick tap, or
+    /// execute the hovered slice), only one GestureReleased with the drag.
+    #[tokio::test]
+    async fn directional_press_over_hidpp_emits_only_gesture_released() {
+        let (mut h, mut rx, tracker) = directional_handler(true);
+
+        h.handle_button_event(&diverted_button_report(button_cid::GESTURE_BUTTON))
+            .await;
+        assert!(tracker.is_active());
+        assert!(drain(&mut rx).is_empty(), "press must not emit Pressed");
+
+        // What the evdev loop feeds while the button is held.
+        tracker.accumulate(-70, 12);
+
+        h.handle_button_event(&diverted_button_report(0)).await;
+        let events = drain(&mut rx);
+        assert_eq!(events.len(), 1, "{events:?}");
+        assert!(
+            matches!(events[0], GestureEvent::GestureReleased { dx: -70, dy: 12, .. }),
+            "unexpected event: {:?}",
+            events[0]
+        );
+        assert!(!tracker.is_active());
+        assert!(!h.directional_press);
+        assert!(h.press_time.is_none());
+    }
+
+    /// With the feature off (the default and every existing config) the
+    /// gesture button dispatches exactly as before.
+    #[tokio::test]
+    async fn directional_off_keeps_legacy_gesture_dispatch() {
+        let (mut h, mut rx, tracker) = directional_handler(false);
+
+        h.handle_button_event(&diverted_button_report(button_cid::GESTURE_BUTTON))
+            .await;
+        assert!(!tracker.is_active());
+        h.handle_button_event(&diverted_button_report(0)).await;
+
+        assert_eq!(
+            drain(&mut rx),
+            vec![
+                GestureEvent::ButtonActionEvent {
+                    action: crate::config::ButtonAction::VirtualDesktops,
+                    pressed: true,
+                },
+                GestureEvent::ButtonActionEvent {
+                    action: crate::config::ButtonAction::VirtualDesktops,
+                    pressed: false,
+                },
+            ]
+        );
+    }
+
+    /// Directional mode only claims the gesture button; other reassigned
+    /// controls keep their normal dispatch.
+    #[tokio::test]
+    async fn directional_mode_leaves_other_buttons_alone() {
+        let (mut h, mut rx, tracker) = directional_handler(true);
+
+        h.handle_button_event(&diverted_button_report(button_cid::BACK_BUTTON))
+            .await;
+        assert!(!tracker.is_active());
+        h.handle_button_event(&diverted_button_report(0)).await;
+
+        assert_eq!(
+            drain(&mut rx),
+            vec![
+                GestureEvent::ButtonActionEvent {
+                    action: crate::config::ButtonAction::Copy,
+                    pressed: true,
+                },
+                GestureEvent::ButtonActionEvent {
+                    action: crate::config::ButtonAction::Copy,
+                    pressed: false,
+                },
+            ]
+        );
     }
 
     // Issue #102: a receiver "device connection" notification with the link
