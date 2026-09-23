@@ -387,6 +387,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         overlay_actions.COLORS = overlay_actions.load_theme()
         overlay_actions.load_radial_image()
         overlay_actions.MINIMAL_MODE = overlay_actions.load_minimal_mode()
+        overlay_actions.ICON_STYLE = overlay_actions.load_icon_style()
 
         # If already in toggle mode and menu is visible, this is a second tap to close
         if self.toggle_mode and self.isVisible():

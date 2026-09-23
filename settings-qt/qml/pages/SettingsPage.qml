@@ -86,6 +86,9 @@ Item {
                             currentId: Theme.iconStyle
                             onActivated: (id) => {
                                 Theme.setIconStyle(id)
+                                // The overlay reads radial.icon_style on every open;
+                                // monochrome_icons stays in step for older readers.
+                                Backend.setLocal("radial.icon_style", id)
                                 Backend.setLocal("radial.monochrome_icons", id === "mono")
                             }
                         }

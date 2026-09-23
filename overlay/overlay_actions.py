@@ -10,7 +10,7 @@ SPDX-License-Identifier: GPL-3.0
 import os
 import subprocess
 
-from PyQt6.QtGui import QColor, QPixmap
+from PyQt6.QtGui import QColor, QPixmap, QPainter
 from PyQt6.QtCore import Qt
 from PyQt6.QtSvg import QSvgRenderer
 
@@ -305,6 +305,139 @@ DEFAULT_ACTIONS = [
     ("AI", "submenu", "", "teal", "ai", AI_SUBMENU),
 ]
 
+# =============================================================================
+# ICON STYLE (Settings → Appearance → Icon style)
+# =============================================================================
+# "line" draws the 0.4.5 composed slice buttons and line glyphs, "classic" the
+# 0.4.4 glossy buttons and PNG glyphs, "mono" flat single-colour glyphs only.
+# The assets are the settings app's own (settings-qt/assets next to overlay/ in
+# a checkout, /usr/share/juhradial/settings-qt/assets when installed), so the
+# live wheel and the settings previews always agree.
+ICON_STYLES = ("line", "classic", "mono")
+# ICON_STYLE itself is set by load_icon_style() further down, next to the
+# other config readers, and refreshed every time the menu opens.
+
+# Per-slice action ids and freedesktop icon names, kept in lockstep with
+# ACTIONS by index: the button image is keyed by action id, the glyph by name.
+DEFAULT_ACTION_IDS = ["play_pause", "new_note", "lock", "settings",
+                      "screenshot", "emoji", "files", "ai"]
+DEFAULT_ACTION_ICON_NAMES = [
+    "media-playback-start-symbolic", "document-new-symbolic",
+    "system-lock-screen-symbolic", "emblem-system-symbolic",
+    "camera-photo-symbolic", "face-smile-symbolic",
+    "folder-symbolic", "applications-science-symbolic",
+]
+ACTION_IDS = list(DEFAULT_ACTION_IDS)
+ACTION_ICON_NAMES = list(DEFAULT_ACTION_ICON_NAMES)
+_SLICE_BTN_CACHE = {}   # (style, action_id, size) -> scaled QPixmap or None
+_GLYPH_CACHE = {}       # (style, name, size) -> white QPixmap or None
+
+
+def _settings_assets_dir():
+    here = os.path.dirname(os.path.abspath(__file__))
+    for d in (
+        os.path.join(here, "..", "settings-qt", "assets"),  # dev checkout
+        os.path.join(here, "settings-qt", "assets"),  # /usr/share/juhradial
+    ):
+        if os.path.isdir(d):
+            return d
+    return None
+
+
+def _slice_keeps_own_icon(index):
+    """True when the slice shows a user-picked app icon (an absolute path),
+    which wins over any family button or glyph."""
+    return index < len(ACTIONS) and _is_user_icon_path(ACTIONS[index][4])
+
+
+def _slice_button_path(action_id, style):
+    """Path of the slice button image for `action_id` in `style`, or None.
+
+    Mirrors Theme.sliceButton in the settings app: "classic" prefers the
+    0.4.4 orbs and falls back to the current set, "mono" has no buttons.
+    """
+    if style == "mono":
+        return None
+    assets = _settings_assets_dir()
+    if not assets:
+        return None
+    fname = f"btn_{action_id}.png"
+    candidates = [os.path.join(assets, "slices", fname)]
+    if style == "classic":
+        candidates.insert(0, os.path.join(assets, "slices", "classic", fname))
+    return next((c for c in candidates if os.path.exists(c)), None)
+
+
+def get_slice_button(index, size):
+    """QPixmap of the slice button for slice `index` at `size` px, or None."""
+    if not 0 <= index < len(ACTION_IDS) or _slice_keeps_own_icon(index):
+        return None
+    action_id = ACTION_IDS[index]
+    if not action_id:
+        return None
+    # play/pause shows the pause button while media is playing
+    if action_id == "play_pause" and MEDIA_PLAYING:
+        action_id = "pause"
+    key = (ICON_STYLE, action_id, size)
+    if key not in _SLICE_BTN_CACHE:
+        path = _slice_button_path(action_id, ICON_STYLE)
+        raw = QPixmap(path) if path else QPixmap()
+        _SLICE_BTN_CACHE[key] = None if raw.isNull() else raw.scaled(
+            size, size, Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation)
+    return _SLICE_BTN_CACHE[key]
+
+
+def _glyph_path(name, style):
+    """Path of the family glyph `name` for `style`: the line SVG masters for
+    "line" and "mono", the 0.4.4 PNG masters first for "classic". None when
+    the family has no glyph of that name (the painter draws its own then)."""
+    assets = _settings_assets_dir()
+    if not assets or not name:
+        return None
+    icons = os.path.join(assets, "icons")
+    candidates = [os.path.join(icons, "mono", f"{name}.svg"),
+                  os.path.join(icons, "nav", f"{name}.svg")]
+    if style == "classic":
+        candidates.insert(0, os.path.join(icons, "classic", "mono", f"{name}.png"))
+    return next((c for c in candidates if os.path.exists(c)), None)
+
+
+def get_style_glyph(index, size, color):
+    """Tinted QPixmap of the family glyph for slice `index`, or None.
+
+    White masters are cached per (style, name, size); each call tints a copy
+    to `color`, so the hover brightness still applies.
+    """
+    if not 0 <= index < len(ACTION_ICON_NAMES) or _slice_keeps_own_icon(index):
+        return None
+    name = ACTION_ICON_NAMES[index]
+    size = max(8, int(size))
+    key = (ICON_STYLE, name, size)
+    if key not in _GLYPH_CACHE:
+        path = _glyph_path(name, ICON_STYLE)
+        base = None
+        if path and path.endswith(".svg"):
+            base = _svg_to_pixmap(path, size)
+        elif path:
+            raw = QPixmap(path)
+            if not raw.isNull():
+                base = raw.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio,
+                                  Qt.TransformationMode.SmoothTransformation)
+        _GLYPH_CACHE[key] = base
+    base = _GLYPH_CACHE[key]
+    if base is None:
+        return None
+    tinted = QPixmap(base.size())
+    tinted.fill(Qt.GlobalColor.transparent)
+    qp = QPainter(tinted)
+    qp.drawPixmap(0, 0, base)
+    qp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    qp.fillRect(tinted.rect(), color)
+    qp.end()
+    return tinted
+
+
 # Icon name mapping from GTK symbolic names to internal icon IDs
 ICON_NAME_MAP = {
     "media-playback-start-symbolic": "play_pause",
@@ -389,6 +522,9 @@ def load_actions_from_config():
     import json
     from pathlib import Path
 
+    global ACTION_IDS, ACTION_ICON_NAMES
+    ACTION_IDS = list(DEFAULT_ACTION_IDS)
+    ACTION_ICON_NAMES = list(DEFAULT_ACTION_ICON_NAMES)
     config_path = Path.home() / ".config" / "juhradial" / "config.json"
 
     try:
@@ -419,6 +555,8 @@ def load_actions_from_config():
             settings_constants.refresh_translations(_)
 
             actions = []
+            action_ids = []
+            action_icon_names = []
             for i, slice_data in enumerate(slices):
                 action_id = slice_data.get("action_id")
                 label = slice_data.get("label", "Action")
@@ -455,13 +593,19 @@ def load_actions_from_config():
                     label = _("Easy-Switch")
                     action_type = "submenu"
                     icon = "easy_switch"
+                    action_id = "easy_switch"
+                    gtk_icon = "easy-switch"
                     submenu = EASY_SWITCH_SUBMENU
                     print(
                         "Easy-Switch shortcuts enabled - replacing Emoji with Easy-Switch submenu"
                     )
 
                 actions.append((label, action_type, command, color, icon, submenu))
+                action_ids.append(action_id)
+                action_icon_names.append(gtk_icon)
 
+            ACTION_IDS = action_ids
+            ACTION_ICON_NAMES = action_icon_names
             print(f"Loaded {len(actions)} actions from config")
             return actions
 
@@ -713,6 +857,19 @@ def load_minimal_mode():
     except (OSError, ValueError, KeyError):
         pass  # Config file missing or malformed
     return False
+
+
+def load_icon_style():
+    """Icon style from config.json: radial.icon_style, written by the settings
+    app; older configs carry only radial.monochrome_icons ("mono" when set)."""
+    radial = _config_radial_section()
+    style = radial.get("icon_style")
+    if style in ICON_STYLES:
+        return style
+    return "mono" if radial.get("monochrome_icons") else "line"
+
+
+ICON_STYLE = load_icon_style()
 
 
 def load_ring_geometry():

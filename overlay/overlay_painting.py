@@ -405,6 +405,14 @@ class RadialMenuPaintingMixin:
         icon_x = cx + lift_radius * math.cos(icon_angle)
         icon_y = cy + lift_radius * math.sin(icon_angle)
 
+        # Slice button (Line and Classic icon styles): drawn in place of the
+        # shadow, badge and glyph.
+        btn = overlay_actions.get_slice_button(index, int(50 * scale))
+        if btn is not None:
+            p.drawPixmap(int(icon_x - btn.width() / 2),
+                         int(icon_y - btn.height() / 2), btn)
+            return
+
         # Drop shadow (skip if alpha is 0)
         if shadow_alpha > 0:
             p.setBrush(QBrush(QColor(0, 0, 0, shadow_alpha)))
@@ -459,6 +467,9 @@ class RadialMenuPaintingMixin:
             min(255, icon_rgb[1] + brightness),
             min(255, icon_rgb[2] + brightness),
         )
+        glyph_px = int(22 * scale * 1.15 * (1.0 + 0.12 * h))
+        if self._draw_family_glyph(p, icon_x, icon_y, index, glyph_px, icon_color):
+            return
         hover_bold = bold * (1.0 + 0.12 * h)
         icon_size = 26 * 0.65 * scale
         p.save()
@@ -536,6 +547,11 @@ class RadialMenuPaintingMixin:
 
         # Glow ring - fades in with highlight; icon pops slightly on hover
         icon_radius = (26 + 2.0 * h) * self._get_ui_scale()
+
+        # Slice button (Line and Classic icon styles) replaces the disc and glyph.
+        if self._draw_slice_button(p, icon_x, icon_y, index, icon_radius, h):
+            return
+
         if h > 0:
             glow = QColor(255, 255, 255, int(40 * h))
             p.setBrush(Qt.BrushStyle.NoBrush)
@@ -563,6 +579,8 @@ class RadialMenuPaintingMixin:
             int(ct1.green() + (ct2.green() - ct1.green()) * h),
             int(ct1.blue() + (ct2.blue() - ct1.blue()) * h),
         )
+        if self._draw_family_glyph(p, icon_x, icon_y, index, int(icon_radius * 1.15), icon_color):
+            return
         self._draw_action_icon(p, icon_x, icon_y, action[4], icon_radius * 0.65, icon_color)
 
     def _draw_minimal_icon(self, p, cx, cy, index):
@@ -578,6 +596,10 @@ class RadialMenuPaintingMixin:
         icon_y = cy + (icon_place_r + 3.0 * h) * math.sin(icon_angle)
 
         icon_radius = 26 + 2.0 * h
+
+        # Slice button (Line and Classic icon styles): floating button, no disc.
+        if self._draw_slice_button(p, icon_x, icon_y, index, icon_radius, h):
+            return
 
         # Subtle hover glow circle behind icon
         if h > 0:
@@ -607,7 +629,35 @@ class RadialMenuPaintingMixin:
             int(ct1.green() + (ct2.green() - ct1.green()) * h),
             int(ct1.blue() + (ct2.blue() - ct1.blue()) * h),
         )
+        if self._draw_family_glyph(p, icon_x, icon_y, index, int(icon_radius * 1.15), icon_color):
+            return
         self._draw_action_icon(p, icon_x, icon_y, action[4], icon_radius * 0.65, icon_color)
+
+    def _draw_slice_button(self, p, cx, cy, index, icon_radius, h):
+        """Draw the icon style's slice button for slice `index` (Line and
+        Classic styles) with a hover glow ring. Returns False when the style
+        has no button for this slice, so the caller draws its disc and glyph."""
+        btn = overlay_actions.get_slice_button(index, int(icon_radius * 2 + 14))
+        if btn is None:
+            return False
+        if h > 0:
+            glow = QColor(255, 255, 255, int(50 * h))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.setPen(QPen(glow, 3))
+            p.drawEllipse(QPointF(cx, cy), icon_radius + 4, icon_radius + 4)
+        p.drawPixmap(int(cx - btn.width() / 2), int(cy - btn.height() / 2), btn)
+        return True
+
+    def _draw_family_glyph(self, p, cx, cy, index, px, color):
+        """Draw the icon family's glyph for slice `index` at `px` when the
+        chosen icon style provides one (tinted, so hover brightness applies).
+        Returns False when the caller should fall back to the cached pixmap
+        or hand-drawn glyph in _draw_action_icon."""
+        glyph = overlay_actions.get_style_glyph(index, px, color)
+        if glyph is None:
+            return False
+        p.drawPixmap(int(cx - glyph.width() / 2), int(cy - glyph.height() / 2), glyph)
+        return True
 
     def _draw_action_icon(self, p, cx, cy, icon_id, size, color):
         """Draw a pre-rendered pixmap for icon_id if one is cached, else fall

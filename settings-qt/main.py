@@ -93,6 +93,8 @@ class IconProvider(QQuickImageProvider):
         return QPixmap.fromImage(img)
 
     def _base(self, name, w, h, style="line"):
+        # Directory order is the style's precedence: "classic" must find its
+        # PNG masters before the SVG family of the same name.
         dirs = (CLASSIC_DIRS + ICON_DIRS) if style == "classic" else ICON_DIRS
         for d in dirs:
             svg = d / (name + ".svg")
@@ -100,7 +102,6 @@ class IconProvider(QQuickImageProvider):
                 pm = self._render_svg(svg, w, h)
                 if not pm.isNull():
                     return pm
-        for d in dirs:
             png = d / (name + ".png")
             if png.exists():
                 return QPixmap(str(png)).scaled(
@@ -260,8 +261,8 @@ def _run_perf_pass(app, engine, t_start, out_path):
     nav = root.findChild(QObject, "nav")
     if nav is None:
         sys.exit("perf: nav objectName missing in Main.qml")
-    # The page Loaders live under the main content, which the splash loads
-    # after startup, so they are looked up lazily on the first step.
+    # The page Loaders are Repeater delegates under the StackLayout, so they
+    # are looked up lazily on the first step rather than at startup.
     loaders = []
 
     def page_name(loader):
