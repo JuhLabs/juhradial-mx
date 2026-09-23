@@ -78,7 +78,8 @@ pub struct HidrawHandler {
     /// Reserved for future HID++ feature discovery
     _reprog_feature_index: Option<u8>,
     /// CIDs diverted for macros (not gesture buttons)
-    macro_cids: Vec<u16>,
+    /// Macro bindings (read live, so a new binding works without a restart).
+    trigger_map: Option<crate::macros::SharedTriggerMap>,
     /// Track which macro CID is currently pressed (for release detection)
     active_macro_cid: Option<u16>,
     /// Shared configuration for button action lookup
@@ -142,7 +143,7 @@ impl HidrawHandler {
             device: None,
             _device_index: 0x02, // Default for Bolt receiver
             _reprog_feature_index: None,
-            macro_cids: Vec::new(),
+            trigger_map: None,
             active_macro_cid: None,
             shared_config: None,
             active_button_action: None,
@@ -177,8 +178,17 @@ impl HidrawHandler {
 
 
     /// Register CIDs that are diverted for macro triggers (not gesture buttons)
-    pub fn set_macro_cids(&mut self, cids: Vec<u16>) {
-        self.macro_cids = cids;
+    pub fn set_trigger_map(&mut self, map: crate::macros::SharedTriggerMap) {
+        self.trigger_map = Some(map);
+    }
+
+    /// Whether a diverted CID is a button a macro is bound to.
+    fn is_macro_cid(&self, cid: u16) -> bool {
+        let Some(code) = cid_to_evdev_keycode(cid) else { return false };
+        self.trigger_map
+            .as_ref()
+            .and_then(|m| m.read().ok())
+            .is_some_and(|m| m.get(code).is_some())
     }
 
     /// Register the ThumbWheel feature index so diverted rotation notifications
@@ -642,7 +652,7 @@ impl HidrawHandler {
                     })
                     .await;
             }
-        } else if self.macro_cids.contains(&cid) {
+        } else if self.is_macro_cid(cid) {
             // Diverted macro button pressed - forward as MacroTriggered
             if let Some(key_code) = cid_to_evdev_keycode(cid) {
                 tracing::debug!(

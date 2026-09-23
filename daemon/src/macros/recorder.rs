@@ -14,6 +14,37 @@ use super::types::{MacroEvent, RecordedEventType};
 // Key Code Mapping
 // ============================================================================
 
+/// Mouse button name for an evdev BTN_* code (what MacroAction::MouseDown
+/// and mouse_button_to_number take).
+fn evdev_code_to_button_name(code: u16) -> Option<&'static str> {
+    match code {
+        0x110 => Some("left"),
+        0x111 => Some("right"),
+        0x112 => Some("middle"),
+        0x113 => Some("back"),
+        0x114 => Some("forward"),
+        _ => None,
+    }
+}
+
+/// Drop the clicks that start and stop a recording from the Settings window:
+/// the release of the Record click at the start, the Stop click at the end.
+fn trim_ui_clicks(events: &mut Vec<MacroEvent>) {
+    while events.first().is_some_and(|e| e.event_type == RecordedEventType::MouseUp) {
+        events.remove(0);
+    }
+    let n = events.len();
+    if n >= 2
+        && events[n - 1].event_type == RecordedEventType::MouseUp
+        && events[n - 2].event_type == RecordedEventType::MouseDown
+        && events[n - 1].key == events[n - 2].key
+    {
+        events.truncate(n - 2);
+    } else if events.last().is_some_and(|e| e.event_type == RecordedEventType::MouseDown) {
+        events.pop();
+    }
+}
+
 /// Convert an evdev key code to a human-readable key name
 ///
 /// Uses the common key names that xdotool/ydotool understand.
@@ -46,6 +77,11 @@ fn evdev_code_to_key_name(code: u16) -> Option<String> {
         59 => "F1", 60 => "F2", 61 => "F3", 62 => "F4",
         63 => "F5", 64 => "F6", 65 => "F7", 66 => "F8",
         67 => "F9", 68 => "F10", 87 => "F11", 88 => "F12",
+        183 => "F13", 184 => "F14", 185 => "F15", 186 => "F16", 187 => "F17", 188 => "F18",
+        189 => "F19", 190 => "F20", 191 => "F21", 192 => "F22", 193 => "F23", 194 => "F24",
+        99 => "Print", 119 => "Pause", 127 => "Menu",
+        113 => "XF86AudioMute", 114 => "XF86AudioLowerVolume", 115 => "XF86AudioRaiseVolume",
+        163 => "XF86AudioNext", 164 => "XF86AudioPlay", 165 => "XF86AudioPrev",
         // Navigation
         102 => "Home", 103 => "Up", 104 => "Page_Up",
         105 => "Left", 106 => "Right",
@@ -84,8 +120,11 @@ pub struct MacroRecorder {
     /// Shared state for captured events
     state: Arc<Mutex<RecorderState>>,
 
-    /// Handle to the recording thread
-    thread_handle: Option<std::thread::JoinHandle<()>>,
+    /// One recording thread per keyboard
+    threads: Vec<std::thread::JoinHandle<()>>,
+
+    /// Names of the keyboards being recorded (for the Settings live view)
+    devices: Vec<String>,
 }
 
 impl MacroRecorder {
@@ -97,18 +136,26 @@ impl MacroRecorder {
                 events: Vec::new(),
                 start_time: Instant::now(),
             })),
-            thread_handle: None,
+            threads: Vec::new(),
+            devices: Vec::new(),
         }
     }
 
     /// Start recording keyboard events
     ///
-    /// Opens the first available keyboard device from /dev/input and
-    /// records key press/release events with timestamps.
+    /// Records key press/release events with timestamps from every keyboard
+    /// in /dev/input (a laptop keyboard and an MX Keys alike). Fails at once
+    /// when there is none, instead of "recording" nothing.
     pub fn start(&mut self) -> Result<(), RecorderError> {
         if self.recording.load(Ordering::Relaxed) {
             return Err(RecorderError::AlreadyRecording);
         }
+        let keyboards = find_keyboard_devices();
+        if keyboards.is_empty() {
+            return Err(RecorderError::NoKeyboard);
+        }
+        // Mice too, for clicks (P1 #13 "mouse capture").
+        let keyboards: Vec<_> = keyboards.into_iter().chain(find_mouse_devices()).collect();
 
         // Reset state
         {
@@ -119,17 +166,18 @@ impl MacroRecorder {
 
         self.recording.store(true, Ordering::Relaxed);
 
-        let recording = self.recording.clone();
-        let state = self.state.clone();
+        self.devices = keyboards.iter().map(|(_, name)| name.clone()).collect();
+        for (path, name) in keyboards {
+            let recording = self.recording.clone();
+            let state = self.state.clone();
+            self.threads.push(std::thread::spawn(move || {
+                if let Err(e) = record_events(recording, state, &path) {
+                    tracing::error!(error = %e, device = %name, "Recording thread error");
+                }
+            }));
+        }
 
-        // Spawn recording thread
-        self.thread_handle = Some(std::thread::spawn(move || {
-            if let Err(e) = record_events(recording, state) {
-                tracing::error!(error = %e, "Recording thread error");
-            }
-        }));
-
-        tracing::info!("Macro recording started");
+        tracing::info!(devices = ?self.devices, "Macro recording started");
         Ok(())
     }
 
@@ -137,13 +185,14 @@ impl MacroRecorder {
     pub fn stop(&mut self) -> Vec<MacroEvent> {
         self.recording.store(false, Ordering::Relaxed);
 
-        // Wait for recording thread to finish
-        if let Some(handle) = self.thread_handle.take() {
+        // Wait for the recording threads to finish
+        for handle in self.threads.drain(..) {
             let _ = handle.join();
         }
 
         let state = self.state.lock().unwrap();
-        let events = state.events.clone();
+        let mut events = state.events.clone();
+        trim_ui_clicks(&mut events);
 
         tracing::info!(event_count = events.len(), "Macro recording stopped");
         events
@@ -158,6 +207,11 @@ impl MacroRecorder {
     pub fn current_events(&self) -> Vec<MacroEvent> {
         self.state.lock().unwrap().events.clone()
     }
+
+    /// The keyboards the last start() records from.
+    pub fn devices(&self) -> &[String] {
+        &self.devices
+    }
 }
 
 impl Default for MacroRecorder {
@@ -170,21 +224,18 @@ impl Default for MacroRecorder {
 // Recording Thread
 // ============================================================================
 
-/// Record keyboard events from evdev
-///
-/// Scans /dev/input for keyboard devices and captures key events.
+/// Record key events from one keyboard device.
 #[cfg(target_os = "linux")]
 fn record_events(
     recording: Arc<AtomicBool>,
     state: Arc<Mutex<RecorderState>>,
+    keyboard_path: &std::path::Path,
 ) -> Result<(), RecorderError> {
     use evdev::{Device, EventType};
 
-    // Find a keyboard device
-    let keyboard_path = find_keyboard_device()?;
     tracing::info!(path = %keyboard_path.display(), "Recording from keyboard device");
 
-    let device = Device::open(&keyboard_path)
+    let device = Device::open(keyboard_path)
         .map_err(|e| RecorderError::DeviceError(format!("Failed to open keyboard: {}", e)))?;
 
     let mut events = device
@@ -224,18 +275,20 @@ fn record_events(
                         continue;
                     }
 
-                    let key_name = match evdev_code_to_key_name(code) {
-                        Some(name) => name,
-                        None => {
-                            tracing::debug!(code, "Unknown key code, skipping");
-                            continue;
-                        }
-                    };
-
-                    let event_type = if value == 1 {
-                        RecordedEventType::KeyDown
+                    let (key_name, event_type) = if let Some(button) = evdev_code_to_button_name(code) {
+                        let t = if value == 1 { RecordedEventType::MouseDown } else { RecordedEventType::MouseUp };
+                        (button.to_string(), t)
                     } else {
-                        RecordedEventType::KeyUp
+                        match evdev_code_to_key_name(code) {
+                            Some(name) => {
+                                let t = if value == 1 { RecordedEventType::KeyDown } else { RecordedEventType::KeyUp };
+                                (name, t)
+                            }
+                            None => {
+                                tracing::debug!(code, "Unknown key code, skipping");
+                                continue;
+                            }
+                        }
                     };
 
                     let mut state = state.lock().unwrap();
@@ -270,46 +323,84 @@ fn record_events(
     Ok(())
 }
 
-/// Find a keyboard device in /dev/input
+/// Every real keyboard in /dev/input: (path, name). Synthetic keyboards
+/// (ydotool's uinput device, our own virtual mouse) are skipped, or playback
+/// and injected shortcuts would be recorded too.
 #[cfg(target_os = "linux")]
-fn find_keyboard_device() -> Result<std::path::PathBuf, RecorderError> {
+fn find_keyboard_devices() -> Vec<(std::path::PathBuf, String)> {
     use evdev::{Device, EventType, KeyCode};
-    use std::fs;
 
-    let input_dir = std::path::PathBuf::from("/dev/input");
-    let entries = fs::read_dir(&input_dir)
-        .map_err(|e| RecorderError::DeviceError(format!("Cannot read /dev/input: {}", e)))?;
-
+    let Ok(entries) = std::fs::read_dir("/dev/input") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
-        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-
-        if !filename.starts_with("event") {
+        if !path.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("event")) {
             continue;
         }
-
-        let device = match Device::open(&path) {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
-
-        // Check for keyboard capabilities (has EV_KEY with letter keys)
-        let has_keys = device.supported_events().contains(EventType::KEY);
-        if !has_keys {
+        let Ok(device) = Device::open(&path) else { continue };
+        let name = device.name().unwrap_or("").to_string();
+        if !is_real_keyboard_name(&name) || !device.supported_events().contains(EventType::KEY) {
             continue;
         }
-
-        // Verify it has actual keyboard keys (not just mouse buttons)
-        let has_keyboard_keys = device.supported_keys().map(|keys| {
-            keys.contains(KeyCode::KEY_A) && keys.contains(KeyCode::KEY_Z)
-        }).unwrap_or(false);
-
-        if has_keyboard_keys {
-            return Ok(path);
+        let letters = device
+            .supported_keys()
+            .is_some_and(|keys| keys.contains(KeyCode::KEY_A) && keys.contains(KeyCode::KEY_Z));
+        if letters {
+            out.push((path, name));
         }
     }
+    out.sort();
+    out
+}
 
-    Err(RecorderError::NoKeyboard)
+#[cfg(not(target_os = "linux"))]
+fn find_keyboard_devices() -> Vec<(std::path::PathBuf, String)> {
+    Vec::new()
+}
+
+/// Every mouse in /dev/input (left button + relative motion), for clicks.
+/// While the daemon grabs the MX mouse its events arrive through our
+/// virtual mouse, so that one counts; ydotool's device never does.
+#[cfg(target_os = "linux")]
+fn find_mouse_devices() -> Vec<(std::path::PathBuf, String)> {
+    use evdev::{Device, KeyCode, RelativeAxisCode};
+
+    let Ok(entries) = std::fs::read_dir("/dev/input") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("event")) {
+            continue;
+        }
+        let Ok(device) = Device::open(&path) else { continue };
+        let name = device.name().unwrap_or("").to_string();
+        if name.to_ascii_lowercase().contains("ydotool") {
+            continue;
+        }
+        let buttons = device.supported_keys().is_some_and(|k| k.contains(KeyCode::BTN_LEFT));
+        let motion = device
+            .supported_relative_axes()
+            .is_some_and(|r| r.contains(RelativeAxisCode::REL_X));
+        if buttons && motion {
+            out.push((path, name));
+        }
+    }
+    out.sort();
+    out
+}
+
+#[cfg(not(target_os = "linux"))]
+fn find_mouse_devices() -> Vec<(std::path::PathBuf, String)> {
+    Vec::new()
+}
+
+fn is_real_keyboard_name(name: &str) -> bool {
+    let low = name.to_ascii_lowercase();
+    !(low.contains("ydotool") || name == crate::evdev::VIRTUAL_DEVICE_NAME)
 }
 
 /// Non-Linux stub
@@ -317,6 +408,7 @@ fn find_keyboard_device() -> Result<std::path::PathBuf, RecorderError> {
 fn record_events(
     _recording: Arc<AtomicBool>,
     _state: Arc<Mutex<RecorderState>>,
+    _keyboard_path: &std::path::Path,
 ) -> Result<(), RecorderError> {
     tracing::warn!("Macro recording is only supported on Linux");
     Err(RecorderError::DeviceError("Not supported on this platform".to_string()))
@@ -365,6 +457,44 @@ mod tests {
         assert_eq!(evdev_code_to_key_name(28), Some("Return".to_string()));
         assert_eq!(evdev_code_to_key_name(59), Some("F1".to_string()));
         assert_eq!(evdev_code_to_key_name(9999), None);
+        assert_eq!(evdev_code_to_key_name(183), Some("F13".to_string()));
+        assert_eq!(evdev_code_to_key_name(104), Some("Page_Up".to_string()));
+    }
+
+    fn ev(t: RecordedEventType, key: &str) -> MacroEvent {
+        MacroEvent { timestamp_ms: 0, event_type: t, key: key.into() }
+    }
+
+    #[test]
+    fn record_and_stop_clicks_are_trimmed() {
+        use RecordedEventType::*;
+        let mut events = vec![ev(MouseUp, "left"), ev(KeyDown, "a"), ev(KeyUp, "a"),
+                              ev(MouseDown, "right"), ev(MouseUp, "right"),
+                              ev(MouseDown, "left"), ev(MouseUp, "left")];
+        trim_ui_clicks(&mut events);
+        let kinds: Vec<_> = events.iter().map(|e| (e.event_type.clone(), e.key.as_str())).collect();
+        assert_eq!(kinds, vec![(KeyDown, "a"), (KeyUp, "a"), (MouseDown, "right"), (MouseUp, "right")]);
+        let mut pressed_only = vec![ev(KeyDown, "a"), ev(MouseDown, "left")];
+        trim_ui_clicks(&mut pressed_only);
+        assert_eq!(pressed_only.len(), 1);
+        assert_eq!(evdev_code_to_button_name(0x113), Some("back"));
+    }
+
+    #[test]
+    fn synthetic_keyboards_are_not_recorded() {
+        assert!(!is_real_keyboard_name("ydotoold virtual device"));
+        assert!(!is_real_keyboard_name(crate::evdev::VIRTUAL_DEVICE_NAME));
+        assert!(is_real_keyboard_name("Logitech MX Keys S"));
+    }
+
+    #[test]
+    fn recorded_key_names_can_be_played_back() {
+        // every name the recorder writes has a uinput code for Wayland playback
+        for code in 1u16..=200 {
+            if let Some(name) = evdev_code_to_key_name(code) {
+                assert!(crate::actions::key_code(&name).is_some() || name == "Caps_Lock", "{name}");
+            }
+        }
     }
 
     #[test]

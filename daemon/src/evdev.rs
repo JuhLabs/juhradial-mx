@@ -129,6 +129,9 @@ pub struct EvdevHandler {
     /// When non-empty, the device is grabbed (EVIOCGRAB) and events are
     /// forwarded through a virtual device, except for suppressed keys.
     suppressed_keys: HashSet<u16>,
+    /// Macro bindings made after startup (ReloadMacroTriggers): suppressed
+    /// too while the device is grabbed.
+    live_suppressed: Option<crate::macros::SharedTriggerMap>,
     /// Shared configuration for button action lookup
     shared_config: Option<crate::config::SharedConfig>,
     /// The action triggered on button press (for release handling)
@@ -164,6 +167,7 @@ impl EvdevHandler {
             generic_mode: false,
             last_config_check: Instant::now(),
             suppressed_keys: HashSet::new(),
+            live_suppressed: None,
             shared_config: None,
             active_button_action: None,
             kwin_available: None,
@@ -189,6 +193,7 @@ impl EvdevHandler {
             generic_mode: true,
             last_config_check: Instant::now(),
             suppressed_keys: HashSet::new(),
+            live_suppressed: None,
             shared_config: None,
             active_button_action: None,
             kwin_available: None,
@@ -224,6 +229,19 @@ impl EvdevHandler {
     /// events forwarded via a virtual device, minus the suppressed keys.
     pub fn set_suppressed_keys(&mut self, keys: HashSet<u16>) {
         self.suppressed_keys = keys;
+    }
+
+    pub fn set_live_suppression(&mut self, map: crate::macros::SharedTriggerMap) {
+        self.live_suppressed = Some(map);
+    }
+
+    fn is_suppressed(&self, code: u16) -> bool {
+        self.suppressed_keys.contains(&code)
+            || self
+                .live_suppressed
+                .as_ref()
+                .and_then(|m| m.read().ok())
+                .is_some_and(|m| m.get(code).is_some())
     }
 
     /// Update the trigger button (e.g. after config reload)
@@ -680,7 +698,7 @@ impl EvdevHandler {
                     // Determine if this event should be suppressed from the OS.
                     // Only suppress KEY press/release (value 0 or 1) for macro-bound buttons.
                     let is_suppressed_key = event.event_type() == EventType::KEY
-                        && self.suppressed_keys.contains(&event.code())
+                        && self.is_suppressed(event.code())
                         && (event.value() == 0 || event.value() == 1);
 
                     // Batch events for the virtual device.

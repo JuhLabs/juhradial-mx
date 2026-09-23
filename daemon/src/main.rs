@@ -580,7 +580,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let trigger_map = Arc::new(std::sync::RwLock::new(TriggerMap::default()));
 
     // Load existing macro triggers from disk at startup
-    let macro_cids: Vec<u16>;
+    // The startup divert below; the hidraw loop reads bindings live after.
+    let _startup_macro_cids: Vec<u16>;
     let macro_evdev_codes: HashSet<u16>;
     {
         // Pull what we need out of the trigger map, then drop the write lock
@@ -606,7 +607,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(|config| config.remapped_button_cids())
             .unwrap_or_default();
 
-        macro_cids = if pending_cids.is_empty() && initial_remapped_cids.is_empty() {
+        _startup_macro_cids = if pending_cids.is_empty() && initial_remapped_cids.is_empty() {
             Vec::new()
         } else {
             // Scan REPROG_CONTROLS_V4 once, then send one long request per
@@ -668,6 +669,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Clone trigger_map and macro_engine for event processing (macro trigger detection)
     // Must clone before D-Bus init which moves them
     let trigger_map_for_events = trigger_map.clone();
+    let trigger_map_for_hidraw = trigger_map.clone();
+    let trigger_map_for_evdev = trigger_map.clone();
+    let trigger_map_for_focus = trigger_map.clone();
     let macro_engine_for_events = macro_engine.clone();
 
     // Active-window channel for per-app hardware profiles. The D-Bus service
@@ -875,6 +879,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // The tray tooltip and badge follow the applied profile.
         let profile_connection = dbus_connection.clone();
         let focus_replay = replay_ctx.clone();
+        let focus_triggers = trigger_map_for_focus;
         if !hw_profiles.read().map(|m| m.is_empty()).unwrap_or(true) {
             info!("Per-app hardware profiles configured; focus-change application active");
         }
@@ -994,6 +999,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 apply_app_button_overrides(
                     &hw_config,
                     &hw_manager,
+                    &focus_triggers,
                     (!active_profile.is_empty()).then(|| active_profile.clone()),
                     hw.as_ref(),
                 )
@@ -1108,7 +1114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 gesture_tracker: hidraw_tracker,
                 replay: hidraw_replay,
             },
-            macro_cids,
+            trigger_map_for_hidraw,
             hidraw_config,
             hidraw_hotplug,
             haptic_manager_for_hidraw,
@@ -1143,6 +1149,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             evdev_config,
             evdev_kwin,
             evdev_tracker,
+            trigger_map_for_evdev,
         )
         .await
     });
@@ -1487,17 +1494,20 @@ async fn fetch_notification_indices(
 async fn apply_app_button_overrides(
     config: &juhradiald::config::SharedConfig,
     manager: &SharedHapticManager,
+    triggers: &juhradiald::macros::SharedTriggerMap,
     app: Option<String>,
     profile: Option<&juhradiald::profiles::HardwareProfile>,
 ) {
     let (buttons, custom) = profile
         .map(|p| (p.buttons.clone(), p.custom.clone()))
         .unwrap_or_default();
+    // Macro-bound buttons stay diverted whatever the app does.
+    let macro_cids = triggers.read().map(|m| m.cids()).unwrap_or_default();
     let changed: Vec<(u16, bool)> = match config.write() {
         Ok(mut c) => {
-            let before: HashSet<u16> = c.remapped_button_cids().into_iter().collect();
+            let before: HashSet<u16> = c.remapped_button_cids().into_iter().chain(macro_cids.iter().copied()).collect();
             c.set_app_overrides(app, buttons, custom);
-            let after: HashSet<u16> = c.remapped_button_cids().into_iter().collect();
+            let after: HashSet<u16> = c.remapped_button_cids().into_iter().chain(macro_cids.iter().copied()).collect();
             before
                 .symmetric_difference(&after)
                 .map(|cid| (*cid, after.contains(cid)))
@@ -1755,7 +1765,7 @@ async fn replay_pointer_state(
 async fn run_hidraw_loop(
     event_tx: mpsc::Sender<GestureEvent>,
     startup: HidrawStartup,
-    macro_cids: Vec<u16>,
+    trigger_map: juhradiald::macros::SharedTriggerMap,
     shared_config: juhradiald::config::SharedConfig,
     hotplug: Arc<tokio::sync::Notify>,
     haptic_manager: SharedHapticManager,
@@ -1770,10 +1780,14 @@ async fn run_hidraw_loop(
     } = startup;
     let mut replay_gate = juhradiald::replay::ReplayGate::default();
     let mut handler = HidrawHandler::new(event_tx);
-    let macro_cids_for_divert = macro_cids.clone();
     let config_for_thumbwheel = shared_config.clone();
     let config_for_divert = shared_config.clone();
-    handler.set_macro_cids(macro_cids);
+    // Macro-bound buttons, as bound right now (ReloadMacroTriggers).
+    let macro_cids_now = {
+        let map = trigger_map.clone();
+        move || -> Vec<u16> { map.read().map(|m| m.cids().into_iter().collect()).unwrap_or_default() }
+    };
+    handler.set_trigger_map(trigger_map);
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
@@ -1788,7 +1802,7 @@ async fn run_hidraw_loop(
             .unwrap_or_default();
         let (path, name, unit) = refresh_hidpp_button_diverts(
             haptic_manager.clone(),
-            macro_cids_for_divert.clone(),
+            macro_cids_now(),
             remapped_cids,
         )
         .await;
@@ -1833,7 +1847,7 @@ async fn run_hidraw_loop(
                         .unwrap_or_default();
                     let _ = refresh_hidpp_button_diverts(
                         haptic_manager.clone(),
-                        macro_cids_for_divert.clone(),
+                        macro_cids_now(),
                         remapped,
                     )
                     .await;
@@ -2017,9 +2031,11 @@ async fn run_evdev_loop(
     shared_config: juhradiald::config::SharedConfig,
     kwin: KWinContext,
     gesture_tracker: juhradiald::gesture::SharedGestureTracker,
+    trigger_map: juhradiald::macros::SharedTriggerMap,
 ) {
     let mut handler = EvdevHandler::new(event_tx.clone());
     handler.set_suppressed_keys(suppressed_keys);
+    handler.set_live_suppression(trigger_map);
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);

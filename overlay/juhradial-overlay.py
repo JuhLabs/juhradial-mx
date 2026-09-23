@@ -1129,6 +1129,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             elif cmd_type == "plugin":
                 # "<folder>/<action id>"; the daemon reads the manifest and runs it.
                 self.daemon_iface.asyncCall("RunPluginAction", cmd)
+            elif cmd_type == "macro":
+                # A saved macro, by id; the daemon plays it.
+                self.daemon_iface.asyncCall("ExecuteMacro", cmd)
             elif cmd_type == "shortcut":
                 # Key chords go through the daemon, which has the uinput
                 # path native Wayland windows need (this branch was missing,

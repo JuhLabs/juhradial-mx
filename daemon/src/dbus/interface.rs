@@ -369,12 +369,16 @@ impl JuhRadialService {
                         // quick when connected and return immediately when not.
                         let remapped: std::collections::HashSet<u16> =
                             remapped_cids.into_iter().collect();
+                        // A macro-bound button stays diverted too, or a
+                        // Settings save silenced the macro until a reconnect.
+                        let macro_cids = self.trigger_map.read().map(|m| m.cids()).unwrap_or_default();
                         let mut managed: Vec<u16> = Config::managed_button_cids().to_vec();
                         managed.extend(extra_cids);
                         managed.sort_unstable();
                         managed.dedup();
                         for cid in managed {
-                            let _ = manager.set_button_divert(cid, remapped.contains(&cid));
+                            let divert = remapped.contains(&cid) || macro_cids.contains(&cid);
+                            let _ = manager.set_button_divert(cid, divert);
                         }
 
                         // Also re-divert the gesture and haptic buttons. Their
@@ -776,6 +780,17 @@ impl JuhRadialService {
         }
     }
 
+    /// Live view of a recording: (recording, keyboards, captured events JSON).
+    async fn get_recording_status(&self) -> fdo::Result<(bool, Vec<String>, String)> {
+        let recorder = self
+            .macro_recorder
+            .lock()
+            .map_err(|e| fdo::Error::Failed(format!("Lock error: {}", e)))?;
+        let events = serde_json::to_string(&recorder.current_events())
+            .map_err(|e| fdo::Error::Failed(format!("JSON error: {}", e)))?;
+        Ok((recorder.is_recording(), recorder.devices().to_vec(), events))
+    }
+
     async fn execute_macro(
         &self,
         #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
@@ -876,17 +891,37 @@ impl JuhRadialService {
     async fn reload_macro_triggers(&self) -> fdo::Result<()> {
         tracing::info!("ReloadMacroTriggers called");
 
-        match self.trigger_map.write() {
+        let (before, after) = match self.trigger_map.write() {
             Ok(mut map) => {
+                let before = map.cids();
                 map.reload();
                 tracing::info!("Macro trigger map reloaded");
-                Ok(())
+                (before, map.cids())
             }
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock trigger map for reload");
-                Err(fdo::Error::Failed(format!("Lock error: {}", e)))
+                return Err(fdo::Error::Failed(format!("Lock error: {}", e)));
+            }
+        };
+        // Divert a newly bound button now (it used to take a daemon restart,
+        // and until then the button also did its own thing), and give an
+        // unbound one back unless it is remapped.
+        if before != after {
+            let remapped: std::collections::HashSet<u16> = self
+                .config
+                .read()
+                .map(|c| c.remapped_button_cids().into_iter().collect())
+                .unwrap_or_default();
+            if let Ok(mut manager) = self.haptic_manager.lock() {
+                for cid in after.difference(&before) {
+                    let _ = manager.set_button_divert(*cid, true);
+                }
+                for cid in before.difference(&after).filter(|c| !remapped.contains(c)) {
+                    let _ = manager.set_button_divert(*cid, false);
+                }
             }
         }
+        Ok(())
     }
 
     // =========================================================================

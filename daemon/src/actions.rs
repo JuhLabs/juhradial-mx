@@ -533,7 +533,7 @@ const SESSION_VARS: [&str; 6] = [
 ///
 /// Reads the manager environment once for all six names: one lookup per name
 /// would fork `systemctl` six times on the press path.
-fn apply_session_env(cmd: &mut Command) {
+pub(crate) fn apply_session_env(cmd: &mut Command) {
     with_session_env(|session| {
         for name in SESSION_VARS {
             let own = std::env::var(name).ok();
@@ -542,6 +542,23 @@ fn apply_session_env(cmd: &mut Command) {
             }
         }
     });
+}
+
+/// True on a Wayland session, where X11 input synthesis (xdotool) misses
+/// native windows and uinput (ydotool) is the path that works.
+pub fn is_wayland_session() -> bool {
+    session_var("WAYLAND_DISPLAY").is_some()
+        || session_var("XDG_SESSION_TYPE")
+            .map(|s| s.eq_ignore_ascii_case("wayland"))
+            .unwrap_or(false)
+}
+
+/// The evdev code of one key name ("ctrl", "F13", "Page_Up") for uinput.
+pub fn key_code(name: &str) -> Option<u16> {
+    match ActionExecutor::shortcut_to_evdev_codes(name)?.as_slice() {
+        [code] => Some(*code),
+        _ => None,
+    }
 }
 
 /// Read a session variable, falling back to the systemd user manager.
