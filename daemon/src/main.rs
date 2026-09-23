@@ -47,6 +47,11 @@ const DEVICE_POLL_INTERVAL_SECS: u64 = 60;
 /// scanning stutter that `DEVICE_POLL_INTERVAL_SECS` avoids.
 const HIDRAW_RECONNECT_POLL_INTERVAL_SECS: u64 = 5;
 
+/// How long the daemon keeps waiting for the desktop session to export its
+/// environment before giving up on window tracking. Plasma on a slow boot
+/// has been seen to take tens of seconds after the unit starts.
+const WINDOW_TRACKER_WAIT: Duration = Duration::from_secs(180);
+
 /// Emit monotonic checkpoints so cold-start latency can be attributed to a
 /// concrete phase instead of inferring it from process activation.
 fn log_startup_phase(started_at: &Instant, phase: &'static str) {
@@ -779,38 +784,60 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     log_startup_phase(&startup_started_at, "profiles");
 
-    // Initialize window tracker for per-app HARDWARE profiles (Story 3.2/3.3).
-    // The tracker pushes focused-window resource classes; the consumer below
-    // applies any matching HardwareProfile via volatile HID++ setters.
-    let window_tracker = WindowTracker::new();
-    let tracker_desktop = window_tracker.desktop();
-    if window_tracker.is_available() {
-        info!(desktop = tracker_desktop, "Window tracking enabled for per-app hardware profiles");
+    // Window tracker for per-app HARDWARE profiles (Story 3.2/3.3) and the
+    // KDE monitor-switch haptic script. Both depend on the desktop, which a
+    // systemd user unit started at default.target cannot know yet: the
+    // session exports XDG_CURRENT_DESKTOP / WAYLAND_DISPLAY into the user
+    // manager seconds later (see actions::session_var). Deciding once at
+    // startup left a slow boot with no tracker and no monitor-switch haptic
+    // for the whole session (issue #138, Bazzite), so keep re-checking until
+    // the desktop is known, then start both.
+    {
         let watch_tx = active_window_tx.clone();
-        tokio::spawn(async move { window_tracker.watch(watch_tx).await });
-    } else {
-        warn!("Window tracking unavailable - per-app hardware profiles inactive");
-    }
-
-    // Monitor-switch haptic on KDE (X11 or Wayland - detect_desktop() only
-    // checks XDG_CURRENT_DESKTOP, not session type): a persistent KWin script
-    // (installed once, like the active-window script above) reports screen
-    // crossings directly via TriggerHaptic - see cursor::KWIN_CURSOR_SCREEN_SCRIPT
-    // for why this needs to be KWin-native rather than the overlay's own
-    // ambient cursor poll (stale on KDE Wayland outside an open menu). The
-    // overlay skips its own poll on all of KDE for this reason, so a failed
-    // install here silently means no monitor-switch haptic at all on KDE.
-    if tracker_desktop == "kde" {
-        tokio::spawn(async {
-            let installed =
-                tokio::task::spawn_blocking(juhradiald::cursor::watch_cursor_screen_kde)
-                    .await
-                    .unwrap_or(false);
-            if installed {
-                info!("KWin cursor-screen script installed (monitor-switch haptic)");
-            } else {
-                warn!("Failed to install KWin cursor-screen script; monitor-switch haptic inactive on KDE");
+        tokio::spawn(async move {
+            let started = Instant::now();
+            let tracker = loop {
+                let tracker = WindowTracker::new();
+                if tracker.is_available() {
+                    break Some(tracker);
+                }
+                if started.elapsed() >= WINDOW_TRACKER_WAIT {
+                    break None;
+                }
+                sleep(Duration::from_secs(2)).await;
+            };
+            let Some(tracker) = tracker else {
+                warn!("Window tracking unavailable - per-app hardware profiles inactive");
+                return;
+            };
+            let desktop = tracker.desktop();
+            info!(
+                desktop,
+                waited_ms = started.elapsed().as_millis() as u64,
+                "Window tracking enabled for per-app hardware profiles"
+            );
+            // Monitor-switch haptic on KDE (X11 or Wayland): a persistent KWin
+            // script (installed once, like the active-window script) reports
+            // screen crossings directly via TriggerHaptic - see
+            // cursor::KWIN_CURSOR_SCREEN_SCRIPT for why this needs to be
+            // KWin-native rather than the overlay's own ambient cursor poll
+            // (stale on KDE Wayland outside an open menu). The overlay skips
+            // its own poll on all of KDE for this reason, so a failed install
+            // here means no monitor-switch haptic at all on KDE.
+            if desktop == "kde" {
+                tokio::spawn(async {
+                    let installed =
+                        tokio::task::spawn_blocking(juhradiald::cursor::watch_cursor_screen_kde)
+                            .await
+                            .unwrap_or(false);
+                    if installed {
+                        info!("KWin cursor-screen script installed (monitor-switch haptic)");
+                    } else {
+                        warn!("Failed to install KWin cursor-screen script; monitor-switch haptic inactive on KDE");
+                    }
+                });
             }
+            tracker.watch(watch_tx).await;
         });
     }
 
