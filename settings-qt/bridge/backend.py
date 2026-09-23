@@ -636,6 +636,8 @@ class Daemon(QObject):
     linkChanged = pyqtSignal(str, str)
     buttonPressed = pyqtSignal(int)
     macroPlayback = pyqtSignal(bool)
+    activeProfileChanged = pyqtSignal(str)
+    menuRequested = pyqtSignal()
     availabilityChanged = pyqtSignal()
 
     TIMEOUT_MS = 2000
@@ -670,6 +672,8 @@ class Daemon(QObject):
         self._bus.connect("", OBJ_PATH, IFACE, "DeviceConnectionChanged", self._on_link)
         # A physical button went down (the Buttons tab lights its pin).
         self._bus.connect("", OBJ_PATH, IFACE, "ButtonPressed", self._on_button)
+        self._bus.connect("", OBJ_PATH, IFACE, "ActiveProfileChanged", self._on_profile)
+        self._bus.connect("", OBJ_PATH, IFACE, "MenuRequested", self._on_menu)
         self._bus.connect("", OBJ_PATH, IFACE, "MacroPlaybackStarted", self._on_macro_started)
         self._bus.connect("", OBJ_PATH, IFACE, "MacroPlaybackStopped", self._on_macro_stopped)
         self._watcher = QDBusServiceWatcher(
@@ -804,6 +808,15 @@ class Daemon(QObject):
         a = msg.arguments()
         if len(a) >= 2:
             self.linkChanged.emit(str(a[0]), str(a[1]))
+
+    @pyqtSlot(QDBusMessage)
+    def _on_profile(self, msg):
+        a = msg.arguments()
+        self.activeProfileChanged.emit(str(a[0]) if a else "")
+
+    @pyqtSlot(QDBusMessage)
+    def _on_menu(self, msg):
+        self.menuRequested.emit()
 
     @pyqtSlot(QDBusMessage)
     def _on_macro_started(self, msg):
@@ -1122,6 +1135,7 @@ class Backend(QObject):
         self._dpi = int(self.get("pointer.dpi", 1600))
         self._cur_host = 0
         self._num_hosts = 3
+        self._hosts_known = False
         self._ratchet = True
         self._wheel_mode = ""
         self._host_names = []
@@ -1164,6 +1178,9 @@ class Backend(QObject):
         self.daemon.keyboardBatteryChanged.connect(self._on_keyboard_battery)
         self.daemon.linkChanged.connect(self._set_link_live)
         self.daemon.macroPlayback.connect(self._set_macro_running)
+        self._active_profile = ""
+        self.daemon.activeProfileChanged.connect(self._set_active_profile)
+        self.daemon.menuRequested.connect(self._on_menu_opened)
         self.daemon.buttonPressed.connect(
             lambda cid: self.buttonPressed.emit(self.SLOT_CIDS.get(cid, "0x%04X" % cid)))
         self.daemon.availabilityChanged.connect(self._on_daemon_availability)
@@ -1441,6 +1458,59 @@ class Backend(QObject):
                 return key
         return "unknown"
 
+    @pyqtProperty(bool, notify=liveChanged)
+    def hostsKnown(self):
+        """False while the mouse has not reported its Easy-Switch slots."""
+        return self._hosts_known
+
+    @pyqtProperty(str, notify=liveChanged)
+    def activeProfile(self):
+        """The app whose profile is applied now ("" = global settings)."""
+        return self._active_profile
+
+    def _set_active_profile(self, app):
+        self._active_profile = app
+        self.liveChanged.emit()
+
+    # ---- getting started (Dashboard checklist) ----
+    def _on_menu_opened(self):
+        if not self.get("app.onboarding.ring", False):
+            self.setLocal("app.onboarding.ring", True)
+
+    @pyqtSlot(result="QVariant")
+    def onboarding(self):
+        """The first-run checklist: [] once dismissed."""
+        if self.get("app.onboarding_done", False):
+            return []
+        remapped = any(self.get(f"buttons.{k}", d) != d for (k, _n, d) in BUTTON_SLOTS
+                       if k != "horizontal_scroll")
+        return [{"id": "ring", "done": bool(self.get("app.onboarding.ring", False))},
+                {"id": "button", "done": remapped},
+                {"id": "skin", "done": bool(self.get("radial.wheel", ""))}]
+
+    @pyqtSlot()
+    def finishOnboarding(self):
+        self.setLocal("app.onboarding_done", True)
+
+    @pyqtSlot(result="QVariant")
+    def healthIssues(self):
+        """What needs a fix, with the fix: [{id, text}] (empty = healthy)."""
+        out = []
+        if not self.daemon.available:
+            return [{"id": "daemon", "text": _("The background service is not running.")}]
+        if not self._overlay_running():
+            out.append({"id": "overlay", "text": _("The radial menu is not running.")})
+        dv, av = version_tuple(self.daemonVersion), version_tuple(self.appVersion)
+        if dv and av and dv != av:
+            out.append({"id": "version", "text": _("The service is {daemon} and this app is {app}: reinstall so they match.")
+                        .format(daemon=self.daemonVersion, app=self.appVersion)})
+        if self._primed and self.linkState == "offline" and not self.isGeneric:
+            out.append({"id": "access", "text": _("The service cannot reach the mouse. Check that your user is in the input group.")})
+        auto = self.autostartStatus()
+        if not auto.get("ok", True):
+            out.append({"id": "autostart", "text": auto["text"]})
+        return out
+
     def _set_link_live(self, state, transport):
         self._link_daemon = (state, transport)
         self.liveChanged.emit()
@@ -1502,6 +1572,7 @@ class Backend(QObject):
                 nh = _to_int(r[0])
                 if nh > 0:  # receiver-connected mice report 0; keep 3 slots
                     self._num_hosts, self._cur_host = nh, _to_int(r[1])
+                    self._hosts_known = True
 
         def host_names(r):
             v = first(r)

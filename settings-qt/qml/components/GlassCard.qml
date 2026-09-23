@@ -13,6 +13,7 @@ Item {
     property bool solid: false
     property bool rail: false
     property bool shadow: true
+    property bool lit: false          // hover: the whole border lights (no scaling)
     readonly property bool frosted: !solid && !Theme.reduceTransparency && Theme.wallpaper !== ""
 
     // Window-space origin of the card so the frost sample lines up with the
@@ -92,7 +93,8 @@ Item {
         color: root.frosted ? (root.rail ? Theme.glassTintRail : Theme.glassTint)
                             : (root.rail ? Theme.surfaceRail : Theme.surfaceGlass)
         border.width: 1
-        border.color: Theme.border
+        border.color: root.lit ? Theme.accent : Theme.border
+        Behavior on border.color { ColorAnimation { duration: 200 } }
     }
     Rectangle {   // lit top edge: the light source is above the glass
         anchors { left: parent.left; right: parent.right; top: parent.top }
