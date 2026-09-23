@@ -12,7 +12,7 @@ ApplicationWindow {
     title: "JuhRadial MX"
     color: Theme.bgBase
 
-    QtObject { id: nav; property int current: (typeof initialPage !== "undefined" ? initialPage : 0) }
+    QtObject { id: nav; objectName: "nav"; property int current: (typeof initialPage !== "undefined" ? initialPage : 0) }
 
     // Pages can request a tab switch via Backend.goTo("<key>").
     Connections {
@@ -46,7 +46,8 @@ ApplicationWindow {
         anchors.fill: parent
         source: Theme.wallpaper
         fillMode: Image.PreserveAspectCrop
-        sourceSize.width: 2560; sourceSize.height: 1600
+        sourceSize.width: 1920; sourceSize.height: 1200
+        asynchronous: true
         cache: true
         Behavior on opacity { NumberAnimation { duration: 340; easing.type: Easing.OutCubic } }
     }
@@ -167,6 +168,7 @@ ApplicationWindow {
                     model: navModel
                     Loader {
                         id: pageLoader
+                        objectName: "pageLoader"
                         active: index === nav.current
                         source: Qt.resolvedUrl("pages/" + model.page + ".qml")
                         // subtle fade + rise when a tab becomes active

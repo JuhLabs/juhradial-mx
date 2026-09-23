@@ -97,6 +97,8 @@ class IconProvider(QQuickImageProvider):
 
 
 def main():
+    import time
+    t_start = time.perf_counter()
     app = QGuiApplication(sys.argv)
     app.setApplicationName("JuhRadial MX")
     app.setOrganizationName("JuhLabs")
@@ -176,6 +178,13 @@ def main():
     bus.registerObject("/", DBUS_SERVICE, single,
                        QDBusConnection.RegisterOption.ExportAllSlots)
 
+    # JUH_PERF=1 (or a file path): measure cold start and every tab switch,
+    # print a table, exit. Used by tools/perf_tabs.py and the docs budget
+    # (< 80 ms median switch, < 150 ms p95, < 900 ms cold start).
+    perf = os.environ.get("JUH_PERF")
+    if perf:
+        _run_perf_pass(app, engine, t_start, None if perf == "1" else perf)
+
     shot = os.environ.get("JUH_SHOT")
     if shot:
         import subprocess
@@ -191,6 +200,101 @@ def main():
         QTimer.singleShot(int(os.environ.get("JUH_SHOT_DELAY", "1600")), _grab)
 
     sys.exit(app.exec())
+
+
+def _run_perf_pass(app, engine, t_start, out_path):
+    """Switch through every tab twice (cold, then warm) and report timings.
+
+    A switch is measured from setting nav.current until the Loader has
+    instantiated the page (synchronous, "load") and until the window has
+    swapped the first frame showing it ("frame"). Rows come out as Markdown.
+    """
+    import time
+    from PyQt6.QtCore import QTimer
+
+    import PyQt6.sip as sip
+    from PyQt6.QtQuick import QQuickWindow
+
+    root = engine.rootObjects()[0]
+    window = sip.cast(root, QQuickWindow)
+    nav = root.findChild(QObject, "nav")
+    if nav is None:
+        sys.exit("perf: nav objectName missing in Main.qml")
+    # The page Loaders live under the main content, which the splash loads
+    # after startup, so they are looked up lazily on the first step.
+    loaders = []
+
+    def page_name(loader):
+        src = loader.property("source")
+        name = src.toString() if hasattr(src, "toString") else str(src)
+        return name.rsplit("/", 1)[-1].replace("Page.qml", "")
+
+    passes = [("cold", []), ("warm", [])]
+    rows = []
+    state = {"pass": 0, "i": 0, "t0": 0.0, "t_load": 0.0, "first_frame": None, "waiting": False}
+
+    def on_frame():
+        if state["first_frame"] is None:
+            state["first_frame"] = time.perf_counter() - t_start
+        if not state["waiting"]:
+            return
+        state["waiting"] = False
+        t_frame = time.perf_counter()
+        label, seq = passes[state["pass"]]
+        idx = seq[state["i"]]
+        rows.append((label, page_name(loaders[idx]),
+                     (state["t_load"] - state["t0"]) * 1000.0,
+                     (t_frame - state["t0"]) * 1000.0))
+        state["i"] += 1
+        QTimer.singleShot(60, step)  # let the fade/rise animation settle
+
+    def find_items(item, name, out):
+        for child in item.childItems():
+            if child.objectName() == name:
+                out.append(child)
+            find_items(child, name, out)
+        return out
+
+    def step():
+        if not loaders:
+            find_items(window.contentItem(), "pageLoader", loaders)
+            if not loaders:
+                sys.exit("perf: pageLoader objectNames missing in Main.qml")
+            for k in range(len(passes)):
+                passes[k] = (passes[k][0], list(range(len(loaders))))
+        if state["i"] >= len(passes[state["pass"]][1]):
+            state["pass"] += 1
+            state["i"] = 0
+            if state["pass"] >= len(passes):
+                return finish()
+        label, seq = passes[state["pass"]]
+        idx = seq[state["i"]]
+        state["t0"] = time.perf_counter()
+        nav.setProperty("current", idx)
+        state["t_load"] = time.perf_counter()
+        state["waiting"] = True
+        root.update()
+
+    def finish():
+        lines = ["| pass | page | load ms | first frame ms |", "|---|---|---:|---:|"]
+        for label, name, load_ms, frame_ms in rows:
+            lines.append(f"| {label} | {name} | {load_ms:.1f} | {frame_ms:.1f} |")
+        warm = sorted(r[3] for r in rows if r[0] == "warm")
+        if warm:
+            median = warm[len(warm) // 2]
+            p95 = warm[min(len(warm) - 1, int(round(0.95 * (len(warm) - 1))))]
+            lines.append("")
+            lines.append(f"warm switch: median {median:.1f} ms, p95 {p95:.1f} ms, max {warm[-1]:.1f} ms")
+        if state["first_frame"] is not None:
+            lines.append(f"cold start to first frame: {state['first_frame'] * 1000.0:.0f} ms")
+        text = "\n".join(lines)
+        print(text)
+        if out_path:
+            pathlib.Path(out_path).write_text(text + "\n", encoding="utf-8")
+        app.quit()
+
+    window.frameSwapped.connect(on_frame)
+    QTimer.singleShot(int(os.environ.get("JUH_PERF_DELAY", "1200")), step)
 
 
 if __name__ == "__main__":

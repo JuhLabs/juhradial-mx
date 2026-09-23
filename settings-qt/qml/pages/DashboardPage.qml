@@ -150,6 +150,7 @@ Item {
                                 anchors.fill: parent
                                 source: Theme.wallpaper
                                 sourceSize.width: 256; sourceSize.height: 152
+                                asynchronous: true
                                 fillMode: Image.PreserveAspectCrop; smooth: true
                             }
                             Rectangle {

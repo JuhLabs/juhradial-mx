@@ -114,6 +114,7 @@ Item {
                                 height: parent.height - 44
                                 width: height * (820 / 1178)
                                 source: assetsDir + "/devices/mx4_top.png"
+                                asynchronous: true
                                 sourceSize.width: 820; sourceSize.height: 1178
                                 fillMode: Image.PreserveAspectFit; smooth: true
                                 layer.enabled: true
@@ -166,6 +167,7 @@ Item {
                                 width: Math.min(parent.width - 24, (parent.height - 44) * (1289 / 829))
                                 height: width * (829 / 1289)
                                 source: assetsDir + "/devices/mx4_side.png"
+                                asynchronous: true
                                 sourceSize.width: 1289; sourceSize.height: 829
                                 fillMode: Image.PreserveAspectFit; smooth: true
                                 layer.enabled: true

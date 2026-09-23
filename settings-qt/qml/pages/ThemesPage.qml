@@ -51,6 +51,9 @@ Item {
                                 anchors.fill: parent
                                 source: modelData.wallpaper
                                 sourceSize.width: 336; sourceSize.height: 244
+                                // Decode the twelve tiles off the GUI thread: a synchronous
+                                // decode made this tab the slowest switch (~150 ms).
+                                asynchronous: true
                                 fillMode: Image.PreserveAspectCrop; smooth: true
                             }
                             Rectangle { anchors.fill: parent; color: "#55000000" }
