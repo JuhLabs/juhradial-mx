@@ -693,6 +693,109 @@ fn zoom_shortcut(zoom_in: bool) -> &'static str {
     }
 }
 
+/// The HID++ manager, for button actions that talk to the mouse itself
+/// (SmartShift toggle). Registered once by main at startup.
+static DEVICE: OnceLock<crate::hidpp::SharedHapticManager> = OnceLock::new();
+
+pub fn set_device_manager(manager: crate::hidpp::SharedHapticManager) {
+    let _ = DEVICE.set(manager);
+}
+
+/// Flip the wheel between ratchet and free-spin, keeping the SmartShift
+/// threshold (what the wheel-mode button under the wheel does).
+async fn toggle_wheel_mode() -> Result<(), ActionError> {
+    let manager = DEVICE
+        .get()
+        .cloned()
+        .ok_or_else(|| ActionError::ExecutionFailed("no HID++ device".into()))?;
+    tokio::task::spawn_blocking(move || {
+        let mut m = manager
+            .lock()
+            .map_err(|_| ActionError::ExecutionFailed("device lock poisoned".into()))?;
+        let (mode, auto_disengage, _) = m
+            .get_smartshift()
+            .ok_or_else(|| ActionError::ExecutionFailed("SmartShift not readable".into()))?;
+        m.set_smartshift(next_wheel_mode(mode), auto_disengage, 0)
+            .map_err(|e| ActionError::ExecutionFailed(e.to_string()))
+    })
+    .await
+    .map_err(|e| ActionError::ExecutionFailed(e.to_string()))?
+}
+
+/// HID++ 0x2111 wheel mode: 1 = free-spin, 2 = ratchet.
+fn next_wheel_mode(mode: u8) -> u8 {
+    if mode == 1 {
+        2
+    } else {
+        1
+    }
+}
+
+/// A mouse button the daemon can click on the user's behalf.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseButton {
+    Left,
+    Right,
+    Middle,
+    Back,
+    Forward,
+}
+
+impl MouseButton {
+    /// `ydotool click` code: button index | 0x40 down | 0x80 up. Back and
+    /// Forward are SIDE (BTN_SIDE) and EXTR (BTN_EXTRA), what a physical MX
+    /// mouse sends and what browsers map to history back/forward.
+    fn ydotool_code(self) -> &'static str {
+        match self {
+            MouseButton::Left => "0xC0",
+            MouseButton::Right => "0xC1",
+            MouseButton::Middle => "0xC2",
+            MouseButton::Back => "0xC3",
+            MouseButton::Forward => "0xC4",
+        }
+    }
+
+    /// X11 core button number for `xdotool click`.
+    fn xdotool_button(self) -> &'static str {
+        match self {
+            MouseButton::Left => "1",
+            MouseButton::Middle => "2",
+            MouseButton::Right => "3",
+            MouseButton::Back => "8",
+            MouseButton::Forward => "9",
+        }
+    }
+}
+
+/// Click a real mouse button: uinput (ydotool) on Wayland, where X11
+/// synthesis never reaches native windows; xdotool on X11 or as fallback.
+pub fn click_mouse_button(button: MouseButton) -> Result<(), ActionError> {
+    let wayland = session_var("WAYLAND_DISPLAY").is_some()
+        || session_var("XDG_SESSION_TYPE")
+            .map(|s| s.eq_ignore_ascii_case("wayland"))
+            .unwrap_or(false);
+    if wayland {
+        if let Ok(child) = Command::new("ydotool")
+            .args(["click", button.ydotool_code()])
+            .spawn()
+        {
+            reap_in_background(child, button.ydotool_code(), "ydotool");
+            return Ok(());
+        }
+        tracing::warn!(?button, "ydotool click failed; trying xdotool");
+    }
+    let mut cmd = Command::new("xdotool");
+    cmd.args(["click", button.xdotool_button()]);
+    apply_session_env(&mut cmd);
+    match cmd.spawn() {
+        Ok(child) => {
+            reap_in_background(child, button.xdotool_button(), "xdotool");
+            Ok(())
+        }
+        Err(e) => Err(ActionError::ExecutionFailed(format!("mouse click failed: {e}"))),
+    }
+}
+
 /// Execute a button action directly.
 /// Returns Ok(true) if the action was handled, Ok(false) if it should use the
 /// radial menu flow (caller handles ShowMenu/HideMenu).
@@ -708,7 +811,22 @@ pub async fn execute_button_action(action: ButtonAction) -> Result<bool, ActionE
         }
         ButtonAction::None => Ok(true),
         ButtonAction::Smartshift => {
-            tracing::warn!("SmartShift button action not yet implemented (requires HID++ write)");
+            toggle_wheel_mode().await?;
+            Ok(true)
+        }
+        // Real mouse buttons, not key chords: apps that listen for BTN_SIDE
+        // (file managers, games, CAD) never saw alt+Left, and xdotool key
+        // button2 was not a middle click at all (audit P0 #4).
+        ButtonAction::MiddleClick => {
+            click_mouse_button(MouseButton::Middle)?;
+            Ok(true)
+        }
+        ButtonAction::Back => {
+            click_mouse_button(MouseButton::Back)?;
+            Ok(true)
+        }
+        ButtonAction::Forward => {
+            click_mouse_button(MouseButton::Forward)?;
             Ok(true)
         }
         ButtonAction::Custom => {
@@ -919,9 +1037,8 @@ async fn execute_virtual_desktops() -> Result<(), ActionError> {
 /// Map a ButtonAction to the keyboard shortcut it should synthesize
 fn button_action_to_shortcut(action: ButtonAction) -> Option<&'static str> {
     match action {
-        ButtonAction::MiddleClick => Some("button2"),
-        ButtonAction::Back => Some("alt+Left"),
-        ButtonAction::Forward => Some("alt+Right"),
+        // Clicked as real mouse buttons in execute_button_action.
+        ButtonAction::MiddleClick | ButtonAction::Back | ButtonAction::Forward => None,
         ButtonAction::Copy => Some("ctrl+c"),
         ButtonAction::Paste => Some("ctrl+v"),
         ButtonAction::Undo => Some("ctrl+z"),
@@ -940,6 +1057,29 @@ fn button_action_to_shortcut(action: ButtonAction) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn mouse_button_codes_match_ydotool_and_x11() {
+        assert_eq!(MouseButton::Middle.ydotool_code(), "0xC2");
+        assert_eq!(MouseButton::Back.ydotool_code(), "0xC3"); // BTN_SIDE
+        assert_eq!(MouseButton::Forward.ydotool_code(), "0xC4"); // BTN_EXTRA
+        assert_eq!(MouseButton::Middle.xdotool_button(), "2");
+        assert_eq!(MouseButton::Back.xdotool_button(), "8");
+        assert_eq!(MouseButton::Forward.xdotool_button(), "9");
+    }
+
+    #[test]
+    fn remapped_mouse_buttons_are_not_key_chords() {
+        for action in [ButtonAction::MiddleClick, ButtonAction::Back, ButtonAction::Forward] {
+            assert_eq!(button_action_to_shortcut(action), None, "{action}");
+        }
+    }
+
+    #[test]
+    fn wheel_mode_toggle_flips_ratchet_and_free_spin() {
+        assert_eq!(next_wheel_mode(1), 2);
+        assert_eq!(next_wheel_mode(2), 1);
+    }
 
     #[test]
     fn session_env_waits_for_the_desktop_name_after_the_display() {

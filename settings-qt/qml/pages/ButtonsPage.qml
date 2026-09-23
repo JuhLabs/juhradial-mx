@@ -45,6 +45,13 @@ Item {
         Backend.requestControls()
     }
     function actionName(slot, def) {
+        // The thumb wheel is configured by its mode (thumbwheel.mode), not as
+        // a button: buttons.horizontal_scroll was never read by the daemon.
+        if (slot === "horizontal_scroll") {
+            var tw = Backend.get("thumbwheel.mode", "off"), modes = Backend.thumbwheelModes()
+            for (var k = 0; k < modes.length; k++) if (modes[k].id === tw) return modes[k].name
+            return tw
+        }
         var id = Backend.get("buttons." + slot, def)
         var text = actMap[id] || id
         if (slot === "gesture" && (page.dirBump, Backend.get("buttons.gesture_directions.enabled", false)))
@@ -52,11 +59,17 @@ Item {
         return text
     }
 
-    // ---- AI quick-links editor (the AI slice's submenu) ----
+    // ---- Quick links editor (each submenu slice's own links) ----
     ListModel { id: aiModel }
+    property var linkRows: Backend.submenuRows()
+    property int linkRow: linkRows.length ? linkRows[0].row : -1
     function loadAi() {
         aiModel.clear()
-        var links = Backend.aiLinks()
+        linkRows = Backend.submenuRows()
+        if (linkRows.length && !linkRows.some(function (r) { return r.row === linkRow }))
+            linkRow = linkRows[0].row
+        if (linkRow < 0) return
+        var links = Backend.linksFor(linkRow)
         for (var i = 0; i < links.length; i++)
             aiModel.append({ name: links[i].name || "", url: links[i].url || "",
                              icon: links[i].icon || "browser", command: links[i].command || "" })
@@ -67,7 +80,7 @@ Item {
             var it = aiModel.get(i)
             out.push({ name: it.name, url: it.url, icon: it.icon, command: it.command })
         }
-        Backend.setAiLinks(out)
+        Backend.setLinksFor(page.linkRow, out)
     }
     property int aiPickRow: -1
     AppPicker {
@@ -108,6 +121,22 @@ Item {
         { slot: "thumb", def: "radial_menu", label: "Actions ring", nx: 0.28, ny: 0.66, cx: -0.34, cy: 0.92 }
     ]
 
+    ActionPicker {
+        id: twPicker
+        title: qsTr("Thumb wheel does")
+        actions: Backend.thumbwheelModes().map(function (m) { return { id: m.id, name: m.name, icon: "input-mouse-symbolic" } })
+        onPicked: (id) => { Backend.setThumbwheelMode(id); page.actMapBump++ }
+    }
+    function openPickerFor(slot, def) {
+        if (slot === "horizontal_scroll") {
+            twPicker.currentId = Backend.get("thumbwheel.mode", "off")
+            twPicker.open()
+            return
+        }
+        page.pickSlot = slot
+        btnPicker.currentId = Backend.get("buttons." + slot, def)
+        btnPicker.open()
+    }
     ActionPicker {
         id: btnPicker
         title: "Assign button"
@@ -189,9 +218,7 @@ Item {
                                     label: modelData.label
                                     action: (page.actMapBump, page.actionName(modelData.slot, modelData.def))
                                     onClicked: {
-                                        page.pickSlot = modelData.slot
-                                        btnPicker.currentId = Backend.get("buttons." + modelData.slot, modelData.def)
-                                        btnPicker.open()
+                                        page.openPickerFor(modelData.slot, modelData.def)
                                     }
                                 }
                             }
@@ -256,9 +283,7 @@ Item {
                                         label: modelData.label
                                         action: (page.actMapBump, page.actionName(modelData.slot, modelData.def))
                                         onClicked: {
-                                            page.pickSlot = modelData.slot
-                                            btnPicker.currentId = Backend.get("buttons." + modelData.slot, modelData.def)
-                                            btnPicker.open()
+                                            page.openPickerFor(modelData.slot, modelData.def)
                                         }
                                     }
                                 }
@@ -318,9 +343,7 @@ Item {
                                         label: modelData.label
                                         action: (page.actMapBump, page.actionName(modelData.slot, modelData.def))
                                         onClicked: {
-                                            page.pickSlot = modelData.slot
-                                            btnPicker.currentId = Backend.get("buttons." + modelData.slot, modelData.def)
-                                            btnPicker.open()
+                                            page.openPickerFor(modelData.slot, modelData.def)
                                         }
                                     }
                                 }
@@ -366,7 +389,7 @@ Item {
                                 desc: "Control " + modelData.hex + (modelData.raw_xy ? ", reports raw movement" : "")
                                 ComboBox {
                                     width: 220
-                                    model: Backend.buttonActions()
+                                    model: Backend.gestureActions()
                                     currentId: Backend.get(modelData.key, "none")
                                     onActivated2: (id) => Backend.set(modelData.key, id)
                                 }
@@ -413,7 +436,7 @@ Item {
                                 opacity: dirCol.on ? 1.0 : 0.5
                                 ComboBox {
                                     width: 220
-                                    model: Backend.buttonActions()
+                                    model: Backend.gestureActions()
                                     currentId: Backend.get("buttons.gesture_directions." + modelData.key, "none")
                                     onActivated2: (id) => Backend.set("buttons.gesture_directions." + modelData.key, id)
                                 }
@@ -633,10 +656,23 @@ Item {
                     spacing: Theme.gap
                     CardHeader {
                         width: parent.width
-                        title: "AI Assistant links"
-                        subtitle: "Up to four links or applications under the AI slice. Brand sites keep their logo, other links show a globe."
+                        title: qsTr("Quick links")
+                        subtitle: page.linkRows.length
+                                  ? qsTr("Up to four links or applications under a submenu slice. Brand sites keep their logo, other links show a globe.")
+                                  : qsTr("Give a ring slice the submenu action to add links here.")
                         icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/applications-science-symbolic"
-                        Badge { text: aiModel.count + "/4"; accent: true }
+                        Row {
+                            spacing: Theme.gapS
+                            ComboBox {
+                                visible: page.linkRows.length > 1
+                                width: 180
+                                accessibleName: qsTr("Submenu slice")
+                                model: page.linkRows.map(function (r) { return { id: String(r.row), name: r.label } })
+                                currentId: String(page.linkRow)
+                                onActivated2: (id) => { page.linkRow = parseInt(id); page.loadAi() }
+                            }
+                            Badge { visible: page.linkRow >= 0; text: aiModel.count + "/4"; accent: true }
+                        }
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
 
@@ -705,7 +741,7 @@ Item {
 
                     PrimaryButton {
                         text: "Add link"; ghost: true
-                        enabled: aiModel.count < 4
+                        enabled: aiModel.count < 4 && page.linkRow >= 0
                         onClicked: { aiModel.append({ name: "New link", url: "https://", icon: "browser", command: "" }); page.commitAi() }
                     }
                 }

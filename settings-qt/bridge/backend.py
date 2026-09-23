@@ -34,6 +34,29 @@ from PyQt6.QtCore import QMetaType, QSize
 from bridge.i18n import _
 
 
+def _xdg_icon_file(name, roots=None):
+    """An application icon file by name outside the Qt theme: the largest
+    hicolor PNG, a scalable SVG, or /usr/share/pixmaps."""
+    home = pathlib.Path.home()
+    roots = roots or [home / ".local/share/icons/hicolor", home / ".local/share/flatpak/exports/share/icons/hicolor",
+                      pathlib.Path("/var/lib/flatpak/exports/share/icons/hicolor"),
+                      pathlib.Path("/usr/share/icons/hicolor"), pathlib.Path("/usr/share/pixmaps")]
+    for root in roots:
+        if root.name == "pixmaps":
+            for ext in (".png", ".svg", ".xpm"):
+                if (root / (name + ext)).is_file():
+                    return str(root / (name + ext))
+            continue
+        svg = root / "scalable" / "apps" / (name + ".svg")
+        if svg.is_file():
+            return str(svg)
+        for size in ("512x512", "256x256", "128x128", "96x96", "64x64", "48x48"):
+            png = root / size / "apps" / (name + ".png")
+            if png.is_file():
+                return str(png)
+    return ""
+
+
 def QDesktopServicesOpen(url):
     """Open a URL or file in the user's default app."""
     from PyQt6.QtGui import QDesktopServices
@@ -157,7 +180,7 @@ HAPTIC_PATTERNS = [
     "completed", "square", "wave", "firework", "mad", "knock", "jingle", "ringing",
 ]
 
-THUMBWHEEL_MODES = [("off", "Off"), ("volume", "Volume"),
+THUMBWHEEL_MODES = [("off", "Horizontal scroll (default)"), ("volume", "Volume"),
                     ("scroll", "Scroll"), ("zoom", "Zoom")]
 SCROLL_MODES = [("ratchet", "Ratchet"), ("smartshift", "SmartShift"), ("freespin", "Free-spin")]
 EASY_SWITCH_OS = [("linux", "Linux"), ("windows", "Windows"), ("macos", "macOS"),
@@ -763,6 +786,9 @@ class SliceModel(QAbstractListModel):
             return
         s = self._slices[row]
         preset = next((lbl for (aid, lbl, *_r) in RADIAL_ACTIONS if aid == s.get("action_id")), None)
+        # A preset action_id makes the overlay show the preset's name and
+        # button ("Files") instead of the picked app (gcarmin #117 port).
+        s["action_id"] = "custom_app"
         s["type"] = "exec"
         s["command"] = command
         if icon:
@@ -1651,30 +1677,45 @@ class Backend(QObject):
     @pyqtSlot(str, float, float)
     def setPinPos(self, slot, nx, ny):
         """Persist a manually-placed callout pin (config.button_pins.<slot>)."""
-        self._set_path(["button_pins", slot], {"nx": round(nx, 4), "ny": round(ny, 4)})
+        # "mx3.back" is the MX Master 3 photo's own pin: nested under
+        # button_pins.mx3, which is where the page reads it back.
+        self._set_path(["button_pins", *str(slot).split(".")], {"nx": round(nx, 4), "ny": round(ny, 4)})
         self._save()
         self.toast.emit(_("Pin saved: {slot} = {x}, {y}").format(slot=slot, x=f"{nx:.3f}", y=f"{ny:.3f}"))
 
-    # ---- quick links (the submenu slice's own links, up to four) ----
+    # ---- quick links (each submenu slice's own links, up to four) ----
     def _submenu_row(self):
-        for i, sl in enumerate(self._slices.slices()):
-            if sl.get("type") == "submenu":
-                return i
-        return -1
+        rows = self._submenu_rows()
+        return rows[0] if rows else -1
+
+    def _submenu_rows(self):
+        return [i for i, sl in enumerate(self._slices.slices()) if sl.get("type") == "submenu"]
+
+    @pyqtSlot(result="QVariant")
+    def submenuRows(self):
+        """Every slice that opens a submenu: [{row, label}] (the Quick links
+        card edits each of them, not only the first)."""
+        slices = self._slices.slices()
+        return [{"row": i, "label": slices[i].get("label") or _("Slice {n}").format(n=i + 1)}
+                for i in self._submenu_rows()]
 
     @pyqtSlot(result="QVariant")
     def aiLinks(self):
-        """Rows for the quick-links editor: {name, url, icon, command}.
+        return self.linksFor(self._submenu_row())
 
-        Read from the submenu slice's `submenu` list, which is what the
-        overlay draws (0.4.3, `submenu_from_config`). A config that only has
-        the older Qt-side radial_menu.ai_links key is shown from that once and
-        moves into the slice on the next save. No links at all shows the AI
-        defaults, exactly like an empty list does on the wheel.
+    @pyqtSlot(int, result="QVariant")
+    def linksFor(self, row):
+        """Rows for the quick-links editor of slice `row`: {name, url, icon, command}.
+
+        Read from the slice's `submenu` list, which is what the overlay draws
+        (0.4.3, `submenu_from_config`). A config that only has the older
+        Qt-side radial_menu.ai_links key is shown from that once (first
+        submenu slice) and moves into the slice on the next save. No links at
+        all shows the AI defaults, exactly like an empty list on the wheel.
         """
-        row = self._submenu_row()
-        items = self._slices.slices()[row].get("submenu") if row >= 0 else None
-        if not items:
+        slices = self._slices.slices()
+        items = slices[row].get("submenu") if 0 <= row < len(slices) else None
+        if not items and row == self._submenu_row():
             legacy = self.get("radial_menu.ai_links")
             if isinstance(legacy, list):
                 items = [{"label": l.get("name", ""), "url": l.get("url", "")}
@@ -1692,32 +1733,46 @@ class Backend(QObject):
         return out[:4] or [{"name": l["name"], "url": l["url"], "icon": l["icon"], "command": ""}
                            for l in DEFAULT_AI_LINKS]
 
+    @staticmethod
+    def _clean_url(url):
+        """A usable link, or "" (a bare "https://" used to be saved and drawn)."""
+        from urllib.parse import urlparse
+        url = str(url or "").strip()
+        if not url:
+            return ""
+        if "://" not in url:
+            url = "https://" + url
+        parsed = urlparse(url)
+        return url if parsed.scheme and parsed.netloc else ""
+
     @pyqtSlot("QVariant")
     def setAiLinks(self, links):
-        """Persist the quick links into the submenu slice (the overlay reads at
-        most four). Link rows carry {name, url}; application rows carry
-        {name, command, icon} and launch like an exec slice."""
+        self.setLinksFor(self._submenu_row(), links)
+
+    @pyqtSlot(int, "QVariant")
+    def setLinksFor(self, row, links):
+        """Persist the quick links into submenu slice `row` (the overlay reads
+        at most four). Link rows carry {name, url}; application rows carry
+        {name, command, icon} and launch like an exec slice. Rows without a
+        name or without a real address are dropped."""
         items = []
         for l in (links or []):
             if not isinstance(l, dict):
                 continue
             name = str(l.get("name", "") or "").strip()
             command = str(l.get("command", "") or "").strip()
-            url = str(l.get("url", "") or "").strip()
+            url = self._clean_url(l.get("url", ""))
             if not name:
                 continue
             if command:
                 items.append({"label": name, "type": "exec", "command": command,
                               "icon": str(l.get("icon", "") or "")})
             elif url:
-                if "://" not in url:
-                    url = "https://" + url
                 items.append({"label": name, "url": url})
             if len(items) == 4:
                 break
-        row = self._submenu_row()
-        if row < 0:
-            self.toast.emit(_("Give a slice the AI Assistant action first"))
+        if row not in self._submenu_rows():
+            self.toast.emit(_("Give a slice a submenu first"))
             return
         radial_menu = self._cfg.get("radial_menu")
         if isinstance(radial_menu, dict):
@@ -2316,6 +2371,13 @@ class Backend(QObject):
             for name in names or []:
                 qicon = QIcon.fromTheme(name)
                 if qicon.isNull():
+                    # Not in the Qt icon theme: hicolor, pixmaps and Flatpak
+                    # exports hold most application icons (XDG fallback).
+                    found = _xdg_icon_file(name)
+                    if found:
+                        dest = dest_dir / (safe_id + os.path.splitext(found)[1])
+                        shutil.copyfile(found, dest)
+                        return str(dest)
                     continue
                 pm = qicon.pixmap(QSize(64, 64))
                 dest = dest_dir / (safe_id + ".png")
@@ -2631,7 +2693,14 @@ class Backend(QObject):
 
     @pyqtSlot(result="QVariant")
     def buttonActions(self):
-        return [{"id": i, "name": n, "icon": ic} for (i, n, ic) in BUTTON_ACTIONS]
+        # "custom" has no editor yet: offering it assigned a do-nothing action.
+        return [{"id": i, "name": n, "icon": ic} for (i, n, ic) in BUTTON_ACTIONS if i != "custom"]
+
+    @pyqtSlot(result="QVariant")
+    def gestureActions(self):
+        """Actions a directional drag can run (the ring cannot open mid-drag,
+        so the daemon ignores radial_menu there; do not offer it)."""
+        return [a for a in self.buttonActions() if a["id"] != "radial_menu"]
 
     # ---- plugins (~/.config/juhradial/plugins/<folder>/plugin.json) ----
     def _plugins(self):

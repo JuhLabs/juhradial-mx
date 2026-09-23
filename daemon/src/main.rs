@@ -678,6 +678,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Clone the haptic manager for the profile consumer before it is moved into
     // the D-Bus service below.
     let haptic_manager_for_profiles = haptic_manager_for_battery.clone();
+    // Button actions that talk to the mouse itself (SmartShift toggle).
+    juhradiald::actions::set_device_manager(haptic_manager_for_battery.clone());
 
     // Shared per-app hardware profile map. Created empty here, populated once
     // profiles.json is loaded below, and refreshed by `ReloadConfig` whenever
