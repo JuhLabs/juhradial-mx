@@ -203,3 +203,16 @@ def test_scroll_force_primes_saves_and_reverts_a_refusal(backend, monkeypatch):
     backend.daemon.answer([False])  # a connected mouse refused: back to 60
     assert backend.get("scroll.force") == 60 and backend.scrollForce["value"] == 60
     assert "force" in backend.hwErrors
+
+
+def test_try_now_holds_the_app_for_a_minute_and_stops(backend):
+    backend.tryAppProfile("firefox")
+    assert backend.daemon.pending[0][0] == "TryAppProfile"
+    backend.daemon.answer([True])
+    assert backend.trialApp == "firefox" and backend._trial_timer.isActive()
+    backend.stopAppProfileTrial()
+    assert backend.daemon.pending[0][0] == "StopAppProfileTrial"
+    assert backend.trialApp == "" and not backend._trial_timer.isActive()
+    backend.tryAppProfile("code")
+    backend.daemon.answer(None)  # service down: nothing is being tried
+    assert backend.trialApp == ""

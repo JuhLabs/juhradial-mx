@@ -199,6 +199,14 @@ impl KeyboardManager {
         self.device.as_mut().map(|d| d.hosts_table()).unwrap_or_default()
     }
 
+    /// The keyboard's BACKLIGHT2 feature index (its backlight-key events).
+    pub fn backlight_index(&mut self) -> Option<u8> {
+        if !self.ensure_connected() {
+            return None;
+        }
+        self.device.as_ref()?.backlight_feature_index()
+    }
+
     /// The keyboard's CHANGE_HOST feature index (its Easy-Switch events).
     pub fn change_host_index(&mut self) -> Option<u8> {
         if !self.ensure_connected() {
@@ -438,11 +446,34 @@ pub fn host_switch_in_report(report: &[u8], index: u8, feature: u8) -> Option<(u
         .then(|| (report[4], report[5]))
 }
 
+/// The keyboard's backlight keys (or its light sensor) changed the level:
+/// the BACKLIGHT2 event `[levels, level, status, effect]` (OpenLogi, Solaar).
+/// Returns `(level, levels, status)`.
+pub fn backlight_in_report(report: &[u8], index: u8, feature: u8) -> Option<(u8, u8, u8)> {
+    (feature != 0
+        && report.len() >= 8
+        && report[0] == 0x11
+        && report[1] == index
+        && report[2] == feature
+        && report[3] == 0
+        && (2..=32).contains(&report[4])
+        && report[5] < report[4])
+        .then(|| (report[5], report[4], report[6]))
+}
+
 /// What the keyboard's receiver reported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LinkEvent {
     Up,
     HostSwitch(u8, u8),
+    Backlight(u8, u8, u8),
+}
+
+/// Feature indices the reader matches events with (0 = not known yet).
+#[derive(Default)]
+struct EventIndices {
+    change_host: std::sync::atomic::AtomicU8,
+    backlight: std::sync::atomic::AtomicU8,
 }
 
 /// Quiet period after a link-up notice before the next one counts.
@@ -495,20 +526,30 @@ async fn run_link_watcher_linux(config: SharedConfig, connection: zbus::Connecti
 
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<LinkEvent>();
         let stop = Arc::new(AtomicBool::new(false));
-        let feature = Arc::new(std::sync::atomic::AtomicU8::new(0));
-        learn_keyboard(&feature).await;
+        let indices = Arc::new(EventIndices::default());
+        learn_keyboard(&indices).await;
         let reader_stop = stop.clone();
-        let reader_feature = feature.clone();
-        let reader = tokio::task::spawn_blocking(move || watch_for_link_up(&path, index, &tx, &reader_stop, &reader_feature));
+        let reader_indices = indices.clone();
+        let reader = tokio::task::spawn_blocking(move || watch_for_link_up(&path, index, &tx, &reader_stop, &reader_indices));
         loop {
             tokio::select! {
                 event = rx.recv() => match event {
                     Some(LinkEvent::Up) => {
                         announce_keyboard_battery(&connection).await;
-                        learn_keyboard(&feature).await;
+                        learn_keyboard(&indices).await;
                         // Link-ups that queued while this read ran (a first
                         // connect can take seconds) are answered by it.
                         while matches!(rx.try_recv(), Ok(LinkEvent::Up)) {}
+                    }
+                    Some(LinkEvent::Backlight(level, levels, status)) => {
+                        tracing::debug!(level, levels, status, "Keyboard backlight changed");
+                        if let Err(e) = connection
+                            .emit_signal(None::<&str>, crate::dbus::DBUS_PATH, crate::dbus::DBUS_INTERFACE,
+                                "KeyboardBacklightChanged", &(level, levels, status))
+                            .await
+                        {
+                            tracing::warn!(error = %e, "Failed to emit KeyboardBacklightChanged");
+                        }
                     }
                     Some(LinkEvent::HostSwitch(old, new)) => {
                         tracing::info!(old, new, "Keyboard Easy-Switch key");
@@ -540,27 +581,34 @@ fn move_together() -> bool {
         .unwrap_or(false)
 }
 
-/// While the keyboard is here: its CHANGE_HOST index (to recognise its
-/// Easy-Switch key) and, for moving together, its slots (it cannot be read
-/// once it has left). The index stays 0 while the keyboard sleeps.
+/// While the keyboard is here: the indices of its backlight and CHANGE_HOST
+/// events and, for moving together, its slots (it cannot be read once it has
+/// left). An index stays 0 while the keyboard sleeps and is learned later.
 #[cfg(target_os = "linux")]
-async fn learn_keyboard(feature: &Arc<std::sync::atomic::AtomicU8>) {
+async fn learn_keyboard(indices: &Arc<EventIndices>) {
     use std::sync::atomic::Ordering;
-    if !move_together() {
+    let together = move_together();
+    let need_backlight = indices.backlight.load(Ordering::Relaxed) == 0;
+    let need_host = together && indices.change_host.load(Ordering::Relaxed) == 0;
+    if !need_backlight && !together {
         return;
     }
-    let known = feature.load(Ordering::Relaxed) != 0;
     let learned = tokio::task::spawn_blocking(move || {
         let mut m = manager().lock().ok()?;
-        let index = if known { None } else { m.change_host_index() };
-        Some((index, m.hosts_table()))
+        let backlight = if need_backlight { m.backlight_index() } else { None };
+        let host = if need_host { m.change_host_index() } else { None };
+        let slots = if together { m.hosts_table() } else { Vec::new() };
+        Some((backlight, host, slots))
     })
     .await
     .ok()
     .flatten();
-    if let Some((index, slots)) = learned {
-        if let Some(index) = index {
-            feature.store(index, Ordering::Relaxed);
+    if let Some((backlight, host, slots)) = learned {
+        if let Some(i) = backlight {
+            indices.backlight.store(i, Ordering::Relaxed);
+        }
+        if let Some(i) = host {
+            indices.change_host.store(i, Ordering::Relaxed);
         }
         crate::easy_switch::remember_keyboard(slots);
     }
@@ -575,7 +623,7 @@ fn watch_for_link_up(
     index: u8,
     tx: &tokio::sync::mpsc::UnboundedSender<LinkEvent>,
     stop: &std::sync::atomic::AtomicBool,
-    feature: &std::sync::atomic::AtomicU8,
+    indices: &EventIndices,
 ) {
     use std::io::Read;
     use std::os::unix::fs::OpenOptionsExt;
@@ -613,8 +661,15 @@ fn watch_for_link_up(
             }
             Ok(0) => return,
             Ok(n) => {
-                if let Some((old, new)) = host_switch_in_report(&buf[..n], index, feature.load(Ordering::Relaxed)) {
-                    if tx.send(LinkEvent::HostSwitch(old, new)).is_err() {
+                let report = &buf[..n];
+                let event = host_switch_in_report(report, index, indices.change_host.load(Ordering::Relaxed))
+                    .map(|(old, new)| LinkEvent::HostSwitch(old, new))
+                    .or_else(|| {
+                        backlight_in_report(report, index, indices.backlight.load(Ordering::Relaxed))
+                            .map(|(level, levels, status)| LinkEvent::Backlight(level, levels, status))
+                    });
+                if let Some(event) = event {
+                    if tx.send(event).is_err() {
                         return;
                     }
                 }
@@ -815,6 +870,22 @@ async fn run_grabbed(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn backlight_keys_are_the_backlight2_event_of_our_keyboard() {
+        // OpenLogi's event vector [8, 5, 5, 2]: 8 levels, level 5, manual, breathing.
+        let mut event = [0u8; 20];
+        event[..8].copy_from_slice(&[0x11, 0x02, 0x0C, 0x00, 8, 5, 5, 2]);
+        assert_eq!(backlight_in_report(&event, 2, 0x0C), Some((5, 8, 5)));
+        assert_eq!(backlight_in_report(&event, 1, 0x0C), None, "another slot");
+        assert_eq!(backlight_in_report(&event, 2, 0), None, "index not learned yet");
+        let mut reply = event;
+        reply[3] = 0x21; // our own getBacklightInfo reply
+        assert_eq!(backlight_in_report(&reply, 2, 0x0C), None);
+        let mut bad = event;
+        bad[5] = 8; // level beyond the count
+        assert_eq!(backlight_in_report(&bad, 2, 0x0C), None);
+    }
 
     #[test]
     fn easy_switch_key_is_the_change_host_event_of_our_keyboard() {

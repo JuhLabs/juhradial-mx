@@ -36,9 +36,9 @@ _qt_app = QGuiApplication.instance() or QGuiApplication([])
 import bridge.backend as bk  # noqa: E402
 
 # Rust parameter type -> the bridge helper that produces that D-Bus type.
-WRAPPERS = {"u8": "_u8", "u16": "_u16"}
+WRAPPERS = {"u8": "_u8", "u16": "_u16", "u32": "_u32"}
 # Types a plain Python int can never satisfy and that have no helper yet.
-UNSUPPORTED = {"u32", "u64", "i16", "i64", "f32", "f64"}
+UNSUPPORTED = {"u64", "i16", "i64", "f32", "f64"}
 
 
 def _pascal(name):

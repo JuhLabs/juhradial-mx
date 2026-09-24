@@ -486,7 +486,8 @@ pub struct CustomAction {
     /// instead of tapping them on press.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub hold: bool,
-    /// `text`: the paste chord ("" = ctrl+v; terminals use ctrl+shift+v).
+    /// `text`: the paste chord ("" = ctrl+v; terminals use ctrl+shift+v;
+    /// "auto" picks by the window in front).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub paste_with: String,
 }

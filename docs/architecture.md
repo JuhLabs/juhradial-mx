@@ -205,6 +205,7 @@ Macros and gaming mode:
 | `ActiveProfileChanged` | `(s app)` | Application class whose per-app hardware profile was just applied on focus change; empty when the focus leaves every profiled app. |
 | `NewAppSeen` | `(s app)` | An application class (lowercased) focused for the first time since the daemon started; Settings offers a profile for it once. |
 | `KeyboardBatteryChanged` | `(y percent, b charging)` | MX Keys S battery, read the moment a key press re-links the keyboard's radio (receiver link-up notice); only while `keyboard.mx_keys.enabled` is on. |
+| `KeyboardBacklightChanged` | `(y level, y levels, y status)` | MX Keys S backlight level changed on the keyboard (its backlight keys or light sensor), from the BACKLIGHT2 event on the keyboard's receiver; only while `keyboard.mx_keys.enabled` is on. |
 
 The hardware-readback signals (`BatteryChanged`, `RatchetChanged`, `HostChanged`, `DpiChanged`) are pushed from the hidraw notification path and broadcast directly on the connection; they are declared in the interface so clients can introspect them.
 

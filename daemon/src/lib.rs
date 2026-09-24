@@ -16,6 +16,7 @@ pub mod evdev;
 pub mod gaming;
 pub mod gamemode;
 pub mod easy_switch;
+pub mod focus_trial;
 pub mod gesture;
 pub mod hidpp;
 pub mod hidraw;

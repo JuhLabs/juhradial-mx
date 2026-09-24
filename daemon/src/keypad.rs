@@ -44,7 +44,8 @@ pub fn set_focused_app(class: &str) {
     if let Ok(mut app) = FOCUSED_APP.lock() { *app = class.to_ascii_lowercase(); }
 }
 
-fn focused_app() -> String {
+/// Lowercased class of the window in front ("" before the first focus).
+pub fn focused_app() -> String {
     FOCUSED_APP.lock().map(|a| a.clone()).unwrap_or_default()
 }
 

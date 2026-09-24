@@ -937,7 +937,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // profile (volatile only). No-op when no profile matches, so the default
     // (empty hardware map) leaves device state untouched.
     {
-        let mut active_window_rx = active_window_rx;
         let hw_manager = haptic_manager_for_profiles;
         // Read the live shared map (refreshed by ReloadConfig) instead of a
         // one-time snapshot, so UI saves take effect without a daemon restart.
@@ -970,13 +969,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Device state before the first profile applied: what leaving
             // profiled apps restores for settings config.json does not name.
             let mut baseline: Option<juhradiald::replay::DeviceState> = None;
-            while let Some(class) = active_window_rx.recv().await {
+            // App profiles "Try now" can stand in for the app in front.
+            let mut focus = juhradiald::focus_trial::FocusSource::new(active_window_rx);
+            while let Some(class) = focus.next().await {
                 if class == current_class {
                     continue;
                 }
                 current_class = class.clone();
                 juhradiald::keypad::set_focused_app(&class);
-                usage.focus(&class, std::time::Instant::now());
+                if !focus.in_trial() {
+                    usage.focus(&class, std::time::Instant::now());
+                }
 
                 // First focus of an application in this run: Settings decides
                 // whether to offer a profile for it (suppress list, existing

@@ -1032,6 +1032,23 @@ fn ydotool_edge_args(codes: &[u16], down: bool) -> Vec<String> {
     args
 }
 
+/// Window classes of terminals, where Ctrl+V is a control character and the
+/// paste shortcut is Ctrl+Shift+V.
+const TERMINAL_CLASSES: &[&str] = &[
+    "konsole", "org.kde.konsole", "yakuake", "org.kde.yakuake", "gnome-terminal", "gnome-terminal-server",
+    "org.gnome.terminal", "org.gnome.console", "kgx", "org.gnome.ptyxis", "app.devsuite.ptyxis", "ptyxis",
+    "com.mitchellh.ghostty", "ghostty", "kitty", "alacritty", "org.wezfurlong.wezterm", "wezterm", "foot",
+    "footclient", "xterm", "uxterm", "tilix", "com.gexperts.tilix", "terminator", "xfce4-terminal",
+    "lxterminal", "qterminal", "mate-terminal", "io.elementary.terminal", "terminology", "urxvt",
+    "com.raggesilver.blackbox", "cosmic-term", "com.system76.cosmicterm", "rio", "tabby",
+];
+
+/// The paste chord "auto" uses in the window of `class`.
+pub fn auto_paste_chord(class: &str) -> &'static str {
+    let class = class.to_ascii_lowercase();
+    if TERMINAL_CLASSES.contains(&class.as_str()) { "ctrl+shift+v" } else { "ctrl+v" }
+}
+
 /// Paste `text` into the focused window through the clipboard, then press
 /// Enter when asked. Layout-safe: typing through uinput maps characters through
 /// the keyboard layout and mangles / " @ on many layouts.
@@ -1087,7 +1104,11 @@ pub async fn paste_text(text: &str, paste_with: &str, enter: bool) -> Result<(),
     if !copied.success() {
         return Err(ActionError::ExecutionFailed(format!("{program} could not set the clipboard")));
     }
-    let chord = if paste_with.trim().is_empty() { "ctrl+v" } else { paste_with.trim() };
+    let chord = match paste_with.trim() {
+        "" => "ctrl+v",
+        "auto" => auto_paste_chord(&crate::keypad::focused_app()),
+        chord => chord,
+    };
     ActionExecutor::execute_shortcut(chord, 1).await?;
     if enter {
         // Let the target take the paste before the Enter arrives.
@@ -1865,5 +1886,14 @@ mod tests {
         assert!(ydotool_horizontal_scroll_args(0).is_none());
     }
 
-
+    #[test]
+    fn automatic_paste_uses_the_terminal_chord_only_in_terminals() {
+        for terminal in ["org.kde.konsole", "Alacritty", "com.mitchellh.ghostty", "kitty", "foot"] {
+            assert_eq!(auto_paste_chord(terminal), "ctrl+shift+v", "{terminal}");
+        }
+        // The ChatGPT app binds Ctrl+Shift+V to voice chat: apps get Ctrl+V.
+        for app in ["chatgpt", "com.anthropic.claude", "firefox", "code", ""] {
+            assert_eq!(auto_paste_chord(app), "ctrl+v", "{app}");
+        }
+    }
 }

@@ -847,6 +847,11 @@ def _u16(v):
     return QDBusArgument(max(0, min(65535, int(v))), QMetaType.Type.UShort.value)
 
 
+def _u32(v):
+    """A D-Bus uint32 (`u`); see _u8."""
+    return QDBusArgument(max(0, min(4294967295, int(v))), QMetaType.Type.UInt.value)
+
+
 def _to_int(v, default=0):
     """Coerce a D-Bus scalar to int. The 'y' byte type arrives as bytes."""
     if isinstance(v, (bytes, bytearray)):
@@ -879,6 +884,7 @@ class Daemon(QObject):
     gamingModeChanged = pyqtSignal(bool)
     newAppSeen = pyqtSignal(str)
     keyboardBatteryChanged = pyqtSignal(int, bool)
+    keyboardBacklightChanged = pyqtSignal(int, int, int)
     linkChanged = pyqtSignal(str, str)
     buttonPressed = pyqtSignal(int)
     macroPlayback = pyqtSignal(bool)
@@ -914,6 +920,8 @@ class Daemon(QObject):
         self._bus.connect("", OBJ_PATH, IFACE, "NewAppSeen", self._on_new_app)
         # The keyboard linked up (a key press) and the daemon read its battery.
         self._bus.connect("", OBJ_PATH, IFACE, "KeyboardBatteryChanged", self._on_kb_battery)
+        # The keyboard's backlight keys changed its level.
+        self._bus.connect("", OBJ_PATH, IFACE, "KeyboardBacklightChanged", self._on_kb_backlight)
         # Mouse reachability (connected/asleep/away/offline).
         self._bus.connect("", OBJ_PATH, IFACE, "DeviceConnectionChanged", self._on_link)
         # A physical button went down (the Buttons tab lights its pin).
@@ -1048,6 +1056,12 @@ class Daemon(QObject):
         a = msg.arguments()
         if len(a) >= 2:
             self.keyboardBatteryChanged.emit(_to_int(a[0]), bool(a[1]))
+
+    @pyqtSlot(QDBusMessage)
+    def _on_kb_backlight(self, msg):
+        a = msg.arguments()
+        if len(a) >= 3:
+            self.keyboardBacklightChanged.emit(_to_int(a[0]), _to_int(a[1]), _to_int(a[2]))
 
     @pyqtSlot(QDBusMessage)
     def _on_link(self, msg):
@@ -1463,6 +1477,7 @@ class Backend(QObject):
         self._kb_info = None
         self._kb_last_battery = 0
         self.daemon.keyboardBatteryChanged.connect(self._on_keyboard_battery)
+        self.daemon.keyboardBacklightChanged.connect(self._on_keyboard_backlight)
         self.daemon.linkChanged.connect(self._set_link_live)
         self.daemon.macroPlayback.connect(self._set_macro_running)
         self._active_profile = ""
@@ -2419,6 +2434,43 @@ class Backend(QObject):
         self._active_profile = app
         self.liveChanged.emit()
 
+    # ---- App profiles "Try now" ----
+    TRIAL_SECONDS = 60
+
+    @pyqtProperty(str, notify=liveChanged)
+    def trialApp(self):
+        """The app whose profile is being tried right now ("" = none)."""
+        return getattr(self, "_trial_app", "")
+
+    @pyqtSlot(str)
+    def tryAppProfile(self, app):
+        """Act as if `app` were in front for a minute, so its buttons, ring
+        and pointer settings can be tried from here."""
+        def done(r):
+            if not (r and bool(r[0])):
+                self.notify(_("Could not try the profile. Is the JuhRadial service running?"), "danger")
+                return
+            self._trial_app = app
+            if getattr(self, "_trial_timer", None) is None:
+                self._trial_timer = QTimer(self)
+                self._trial_timer.setSingleShot(True)
+                self._trial_timer.timeout.connect(self._end_trial)
+            self._trial_timer.start(self.TRIAL_SECONDS * 1000)
+            self.liveChanged.emit()
+            self.notify(_("Trying this profile for a minute: use the mouse and the ring now."), "info")
+        self.daemon.call_then("TryAppProfile", done, app, _u32(self.TRIAL_SECONDS))
+
+    @pyqtSlot()
+    def stopAppProfileTrial(self):
+        self.daemon.call_then("StopAppProfileTrial", lambda _r: None)
+        self._end_trial()
+
+    def _end_trial(self):
+        if getattr(self, "_trial_timer", None) is not None:
+            self._trial_timer.stop()
+        self._trial_app = ""
+        self.liveChanged.emit()
+
     # ---- getting started (Dashboard checklist) ----
     def _on_menu_opened(self):
         if not self.get("app.onboarding.ring", False):
@@ -3266,6 +3318,19 @@ class Backend(QObject):
                      "sleeping": False, "pending": False, "lastBattery": pct})
         self._kb_info = info
         self._maybe_kb_low_notify(pct, bool(charging))
+        self.keyboardInfoReady.emit(info)
+
+    def _on_keyboard_backlight(self, level, levels, status):
+        """KeyboardBacklightChanged: the F-row backlight keys (or the light
+        sensor) changed the level; the Devices card follows without a read."""
+        info = dict(self._kb_info or {})
+        backlight = dict(info.get("backlight") or {})
+        if not backlight.get("ok") or levels < 2:
+            return  # nothing shown yet; the next full read brings it
+        backlight.update(level=level, levels=levels, status=status,
+                         percent=round(level * 100 / (levels - 1)))
+        info.update(backlight=backlight, present=True, sleeping=False)
+        self._kb_info = info
         self.keyboardInfoReady.emit(info)
 
     @pyqtSlot()
@@ -5216,7 +5281,7 @@ class Backend(QObject):
         if kind == "text":
             if obj.get("enter"):
                 out["enter"] = True
-            if obj.get("paste_with") in ("ctrl+v", "ctrl+shift+v"):
+            if obj.get("paste_with") in ("auto", "ctrl+v", "ctrl+shift+v"):
                 out["paste_with"] = obj["paste_with"]
         return out
 

@@ -15,7 +15,7 @@ B.Popup {
     property string kind: "shortcut"   // shortcut | app | command | url | macro | plugin | text
     property bool hold: false           // shortcut: keys stay down while the button is held
     property bool pressEnter: false     // text: press Enter after pasting
-    property string pasteWith: ""       // text: "" (Ctrl+V) or "ctrl+shift+v" (terminals)
+    property string pasteWith: "auto"   // text: "auto" (by app), "" (Ctrl+V) or "ctrl+shift+v"
     property string value: ""
     property string label: ""
     property string icon: ""
@@ -36,7 +36,7 @@ B.Popup {
         ed.scope = scope; ed.slot = slot; ed.buttonName = name
         var c = readAction ? readAction(scope, slot) : Backend.customAction(scope, slot)
         ed.value = c.value || ""; ed.label = c.label || ""; ed.icon = c.icon || ""
-        ed.hold = !!c.hold; ed.pressEnter = !!c.enter; ed.pasteWith = c.paste_with || ""
+        ed.hold = !!c.hold; ed.pressEnter = !!c.enter; ed.pasteWith = c.kind === "text" ? (c.paste_with || "") : "auto"
         // An application is a command with the app's name and icon.
         ed.kind = (c.kind === "command" && ed.icon !== "") ? "app" : (c.kind || "shortcut")
         ed._loadLists()
@@ -181,14 +181,15 @@ B.Popup {
             visible: ed.kind === "text"
             width: parent.width
             accessibleName: qsTr("Paste with")
-            model: [{ id: "", name: qsTr("Ctrl+V (apps)") }, { id: "ctrl+shift+v", name: qsTr("Ctrl+Shift+V (terminals)") }]
+            model: [{ id: "auto", name: qsTr("Automatic") }, { id: "", name: qsTr("Ctrl+V") },
+                    { id: "ctrl+shift+v", name: qsTr("Ctrl+Shift+V") }]
             currentId: ed.pasteWith
             onActivated: (id) => ed.pasteWith = id
         }
         Text {
             width: parent.width; wrapMode: Text.WordWrap
             visible: ed.kind === "text"
-            text: qsTr("Pasted through the clipboard, so every keyboard layout gets the exact characters.")
+            text: qsTr("Pasted through the clipboard, so every keyboard layout gets the exact characters. Automatic uses Ctrl+Shift+V in terminals and Ctrl+V everywhere else.")
             color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
         }
         SettingRow {

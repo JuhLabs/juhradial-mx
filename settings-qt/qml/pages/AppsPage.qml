@@ -297,6 +297,13 @@ Item {
                 Divider {}
                 Row {
                     spacing: Theme.gapS
+                    // Try the profile without switching windows (a minute).
+                    PrimaryButton {
+                        readonly property bool trying: Backend.trialApp === card.p.app
+                        text: trying ? qsTr("Stop trying") : qsTr("Try now")
+                        ghost: !trying
+                        onClicked: trying ? Backend.stopAppProfileTrial() : Backend.tryAppProfile(card.p.app)
+                    }
                     PrimaryButton {
                         text: qsTr("Copy to another app"); ghost: true
                         onClicked: { page.pickFor = "copy:" + card.p.app; picker.open() }

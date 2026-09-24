@@ -486,6 +486,18 @@ impl JuhRadialService {
     /// Called by the persistent KWin active-window script to report the focused
     /// window's resource class. Forwarded to the per-app hardware-profile
     /// consumer. The send is synchronous and never blocks the zbus executor.
+    /// App profiles "Try now": act as if `class` were in front for `seconds`
+    /// (at most 300), so its profile can be tried from Settings.
+    async fn try_app_profile(&self, class: String, seconds: u32) -> fdo::Result<bool> {
+        tracing::info!(%class, seconds, "Trying an app profile");
+        Ok(crate::focus_trial::start(&class, seconds))
+    }
+
+    /// End an app profile trial now.
+    async fn stop_app_profile_trial(&self) -> fdo::Result<bool> {
+        Ok(crate::focus_trial::stop())
+    }
+
     async fn report_active_window(&self, class: String) -> fdo::Result<()> {
         let class = class.to_lowercase();
         tracing::debug!(class = %class, "ReportActiveWindow called");

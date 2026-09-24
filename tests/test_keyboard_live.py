@@ -68,3 +68,15 @@ def test_keyboard_battery_push_ignores_empty_readings(backend):
 def test_keyboard_battery_signal_is_subscribed_with_an_empty_service_name():
     src = (REPO_ROOT / "settings-qt" / "bridge" / "backend.py").read_text(encoding="utf-8")
     assert 'self._bus.connect("", OBJ_PATH, IFACE, "KeyboardBatteryChanged", self._on_kb_battery)' in src
+
+
+def test_backlight_keys_move_the_card_without_a_read(backend):
+    seen = _kb_updates(backend)
+    backend.daemon.keyboardBacklightChanged.emit(3, 8, 4)
+    assert seen == []  # nothing shown yet: the next full read brings it
+    backend._kb_info = {"present": True, "backlight": {"ok": True, "level": 7, "levels": 8, "percent": 100}}
+    backend.daemon.keyboardBacklightChanged.emit(3, 8, 4)
+    light = seen[-1]["backlight"]
+    assert (light["level"], light["levels"], light["percent"], light["status"]) == (3, 8, 43, 4)
+    src = (REPO_ROOT / "settings-qt" / "bridge" / "backend.py").read_text(encoding="utf-8")
+    assert 'self._bus.connect("", OBJ_PATH, IFACE, "KeyboardBacklightChanged", self._on_kb_backlight)' in src
