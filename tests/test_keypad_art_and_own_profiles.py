@@ -102,7 +102,7 @@ def test_own_app_profiles_group_pages_with_names_and_icons(backend, monkeypatch)
     monkeypatch.setattr(bk.Backend, "appClassFor", lambda self, i: "kate" if "kate" in i else "")
     backend.addKeypadPage("Everyday")
     assert backend.addKeypadAppProfile("org.kde.kate.desktop")
-    assert backend.addKeypadGroupPage("Kate 2", ["kate"])
+    assert backend.addKeypadGroupPage("Kate 2", ["kate"], "")
     assert backend.keypadPages[1] == {**backend.keypadPages[1], "name": "Kate", "apps": ["kate"]}
     groups = backend.keypadGroups()
     assert [g["name"] for g in groups] == ["All apps", "Kate"]
@@ -123,7 +123,7 @@ def test_exported_pack_round_trips_and_never_imports_foreign_commands(backend, t
     backend.listApplications = lambda: apps
     gif = tmp_path / "anim.gif"
     _gif(gif, ["#ff0000", "#00ff00"])
-    backend.addKeypadGroupPage("Mine", ["kate"])
+    backend.addKeypadGroupPage("Mine", ["kate"], "")
     backend.saveKeypadKey(0, 1, {"action": "custom", "label": "Kate", "icon": "",
                                  "custom": {"kind": "command", "value": "kate"}})
     backend.saveKeypadKey(0, 2, {"action": "custom", "label": "Oops", "icon": "",
@@ -147,3 +147,25 @@ def test_exported_pack_round_trips_and_never_imports_foreign_commands(backend, t
     assert keys[2]["art"] == "minimal/send" and keys[2]["custom"]["kind"] == "text"
     assert keys[3]["plate"].endswith(".gif")
     assert (tmp_path / "keypad/plates/p1-k4.anim").is_file()
+
+
+def test_cli_profiles_that_share_terminals_stay_apart(backend, monkeypatch):
+    # Claude Code and Codex CLI both follow terminals: adding one must not
+    # mark the other added, and each keeps its own group on the Pages card.
+    monkeypatch.setattr(bk.Backend, "_has_command", staticmethod(lambda name: name == "claude"))
+    rows = {r["id"]: r for r in backend.keypadProfiles()}
+    assert rows["claude-code"]["installed"] and not rows["codex-cli"]["installed"]
+    assert backend.applyKeypadProfile("claude-code")
+    rows = {r["id"]: r for r in backend.keypadProfiles()}
+    assert rows["claude-code"]["added"] and not rows["codex-cli"]["added"]
+    assert backend.applyKeypadProfile("codex-cli")
+    groups = [g for g in backend.keypadGroups() if g["apps"]]
+    assert [g["name"] for g in groups] == ["Claude Code", "Codex CLI"]
+    assert backend.addKeypadGroupPage("More", groups[1]["apps"], groups[1]["profile"])
+    assert backend.keypadGroups()[-1]["pages"] == [2, 3, 4]
+    # The talk key holds Space while pressed; prompts paste by the window.
+    talk = backend.keypadPages[0]["keys"][1]
+    assert talk["custom"] == {"kind": "shortcut", "value": "space", "hold": True}
+    assert backend.applyKeypadProfile("prompts")
+    assert backend.keypadPages[-1]["keys"][0]["custom"]["paste_with"] == "auto"
+    assert backend.keypadPages[-1]["keys"][0]["art"] == "artsy/rewind-push"

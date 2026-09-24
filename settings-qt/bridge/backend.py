@@ -1683,11 +1683,12 @@ class Backend(QObject):
 
     @pyqtSlot(str, result=bool)
     def addKeypadPage(self, name):
-        return self.addKeypadGroupPage(name, [])
+        return self.addKeypadGroupPage(name, [], "")
 
-    @pyqtSlot(str, "QVariant", result=bool)
-    def addKeypadGroupPage(self, name, apps):
-        """A new empty page that comes up with these apps ([] = all apps)."""
+    @pyqtSlot(str, "QVariant", str, result=bool)
+    def addKeypadGroupPage(self, name, apps, profile):
+        """A new empty page that comes up with these apps ([] = all apps), in
+        the group of built-in `profile` when given."""
         from bridge.keypad import empty_key
         if hasattr(apps, "toVariant"):
             apps = apps.toVariant()
@@ -1696,6 +1697,8 @@ class Backend(QObject):
         clean = sorted({str(a).strip().lower() for a in (apps or []) if str(a).strip()})
         if clean:
             entry["apps"] = clean
+            if profile:
+                entry["profile"] = str(profile)
         pages.append(entry)
         return self._save_keypad(pages, len(pages) - 1)
 
@@ -1707,7 +1710,7 @@ class Backend(QObject):
         if not cls:
             return False
         app = next((a for a in self.listApplications() if a.get("id") == desktop_id), {})
-        return self.addKeypadGroupPage(app.get("name") or cls, [cls])
+        return self.addKeypadGroupPage(app.get("name") or cls, [cls], "")
 
     @pyqtSlot(str, result=str)
     def importKeypadImage(self, url):
@@ -1987,18 +1990,32 @@ class Backend(QObject):
             apps = [str(a).lower() for a in prof.get("apps", [])]
             ids = {str(d).lower() for d in prof.get("desktop_ids", [])}
             used = sum(usage.get(a, 0) for a in apps)
-            added = bool(apps) and any(sorted(pg.get("apps", [])) == sorted(apps) for pg in pages)
+            added = any(pg.get("profile") == prof["id"] for pg in pages) or (bool(apps) and any(
+                "profile" not in pg and sorted(pg.get("apps", [])) == sorted(apps) for pg in pages))
+            # A CLI's profile follows terminals: it counts as installed only
+            # when the command is (terminal use alone says nothing about it).
+            commands = [str(c) for c in prof.get("commands", [])]
+            present = (any(self._has_command(c) for c in commands) or bool(ids & installed)) if commands \
+                else (not apps or bool(ids & installed) or used > 0)
             own = next((app_icons[str(d).lower()] for d in prof.get("desktop_ids", [])
                         if app_icons.get(str(d).lower())), "")
             icon, icon_kind = self._row_icon(own, prof.get("icon", ""))
             out.append({"id": prof["id"], "name": _(prof.get("name", prof["id"])),
                         "icon": icon, "iconKind": icon_kind,
                         "description": _(prof.get("description", "")),
-                        "installed": not apps or bool(ids & installed) or used > 0,
+                        "installed": present,
                         "minutes": used // 60, "added": added,
                         "general": not apps, "requires": list(prof.get("requires", []))})
         out.sort(key=lambda p: (not p["installed"], -p["minutes"], p["name"].lower()))
         return out
+
+    @staticmethod
+    def _has_command(name):
+        """Whether a command-line tool is installed (PATH, or the user-level
+        folders its installers use, which a desktop session's PATH may lack)."""
+        home = pathlib.Path.home()
+        return bool(shutil.which(name)) or any(
+            (home / d / name).is_file() for d in (".local/bin", ".npm-global/bin", ".bun/bin"))
 
     @pyqtSlot(str, result=bool)
     def applyKeypadProfile(self, profile_id):
@@ -2024,7 +2041,7 @@ class Backend(QObject):
                         key["art"] = raw["art"]
                 keys.append(key)
             keys += [empty_key() for _unused in range(9 - len(keys))]
-            entry = {"name": _(str(page.get("name", prof.get("name", "")))), "keys": keys}
+            entry = {"name": _(str(page.get("name", prof.get("name", "")))), "keys": keys, "profile": prof["id"]}
             if apps:
                 entry["apps"] = apps
             pages.append(entry)
@@ -2060,25 +2077,32 @@ class Backend(QObject):
         """The pages as they come up: the all-apps pages first, then one group
         per app set (a built-in profile's or the user's own), in page order."""
         pages = self.keypadPages
+        # One group per built-in profile added (two can share apps, like
+        # Claude Code and Codex CLI in terminals), else per app set.
         grouped = {}
         for i, page in enumerate(pages):
-            grouped.setdefault(tuple(sorted(page.get("apps", []))), []).append(i)
-        catalogue = {tuple(sorted(str(a).lower() for a in p.get("apps", []))): p
-                     for p in self._keypad_catalogue() if p.get("apps")}
+            apps = tuple(sorted(page.get("apps", [])))
+            key = (page.get("profile", "") if apps else "", apps)
+            grouped.setdefault(key, []).append(i)
+        by_id = {p["id"]: p for p in self._keypad_catalogue()}
+        by_apps = {tuple(sorted(str(a).lower() for a in p.get("apps", []))): p
+                   for p in self._keypad_catalogue() if p.get("apps")}
         installed = self._class_apps()
         out = []
-        for apps, indexes in sorted(grouped.items(), key=lambda kv: (bool(kv[0]), kv[1][0])):
+        for (profile_id, apps), indexes in sorted(grouped.items(), key=lambda kv: (bool(kv[0][1]), kv[1][0])):
             if not apps:
                 out.append({"name": _("All apps"), "desc": _("Shown while no app below is in front"),
-                            "icon": "input-keyboard-symbolic", "iconKind": "glyph", "apps": [], "pages": indexes})
+                            "icon": "input-keyboard-symbolic", "iconKind": "glyph", "apps": [], "pages": indexes,
+                            "profile": ""})
                 continue
-            prof = catalogue.get(apps) or {}
+            prof = by_id.get(profile_id) or (by_apps.get(apps) if not profile_id else None) or {}
             names = [installed[c]["name"] if c in installed else c for c in apps]
             app = next((installed[c] for c in apps if c in installed), {})
             icon, icon_kind = self._row_icon(app.get("icon", ""), prof.get("icon", "application-x-executable-symbolic"))
             out.append({"name": _(prof["name"]) if prof else names[0],
                         "desc": ", ".join(names[:3]) + (f" +{len(names) - 3}" if len(names) > 3 else ""),
-                        "icon": icon, "iconKind": icon_kind, "apps": list(apps), "pages": indexes})
+                        "icon": icon, "iconKind": icon_kind, "apps": list(apps), "pages": indexes,
+                        "profile": profile_id})
         return out
 
     @pyqtSlot(result="QVariant")

@@ -266,7 +266,7 @@ Item {
                                 }
                                 PrimaryButton {
                                     text: qsTr("Add page"); ghost: true; enabled: page.pages.length < 255
-                                    onClicked: Backend.addKeypadGroupPage(qsTr("New page"), group.modelData.apps)
+                                    onClicked: Backend.addKeypadGroupPage(qsTr("New page"), group.modelData.apps, group.modelData.profile)
                                 }
                                 IconButton {
                                     icon: "document-export"; tip: qsTr("Save these pages as a pack to share")

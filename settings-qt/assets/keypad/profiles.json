@@ -4045,6 +4045,1167 @@
     "https://pipewire.pages.freedesktop.org/wireplumber/man/wpctl.html"
    ],
    "notes": "Modelled on Logitech's default General profile, which Logitech describes only as 'multimedia actions, OS actions, application and file launchers, and an emoji launcher' (no per-key list is published). Volume/Mute/Screenshot use the built-in actions (XF86 volume keys show the desktop's OSD; Screenshot sends Print, which opens the GNOME/KDE Spectacle screenshot UI; sway and Hyprland have no default Print binding). Lock uses loginctl lock-session (needs a locker listening to logind, e.g. hypridle on Hyprland). Calculator launches kcalc, gnome-calculator, qalculate-gtk or xcalc. Transport uses playerctl because there is no built-in previous/next action and it works on every compositor. Files opens the home folder in the default file manager. No emoji key: there is no cross-desktop picker (KDE has plasma-emojier on meta+period; GTK's ctrl+period works only inside GTK text fields). SmartShift and DPI Cycle act on the connected MX mouse."
+  },
+  {
+   "id": "claude-code",
+   "name": "Claude Code",
+   "description": "Slash commands, hold-to-talk voice, modes and review for the Claude Code CLI in a terminal or VS Code.",
+   "icon": "artsy/claude",
+   "apps": [
+    "org.kde.konsole",
+    "konsole",
+    "org.gnome.terminal",
+    "gnome-terminal-server",
+    "org.gnome.console",
+    "kgx",
+    "org.gnome.ptyxis",
+    "app.devsuite.ptyxis",
+    "com.mitchellh.ghostty",
+    "ghostty",
+    "kitty",
+    "alacritty",
+    "org.wezfurlong.wezterm",
+    "foot",
+    "footclient",
+    "com.gexperts.tilix",
+    "tilix",
+    "code",
+    "code-oss",
+    "codium",
+    "vscodium",
+    "com.visualstudio.code"
+   ],
+   "desktop_ids": [],
+   "commands": [
+    "claude"
+   ],
+   "requires": [],
+   "pages": [
+    {
+     "name": "Claude Code",
+     "keys": [
+      {
+       "label": "Rewind",
+       "icon": "edit-undo-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/rewind",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/rewind"
+      },
+      {
+       "label": "Talk",
+       "icon": "media-record",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "space",
+        "hold": true
+       }
+      },
+      {
+       "label": "Voice",
+       "icon": "audio-volume-high-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/voice",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/voice"
+      },
+      {
+       "label": "Plan",
+       "icon": "document-edit-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/plan",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/plan"
+      },
+      {
+       "label": "Context",
+       "icon": "view-grid-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/context",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/context"
+      },
+      {
+       "label": "Yes",
+       "icon": "emblem-ok-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "Return"
+       }
+      },
+      {
+       "label": "Esc",
+       "icon": "window-close-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "Escape"
+       },
+       "art": "artsy/esc"
+      },
+      {
+       "label": "Effort",
+       "icon": "utilities-system-monitor-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/effort",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/effort"
+      },
+      {
+       "label": "Model",
+       "icon": "applications-science-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/model",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/model"
+      }
+     ]
+    },
+    {
+     "name": "Claude Code +",
+     "keys": [
+      {
+       "label": "New chat",
+       "icon": "document-new-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/clear",
+        "paste_with": "ctrl+shift+v"
+       }
+      },
+      {
+       "label": "Compact",
+       "icon": "zoom-fit-best",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/compact Keep the task goal, the list of files changed so far, the exact test and build commands, every decision and why, and what is still open. Condense exploration and failed attempts.",
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/compact"
+      },
+      {
+       "label": "Exit",
+       "icon": "window-close-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/exit",
+        "paste_with": "ctrl+shift+v"
+       }
+      },
+      {
+       "label": "Resume",
+       "icon": "history",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/resume",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/resume"
+      },
+      {
+       "label": "Mode",
+       "icon": "emblem-synchronizing-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "shift+Tab"
+       },
+       "art": "artsy/mode"
+      },
+      {
+       "label": "Diff",
+       "icon": "view-dual-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/diff",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       }
+      },
+      {
+       "label": "Usage",
+       "icon": "battery-good-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/usage",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/usage"
+      },
+      {
+       "label": "Review",
+       "icon": "edit-find-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/review",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/review"
+      },
+      {
+       "label": "Copy",
+       "icon": "edit-copy-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/copy",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "claude-app",
+   "name": "Claude app",
+   "description": "Chats, search, model and thinking, plus the Code tab's panes, for the Claude desktop app.",
+   "icon": "artsy/claude",
+   "apps": [
+    "com.anthropic.claude",
+    "claude-desktop",
+    "claude"
+   ],
+   "desktop_ids": [
+    "com.anthropic.Claude.desktop",
+    "claude-desktop.desktop",
+    "io.github.aaddrick.claude-desktop-debian.desktop"
+   ],
+   "requires": [],
+   "pages": [
+    {
+     "name": "Claude",
+     "keys": [
+      {
+       "label": "New chat",
+       "icon": "list-add-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+n"
+       },
+       "art": "artsy/claude"
+      },
+      {
+       "label": "Search",
+       "icon": "system-search-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+k"
+       }
+      },
+      {
+       "label": "Commands",
+       "icon": "go-jump",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+k"
+       }
+      },
+      {
+       "label": "Upload",
+       "icon": "upload",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+u"
+       }
+      },
+      {
+       "label": "Thinking",
+       "icon": "applications-science-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+e"
+       },
+       "art": "artsy/brain"
+      },
+      {
+       "label": "Model",
+       "icon": "applications-system-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+period"
+       },
+       "art": "artsy/model"
+      },
+      {
+       "label": "Stop",
+       "icon": "media-playback-stop-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "Escape"
+       },
+       "art": "artsy/esc"
+      },
+      {
+       "label": "Sidebar",
+       "icon": "sidebar-show",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+b"
+       }
+      },
+      {
+       "label": "Side chat",
+       "icon": "chat",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+semicolon"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Claude Code tab",
+     "keys": [
+      {
+       "label": "Session",
+       "icon": "list-add-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+n"
+       }
+      },
+      {
+       "label": "Terminal",
+       "icon": "utilities-terminal-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+grave"
+       },
+       "art": "artsy/terminal"
+      },
+      {
+       "label": "Changes",
+       "icon": "view-dual-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+d"
+       }
+      },
+      {
+       "label": "Files",
+       "icon": "folder-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+f"
+       }
+      },
+      {
+       "label": "Mode",
+       "icon": "emblem-synchronizing-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+m"
+       },
+       "art": "artsy/mode"
+      },
+      {
+       "label": "Model",
+       "icon": "applications-system-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+i"
+       },
+       "art": "artsy/model"
+      },
+      {
+       "label": "Effort",
+       "icon": "utilities-system-monitor-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+e"
+       },
+       "art": "artsy/effort"
+      },
+      {
+       "label": "View",
+       "icon": "view-paged-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+o"
+       }
+      },
+      {
+       "label": "Reopen",
+       "icon": "edit-undo-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+t"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "codex-app",
+   "name": "Codex app",
+   "description": "Codex, Chat and Work in the ChatGPT desktop app: panes, review, models, voice and navigation.",
+   "icon": "artsy/chatgpt",
+   "apps": [
+    "chatgpt",
+    "codex-desktop",
+    "chatgpt-desktop"
+   ],
+   "desktop_ids": [
+    "chatgpt.desktop",
+    "codex-desktop.desktop",
+    "chatgpt-desktop.desktop"
+   ],
+   "requires": [],
+   "pages": [
+    {
+     "name": "Codex",
+     "keys": [
+      {
+       "label": "Codex",
+       "icon": "applications-development-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "alt+3"
+       },
+       "art": "artsy/chatgpt"
+      },
+      {
+       "label": "New chat",
+       "icon": "list-add-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+n"
+       }
+      },
+      {
+       "label": "Side chat",
+       "icon": "chat",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+alt+s"
+       }
+      },
+      {
+       "label": "Terminal",
+       "icon": "utilities-terminal-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+grave"
+       },
+       "art": "artsy/terminal"
+      },
+      {
+       "label": "File tree",
+       "icon": "folder-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+e"
+       }
+      },
+      {
+       "label": "Find file",
+       "icon": "edit-find-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+p"
+       }
+      },
+      {
+       "label": "Review",
+       "icon": "view-dual-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+g"
+       },
+       "art": "artsy/review"
+      },
+      {
+       "label": "Panel",
+       "icon": "view-list-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+j"
+       }
+      },
+      {
+       "label": "Needs you",
+       "icon": "dialog-warning-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+alt+a"
+       }
+      }
+     ]
+    },
+    {
+     "name": "Chat",
+     "keys": [
+      {
+       "label": "Chat",
+       "icon": "chat",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "alt+1"
+       }
+      },
+      {
+       "label": "Work",
+       "icon": "applications-system-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "alt+2"
+       }
+      },
+      {
+       "label": "Temp chat",
+       "icon": "view-reveal",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+n"
+       }
+      },
+      {
+       "label": "Quick chat",
+       "icon": "go-jump",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+alt+n"
+       }
+      },
+      {
+       "label": "Model",
+       "icon": "applications-science-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+m"
+       },
+       "art": "artsy/model"
+      },
+      {
+       "label": "Voice",
+       "icon": "audio-volume-high-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+v"
+       },
+       "art": "artsy/voice"
+      },
+      {
+       "label": "Dictate",
+       "icon": "media-record",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+d"
+       }
+      },
+      {
+       "label": "Sidebar",
+       "icon": "sidebar-show",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+b"
+       }
+      },
+      {
+       "label": "Commands",
+       "icon": "system-run-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "ctrl+shift+p"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "prompts",
+   "name": "Prompts",
+   "description": "One-press prompts for AI coding agents: plan, test first, review and debugging. Pasted into Claude Code, Codex and the desktop apps.",
+   "icon": "artsy/brain",
+   "apps": [
+    "org.kde.konsole",
+    "konsole",
+    "org.gnome.terminal",
+    "gnome-terminal-server",
+    "org.gnome.console",
+    "kgx",
+    "org.gnome.ptyxis",
+    "app.devsuite.ptyxis",
+    "com.mitchellh.ghostty",
+    "ghostty",
+    "kitty",
+    "alacritty",
+    "org.wezfurlong.wezterm",
+    "foot",
+    "footclient",
+    "com.gexperts.tilix",
+    "tilix",
+    "code",
+    "code-oss",
+    "codium",
+    "vscodium",
+    "com.visualstudio.code",
+    "com.anthropic.claude",
+    "claude-desktop",
+    "claude",
+    "chatgpt",
+    "codex-desktop",
+    "chatgpt-desktop"
+   ],
+   "desktop_ids": [
+    "com.anthropic.Claude.desktop",
+    "claude-desktop.desktop",
+    "io.github.aaddrick.claude-desktop-debian.desktop",
+    "chatgpt.desktop",
+    "codex-desktop.desktop",
+    "chatgpt-desktop.desktop"
+   ],
+   "commands": [
+    "claude",
+    "codex"
+   ],
+   "requires": [],
+   "pages": [
+    {
+     "name": "Prompts",
+     "keys": [
+      {
+       "label": "Handoff",
+       "icon": "document-export",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Write a handoff note of at most 15 lines: what changed and in which files, what was verified with which exact commands, what is still open, and the single next command to run. I will clear the context and continue from that note, so do not start any new work.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/handoff"
+      },
+      {
+       "label": "Interview",
+       "icon": "help-about-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Before writing any code, decide whether this task is genuinely underspecified. If it is, ask me the missing questions one at a time with AskUserQuestion, then write the agreed spec to SPEC.md ending with an end-to-end verification step; if it is already clear, say so in one line and start.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/interview"
+      },
+      {
+       "label": "Teach me",
+       "icon": "dialog-information-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Before you make any change, explain in under ten lines how the relevant code works today and what the change will alter, naming the files you actually read. Then ask me one conceptual question about it and wait for my answer before editing.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/teach-me"
+      },
+      {
+       "label": "Plan first",
+       "icon": "document-edit-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Read the relevant files and write a short plan before editing: which files change, in what order, and the exact command that will prove it works. Wait for my approval before editing; if the whole diff fits in one sentence, say so and skip the plan.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/plan-first"
+      },
+      {
+       "label": "Test first",
+       "icon": "emblem-ok-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Write the failing test for this behavior before touching the implementation, run it, and paste the failure. Then make the smallest change that turns it green and run it again. Tests verify correctness and do not define the solution, so no special-casing of the test inputs.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/test-first"
+      },
+      {
+       "label": "Slice",
+       "icon": "crop",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Split this into the smallest slice that can be verified on its own, implement only that slice, run its check, and commit it with a one-line message. Then list the remaining slices and stop so I can pick the next one.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/small-slice"
+      },
+      {
+       "label": "Fresh eyes",
+       "icon": "view-reveal",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Launch a subagent with a fresh context and a model at least as strong as yours to review the diff against the task. Give it only the diff and the task, not your reasoning or conclusions, and tell it to report only gaps that affect correctness or the stated requirements. Fix the confirmed gaps and rerun the checks.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/fresh-eyes"
+      },
+      {
+       "label": "Surgical",
+       "icon": "tool-pen",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Keep this change to exactly what the task needs: no refactors, no new abstractions, no extra files, and no fixes for unrelated things you notice; list those as follow-ups in your summary. When done, show git diff --stat and justify every hunk in one line, removing any hunk the task does not require.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/minimal-diff"
+      },
+      {
+       "label": "Go do it",
+       "icon": "system-run-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "You are operating autonomously: choose one approach, commit to it, and do every stated next step with tool calls before ending your turn instead of describing it. Open every file before you make a claim about it, and end with the exact commands you ran and their exit codes.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/go-do-it"
+      }
+     ]
+    },
+    {
+     "name": "Debug",
+     "keys": [
+      {
+       "label": "Assess",
+       "icon": "dialog-warning-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Stop and make no edits this turn. In five lines state what we know for certain, which hypotheses are ruled out, and what the last two attempts changed. If the last two attempts failed for the same reason, recommend rewinding to the last good checkpoint and a different approach instead of another patch.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/rewind-push"
+      },
+      {
+       "label": "Guard",
+       "icon": "system-lock-screen-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Turn the reproduction into a permanent regression test in the project's test suite, named after the bug it guards. Prove it fails without the fix by stashing the fix, prove it passes with the fix, then run the neighbouring test files and report the exact pass and fail counts.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/regression"
+      },
+      {
+       "label": "Security",
+       "icon": "system-lock-screen-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Review only the code changed in this task for injection, XSS, path traversal, hard-coded secrets, and unvalidated input at trust boundaries, and fix what you find with a targeted change. Verify that every new or changed dependency exists on its registry at the pinned version before you keep it.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/security"
+      },
+      {
+       "label": "Hypothesis",
+       "icon": "help-about-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "List at most three ranked hypotheses for the root cause, and for each state one observation that would confirm or refute it. Run the cheapest discriminating experiment first, report what it actually showed, and only then propose a fix.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/hypothesis"
+      },
+      {
+       "label": "Locate",
+       "icon": "zoom-in-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Do not edit yet. Localize the fault in stages, first the files, then the functions, then the exact lines, using the stack trace and the failing test, and then read the full text of the few files that matter. Report each candidate location with your confidence and evidence, and wait for my go.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/locate"
+      },
+      {
+       "label": "Trace",
+       "icon": "debug",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Stop reasoning about what the code probably does and observe it: add temporary prints or run under the debugger at the suspected points, run the reproduction, and paste the actual values. Tell me where reality first diverges from what you expected, then remove the instrumentation.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/trace"
+      },
+      {
+       "label": "Reproduce",
+       "icon": "view-refresh-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Before changing any source file, reproduce the bug: write the smallest failing test or script that triggers it, run it, and paste the exact failing output. Confirm it fails for the reason I described and not for a setup error. If you cannot reproduce it, stop and tell me precisely what you need instead of guessing at a fix.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/reproduce"
+      },
+      {
+       "label": "Lock tests",
+       "icon": "system-lock-screen-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "The existing tests and the reproduction test are the specification: do not edit, delete, skip, mock away, or loosen any test, and do not special-case the test inputs. If you believe a test itself is wrong, stop, show the evidence, and ask me before touching it.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/tests-spec"
+      },
+      {
+       "label": "Prove it",
+       "icon": "emblem-ok-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "Show evidence, not assertions: run the tests, the typecheck, the linter, and the build, and paste each exact command with its exit code and the relevant output. If anything fails, fix the root cause and rerun; never suppress, skip, or weaken a check.",
+        "enter": true,
+        "paste_with": "auto"
+       },
+       "art": "artsy/prove-it"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "codex-cli",
+   "name": "Codex CLI",
+   "description": "Slash commands, voice, plan mode, reasoning effort and review for the OpenAI Codex CLI in a terminal or VS Code.",
+   "icon": "artsy/chatgpt",
+   "apps": [
+    "org.kde.konsole",
+    "konsole",
+    "org.gnome.terminal",
+    "gnome-terminal-server",
+    "org.gnome.console",
+    "kgx",
+    "org.gnome.ptyxis",
+    "app.devsuite.ptyxis",
+    "com.mitchellh.ghostty",
+    "ghostty",
+    "kitty",
+    "alacritty",
+    "org.wezfurlong.wezterm",
+    "foot",
+    "footclient",
+    "com.gexperts.tilix",
+    "tilix",
+    "code",
+    "code-oss",
+    "codium",
+    "vscodium",
+    "com.visualstudio.code"
+   ],
+   "desktop_ids": [],
+   "commands": [
+    "codex"
+   ],
+   "requires": [],
+   "pages": [
+    {
+     "name": "Codex CLI",
+     "keys": [
+      {
+       "label": "New chat",
+       "icon": "document-new-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/new",
+        "paste_with": "ctrl+shift+v"
+       }
+      },
+      {
+       "label": "Voice",
+       "icon": "audio-volume-high-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "F8"
+       },
+       "art": "artsy/voice"
+      },
+      {
+       "label": "Plan",
+       "icon": "document-edit-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/plan",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/plan"
+      },
+      {
+       "label": "Status",
+       "icon": "dialog-information-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/status",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/context"
+      },
+      {
+       "label": "Yes",
+       "icon": "emblem-ok-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "Return"
+       }
+      },
+      {
+       "label": "Effort -",
+       "icon": "go-down",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "alt+comma"
+       }
+      },
+      {
+       "label": "Esc",
+       "icon": "window-close-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "Escape"
+       },
+       "art": "artsy/esc"
+      },
+      {
+       "label": "Effort +",
+       "icon": "go-up",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "alt+period"
+       },
+       "art": "artsy/effort"
+      },
+      {
+       "label": "Model",
+       "icon": "applications-science-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/model",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/model"
+      }
+     ]
+    },
+    {
+     "name": "Codex CLI +",
+     "keys": [
+      {
+       "label": "Compact",
+       "icon": "zoom-fit-best",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/compact",
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/compact"
+      },
+      {
+       "label": "Exit",
+       "icon": "window-close-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/exit",
+        "paste_with": "ctrl+shift+v"
+       }
+      },
+      {
+       "label": "Resume",
+       "icon": "history",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/resume",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/resume"
+      },
+      {
+       "label": "Mode",
+       "icon": "emblem-synchronizing-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "shortcut",
+        "value": "shift+Tab"
+       },
+       "art": "artsy/mode"
+      },
+      {
+       "label": "Diff",
+       "icon": "view-dual-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/diff",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       }
+      },
+      {
+       "label": "Review",
+       "icon": "edit-find-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/review",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/review"
+      },
+      {
+       "label": "Usage",
+       "icon": "battery-good-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/usage",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/usage"
+      },
+      {
+       "label": "Copy",
+       "icon": "edit-copy-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/copy",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       }
+      },
+      {
+       "label": "Permission",
+       "icon": "system-lock-screen-symbolic",
+       "action": "custom",
+       "custom": {
+        "kind": "text",
+        "value": "/permissions",
+        "enter": true,
+        "paste_with": "ctrl+shift+v"
+       },
+       "art": "artsy/gate"
+      }
+     ]
+    }
+   ]
   }
  ]
 }
