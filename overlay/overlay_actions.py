@@ -856,15 +856,18 @@ def _requires_settings_relaunch():
 def _settings_qt_script():
     """Path of the Qt/QML settings app when it is present and runnable, else None.
 
-    The Qt app needs PyQt6's QML module (and Qt >= 6.5 at runtime); when that
-    import fails the GTK settings app stays the target, as in the launcher
-    script. JUHRADIAL_SETTINGS=gtk forces the GTK app.
+    The Qt app needs PyQt6's QML module and Qt 6.9 or newer at runtime
+    (RectangularShadow, VectorImage); otherwise the GTK settings app stays the
+    target, as in the launcher script. JUHRADIAL_SETTINGS=gtk forces the GTK app.
     """
     if os.environ.get("JUHRADIAL_SETTINGS") == "gtk":
         return None
     try:
         import PyQt6.QtQml  # noqa: F401
+        from PyQt6.QtCore import qVersion
     except ImportError:
+        return None
+    if tuple(int(x) for x in qVersion().split(".")[:2]) < (6, 9):
         return None
     here = os.path.dirname(os.path.abspath(__file__))
     for candidate in (

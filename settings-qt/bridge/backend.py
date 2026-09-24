@@ -596,6 +596,24 @@ UPDATE_CACHE = pathlib.Path(os.environ.get("XDG_CACHE_HOME", str(pathlib.Path.ho
 UPDATE_INTERVAL_S = 24 * 3600
 
 
+_DESKTOP_APP_INFO = []
+
+
+def _desktop_app_info():
+    """GLib's DesktopAppInfo class: GioUnix's (Gio's alias is deprecated since
+    GLib 2.86), or Gio's where the GLib predates the GioUnix namespace."""
+    if not _DESKTOP_APP_INFO:
+        import gi
+        try:
+            gi.require_version("GioUnix", "2.0")
+            from gi.repository import GioUnix
+            _DESKTOP_APP_INFO.append(GioUnix.DesktopAppInfo)
+        except (ImportError, ValueError):
+            from gi.repository import Gio
+            _DESKTOP_APP_INFO.append(Gio.DesktopAppInfo)
+    return _DESKTOP_APP_INFO[0]
+
+
 def version_tuple(v):
     """'v0.4.5' / '0.4.5' -> (0, 4, 5); anything unparsable -> ()."""
     parts = re.findall(r"\d+", str(v or "").lstrip("vV").split("-")[0])
@@ -606,7 +624,7 @@ def is_newer_version(latest, current):
     """True when release `latest` supersedes `current`. A pre-release
     ('0.4.5-beta.1') sorts below its final release ('0.4.5'), as in SemVer."""
     lt, ct = version_tuple(latest), version_tuple(current)
-    if not lt:
+    if not lt or not ct:
         return False
     if lt != ct:
         return lt > ct
@@ -1953,10 +1971,12 @@ class Backend(QObject):
         key = self._clean_keypad_key(own)
         if key is None:
             return None
-        if key["custom"].get("kind") == "command" and key["custom"].get("value") not in {a.get("command") for a in apps}:
-            # A shared pack must not bind a shell command to a harmless-looking
-            # key: only launches of apps installed here come along.
-            key.update(action="none", custom={})
+        app_commands = {a.get("command") for a in apps}
+        for part in [key, *key.get("states", [])]:
+            if part["custom"].get("kind") == "command" and part["custom"].get("value") not in app_commands:
+                # A shared pack must not bind a shell command to a harmless-looking
+                # key or its second state: only launches of apps installed here come along.
+                part.update(action="none", custom={})
         icon = key.get("icon", "")
         missing_icon = icon.startswith("/") and not pathlib.Path(icon).is_file()
         if image and (raw.get("picture") or missing_icon):
@@ -2023,10 +2043,14 @@ class Backend(QObject):
                         inside = img.resolve().is_relative_to(pack.resolve())
                         img = str(img) if chosen and inside and img.is_file() else ""
                         key = self._own_pack_key(raw, img, apps, pack) or self._pack_key(raw, img, apps)
-                        # Nor may it paste a line plus Enter into a terminal:
-                        # its text keys come without Enter (second states too).
+                        # Nor may it paste a line plus Enter into a terminal: its
+                        # text keys come without Enter or line breaks (second states too).
                         for part in [key, *key.get("states", [])]:
-                            no_enter = part["custom"].pop("enter", False) or no_enter
+                            custom = part["custom"]
+                            no_enter = custom.pop("enter", False) or no_enter
+                            if custom.get("kind") == "text" and re.search(r"[\r\n]", custom["value"]):
+                                custom["value"] = re.sub(r"\s*[\r\n]\s*", " ", custom["value"]).strip()
+                                no_enter = True
                         keys[slot] = key
                 from bridge.keypad import empty_key
                 profiles = page.get("mac_profiles")
@@ -2060,7 +2084,7 @@ class Backend(QObject):
                 shutil.rmtree(work, ignore_errors=True)
         message = _("Pack imported: {n} pages. Keys without a Linux action keep their picture for you to assign.")
         if no_enter:
-            message += " " + _("Text keys come with Press Enter after turned off, so a pack cannot run a line in a terminal.")
+            message += " " + _("Text keys come with Press Enter after turned off and without line breaks, so a pack cannot run a line in a terminal.")
         self.notify(message.format(n=len(pages) - first), "success")
         return True
 
@@ -3778,7 +3802,7 @@ class Backend(QObject):
             from gi.repository import Gio
             for candidate in (app, app.lower()):
                 try:
-                    info = Gio.DesktopAppInfo.new(candidate + ".desktop")
+                    info = _desktop_app_info().new(candidate + ".desktop")
                 except Exception:
                     info = None
                 if info is not None and isinstance(info.get_icon(), Gio.ThemedIcon):
@@ -3884,19 +3908,18 @@ class Backend(QObject):
     def _app_display_name(app):
         """The desktop entry's name for a window class, else the class."""
         try:
-            from gi.repository import Gio
             info = None
             for candidate in (app, app.lower()):
                 try:
-                    info = Gio.DesktopAppInfo.new(candidate + ".desktop")
+                    info = _desktop_app_info().new(candidate + ".desktop")
                 except Exception:
                     info = None
                 if info is not None:
                     break
             if info is None:
-                hits = Gio.DesktopAppInfo.search(app) or []
+                hits = _desktop_app_info().search(app) or []
                 if hits and hits[0]:
-                    info = Gio.DesktopAppInfo.new(hits[0][0])
+                    info = _desktop_app_info().new(hits[0][0])
             if info is not None and info.get_display_name():
                 return info.get_display_name()
         except Exception:
@@ -4184,8 +4207,7 @@ class Backend(QObject):
         StartupWMClass, else the desktop id's last part (org.gnome.Nautilus
         -> nautilus), lowercase like the focus tracker reports it."""
         try:
-            from gi.repository import Gio
-            app = Gio.DesktopAppInfo.new(desktop_id) if desktop_id else None
+            app = _desktop_app_info().new(desktop_id) if desktop_id else None
             wm = app.get_startup_wm_class() if app else None
         except Exception:
             wm = None
@@ -4943,7 +4965,7 @@ class Backend(QObject):
             try:
                 if not app.should_show():
                     continue
-                desktop = isinstance(app, Gio.DesktopAppInfo)
+                desktop = isinstance(app, _desktop_app_info())
                 if desktop and app.get_boolean("Terminal"):
                     continue
                 command = self._command_for_exec(
@@ -4972,7 +4994,7 @@ class Backend(QObject):
         return the absolute path, or "" when the icon cannot be resolved."""
         try:
             from gi.repository import Gio
-            app = Gio.DesktopAppInfo.new(app_id) if app_id else None
+            app = _desktop_app_info().new(app_id) if app_id else None
         except Exception:
             return ""
         icon = app.get_icon() if app is not None else None

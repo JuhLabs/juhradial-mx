@@ -411,6 +411,25 @@ pub const RECEIVER_ERR_CONNECT_FAIL: u8 = 0x04;
 /// HID++ 1.0 receiver error (`0x8F`) answering one of our requests. The
 /// receiver speaks for a paired device that cannot answer; the code sits at
 /// byte 5 (0x04 connection failed, 0x09 resource error, ...).
+/// The software id for our next request: 2..=13 in turn (0 marks device
+/// notifications, 1 is the kernel's hid-logitech-hidpp driver's, 0x0E our
+/// haptic play's). Requests in flight at the same time on the same device (the
+/// battery poll and a reconnect's feature discovery on another handle, or the
+/// kernel's own) then never take each other's replies: a ROOT getFeature reply
+/// does not say which feature it answers.
+fn next_software_id() -> u8 {
+    static NEXT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 12 + 2
+}
+
+/// Whether an error report (HID++ 2.0 `0xFF` or receiver `0x8F`) answers the
+/// request with this feature index and function/software-id byte: both echo
+/// them. Every hidraw fd sees every report, so another program's failed
+/// request to the same device must not end ours.
+fn answers_request(response: &[u8], feature_index: u8, fn_sw: u8) -> bool {
+    response.len() >= 5 && response[3] == feature_index && response[4] == fn_sw
+}
+
 fn receiver_error_code(response: &[u8], device_index: u8) -> Option<u8> {
     if response.len() >= 6
         && (response[0] == report_type::SHORT || response[0] == report_type::LONG)
@@ -1212,7 +1231,8 @@ impl HidppDevice {
         request[0] = report_type::SHORT;
         request[1] = self.device_index;
         request[2] = feature_index;
-        request[3] = (function << 4) | SOFTWARE_ID;
+        let sw_id = next_software_id();
+        request[3] = (function << 4) | sw_id;
 
         // Copy params (up to 3 bytes for short report)
         let param_len = params.len().min(3);
@@ -1258,7 +1278,7 @@ impl HidppDevice {
                         if response[1] == self.device_index
                             && response[2] == feature_index
                             && resp_function == function
-                            && resp_sw_id == SOFTWARE_ID
+                            && resp_sw_id == sw_id
                         {
                             tracing::debug!("HID++ request matched! Returning response");
                             self.last_receiver_error = None;
@@ -1268,7 +1288,10 @@ impl HidppDevice {
                         // Format: [report_type, device_idx, 0xFF, orig_feature_idx, orig_fn_sw, error_code, ...]
                         // Errors for another device on the same receiver
                         // (a pairing-table read, the keyboard) are not ours.
-                        if response[1] == self.device_index && response[2] == 0xFF {
+                        if response[1] == self.device_index
+                            && response[2] == 0xFF
+                            && answers_request(&response[..len], feature_index, (function << 4) | sw_id)
+                        {
                             let error_code = response[5];
                             let error_msg = match error_code {
                                 0x00 => "No error",
@@ -1295,7 +1318,10 @@ impl HidppDevice {
                         // HID++ 1.0 receiver error (0x8F): the paired device
                         // cannot answer (0x04 = radio parked). Remembered so
                         // callers can tell "asleep" from a real failure.
-                        if response[1] == self.device_index && response[2] == 0x8F {
+                        if response[1] == self.device_index
+                            && response[2] == 0x8F
+                            && answers_request(&response[..len], feature_index, (function << 4) | sw_id)
+                        {
                             if let Some(code) = receiver_error_code(&response[..len], self.device_index) {
                                 self.last_receiver_error = Some(code);
                             }
@@ -1307,7 +1333,7 @@ impl HidppDevice {
                             expected_dev = self.device_index,
                             expected_feat = feature_index,
                             expected_fn = function,
-                            expected_sw = SOFTWARE_ID,
+                            expected_sw = sw_id,
                             got_dev = response[1],
                             got_feat = response[2],
                             got_fn = resp_function,
@@ -1381,7 +1407,8 @@ impl HidppDevice {
         request[0] = report_type::LONG;
         request[1] = self.device_index;
         request[2] = feature_index;
-        request[3] = (function << 4) | SOFTWARE_ID;
+        let sw_id = next_software_id();
+        request[3] = (function << 4) | sw_id;
 
         // Copy params (up to 16 bytes for long report)
         let param_len = params.len().min(16);
@@ -1416,7 +1443,7 @@ impl HidppDevice {
                         && response[1] == self.device_index
                         && response[2] == feature_index
                         && resp_function == function
-                        && resp_sw_id == SOFTWARE_ID
+                        && resp_sw_id == sw_id
                     {
                         tracing::debug!("HID++ long request matched: {:02X?}", &response[..len]);
                         self.last_receiver_error = None;
@@ -1432,6 +1459,7 @@ impl HidppDevice {
                     if (response[0] == report_type::SHORT || response[0] == report_type::LONG)
                         && response[1] == self.device_index
                         && response[2] == 0xFF
+                        && answers_request(&response[..len], feature_index, (function << 4) | sw_id)
                     {
                         let error_code = response[5];
                         tracing::warn!(
@@ -1444,7 +1472,9 @@ impl HidppDevice {
                     // Receiver error (0x8F) for our device: fail now instead
                     // of waiting out the 1 s deadline (a parked mouse made
                     // every setCidReporting call cost a full second).
-                    if let Some(code) = receiver_error_code(&response[..len], self.device_index) {
+                    if let Some(code) = receiver_error_code(&response[..len], self.device_index)
+                        .filter(|_| answers_request(&response[..len], feature_index, (function << 4) | sw_id))
+                    {
                         self.last_receiver_error = Some(code);
                         tracing::debug!(code, "HID++ receiver error to long request: {:02X?}", &response[..len]);
                         return None;
@@ -3087,6 +3117,27 @@ mod button_divert_tests {
         assert_eq!(io.short_requests[1].params, vec![0, 0, 0]);
         assert_eq!(io.short_requests[3].params, vec![2, 0, 0]);
         assert!(io.long_requests.is_empty(), "the inventory scan must never write");
+    }
+
+    #[test]
+    fn every_request_gets_its_own_software_id_outside_the_reserved_ones() {
+        let ids: Vec<u8> = (0..300).map(|_| next_software_id()).collect();
+        assert!(ids.iter().all(|id| (2..=13).contains(id)), "not 0, 1 (kernel) or 0x0E (haptic play)");
+        assert!(ids.windows(2).all(|w| w[0] != w[1]), "two requests in a row never share an id");
+    }
+
+    #[test]
+    fn an_error_is_ours_only_when_it_echoes_our_request() {
+        // The owner's MX Master 4 log: another program's request to feature
+        // index 0x27 fn 2 (software id 1) failed while ours was pending.
+        let foreign = [0x11, 0x02, 0xFF, 0x27, 0x21, 0x05, 0x00];
+        assert!(!answers_request(&foreign, 0x13, 0x21));
+        assert!(!answers_request(&foreign, 0x27, 0x31));
+        assert!(answers_request(&foreign, 0x27, 0x21));
+        let parked = [0x10, 0x01, 0x8F, 0x00, 0x0D, 0x04, 0x00];
+        assert!(answers_request(&parked, 0x00, 0x0D));
+        assert!(!answers_request(&parked, 0x09, 0x0D));
+        assert!(!answers_request(&parked[..4], 0x00, 0x0D));
     }
 
     #[test]

@@ -5,8 +5,8 @@ The menu draws icon i at angle (i*45 - 90) deg (icon 0 = top) and centers each
 slice on its icon. So this renders 8 slices centered at i*45 (in the menu's
 atan2(dx,-dy) frame: 0 = up, clockwise), dividers at the 22.5 offsets, a
 transparent centre hole and transparent outside, at 1024x1024 to match the
-existing wheels. AI provides the material; geometry + transparency are exact, so
-buttons never move between themes.
+existing wheels. The material is any texture image; geometry + transparency are
+exact, so buttons never move between themes.
 
     .venv/bin/python tools/wheel_compose.py proc out_name           # procedural fill
     .venv/bin/python tools/wheel_compose.py assets/materials/mat_azure.png azure

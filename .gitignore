@@ -56,3 +56,7 @@ site/
 
 # Qt/QML settings app: local venv only (generated assets are tracked)
 settings-qt/.venv/
+
+# Secrets (never commit)
+.env
+.env.*

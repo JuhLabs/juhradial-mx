@@ -973,12 +973,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut baseline: Option<juhradiald::replay::DeviceState> = None;
             // App profiles "Try now" can stand in for the app in front.
             let mut focus = juhradiald::focus_trial::FocusSource::new(active_window_rx);
+            let mut was_in_trial = false;
             while let Some(class) = focus.next().await {
+                // Before the same-class skip, so no trial edge goes unseen.
+                let trial = trial_involved(&mut was_in_trial, focus.in_trial());
                 if class == current_class {
                     continue;
                 }
                 let previous = std::mem::replace(&mut current_class, class.clone());
-                let pulse = window_switch_pulses(&previous, focus.in_trial());
+                let pulse = window_switch_pulses(&previous, trial);
                 juhradiald::keypad::set_focused_app(&class);
                 if !focus.in_trial() {
                     usage.focus(&class, std::time::Instant::now());
@@ -1247,13 +1250,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 gesture_tracker: hidraw_tracker,
                 replay: hidraw_replay,
             },
-            trigger_map_for_hidraw,
-            hidraw_config,
-            hidraw_hotplug,
-            haptic_manager_for_hidraw,
-            hidraw_kwin,
-            hidraw_dbus_connection,
-            hidraw_device_name_state,
+            HidrawShared {
+                trigger_map: trigger_map_for_hidraw,
+                shared_config: hidraw_config,
+                hotplug: hidraw_hotplug,
+                haptic_manager: haptic_manager_for_hidraw,
+                kwin: hidraw_kwin,
+                dbus_connection: hidraw_dbus_connection,
+                device_name_state: hidraw_device_name_state,
+            },
         )
         .await
     });
@@ -1441,6 +1446,17 @@ struct HidrawStartup {
     preferred_path: Option<PathBuf>,
     gesture_tracker: juhradiald::gesture::SharedGestureTracker,
     replay: juhradiald::replay::ReplayContext,
+}
+
+/// The daemon-wide handles the hidraw loop shares with the other tasks.
+struct HidrawShared {
+    trigger_map: juhradiald::macros::SharedTriggerMap,
+    shared_config: juhradiald::config::SharedConfig,
+    hotplug: Arc<tokio::sync::Notify>,
+    haptic_manager: SharedHapticManager,
+    kwin: KWinContext,
+    dbus_connection: zbus::Connection,
+    device_name_state: SharedDeviceName,
 }
 
 #[derive(Clone)]
@@ -1687,9 +1703,15 @@ struct ActionContext {
 
 /// The app-switch pulse is for a switch the user made: not the first report
 /// after the daemon starts (nothing was in front before) and not an App
-/// profiles "Try now" standing in for an app.
-fn window_switch_pulses(previous: &str, in_trial: bool) -> bool {
-    !previous.is_empty() && !in_trial
+/// profiles "Try now" standing in for an app, starting or ending.
+fn window_switch_pulses(previous: &str, trial: bool) -> bool {
+    !previous.is_empty() && !trial
+}
+
+/// Whether a "Try now" trial takes part in this focus report: running now, or
+/// running at the report before (the report that ends it hands the real app back).
+fn trial_involved(was_in_trial: &mut bool, in_trial: bool) -> bool {
+    std::mem::replace(was_in_trial, in_trial) || in_trial
 }
 
 /// What an MX Keypad key bound to the Actions Ring does on one edge. Like the
@@ -2036,22 +2058,21 @@ async fn replay_pointer_state(
     failed == 0
 }
 
-async fn run_hidraw_loop(
-    event_tx: mpsc::Sender<GestureEvent>,
-    startup: HidrawStartup,
-    trigger_map: juhradiald::macros::SharedTriggerMap,
-    shared_config: juhradiald::config::SharedConfig,
-    hotplug: Arc<tokio::sync::Notify>,
-    haptic_manager: SharedHapticManager,
-    kwin: KWinContext,
-    dbus_connection: zbus::Connection,
-    device_name_state: SharedDeviceName,
-) {
+async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawStartup, shared: HidrawShared) {
     let HidrawStartup {
         mut preferred_path,
         gesture_tracker,
         replay,
     } = startup;
+    let HidrawShared {
+        trigger_map,
+        shared_config,
+        hotplug,
+        haptic_manager,
+        kwin,
+        dbus_connection,
+        device_name_state,
+    } = shared;
     let mut replay_gate = juhradiald::replay::ReplayGate::default();
     let mut handler = HidrawHandler::new(event_tx);
     let config_for_thumbwheel = shared_config.clone();
@@ -3150,6 +3171,15 @@ mod tests {
         assert!(!window_switch_pulses("", false), "the first report after start is not a switch");
         assert!(window_switch_pulses("firefox", false));
         assert!(!window_switch_pulses("firefox", true), "Try now stands in for an app");
+    }
+
+    #[test]
+    fn both_edges_of_a_try_now_trial_count_as_the_trial() {
+        let mut was = false;
+        assert!(!trial_involved(&mut was, false), "a plain switch");
+        assert!(trial_involved(&mut was, true), "the trial starts");
+        assert!(trial_involved(&mut was, false), "the report that ends it hands the real app back");
+        assert!(!trial_involved(&mut was, false), "the next switch is the user's again");
     }
 
     #[test]

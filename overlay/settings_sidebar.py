@@ -83,7 +83,7 @@ class SidebarMixin:
         # Website link
         site_label = Gtk.Label()
         site_label.set_markup(
-            f'<span size="x-small"><a href="https://www.juhlabs.com">www.juhlabs.com</a></span>'
+            '<span size="x-small"><a href="https://www.juhlabs.com">www.juhlabs.com</a></span>'
         )
         site_label.set_halign(Gtk.Align.START)
         site_label.set_margin_top(2)

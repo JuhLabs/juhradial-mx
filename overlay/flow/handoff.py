@@ -10,13 +10,16 @@ import logging
 import subprocess
 import threading
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from .constants import (
     LOGI_PRESENCE_PORT,
     MSG_CURSOR_HANDOFF,
     MSG_CLIPBOARD_SYNC,
 )
+
+if TYPE_CHECKING:
+    from .logi_presence import FlowPresenceClient
 
 logger = logging.getLogger("juhradial.flow.handoff")
 

@@ -150,6 +150,8 @@ def test_update_compare_prerelease():
     assert not bk.is_newer_version("v0.4.5", "0.4.5")
     assert bk.is_newer_version("v0.4.5-beta.1", "0.4.4")
     assert not bk.is_newer_version("junk", "0.4.5-beta.1")
+    # A build without a readable version ("dev") never offers an update.
+    assert not bk.is_newer_version("v0.4.4", "dev")
 
 
 def test_update_check_respects_the_setting(backend):

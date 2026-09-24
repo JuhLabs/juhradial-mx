@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Generate the bespoke monochrome icon set for JuhRadial MX.
 
-AI-generated icon SETS come out stylistically inconsistent (see the fal-asset
-pipeline notes), so for a cohesive line of glyphs we reuse the SAME family the
-nav tabs already use: Phosphor "regular". Each freedesktop "-symbolic" name the
+For a cohesive line of glyphs we reuse the SAME family the nav tabs already
+use: Phosphor "regular". Each freedesktop "-symbolic" name the
 app references is mapped to a Phosphor glyph, downloaded, recoloured white and
 rasterised to a transparent PNG. The QML IconProvider then prefers these over
 the freedesktop theme, so monochrome mode, the action pickers and every card
@@ -12,7 +11,6 @@ header pick them up with no QML changes (the provider re-tints by alpha).
 Run with SYSTEM python3 (needs PyQt6 QtSvg):
     python3 settings-qt/tools/gen_mono_icons.py
 """
-import os
 import pathlib
 import sys
 import urllib.request

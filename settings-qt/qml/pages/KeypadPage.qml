@@ -134,7 +134,7 @@ Item {
                                 id: body
                                 width: parent.width; height: width * 1.1689
                                 // [x, y, w, h] as fractions of the image, measured on both
-                                // colours (planning/passes/tools/keypad_front_layout.py).
+                                // colours (one layout fits both).
                                 readonly property var keys: [
                                     [0.1446, 0.1393, 0.2024, 0.1712], [0.3988, 0.1393, 0.2032, 0.1719], [0.6545, 0.1393, 0.2024, 0.1712],
                                     [0.1446, 0.3548, 0.2024, 0.1706], [0.3988, 0.3542, 0.2032, 0.1712], [0.6545, 0.3548, 0.2024, 0.1706],

@@ -99,7 +99,7 @@
 
               # Qt/QML settings app (tools/ excluded; GTK dashboard stays as fallback)
               mkdir -p $out/share/juhradial/settings-qt $out/share/juhradial/assets
-              cp settings-qt/main.py $out/share/juhradial/settings-qt/
+              cp settings-qt/main.py settings-qt/VERSION $out/share/juhradial/settings-qt/
               cp -r settings-qt/bridge settings-qt/qml settings-qt/assets $out/share/juhradial/settings-qt/
               find $out/share/juhradial/settings-qt -type d -name __pycache__ -exec rm -rf {} +
               cp -r settings-qt/assets/wheels $out/share/juhradial/assets/

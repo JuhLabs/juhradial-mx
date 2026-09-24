@@ -699,8 +699,7 @@ mod tests {
 
     #[test]
     fn peeking_needs_general_pages_hidden_by_the_app() {
-        let mut c = KeypadConfig::default();
-        c.pages = vec![page("Home", &[]), page("Code", &["code"])];
+        let mut c = KeypadConfig { pages: vec![page("Home", &[]), page("Code", &["code"])], ..KeypadConfig::default() };
         let in_code = visible_pages(&c, "code");
         assert_eq!(peek_target(&c, &in_code), Some(0));
         assert_eq!(peek_target(&c, &visible_pages(&c, "")), None);
@@ -710,8 +709,10 @@ mod tests {
 
     #[test]
     fn page_keys_go_by_name_or_step_within_the_shown_pages() {
-        let mut c = KeypadConfig::default();
-        c.pages = vec![page("Home", &[]), page("Code", &["code"]), page("Media", &[]), page("Code 2", &["code"])];
+        let mut c = KeypadConfig {
+            pages: vec![page("Home", &[]), page("Code", &["code"]), page("Media", &[]), page("Code 2", &["code"])],
+            ..KeypadConfig::default()
+        };
         assert_eq!(page_for_request(&c, "", "media"), Some(2));
         assert_eq!(page_for_request(&c, "", "Nope"), None);
         assert_eq!(page_for_request(&c, "", "next"), Some(2));

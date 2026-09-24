@@ -2,7 +2,9 @@
 //!
 //! Validates NFR-001: <50ms menu appearance, <10ms action execution
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
+
+use criterion::{criterion_group, criterion_main, Criterion};
 
 fn benchmark_event_processing(c: &mut Criterion) {
     c.bench_function("process_gesture_event", |b| {

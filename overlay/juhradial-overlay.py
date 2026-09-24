@@ -85,7 +85,6 @@ from PyQt6.QtCore import (
     QPropertyAnimation,
     QEasingCurve,
     QTimer,
-    QRectF,
     QFileSystemWatcher,
 )
 from PyQt6.QtGui import (
@@ -97,9 +96,6 @@ from PyQt6.QtGui import (
     QPixmap,
     QRegion,
     QColor,
-    QPen,
-    QFont,
-    QRadialGradient,
 )
 from PyQt6.QtDBus import (
     QDBusConnection,
@@ -337,7 +333,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         print("  JuhRadial MX - PyQt6 Overlay", flush=True)
         print("=" * 60, flush=True)
         print("\n  Modes:", flush=True)
-        print(f"    Hold + release: Execute action on release", flush=True)
+        print("    Hold + release: Execute action on release", flush=True)
         print(
             f"    Quick tap (<{self.TAP_THRESHOLD_MS}ms): Menu stays open, click to select",
             flush=True,
@@ -792,7 +788,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             )
         else:
             print(
-                f"[HAPTIC] ERROR: daemon_iface is INVALID - cannot send haptic signal"
+                "[HAPTIC] ERROR: daemon_iface is INVALID - cannot send haptic signal"
             )
 
     def _on_haptic_finished(self, watcher, event):
@@ -958,7 +954,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
 
         if duration_ms < self.TAP_THRESHOLD_MS:
             # Quick tap - enter toggle mode
-            print(f"OVERLAY: Quick tap detected - entering toggle mode")
+            print("OVERLAY: Quick tap detected - entering toggle mode")
             self.toggle_mode = True
             # Start cursor polling for hover detection in toggle mode
             self.cursor_timer.start()
@@ -1340,7 +1336,6 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # oscillation between PyQt6 event coords and absolute screen coords.
         if self.toggle_mode:
             return
-        _log(f"mouseMoveEvent: toggle_mode={self.toggle_mode}")
         cx = self.win_px / 2
         cy = self.win_px / 2
         pos = event.position()

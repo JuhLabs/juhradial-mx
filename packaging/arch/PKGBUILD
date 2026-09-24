@@ -91,6 +91,7 @@ package() {
     # resolves wheel skins under /usr/share/juhradial/assets/wheels
     install -dm755 "$pkgdir/usr/share/juhradial/settings-qt"
     install -Dm644 settings-qt/main.py "$pkgdir/usr/share/juhradial/settings-qt/main.py"
+    install -Dm644 settings-qt/VERSION "$pkgdir/usr/share/juhradial/settings-qt/VERSION"
     cp -r settings-qt/bridge settings-qt/qml settings-qt/assets "$pkgdir/usr/share/juhradial/settings-qt/"
     find "$pkgdir/usr/share/juhradial/settings-qt" -type d -name __pycache__ -exec rm -rf {} +
     cp -r settings-qt/assets/wheels "$pkgdir/usr/share/juhradial/assets/"

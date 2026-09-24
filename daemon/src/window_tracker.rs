@@ -169,8 +169,9 @@ impl Default for WindowTracker {
 pub(crate) const KWIN_ACTIVE_WINDOW_PLUGIN: &str = "juhradialmx-active-window";
 pub(crate) const KWIN_CURSOR_SCREEN_PLUGIN: &str = "juhradialmx-cursor-screen";
 
-/// The dbus-send arguments that unload `plugin`, then load `path` as it.
-fn kwin_script_calls(path: &str, plugin: &str) -> [Vec<String>; 2] {
+/// The dbus-send arguments that unload `plugin`, load `path` as it, and run
+/// every loaded script that is not running yet.
+fn kwin_script_calls(path: &str, plugin: &str) -> [Vec<String>; 3] {
     let call = |method: &str, args: &[String]| {
         let mut v = vec!["--session".into(), "--print-reply".into(), "--dest=org.kde.KWin".into(),
                          "/Scripting".into(), format!("org.kde.kwin.Scripting.{method}")];
@@ -178,7 +179,8 @@ fn kwin_script_calls(path: &str, plugin: &str) -> [Vec<String>; 2] {
         v
     };
     [call("unloadScript", &[format!("string:{plugin}")]),
-     call("loadScript", &[format!("string:{path}"), format!("string:{plugin}")])]
+     call("loadScript", &[format!("string:{path}"), format!("string:{plugin}")]),
+     call("start", &[])]
 }
 
 pub(crate) fn install_kwin_script(script: &str, plugin: &str) -> bool {
@@ -194,7 +196,7 @@ pub(crate) fn install_kwin_script(script: &str, plugin: &str) -> bool {
         return false;
     }
     let script_path = temp_file.path().to_string_lossy().to_string();
-    let [unload, load] = kwin_script_calls(&script_path, plugin);
+    let [unload, load, start] = kwin_script_calls(&script_path, plugin);
     // Not loaded yet is fine: unloadScript just answers false.
     let _ = Command::new("dbus-send").args(&unload).output();
 
@@ -224,7 +226,7 @@ pub(crate) fn install_kwin_script(script: &str, plugin: &str) -> bool {
         }
     };
 
-    matches!(
+    let ran = matches!(
         Command::new("dbus-send")
             .args([
                 "--session",
@@ -235,7 +237,13 @@ pub(crate) fn install_kwin_script(script: &str, plugin: &str) -> bool {
             ])
             .output(),
         Ok(o) if o.status.success()
-    )
+    );
+    // KWin numbers a script by its list size, so after scripts were unloaded
+    // from the middle of the list the id can repeat a resident script's, and
+    // Script<id>.run then reaches that one. Scripting.start runs every loaded
+    // script that is not running yet, ours included.
+    let _ = Command::new("dbus-send").args(&start).output();
+    ran
 }
 
 /// Path to the Hyprland `.socket2` event socket for this session.
@@ -246,6 +254,26 @@ fn hyprland_socket2_path() -> Option<PathBuf> {
     let sig = crate::actions::session_var("HYPRLAND_INSTANCE_SIGNATURE")?;
     let runtime = std::env::var("XDG_RUNTIME_DIR").ok()?;
     Some(PathBuf::from(runtime).join("hypr").join(sig).join(".socket2.sock"))
+}
+
+/// The class of the window in front, from Hyprland's request socket (the
+/// `.socket.sock` next to the event socket; one request per connection).
+fn hyprland_active_class(events: &Path) -> Option<String> {
+    use std::io::Read;
+    let mut stream = UnixStream::connect(events.with_file_name(".socket.sock")).ok()?;
+    stream.set_read_timeout(Some(Duration::from_millis(500))).ok()?;
+    stream.set_write_timeout(Some(Duration::from_millis(500))).ok()?;
+    stream.write_all(b"j/activewindow").ok()?;
+    let mut reply = String::new();
+    stream.read_to_string(&mut reply).ok()?;
+    parse_hyprland_active_class(&reply)
+}
+
+/// `j/activewindow` answers a JSON object with the window's `class`, or `{}`.
+fn parse_hyprland_active_class(reply: &str) -> Option<String> {
+    let window: serde_json::Value = serde_json::from_str(reply).ok()?;
+    let class = window.get("class")?.as_str()?.trim().to_lowercase();
+    (!class.is_empty()).then_some(class)
 }
 
 /// Blocking Hyprland event loop: parses `activewindow>>CLASS,TITLE` lines and
@@ -266,6 +294,14 @@ fn hyprland_loop(tx: UnboundedSender<String>) {
         match UnixStream::connect(&path) {
             Ok(stream) => {
                 tracing::info!("Connected to Hyprland event socket (per-app hardware profiles)");
+                // The event socket only reports changes: send the window in
+                // front now, like KWin's and xprop's first report, so the
+                // first switch after start is a real one.
+                if let Some(class) = hyprland_active_class(&path) {
+                    if tx.send(class).is_err() {
+                        return;
+                    }
+                }
                 let reader = BufReader::new(stream);
                 for line in reader.lines() {
                     let line = match line {
@@ -565,7 +601,10 @@ mod tests {
 
     #[test]
     fn a_kwin_script_replaces_its_own_earlier_copy() {
-        let [unload, load] = kwin_script_calls("/tmp/x.js", KWIN_CURSOR_SCREEN_PLUGIN);
+        let [unload, load, start] = kwin_script_calls("/tmp/x.js", KWIN_CURSOR_SCREEN_PLUGIN);
+        // start runs every loaded script that is not running, whatever id
+        // KWin gave ours (ids are list sizes and can repeat a resident one's).
+        assert_eq!(start.last().unwrap(), "org.kde.kwin.Scripting.start");
         assert_eq!(unload.last().unwrap(), "string:juhradialmx-cursor-screen");
         assert!(unload.iter().any(|a| a == "org.kde.kwin.Scripting.unloadScript"));
         assert_eq!(&load[load.len() - 2..], ["string:/tmp/x.js", "string:juhradialmx-cursor-screen"]);
@@ -1032,5 +1071,16 @@ exit 64
         let rest = line.strip_prefix("activewindow>>").unwrap();
         let class = rest.split(',').next().unwrap().trim().to_lowercase();
         assert_eq!(class, "firefox");
+    }
+
+    #[test]
+    fn hyprland_active_window_reply_gives_the_class() {
+        assert_eq!(
+            parse_hyprland_active_class(r#"{"address": "0x55", "class": "Firefox", "title": "x"}"#).as_deref(),
+            Some("firefox")
+        );
+        assert_eq!(parse_hyprland_active_class("{}"), None, "no window in front");
+        assert_eq!(parse_hyprland_active_class(r#"{"class": ""}"#), None);
+        assert_eq!(parse_hyprland_active_class("unknown request"), None);
     }
 }

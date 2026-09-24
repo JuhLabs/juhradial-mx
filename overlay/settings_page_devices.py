@@ -18,7 +18,6 @@ from gi.repository import Gtk, Gdk, Gio, GLib, Adw
 
 from i18n import _
 from settings_config import get_device_mode, get_device_name_from_daemon
-from settings_theme import COLORS
 from settings_widgets import (
     InfoCard,
     LoadingState,

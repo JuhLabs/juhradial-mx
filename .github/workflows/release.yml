@@ -152,7 +152,9 @@ jobs:
           version="${{ needs.linux.outputs.version }}"
           bash packaging/deb/build-deb.sh "$tmp"/juhradial-mx-* "${version/-/\~}" deb-out
           dpkg-deb --info deb-out/*.deb
-          dpkg-deb --contents deb-out/*.deb | grep -q ' ./usr/bin/juhradiald$'
+          # grep reads the whole listing: grep -q would close the pipe early and
+          # pipefail would fail the step on the listing tool's SIGPIPE.
+          dpkg-deb --contents deb-out/*.deb | grep ' ./usr/bin/juhradiald$' >/dev/null
 
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -186,8 +188,9 @@ jobs:
           dnf builddep -y packaging/rpm/juhradial-mx.spec
           rpmbuild -bb packaging/rpm/juhradial-mx.spec
           mkdir -p rpm-out
-          cp ~/rpmbuild/RPMS/*/juhradial-mx-*.rpm rpm-out/
-          rpm -qlp rpm-out/*.rpm | grep -q '^/usr/bin/juhradiald$'
+          # The package only, not the debuginfo/debugsource subpackages.
+          cp ~/rpmbuild/RPMS/*/juhradial-mx-[0-9]*.rpm rpm-out/
+          rpm -qlp rpm-out/*.rpm | grep '^/usr/bin/juhradiald$' >/dev/null
 
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -32,7 +32,7 @@ _qt_app = QGuiApplication.instance() or QGuiApplication([])
 assert _qt_app is not None
 
 from overlay_actions import USER_ICONS, load_user_icon, submenu_from_config
-from settings_dialog_app_picker import _is_terminal_app, command_for_app, resolve_and_cache_icon
+from settings_dialog_app_picker import DesktopAppInfo, _is_terminal_app, command_for_app, resolve_and_cache_icon
 
 
 SVG_STUB = (
@@ -65,7 +65,7 @@ def test_is_terminal_app_true_for_terminal_desktop_entries(tmp_path):
         "[Desktop Entry]\nType=Application\nName=htop\nExec=bash\nTerminal=true\n",
         encoding="utf-8",
     )
-    app = Gio.DesktopAppInfo.new_from_filename(str(desktop_file))
+    app = DesktopAppInfo.new_from_filename(str(desktop_file))
     assert _is_terminal_app(app) is True
 
 
@@ -75,7 +75,7 @@ def test_is_terminal_app_false_for_gui_desktop_entries(tmp_path):
         "[Desktop Entry]\nType=Application\nName=Some App\nExec=bash\n",
         encoding="utf-8",
     )
-    app = Gio.DesktopAppInfo.new_from_filename(str(desktop_file))
+    app = DesktopAppInfo.new_from_filename(str(desktop_file))
     assert _is_terminal_app(app) is False
 
 

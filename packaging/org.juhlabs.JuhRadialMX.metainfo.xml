@@ -72,10 +72,6 @@
     <control>pointing</control>
   </recommends>
 
-  <supports>
-    <control>pointing</control>
-  </supports>
-
   <categories>
     <category>Utility</category>
     <category>Settings</category>

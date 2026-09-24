@@ -25,6 +25,10 @@ use super::DBUS_PATH;
 /// replaced.
 pub async fn claim_name(connection: &zbus::Connection, name: &str) -> zbus::Result<bool> {
     let well_known = zbus::names::WellKnownName::try_from(name)?;
+    // Start the object server before the name is ours: a call that arrives
+    // before the interfaces are registered then gets an error reply at once
+    // instead of being lost.
+    let _ = connection.object_server();
     match connection
         .request_name_with_flags(well_known, zbus::fdo::RequestNameFlags::DoNotQueue.into())
         .await

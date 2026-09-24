@@ -1426,8 +1426,7 @@ mod tests {
     #[test]
     fn test_haptic_intensity_serde_roundtrip() {
         // Explicit value survives a serialize/deserialize round-trip.
-        let mut cfg = HapticConfig::default();
-        cfg.intensity = 42;
+        let cfg = HapticConfig { intensity: 42, ..HapticConfig::default() };
         let json = serde_json::to_string(&cfg).unwrap();
         assert!(json.contains("\"intensity\":42"), "serialized: {json}");
         let back: HapticConfig = serde_json::from_str(&json).unwrap();

@@ -370,7 +370,8 @@ impl EvdevHandler {
             }
         }
 
-        tracing::warn!("MX Master 4 not found. Waiting for connection...");
+        // Polled while the mouse is away; the callers say so once.
+        tracing::debug!("MX Master 4 not found. Waiting for connection...");
         Err(EvdevError::DeviceNotFound)
     }
 
@@ -498,7 +499,8 @@ impl EvdevHandler {
             });
         }
 
-        tracing::warn!("No generic mouse found");
+        // Polled every minute while none is plugged in; the caller says so once.
+        tracing::debug!("No generic mouse found");
         Err(EvdevError::DeviceNotFound)
     }
 

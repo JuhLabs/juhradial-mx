@@ -17,7 +17,6 @@ Requirements:
 
 import json
 import logging
-import os
 import socket
 import struct
 import subprocess

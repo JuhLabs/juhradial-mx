@@ -336,7 +336,7 @@ def _get_gnome_cursor_proxy():
     try:
         import gi
         gi.require_version("Gio", "2.0")
-        from gi.repository import Gio, GLib
+        from gi.repository import Gio
         proxy = Gio.DBusProxy.new_for_bus_sync(
             Gio.BusType.SESSION,
             Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES

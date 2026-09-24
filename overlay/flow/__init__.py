@@ -24,9 +24,9 @@ import logging
 from typing import Optional, Callable
 
 from .constants import FLOW_PORT
-from .managers import FlowTokenManager, LinkedComputersManager
+from .managers import FlowTokenManager as FlowTokenManager, LinkedComputersManager  # re-exported
 from .server import FlowServer
-from .client import FlowClient
+from .client import FlowClient as FlowClient  # re-exported
 from .logi_discovery import LogiFlowDiscoveryResponder
 from .logi_presence import FlowPresenceServer
 from .logi_server import LogiFlowServer

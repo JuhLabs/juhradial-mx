@@ -7,6 +7,8 @@ from pathlib import Path
 from types import MethodType, SimpleNamespace
 from typing import cast
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCROLL_PAGE_PATH = REPO_ROOT / "overlay" / "settings_page_scroll.py"
@@ -324,3 +326,18 @@ def test_settings_qt_script_honours_gtk_override(monkeypatch):
     else:
         result = settings_qt_script()
         assert result is not None and result.endswith("settings-qt/main.py")
+
+
+def test_settings_qt_script_needs_the_launchers_qt_version(monkeypatch):
+    # The tray opens Settings without the launcher script, so it must apply the
+    # same floor (Qt 6.9: RectangularShadow, VectorImage) or older Qt starts a
+    # Qt app that cannot load its pages instead of the GTK app.
+    qtcore = pytest.importorskip("PyQt6.QtCore")
+    pytest.importorskip("PyQt6.QtQml")
+    namespace, _fake = _open_settings_harness(monkeypatch)
+    monkeypatch.delenv("JUHRADIAL_SETTINGS", raising=False)
+    settings_qt_script = cast(Callable[[], object], namespace["_settings_qt_script"])
+    monkeypatch.setattr(qtcore, "qVersion", lambda: "6.8.2")
+    assert settings_qt_script() is None
+    monkeypatch.setattr(qtcore, "qVersion", lambda: "6.9.0")
+    assert str(settings_qt_script()).endswith("settings-qt/main.py")

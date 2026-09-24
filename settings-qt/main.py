@@ -208,7 +208,7 @@ def main():
         # If the name never freed (e.g. pre-update owner without a Quit
         # slot), continue anyway: a visible window beats a silent exit.
 
-    translator = install_translator(app)  # qsTr() -> gettext catalogs; keep the reference for the app's lifetime
+    _translator = install_translator(app)  # qsTr() -> gettext catalogs; keep the reference for the app's lifetime
     engine = QQmlApplicationEngine()
     engine.addImageProvider("icon", IconProvider())
 

@@ -204,7 +204,6 @@ def test_set_app_points_a_slice_at_the_application(backend, tmp_path):
 
 def test_cache_app_icon_writes_the_overlay_icon_cache(backend, tmp_path, monkeypatch):
     pytest.importorskip("gi")
-    from gi.repository import Gio
     icon_src = tmp_path / "src.png"
     from PyQt6.QtGui import QPixmap
     pm = QPixmap(8, 8)
@@ -212,8 +211,9 @@ def test_cache_app_icon_writes_the_overlay_icon_cache(backend, tmp_path, monkeyp
     assert pm.save(str(icon_src), "PNG")
     desktop = tmp_path / "juhtest.desktop"
     desktop.write_text(f"[Desktop Entry]\nType=Application\nName=JuhTest\nExec=true\nIcon={icon_src}\n")
-    app = Gio.DesktopAppInfo.new_from_filename(str(desktop))
-    monkeypatch.setattr(Gio.DesktopAppInfo, "new", staticmethod(lambda _id: app))
+    info = bk._desktop_app_info()
+    app = info.new_from_filename(str(desktop))
+    monkeypatch.setattr(info, "new", staticmethod(lambda _id: app))
     path = backend.cacheAppIcon("juhtest.desktop")
     assert path == str(tmp_path / "icons" / "juhtest.desktop.png")
     assert Path(path).is_file()
@@ -227,7 +227,7 @@ def test_the_app_list_leaves_out_terminal_apps_like_the_gtk_picker(backend, tmp_
     for name, terminal in (("JuhWindow", "false"), ("JuhTerm", "true")):
         desktop = tmp_path / f"{name.lower()}.desktop"
         desktop.write_text(f"[Desktop Entry]\nType=Application\nName={name}\nExec=true %U\nTerminal={terminal}\n")
-        apps.append(Gio.DesktopAppInfo.new_from_filename(str(desktop)))
+        apps.append(bk._desktop_app_info().new_from_filename(str(desktop)))
     monkeypatch.setattr(Gio.AppInfo, "get_all", staticmethod(lambda: apps))
     listed = {a["name"]: a for a in backend.listApplications()}
     assert "JuhWindow" in listed and "JuhTerm" not in listed

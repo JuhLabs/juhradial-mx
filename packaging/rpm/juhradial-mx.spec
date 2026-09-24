@@ -96,6 +96,7 @@ cp -r assets/* %{buildroot}%{_datadir}/juhradial/assets/
 # resolves wheel skins under %{_datadir}/juhradial/assets/wheels
 install -dm755 %{buildroot}%{_datadir}/juhradial/settings-qt
 install -Dm644 settings-qt/main.py %{buildroot}%{_datadir}/juhradial/settings-qt/main.py
+install -Dm644 settings-qt/VERSION %{buildroot}%{_datadir}/juhradial/settings-qt/VERSION
 cp -r settings-qt/bridge settings-qt/qml settings-qt/assets %{buildroot}%{_datadir}/juhradial/settings-qt/
 find %{buildroot}%{_datadir}/juhradial/settings-qt -type d -name __pycache__ -exec rm -rf {} +
 cp -r settings-qt/assets/wheels %{buildroot}%{_datadir}/juhradial/assets/

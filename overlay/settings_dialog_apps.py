@@ -323,9 +323,10 @@ class AddApplicationDialog(Adw.Window):
     def _app_icon(self, app):
         """Real application icon: desktop entry -> icon theme -> generic."""
         from gi.repository import Gio, Gdk
+        from settings_dialog_app_picker import DesktopAppInfo
         img = None
         try:
-            info = Gio.DesktopAppInfo.new(app + ".desktop")
+            info = DesktopAppInfo.new(app + ".desktop")
             if info is None:
                 low = app.lower()
                 for ai in Gio.AppInfo.get_all():
