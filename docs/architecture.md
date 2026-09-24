@@ -186,6 +186,17 @@ Macros and gaming mode:
 | `IsMacroRunning` / `ReloadMacroTriggers` | `bool` / `()` | Query engine state; reload trigger bindings. |
 | `SetGamingMode` / `GetGamingMode` / `CycleGamingDpi` | `(b)` / `bool` / `s` | Toggle gaming mode (suppresses the overlay) and cycle gaming DPI. |
 
+Keypad, keyboard and other devices:
+
+| Method | Returns / args | Purpose |
+| --- | --- | --- |
+| `GetKeypadStatus` / `SetKeypadPage` / `RefreshKeypadPlates` | `(b, s, y, y)` / `(y page)` / `()` | MX Keypad connection, page, and a repaint after Settings saved plates. |
+| `SetKeypadKeyImage` / `ClearKeypadKeyImage` | `(y page, y key, s path)` / `(y page, y key)` | Paint one key live from a script: a 118 x 118 baseline JPEG, at most 64 KB. Runtime only; clear gives the key its plate back. Example: `gdbus call --session --dest org.kde.juhradialmx --object-path /org/kde/juhradialmx/Daemon --method org.kde.juhradialmx.Daemon.SetKeypadKeyImage 0 5 ~/status.jpg` |
+| `GetScrollForce` / `SetScrollForce` | `(b supported, y %, y default %)` / `(y %) -> b` | Ratchet force, SmartShift Enhanced `0x2111` tunable torque. |
+| `ListReceivers` | `a(ssa(yyqss))` | Bolt and Unifying receivers with slot, kind, wireless PID, name and role (this mouse / keyboard). Read-only. |
+| `ModifiersHeld` | `as` | Modifier keys held right now (Flow "Hold Ctrl to cross"). |
+| `TryAppProfile` / `StopAppProfileTrial` | `(s class, u seconds) -> b` / `() -> b` | App profiles "Try now": act as if that app were in front for up to 300 s. |
+
 ### Signals
 
 | Signal | Payload | Emitted when |

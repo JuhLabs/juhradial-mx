@@ -39,6 +39,37 @@ pub fn set_page(config: &SharedConfig, page: u8) -> Result<(), String> {
 
 pub fn refresh() { REVISION.fetch_add(1, Ordering::Relaxed); }
 
+/// Live key images set over D-Bus (SetKeypadKeyImage), by (page, key):
+/// runtime only, they win over the rendered plate until cleared.
+type KeyImages = Vec<((u8, u8), Vec<u8>)>;
+static KEY_IMAGES: Mutex<KeyImages> = Mutex::new(Vec::new());
+
+/// Show `jpeg` (a 118 x 118 baseline JPEG, at most 64 KB) on a key.
+pub fn set_key_image(page: u8, key: u8, jpeg: Vec<u8>) -> Result<(), String> {
+    if !(1..=9).contains(&key) {
+        return Err("Key must be 1..9".into());
+    }
+    if jpeg.len() > 65535 || !jpeg.starts_with(&[0xff, 0xd8]) || !jpeg.ends_with(&[0xff, 0xd9]) {
+        return Err("The image must be a JPEG of at most 64 KB (118 x 118 pixels)".into());
+    }
+    let mut images = KEY_IMAGES.lock().map_err(|e| e.to_string())?;
+    images.retain(|(at, _)| *at != (page, key));
+    images.push(((page, key), jpeg));
+    drop(images);
+    refresh();
+    Ok(())
+}
+
+/// Give a key its own plate back.
+pub fn clear_key_image(page: u8, key: u8) {
+    if let Ok(mut images) = KEY_IMAGES.lock() { images.retain(|(at, _)| *at != (page, key)); }
+    refresh();
+}
+
+fn key_image(page: u8, key: u8) -> Option<Vec<u8>> {
+    KEY_IMAGES.lock().ok()?.iter().find(|(at, _)| *at == (page, key)).map(|(_, j)| j.clone())
+}
+
 /// A "page" key action waiting for the keypad worker.
 static REQUESTED_PAGE: Mutex<Option<String>> = Mutex::new(None);
 
@@ -184,9 +215,10 @@ fn load_animation(dir: &Path, page: u8, key: u8) -> Option<Animation> {
 fn push_plates(keypad: &mut Keypad, dir: &Path, page: u8, configured: bool) -> io::Result<Vec<Option<Animation>>> {
     let mut animations = Vec::with_capacity(9);
     for key in 1..=9 {
+        let live = key_image(page, key);
         let data = if configured { read_jpeg(&dir.join(format!("p{page}-k{key}.jpg"))) } else { None };
-        keypad.write_image(KeyWindow::new(key).unwrap(), data.as_deref().unwrap_or(BLACK))?;
-        animations.push(if configured && data.is_some() { load_animation(dir, page, key) } else { None });
+        keypad.write_image(KeyWindow::new(key).unwrap(), live.as_deref().or(data.as_deref()).unwrap_or(BLACK))?;
+        animations.push(if configured && data.is_some() && live.is_none() { load_animation(dir, page, key) } else { None });
     }
     Ok(animations)
 }
@@ -398,6 +430,17 @@ mod tests {
         assert!(set_page(&c, 1).is_err());
         c.write().unwrap().keypad.active_page = 200;
         assert_eq!(status(&c).2, 0);
+    }
+
+    #[test]
+    fn live_key_images_are_checked_and_replace_only_their_key() {
+        assert!(set_key_image(0, 10, BLACK.to_vec()).is_err());
+        assert!(set_key_image(0, 1, b"not a jpeg".to_vec()).is_err());
+        assert!(set_key_image(7, 3, BLACK.to_vec()).is_ok());
+        assert_eq!(key_image(7, 3).as_deref(), Some(BLACK));
+        assert_eq!(key_image(7, 4), None);
+        clear_key_image(7, 3);
+        assert_eq!(key_image(7, 3), None);
     }
 
     #[test]

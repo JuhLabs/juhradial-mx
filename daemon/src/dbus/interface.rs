@@ -24,6 +24,19 @@ impl JuhRadialService {
         crate::keypad::refresh();
     }
 
+    /// Paint a key live from a script (a status light, a counter): `path` is
+    /// a 118 x 118 baseline JPEG of at most 64 KB. Runtime only; it stays
+    /// until ClearKeypadKeyImage or a service restart. Page and key are the
+    /// ones Settings shows (page from 0, key 1..9).
+    fn set_keypad_key_image(&self, page: u8, key: u8, path: String) -> fdo::Result<()> {
+        let jpeg = std::fs::read(&path).map_err(|e| fdo::Error::InvalidArgs(format!("{path}: {e}")))?;
+        crate::keypad::set_key_image(page, key, jpeg).map_err(fdo::Error::InvalidArgs)
+    }
+
+    fn clear_keypad_key_image(&self, page: u8, key: u8) {
+        crate::keypad::clear_key_image(page, key);
+    }
+
     #[zbus(signal)]
     async fn keypad_key_pressed(emitter: &SignalEmitter<'_>, page: u8, key: u8) -> zbus::Result<()>;
 
