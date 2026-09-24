@@ -529,18 +529,21 @@ install_dependencies() {
 
 # ── Repository ───────────────────────────────────────────────────────
 
-# Latest release tarball (source snapshot plus a prebuilt daemon). Preferred
-# over a git clone: it is what the Release workflow publishes, it counts toward
-# the project's download total, and the prebuilt daemon skips a full Rust
-# build on most machines. Returns 1 when no release asset is available so the
-# caller can fall back to git. Set JUHRADIAL_FROM_SOURCE=1 to always clone.
+# Newest release tarball (source snapshot plus a prebuilt daemon), a beta
+# included: master carries the newest release, beta or not, so this installs
+# what the one-liner would clone. Preferred over a git clone: it is what the
+# Release workflow publishes, it counts toward the project's download total,
+# and the prebuilt daemon skips a full Rust build on most machines. Returns 1
+# when no release asset is available so the caller can fall back to git.
+# Set JUHRADIAL_FROM_SOURCE=1 to always clone.
 fetch_release() {
     [ "${JUHRADIAL_FROM_SOURCE:-0}" = "1" ] && return 1
     command -v tar >/dev/null 2>&1 || return 1
     [ "$(uname -m)" = "x86_64" ] || return 1
 
     local api url tmp tarball top uid gid
-    api="https://api.github.com/repos/JuhLabs/juhradial-mx/releases/latest"
+    # Newest first; drafts are not listed. The first Linux tarball wins.
+    api="https://api.github.com/repos/JuhLabs/juhradial-mx/releases?per_page=10"
     url="$(curl -fsSL -H 'Accept: application/vnd.github+json' "$api" 2>/dev/null \
         | grep -o '"browser_download_url": *"[^"]*linux-x86_64\.tar\.gz"' \
         | head -1 | sed 's/.*"\(https[^"]*\)"/\1/')"
