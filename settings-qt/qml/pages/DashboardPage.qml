@@ -17,7 +17,7 @@ Item {
     property var actMap: ({})
     // "" (fresh install) and "none" both mean the Classic ring.
     property string wheelKey: Backend.get("radial.wheel", "") || "none"
-    readonly property bool mono: Theme.iconStyle === "mono"
+    readonly property bool mono: Theme.iconStyle.startsWith("mono")
     readonly property bool primed: Backend.primed || !Backend.daemonAvailable
     readonly property string link: Backend.linkState
     readonly property bool reachable: Backend.daemonAvailable && link === "connected"

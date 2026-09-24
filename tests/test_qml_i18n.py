@@ -165,3 +165,22 @@ def test_configured_language(tmp_path):
         cfg.write_text(raw)
         assert i18n.configured_language(cfg) == want
     assert i18n.configured_language(tmp_path / "missing.json") is None
+
+
+def test_template_holds_the_runtime_table_labels():
+    # Button actions, haptic patterns, macro templates... reach the UI through
+    # _(variable), which the literal scan cannot see.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "extract_strings", REPO / "settings-qt" / "tools" / "extract_strings.py")
+    extract = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(extract)
+    from bridge import backend
+    found = extract.collect()
+    for name, fields in extract.TABLES["bridge/backend.py"].items():
+        table = getattr(backend, name)
+        cells = (table.values() if fields is None
+                 else [row[i] for row in table for i in fields])
+        missing = [c for c in cells if c and extract._escape(c) not in found]
+        assert not missing, f"{name}: {missing}"
+    assert "Disabled" in found and "Sharp click" in found

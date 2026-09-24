@@ -79,6 +79,10 @@ Item {
                 }
                 Text {
                     anchors.centerIn: parent
+                    width: parent.width - 12
+                    horizontalAlignment: Text.AlignHCenter
+                    // Long translations shrink to the segment instead of overlapping.
+                    fontSizeMode: Text.HorizontalFit; minimumPixelSize: 8
                     text: modelData.name
                     color: seg.currentId === modelData.id ? Theme.bgBase : Theme.textBody
                     font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall

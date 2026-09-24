@@ -82,3 +82,35 @@ def test_request_parses_tint_and_style(provider):
     pm, size = icon_provider.requestPixmap("FF0000/classic/folder-symbolic", QSize(20, 20))
     assert size.width() == 20 and size.height() == 20
     assert svg_calls == []
+
+
+def test_mono2_uses_its_png_set(provider, settings_main):
+    icon_provider, svg_calls = provider
+    assert (settings_main.MONO2_DIR / "folder-symbolic.png").exists()
+    pm = icon_provider._base("folder-symbolic", 24, 24, "mono2")
+    assert not pm.isNull() and pm.width() == 24
+    assert svg_calls == [], "mono2 rendered the SVG family instead of its PNG"
+
+
+def test_mono2_falls_back_to_the_line_family(provider, settings_main):
+    icon_provider, svg_calls = provider
+    # Navigation glyphs have no Monochrome 2 version.
+    assert not (settings_main.MONO2_DIR / "haptics.png").exists()
+    pm = icon_provider._base("haptics", 24, 24, "mono2")
+    assert not pm.isNull()
+    assert svg_calls == [settings_main.NAV_DIR / "haptics.svg"]
+
+
+def test_mono2_covers_every_mono_glyph(settings_main):
+    mono = {p.stem for p in settings_main.MONO_DIR.glob("*.svg")}
+    mono2 = {p.stem for p in settings_main.MONO2_DIR.glob("*.png")}
+    assert mono == mono2
+
+
+def test_icon_styles_agree_across_settings_and_overlay(settings_main):
+    from bridge import theme
+    sys.path.insert(0, os.fspath(REPO_ROOT / "overlay"))
+    import overlay_actions
+    assert settings_main.ICON_STYLES == theme.ICON_STYLES == overlay_actions.ICON_STYLES
+    assert theme.resolve_icon_style({"icon_style": "mono2"}, {}) == "mono2"
+    assert theme.resolve_icon_style({}, {"radial": {"icon_style": "mono2"}}) == "mono2"

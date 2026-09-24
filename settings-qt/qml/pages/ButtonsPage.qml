@@ -23,7 +23,7 @@ Item {
     property int bump: 0                  // re-read bindings after a change
     // "" (fresh install) and "none" both mean the Classic ring.
     property string wheelKey: Backend.get("radial.wheel", "") || "none"
-    readonly property bool mono: Theme.iconStyle === "mono"
+    readonly property bool mono: Theme.iconStyle.startsWith("mono")
     property bool editPins: false         // drag-to-place marker mode
     property string flashSlot: ""         // lit for a moment when pressed on the mouse
     property var macroBinds: ({})         // slot -> {id, name} of a macro bound to it

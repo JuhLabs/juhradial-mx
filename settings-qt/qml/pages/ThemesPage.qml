@@ -62,7 +62,7 @@ Item {
     function setIconStyle(id) {
         Theme.setIconStyle(id)
         Backend.setLocal("radial.icon_style", id)
-        Backend.setLocal("radial.monochrome_icons", id === "mono")
+        Backend.setLocal("radial.monochrome_icons", id.startsWith("mono"))
     }
     function resetLook() {
         var t = Theme.index, a = Theme.auto, w = Backend.get("radial.wheel", ""), p = page.palette, s = Theme.iconStyle
@@ -238,7 +238,7 @@ Item {
                         subtitle: qsTr("%1 skin, %2 ring colours, %3 icons")
                                   .arg(page.nameOf(Theme.wheelList(), page.wheelKey, "key"))
                                   .arg(page.nameOf(page.palettes, page.palette, "id"))
-                                  .arg(Theme.iconStyle === "mono" ? qsTr("mono") : (Theme.iconStyle === "classic" ? qsTr("classic") : qsTr("line")))
+                                  .arg(({ mono: qsTr("mono"), mono2: qsTr("mono 2"), classic: qsTr("classic") })[Theme.iconStyle] || qsTr("line"))
                         icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/view-grid-symbolic"
                         PrimaryButton { text: qsTr("Show on screen"); ghost: true; onClicked: Backend.showMenuPreview() }
                     }
@@ -371,10 +371,10 @@ Item {
                                         onClicked: Backend.goTo("settings")
                                     }
                                     SegmentedControl {
-                                        width: 240
+                                        width: 320
                                         accessibleName: qsTr("Icon style")
-                                        model: [{ id: "mono", name: qsTr("Mono") }, { id: "line", name: qsTr("Line") },
-                                                { id: "classic", name: qsTr("Classic") }]
+                                        model: [{ id: "mono", name: qsTr("Mono") }, { id: "mono2", name: qsTr("Mono 2") },
+                                                { id: "line", name: qsTr("Line") }, { id: "classic", name: qsTr("Classic") }]
                                         currentId: Theme.iconStyle
                                         onActivated: (id) => page.setIconStyle(id)
                                     }

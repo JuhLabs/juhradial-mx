@@ -42,7 +42,7 @@ Item {
     }
     // A 3D palette replaces the Classic ring with its own bitmap (overlay load_radial_image).
     readonly property string paletteImage: rp.wheelKey === "none" && rp.palette ? rp.palette.image : ""
-    readonly property bool mono: Theme.iconStyle === "mono"
+    readonly property bool mono: Theme.iconStyle.startsWith("mono")
     readonly property real boxR: Math.min(width, height) / 2 - 4
     readonly property real ringR: boxR * Math.min(1, outer / outerMax)
     readonly property real iconR: ringR * 100 / 150

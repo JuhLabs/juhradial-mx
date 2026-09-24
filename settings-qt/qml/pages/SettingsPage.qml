@@ -159,6 +159,7 @@ Item {
                             Repeater {
                                 model: [
                                     { id: "mono", name: qsTr("Mono") },
+                                    { id: "mono2", name: qsTr("Mono 2") },
                                     { id: "line", name: qsTr("Line") },
                                     { id: "classic", name: qsTr("Classic") }
                                 ]
@@ -179,7 +180,7 @@ Item {
                                         // The overlay reads radial.icon_style on every
                                         // open; monochrome_icons stays in step for older readers.
                                         Backend.setLocal("radial.icon_style", modelData.id)
-                                        Backend.setLocal("radial.monochrome_icons", modelData.id === "mono")
+                                        Backend.setLocal("radial.monochrome_icons", modelData.id.startsWith("mono"))
                                     }
                                     Rectangle {
                                         anchors.fill: parent; radius: Theme.radiusCtl
@@ -189,7 +190,7 @@ Item {
                                     }
                                     FocusHalo { active: chip.activeFocus; radius: Theme.radiusCtl }
                                     Image {
-                                        visible: chip.modelData.id !== "mono"
+                                        visible: !chip.modelData.id.startsWith("mono")
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         y: 8; width: 36; height: 36
                                         source: chip.modelData.id === "classic"
@@ -199,19 +200,23 @@ Item {
                                         smooth: true; fillMode: Image.PreserveAspectFit
                                     }
                                     Rectangle {
-                                        visible: chip.modelData.id === "mono"
+                                        visible: chip.modelData.id.startsWith("mono")
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         y: 8; width: 36; height: 36; radius: 18
                                         color: "#1B1F28"; border.width: 1.5; border.color: Theme.borderStrong
                                         Image {
                                             anchors.centerIn: parent; width: 18; height: 18
-                                            source: "image://icon/" + Theme.textBody.toString().slice(1) + "/mono/folder-symbolic"
+                                            source: "image://icon/" + Theme.textBody.toString().slice(1) + "/" + chip.modelData.id + "/folder-symbolic"
                                             sourceSize.width: 36; sourceSize.height: 36
                                         }
                                     }
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         anchors.bottom: parent.bottom; anchors.bottomMargin: 6
+                                        width: parent.width - 8
+                                        horizontalAlignment: Text.AlignHCenter
+                                        // Long translations shrink to the chip instead of spilling out.
+                                        fontSizeMode: Text.HorizontalFit; minimumPixelSize: 8
                                         text: chip.modelData.name
                                         color: chip.sel ? Theme.textPrimary : Theme.textBody
                                         font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro

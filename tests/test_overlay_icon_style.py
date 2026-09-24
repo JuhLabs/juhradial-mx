@@ -63,7 +63,7 @@ def _with_radial(monkeypatch, radial):
 
 
 def test_icon_style_from_config(monkeypatch):
-    for name in ("line", "classic", "mono"):
+    for name in ("line", "classic", "mono", "mono2"):
         _with_radial(monkeypatch, {"icon_style": name})
         assert overlay_actions.load_icon_style() == name
 
@@ -111,6 +111,19 @@ def test_mono_has_no_buttons_only_glyphs(style, default_slices):
     style("mono")
     assert overlay_actions._slice_button_path("files", "mono") is None
     assert overlay_actions.get_slice_button(6, 66) is None
+    glyph = overlay_actions.get_style_glyph(6, 30, QColor("#ffffff"))
+    assert glyph is not None and glyph.width() == 30
+
+
+def test_mono2_has_no_buttons_and_prefers_its_png_glyphs(style, default_slices):
+    style("mono2")
+    assert overlay_actions._slice_button_path("files", "mono2") is None
+    assert overlay_actions.get_slice_button(6, 66) is None
+    assert overlay_actions._glyph_path("folder-symbolic", "mono2").endswith(
+        os.path.join("icons", "mono2", "folder-symbolic.png"))
+    # A name without a Monochrome 2 glyph still resolves through the line family.
+    assert overlay_actions._glyph_path("easyswitch", "mono2").endswith(
+        os.path.join("icons", "nav", "easyswitch.svg"))
     glyph = overlay_actions.get_style_glyph(6, 30, QColor("#ffffff"))
     assert glyph is not None and glyph.width() == 30
 

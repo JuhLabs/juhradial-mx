@@ -22,11 +22,12 @@ from bridge.backend import Backend      # noqa: E402
 from bridge.i18n import install_translator  # noqa: E402
 
 MONO_DIR = HERE / "assets" / "icons" / "mono"
+MONO2_DIR = HERE / "assets" / "icons" / "mono2"
 NAV_DIR = HERE / "assets" / "icons" / "nav"
 ICON_DIRS = (MONO_DIR, NAV_DIR)
 CLASSIC_DIRS = (HERE / "assets" / "icons" / "classic" / "mono",
                 HERE / "assets" / "icons" / "classic" / "nav")
-ICON_STYLES = ("line", "classic", "mono")
+ICON_STYLES = ("line", "classic", "mono", "mono2")
 DBUS_SERVICE = "org.kde.juhradialmx.settings"
 
 
@@ -64,9 +65,11 @@ class IconProvider(QQuickImageProvider):
 
     QML usage: image://icon/<hex>/<style>/<icon-name>  (hex and style optional;
     white and "line" by default). "classic" resolves the pre-0.4.5 sets under
-    assets/icons/classic first. One line-icon family (24-grid SVG masters in assets/icons/mono and
-    assets/icons/nav) is rendered by QSvgRenderer at the exact requested pixel
-    size, so glyphs stay crisp at every scale factor, then tinted by alpha.
+    assets/icons/classic first, "mono2" the Monochrome 2 PNGs in
+    assets/icons/mono2 (the line family fills any gap). One line-icon family
+    (24-grid SVG masters in assets/icons/mono and assets/icons/nav) is
+    rendered by QSvgRenderer at the exact requested pixel size, so glyphs stay
+    crisp at every scale factor, then tinted by alpha.
     Legacy PNG masters and the freedesktop theme remain as fallbacks so every
     icon name a user config references keeps resolving.
     """
@@ -96,7 +99,12 @@ class IconProvider(QQuickImageProvider):
     def _base(self, name, w, h, style="line"):
         # Directory order is the style's precedence: "classic" must find its
         # PNG masters before the SVG family of the same name.
-        dirs = (CLASSIC_DIRS + ICON_DIRS) if style == "classic" else ICON_DIRS
+        if style == "classic":
+            dirs = CLASSIC_DIRS + ICON_DIRS
+        elif style == "mono2":
+            dirs = (MONO2_DIR,) + ICON_DIRS
+        else:
+            dirs = ICON_DIRS
         for d in dirs:
             svg = d / (name + ".svg")
             if svg.exists():

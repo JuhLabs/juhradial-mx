@@ -62,7 +62,7 @@ WHEELS = [
 
 
 CONFIG_JSON = _XDG_CONFIG / "juhradial" / "config.json"
-ICON_STYLES = ("line", "classic", "mono")
+ICON_STYLES = ("line", "classic", "mono", "mono2")
 
 
 def resolve_icon_style(state, cfg):
@@ -374,9 +374,9 @@ class Theme(QObject):
 
         When present the editor shows this in place of the generic ring+icon.
         "classic" serves the pre-0.4.5 glossy orbs from slices/classic/;
-        "mono" returns "" so the editor draws flat single-colour glyphs.
+        "mono" and "mono2" return "" so the editor draws flat single-colour glyphs.
         """
-        if self._icon_style == "mono":
+        if self._icon_style in ("mono", "mono2"):
             return ""
         if self._icon_style == "classic":
             p = ASSETS / "slices" / "classic" / f"btn_{action_id}.png"
@@ -385,8 +385,9 @@ class Theme(QObject):
         p = ASSETS / "slices" / f"btn_{action_id}.png"
         return p.as_uri() if p.exists() else ""
 
-    # ---- icon style: "line" (24-grid SVG family), "classic" (0.4.4 sets) or
-    #      "mono" (flat single-colour glyphs, no coloured wheel buttons) ----
+    # ---- icon style: "line" (24-grid SVG family), "classic" (0.4.4 sets),
+    #      "mono" (flat single-colour glyphs, no coloured wheel buttons) or
+    #      "mono2" (Monochrome 2: mono with the filled PNG glyph set) ----
     @pyqtProperty(str, notify=changed)
     def iconStyle(self):
         return self._icon_style
@@ -394,7 +395,7 @@ class Theme(QObject):
     @pyqtSlot(str)
     def setIconStyle(self, style):
         style = str(style)
-        if style in ("line", "classic", "mono") and style != self._icon_style:
+        if style in ICON_STYLES and style != self._icon_style:
             self._icon_style = style
             self._save_state("icon_style", style)
             self.changed.emit()

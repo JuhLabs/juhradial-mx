@@ -354,11 +354,12 @@ DEFAULT_ACTIONS = [
 # ICON STYLE (Settings → Appearance → Icon style)
 # =============================================================================
 # "line" draws the 0.4.5 composed slice buttons and line glyphs, "classic" the
-# 0.4.4 glossy buttons and PNG glyphs, "mono" flat single-colour glyphs only.
-# The assets are the settings app's own (settings-qt/assets next to overlay/ in
-# a checkout, /usr/share/juhradial/settings-qt/assets when installed), so the
+# 0.4.4 glossy buttons and PNG glyphs, "mono" flat single-colour glyphs only,
+# "mono2" (Monochrome 2) the same with the filled PNG glyph set. The assets
+# are the settings app's own (settings-qt/assets next to overlay/ in a
+# checkout, /usr/share/juhradial/settings-qt/assets when installed), so the
 # live wheel and the settings previews always agree.
-ICON_STYLES = ("line", "classic", "mono")
+ICON_STYLES = ("line", "classic", "mono", "mono2")
 # ICON_STYLE itself is set by load_icon_style() further down, next to the
 # other config readers, and refreshed every time the menu opens.
 
@@ -399,9 +400,10 @@ def _slice_button_path(action_id, style):
     """Path of the slice button image for `action_id` in `style`, or None.
 
     Mirrors Theme.sliceButton in the settings app: "classic" prefers the
-    0.4.4 orbs and falls back to the current set, "mono" has no buttons.
+    0.4.4 orbs and falls back to the current set, "mono" and "mono2" have
+    no buttons.
     """
-    if style == "mono":
+    if style in ("mono", "mono2"):
         return None
     assets = _settings_assets_dir()
     if not assets:
@@ -435,7 +437,8 @@ def get_slice_button(index, size):
 
 def _glyph_path(name, style):
     """Path of the family glyph `name` for `style`: the line SVG masters for
-    "line" and "mono", the 0.4.4 PNG masters first for "classic". None when
+    "line" and "mono", the 0.4.4 PNG masters first for "classic", the
+    Monochrome 2 PNGs first for "mono2". None when
     the family has no glyph of that name (the painter draws its own then)."""
     assets = _settings_assets_dir()
     if not assets or not name:
@@ -445,6 +448,8 @@ def _glyph_path(name, style):
                   os.path.join(icons, "nav", f"{name}.svg")]
     if style == "classic":
         candidates.insert(0, os.path.join(icons, "classic", "mono", f"{name}.png"))
+    elif style == "mono2":
+        candidates.insert(0, os.path.join(icons, "mono2", f"{name}.png"))
     return next((c for c in candidates if os.path.exists(c)), None)
 
 
