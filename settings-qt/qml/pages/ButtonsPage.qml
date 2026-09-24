@@ -118,7 +118,7 @@ Item {
         page.bump
         // The thumb wheel is set by its mode (thumbwheel.mode), not as a button.
         if (slot === "horizontal_scroll") {
-            var tw = Backend.get("thumbwheel.mode", "off"), modes = Backend.thumbwheelModes()
+            var tw = Backend.thumbwheelMode, modes = Backend.thumbwheelModes()
             for (var k = 0; k < modes.length; k++) if (modes[k].id === tw) return modes[k].name
             return tw
         }
@@ -130,7 +130,7 @@ Item {
     }
     function isChanged(slot, def) {
         page.bump
-        if (slot === "horizontal_scroll") return Backend.get("thumbwheel.mode", "off") !== "off"
+        if (slot === "horizontal_scroll") return Backend.thumbwheelMode !== "off"
         if (page.scope !== "") return Backend.hasOverride(page.scope, slot)
         return Backend.buttonAction("", slot, def) !== def
     }
@@ -160,7 +160,7 @@ Item {
                 Backend.notify(qsTr("An app's thumb wheel is set on the App profiles tab."), "info")
                 return
             }
-            twPicker.currentId = Backend.get("thumbwheel.mode", "off")
+            twPicker.currentId = Backend.thumbwheelMode
             twPicker.open()
             return
         }

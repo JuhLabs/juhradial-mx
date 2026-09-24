@@ -834,11 +834,7 @@ pub async fn read_dpi() -> Option<(u16, (u16, u16))> {
     tokio::task::spawn_blocking(move || {
         let mut m = manager.lock().ok()?;
         let dpi = m.get_dpi()?;
-        let range = m
-            .get_dpi_list()
-            .filter(|l| !l.is_empty())
-            .map(|l| (*l.iter().min().unwrap_or(&DPI_RANGE_FALLBACK.0), *l.iter().max().unwrap_or(&DPI_RANGE_FALLBACK.1)))
-            .unwrap_or(DPI_RANGE_FALLBACK);
+        let range = m.dpi_caps().map_or(DPI_RANGE_FALLBACK, |c| (c.min, c.max));
         Some((dpi, range))
     })
     .await

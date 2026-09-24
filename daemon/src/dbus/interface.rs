@@ -520,6 +520,19 @@ impl JuhRadialService {
         }
     }
 
+    /// The sensor's settable DPI (lowest, highest, step, factory default);
+    /// step 0 means the device lists discrete values, default 0 that it
+    /// reports none. All zero while unknown.
+    async fn get_dpi_range(&self) -> fdo::Result<(u16, u16, u16, u16)> {
+        match self.haptic_manager.lock() {
+            Ok(mut manager) => Ok(manager.dpi_caps().map_or((0, 0, 0, 0), |c| (c.min, c.max, c.step, c.default))),
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to lock haptic manager for get_dpi_range");
+                Ok((0, 0, 0, 0))
+            }
+        }
+    }
+
     async fn dpi_supported(&self) -> fdo::Result<bool> {
         match self.haptic_manager.lock() {
             Ok(mut manager) => Ok(manager.dpi_supported()),

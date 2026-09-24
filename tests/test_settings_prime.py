@@ -73,6 +73,7 @@ ANSWERS = {
     "GetCapabilities": [{"dpi": True, "haptics": True, "force_sense": True}],
     "GetBatteryStatus": [80, False],
     "GetDpi": [1500],
+    "GetDpiRange": [200, 8000, 50, 1000],
     "GetSmartShift": [True, 12],
     "SmartShiftSupported": [True],
     "ThumbwheelSupported": [True],
@@ -150,8 +151,9 @@ def test_superseded_round_is_dropped(backend):
 def test_a_late_prime_answer_keeps_the_users_dpi(backend):
     backend._prime()
     backend.setDpi(2400)
-    _drain(backend)
+    _drain(backend, dict(ANSWERS, SetDpi=[]))  # the mouse took it
     assert backend.dpi == 2400
+    assert backend.dpiRange == {"min": 200, "max": 8000, "step": 50, "default": 1000}
 
 
 def test_old_daemon_fallbacks(backend):

@@ -724,12 +724,12 @@ impl HapticManager {
         }
     }
 
-    /// Get list of supported DPI values
-    pub fn get_dpi_list(&mut self) -> Option<Vec<u16>> {
+    /// The sensor's settable DPI range and step
+    pub fn dpi_caps(&mut self) -> Option<super::device::DpiCaps> {
         if self.device.is_none() {
             let _ = self.connect();
         }
-        self.device.as_mut().and_then(|d| d.get_dpi_list())
+        self.device.as_mut().and_then(|d| d.dpi_caps())
     }
 
     // =========================================================================

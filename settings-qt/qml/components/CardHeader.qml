@@ -8,6 +8,7 @@ Item {
     property string title: ""
     property string subtitle: ""
     property string icon: ""          // image://icon/<hex>/<name> or asset url
+    property string mousePart: ""     // a MouseGlyph part instead of the icon
     default property alias trailing: slot.data
     implicitHeight: Math.max(40, row.implicitHeight)
 
@@ -19,15 +20,21 @@ Item {
         spacing: 12
         // icon chip: the accent glyph sits in a quiet inset tile
         Rectangle {
-            visible: h.icon !== ""
+            visible: h.icon !== "" || h.mousePart !== ""
             Layout.preferredWidth: 34; Layout.preferredHeight: 34
             Layout.alignment: Qt.AlignVCenter
             radius: 10
             color: Theme.accentFaint
             border.width: 1; border.color: Theme.accentFaint
+            MouseGlyph {
+                anchors.centerIn: parent
+                visible: h.mousePart !== ""
+                part: h.mousePart
+            }
             Image {
                 anchors.centerIn: parent
-                source: h.icon
+                visible: h.mousePart === ""
+                source: h.mousePart === "" ? h.icon : ""
                 sourceSize.width: 40; sourceSize.height: 40
                 width: 19; height: 19; smooth: true
             }

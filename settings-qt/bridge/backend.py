@@ -26,7 +26,7 @@ import re
 
 from PyQt6.QtCore import (
     QObject, pyqtSlot, pyqtProperty, pyqtSignal, QTimer, QCoreApplication,
-    QAbstractListModel, QModelIndex, Qt, QByteArray, QUrl,
+    QAbstractListModel, QModelIndex, Qt, QByteArray, QUrl, QProcess,
 )
 
 from PyQt6.QtCore import QMetaType, QSize
@@ -66,7 +66,7 @@ from PyQt6.QtGui import QIcon
 try:
     from PyQt6.QtDBus import (QDBus, QDBusArgument, QDBusConnection,
                               QDBusMessage, QDBusPendingCallWatcher,
-                              QDBusPendingReply, QDBusServiceWatcher)
+                              QDBusPendingReply, QDBusServiceWatcher, QDBusVariant)
     _HAVE_DBUS = True
 except Exception:  # pragma: no cover - QtDBus should be present
     _HAVE_DBUS = False
@@ -394,6 +394,112 @@ HAPTIC_PATTERNS = [
 
 THUMBWHEEL_MODES = [("off", "Horizontal scroll (default)"), ("volume", "Volume"),
                     ("scroll", "Scroll"), ("zoom", "Zoom")]
+# "scroll" is horizontal scrolling too; the daemon inverts it in hardware
+# (#127) while "off" leaves the wheel untouched. Pickers offer one
+# "Horizontal scroll" and store "scroll" only while Invert is on.
+THUMBWHEEL_PICKER = ("off", "volume", "zoom")
+
+# The mouse's DPI range until the daemon answers GetDpiRange (MX Master 4,
+# hardware-read: 200..8000 in steps of 50, factory 1000).
+DPI_RANGE_FALLBACK = {"min": 200, "max": 8000, "step": 50, "default": 1000}
+# What the DPI cycle button steps through when pointer.dpi_presets is unset
+# (daemon main.rs dpi_step) and the precision DPI (pointer.dpi_shift).
+DPI_PRESETS_DEFAULT = [800, 1600, 3200]
+DPI_SHIFT_DEFAULT = 400
+
+# Desktop pointer settings the mouse cannot hold itself: acceleration, scroll
+# speed and the desktop's own natural scrolling, one knob per desktop. KDE
+# Plasma on Wayland keeps them per device in KWin (kcminputrc
+# [Libinput][vendor][product][name], live over D-Bus); the [Mouse]
+# ScrollFactor key written up to 0.4.4 is never read there.
+KWIN = "org.kde.KWin"
+KWIN_INPUT = "/org/kde/KWin/InputDevice"
+KWIN_DEVICE = "org.kde.KWin.InputDevice"
+LOGITECH_VENDOR = 1133
+
+
+def _is_x11(env):
+    t = env.get("XDG_SESSION_TYPE", "").lower()
+    return t == "x11" or (t != "wayland" and not env.get("WAYLAND_DISPLAY") and bool(env.get("DISPLAY")))
+
+
+def pointer_desktop(env=None):
+    """hyprland | sway | gnome | kde (Wayland) | x11 | "" (a Wayland desktop
+    whose pointer settings JuhRadial cannot reach)."""
+    env = os.environ if env is None else env
+    desk = env.get("XDG_CURRENT_DESKTOP", "").lower()
+    if env.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        return "hyprland"
+    if "sway" in desk or env.get("SWAYSOCK"):
+        return "sway"
+    if any(d in desk for d in ("gnome", "unity", "budgie", "pantheon")):
+        return "gnome"
+    if ("kde" in desk or "plasma" in desk) and not _is_x11(env):
+        return "kde"
+    return "x11" if _is_x11(env) else ""
+
+
+def scroll_speed_method(env=None, which=shutil.which):
+    """(method, reason): how this session applies Scroll speed, or why not."""
+    env = os.environ if env is None else env
+    d = pointer_desktop(env)
+    if d in ("kde", "hyprland", "sway"):
+        return d, ""
+    if _is_x11(env):
+        if which("imwheel"):
+            return "imwheel", ""
+        return "", _("Install imwheel to change the scroll speed")
+    if d == "gnome":
+        return "", _("GNOME on Wayland has no scroll speed setting")
+    return "", _("Your desktop has no scroll speed setting JuhRadial can change")
+
+
+def accel_method(env=None, which=shutil.which):
+    """(method, reason): how this session switches pointer acceleration."""
+    env = os.environ if env is None else env
+    d = pointer_desktop(env)
+    if d == "gnome":
+        return ("gsettings", "") if which("gsettings") else ("", _("Needs gsettings"))
+    if d in ("kde", "hyprland", "sway"):
+        return d, ""
+    if d == "x11":
+        return ("xinput", "") if which("xinput") else ("", _("Install xinput to change pointer acceleration"))
+    return "", _("Your desktop has no acceleration setting JuhRadial can change")
+
+
+def scroll_factor(speed):
+    """Scroll speed 1..10 -> desktop scroll factor 0.5x .. 2x (1.0x at 4)."""
+    return 0.5 + (max(1, min(10, int(speed))) - 1) * 0.167
+
+
+def speed_for_factor(factor):
+    """The Scroll speed step (1..10) nearest a desktop scroll factor."""
+    return max(1, min(10, int(round((float(factor) - 0.5) / 0.167)) + 1))
+
+
+def scroll_lines(method, speed):
+    """Lines one wheel notch scrolls at this speed (most apps: 3 at 1.0x).
+    imwheel repeats the whole notch instead of scaling it."""
+    speed = max(1, min(10, int(speed)))
+    n = 3 * speed if method == "imwheel" else 3 * scroll_factor(speed)
+    return round(n, 1)
+
+
+def xinput_ids(names_out, ids_out):
+    """Pointer ids whose name looks like a Logitech mouse, from
+    `xinput list --name-only` and `xinput list --id-only` (same order)."""
+    names = (names_out or "").splitlines()
+    ids = (ids_out or "").split()
+    return [i for n, i in zip(names, ids) if "logitech" in n.lower() or n.strip().startswith("MX ")]
+
+
+def xinput_prop(props_out, name):
+    """Values of one property in `xinput list-props` output, or None."""
+    for line in (props_out or "").splitlines():
+        line = line.strip()
+        if line.startswith(name + " ("):
+            return [v.strip() for v in line.split(":", 1)[1].split(",")]
+    return None
 SCROLL_MODES = [("ratchet", "Ratchet"), ("smartshift", "SmartShift"), ("freespin", "Free-spin")]
 EASY_SWITCH_OS = [("linux", "Linux"), ("windows", "Windows"), ("macos", "macOS"),
                   ("ios", "iOS"), ("android", "Android"), ("chromeos", "ChromeOS"),
@@ -482,12 +588,13 @@ SEARCH_INDEX = [
     ("buttons", "Drag distance", "Directional gestures", "gesture threshold pixels drag distance click"),
     ("buttons", "Other controls", "Other controls", "extra controls buttons divert dpi switch side buttons"),
     # Point & Scroll
-    ("scroll", "Sensitivity", "Pointer", "dpi pointer tracking speed sensitivity cursor"),
+    ("scroll", "Pointer speed (DPI)", "Pointer", "dpi pointer tracking speed sensitivity cursor presets cycle stops"),
+    ("scroll", "Precision DPI", "Pointer", "precision dpi shift sniper hold slow"),
     ("scroll", "Pointer acceleration", "Pointer", "acceleration speed fast slow motion"),
     ("scroll", "Wheel mode", "Scroll wheel", "ratchet free-spin smartshift click glide"),
-    ("scroll", "SmartShift sensitivity", "Scroll wheel", "smartshift threshold flick auto-switch"),
+    ("scroll", "SmartShift threshold", "Scroll wheel", "smartshift sensitivity threshold flick auto-switch"),
     ("scroll", "Natural scrolling", "Scroll wheel", "natural scrolling direction content follows reverse"),
-    ("scroll", "Smooth (high-res) scrolling", "Scroll wheel", "smooth high-res scrolling fine precision hires"),
+    ("scroll", "Smooth scrolling", "Scroll wheel", "smooth high-res scrolling fine precision hires"),
     ("scroll", "Scroll speed", "Scroll wheel", "scroll speed lines notch velocity"),
     ("scroll", "Action", "Thumb wheel", "thumb wheel action mode purpose volume zoom"),
     ("scroll", "Invert direction", "Thumb wheel", "invert direction reverse scroll rotation thumb wheel"),
@@ -1110,6 +1217,8 @@ class Backend(QObject):
     # False until the first prime round answered (or PRIME_TIMEOUT_MS passed);
     # pages show placeholders for live readouts until then. Never goes back.
     primedChanged = pyqtSignal()
+    hwErrorsChanged = pyqtSignal()
+    desktopPointerChanged = pyqtSignal()
 
     PRIME_TIMEOUT_MS = 3000
 
@@ -1171,7 +1280,14 @@ class Backend(QObject):
         self._num_hosts = 3
         self._hosts_known = False
         self._ratchet = True
+        self._ratchet_seen = False
         self._wheel_mode = ""
+        self._dpi_range = dict(DPI_RANGE_FALLBACK)
+        # Hardware writes the mouse refused or deferred: {key: {text, error}}.
+        self._hw_errors = {}
+        # Desktop pointer state read back (1 on, 0 off, -1 unknown).
+        self._desk = {"accel": -1, "natural": -1, "speed": -1}
+        self._procs = set()
         self._host_names = []
         self._ss_supported = False
         self._tw_supported = False
@@ -1633,6 +1749,7 @@ class Backend(QObject):
             ("GetCapabilities", caps),
             ("GetBatteryStatus", battery),
             ("GetDpi", dpi),
+            ("GetDpiRange", self._apply_dpi_range),
             ("GetSmartShift",
              lambda r: None if "wheel" in self._local_edits else self._apply_smartshift(r)),
             ("SmartShiftSupported", flag("_ss_supported")),
@@ -1721,41 +1838,165 @@ class Backend(QObject):
 
     def _set_ratchet_live(self, r):
         self._ratchet = r
+        self._ratchet_seen = True
         # The hardware button toggles engagement without touching the stored
         # wheel mode; re-read so wheelMode stays truthful either way.
         self._refresh_wheel_mode()
         self.liveChanged.emit()
 
     # ---- pointer / scroll / thumbwheel actions ----
+    def _restore_local(self, path, value):
+        """Put a config key back as it was (None = it was absent)."""
+        parts = path.split(".")
+        if value is None:
+            parent = self._get_path(parts[:-1], None)
+            if isinstance(parent, dict):
+                parent.pop(parts[-1], None)
+            self._save()
+            self.configChanged.emit()
+        else:
+            self.setLocal(path, value)
+
+    @pyqtProperty("QVariantMap", notify=hwErrorsChanged)
+    def hwErrors(self):
+        """Hardware writes the mouse refused or deferred, by setting:
+        {key: {"text": message, "error": bool}}."""
+        return dict(self._hw_errors)
+
+    def _set_hw_error(self, key, text="", error=True):
+        if text:
+            self._hw_errors[key] = {"text": text, "error": error}
+        elif key not in self._hw_errors:
+            return
+        else:
+            self._hw_errors.pop(key)
+        self.hwErrorsChanged.emit()
+
+    def _hw_then(self, key, method, revert, *args):
+        """Send a hardware setter and report its fate under `key`. The value
+        stays saved while the mouse sleeps, sits on another computer or the
+        service is down (the daemon replays it); a refusal from a connected
+        mouse is undone with `revert()`."""
+        def done(r):
+            if r is not None:
+                self._set_hw_error(key)
+            elif not self.daemon.available:
+                self._set_hw_error(key, _("Saved. JuhRadial applies it when its service starts."), False)
+            elif self.linkState in ("asleep", "away", "offline"):
+                self._set_hw_error(key, _("Saved. The mouse gets it when it wakes up or comes back."), False)
+            else:
+                revert()
+                self._set_hw_error(key, _("The mouse did not accept this change."))
+        self.daemon.call_then(method, done, *args)
+
+    @pyqtProperty("QVariantMap", notify=liveChanged)
+    def dpiRange(self):
+        """{min, max, step, default}: what the sensor accepts (GetDpiRange)."""
+        return dict(self._dpi_range)
+
+    def _apply_dpi_range(self, r):
+        if not r or len(r) < 3:
+            return
+        lo, hi, step = _to_int(r[0]), _to_int(r[1]), _to_int(r[2])
+        if lo <= 0 or hi < lo:
+            return
+        default = _to_int(r[3]) if len(r) >= 4 else 0
+        self._dpi_range = {"min": lo, "max": hi, "step": step,
+                           "default": default if lo <= default <= hi else max(lo, min(hi, 1000))}
+
+    @pyqtSlot(int, result=int)
+    def snapDpi(self, dpi):
+        """The settable DPI nearest to `dpi` (the daemon snaps the same way)."""
+        r = self._dpi_range
+        lo, hi, step = r["min"], r["max"], r["step"]
+        dpi = max(lo, min(hi, int(dpi)))
+        if step <= 0:
+            return dpi
+        on_grid = min(hi, lo + int((dpi - lo) / step + 0.5) * step)
+        return hi if hi - dpi < abs(dpi - on_grid) else on_grid
+
     @pyqtSlot(int)
     def setDpi(self, dpi):
-        dpi = max(400, min(8000, int(dpi)))
+        dpi = self.snapDpi(dpi)
+        before, before_cfg = self._dpi, self.get("pointer.dpi", None)
         self._local_edits.add("dpi")
         self._dpi = dpi
         self.setLocal("pointer.dpi", dpi)
-        self.daemon.call_async("SetDpi", _u16(dpi))
         self.liveChanged.emit()
+
+        def revert():
+            self._dpi = before
+            self._restore_local("pointer.dpi", before_cfg)
+            self.liveChanged.emit()
+        self._hw_then("dpi", "SetDpi", revert, _u16(dpi))
+
+    @pyqtSlot(result="QVariant")
+    def dpiPresets(self):
+        """The DPI cycle button's stops (pointer.dpi_presets), ascending."""
+        raw = self.get("pointer.dpi_presets", None)
+        vals = raw if isinstance(raw, list) and raw else DPI_PRESETS_DEFAULT
+        return sorted({self.snapDpi(_to_int(v)) for v in vals if _to_int(v) > 0})
+
+    @pyqtSlot("QVariant")
+    def setDpiPresets(self, values):
+        vals = sorted({self.snapDpi(_to_int(v)) for v in (values or []) if _to_int(v) > 0})
+        self.set("pointer.dpi_presets", vals[:6])
+
+    @pyqtProperty(int, notify=configChanged)
+    def dpiShift(self):
+        """Precision DPI while a Precision DPI button is held."""
+        return self.snapDpi(_to_int(self.get("pointer.dpi_shift", DPI_SHIFT_DEFAULT), DPI_SHIFT_DEFAULT))
+
+    @pyqtSlot(int)
+    def setDpiShift(self, dpi):
+        self.set("pointer.dpi_shift", self.snapDpi(dpi))
+
+    @pyqtProperty(str, notify=liveChanged)
+    def scrollMode(self):
+        """The wheel mode the selector shows: the hardware's once read,
+        else the saved one (#108: the selector follows the mouse)."""
+        return self._wheel_mode or str(self.get("scroll.mode", "smartshift"))
+
+    @pyqtProperty(bool, notify=liveChanged)
+    def wheelClicking(self):
+        """Whether the wheel is clicking right now: the live RatchetChanged
+        state, else what the mode implies at rest."""
+        if self._ratchet_seen:
+            return self._ratchet
+        return self.scrollMode != "freespin"
 
     @pyqtSlot(str)
     def setScrollMode(self, mode):
-        self.setLocal("scroll.mode", mode)
         thr = int(self.get("scroll.smartshift_threshold", 50))
-        if mode == "smartshift":
-            self.daemon.call("SetSmartShift", True, _u8(self._dev_threshold(thr)))
-        elif mode == "ratchet":
-            # (False, _) = permanently ratcheted (autoDisengage 255).
-            self.daemon.call("SetSmartShift", False, _u8(0))
-        elif mode == "freespin":
-            # (True, 0) = freespin.
-            self.daemon.call("SetSmartShift", True, _u8(0))
+        # (True, 1..49) = SmartShift, (False, _) = permanently ratcheted
+        # (autoDisengage 255), (True, 0) = free-spin.
+        wire = {"smartshift": (True, self._dev_threshold(thr)),
+                "ratchet": (False, 0), "freespin": (True, 0)}.get(mode)
+        if wire is None:
+            return
+        before_cfg, before_live = self.get("scroll.mode", None), self._wheel_mode
+        self.setLocal("scroll.mode", mode)
         self._wheel_mode = mode
         self._local_edits.add("wheel")
         self.liveChanged.emit()
 
+        def revert():
+            self._restore_local("scroll.mode", before_cfg)
+            self._wheel_mode = before_live
+            self._refresh_wheel_mode()
+        self._hw_then("wheel", "SetSmartShift", revert, wire[0], _u8(wire[1]))
+
     @pyqtSlot(int)
     def setSmartShiftThreshold(self, ui_value):
+        before = self.get("scroll.smartshift_threshold", None)
         self.setLocal("scroll.smartshift_threshold", int(ui_value))
-        self.daemon.call("SetSmartShift", True, _u8(self._dev_threshold(ui_value)))
+        # Only SmartShift uses the threshold: sending it in Ratchet or
+        # Free-spin would switch the wheel to SmartShift (#108).
+        if self.scrollMode != "smartshift":
+            return
+        self._hw_then("smartshift", "SetSmartShift",
+                      lambda: self._restore_local("scroll.smartshift_threshold", before),
+                      True, _u8(self._dev_threshold(ui_value)))
 
     @staticmethod
     def _dev_threshold(ui_value):
@@ -1777,31 +2018,222 @@ class Backend(QObject):
 
     @pyqtSlot(bool)
     def setNaturalScroll(self, on):
+        before = self.get("scroll.natural", None)
         self.setLocal("scroll.natural", bool(on))
-        self.daemon.call("SetHiresscrollMode", bool(self.get("scroll.smooth", True)),
-                         bool(on), False)
+        self._hw_then("natural", "SetHiresscrollMode",
+                      lambda: self._restore_local("scroll.natural", before),
+                      bool(self.get("scroll.smooth", True)), bool(on), False)
 
     @pyqtSlot(bool)
     def setSmoothScroll(self, on):
+        before = self.get("scroll.smooth", None)
         self.setLocal("scroll.smooth", bool(on))
-        self.daemon.call("SetHiresscrollMode", bool(on),
-                         bool(self.get("scroll.natural", False)), False)
+        self._hw_then("smooth", "SetHiresscrollMode",
+                      lambda: self._restore_local("scroll.smooth", before),
+                      bool(on), bool(self.get("scroll.natural", False)), False)
+
+    # ---- desktop pointer settings (acceleration, scroll speed) ----
+    def _run_then(self, cmd, callback, timeout_ms=3000):
+        """Run a desktop helper without blocking the UI thread;
+        `callback(stdout or None)` runs on the UI thread."""
+        if shutil.which(cmd[0]) is None:
+            callback(None)
+            return
+        proc = QProcess(self)
+        self._procs.add(proc)
+
+        def done(*_a):
+            if proc not in self._procs:
+                return
+            self._procs.discard(proc)
+            ok = (proc.exitStatus() == QProcess.ExitStatus.NormalExit and proc.exitCode() == 0)
+            out = proc.readAllStandardOutput().data().decode(errors="replace") if ok else None
+            proc.deleteLater()
+            try:
+                callback(out)
+            except Exception as e:
+                print(f"{cmd[0]} callback failed: {e}", file=sys.stderr)
+        proc.finished.connect(done)
+        proc.errorOccurred.connect(
+            lambda _e: done() if proc.state() == QProcess.ProcessState.NotRunning else None)
+        proc.start(cmd[0], cmd[1:])
+        QTimer.singleShot(timeout_ms, lambda: proc.kill() if proc in self._procs else None)
+
+    def _kwin_then(self, path, iface, method, args, callback):
+        if not _HAVE_DBUS:
+            callback(None)
+            return
+        msg = QDBusMessage.createMethodCall(KWIN, path, iface, method)
+        if args:
+            msg.setArguments(list(args))
+        self.daemon._watch(QDBusConnection.sessionBus().asyncCall(msg, 2000), method, callback)
+
+    def _kwin_prop_then(self, path, prop, callback):
+        def unwrap(r):
+            v = r[0] if r else None
+            callback(v.variant() if hasattr(v, "variant") else v)
+        self._kwin_then(path, "org.freedesktop.DBus.Properties", "Get", [KWIN_DEVICE, prop], unwrap)
+
+    def _kwin_mice(self, callback):
+        """KWin's Logitech pointer devices (object paths) -> `callback(paths)`."""
+        def listed(r):
+            names = [str(n) for n in (r[0] if r else [])]
+            if not names:
+                callback([])
+                return
+            found, left = [], [len(names)]
+            for n in names:
+                def got(v, path=f"{KWIN_INPUT}/{n}"):
+                    if _to_int(v) == LOGITECH_VENDOR:
+                        found.append(path)
+                    left[0] -= 1
+                    if left[0] == 0:
+                        callback(sorted(found))
+                self._kwin_prop_then(f"{KWIN_INPUT}/{n}", "vendor", got)
+        self._kwin_then(KWIN_INPUT, "org.kde.KWin.InputDeviceManager", "ListPointers", [], listed)
+
+    def _kwin_set(self, prop, value):
+        """Write a KWin device property on every Logitech pointer: applies
+        live and KWin saves it in kcminputrc."""
+        def each(paths):
+            for path in paths:
+                self._kwin_then(path, "org.freedesktop.DBus.Properties", "Set",
+                                [KWIN_DEVICE, prop, QDBusVariant(value)], lambda _r: None)
+        self._kwin_mice(each)
+
+    def _xinput_mice(self, callback):
+        def names(out_n):
+            self._run_then(["xinput", "list", "--id-only"],
+                           lambda out_i: callback(xinput_ids(out_n, out_i)))
+        self._run_then(["xinput", "list", "--name-only"], names)
+
+    @pyqtProperty("QVariantMap", notify=desktopPointerChanged)
+    def desktopPointer(self):
+        """How this desktop takes Scroll speed and acceleration (method "" =
+        it cannot, with the reason) and what it reports: accel / natural
+        1 on, 0 off, -1 unknown; speed the step of its scroll factor, -1
+        unknown."""
+        sm, sr = scroll_speed_method()
+        am, ar = accel_method()
+        return {"speedMethod": sm, "speedReason": sr, "accelMethod": am, "accelReason": ar,
+                "accel": self._desk["accel"], "natural": self._desk["natural"],
+                "speed": self._desk["speed"]}
+
+    def _put_desk(self, key, val):
+        if key == "speed":
+            v = -1 if val is None else speed_for_factor(val)
+        else:
+            v = -1 if val is None else (1 if val else 0)
+        if self._desk.get(key) != v:
+            self._desk[key] = v
+            self.desktopPointerChanged.emit()
+
+    @pyqtSlot()
+    def readDesktopPointer(self):
+        """Read the desktop's own acceleration and natural scrolling (async)."""
+        d = pointer_desktop()
+        if d == "kde":
+            def each(paths):
+                seen = {"pointerAccelerationProfileFlat": [], "naturalScroll": [], "scrollFactor": []}
+                left = [len(paths) * len(seen)]
+
+                def got(v, prop):
+                    if v is not None:
+                        seen[prop].append(v)
+                    left[0] -= 1
+                    if left[0] == 0:
+                        flat, nat = seen["pointerAccelerationProfileFlat"], seen["naturalScroll"]
+                        # the device we set last differs from 1.0 when anything does
+                        factors = [float(f) for f in seen["scrollFactor"]]
+                        moved = [f for f in factors if abs(f - 1.0) > 0.01]
+                        self._put_desk("accel", (not any(flat)) if flat else None)
+                        self._put_desk("natural", any(nat) if nat else None)
+                        self._put_desk("speed", (moved or factors or [None])[0])
+                for path in paths:
+                    for prop in seen:
+                        self._kwin_prop_then(path, prop, lambda v, prop=prop: got(v, prop))
+            self._kwin_mice(each)
+        elif d == "gnome":
+            schema = "org.gnome.desktop.peripherals.mouse"
+            self._run_then(["gsettings", "get", schema, "accel-profile"],
+                           lambda o: self._put_desk("accel", None if o is None else "flat" not in o))
+            self._run_then(["gsettings", "get", schema, "natural-scroll"],
+                           lambda o: self._put_desk("natural", None if o is None else o.strip() == "true"))
+        elif d == "hyprland":
+            def opt(o, key):
+                try:
+                    j = json.loads(o or "")
+                except ValueError:
+                    return None
+                return j.get(key)
+            self._run_then(["hyprctl", "getoption", "input:accel_profile", "-j"],
+                           lambda o: self._put_desk("accel", None if opt(o, "str") is None
+                                                    else "flat" not in opt(o, "str")))
+            self._run_then(["hyprctl", "getoption", "input:natural_scroll", "-j"],
+                           lambda o: self._put_desk("natural", None if opt(o, "int") is None
+                                                    else bool(opt(o, "int"))))
+            self._run_then(["hyprctl", "getoption", "input:scroll_factor", "-j"],
+                           lambda o: self._put_desk("speed", opt(o, "float")))
+        elif d == "sway":
+            def inputs(o):
+                try:
+                    ptrs = [i for i in json.loads(o or "[]") if i.get("type") == "pointer"]
+                except ValueError:
+                    ptrs = []
+                ptrs.sort(key=lambda i: "logitech" not in i.get("name", "").lower())
+                li = ptrs[0].get("libinput", {}) if ptrs else {}
+                self._put_desk("accel", None if "accel_profile" not in li else li["accel_profile"] != "flat")
+                self._put_desk("natural", None if "natural_scroll" not in li
+                               else li["natural_scroll"] == "enabled")
+            self._run_then(["swaymsg", "-t", "get_inputs"], inputs)
+        elif d == "x11":
+            def first(ids):
+                if not ids:
+                    return
+
+                def props(o):
+                    acc = xinput_prop(o, "libinput Accel Profile Enabled")
+                    nat = xinput_prop(o, "libinput Natural Scrolling Enabled")
+                    self._put_desk("accel", None if not acc else acc[0] == "1")
+                    self._put_desk("natural", None if not nat else nat[0] == "1")
+                self._run_then(["xinput", "list-props", ids[0]], props)
+            self._xinput_mice(first)
 
     @pyqtSlot(bool)
     def setPointerAccel(self, on):
-        """Pointer acceleration on/off -> libinput accel-profile via gsettings
-        (adaptive when on, flat when off)."""
+        """Pointer acceleration on (adaptive) or off (flat), in the desktop."""
         self.setLocal("pointer.acceleration", bool(on))
-        if shutil.which("gsettings") is None:
-            self.toast.emit(_("Pointer acceleration needs GNOME gsettings"))
+        method, reason = accel_method()
+        profile = "adaptive" if on else "flat"
+        noop = lambda _o: None  # noqa: E731
+        if method == "":
+            self.toast.emit(reason)
             return
-        try:
-            subprocess.Popen(["gsettings", "set",
-                              "org.gnome.desktop.peripherals.mouse",
-                              "accel-profile", "adaptive" if on else "flat"],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            pass
+        if method == "gsettings":
+            self._run_then(["gsettings", "set", "org.gnome.desktop.peripherals.mouse",
+                            "accel-profile", profile], noop)
+        elif method == "kde":
+            self._kwin_set("pointerAccelerationProfileAdaptive" if on else "pointerAccelerationProfileFlat", True)
+        elif method == "hyprland":
+            self._run_then(["hyprctl", "keyword", "input:accel_profile", profile], noop)
+        elif method == "sway":
+            self._run_then(["swaymsg", "input", "type:pointer", "accel_profile", profile], noop)
+        elif method == "xinput":
+            def each(ids):
+                for i in ids:
+                    def props(o, i=i):
+                        vals = xinput_prop(o, "libinput Accel Profile Enabled")
+                        if vals and len(vals) >= 2:
+                            new = ["1" if on else "0", "0" if on else "1"] + ["0"] * (len(vals) - 2)
+                            self._run_then(["xinput", "set-prop", i, "libinput Accel Profile Enabled", *new], noop)
+                    self._run_then(["xinput", "list-props", i], props)
+            self._xinput_mice(each)
+        self._put_desk("accel", on)
+
+    @pyqtSlot(int, result=str)
+    def scrollLinesText(self, speed):
+        """Lines per notch at this Scroll speed, as text ("2.5")."""
+        return "%g" % scroll_lines(scroll_speed_method()[0], speed)
 
     @pyqtSlot(int)
     def setScrollSpeed(self, lines):
@@ -1811,50 +2243,27 @@ class Backend(QObject):
         self._apply_scroll_speed(lines)
 
     def _apply_scroll_speed(self, lines):
-        """Apply the scroll multiplier across desktops (best-effort, fail-soft).
-        Ported from the shipped GTK app: KDE ScrollFactor, Hyprland/sway IPC,
-        X11 imwheel. 1 line -> 0.5x .. ramps up by ~0.167 per step.
-        All external commands run detached or on worker threads: this fires
-        from a slider on the UI thread, so it must never block."""
-        factor = 0.5 + (lines - 1) * 0.167
-        desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
-        session = os.environ.get("XDG_SESSION_TYPE", "").lower()
-
-        def _spawn(cmd):
-            try:
-                subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL)
-            except Exception:
-                pass
-
-        if "kde" in desktop or "plasma" in desktop:
-            # Plasma 6 ships kwriteconfig6; fall back to the Plasma 5 name.
-            for tool in ("kwriteconfig6", "kwriteconfig5"):
-                if shutil.which(tool):
-                    _spawn([tool, "--file", "kcminputrc", "--group", "Mouse",
-                            "--key", "ScrollFactor", str(factor)])
-                    break
-
-        if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
-            _spawn(["hyprctl", "keyword", "input:scroll_factor", str(factor)])
-
-        if "sway" in desktop:
-            def _sway():
+        """Apply Scroll speed through this desktop's knob (fail-soft; never
+        blocks: it fires from a slider on the UI thread)."""
+        method, _reason = scroll_speed_method()
+        factor = round(scroll_factor(lines), 3)
+        noop = lambda _o: None  # noqa: E731
+        if method in ("kde", "hyprland"):
+            self._put_desk("speed", factor)
+        if method == "kde":
+            self._kwin_set("scrollFactor", float(factor))
+        elif method == "hyprland":
+            self._run_then(["hyprctl", "keyword", "input:scroll_factor", str(factor)], noop)
+        elif method == "sway":
+            self._run_then(["swaymsg", "input", "type:pointer", "scroll_factor", str(factor)], noop)
+        elif method == "imwheel":
+            def _spawn(cmd):
                 try:
-                    r = subprocess.run(["swaymsg", "-t", "get_inputs"],
-                                       capture_output=True, text=True, timeout=2)
-                    if r.returncode == 0:
-                        for inp in json.loads(r.stdout):
-                            if "pointer" in inp.get("type", ""):
-                                subprocess.run(
-                                    ["swaymsg", "input", inp.get("identifier", ""),
-                                     "scroll_factor", str(factor)],
-                                    capture_output=True, timeout=2)
+                    subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL)
                 except Exception:
                     pass
-            threading.Thread(target=_sway, daemon=True).start()
 
-        if session == "x11":
             def _imwheel():
                 try:
                     rc = pathlib.Path.home() / ".imwheelrc"
@@ -1868,14 +2277,31 @@ class Backend(QObject):
                     pass
             threading.Thread(target=_imwheel, daemon=True).start()
 
+    @pyqtProperty(str, notify=configChanged)
+    def thumbwheelMode(self):
+        """The picker's choice ("scroll", inverted horizontal scrolling,
+        shows as the one "off" = Horizontal scroll)."""
+        m = str(self.get("thumbwheel.mode", "off"))
+        return "off" if m == "scroll" else m
+
+    @staticmethod
+    def _tw_store(mode, invert):
+        """What thumbwheel.mode stores for a picker choice: horizontal
+        scrolling is "scroll" while Invert is on, since only that mode
+        inverts in hardware (#127)."""
+        if mode in ("off", "scroll"):
+            return "scroll" if invert else "off"
+        return mode
+
     @pyqtSlot(str)
     def setThumbwheelMode(self, mode):
-        self.setLocal("thumbwheel.mode", mode)
+        self.setLocal("thumbwheel.mode", self._tw_store(mode, bool(self.get("thumbwheel.invert", False))))
         self.reloadConfig()  # daemon re-applies divert from config
 
     @pyqtSlot(bool)
     def setThumbwheelInvert(self, inv):
         self.setLocal("thumbwheel.invert", bool(inv))
+        self.setLocal("thumbwheel.mode", self._tw_store(str(self.get("thumbwheel.mode", "off")), bool(inv)))
         self.reloadConfig()
 
     @pyqtSlot(int)
@@ -2137,7 +2563,8 @@ class Backend(QObject):
                         "smartshiftEnabled": bool(ss.get("enabled", True)),
                         "smartshiftThreshold": ui_thr,
                         "hires": bool(h.get("hires", True)),
-                        "thumbwheel": str(h.get("thumbwheel", "off"))})
+                        "thumbwheel": "off" if h.get("thumbwheel") == "scroll"
+                                      else str(h.get("thumbwheel", "off"))})
         out.sort(key=lambda x: x["app"])
         return out
 
@@ -2230,14 +2657,15 @@ class Backend(QObject):
         app = (app or "").strip().lower()
         if not app or not isinstance(obj, dict):
             return
-        entry = {"dpi": max(400, min(8000, int(obj.get("dpi", 1600)))),
+        entry = {"dpi": self.snapDpi(_to_int(obj.get("dpi", 1600), 1600)),
                  "smartshift": {"enabled": bool(obj.get("smartshiftEnabled", True)),
                                 # UI sensitivity % -> device threshold 1..49,
                                 # same conversion as the global scroll slider.
                                 "threshold": self._dev_threshold(
                                     max(1, min(100, int(obj.get("smartshiftThreshold", 50)))))},
                  "hires": bool(obj.get("hires", True)),
-                 "thumbwheel": str(obj.get("thumbwheel", "off"))}
+                 "thumbwheel": self._tw_store(str(obj.get("thumbwheel", "off")),
+                                              bool(self.get("thumbwheel.invert", False)))}
         data = self._load_profiles()
         old = (data.get("hardware") or {}).get(app) or {}
         for key in ("buttons", "custom"):  # edited on the Buttons tab
@@ -3509,7 +3937,8 @@ class Backend(QObject):
 
     @pyqtSlot(result="QVariant")
     def thumbwheelModes(self):
-        return [{"id": i, "name": n} for (i, n) in THUMBWHEEL_MODES]
+        names = dict(THUMBWHEEL_MODES)
+        return [{"id": i, "name": _(names[i])} for i in THUMBWHEEL_PICKER]
 
     @pyqtSlot(result="QVariant")
     def scrollModes(self):

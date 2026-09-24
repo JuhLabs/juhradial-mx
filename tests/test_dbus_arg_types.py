@@ -82,16 +82,19 @@ def test_every_bridge_call_types_its_numeric_arguments():
     problems, checked = [], 0
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-                and node.func.attr in ("call", "call_async", "call_then", "call1")
-                and node.args and isinstance(node.args[0], ast.Constant)
-                and isinstance(node.args[0].value, str)):
+                and node.func.attr in ("call", "call_async", "call_then", "call1", "_hw_then")):
             continue
-        name = node.args[0].value
+        # _hw_then(key, method, revert, *args); the others (method, ...)
+        at = 1 if node.func.attr == "_hw_then" else 0
+        if not (len(node.args) > at and isinstance(node.args[at], ast.Constant)
+                and isinstance(node.args[at].value, str)):
+            continue
+        name = node.args[at].value
         if name not in methods:
             continue
-        passed = node.args[1:]
-        if node.func.attr == "call_then":
-            passed = passed[1:]  # (method, callback, *args)
+        passed = node.args[at + 1:]
+        if node.func.attr in ("call_then", "_hw_then"):
+            passed = passed[1:]  # (method, callback | revert, *args)
         for rust_type, arg in zip(methods[name], passed):
             if rust_type in UNSUPPORTED:
                 problems.append(f"line {node.lineno}: {name} takes {rust_type}, add a helper")
@@ -105,7 +108,8 @@ def test_every_bridge_call_types_its_numeric_arguments():
             if not ok:
                 problems.append(f"line {node.lineno}: {name} needs {wrapper}(...) for its {rust_type}")
     assert not problems, "\n".join(problems)
-    assert checked >= 7, "expected the DPI, SmartShift, host and backlight call sites"
+    # SetDpi, SetSmartShift (wheel mode and threshold), SetHost, SetKeyboardBacklight
+    assert checked >= 5, "expected the DPI, SmartShift, host and backlight call sites"
 
 
 class _Capture:

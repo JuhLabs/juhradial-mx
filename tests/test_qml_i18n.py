@@ -31,7 +31,6 @@ ALLOWLIST = {
     "pages/AppsPage.qml",
     "pages/DevicesPage.qml", "pages/EasySwitchPage.qml", "pages/FlowPage.qml",
     "pages/GamingPage.qml", "pages/HapticsPage.qml",
-    "pages/ScrollPage.qml",
 }
 
 PROPS = r"(?:text|title|subtitle|label|desc|body|placeholder|placeholderText|tip|error|ToolTip\.text|Accessible\.name|Accessible\.description)"

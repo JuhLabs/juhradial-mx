@@ -2,6 +2,8 @@ import QtQuick
 
 // Continuous slider. `value` is real in [from,to]. Emits moved() live while
 // dragging and committed() once on release (throttle D-Bus / hardware writes).
+// Dragging never writes `value`, so a binding such as `value: Backend.dpi`
+// survives: `shown` holds the dragged position until the bound value changes.
 // The readout is mono: "mono means numbers".
 Item {
     id: s
@@ -18,8 +20,13 @@ Item {
     signal moved(real v)
     signal committed(real v)
 
+    property real _v: 0
+    property bool _held: false
+    readonly property real shown: _held ? _v : value
+    onValueChanged: if (!ma.pressed) _held = false
+
     width: 220; height: 26
-    readonly property real _frac: (to > from) ? (value - from) / (to - from) : 0
+    readonly property real _frac: (to > from) ? (Math.max(from, Math.min(to, shown)) - from) / (to - from) : 0
 
     activeFocusOnTab: true
     Keys.onLeftPressed: _nudge(-1)
@@ -35,13 +42,13 @@ Item {
     function _nudge(dir, page) {
         var st = page ? (pageStep > 0 ? pageStep : Math.max((to - from) / 10, 1))
                       : (stepSize > 0 ? stepSize : Math.max((to - from) / 20, 1))
-        var v = value + dir * st
+        var v = shown + dir * st
         if (stepSize > 0) v = from + Math.round((v - from) / stepSize) * stepSize
         _setKey(v)
     }
     function _setKey(v) {
-        value = Math.max(from, Math.min(to, v))
-        moved(value); committed(value)
+        _v = Math.max(from, Math.min(to, v)); _held = true
+        moved(_v); committed(_v)
     }
 
     Accessible.role: Accessible.Slider
@@ -80,7 +87,7 @@ Item {
         visible: s.showValue
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        text: Math.round(s.value) + s.suffix
+        text: Math.round(s.shown) + s.suffix
         color: Theme.textBody; font.family: Theme.fontMono
         font.pixelSize: Theme.fsSmall; font.weight: Font.Medium
         width: visible ? Math.max(38, implicitWidth) : 0
@@ -92,11 +99,13 @@ Item {
         cursorShape: Qt.PointingHandCursor
         function setAt(mx) {
             var f = Math.max(0, Math.min(1, (mx - track.x) / track.width))
-            s.value = s.from + f * (s.to - s.from)
-            s.moved(s.value)
+            var v = s.from + f * (s.to - s.from)
+            if (s.stepSize > 0) v = Math.min(s.to, s.from + Math.round((v - s.from) / s.stepSize) * s.stepSize)
+            s._v = v; s._held = true
+            s.moved(v)
         }
         onPressed: (m) => setAt(m.x)
         onPositionChanged: (m) => { if (pressed) setAt(m.x) }
-        onReleased: s.committed(s.value)
+        onReleased: s.committed(s._v)
     }
 }

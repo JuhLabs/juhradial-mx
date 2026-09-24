@@ -78,6 +78,8 @@ pub struct HidppDevice {
     dpi_supported: bool,
     /// Adjustable DPI feature index (0x2201)
     dpi_feature_index: Option<u8>,
+    /// getSensorDpiList answer (connection-scoped; read on first use)
+    dpi_caps: Option<DpiCaps>,
     /// Whether SmartShift feature is available (0x2111 or 0x2110)
     smartshift_supported: bool,
     /// SmartShift feature index (0x2111 Enhanced preferred, 0x2110 legacy fallback)
@@ -125,6 +127,59 @@ fn parse_unit_id(resp: &[u8]) -> Option<u32> {
     }
     let id = u32::from_be_bytes([resp[5], resp[6], resp[7], resp[8]]);
     (id != 0).then_some(id)
+}
+
+/// What getSensorDpiList (0x2201 fn 1) reports for sensor 0: the settable
+/// range and its step, or the discrete values of a list-form device.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DpiCaps {
+    pub min: u16,
+    pub max: u16,
+    /// DPI between settable values; 0 when the device lists discrete values.
+    pub step: u16,
+    /// The settable values of a list-form device (empty for a range).
+    pub values: Vec<u16>,
+    /// The sensor's factory DPI (getSensorDpi defaultDpi; 0 = not reported).
+    pub default: u16,
+}
+
+impl DpiCaps {
+    /// Parse the DPI words of a getSensorDpiList reply (the payload after
+    /// the sensor index): big-endian values, a hyphen word `0xE000 | step`
+    /// between the two ends of a range, `0x0000` ends the list.
+    pub fn parse(words: &[u8]) -> Option<Self> {
+        let mut values = Vec::new();
+        let mut step = 0;
+        for w in words.chunks_exact(2) {
+            let v = u16::from_be_bytes([w[0], w[1]]);
+            if v == 0 {
+                break;
+            }
+            if v >> 13 == 0b111 {
+                step = v & 0x1FFF;
+                continue;
+            }
+            values.push(v);
+        }
+        let (min, max) = (*values.iter().min()?, *values.iter().max()?);
+        if step > 0 {
+            values.clear();
+        }
+        Some(Self { min, max, step, values, default: 0 })
+    }
+
+    /// The settable DPI nearest to `dpi`.
+    pub fn snap(&self, dpi: u16) -> u16 {
+        let dpi = dpi.clamp(self.min, self.max);
+        if self.step > 0 {
+            let (min, step) = (u32::from(self.min), u32::from(self.step));
+            let n = (u32::from(dpi) - min + step / 2) / step;
+            let on_grid = (min + n * step).min(u32::from(self.max)) as u16;
+            // the top of a range need not sit on the grid
+            return if self.max - dpi < dpi.abs_diff(on_grid) { self.max } else { on_grid };
+        }
+        self.values.iter().copied().min_by_key(|v| v.abs_diff(dpi)).unwrap_or(dpi)
+    }
 }
 
 /// Receiver error "connection request failed": the device is paired but not
@@ -437,6 +492,7 @@ impl HidppDevice {
                     mx4_haptic_feature_index: None,
                     dpi_supported: false,
                     dpi_feature_index: None,
+                    dpi_caps: None,
                     smartshift_supported: false,
                     smartshift_feature_index: None,
                     smartshift_is_enhanced: false,
@@ -677,6 +733,7 @@ impl HidppDevice {
                     mx4_haptic_feature_index: None,
                     dpi_supported: false,
                     dpi_feature_index: None,
+                    dpi_caps: None,
                     smartshift_supported: false,
                     smartshift_feature_index: None,
                     smartshift_is_enhanced: false,
@@ -1864,10 +1921,14 @@ impl HidppDevice {
 
         self.hidpp_request(feature_index, 0x02, &params).and_then(|resp| {
             if resp.len() >= 7 {
-                // Response: [report_type, device_idx, feature_idx, fn_sw_id, sensor_idx, dpi_msb, dpi_lsb, ...]
-                let dpi = ((resp[5] as u16) << 8) | (resp[6] as u16);
+                // Response: [report_type, device_idx, feature_idx, fn_sw_id, sensor_idx, dpi_msb, dpi_lsb, default_msb, default_lsb, ...]
+                let mut dpi = ((resp[5] as u16) << 8) | (resp[6] as u16);
+                if dpi == 0 && resp.len() >= 9 {
+                    // Some firmware reads 0 until set: fall back to defaultDpi (Solaar).
+                    dpi = ((resp[7] as u16) << 8) | (resp[8] as u16);
+                }
                 tracing::debug!(dpi, "Got current DPI");
-                Some(dpi)
+                (dpi != 0).then_some(dpi)
             } else {
                 tracing::warn!("Invalid getSensorDpi response length: {}", resp.len());
                 None
@@ -1891,7 +1952,11 @@ impl HidppDevice {
             }
         };
 
-        tracing::info!(feature_index, dpi, "Setting DPI");
+        // Every writer (Settings, app profiles, gaming mode, DPI buttons)
+        // lands on a value the sensor accepts.
+        let requested = dpi;
+        let dpi = self.dpi_caps().map_or(dpi, |c| c.snap(dpi));
+        tracing::info!(feature_index, requested, dpi, "Setting DPI");
 
         // Function [3] setSensorDpi(sensorIdx, dpi) -> sensorIdx, dpi
         // sensorIdx = 0 for the primary sensor
@@ -1919,46 +1984,25 @@ impl HidppDevice {
         }
     }
 
-    /// Get the list of supported DPI values
-    ///
-    /// # Returns
-    /// Vec of supported DPI values, or None if not supported
-    pub fn get_dpi_list(&mut self) -> Option<Vec<u16>> {
-        let feature_index = self.dpi_feature_index?;
-
-        // Function [1] getSensorDpiList(sensorIdx) -> sensorIdx, dpiList
-        let params = [0x00, 0x00, 0x00]; // sensorIdx = 0
-
-        self.hidpp_request(feature_index, 0x01, &params).and_then(|resp| {
-            if resp.len() < 6 {
-                return None;
-            }
-
-            let mut dpi_list = Vec::new();
-            // Response starts at byte 5 (after report_type, device_idx, feature_idx, fn_sw_id, sensor_idx)
-            let data = &resp[5..];
-
-            // Parse pairs of bytes as DPI values
-            let mut i = 0;
-            while i + 1 < data.len() {
-                let dpi = ((data[i] as u16) << 8) | (data[i + 1] as u16);
-                if dpi == 0 {
-                    break; // End of list
+    /// The sensor's settable DPI range and step (getSensorDpiList), read once
+    /// per connection.
+    pub fn dpi_caps(&mut self) -> Option<DpiCaps> {
+        if self.dpi_caps.is_none() {
+            let feature_index = self.dpi_feature_index?;
+            // Function [1] getSensorDpiList(sensorIdx) -> sensorIdx, dpiList
+            let resp = self.hidpp_request(feature_index, 0x01, &[0x00, 0x00, 0x00])?;
+            // [report_type, device_idx, feature_idx, fn_sw_id, sensor_idx, words...]
+            let mut caps = resp.get(5..).and_then(DpiCaps::parse);
+            // Function [2] getSensorDpi -> sensorIdx, dpi, defaultDpi
+            if let (Some(c), Some(r)) = (caps.as_mut(), self.hidpp_request(feature_index, 0x02, &[0x00, 0x00, 0x00])) {
+                if r.len() >= 9 {
+                    c.default = u16::from_be_bytes([r[7], r[8]]);
                 }
-                // Check for hyphen value (0xE000+ range indicates step value)
-                if dpi >= 0xE000 {
-                    // This is a step indicator, skip it for now
-                    // In a range format: [low, -step, high, 0]
-                    i += 2;
-                    continue;
-                }
-                dpi_list.push(dpi);
-                i += 2;
             }
-
-            tracing::debug!(dpi_list = ?dpi_list, "Got DPI list");
-            Some(dpi_list)
-        })
+            self.dpi_caps = caps;
+            tracing::info!(caps = ?self.dpi_caps, "DPI range");
+        }
+        self.dpi_caps.clone()
     }
 
     // =========================================================================

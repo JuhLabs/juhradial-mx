@@ -721,3 +721,33 @@ fn test_pulse_command_construction_fast() {
     let bytes = msg.to_bytes();
     assert_eq!(bytes.len(), 7);
 }
+
+#[test]
+fn dpi_list_range_form_keeps_the_step() {
+    // 200, hyphen step 50, 8000, end (x2201 range form).
+    let caps = device::DpiCaps::parse(&[0x00, 0xC8, 0xE0, 0x32, 0x1F, 0x40, 0x00, 0x00]).unwrap();
+    assert_eq!((caps.min, caps.max, caps.step), (200, 8000, 50));
+    assert!(caps.values.is_empty());
+}
+
+#[test]
+fn dpi_list_list_form_keeps_the_values() {
+    let caps = device::DpiCaps::parse(&[0x01, 0x90, 0x03, 0x20, 0x06, 0x40, 0x00, 0x00, 0x12]).unwrap();
+    assert_eq!((caps.min, caps.max, caps.step), (400, 1600, 0));
+    assert_eq!(caps.values, vec![400, 800, 1600]);
+    assert_eq!(caps.snap(1000), 800);
+    assert_eq!(caps.snap(1300), 1600);
+    assert_eq!(device::DpiCaps::parse(&[0x00, 0x00]), None);
+}
+
+#[test]
+fn dpi_snaps_to_the_sensor_step_and_range() {
+    let caps = device::DpiCaps { min: 200, max: 8000, step: 50, values: vec![], default: 0 };
+    assert_eq!(caps.snap(1234), 1250);
+    assert_eq!(caps.snap(1224), 1200);
+    assert_eq!(caps.snap(100), 200);
+    assert_eq!(caps.snap(9000), 8000);
+    // an end that is off the grid is still reachable
+    let odd = device::DpiCaps { min: 400, max: 1300, step: 200, values: vec![], default: 0 };
+    assert_eq!(odd.snap(1290), 1300);
+}
