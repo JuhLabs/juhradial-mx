@@ -52,7 +52,9 @@ def _badge_pixel(icon, size=64):
 def status():
     tray = FakeTray()
     notes = []
-    st = ot.TrayStatus(tray, _base_icon(), bus=False, notify=lambda d, p: notes.append((d, p)))
+    st = ot.TrayStatus(tray, _base_icon(), bus=False,
+                       notify=lambda d, p, kind="mouse": notes.append((d, p) if kind == "mouse" else (kind, p)),
+                       alerts=lambda: (15, True, True))
     return st, tray, notes
 
 
@@ -122,6 +124,47 @@ def test_low_battery_notifies_once_with_hysteresis(status):
     st.set_battery(9, "charging")
     assert tray.icon is st.base_icon, "charging clears the low badge"
     assert len(notes) == 2
+
+
+def test_alert_level_and_keyboard_alerts(status, tmp_path):
+    st, tray, notes = status
+    st.alerts = lambda: (20, True, True)
+    st.set_device("MX Master 4")
+    st.set_battery(19, "discharging")
+    assert notes == [("MX Master 4", 19)]
+    assert _badge_pixel(tray.icon).red() > 180, "badge follows the alert level"
+    st.set_keyboard_battery(18, False)
+    st.set_keyboard_battery(17, False)
+    assert notes[-1] == ("keyboard", 18) and len(notes) == 2
+    st.set_keyboard_battery(40, True)
+    st.set_keyboard_battery(12, False)
+    assert len(notes) == 3, "re-arms after charging"
+    st.alerts = lambda: (20, False, False)
+    st.set_battery(30, "discharging")
+    st.set_battery(10, "discharging")
+    st.set_keyboard_battery(40, True)
+    st.set_keyboard_battery(10, False)
+    assert len(notes) == 3, "both alerts off"
+
+
+def test_battery_alerts_reads_config(tmp_path):
+    cfg = tmp_path / "config.json"
+    assert ot.battery_alerts(cfg) == (15, True, True)
+    cfg.write_text('{"battery": {"alert_percent": 10, "alert_keyboard": false}}')
+    assert ot.battery_alerts(cfg) == (10, True, False)
+    cfg.write_text("not json")
+    assert ot.battery_alerts(cfg) == (15, True, True)
+
+
+def test_only_charging_reads_as_charging(status):
+    st, tray, _ = status
+    st.set_device("MX Master 4")
+    st.set_battery(100, "full")
+    assert tray.tooltip == "JuhRadial MX\nMX Master 4: 100%", "full on a cable is not charging"
+    st.set_battery(40, "not_charging")
+    assert not st.charging
+    st.set_battery(42, "charging")
+    assert tray.tooltip == "JuhRadial MX\nMX Master 4: 42%, charging"
 
 
 def test_byte_arguments_arrive_as_bytes_or_int(status):

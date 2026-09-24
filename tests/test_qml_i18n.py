@@ -28,7 +28,7 @@ sys.path.insert(0, os.fspath(REPO / "settings-qt"))
 
 # Pages whose tab pass has not converted them yet (remove as they land).
 ALLOWLIST = {
-    "pages/DevicesPage.qml", "pages/FlowPage.qml",
+    "pages/FlowPage.qml",
 }
 
 PROPS = r"(?:text|title|subtitle|label|desc|body|placeholder|placeholderText|tip|error|ToolTip\.text|Accessible\.name|Accessible\.description)"

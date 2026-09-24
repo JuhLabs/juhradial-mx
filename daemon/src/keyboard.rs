@@ -104,6 +104,17 @@ impl KeyboardManager {
     /// because the keyboard ignores pings until a key press wakes it. This is
     /// what "present" means for the UI; battery/backlight need it awake.
     pub fn keyboard_paired(&mut self) -> bool {
+        self.paired(true)
+    }
+
+    /// Presence from the receivers' pairing registers only (no fake-arrival,
+    /// so no 0x41 notices reach the mouse path). Safe while MX Keys S support
+    /// is off, which is when Settings offers to turn it on.
+    pub fn keyboard_detected(&mut self) -> bool {
+        self.paired(false)
+    }
+
+    fn paired(&mut self, announce: bool) -> bool {
         if self.device.is_some() {
             return true;
         }
@@ -113,11 +124,19 @@ impl KeyboardManager {
                 return paired;
             }
         }
-        // Fresh probe, two attempts: a single false can be a collision with a
-        // concurrent mouse discovery scan holding the receiver busy (seen
-        // live after a restart with every device asleep). Negatives get only
-        // a short TTL so a newly-paired keyboard still shows up quickly.
-        let found = (0..2).find_map(|_| HidppDevice::find_paired_keyboard());
+        // Passive register read first. Fake-arrival (only with `announce`)
+        // covers receivers that ignore it, with two attempts: a single false
+        // can be a collision with a concurrent mouse discovery scan holding
+        // the receiver busy (seen live after a restart with every device
+        // asleep). Negatives get only a short TTL so a newly-paired keyboard
+        // still shows up quickly.
+        let found = HidppDevice::find_paired_keyboard_passive().or_else(|| {
+            if announce {
+                (0..2).find_map(|_| HidppDevice::find_paired_keyboard())
+            } else {
+                None
+            }
+        });
         let paired = found.is_some();
         if found.is_some() {
             self.slot = found;
@@ -232,26 +251,53 @@ impl KeyboardManager {
             .unwrap_or(false)
     }
 
+    /// Current backlight state, `None` when the keyboard is absent, asleep
+    /// or has no BACKLIGHT2. READ-ONLY.
+    pub fn backlight_state(&mut self) -> Option<crate::hidpp::device::BacklightState> {
+        if !self.ensure_connected() {
+            return None;
+        }
+        self.device.as_mut()?.query_backlight_state()
+    }
+
     /// Set backlight brightness (0..=100). BETA (see
     /// `HidppDevice::set_backlight`). Returns whether the command was sent.
     pub fn set_backlight(&mut self, brightness: u8) -> bool {
+        self.backlight_write("level", |d| d.set_backlight(brightness))
+    }
+
+    /// Automatic (light sensor) or Manual backlight.
+    pub fn set_backlight_mode(&mut self, automatic: bool) -> bool {
+        self.backlight_write("mode", |d| d.set_backlight_mode(automatic))
+    }
+
+    /// Stay-on durations in seconds (0 = keep): hands away, near, on a cable.
+    pub fn set_backlight_durations(&mut self, away_s: u16, near_s: u16, powered_s: u16) -> bool {
+        self.backlight_write("durations", |d| d.set_backlight_durations(away_s, near_s, powered_s))
+    }
+
+    fn backlight_write(
+        &mut self,
+        what: &str,
+        write: impl FnOnce(&mut HidppDevice) -> Result<(), crate::hidpp::HapticError>,
+    ) -> bool {
         if !self.ensure_connected() {
             return false;
         }
-        match self.device.as_mut() {
-            Some(d) => match d.set_backlight(brightness) {
-                Ok(()) => true,
-                Err(e) => {
-                    tracing::warn!(error = %e, "Keyboard backlight set failed");
-                    // Drop the connection on a hard IO/comm failure so the next
-                    // call reconnects with a fresh fd.
-                    if matches!(e, crate::hidpp::HapticError::IoError(_)) {
-                        self.device = None;
-                    }
-                    false
+        let Some(device) = self.device.as_mut() else {
+            return false;
+        };
+        match write(device) {
+            Ok(()) => true,
+            Err(e) => {
+                tracing::warn!(error = %e, what, "Keyboard backlight write failed");
+                // Drop the connection on a hard IO failure so the next call
+                // reconnects with a fresh fd.
+                if matches!(e, crate::hidpp::HapticError::IoError(_)) {
+                    self.device = None;
                 }
-            },
-            None => false,
+                false
+            }
         }
     }
 }

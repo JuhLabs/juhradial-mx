@@ -82,7 +82,8 @@ def test_every_bridge_call_types_its_numeric_arguments():
     problems, checked = [], 0
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-                and node.func.attr in ("call", "call_async", "call_then", "call1", "_hw_then")):
+                and node.func.attr in ("call", "call_async", "call_then", "call1", "_hw_then",
+                                       "_kb_write_then")):
             continue
         # _hw_then(key, method, revert, *args); the others (method, ...)
         at = 1 if node.func.attr == "_hw_then" else 0

@@ -76,7 +76,7 @@ impl NotificationIndices {
 /// Values match the Linux kernel hid-logitech-hidpp unified-battery driver:
 /// 0 = discharging, 1 = charging, 2 = charging (slow), 3 = full (complete),
 /// 4 = error/not charging.
-fn battery_status_label(status: u8) -> &'static str {
+pub fn battery_status_label(status: u8) -> &'static str {
     match status {
         0 => "discharging",
         1 | 2 => "charging",

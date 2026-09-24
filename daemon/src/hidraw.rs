@@ -447,6 +447,14 @@ impl HidrawHandler {
             return;
         }
 
+        // One receiver node carries every paired device's reports. With a
+        // keyboard on the mouse's receiver its events (0x1004 battery,
+        // backlight) would otherwise be decoded with the mouse's feature
+        // indices: a wrong battery, or a phantom button press.
+        if self.mouse_device_index.is_some_and(|i| i != data[1]) {
+            return;
+        }
+
         // Log all HID++ reports for debugging
         tracing::debug!(
             report_type = format!("0x{:02X}", report_type),
@@ -1100,6 +1108,22 @@ mod tests {
         let report = [0x11, 0x01, 0x0c, 0x00, 0x01, 0x01, 0x00];
         h.process_hidpp_report(&report).await;
         assert!(h.take_divert_refresh_needed());
+    }
+
+    // A keyboard on the same receiver (slot 1) sends a report on a feature
+    // index the mouse (slot 2) uses too: it must not be decoded as the mouse's.
+    #[tokio::test]
+    async fn other_slots_reports_are_not_decoded_as_the_mouse() {
+        let mut h = test_handler();
+        h.set_notification_indices(crate::hidpp::notifications::NotificationIndices {
+            wireless_status: Some(0x0c),
+            ..Default::default()
+        });
+        h.set_mouse_device_index(Some(0x02));
+        h.process_hidpp_report(&[0x11, 0x01, 0x0c, 0x00, 0x01, 0x01, 0x00]).await;
+        assert!(!h.take_divert_refresh_needed(), "the keyboard's report is ignored");
+        h.process_hidpp_report(&[0x11, 0x02, 0x0c, 0x00, 0x01, 0x01, 0x00]).await;
+        assert!(h.take_divert_refresh_needed(), "the mouse's own report still counts");
     }
 
     // Issue #15 spirit: a burst of connection notifications (flapping link)

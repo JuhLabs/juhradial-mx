@@ -12,6 +12,38 @@ Item {
     default property alias trailing: slot.data
     implicitHeight: Math.max(40, row.implicitHeight)
 
+    // Global search can land on a card title too (SettingRow does the same
+    // for rows): scroll the card into view and flash the header.
+    function _maybeTarget() {
+        if (Backend.searchTarget === "" || Backend.searchTarget !== h.title) return
+        var p = h.parent
+        while (p && !(p.contentY !== undefined && p.contentItem !== undefined)) p = p.parent
+        if (p) {
+            var pos = h.mapToItem(p.contentItem, 0, 0)
+            p.contentY = Math.max(0, Math.min(pos.y - 50, Math.max(0, p.contentHeight - p.height)))
+        }
+        flash.restart()
+    }
+    Component.onCompleted: Qt.callLater(_maybeTarget)
+    Connections { target: Backend; function onSearchTargetChanged() { h._maybeTarget() } }
+    Rectangle {
+        id: hi
+        anchors.fill: parent
+        anchors.margins: -6
+        radius: Theme.radiusCtl
+        color: Theme.accentSubtle
+        border.color: Theme.accent; border.width: 1
+        opacity: 0
+        visible: opacity > 0.01
+        SequentialAnimation {
+            id: flash
+            NumberAnimation { target: hi; property: "opacity"; from: 0.0; to: 1.0; duration: 180; easing.type: Easing.OutCubic }
+            NumberAnimation { target: hi; property: "opacity"; to: 0.4; duration: 460 }
+            NumberAnimation { target: hi; property: "opacity"; to: 1.0; duration: 420 }
+            NumberAnimation { target: hi; property: "opacity"; to: 0.0; duration: 760; easing.type: Easing.InCubic }
+        }
+    }
+
     RowLayout {
         id: row
         anchors.left: parent.left; anchors.right: slot.left

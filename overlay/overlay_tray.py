@@ -4,8 +4,10 @@ The tray tooltip names the mouse, its battery and charging state, the
 Easy-Switch host (with the host's name when the mouse knows it) and the
 per-app profile the daemon is applying. The icon carries a small badge: the
 profile's initial while a per-app hardware profile is active, red while the
-battery is low. A low battery also raises one desktop notification (with the
-same 15 / 20 percent hysteresis the settings app used while it was open).
+battery is low. A low battery also raises one desktop notification per
+discharge, for the mouse and (with MX Keys S support on) the keyboard, at the
+level set in Settings (`battery.alert_percent`, 15 by default) with a 5 point
+hysteresis.
 
 Everything is driven by the daemon's signals (BatteryChanged, HostChanged,
 DeviceNameRefreshed, ActiveProfileChanged) after one asynchronous prime, so
@@ -13,7 +15,9 @@ the tooltip follows a change within the signal's own latency and the overlay
 never blocks on the daemon's device lock.
 """
 
+import json
 import subprocess
+from pathlib import Path
 
 from PyQt6.QtCore import QObject, QRectF, Qt, pyqtSlot
 from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPen, QPixmap
@@ -36,7 +40,7 @@ IFACE = "org.kde.juhradialmx.Daemon"
 
 APP_NAME = "JuhRadial MX"
 LOW_BATTERY = 15
-LOW_BATTERY_RESET = 20
+CONFIG_PATH = Path.home() / ".config" / "juhradial" / "config.json"
 BADGE_LOW = "#E5484D"
 BADGE_PROFILE = "#3B82F6"
 
@@ -103,25 +107,51 @@ def render_icon(base, letter, low, size=64):
     return QIcon(canvas)
 
 
-def notify_low_battery(device, percent):
+def battery_alerts(path=CONFIG_PATH):
+    """The `battery` config: (alert percent, alert for the mouse, for the keyboard)."""
+    try:
+        cfg = json.loads(Path(path).read_text()).get("battery") or {}
+        pct = int(cfg.get("alert_percent", LOW_BATTERY))
+    except (OSError, ValueError, TypeError, AttributeError):
+        cfg, pct = {}, LOW_BATTERY
+    return (max(5, min(50, pct)), bool(cfg.get("alert_mouse", True)),
+            bool(cfg.get("alert_keyboard", True)))
+
+
+def notify_low_battery(device, percent, kind="mouse"):
+    title = "Keyboard battery low" if kind == "keyboard" else "Mouse battery low"
+    fallback = "The keyboard" if kind == "keyboard" else "The mouse"
     try:
         subprocess.Popen(
             ["notify-send", "-a", APP_NAME, "-i", "battery-low-symbolic", "-u", "critical",
-             "Mouse battery low", f"{device or 'The mouse'} is at {percent}%. Time to recharge."])
+             title, f"{device or fallback} is at {percent}%. Time to recharge."])
     except Exception:
         pass
+
+
+def _low_step(owner, latch, percent, charging, level):
+    """One low-battery latch: True once when a device on battery reaches
+    `level`; re-arms after charging or above level + 5. 0 % = not read yet."""
+    if charging or percent > level + 5:
+        setattr(owner, latch, False)
+        return False
+    if percent <= 0 or percent > level or getattr(owner, latch):
+        return False
+    setattr(owner, latch, True)
+    return True
 
 
 class TrayStatus(QObject):
     """Keeps a QSystemTrayIcon's tooltip and badge in step with the daemon."""
 
     def __init__(self, tray, base_icon, bus=None, notify=notify_low_battery, parent=None,
-                 on_profile=None):
+                 on_profile=None, alerts=battery_alerts):
         super().__init__(parent)
         self.on_profile = on_profile
         self.tray = tray
         self.base_icon = base_icon
         self.notify = notify
+        self.alerts = alerts
         self.device = ""
         self.percent = None
         self.charging = False
@@ -132,6 +162,8 @@ class TrayStatus(QObject):
         self.gaming = False
         self.gaming_action = None
         self._low_notified = False
+        self._kb_low_notified = False
+        self._alert_level = LOW_BATTERY
         self._watchers = set()
         self._bus = None
         self._iface = None
@@ -147,19 +179,27 @@ class TrayStatus(QObject):
             bus.connect("", OBJ_PATH, IFACE, "DeviceNameRefreshed", self._on_device_name)
             bus.connect("", OBJ_PATH, IFACE, "ActiveProfileChanged", self._on_profile)
             bus.connect("", OBJ_PATH, IFACE, "GamingModeChanged", self._on_gaming)
+            # Sent when a key press re-links the MX Keys S (support on).
+            bus.connect("", OBJ_PATH, IFACE, "KeyboardBatteryChanged", self._on_kb_battery)
         self.refresh()
         self.prime()
 
     # ---- state ----
     def set_battery(self, percent, status):
         self.percent = percent
-        self.charging = status in ("charging", "full")
-        if self.charging or percent > LOW_BATTERY_RESET:
-            self._low_notified = False
-        elif percent <= LOW_BATTERY and not self._low_notified:
-            self._low_notified = True
+        # Same rule as the daemon's GetBatteryStatus bool: "full" and
+        # "not_charging" arrive with a cable in but are not charging.
+        self.charging = status == "charging"
+        level, on, _kb = self.alerts()
+        self._alert_level = level
+        if _low_step(self, "_low_notified", percent, self.charging, level) and on:
             self.notify(self.device, percent)
         self.refresh()
+
+    def set_keyboard_battery(self, percent, charging):
+        level, _mouse, on = self.alerts()
+        if _low_step(self, "_kb_low_notified", percent, charging, level) and on:
+            self.notify("", percent, "keyboard")
 
     def set_host(self, host):
         self.host = host
@@ -196,7 +236,7 @@ class TrayStatus(QObject):
 
     @property
     def low(self):
-        return self.percent is not None and self.percent <= LOW_BATTERY and not self.charging
+        return self.percent is not None and self.percent <= self._alert_level and not self.charging
 
     def refresh(self):
         self.tray.setToolTip(tooltip(self.device, self.percent, self.charging, self.host,
@@ -209,6 +249,14 @@ class TrayStatus(QObject):
         try:
             a = msg.arguments()
             self.set_battery(_int(a[0]), str(a[1]))
+        except Exception:
+            pass
+
+    @pyqtSlot(QDBusMessage)
+    def _on_kb_battery(self, msg):
+        try:
+            a = msg.arguments()
+            self.set_keyboard_battery(_int(a[0]), bool(a[1]))
         except Exception:
             pass
 

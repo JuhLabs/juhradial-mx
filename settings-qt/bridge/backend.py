@@ -418,7 +418,7 @@ HAPTIC_EVENTS = [
      "mouse", "sharp_collision"),
     ("dpi_change", "DPI change", "A DPI button changes the pointer speed", "mouse", "sharp_state_change"),
     ("host_arrive", "Mouse returns", "The mouse comes back from another computer", "mouse", "happy_alert"),
-    ("low_battery", "Low battery", "The battery drops to 15 %", "mouse", "angry_alert"),
+    ("low_battery", "Low battery", "The battery drops to the alert level set on Devices", "mouse", "angry_alert"),
     ("macro_start", "Macro starts", "A macro begins to play", "mouse", "damp_collision"),
     ("macro_finish", "Macro finishes", "A macro is done", "mouse", "completed"),
     ("window_switch", "App switch", "Alt+Tab, the taskbar, or clicking into another window",
@@ -700,9 +700,15 @@ SEARCH_INDEX = [
     ("easyswitch", "Move the keyboard too", "Computers", "easy-switch keyboard follows mouse mx keys together"),
     ("easyswitch", "Computers", "Easy-Switch", "switch host computer change device channel os icon paired"),
     # Devices
-    ("devices", "Paired devices", "", "devices paired connected list hardware mouse"),
-    ("devices", "Force generic mode", "Device mode", "generic mode standard hid override detection logitech"),
+    ("devices", "Connected devices", "", "devices paired connected list hardware mouse keyboard battery asleep"),
     ("devices", "MX Keys S support", "Keyboard", "keyboard mx keys battery backlight enable beta"),
+    ("devices", "Backlight", "Keyboard", "keyboard backlight automatic manual light sensor brightness"),
+    ("devices", "Stay on for", "Keyboard", "keyboard backlight timeout duration stay on fade"),
+    ("devices", "Warn me at", "Battery alerts", "battery low alert notification warning percent threshold"),
+    ("devices", "About this mouse", "", "unit id firmware version features capabilities model diagnostics bug report"),
+    ("devices", "Settings only for this mouse", "About this mouse", "per-device override unit reset this mouse only"),
+    ("devices", "Force generic mode", "Advanced", "generic mode standard hid override detection logitech"),
+    ("devices", "Radial menu button", "Advanced", "generic trigger button side extra forward back middle"),
     # Gaming
     ("gaming", "Gaming mode", "Gaming mode", "gaming mode enable game performance"),
     ("gaming", "When Feral GameMode runs a game", "Turn on automatically", "gamemode feral automatic auto game"),
@@ -1426,6 +1432,9 @@ class Backend(QObject):
         self._gaming = {"auto": False, "stage": 0, "dpi": 0, "gamemodeInstalled": False,
                         "gamemodeActive": False}
         self._low_batt_notified = False
+        self._kb_low_notified = False
+        self._firmware = []
+        self._refreshed_at = 0.0
         self._repair_autostart_if_stale()
 
         self.daemon.batteryChanged.connect(self._set_battery)
@@ -1872,13 +1881,16 @@ class Backend(QObject):
             ("GetGamingStatus", self._apply_gaming_status),
             ("GetEasySwitchInfo", easy_switch),
             ("GetHostNames", host_names),
+            ("GetFirmware", lambda r: setattr(self, "_firmware", [str(x) for x in (first(r) or [])])),
         ]
 
         def run(i):
             if gen != self._prime_gen:
                 return  # a newer round started (daemon restart)
             if i == len(steps):
+                self._refreshed_at = time.time()
                 self._set_primed()
+                self.liveChanged.emit()
                 return
             method, handler = steps[i]
 
@@ -1900,29 +1912,49 @@ class Backend(QObject):
 
     def _set_battery(self, pct, status):
         self._battery = pct
-        # "discharging" contains "charg" AND "charging", so test for the
-        # discharge case first or the mouse always reads as charging.
-        s = status.lower()
-        self._charging = ("charg" in s) and ("dischar" not in s)
+        # Daemon labels: discharging, charging, full, not_charging, unknown.
+        # Only "charging" charges (the GetBatteryStatus bool uses the same rule).
+        self._charging = status.lower() == "charging"
         self._maybe_low_battery_notify(pct)
         self.liveChanged.emit()
 
+    def _battery_alerts(self):
+        """The `battery` config the tray reads too: (alert percent, alert for
+        the mouse, alert for the keyboard); absent = 15 %, both on."""
+        level = _to_int(self.get("battery.alert_percent", 15), 15)
+        return (max(5, min(50, level)), bool(self.get("battery.alert_mouse", True)),
+                bool(self.get("battery.alert_keyboard", True)))
+
     def _maybe_low_battery_notify(self, pct):
-        """Desktop-notify once when the mouse drops to <=15% on battery; reset
-        the latch above 20% (hysteresis) or while charging, so it can re-fire."""
-        if self._charging or pct > 20:
+        """Desktop-notify once when the mouse drops to the alert level on
+        battery; re-arm above level + 5 or while charging. The overlay raises
+        it itself while it runs (tray badge + notify-send)."""
+        level, on, _kb = self._battery_alerts()
+        if self._charging or pct > level + 5:
             self._low_batt_notified = False
             return
-        if pct <= 15 and not self._low_batt_notified and not self._overlay_running():
+        if on and 0 < pct <= level and not self._low_batt_notified and not self._overlay_running():
             self._low_batt_notified = True
-            try:
-                subprocess.Popen(
-                    ["notify-send", "-a", "JuhRadial MX", "-i", "battery-low-symbolic",
-                     "-u", "critical", _("Mouse battery low"),
-                     _("{device} is at {percent}%. Time to recharge.").format(
-                         device=self.deviceName, percent=pct)])
-            except Exception:
-                pass
+            self._send_low_battery(_("Mouse battery low"), self.deviceName, pct)
+
+    def _maybe_kb_low_notify(self, pct, charging):
+        level, _mouse, on = self._battery_alerts()
+        if charging or pct > level + 5:
+            self._kb_low_notified = False
+            return
+        if on and 0 < pct <= level and not self._kb_low_notified and not self._overlay_running():
+            self._kb_low_notified = True
+            self._send_low_battery(_("Keyboard battery low"), _("The keyboard"), pct)
+
+    @staticmethod
+    def _send_low_battery(title, device, pct):
+        try:
+            subprocess.Popen(
+                ["notify-send", "-a", "JuhRadial MX", "-i", "battery-low-symbolic",
+                 "-u", "critical", title,
+                 _("{device} is at {percent}%. Time to recharge.").format(device=device, percent=pct)])
+        except Exception:
+            pass
 
     @staticmethod
     def _overlay_running():
@@ -2461,11 +2493,11 @@ class Backend(QObject):
     @pyqtSlot(result="QVariant")
     def genericTriggerOptions(self):
         # evdev BTN_* codes for the buttons a generic mouse realistically exposes.
-        return [{"id": "275", "name": "Side button (BTN_SIDE)"},
-                {"id": "276", "name": "Extra button (BTN_EXTRA)"},
-                {"id": "277", "name": "Forward (BTN_FORWARD)"},
-                {"id": "278", "name": "Back (BTN_BACK)"},
-                {"id": "274", "name": "Middle click (BTN_MIDDLE)"}]
+        return [{"id": "275", "name": _("Side button")},
+                {"id": "276", "name": _("Extra side button")},
+                {"id": "277", "name": _("Forward button")},
+                {"id": "278", "name": _("Back button")},
+                {"id": "274", "name": _("Middle click")}]
 
     # ---- keyboard (MX Keys S / generic, BETA) ----
     # Fail-soft against the running daemon: pre-keyboard daemons lack these
@@ -2477,9 +2509,22 @@ class Backend(QObject):
         battery = self.daemon.call("GetKeyboardBattery")
         paired = self.daemon.call("GetKeyboardPaired")
         keys = self.daemon.call("ListKeyboardKeys")
-        return self._keyboard_info(battery, paired, keys)
+        return self._keyboard_info(battery, paired, keys, self.daemon.call("GetKeyboardBacklight"))
 
-    def _keyboard_info(self, battery, paired, keys):
+    @staticmethod
+    def _backlight_info(r):
+        """GetKeyboardBacklight as a dict; {"ok": False} when unreadable (support
+        off, asleep, or an older daemon without the method)."""
+        if not r or len(r) < 10 or not bool(r[0]):
+            return {"ok": False}
+        levels = max(2, _to_int(r[4], 8))
+        level = _to_int(r[3])
+        return {"ok": True, "enabled": bool(r[1]), "mode": _to_int(r[2]), "level": level,
+                "levels": levels, "percent": round(level * 100 / (levels - 1)),
+                "status": _to_int(r[5], 255), "autoSupported": bool(r[6]),
+                "away": _to_int(r[7]), "near": _to_int(r[8]), "powered": _to_int(r[9])}
+
+    def _keyboard_info(self, battery, paired, keys, backlight=None):
         enabled = bool(self.get("keyboard.mx_keys.enabled", False))
         pct, charging = 0, False
         if battery and len(battery) >= 2:
@@ -2494,7 +2539,8 @@ class Backend(QObject):
         return {"present": present, "enabled": enabled, "battery": pct,
                 "charging": charging, "sleeping": present and pct == 0,
                 "keyCount": len(key_list), "pending": False,
-                "lastBattery": self._kb_last_battery}
+                "lastBattery": self._kb_last_battery,
+                "backlight": self._backlight_info(backlight)}
 
     def _on_keyboard_battery(self, pct, charging):
         """KeyboardBatteryChanged: the keyboard is awake right now."""
@@ -2506,6 +2552,7 @@ class Backend(QObject):
         info.update({"present": True, "battery": pct, "charging": bool(charging),
                      "sleeping": False, "pending": False, "lastBattery": pct})
         self._kb_info = info
+        self._maybe_kb_low_notify(pct, bool(charging))
         self.keyboardInfoReady.emit(info)
 
     @pyqtSlot()
@@ -2518,13 +2565,13 @@ class Backend(QObject):
         # misses its answer when its own battery scan runs at the same time
         # (three concurrent calls read "not detected" for a paired keyboard).
         state = {}
-        order = ("GetKeyboardBattery", "GetKeyboardPaired", "ListKeyboardKeys")
+        order = ("GetKeyboardBattery", "GetKeyboardPaired", "ListKeyboardKeys", "GetKeyboardBacklight")
 
         def step(i):
             if i == len(order):
                 self._kb_info = self._keyboard_info(
                     state["GetKeyboardBattery"], state["GetKeyboardPaired"],
-                    state["ListKeyboardKeys"])
+                    state["ListKeyboardKeys"], state["GetKeyboardBacklight"])
                 self.keyboardInfoReady.emit(self._kb_info)
                 return
             name = order[i]
@@ -2535,13 +2582,45 @@ class Backend(QObject):
             self.daemon.call_then(name, _cb)
         step(0)
 
+    def _kb_write_then(self, method, *args):
+        """A backlight write, then a fresh read so the card shows what the
+        keyboard applied. A sleeping keyboard ignores HID++ until a key press."""
+        def done(r):
+            if not (r and r[0]):
+                self.notify(_("The keyboard did not answer. Press a key to wake it, then try again."), "warning")
+            self.requestKeyboardInfo()
+        self.daemon.call_then(method, done, *args)
+
     @pyqtSlot(int)
     def setKeyboardBacklight(self, level):
-        """Set MX Keys S backlight 0..100% (mapped to the device's levels)."""
-        r = self.daemon.call("SetKeyboardBacklight", _u8(max(0, min(100, int(level)))))
-        if not (r and len(r) >= 1 and r[0]):
-            # A sleeping keyboard ignores HID++ until a key press wakes it.
-            self.toast.emit(_("Keyboard not reachable: press a key to wake it, then try again"))
+        """Set MX Keys S backlight 0..100% (Manual mode, mapped to its levels)."""
+        self._kb_write_then("SetKeyboardBacklight", _u8(max(0, min(100, int(level)))))
+
+    @pyqtSlot(bool)
+    def setKeyboardBacklightAuto(self, automatic):
+        """Automatic (the light sensor sets the level) or Manual."""
+        self._kb_write_then("SetKeyboardBacklightMode", bool(automatic))
+
+    @pyqtSlot(int, int)
+    def setKeyboardBacklightDuration(self, seconds, powered_seconds):
+        """How long the backlight stays on after the hands leave (the same for
+        hands away and hands near) and on a cable; 0 keeps a value."""
+        s, pw = max(0, int(seconds)), max(0, int(powered_seconds))
+        self._kb_write_then("SetKeyboardBacklightDurations", _u16(s), _u16(s), _u16(pw))
+
+    @pyqtSlot(int, result="QVariant")
+    def backlightDurations(self, current=0):
+        """Stay-on choices (the keyboard takes 5 s to 2 h), plus the keyboard's
+        current value when it is not one of them."""
+        choices = [(5, _("5 seconds")), (10, _("10 seconds")), (30, _("30 seconds")),
+                   (60, _("1 minute")), (120, _("2 minutes")), (300, _("5 minutes")),
+                   (600, _("10 minutes")), (1800, _("30 minutes")), (3600, _("1 hour")),
+                   (7200, _("2 hours"))]
+        if current > 0 and current not in dict(choices):
+            label = (_("{n} seconds").format(n=current) if current < 120
+                     else _("{n} minutes").format(n=round(current / 60)))
+            choices = sorted(choices + [(current, label)])
+        return [{"id": str(v), "name": n} for v, n in choices]
 
     @pyqtSlot(str, float, float)
     def setPinPos(self, slot, nx, ny):
@@ -3676,6 +3755,51 @@ class Backend(QObject):
         """The mouse's unit id as the config `devices` key ("0x1234ABCD"), or ""."""
         return self._unit_id
 
+    @pyqtProperty("QStringList", notify=liveChanged)
+    def firmware(self):
+        """Main firmware versions the mouse reports ("RBM 27.00.B0015")."""
+        return list(self._firmware)
+
+    @pyqtProperty(float, notify=liveChanged)
+    def refreshedAt(self):
+        """When the last full read of the mouse finished (epoch s, 0 = never)."""
+        return self._refreshed_at
+
+    @pyqtSlot(result="QVariant")
+    def deviceOverrides(self):
+        """Settings kept only for this mouse (config `devices.<unit id>`), as
+        dotted paths ("buttons.back")."""
+        own = self.get(f"devices.{self._unit_id}") if self._unit_id else None
+        out = []
+
+        def walk(node, path):
+            if isinstance(node, dict) and node:
+                for k, v in node.items():
+                    walk(v, f"{path}.{k}" if path else str(k))
+            elif path:
+                out.append(path)
+        walk(own if isinstance(own, dict) else {}, "")
+        return sorted(out)
+
+    @pyqtSlot()
+    def resetDeviceOverrides(self):
+        """Drop this mouse's own settings: it follows the global ones again."""
+        devices = self.get("devices")
+        if not self._unit_id or not isinstance(devices, dict) or self._unit_id not in devices:
+            return
+        devices = dict(devices)
+        devices.pop(self._unit_id)
+        self.set("devices", devices)
+        self.reloadConfig()
+        self.configChanged.emit()
+        self.notify(_("This mouse follows your global settings again"), "success")
+
+    @pyqtSlot(str, str)
+    def copyText(self, text, what=""):
+        from PyQt6.QtGui import QGuiApplication
+        QGuiApplication.clipboard().setText(text)
+        self.notify(_("{what} copied").format(what=what) if what else _("Copied"), "success")
+
     @pyqtProperty(str, notify=liveChanged)
     def connection(self):
         """How the mouse is linked: Bolt receiver, Unifying receiver, USB
@@ -4660,6 +4784,30 @@ class Backend(QObject):
         except OSError:
             pass
         return sys.platform
+
+    def _diagnostics(self):
+        """System info plus firmware, keyboard state and the daemon's last 50
+        journal lines: what a bug report needs (#13, #52 reporters pasted it by hand)."""
+        kb = self._kb_info or {}
+        lines = [self._system_info(),
+                 f"Firmware: {', '.join(self._firmware) or 'unknown'}",
+                 f"Connection: {self.connection}",
+                 f"Keyboard: {'on' if kb.get('enabled') else 'off'}, "
+                 f"{'present' if kb.get('present') else 'not detected'}"
+                 + (", asleep" if kb.get("sleeping") else "")]
+        try:
+            r = subprocess.run(["journalctl", "--user", "-u", "juhradialmx-daemon", "-n", "50",
+                                "--no-pager", "-o", "short-iso"], capture_output=True, text=True, timeout=5)
+            lines += ["", "== daemon (last 50 lines) ==", (r.stdout or r.stderr).strip()]
+        except (OSError, subprocess.SubprocessError) as e:
+            lines += ["", f"journal: {e}"]
+        return "\n".join(lines)
+
+    @pyqtSlot()
+    def copyDiagnostics(self):
+        from PyQt6.QtGui import QGuiApplication
+        QGuiApplication.clipboard().setText(self._diagnostics())
+        self.notify(_("Diagnostics copied. Paste them into your bug report."), "success")
 
     @pyqtSlot()
     def copySystemInfo(self):

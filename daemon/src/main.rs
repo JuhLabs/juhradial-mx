@@ -1149,6 +1149,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Low-battery pulse (the overlay shows the notice; the hand feels it).
     {
         let battery = battery_state_for_events.clone();
+        let alert_config = shared_config.clone();
         tokio::spawn(async move {
             let mut latched = false;
             loop {
@@ -1157,7 +1158,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let b = battery.read().await;
                     (b.percentage, b.charging)
                 };
-                let (fire, next) = juhradiald::battery::low_battery_step(latched, pct, charging);
+                let alert = alert_config.read().map(|c| c.battery.alert_percent).unwrap_or(15);
+                let (fire, next) = juhradiald::battery::low_battery_step(latched, pct, charging, alert);
                 latched = next;
                 if fire {
                     juhradiald::actions::pulse(HapticEvent::LowBattery);

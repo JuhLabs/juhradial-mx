@@ -308,6 +308,11 @@ impl HapticManager {
         self.device.as_ref().and_then(|d| d.unit_id())
     }
 
+    /// Main firmware versions of the connected device (read once, cached).
+    pub fn firmware(&mut self) -> Vec<String> {
+        self.device.as_mut().map(|d| d.firmware()).unwrap_or_default()
+    }
+
     /// The device's REPROG_CONTROLS_V4 inventory (a fresh read-only scan);
     /// empty without a connected device or without the feature.
     pub fn list_controls(&mut self) -> Vec<crate::hidpp::controls::ControlInfo> {

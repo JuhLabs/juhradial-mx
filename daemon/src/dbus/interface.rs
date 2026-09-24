@@ -1155,18 +1155,16 @@ impl JuhRadialService {
     /// Answered from the receiver's pairing table, so it stays `true` while
     /// the keyboard's radio deep-sleeps (when `GetKeyboardBattery` returns
     /// `(0, false)` because the keyboard ignores pings until a key wakes it).
-    /// Returns `false` unless `keyboard.mx_keys.enabled` is true.
+    /// While `keyboard.mx_keys.enabled` is false only the passive register
+    /// read runs (never fake-arrival), so Settings can offer to turn it on.
     async fn get_keyboard_paired(&self) -> fdo::Result<bool> {
         let enabled = self
             .config
             .read()
             .map(|c| c.keyboard.mx_keys.enabled)
             .unwrap_or(false);
-        if !enabled {
-            return Ok(false);
-        }
         match crate::keyboard::manager().lock() {
-            Ok(mut mgr) => Ok(mgr.keyboard_paired()),
+            Ok(mut mgr) => Ok(if enabled { mgr.keyboard_paired() } else { mgr.keyboard_detected() }),
             Err(e) => {
                 tracing::error!(error = %e, "Failed to lock keyboard manager for presence");
                 Ok(false)
@@ -1197,6 +1195,72 @@ impl JuhRadialService {
                 Ok(false)
             }
         }
+    }
+
+    /// MX Keys S backlight: `(ok, enabled, mode, level, levels, status,
+    /// automatic_supported, away_s, near_s, powered_s)`. `mode` 1 = Automatic,
+    /// 2 = set by the keyboard's keys, 3 = Manual; `level` is what is lit now
+    /// (0..levels-1); `status` 0xFF = unknown; durations in seconds. `ok` is
+    /// false while support is off or the keyboard is absent or asleep.
+    /// READ-ONLY.
+    #[allow(clippy::type_complexity)]
+    async fn get_keyboard_backlight(&self) -> fdo::Result<(bool, bool, u8, u8, u8, u8, bool, u16, u16, u16)> {
+        let none = (false, false, 0, 0, 0, 0xFF, false, 0, 0, 0);
+        if !self.keyboard_enabled() {
+            return Ok(none);
+        }
+        let state = match crate::keyboard::manager().lock() {
+            Ok(mut mgr) => mgr.backlight_state(),
+            Err(_) => None,
+        };
+        Ok(state.map_or(none, |b| {
+            (
+                true,
+                b.enabled,
+                b.mode,
+                b.level,
+                b.levels,
+                b.status.unwrap_or(0xFF),
+                b.automatic_supported(),
+                b.dho.saturating_mul(5),
+                b.dhi.saturating_mul(5),
+                b.dpow.saturating_mul(5),
+            )
+        }))
+    }
+
+    /// Automatic (`true`, the light sensor sets the level) or Manual backlight.
+    /// A stored keyboard setting, written only on this explicit call. BETA.
+    async fn set_keyboard_backlight_mode(&self, automatic: bool) -> fdo::Result<bool> {
+        if !self.keyboard_enabled() {
+            return Ok(false);
+        }
+        Ok(crate::keyboard::manager()
+            .lock()
+            .map(|mut mgr| mgr.set_backlight_mode(automatic))
+            .unwrap_or(false))
+    }
+
+    /// How long the backlight stays on, in seconds (5..7200, 0 = unchanged):
+    /// hands away from the keys, hands near them, on a cable. BETA.
+    async fn set_keyboard_backlight_durations(&self, away_s: u16, near_s: u16, powered_s: u16) -> fdo::Result<bool> {
+        if !self.keyboard_enabled() {
+            return Ok(false);
+        }
+        Ok(crate::keyboard::manager()
+            .lock()
+            .map(|mut mgr| mgr.set_backlight_durations(away_s, near_s, powered_s))
+            .unwrap_or(false))
+    }
+
+    /// The connected mouse's main firmware versions ("RBM 27.00.B0015"),
+    /// empty without a device. READ-ONLY, cached per connection.
+    async fn get_firmware(&self) -> fdo::Result<Vec<String>> {
+        Ok(self
+            .haptic_manager
+            .lock()
+            .map(|mut m| m.firmware())
+            .unwrap_or_default())
     }
 
     /// List the evdev key codes (decimal strings) of the first physical

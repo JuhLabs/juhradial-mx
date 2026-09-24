@@ -44,14 +44,15 @@ pub fn new_shared_state() -> SharedBatteryState {
     Arc::new(RwLock::new(BatteryState::default()))
 }
 
-/// Low-battery pulse latch: fire once when a discharging mouse reaches 15 %,
-/// again only after it was charged or passed 20 %. Returns (fire, latched).
-/// 0 % means "not read yet" and never fires.
-pub fn low_battery_step(latched: bool, percentage: u8, charging: bool) -> (bool, bool) {
-    if charging || percentage > 20 {
+/// Low-battery pulse latch: fire once when a discharging mouse reaches the
+/// alert level (`battery.alert_percent`, 15 by default), again only after it
+/// was charged or passed the level + 5. Returns (fire, latched). 0 % means
+/// "not read yet" and never fires.
+pub fn low_battery_step(latched: bool, percentage: u8, charging: bool, alert: u8) -> (bool, bool) {
+    if charging || percentage > alert.saturating_add(5) {
         return (false, false);
     }
-    if percentage == 0 || latched || percentage > 15 {
+    if percentage == 0 || latched || percentage > alert {
         return (false, latched);
     }
     (true, true)
@@ -370,25 +371,17 @@ impl BatteryHandler {
             &response[..response.len().min(12)]
         );
 
-        // HID++ UNIFIED_BATTERY (0x1004) response format:
-        // [0] report_type, [1] device_index, [2] feature_index, [3] function_id
-        // [4] state_of_charge (percentage), [5] level (0-4), [6] flags, [7] charging_status
+        // HID++ UNIFIED_BATTERY (0x1004) response: [4] state of charge,
+        // [5] level flags, [6] charging status, [7] external power
+        // (decode_unified_status).
         //
         // HID++ BATTERY_STATUS (0x1000) response format:
         // [4] level, [5] next_level, [6] status
-        if response.len() >= 8 && self.is_unified_battery {
-            let percentage = response[4];
-            let charging_status = response[7]; // Charging status is at byte 7 for UNIFIED_BATTERY
-
-            // UNIFIED_BATTERY charging_status: 0=discharging, 1=charging, 2=charging_slow, 3=charging_complete, 5=invalid
-            let charging = (1..=3).contains(&charging_status);
-
-            tracing::debug!(
-                percentage,
-                charging_status,
-                charging,
-                "Battery query result (UNIFIED_BATTERY)"
-            );
+        let unified = response.get(4..).filter(|_| self.is_unified_battery);
+        if let Some((percentage, charging)) =
+            unified.and_then(crate::hidpp::device::decode_unified_status)
+        {
+            tracing::debug!(percentage, charging, "Battery query result (UNIFIED_BATTERY)");
 
             Ok((percentage, charging))
         } else if response.len() >= 7 {
@@ -638,11 +631,13 @@ mod tests {
 
     #[test]
     fn low_battery_pulse_fires_once_per_discharge() {
-        assert_eq!(low_battery_step(false, 40, false), (false, false));
-        assert_eq!(low_battery_step(false, 15, false), (true, true));
-        assert_eq!(low_battery_step(true, 12, false), (false, true));
-        assert_eq!(low_battery_step(true, 18, false), (false, true)); // hysteresis
-        assert_eq!(low_battery_step(true, 12, true), (false, false)); // charging resets
-        assert_eq!(low_battery_step(false, 0, false), (false, false)); // not read yet
+        assert_eq!(low_battery_step(false, 40, false, 15), (false, false));
+        assert_eq!(low_battery_step(false, 15, false, 15), (true, true));
+        assert_eq!(low_battery_step(true, 12, false, 15), (false, true));
+        assert_eq!(low_battery_step(true, 18, false, 15), (false, true)); // hysteresis
+        assert_eq!(low_battery_step(true, 12, true, 15), (false, false)); // charging resets
+        assert_eq!(low_battery_step(false, 0, false, 15), (false, false)); // not read yet
+        assert_eq!(low_battery_step(false, 18, false, 20), (true, true)); // user level
+        assert_eq!(low_battery_step(false, 12, false, 10), (false, false));
     }
 }

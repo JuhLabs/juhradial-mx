@@ -118,6 +118,8 @@ pub struct HidppDevice {
     /// Unit id from DEVICE_INFORMATION (0x0003): unique per physical device,
     /// the key for per-device config overrides (`devices.0xXXXXXXXX`).
     unit_id: Option<u32>,
+    /// Main firmware versions (0x0003 getFwInfo), read once on first ask.
+    firmware: Option<Vec<String>>,
     /// True once `divert_buttons` saw the gesture button (CID 0x00C3) in the
     /// REPROG_CONTROLS_V4 table (connection-scoped; read by GetCapabilities).
     gesture_button_seen: bool,
@@ -131,6 +133,113 @@ fn parse_unit_id(resp: &[u8]) -> Option<u32> {
     }
     let id = u32::from_be_bytes([resp[5], resp[6], resp[7], resp[8]]);
     (id != 0).then_some(id)
+}
+
+/// A main-firmware entity from DEVICE_INFORMATION (0x0003) getFwInfo
+/// (fn 1) payload `[type, prefix(3), major, minor, build(2 BE), ..]` as
+/// "RBM 27.00.B0015" (Solaar's notation); `None` for the bootloader (type 1),
+/// hardware (2) and other entities. Layout read on an MX Master 4, which
+/// reports two main entities, RBM 27.00.B0015 and RBM 27.03.B0019.
+pub fn parse_firmware_entity(payload: &[u8]) -> Option<String> {
+    if payload.len() < 8 || payload[0] & 0x0F != 0 {
+        return None;
+    }
+    let prefix: String = payload[1..4]
+        .iter()
+        .filter(|b| b.is_ascii_alphanumeric())
+        .map(|&b| b as char)
+        .collect();
+    let build = u16::from_be_bytes([payload[6], payload[7]]);
+    let mut version = format!("{:02X}.{:02X}", payload[4], payload[5]);
+    if build != 0 {
+        version.push_str(&format!(".B{build:04X}"));
+    }
+    Some(if prefix.is_empty() { version } else { format!("{prefix} {version}") })
+}
+
+/// Device kind in a receiver pairing-information register reply (long
+/// register 0xB5): Bolt answers sub 0x50+slot with the kind in the low
+/// nibble of byte 5, Unifying answers sub 0x20+slot-1 with it in byte 11
+/// (Solaar `device_pairing_information`). 1 = keyboard, 2 = mouse.
+pub fn parse_pairing_kind(bolt: bool, reply: &[u8]) -> Option<u8> {
+    let at = if bolt { 5 } else { 11 };
+    (reply.len() > at && reply[2] == 0x83 && reply[3] == 0xB5).then(|| reply[at] & 0x0F)
+}
+
+/// 0x1982 BACKLIGHT2 state, from getBacklightConfig (fn 0) and, when the
+/// feature version has it, getBacklightInfo (fn 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BacklightState {
+    pub enabled: bool,
+    /// Raw options byte (bits 3-4 = mode).
+    pub options: u8,
+    /// Capability byte: 0x08 Automatic, 0x10 temporary manual, 0x20 Manual.
+    pub caps: u8,
+    /// 1 Automatic (light sensor), 2 set by the keyboard's keys, 3 Manual.
+    pub mode: u8,
+    /// Level the config holds (what a Manual write keeps).
+    pub stored_level: u8,
+    /// Stay-on durations in 5 s units: hands away, hands near, on a cable.
+    pub dho: u16,
+    pub dhi: u16,
+    pub dpow: u16,
+    pub levels: u8,
+    /// Level lit right now (fn 2), else the stored one.
+    pub level: u8,
+    /// fn 2 status: 0 off by software, 1 off at critical battery, 2 automatic,
+    /// 3 automatic but the room is bright, 4 set by the keys, 5 manual.
+    pub status: Option<u8>,
+}
+
+impl BacklightState {
+    pub fn automatic_supported(&self) -> bool {
+        self.caps & 0x08 != 0
+    }
+
+    /// The setBacklightConfig (fn 1) payload `[enabled, options, effect 0xFF
+    /// (unchanged), level, dho, dhi, dpow]` (u16 little-endian). Mode 2
+    /// cannot be written and goes back as Automatic; the level only counts
+    /// in Manual, so other modes send 0 (Solaar).
+    pub fn config_params(&self) -> [u8; 10] {
+        let mode = if self.mode == 2 { 1 } else { self.mode };
+        let options = (self.options & !0x18) | (mode << 3);
+        let level = if mode == 3 { self.stored_level } else { 0 };
+        let [ho0, ho1] = self.dho.to_le_bytes();
+        let [hi0, hi1] = self.dhi.to_le_bytes();
+        let [pw0, pw1] = self.dpow.to_le_bytes();
+        [self.enabled as u8, options, 0xFF, level, ho0, ho1, hi0, hi1, pw0, pw1]
+    }
+}
+
+/// Decode getBacklightConfig (`[enabled, options, caps, effects(2), level,
+/// dho(2), dhi(2), dpow(2)]`, little-endian) plus the optional getBacklightInfo
+/// (`[levels, live level, status, ..]`).
+pub fn parse_backlight(config: &[u8], info: Option<&[u8]>) -> Option<BacklightState> {
+    if config.len() < 12 {
+        return None;
+    }
+    let stored_level = config[5];
+    Some(BacklightState {
+        enabled: config[0] != 0,
+        options: config[1],
+        caps: config[2],
+        mode: (config[1] >> 3) & 0x03,
+        stored_level,
+        dho: u16::from_le_bytes([config[6], config[7]]),
+        dhi: u16::from_le_bytes([config[8], config[9]]),
+        dpow: u16::from_le_bytes([config[10], config[11]]),
+        levels: info
+            .and_then(|i| i.first().copied())
+            .filter(|n| (2..=16).contains(n))
+            .unwrap_or(8),
+        level: info.and_then(|i| i.get(1).copied()).unwrap_or(stored_level),
+        status: info.and_then(|i| i.get(2).copied()),
+    })
+}
+
+/// Seconds to 0x1982 duration units (5 s, 1..=1440, i.e. 5 s to 2 h).
+pub fn backlight_duration_units(seconds: u16) -> u16 {
+    seconds.div_ceil(5).clamp(1, 1440)
 }
 
 /// One Easy-Switch slot from HOSTS_INFO (0x1815 getHostInfo): whether a
@@ -294,6 +403,17 @@ fn unified_battery_percent(state_of_charge: u8, level_flags: u8) -> u8 {
     } else {
         0
     }
+}
+
+/// UNIFIED_BATTERY (0x1004) getStatus payload `[soc, level, status,
+/// external power]` (HID++ byte 4 on): (percent, charging). The charging
+/// status is payload[2], the byte the battery event carries too; payload[3]
+/// only says whether a cable is in (captured MX Keys S: `64 08 03 01` =
+/// 100 %, full, on USB power, not charging).
+pub fn decode_unified_status(payload: &[u8]) -> Option<(u8, bool)> {
+    let (soc, level, status) = (*payload.first()?, *payload.get(1)?, *payload.get(2)?);
+    let charging = super::notifications::battery_status_label(status) == "charging";
+    Some((unified_battery_percent(soc, level), charging))
 }
 
 trait ButtonDivertIo {
@@ -582,6 +702,7 @@ impl HidppDevice {
                     last_receiver_error: None,
                     last_hidpp_error: None,
                     unit_id: None,
+                    firmware: None,
                     gesture_button_seen: false,
                     device_path: device_path.clone(),
                 };
@@ -730,6 +851,69 @@ impl HidppDevice {
 
     /// The receiver hidraw node and slot holding a paired keyboard, from the
     /// receivers' pairing tables (answers while the keyboard sleeps).
+    /// Receiver node and slot of a paired keyboard, read PASSIVELY from the
+    /// receivers' pairing-information registers (long register 0xB5, see
+    /// `parse_pairing_kind`). The receiver answers for sleeping devices too,
+    /// and unlike fake-arrival it sends no 0x41 notices, each of which would
+    /// flag a divert refresh on the mouse. Verified on two Bolt receivers
+    /// (2026-09-24): slot 1 `11 ff 83 b5 51 01 78 b3 ..` = keyboard WPID
+    /// B378 (MX Keys S), empty slots answer `10 ff 8f 83 b5 08 00` at once.
+    pub fn find_paired_keyboard_passive() -> Option<(PathBuf, u8)> {
+        Self::find_all_devices().into_iter().find_map(|(path, ct)| {
+            let bolt = match ct {
+                ConnectionType::Bolt => true,
+                ConnectionType::Unifying => false,
+                _ => return None,
+            };
+            Self::pairing_table_keyboard(&path, bolt).map(|slot| (path, slot))
+        })
+    }
+
+    fn pairing_table_keyboard(device_path: &std::path::Path, bolt: bool) -> Option<u8> {
+        let mut device = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(device_path)
+            .ok()?;
+        let fd = device.as_raw_fd();
+        let mut buf = [0u8; 32];
+        for slot in 1..=6u8 {
+            let sub = if bolt { 0x50 + slot } else { 0x20 + slot - 1 };
+            device.write_all(&[0x10, 0xFF, 0x83, 0xB5, sub, 0x00, 0x00]).ok()?;
+            let deadline = std::time::Instant::now() + std::time::Duration::from_millis(300);
+            let mut answered = false;
+            while wait_readable(fd, deadline) {
+                let n = match device.read(&mut buf) {
+                    Ok(n) => n,
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+                    Err(_) => return None,
+                };
+                let reply = &buf[..n];
+                if n < 5 || reply[1] != 0xFF {
+                    continue;
+                }
+                if reply[2] == 0x8F && reply[3] == 0x83 {
+                    answered = true; // empty slot
+                    break;
+                }
+                if reply[2] == 0x83 && reply[3] == 0xB5 && reply[4] == sub {
+                    if parse_pairing_kind(bolt, reply) == Some(0x01) {
+                        return Some(slot);
+                    }
+                    answered = true;
+                    break;
+                }
+            }
+            if !answered {
+                // This receiver does not answer register reads: callers
+                // fall back to fake-arrival.
+                return None;
+            }
+        }
+        None
+    }
+
     pub fn find_paired_keyboard() -> Option<(PathBuf, u8)> {
         Self::find_all_devices()
             .into_iter()
@@ -824,6 +1008,7 @@ impl HidppDevice {
                     last_receiver_error: None,
                     last_hidpp_error: None,
                     unit_id: None,
+                    firmware: None,
                     gesture_button_seen: false,
                     device_path: device_path.clone(),
                 };
@@ -1787,6 +1972,27 @@ impl HidppDevice {
         self.unit_id
     }
 
+    /// Main firmware versions from DEVICE_INFORMATION (0x0003): entity count
+    /// from getDeviceInfo, then getFwInfo per entity. READ-ONLY, cached for
+    /// the connection; empty without the feature or an answer.
+    pub fn firmware(&mut self) -> Vec<String> {
+        if let Some(fw) = &self.firmware {
+            return fw.clone();
+        }
+        let Some(idx) = self.get_feature_index(features::DEVICE_INFORMATION) else {
+            return Vec::new();
+        };
+        let Some(count) = self.hidpp_request(idx, 0x00, &[]).and_then(|r| r.get(4).copied()) else {
+            return Vec::new();
+        };
+        let fw: Vec<String> = (0..count.min(8))
+            .filter_map(|e| self.hidpp_request(idx, 0x01, &[e]))
+            .filter_map(|r| r.get(4..).and_then(parse_firmware_entity))
+            .collect();
+        self.firmware = Some(fw.clone());
+        fw
+    }
+
     /// True when the receiver last answered "connection request failed" for
     /// this device: paired, but its radio is parked (idle or on another
     /// Easy-Switch host). Callers should wait rather than rescan.
@@ -2369,18 +2575,9 @@ impl HidppDevice {
                     &resp[..resp.len().min(12)]
                 );
 
-                if self.is_unified_battery && resp.len() >= 8 {
-                    let percentage = unified_battery_percent(resp[4], resp[5]);
-                    let charging_status = resp[7];
-                    let charging = (1..=3).contains(&charging_status);
-
-                    tracing::debug!(
-                        percentage,
-                        charging_status,
-                        charging,
-                        "Battery query result (UNIFIED_BATTERY)"
-                    );
-
+                let unified = resp.get(4..).filter(|_| self.is_unified_battery);
+                if let Some((percentage, charging)) = unified.and_then(decode_unified_status) {
+                    tracing::debug!(percentage, charging, "Battery query result (UNIFIED_BATTERY)");
                     Ok((percentage, charging))
                 } else if resp.len() >= 7 {
                     let percentage = resp[4];
@@ -2459,93 +2656,39 @@ impl HidppDevice {
         Some(resp[4..].to_vec())
     }
 
-    /// Set keyboard backlight brightness (function 1: setBacklightConfig). BETA.
+    /// Current backlight state: getBacklightConfig plus getBacklightInfo when
+    /// the feature version has it. READ-ONLY. `None` without the feature or
+    /// an answer (a parked keyboard ignores requests until a key press).
+    pub fn query_backlight_state(&mut self) -> Option<BacklightState> {
+        let config = self.query_backlight_config()?;
+        let info = self.query_backlight_info();
+        parse_backlight(&config, info.as_deref())
+    }
+
+    /// Read the state, change it, write it back (setBacklightConfig, fn 1,
+    /// long report). The read is required: writing without it would send
+    /// zero durations, below the 5 s minimum, into the keyboard's stored
+    /// settings. Solaar hit INVALID_ARGUMENT on some MX Keys firmware
+    /// (pwr-Solaar/Solaar PR #2230), hence preserving every field it reported.
     ///
-    /// Packet reconstructed from Solaar's BACKLIGHT2 (0x1982) implementation
-    /// and verified on an MX Keys S over Bolt (2026-09-23: levels 0..7 set
-    /// from Settings, acknowledged and visibly applied). Solaar hit a
-    /// `FeatureCallError` (error 2 = invalid argument) on some MX Keys
-    /// firmware (pwr-Solaar/Solaar PR #2230), hence the read-then-preserve
-    /// below. The write payload is:
-    ///   `[enabled, options, 0xFF, level, dho(2B LE), dhi(2B LE), dpow(2B LE)]`
-    /// where `(options >> 3) & 0x03` selects the mode; mode `0x3` is
-    /// manual/permanent brightness, in which `level` is honoured.
-    ///
-    /// To minimise the chance of an invalid-argument rejection we READ the
-    /// current config first and PRESERVE the device-reported `options` bits and
-    /// dim durations, only forcing: enabled + manual mode + the requested level.
-    ///
-    /// Unlike the mouse HID++ paths, this WRITES a stored keyboard setting (the
-    /// backlight level persists, like DPI). It only runs when a caller has opted
-    /// into MX Keys S support and issues an explicit request. Returns
-    /// `Err(NotSupported)` when the feature is absent.
-    ///
-    /// `brightness` is a percent (clamped `0..=100`) mapped onto the device's
-    /// discrete level range from getBacklightInfo. Packet layout and level
-    /// mapping hardware-verified on MX Keys S (BACKLIGHT2 v3, 8 levels).
-    pub fn set_backlight(&mut self, brightness: u8) -> Result<(), HapticError> {
-        let feature_index = match self.backlight_feature_index() {
-            Some(idx) => idx,
-            None => {
-                tracing::debug!("BACKLIGHT2 not available, cannot set backlight");
-                return Err(HapticError::NotSupported);
-            }
+    /// Unlike the mouse HID++ paths, this WRITES a stored keyboard setting
+    /// (like DPI). It only runs when a caller has opted into MX Keys S support
+    /// and issues an explicit request.
+    fn write_backlight(&mut self, change: impl FnOnce(&mut BacklightState)) -> Result<(), HapticError> {
+        let Some(feature_index) = self.backlight_feature_index() else {
+            tracing::debug!("BACKLIGHT2 not available");
+            return Err(HapticError::NotSupported);
         };
-
-        // Device levels are DISCRETE: getBacklightInfo reports numberOfLevel
-        // (8 on MX Keys S, hardware-verified). Sending a raw percent as the
-        // level is rejected with INVALID_ARGUMENT, so map percent onto
-        // 0..=n-1. Older feature versions without getBacklightInfo fall back
-        // to the MX Keys' 8 levels.
-        let pct = brightness.min(100) as u32;
-        let n_levels = self
-            .query_backlight_info()
-            .and_then(|info| info.first().copied())
-            .filter(|&n| (2..=16).contains(&n))
-            .unwrap_or(8) as u32;
-        let level = ((pct * (n_levels - 1) + 50) / 100) as u8;
-
-        // Preserve device-reported options + dim durations from a fresh read so
-        // only brightness + mode change. Falls back to zeros if the read fails.
-        let current = self.query_backlight_config();
-        let mut options = current.as_ref().and_then(|c| c.get(1).copied()).unwrap_or(0);
-        // Force the mode bits (3-4) to manual (0x3): clear then set.
-        options = (options & !0x18) | (0x3 << 3);
-        let (dho, dhi, dpow) = match current.as_ref() {
-            // Payload offsets (Solaar V3 get layout): level=5, dho=6..8,
-            // dhi=8..10, dpow=10..12.
-            Some(c) if c.len() >= 12 => (
-                u16::from_le_bytes([c[6], c[7]]),
-                u16::from_le_bytes([c[8], c[9]]),
-                u16::from_le_bytes([c[10], c[11]]),
-            ),
-            _ => (0u16, 0u16, 0u16),
-        };
-
-        // Always enabled=1: level 0 in manual mode turns the glow off, while
-        // enabled=0 disables the whole backlight feature (hardware-verified
-        // write sequence on MX Keys S).
-        let enabled: u8 = 1;
-        let params: [u8; 10] = [
-            enabled,
-            options,
-            0xFF,
-            level,
-            (dho & 0xFF) as u8,
-            (dho >> 8) as u8,
-            (dhi & 0xFF) as u8,
-            (dhi >> 8) as u8,
-            (dpow & 0xFF) as u8,
-            (dpow >> 8) as u8,
-        ];
-
+        let mut state = self.query_backlight_state().ok_or(HapticError::CommunicationError)?;
+        change(&mut state);
+        let params = state.config_params();
         tracing::info!(
             feature_index,
-            brightness = level,
-            options = format!("0x{:02X}", options),
+            mode = state.mode,
+            level = params[3],
+            options = format!("0x{:02X}", params[1]),
             "Setting keyboard backlight"
         );
-
         match self.hidpp_long_request(feature_index, 0x01, &params) {
             Some(_) => Ok(()),
             None => {
@@ -2553,6 +2696,58 @@ impl HidppDevice {
                 Err(HapticError::CommunicationError)
             }
         }
+    }
+
+    /// Set keyboard backlight brightness in Manual mode. BETA.
+    ///
+    /// Verified on an MX Keys S over Bolt (2026-09-23: levels 0..7 set from
+    /// Settings, acknowledged and visibly applied). `brightness` is a percent
+    /// (clamped `0..=100`) mapped onto the device's discrete levels (8 on MX
+    /// Keys S; a raw percent as the level is rejected with INVALID_ARGUMENT).
+    /// Always enabled: level 0 in manual mode turns the glow off, while
+    /// enabled = 0 disables the whole backlight feature.
+    pub fn set_backlight(&mut self, brightness: u8) -> Result<(), HapticError> {
+        let pct = brightness.min(100) as u32;
+        self.write_backlight(|s| {
+            let n = s.levels as u32;
+            s.enabled = true;
+            s.mode = 3;
+            s.stored_level = ((pct * (n - 1) + 50) / 100) as u8;
+        })
+    }
+
+    /// Automatic (the light sensor sets the level) or Manual (the stored
+    /// level, taken from what is lit now so nothing jumps).
+    pub fn set_backlight_mode(&mut self, automatic: bool) -> Result<(), HapticError> {
+        if automatic
+            && !self
+                .query_backlight_state()
+                .ok_or(HapticError::CommunicationError)?
+                .automatic_supported()
+        {
+            return Err(HapticError::NotSupported);
+        }
+        self.write_backlight(|s| {
+            s.enabled = true;
+            if automatic {
+                s.mode = 1;
+            } else {
+                s.mode = 3;
+                s.stored_level = s.level.min(s.levels.saturating_sub(1));
+            }
+        })
+    }
+
+    /// How long the backlight stays on, in seconds (0 = keep): with the
+    /// hands away, with the hands near the keys, and on a cable.
+    pub fn set_backlight_durations(&mut self, away_s: u16, near_s: u16, powered_s: u16) -> Result<(), HapticError> {
+        self.write_backlight(|s| {
+            for (field, secs) in [(&mut s.dho, away_s), (&mut s.dhi, near_s), (&mut s.dpow, powered_s)] {
+                if secs > 0 {
+                    *field = backlight_duration_units(secs);
+                }
+            }
+        })
     }
 
     // =========================================================================
@@ -2759,6 +2954,91 @@ mod button_divert_tests {
         assert_eq!(parse_unit_id(&reply), Some(0x1234ABCD));
         assert_eq!(parse_unit_id(&[0x11, 0x02, 0x03, 0x01, 0x03, 0, 0, 0, 0]), None);
         assert_eq!(parse_unit_id(&reply[..8]), None);
+    }
+
+    #[test]
+    fn firmware_entities_decode_like_solaar() {
+        // MX Master 4 getFwInfo payloads (HID++ byte 4 on).
+        let main = [0x00, 0x52, 0x42, 0x4D, 0x27, 0x00, 0x00, 0x15, 0x00, 0xB0, 0x42];
+        assert_eq!(parse_firmware_entity(&main).as_deref(), Some("RBM 27.00.B0015"));
+        let boot = [0x01, 0x4C, 0x44, 0x00, 0x04, 0x00, 0x00, 0x00];
+        assert_eq!(parse_firmware_entity(&boot), None);
+        let hw = [0x02, 0x48, 0x57, 0x00, 0x00, 0x00, 0x00, 0x00];
+        assert_eq!(parse_firmware_entity(&hw), None);
+        assert_eq!(parse_firmware_entity(&[0x00, 0x52, 0x42, 0x4D, 0x12, 0x03, 0x00, 0x00]).as_deref(), Some("RBM 12.03"));
+    }
+
+    #[test]
+    fn pairing_register_kind() {
+        let kb = [0x11, 0xFF, 0x83, 0xB5, 0x51, 0x01, 0x78, 0xB3, 0x58, 0xF0, 0x62, 0x88, 0x01];
+        assert_eq!(parse_pairing_kind(true, &kb), Some(1));
+        let mouse = [0x11, 0xFF, 0x83, 0xB5, 0x52, 0x02, 0x42, 0xB0, 0x37, 0xFC, 0x2B, 0x99, 0x02];
+        assert_eq!(parse_pairing_kind(true, &mouse), Some(2));
+        let unifying = [0x11, 0xFF, 0x83, 0xB5, 0x20, 0x07, 0x08, 0x40, 0x82, 0x04, 0x00, 0x01, 0x07];
+        assert_eq!(parse_pairing_kind(false, &unifying), Some(1));
+        assert_eq!(parse_pairing_kind(true, &[0x10, 0xFF, 0x8F, 0x83, 0xB5, 0x08, 0x00]), None);
+    }
+
+    #[test]
+    fn backlight_state_decodes_config_and_info() {
+        // Solaar capture's fields: options 0x0D (WOW + PWR_SAVE, Automatic),
+        // caps 0x38, level 0, 55 s / 55 s / 300 s; info 8 levels, 5 lit, status 2.
+        let config = [0x01, 0x0D, 0x38, 0x01, 0x00, 0x00, 0x0B, 0x00, 0x0B, 0x00, 0x3C, 0x00];
+        let s = parse_backlight(&config, Some(&[8, 5, 2, 0])).unwrap();
+        assert!(s.enabled && s.automatic_supported());
+        assert_eq!((s.mode, s.level, s.levels, s.status), (1, 5, 8, Some(2)));
+        assert_eq!((s.dho, s.dhi, s.dpow), (11, 11, 60));
+        // No fn 2: 8 levels and the stored level.
+        let s2 = parse_backlight(&[1, 0x18, 0x20, 1, 0, 4, 1, 0, 1, 0, 1, 0], None).unwrap();
+        assert_eq!((s2.mode, s2.level, s2.levels, s2.status), (3, 4, 8, None));
+        assert!(!s2.automatic_supported());
+        assert!(parse_backlight(&config[..8], None).is_none());
+    }
+
+    #[test]
+    fn backlight_state_from_an_mx_keys_s() {
+        // Captured 2026-09-24 over Bolt: Manual, level 7 of 8, 30 min stay-on.
+        let config = [0x01, 0x19, 0x3D, 0x03, 0x00, 0x07, 0x68, 0x01, 0x68, 0x01, 0x68, 0x01];
+        let info = [0x08, 0x07, 0x05, 0x00, 0x03, 0x00, 0x06, 0x00, 0x3C, 0x00];
+        let s = parse_backlight(&config, Some(&info)).unwrap();
+        assert_eq!((s.mode, s.level, s.levels, s.status), (3, 7, 8, Some(5)));
+        assert!(s.automatic_supported());
+        assert_eq!((s.dho * 5, s.dhi * 5, s.dpow * 5), (1800, 1800, 1800));
+        // Re-writing it unchanged sends back what the keyboard reported.
+        assert_eq!(s.config_params(), [1, 0x19, 0xFF, 7, 0x68, 0x01, 0x68, 0x01, 0x68, 0x01]);
+    }
+
+    #[test]
+    fn backlight_write_payload() {
+        let config = [0x01, 0x0D, 0x38, 0x01, 0x00, 0x00, 0x0B, 0x00, 0x0B, 0x00, 0x3C, 0x00];
+        let mut s = parse_backlight(&config, Some(&[8, 5, 2, 0])).unwrap();
+        // Automatic: level goes out as 0, durations preserved.
+        assert_eq!(s.config_params(), [1, 0x0D, 0xFF, 0, 11, 0, 11, 0, 60, 0]);
+        s.mode = 3;
+        s.stored_level = 5;
+        assert_eq!(s.config_params(), [1, 0x1D, 0xFF, 5, 11, 0, 11, 0, 60, 0]);
+        // Set by the keys (mode 2) cannot be written: goes back as Automatic.
+        s.mode = 2;
+        assert_eq!(s.config_params()[1], 0x0D);
+        s.mode = 3;
+        s.dpow = backlight_duration_units(7201);
+        assert_eq!(&s.config_params()[8..], &[0xA0, 0x05]);
+        assert_eq!(backlight_duration_units(1), 1);
+        assert_eq!(backlight_duration_units(0), 1);
+        assert_eq!(backlight_duration_units(30), 6);
+        assert_eq!(backlight_duration_units(31), 7);
+    }
+
+    #[test]
+    fn unified_status_reads_the_charging_byte_not_external_power() {
+        // Captured MX Keys S on USB power, fully charged.
+        assert_eq!(decode_unified_status(&[0x64, 0x08, 0x03, 0x01]), Some((100, false)));
+        // Cable in but the status byte says discharging: not charging.
+        assert_eq!(decode_unified_status(&[0x50, 0x04, 0x00, 0x01]), Some((80, false)));
+        assert_eq!(decode_unified_status(&[0x37, 0x04, 0x01, 0x00]), Some((55, true)));
+        assert_eq!(decode_unified_status(&[0x5A, 0x08, 0x02, 0x02]), Some((90, true)));
+        assert_eq!(decode_unified_status(&[0x14, 0x02, 0x04, 0x01]), Some((20, false)));
+        assert_eq!(decode_unified_status(&[0x00, 0x02]), None);
     }
 
     #[test]

@@ -753,6 +753,25 @@ impl KeyboardConfig {
     }
 }
 
+/// `battery` section. The tray and Settings also read `alert_mouse` and
+/// `alert_keyboard` (both default true) from the same object.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatteryAlertConfig {
+    /// Alert when a device on battery drops to this percent (10, 15 or 20).
+    #[serde(default = "default_alert_percent")]
+    pub alert_percent: u8,
+}
+
+fn default_alert_percent() -> u8 {
+    15
+}
+
+impl Default for BatteryAlertConfig {
+    fn default() -> Self {
+        Self { alert_percent: default_alert_percent() }
+    }
+}
+
 // ============================================================================
 // Main Configuration
 // ============================================================================
@@ -783,6 +802,10 @@ pub struct Config {
     /// Gaming mode: DPI presets, the ring in games, automatic mode.
     #[serde(default)]
     pub gaming: GamingConfig,
+
+    /// Low-battery alert level (the tray notice, Settings, the haptic).
+    #[serde(default)]
+    pub battery: BatteryAlertConfig,
 
     /// Keyboard support (generic remap + MX Keys S). BETA, opt-in, off by default.
     #[serde(default)]
@@ -845,6 +868,7 @@ impl Default for Config {
             buttons: ButtonsConfig::default(),
             thumbwheel: ThumbwheelConfig::default(),
             gaming: GamingConfig::default(),
+            battery: BatteryAlertConfig::default(),
             keyboard: KeyboardConfig::default(),
             devices: std::collections::HashMap::new(),
             active_unit: None,

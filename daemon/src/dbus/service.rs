@@ -51,6 +51,11 @@ pub struct JuhRadialService {
 }
 
 impl JuhRadialService {
+    /// Whether the user turned on MX Keys S support (`keyboard.mx_keys.enabled`).
+    pub(crate) fn keyboard_enabled(&self) -> bool {
+        self.config.read().map(|c| c.keyboard.mx_keys.enabled).unwrap_or(false)
+    }
+
     /// Create a new D-Bus service instance with battery state, config, and haptic manager
     pub fn new(
         battery_state: SharedBatteryState,

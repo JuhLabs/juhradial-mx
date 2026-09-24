@@ -81,6 +81,7 @@ ANSWERS = {
     "GetGamingStatus": [False, False, 2, 0, True, False],
     "GetEasySwitchInfo": [3, 1],
     "GetHostNames": [["LINUX", "MAC", ""]],
+    "GetFirmware": [["RBM 27.00.B0015"]],
 }
 
 
@@ -119,6 +120,7 @@ def test_prime_is_fully_async_and_one_call_at_a_time(backend):
     assert backend.currentHost == 1 and backend.hostNames == ["LINUX", "MAC", ""]
     assert backend.linkState == "asleep" and backend.transport == "bolt"
     assert backend.caps["force_sense"] is True and backend.hapticsSupported
+    assert backend.firmware == ["RBM 27.00.B0015"]
 
 
 def test_readouts_update_as_answers_land(backend):

@@ -24,7 +24,7 @@ Item {
     readonly property bool easySwitchSlot: (bump, Backend.get("radial_menu.easy_switch_shortcuts", false))
     property var health: []
     function refreshHealth() { health = Backend.healthIssues() }
-    readonly property bool kbOn: (bump, Backend.get("keyboard.enabled", false))
+    readonly property bool kbOn: (bump, Backend.get("keyboard.mx_keys.enabled", false))
     property var kb: ({})               // async (a keyboard probe can take seconds)
     readonly property var steps: (bump, Backend.onboarding())
     property string pickSlot: ""
