@@ -190,9 +190,9 @@ Item {
                     }
                     Divider {}
                     SettingRow {
-                        label: qsTr("Move the keyboard too")
+                        label: qsTr("Mouse and keyboard move together")
                         desc: page.keyboardOn
-                              ? qsTr("When the mouse switches, your MX Keys follows to the same computer, matched by name. If the keyboard is asleep it follows when you next touch it")
+                              ? qsTr("When the mouse switches, your MX Keys follows to the same computer, matched by name, and the keyboard's Easy-Switch keys take the mouse along. An asleep keyboard follows when you next touch it")
                               : qsTr("Turn on keyboard support on the Devices tab first")
                         Row {
                             spacing: Theme.gapS

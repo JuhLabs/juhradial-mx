@@ -199,6 +199,14 @@ impl KeyboardManager {
         self.device.as_mut().map(|d| d.hosts_table()).unwrap_or_default()
     }
 
+    /// The keyboard's CHANGE_HOST feature index (its Easy-Switch events).
+    pub fn change_host_index(&mut self) -> Option<u8> {
+        if !self.ensure_connected() {
+            return None;
+        }
+        self.device.as_mut()?.change_host_index()
+    }
+
     /// Send the keyboard to another computer (CHANGE_HOST).
     pub fn set_current_host(&mut self, slot: u8) -> Result<(), String> {
         if !self.ensure_connected() {
@@ -414,6 +422,29 @@ pub fn link_up_in_report(report: &[u8], index: u8) -> bool {
         && report[4] & 0x40 == 0
 }
 
+/// The keyboard's Easy-Switch key: the CHANGE_HOST event `[old, new]` it
+/// sends the computer it is leaving (long report, function 0, software id 0;
+/// verified on MX Keys S, Solaar #3228). `feature` 0 = not known yet.
+pub fn host_switch_in_report(report: &[u8], index: u8, feature: u8) -> Option<(u8, u8)> {
+    (feature != 0
+        && report.len() >= 6
+        && report[0] == 0x11
+        && report[1] == index
+        && report[2] == feature
+        && report[3] == 0
+        && report[4] != report[5]
+        && report[4] < 8
+        && report[5] < 8)
+        .then(|| (report[4], report[5]))
+}
+
+/// What the keyboard's receiver reported.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LinkEvent {
+    Up,
+    HostSwitch(u8, u8),
+}
+
 /// Quiet period after a link-up notice before the next one counts.
 const LINK_UP_DEBOUNCE: std::time::Duration = std::time::Duration::from_secs(2);
 /// Pause between the link-up notice and the battery read (the first request
@@ -462,18 +493,30 @@ async fn run_link_watcher_linux(config: SharedConfig, connection: zbus::Connecti
         };
         tracing::info!(path = %path.display(), index, "Watching the keyboard's receiver for link-up");
 
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<()>();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<LinkEvent>();
         let stop = Arc::new(AtomicBool::new(false));
+        let feature = Arc::new(std::sync::atomic::AtomicU8::new(0));
+        learn_keyboard(&feature).await;
         let reader_stop = stop.clone();
-        let reader = tokio::task::spawn_blocking(move || watch_for_link_up(&path, index, &tx, &reader_stop));
+        let reader_feature = feature.clone();
+        let reader = tokio::task::spawn_blocking(move || watch_for_link_up(&path, index, &tx, &reader_stop, &reader_feature));
         loop {
             tokio::select! {
                 event = rx.recv() => match event {
-                    Some(()) => {
+                    Some(LinkEvent::Up) => {
                         announce_keyboard_battery(&connection).await;
+                        learn_keyboard(&feature).await;
                         // Link-ups that queued while this read ran (a first
                         // connect can take seconds) are answered by it.
-                        while rx.try_recv().is_ok() {}
+                        while matches!(rx.try_recv(), Ok(LinkEvent::Up)) {}
+                    }
+                    Some(LinkEvent::HostSwitch(old, new)) => {
+                        tracing::info!(old, new, "Keyboard Easy-Switch key");
+                        if move_together() {
+                            if let Some(slot) = crate::easy_switch::keyboard_left(old, new) {
+                                crate::easy_switch::move_mouse(slot);
+                            }
+                        }
                     }
                     None => break,
                 },
@@ -489,14 +532,50 @@ async fn run_link_watcher_linux(config: SharedConfig, connection: zbus::Connecti
     }
 }
 
-/// Blocking reader: sends one event per (debounced) link-up of slot `index`.
+#[cfg(target_os = "linux")]
+fn move_together() -> bool {
+    crate::replay::load_raw_config()
+        .pointer("/keyboard/mx_keys/move_together")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+/// While the keyboard is here: its CHANGE_HOST index (to recognise its
+/// Easy-Switch key) and, for moving together, its slots (it cannot be read
+/// once it has left). The index stays 0 while the keyboard sleeps.
+#[cfg(target_os = "linux")]
+async fn learn_keyboard(feature: &Arc<std::sync::atomic::AtomicU8>) {
+    use std::sync::atomic::Ordering;
+    if !move_together() {
+        return;
+    }
+    let known = feature.load(Ordering::Relaxed) != 0;
+    let learned = tokio::task::spawn_blocking(move || {
+        let mut m = manager().lock().ok()?;
+        let index = if known { None } else { m.change_host_index() };
+        Some((index, m.hosts_table()))
+    })
+    .await
+    .ok()
+    .flatten();
+    if let Some((index, slots)) = learned {
+        if let Some(index) = index {
+            feature.store(index, Ordering::Relaxed);
+        }
+        crate::easy_switch::remember_keyboard(slots);
+    }
+}
+
+/// Blocking reader: one event per (debounced) link-up of slot `index`, and
+/// one per Easy-Switch key press of the keyboard (CHANGE_HOST `feature`).
 /// Returns when `stop` is set, the channel closes, or the receiver goes away.
 #[cfg(target_os = "linux")]
 fn watch_for_link_up(
     path: &Path,
     index: u8,
-    tx: &tokio::sync::mpsc::UnboundedSender<()>,
+    tx: &tokio::sync::mpsc::UnboundedSender<LinkEvent>,
     stop: &std::sync::atomic::AtomicBool,
+    feature: &std::sync::atomic::AtomicU8,
 ) {
     use std::io::Read;
     use std::os::unix::fs::OpenOptionsExt;
@@ -528,12 +607,18 @@ fn watch_for_link_up(
                 }
                 last_sent = Some(std::time::Instant::now());
                 tracing::debug!(index, "Keyboard linked up");
-                if tx.send(()).is_err() {
+                if tx.send(LinkEvent::Up).is_err() {
                     return;
                 }
             }
             Ok(0) => return,
-            Ok(_) => {}
+            Ok(n) => {
+                if let Some((old, new)) = host_switch_in_report(&buf[..n], index, feature.load(Ordering::Relaxed)) {
+                    if tx.send(LinkEvent::HostSwitch(old, new)).is_err() {
+                        return;
+                    }
+                }
+            }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
             Err(e) => {
                 tracing::debug!(error = %e, "Keyboard link watcher lost the receiver");
@@ -562,11 +647,7 @@ async fn announce_keyboard_battery(connection: &zbus::Connection) {
     tracing::info!(percent, charging, "Keyboard awake; battery read");
     // Mouse and keyboard move together: learn the keyboard's slots while it
     // is here, and deliver a switch that waited for it to wake.
-    let together = crate::replay::load_raw_config()
-        .pointer("/keyboard/mx_keys/move_together")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    if together {
+    if move_together() {
         let _ = tokio::task::spawn_blocking(|| {
             let slots = manager().lock().map(|mut m| m.hosts_table()).unwrap_or_default();
             crate::easy_switch::remember_keyboard(slots);
@@ -734,6 +815,27 @@ async fn run_grabbed(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn easy_switch_key_is_the_change_host_event_of_our_keyboard() {
+        // MX Keys S (Solaar #3228): r[11 01 0A 00 00 01 ...] = host 0 -> 1.
+        let mut event = [0u8; 20];
+        event[..6].copy_from_slice(&[0x11, 0x01, 0x0A, 0x00, 0x00, 0x01]);
+        assert_eq!(host_switch_in_report(&event, 1, 0x0A), Some((0, 1)));
+        assert_eq!(host_switch_in_report(&event, 2, 0x0A), None, "another slot");
+        assert_eq!(host_switch_in_report(&event, 1, 0x0B), None, "another feature");
+        assert_eq!(host_switch_in_report(&event, 1, 0), None, "index not learned yet");
+        let mut reply = event;
+        reply[3] = 0x01; // our own getHostInfo reply (software id 1)
+        assert_eq!(host_switch_in_report(&reply, 1, 0x0A), None);
+        let mut same = event;
+        same[5] = 0;
+        assert_eq!(host_switch_in_report(&same, 1, 0x0A), None);
+        assert_eq!(host_switch_in_report(&event[..5], 1, 0x0A), None, "truncated");
+        let mut short = event;
+        short[0] = 0x10;
+        assert_eq!(host_switch_in_report(&short, 1, 0x0A), None, "short reports are receiver traffic");
+    }
 
     #[test]
     fn link_up_is_the_short_0x41_notice_for_our_slot_with_link_bit_clear() {

@@ -22,6 +22,7 @@ Item {
 
     function cfg(path, def) { page.bump; return Backend.get(path, def) }
     readonly property var caps: Backend.caps
+    readonly property var force: Backend.scrollForce
     readonly property var desk: Backend.desktopPointer
     readonly property var hw: Backend.hwErrors
     readonly property var range: Backend.dpiRange
@@ -318,6 +319,34 @@ Item {
                         }
                     }
                     HwNote { key: "smartshift" }
+                    Divider { visible: page.force.supported }
+                    SettingRow {
+                        visible: page.force.supported
+                        label: qsTr("Scroll force")
+                        desc: qsTr("How firmly the wheel clicks from notch to notch in ratchet mode")
+                        Row {
+                            spacing: 8
+                            Slider {
+                                id: forceSlider
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 180; from: 1; to: 100; stepSize: 1; pageStep: 10
+                                accessibleName: qsTr("Scroll force")
+                                value: page.force.value || page.force.default
+                                onCommitted: (v) => Backend.setScrollForce(Math.round(v))
+                            }
+                            Readout {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: Math.round(forceSlider.shown) + "%"
+                            }
+                            PrimaryButton {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: qsTr("Default"); ghost: true
+                                enabled: page.force.value !== page.force.default
+                                onClicked: Backend.setScrollForce(page.force.default)
+                            }
+                        }
+                    }
+                    HwNote { key: "force" }
                     Divider { visible: page.caps.smartshift !== false }
                     SettingRow {
                         label: qsTr("Natural scrolling")

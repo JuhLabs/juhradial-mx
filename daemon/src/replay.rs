@@ -57,6 +57,9 @@ pub struct DeviceState {
     pub smartshift: Option<(bool, u8)>,
     pub hires: Option<bool>,
     pub natural: Option<bool>,
+    /// Scroll force % (0x2111 torque). The wheel keeps it, but another
+    /// computer's software may change it while the mouse is away.
+    pub force: Option<u8>,
 }
 
 /// Settings Easy 1 % .. Hard 100 % -> HID++ threshold 1..49 (PR #123).
@@ -97,6 +100,10 @@ pub fn globals_from_config(raw: &Value, unit_key: Option<&str>) -> DeviceState {
         smartshift,
         hires: get("scroll", "smooth").and_then(Value::as_bool),
         natural: get("scroll", "natural").and_then(Value::as_bool),
+        force: get("scroll", "force")
+            .and_then(Value::as_u64)
+            .filter(|f| (1..=100).contains(f))
+            .map(|f| f as u8),
     }
 }
 
@@ -121,6 +128,7 @@ pub trait ReplayTarget {
     fn replay_smartshift(&mut self, enabled: bool, threshold: u8) -> bool;
     fn replay_hires(&mut self, hires: bool, invert: bool) -> bool;
     fn replay_dpi(&mut self, dpi: u16) -> bool;
+    fn replay_force(&mut self, percent: u8) -> bool;
 }
 
 impl ReplayTarget for crate::hidpp::HapticManager {
@@ -132,6 +140,10 @@ impl ReplayTarget for crate::hidpp::HapticManager {
     }
     fn replay_dpi(&mut self, dpi: u16) -> bool {
         self.set_dpi(dpi).is_ok()
+    }
+    fn replay_force(&mut self, percent: u8) -> bool {
+        // A wheel without tunable torque has nothing to restore.
+        matches!(self.set_scroll_force(percent), Ok(()) | Err(crate::hidpp::HapticError::NotSupported))
     }
 }
 
@@ -154,6 +166,9 @@ pub fn apply(target: &mut impl ReplayTarget, s: &DeviceState) -> (u8, u8) {
     }
     if let Some(dpi) = s.dpi {
         count(target.replay_dpi(dpi));
+    }
+    if let Some(percent) = s.force {
+        count(target.replay_force(percent));
     }
     (tried, failed)
 }
@@ -183,6 +198,7 @@ impl DeviceState {
             smartshift: self.smartshift.or(other.smartshift),
             hires: self.hires.or(other.hires),
             natural: self.natural.or(other.natural),
+            force: self.force.or(other.force),
         }
     }
 }
@@ -196,6 +212,7 @@ pub fn read_device_state(m: &mut crate::hidpp::HapticManager) -> DeviceState {
         smartshift: m.get_smart_shift(),
         hires: hires.map(|(h, _, _)| h),
         natural: hires.map(|(_, i, _)| i),
+        force: None,
     }
 }
 
@@ -256,6 +273,24 @@ mod tests {
             self.calls.push(format!("dpi {d}"));
             !self.fail_dpi
         }
+        fn replay_force(&mut self, p: u8) -> bool {
+            self.calls.push(format!("force {p}"));
+            true
+        }
+    }
+
+    #[test]
+    fn scroll_force_replays_only_a_valid_configured_percent() {
+        let raw = serde_json::json!({"scroll": {"force": 60}});
+        assert_eq!(globals_from_config(&raw, None).force, Some(60));
+        for bad in [serde_json::json!(0), serde_json::json!(101), serde_json::json!("60")] {
+            let raw = serde_json::json!({"scroll": {"force": bad}});
+            assert_eq!(globals_from_config(&raw, None).force, None);
+        }
+        let mut fake = Fake::default();
+        let state = DeviceState { force: Some(60), ..Default::default() };
+        assert_eq!(apply(&mut fake, &state), (1, 0));
+        assert_eq!(fake.calls, ["force 60"]);
     }
 
     #[test]
@@ -299,7 +334,7 @@ mod tests {
 
     #[test]
     fn profile_then_gaming_win_but_natural_stays_global() {
-        let globals = DeviceState { dpi: Some(1600), smartshift: Some((true, 25)), hires: Some(true), natural: Some(true) };
+        let globals = DeviceState { dpi: Some(1600), smartshift: Some((true, 25)), hires: Some(true), natural: Some(true), force: None };
         let profile = HardwareProfile {
             dpi: Some(800),
             smartshift: Some(SmartshiftSetting { enabled: false, threshold: 0 }),
@@ -307,14 +342,14 @@ mod tests {
             ..Default::default()
         };
         let s = effective_state(globals, Some(&profile), None);
-        assert_eq!(s, DeviceState { dpi: Some(800), smartshift: Some((false, 0)), hires: Some(false), natural: Some(true) });
+        assert_eq!(s, DeviceState { dpi: Some(800), smartshift: Some((false, 0)), hires: Some(false), natural: Some(true), force: None });
         assert_eq!(effective_state(globals, Some(&profile), Some(3200)).dpi, Some(3200));
         assert_eq!(effective_state(globals, None, None), globals);
     }
 
     #[test]
     fn apply_writes_smartshift_then_hires_then_dpi_and_counts_failures() {
-        let s = DeviceState { dpi: Some(1000), smartshift: Some((true, 10)), hires: None, natural: Some(true) };
+        let s = DeviceState { dpi: Some(1000), smartshift: Some((true, 10)), hires: None, natural: Some(true), force: None };
         let mut f = Fake { fail_dpi: true, ..Default::default() };
         assert_eq!(apply(&mut f, &s), (3, 1));
         assert_eq!(f.calls, vec!["ss true 10", "hires true true", "dpi 1000"]);
@@ -323,10 +358,10 @@ mod tests {
     #[test]
     fn baseline_fills_only_what_config_leaves_out() {
         let config = DeviceState { dpi: Some(1600), ..Default::default() };
-        let baseline = DeviceState { dpi: Some(1000), smartshift: Some((true, 30)), hires: Some(true), natural: Some(false) };
+        let baseline = DeviceState { dpi: Some(1000), smartshift: Some((true, 30)), hires: Some(true), natural: Some(false), force: None };
         assert_eq!(
             config.or(baseline),
-            DeviceState { dpi: Some(1600), smartshift: Some((true, 30)), hires: Some(true), natural: Some(false) }
+            DeviceState { dpi: Some(1600), smartshift: Some((true, 30)), hires: Some(true), natural: Some(false), force: None }
         );
     }
 

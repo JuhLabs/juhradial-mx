@@ -915,6 +915,26 @@ impl HapticManager {
         }
     }
 
+    /// Scroll force: (supported, current %, default %).
+    pub fn get_scroll_force(&mut self) -> (bool, u8, u8) {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        let Some(device) = self.device.as_mut() else { return (false, 0, 0) };
+        match device.scroll_force_caps() {
+            Some((default, _)) => (true, device.get_smartshift().map_or(0, |(_, _, t)| t), default),
+            None => (false, 0, 0),
+        }
+    }
+
+    /// Set the scroll force in % (1..100).
+    pub fn set_scroll_force(&mut self, percent: u8) -> Result<(), HapticError> {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_mut().ok_or(HapticError::DeviceNotFound)?.set_scroll_force(percent)
+    }
+
     /// Get SmartShift configuration (simplified API for DBus and profiles)
     ///
     /// Returns (enabled, threshold), the inverse of [`Self::set_smart_shift`]:

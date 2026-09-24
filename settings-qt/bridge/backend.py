@@ -666,6 +666,7 @@ SEARCH_INDEX = [
     ("scroll", "Pointer acceleration", "Pointer", "acceleration speed fast slow motion"),
     ("scroll", "Wheel mode", "Scroll wheel", "ratchet free-spin smartshift click glide"),
     ("scroll", "SmartShift threshold", "Scroll wheel", "smartshift sensitivity threshold flick auto-switch"),
+    ("scroll", "Scroll force", "Scroll wheel", "ratchet torque firmness resistance click notch force"),
     ("scroll", "Natural scrolling", "Scroll wheel", "natural scrolling direction content follows reverse"),
     ("scroll", "Smooth scrolling", "Scroll wheel", "smooth high-res scrolling fine precision hires"),
     ("scroll", "Scroll speed", "Scroll wheel", "scroll speed lines notch velocity"),
@@ -704,7 +705,7 @@ SEARCH_INDEX = [
     # Easy-Switch
     ("easyswitch", "Easy-Switch in the radial menu", "Computers", "easy-switch radial menu slices host-switch submenu"),
     ("easyswitch", "This computer's name", "Computers", "easy-switch host name alias this computer"),
-    ("easyswitch", "Move the keyboard too", "Computers", "easy-switch keyboard follows mouse mx keys together"),
+    ("easyswitch", "Mouse and keyboard move together", "Computers", "easy-switch keyboard follows mouse mx keys together mouse follows keyboard"),
     ("easyswitch", "Computers", "Easy-Switch", "switch host computer change device channel os icon paired"),
     # Devices
     ("devices", "Connected devices", "", "devices paired connected list hardware mouse keyboard battery asleep"),
@@ -1405,6 +1406,7 @@ class Backend(QObject):
         self._ratchet_seen = False
         self._wheel_mode = ""
         self._dpi_range = dict(DPI_RANGE_FALLBACK)
+        self._scroll_force = {"supported": False, "value": 0, "default": 75}
         # Hardware writes the mouse refused or deferred: {key: {text, error}}.
         self._hw_errors = {}
         # Desktop pointer state read back (1 on, 0 off, -1 unknown).
@@ -2545,6 +2547,7 @@ class Backend(QObject):
             ("GetBatteryStatus", battery),
             ("GetDpi", dpi),
             ("GetDpiRange", self._apply_dpi_range),
+            ("GetScrollForce", self._apply_scroll_force),
             ("GetSmartShift",
              lambda r: None if "wheel" in self._local_edits else self._apply_smartshift(r)),
             ("SmartShiftSupported", flag("_ss_supported")),
@@ -2717,6 +2720,44 @@ class Backend(QObject):
                 revert()
                 self._set_hw_error(key, _("The mouse did not accept this change."))
         self.daemon.call_then(method, done, *args)
+
+    @pyqtProperty("QVariantMap", notify=liveChanged)
+    def scrollForce(self):
+        """{supported, value, default}: the wheel's ratchet force in % (0x2111)."""
+        return dict(self._scroll_force)
+
+    def _apply_scroll_force(self, r):
+        if not r or len(r) < 3 or "force" in self._local_edits:
+            return
+        supported, value, default = bool(r[0]), _to_int(r[1]), _to_int(r[2])
+        self._scroll_force = {"supported": supported, "value": value if 1 <= value <= 100 else 0,
+                              "default": default if 1 <= default <= 100 else 75}
+
+    @pyqtSlot(int)
+    def setScrollForce(self, percent):
+        """Save the ratchet force and send it; a connected mouse that refuses
+        it gets the old value back."""
+        percent = max(1, min(100, int(percent)))
+        before = self.get("scroll.force", None)
+        shown = self._scroll_force.get("value", 0)
+        self._local_edits.add("force")
+        self.setLocal("scroll.force", percent)
+        self._scroll_force["value"] = percent
+        self.liveChanged.emit()
+
+        def done(r):
+            if r and bool(r[0]):
+                self._set_hw_error("force")
+            elif not self.daemon.available:
+                self._set_hw_error("force", _("Saved. JuhRadial applies it when its service starts."), False)
+            elif self.linkState in ("asleep", "away", "offline"):
+                self._set_hw_error("force", _("Saved. The mouse gets it when it wakes up or comes back."), False)
+            else:
+                self._restore_local("scroll.force", before)
+                self._scroll_force["value"] = shown
+                self.liveChanged.emit()
+                self._set_hw_error("force", _("The mouse did not accept this change."))
+        self.daemon.call_then("SetScrollForce", done, _u8(percent))
 
     @pyqtProperty("QVariantMap", notify=liveChanged)
     def dpiRange(self):

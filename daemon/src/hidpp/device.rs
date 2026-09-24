@@ -2456,6 +2456,40 @@ impl HidppDevice {
         }
     }
 
+    /// Scroll force (0x2111 tunable torque): `(default %, max gram-force)`
+    /// when the wheel supports it (getCapabilities bit 0), else None.
+    pub fn scroll_force_caps(&mut self) -> Option<(u8, u8)> {
+        let index = self.smartshift_feature_index.filter(|_| self.smartshift_is_enhanced)?;
+        let resp = self.hidpp_request(index, 0x00, &[])?;
+        (resp.len() >= 8 && resp[4] & 0x01 != 0).then(|| (resp[6], resp[7]))
+    }
+
+    /// Set how firmly the ratchet holds, in % of the wheel's maximum (1..100).
+    /// The current wheel mode is written with it: MX Master 4 applies a torque
+    /// change only then (Solaar). Skipped when the wheel already has that
+    /// value, since the device keeps it in its own memory.
+    pub fn set_scroll_force(&mut self, percent: u8) -> Result<(), HapticError> {
+        let index = self
+            .smartshift_feature_index
+            .filter(|_| self.smartshift_is_enhanced)
+            .ok_or(HapticError::NotSupported)?;
+        self.scroll_force_caps().ok_or(HapticError::NotSupported)?;
+        let percent = percent.clamp(1, 100);
+        let (mode, _, current) = self
+            .get_smartshift()
+            .ok_or_else(|| HapticError::IoError(std::io::Error::other("Could not read the wheel mode")))?;
+        if current == percent {
+            return Ok(());
+        }
+        match self.hidpp_request(index, 0x02, &[mode, 0x00, percent]) {
+            Some(resp) if resp.len() >= 7 => {
+                tracing::info!(percent, "Scroll force set");
+                Ok(())
+            }
+            _ => Err(HapticError::IoError(std::io::Error::other("Failed to set the scroll force"))),
+        }
+    }
+
     /// Get HiResScroll mode configuration (HiRes Wheel 0x2121)
     pub fn get_hiresscroll_mode(&mut self) -> Option<(bool, bool, bool)> {
         let feature_index = self.feature_index(features::HIRES_WHEEL)?;
@@ -2828,6 +2862,12 @@ impl HidppDevice {
     /// Switch to a different paired host (Easy-Switch). On success the
     /// device answers nothing (it is already leaving); a HID++ error or a
     /// receiver error (asleep, away) means it stayed, and says so.
+    /// The CHANGE_HOST (0x1814) feature index, for matching its events.
+    pub fn change_host_index(&mut self) -> Option<u8> {
+        self.feature_index(features::CHANGE_HOST)
+            .or_else(|| self.get_feature_index(features::CHANGE_HOST))
+    }
+
     pub fn set_current_host(&mut self, host_index: u8) -> Result<(), String> {
         let change_host_index = self
             .get_feature_index(features::CHANGE_HOST)

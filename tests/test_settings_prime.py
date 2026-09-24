@@ -74,6 +74,7 @@ ANSWERS = {
     "GetBatteryStatus": [80, False],
     "GetDpi": [1500],
     "GetDpiRange": [200, 8000, 50, 1000],
+    "GetScrollForce": [True, 100, 75],
     "GetSmartShift": [True, 12],
     "SmartShiftSupported": [True],
     "ThumbwheelSupported": [True],
@@ -187,3 +188,18 @@ def test_no_qdbusinterface_and_link_signal_uses_empty_service_name():
     src = (REPO_ROOT / "settings-qt" / "bridge" / "backend.py").read_text(encoding="utf-8")
     assert "QDBusInterface(" not in src
     assert 'self._bus.connect("", OBJ_PATH, IFACE, "DeviceConnectionChanged", self._on_link)' in src
+
+
+def test_scroll_force_primes_saves_and_reverts_a_refusal(backend, monkeypatch):
+    backend._prime()
+    _drain(backend)
+    assert backend.scrollForce == {"supported": True, "value": 100, "default": 75}
+    monkeypatch.setattr(bk.Backend, "linkState", property(lambda self: "connected"))
+    backend.setScrollForce(60)
+    assert backend.daemon.pending[0][0] == "SetScrollForce"
+    backend.daemon.answer([True])
+    assert backend.get("scroll.force") == 60 and backend.scrollForce["value"] == 60
+    backend.setScrollForce(250)  # clamped
+    backend.daemon.answer([False])  # a connected mouse refused: back to 60
+    assert backend.get("scroll.force") == 60 and backend.scrollForce["value"] == 60
+    assert "force" in backend.hwErrors

@@ -641,6 +641,25 @@ impl JuhRadialService {
         }
     }
 
+    /// Scroll force (0x2111 tunable torque): (supported, current %, default %).
+    async fn get_scroll_force(&self) -> fdo::Result<(bool, u8, u8)> {
+        Ok(self.haptic_manager.lock().map(|mut m| m.get_scroll_force()).unwrap_or((false, 0, 0)))
+    }
+
+    /// Set the scroll force in % (1..100); false when the wheel refused.
+    async fn set_scroll_force(&self, percent: u8) -> fdo::Result<bool> {
+        match self.haptic_manager.lock() {
+            Ok(mut m) => match m.set_scroll_force(percent) {
+                Ok(()) => Ok(true),
+                Err(e) => {
+                    tracing::warn!(error = %e, percent, "Scroll force not set");
+                    Ok(false)
+                }
+            },
+            Err(_) => Ok(false),
+        }
+    }
+
     async fn smart_shift_supported(&self) -> fdo::Result<bool> {
         match self.haptic_manager.lock() {
             Ok(mut manager) => Ok(manager.smartshift_supported()),
