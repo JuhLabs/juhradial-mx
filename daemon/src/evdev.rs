@@ -67,6 +67,8 @@ pub enum GestureEvent {
     MacroTriggered { key_code: u16, pressed: bool },
     /// A config-driven button action (non-radial-menu) was triggered
     ButtonActionEvent {
+        /// One for physical buttons; diverted thumb-wheel speed is batched.
+        repeats: u8,
         action: crate::config::ButtonAction,
         pressed: bool,
         /// CID of the button that fired (resolves `custom` actions via
@@ -918,6 +920,7 @@ impl EvdevHandler {
                     let _ = self
                         .event_tx
                         .send(GestureEvent::ButtonActionEvent {
+                            repeats: 1,
                             action,
                             pressed: true,
                             source: Some(crate::hidraw::button_cid::GESTURE_BUTTON),
@@ -948,6 +951,7 @@ impl EvdevHandler {
                         let _ = self
                             .event_tx
                             .send(GestureEvent::ButtonActionEvent {
+                                repeats: 1,
                                 action,
                                 pressed: false,
                                 source: Some(crate::hidraw::button_cid::GESTURE_BUTTON),

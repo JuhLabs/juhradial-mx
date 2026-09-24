@@ -452,8 +452,12 @@ impl HidrawHandler {
         // One receiver node carries every paired device's reports. With a
         // keyboard on the mouse's receiver its events (0x1004 battery,
         // backlight) would otherwise be decoded with the mouse's feature
-        // indices: a wrong battery, or a phantom button press.
-        if self.mouse_device_index.is_some_and(|i| i != data[1]) {
+        // indices: a wrong battery, or a phantom button press. Only receiver
+        // slots (1..=6) are compared; a direct link (0xFF) has no neighbours.
+        if self
+            .mouse_device_index
+            .is_some_and(|i| (1..=6).contains(&i) && i != data[1])
+        {
             return;
         }
 
@@ -550,13 +554,16 @@ impl HidrawHandler {
 
         match output {
             crate::config::ThumbwheelOutput::Button(action) => {
-                // Emit one press per repeat; non-radial actions dispatch directly.
-                for _ in 0..repeats {
-                    let _ = self
-                        .event_tx
-                        .send(GestureEvent::ButtonActionEvent { action, pressed: true, source: None })
-                        .await;
-                }
+                // Keep configured speed in one event and one helper invocation.
+                let _ = self
+                    .event_tx
+                    .send(GestureEvent::ButtonActionEvent {
+                        action,
+                        pressed: true,
+                        source: None,
+                        repeats,
+                    })
+                    .await;
             }
             crate::config::ThumbwheelOutput::HorizontalScroll(dir) => {
                 let _ = self
@@ -662,6 +669,7 @@ impl HidrawHandler {
                 let _ = self
                     .event_tx
                     .send(GestureEvent::ButtonActionEvent {
+                        repeats: 1,
                         action,
                         pressed: true,
                         source: Some(cid),
@@ -723,6 +731,7 @@ impl HidrawHandler {
                         let _ = self
                             .event_tx
                             .send(GestureEvent::ButtonActionEvent {
+                                repeats: 1,
                                 action,
                                 pressed: false,
                                 source: None,
@@ -1009,11 +1018,13 @@ mod tests {
             drain(&mut rx),
             vec![
                 GestureEvent::ButtonActionEvent {
+                    repeats: 1,
                     action: crate::config::ButtonAction::VirtualDesktops,
                     pressed: true,
                     source: Some(button_cid::GESTURE_BUTTON),
                 },
                 GestureEvent::ButtonActionEvent {
+                    repeats: 1,
                     action: crate::config::ButtonAction::VirtualDesktops,
                     pressed: false,
                     source: None,
@@ -1037,11 +1048,13 @@ mod tests {
             drain(&mut rx),
             vec![
                 GestureEvent::ButtonActionEvent {
+                    repeats: 1,
                     action: crate::config::ButtonAction::Copy,
                     pressed: true,
                     source: Some(button_cid::BACK_BUTTON),
                 },
                 GestureEvent::ButtonActionEvent {
+                    repeats: 1,
                     action: crate::config::ButtonAction::Copy,
                     pressed: false,
                     source: None,
@@ -1126,6 +1139,15 @@ mod tests {
         assert!(!h.take_divert_refresh_needed(), "the keyboard's report is ignored");
         h.process_hidpp_report(&[0x11, 0x02, 0x0c, 0x00, 0x01, 0x01, 0x00]).await;
         assert!(h.take_divert_refresh_needed(), "the mouse's own report still counts");
+        // A direct link (Bluetooth, cable) reports index 0xFF: nothing is gated.
+        let mut direct = test_handler();
+        direct.set_notification_indices(crate::hidpp::notifications::NotificationIndices {
+            wireless_status: Some(0x0c),
+            ..Default::default()
+        });
+        direct.set_mouse_device_index(Some(0xFF));
+        direct.process_hidpp_report(&[0x11, 0xFF, 0x0c, 0x00, 0x01, 0x01, 0x00]).await;
+        assert!(direct.take_divert_refresh_needed());
     }
 
     // Issue #15 spirit: a burst of connection notifications (flapping link)
@@ -1139,5 +1161,33 @@ mod tests {
         // Immediately after, within the debounce window: no second trigger.
         h.process_hidpp_report(&report).await;
         assert!(!h.take_divert_refresh_needed());
+    }
+
+    #[tokio::test]
+    async fn thumbwheel_repetitions_are_batched_into_one_event() {
+        let config = crate::config::new_shared_config();
+        {
+            let mut config = config.write().unwrap();
+            config.thumbwheel.mode = crate::config::ThumbwheelMode::Volume;
+            config.thumbwheel.speed = 8;
+        }
+        let (tx, mut rx) = mpsc::channel(16);
+        let mut handler = HidrawHandler::new(tx);
+        handler.set_shared_config(config);
+        handler
+            .handle_thumbwheel_event(&[HIDPP_LONG, 0, 0, 0, 0, 1])
+            .await;
+        let events = drain(&mut rx);
+        assert_eq!(events.len(), 1, "one rotation must send one event");
+        assert!(matches!(
+            events[0],
+            GestureEvent::ButtonActionEvent {
+                repeats: 8,
+                action: crate::config::ButtonAction::VolumeUp,
+                pressed: true,
+                source: None,
+                ..
+            }
+        ));
     }
 }

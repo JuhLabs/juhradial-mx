@@ -771,7 +771,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         "org.kde.juhradialmx.Daemon", signal, &()).await;
                                 }
                             } else {
-                                actions.run(binding.action, pressed, None).await;
+                                actions.run(binding.action, pressed, None, 1).await;
                             }
                         }
                     }
@@ -1656,7 +1656,13 @@ struct ActionContext {
 }
 
 impl ActionContext {
-    async fn run(&mut self, action: juhradiald::config::ButtonAction, pressed: bool, source: Option<u16>) {
+    async fn run(
+        &mut self,
+        action: juhradiald::config::ButtonAction,
+        pressed: bool,
+        source: Option<u16>,
+        repeats: u8,
+    ) {
         use juhradiald::config::ButtonAction as A;
         match (action, pressed) {
             (A::DpiShift, true) => self.dpi_shift(true).await,
@@ -1667,7 +1673,7 @@ impl ActionContext {
             (A::GamingMode, true) => self.toggle_gaming().await,
             (_, true) => {
                 info!(%action, "Button action triggered");
-                match juhradiald::actions::execute_button_action(action).await {
+                match juhradiald::actions::execute_button_action_repeated(action, repeats).await {
                     Ok(true) => {}
                     // RadialMenu goes through the Pressed path.
                     Ok(false) => warn!(%action, "Button action wants the radial menu here; ignoring"),
@@ -2388,6 +2394,18 @@ async fn run_generic_evdev_loop(
     }
 }
 
+/// Forward one event, including its batch and source, to the stateful dispatcher.
+/// Releases must still reach it to end held DPI-shift actions.
+async fn dispatch_button_action_event_with<Executor, Execution>(event: GestureEvent, execute: Executor)
+where
+    Executor: FnOnce(juhradiald::config::ButtonAction, bool, Option<u16>, u8) -> Execution,
+    Execution: std::future::Future<Output = ()>,
+{
+    if let GestureEvent::ButtonActionEvent { action, pressed, source, repeats } = event {
+        execute(action, pressed, source, repeats).await;
+    }
+}
+
 /// Process gesture events from the evdev handler
 ///
 /// Press triggers ydotool injection -> cursor_grabber catches -> emits ShowMenu
@@ -2430,7 +2448,7 @@ async fn process_gesture_events(
                     }
                     Some((direction, action)) => {
                         info!(duration_ms, dx, dy, ?direction, %action, "Directional gesture");
-                        actions.run(action, true, None).await;
+                        actions.run(action, true, None, 1).await;
                     }
                     None => warn!("Directional gesture dropped: config lock poisoned"),
                 }
@@ -2441,7 +2459,7 @@ async fn process_gesture_events(
                 if let Some(action) = ring {
                     info!(%action, "Ring button in a game");
                     ring_action_held = Some(action);
-                    actions.run(action, true, None).await;
+                    actions.run(action, true, None, 1).await;
                     continue;
                 }
                 // HID++ hidraw handler provides cursor coordinates directly
@@ -2454,7 +2472,7 @@ async fn process_gesture_events(
             }
             GestureEvent::Released { duration_ms } => {
                 if let Some(action) = ring_action_held.take() {
-                    actions.run(action, false, None).await;
+                    actions.run(action, false, None, 1).await;
                     continue;
                 }
                 info!(duration_ms, "Gesture button released");
@@ -2525,13 +2543,15 @@ async fn process_gesture_events(
                     }
                 }
             }
-            GestureEvent::ButtonActionEvent { action, pressed, source } => {
+            event @ GestureEvent::ButtonActionEvent { pressed, source, .. } => {
                 if pressed {
                     if let Some(cid) = source {
                         emit_button_pressed(dbus_connection, cid);
                     }
                 }
-                actions.run(action, pressed, source).await;
+                dispatch_button_action_event_with(event, |action, pressed, source, repeats| {
+                    actions.run(action, pressed, source, repeats)
+                }).await;
             }
             GestureEvent::ButtonSeen { cid } => {
                 emit_button_pressed(dbus_connection, cid);
@@ -3010,5 +3030,33 @@ mod tests {
         let clamped = pos.clamp_to_screen(&bounds);
         assert_eq!(clamped.x, 500);
         assert_eq!(clamped.y, 500);
+    }
+
+    #[tokio::test]
+    async fn button_action_dispatch_preserves_batch_source_and_release() {
+        use juhradiald::config::ButtonAction;
+        let mut calls = Vec::new();
+        for pressed in [true, false] {
+            dispatch_button_action_event_with(
+                GestureEvent::ButtonActionEvent {
+                    action: ButtonAction::VolumeUp,
+                    pressed,
+                    source: Some(0x56),
+                    repeats: 8,
+                },
+                |action, pressed, source, repeats| {
+                    calls.push((action, pressed, source, repeats));
+                    std::future::ready(())
+                },
+            )
+            .await;
+        }
+        assert_eq!(
+            calls,
+            [
+                (ButtonAction::VolumeUp, true, Some(0x56), 8),
+                (ButtonAction::VolumeUp, false, Some(0x56), 8),
+            ]
+        );
     }
 }
