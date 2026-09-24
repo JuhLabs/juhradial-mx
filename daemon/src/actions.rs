@@ -284,14 +284,10 @@ impl ActionExecutor {
         tracing::info!(cmd, "Executing shell command");
 
         // Use sh -c for shell interpretation (handles pipes, redirects, etc.)
-        let mut command = Command::new("sh");
-        command.args(["-c", cmd]);
         // Button presets launch GUIs (Calculator) and compositor clients
         // (hyprctl), which need a display the unit environment does not carry.
-        apply_session_env(&mut command);
-
-        match command.spawn() {
-            Ok(_child) => {
+        match spawn_for_user("sh", &["-c", cmd]) {
+            Ok(()) => {
                 // Don't wait for command to complete (AC2: non-blocking)
                 tracing::debug!("Shell command spawned successfully");
             }
@@ -558,13 +554,78 @@ const SESSION_VARS: [&str; 6] = [
 /// Reads the manager environment once for all six names: one lookup per name
 /// would fork `systemctl` six times on the press path.
 pub(crate) fn apply_session_env(cmd: &mut Command) {
+    cmd.envs(session_env());
+}
+
+fn session_env() -> Vec<(&'static str, String)> {
     with_session_env(|session| {
-        for name in SESSION_VARS {
-            let own = std::env::var(name).ok();
-            if let Some(value) = prefer_process_value(own, || session.get(name).cloned()) {
-                cmd.env(name, value);
+        SESSION_VARS
+            .into_iter()
+            .filter_map(|name| {
+                let own = std::env::var(name).ok();
+                prefer_process_value(own, || session.get(name).cloned()).map(|v| (name, v))
+            })
+            .collect()
+    })
+}
+
+/// Start a program the user asked for (a shell command, a link) with the
+/// session environment. Under the systemd user unit a direct child would
+/// inherit the unit's hardening (NoNewPrivileges, so no sudo in a terminal
+/// opened from a key; MemoryMax and CPUQuota) and be killed with every daemon
+/// restart, so it runs as its own transient user service instead.
+/// KillMode=process keeps launchers that fork and exit (code, flatpak run)
+/// alive, on every systemd version. If systemd-run refuses, the program starts
+/// directly after all.
+pub(crate) fn spawn_for_user(program: &str, args: &[&str]) -> std::io::Result<()> {
+    let label = program.to_string();
+    let owned: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+    let service = std::env::var_os("INVOCATION_ID").map(|_| {
+        let mut env = session_env();
+        if let Ok(path) = std::env::var("PATH") {
+            env.push(("PATH", path));
+        }
+        transient_service_args(program, &owned, &env)
+    });
+    let (program, args) = (label.clone(), owned);
+    let direct = move || {
+        let mut cmd = Command::new(&program);
+        cmd.args(&args);
+        apply_session_env(&mut cmd);
+        cmd.spawn().map(reap_quietly)
+    };
+    let Some(service) = service else { return direct() };
+    let Ok(mut child) = Command::new("systemd-run").args(&service).spawn() else {
+        return direct();
+    };
+    tokio::task::spawn_blocking(move || {
+        if !child.wait().is_ok_and(|status| status.success()) {
+            tracing::warn!(program = label, "systemd-run refused the launch; starting it directly");
+            if let Err(e) = direct() {
+                tracing::error!(program = label, error = %e, "Failed to start program");
             }
         }
+    });
+    Ok(())
+}
+
+/// `systemd-run` arguments that start `program` as a transient user service.
+fn transient_service_args(program: &str, args: &[String], env: &[(&str, String)]) -> Vec<String> {
+    let mut out: Vec<String> = ["--user", "--quiet", "--collect", "--property=KillMode=process"]
+        .map(String::from)
+        .into();
+    out.extend(env.iter().map(|(name, value)| format!("--setenv={name}={value}")));
+    out.push("--".to_string());
+    out.push(program.to_string());
+    out.extend(args.iter().cloned());
+    out
+}
+
+/// Wait for a launched program off the async workers so it never lingers as
+/// a zombie; its exit status is the program's own business.
+fn reap_quietly(mut child: std::process::Child) {
+    tokio::task::spawn_blocking(move || {
+        let _ = child.wait();
     });
 }
 
@@ -923,14 +984,8 @@ pub fn open_url(url: &str) -> Result<(), ActionError> {
     if !(lower.starts_with("https://") || lower.starts_with("http://") || lower.starts_with("mailto:")) {
         return Err(ActionError::ExecutionFailed(format!("not a web link: {url}")));
     }
-    let mut cmd = Command::new("xdg-open");
-    cmd.arg(url);
-    apply_session_env(&mut cmd);
-    let child = cmd
-        .spawn()
-        .map_err(|e| ActionError::ExecutionFailed(format!("xdg-open failed: {e}")))?;
-    reap_in_background(child, url, "xdg-open");
-    Ok(())
+    spawn_for_user("xdg-open", &[url])
+        .map_err(|e| ActionError::ExecutionFailed(format!("xdg-open failed: {e}")))
 }
 
 /// A mouse button the daemon can click on the user's behalf.
@@ -1600,6 +1655,23 @@ mod tests {
         let result = ActionExecutor::execute(&action).await;
         assert!(result.is_ok());
     }
+    #[test]
+    fn user_programs_run_as_their_own_user_service() {
+        let args = transient_service_args(
+            "sh",
+            &["-c".to_string(), "code ~/notes".to_string()],
+            &[("WAYLAND_DISPLAY", "wayland-0".to_string()), ("PATH", "/usr/bin:/bin".to_string())],
+        );
+        assert_eq!(
+            args,
+            [
+                "--user", "--quiet", "--collect", "--property=KillMode=process",
+                "--setenv=WAYLAND_DISPLAY=wayland-0", "--setenv=PATH=/usr/bin:/bin",
+                "--", "sh", "-c", "code ~/notes",
+            ]
+        );
+    }
+
     #[test]
     fn repeated_shortcuts_use_one_batched_helper_argument_vector() {
         assert_eq!(

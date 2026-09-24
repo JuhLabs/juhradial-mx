@@ -734,6 +734,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     log_startup_phase(&startup_started_at, "dbus");
 
+    // Detect KWin by D-Bus name ownership (not XDG_CURRENT_DESKTOP, which is
+    // empty when systemd starts the daemon at cold boot, issue #32). The watcher
+    // seeds the flag and follows KWin restarts on the same session connection.
+    let kwin_availability = juhradiald::compositor::KWinAvailability::new();
+    let kwin_scripting = juhradiald::compositor::KWinScripting::new(dbus_connection.clone());
+    {
+        let conn = dbus_connection.clone();
+        let kwin = kwin_availability.clone();
+        tokio::spawn(async move { juhradiald::compositor::run_kwin_watcher(conn, kwin).await });
+    }
+    // Feral GameMode: automatic gaming mode (never starts gamemoded).
+    {
+        let conn = dbus_connection.clone();
+        let gaming = gaming_mode.clone();
+        tokio::spawn(async move { juhradiald::gamemode::run_gamemode_watcher(conn, gaming).await });
+    }
     // ---- MX Keypad ----
     // The guard stops the HID worker on daemon shutdown. Both HID and action
     // execution have their own blocking workers, independent of mouse input.
@@ -743,6 +759,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             connection: dbus_connection.clone(), config: shared_config.clone(),
             macro_engine: macro_engine_for_events.clone(), gaming_mode: gaming_mode.clone(), shift_restore: None,
         };
+        let kwin = kwin_availability.clone();
+        let kwin_scripting = kwin_scripting.clone();
         tokio::task::spawn_blocking(move || {
             let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() else { return };
             rt.block_on(async move {
@@ -762,13 +780,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             if binding.action == ButtonAction::Custom {
                                 if pressed { run_custom_action(&binding.custom, &actions.macro_engine).await; }
                             } else if binding.action == ButtonAction::RadialMenu {
-                                let signal = if pressed { "MenuRequested" } else { "HideMenu" };
-                                if pressed {
-                                    let _ = actions.connection.emit_signal(None::<&str>, DBUS_PATH,
-                                        "org.kde.juhradialmx.Daemon", signal, &(0i32, 0i32)).await;
-                                } else {
-                                    let _ = actions.connection.emit_signal(None::<&str>, DBUS_PATH,
-                                        "org.kde.juhradialmx.Daemon", signal, &()).await;
+                                let suppressed = actions.gaming_mode.read().is_ok_and(|g| g.should_suppress_overlay());
+                                match keypad_ring_route(pressed, suppressed, kwin.is_owned()) {
+                                    KeypadRing::Hide => { let _ = emit_hide_menu(&actions.connection).await; }
+                                    KeypadRing::Suppressed => debug!("Keypad Actions Ring suppressed - gaming mode active"),
+                                    KeypadRing::KWinScript => {
+                                        // Same as the gesture button: the KWin script calls
+                                        // ShowMenuAtCursor with KWin's own cursor position.
+                                        let conn = actions.connection.clone();
+                                        juhradiald::compositor::trigger_kwin_cursor_script(Some(&kwin_scripting), move || async move {
+                                            let p = juhradiald::cursor::get_cursor_position();
+                                            let _ = emit_menu_requested(&conn, p.x, p.y).await;
+                                        }).await;
+                                    }
+                                    KeypadRing::CursorQuery => {
+                                        let p = juhradiald::cursor::get_cursor_position();
+                                        let _ = emit_menu_requested(&actions.connection, p.x, p.y).await;
+                                    }
                                 }
                             } else {
                                 actions.run(binding.action, pressed, None, 1).await;
@@ -781,25 +809,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     // ---- End MX Keypad ----
 
-    // Detect KWin by D-Bus name ownership (not XDG_CURRENT_DESKTOP, which is
-    // empty when systemd starts the daemon at cold boot, issue #32). The watcher
-    // seeds the flag and follows KWin restarts on the same session connection.
-    let kwin_availability = juhradiald::compositor::KWinAvailability::new();
-    let kwin_scripting = juhradiald::compositor::KWinScripting::new(dbus_connection.clone());
-    {
-        let conn = dbus_connection.clone();
-        let kwin = kwin_availability.clone();
-        tokio::spawn(async move { juhradiald::compositor::run_kwin_watcher(conn, kwin).await });
-    }
-    // Feral GameMode: automatic gaming mode (never starts gamemoded).
-    {
-        let conn = dbus_connection.clone();
-        let gaming = gaming_mode.clone();
-        tokio::spawn(async move { juhradiald::gamemode::run_gamemode_watcher(conn, gaming).await });
-    }
     let kwin_context = KWinContext {
         availability: kwin_availability,
         scripting: kwin_scripting,
+        gaming: gaming_mode.clone(),
     };
 
     let haptic_manager_for_hidraw = haptic_manager_for_battery.clone();
@@ -1421,6 +1434,7 @@ struct HidrawStartup {
 struct KWinContext {
     availability: juhradiald::compositor::KWinAvailability,
     scripting: juhradiald::compositor::KWinScripting,
+    gaming: juhradiald::gaming::SharedGamingMode,
 }
 
 /// Reconnect HID++ and re-apply volatile button diverts.
@@ -1653,6 +1667,29 @@ struct ActionContext {
     gaming_mode: juhradiald::gaming::SharedGamingMode,
     /// DPI to put back when the held DPI-shift button is released.
     shift_restore: Option<u16>,
+}
+
+/// What an MX Keypad key bound to the Actions Ring does on one edge. Like the
+/// gesture button: KWin's cursor script on KDE, a cursor query elsewhere, the
+/// menu hidden on release, nothing while gaming mode hides the ring.
+#[derive(Debug, PartialEq, Eq)]
+enum KeypadRing {
+    Hide,
+    Suppressed,
+    KWinScript,
+    CursorQuery,
+}
+
+fn keypad_ring_route(pressed: bool, suppressed: bool, kwin_owned: bool) -> KeypadRing {
+    if !pressed {
+        KeypadRing::Hide
+    } else if suppressed {
+        KeypadRing::Suppressed
+    } else if juhradiald::compositor::cursor_backend(kwin_owned) == juhradiald::compositor::CursorBackend::KWin {
+        KeypadRing::KWinScript
+    } else {
+        KeypadRing::CursorQuery
+    }
 }
 
 impl ActionContext {
@@ -1955,6 +1992,7 @@ async fn run_hidraw_loop(
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
+    handler.set_gaming_mode(kwin.gaming);
     handler.set_gesture_tracker(gesture_tracker);
 
     loop {
@@ -2203,6 +2241,7 @@ async fn run_evdev_loop(
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
+    handler.set_gaming_mode(kwin.gaming);
     handler.set_gesture_tracker(gesture_tracker);
 
     let mut logged_waiting = false;
@@ -2330,6 +2369,7 @@ async fn run_generic_evdev_loop(
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
+    handler.set_gaming_mode(kwin.gaming);
 
     let mut logged_waiting = false;
 
@@ -3030,6 +3070,21 @@ mod tests {
         let clamped = pos.clamp_to_screen(&bounds);
         assert_eq!(clamped.x, 500);
         assert_eq!(clamped.y, 500);
+    }
+
+    #[test]
+    fn keypad_ring_opens_at_the_cursor_like_the_gesture_button() {
+        use KeypadRing::*;
+        for (pressed, suppressed, kwin, want) in [
+            (true, false, true, KWinScript),
+            (true, false, false, CursorQuery),
+            (true, true, true, Suppressed),
+            (true, true, false, Suppressed),
+            (false, true, true, Hide), // a release always closes, even after a suppressed press
+            (false, false, false, Hide),
+        ] {
+            assert_eq!(keypad_ring_route(pressed, suppressed, kwin), want, "{pressed} {suppressed} {kwin}");
+        }
     }
 
     #[tokio::test]

@@ -196,11 +196,11 @@ msgstr ", відкрито"
 msgid ", this computer"
 msgstr ", цей комп’ютер"
 
-#: settings-qt/bridge/backend.py:2859
+#: settings-qt/bridge/backend.py:2865
 msgid "1 hour"
 msgstr "1 година"
 
-#: settings-qt/bridge/backend.py:2858
+#: settings-qt/bridge/backend.py:2864
 msgid "1 minute"
 msgstr "1 хвилина"
 
@@ -212,19 +212,19 @@ msgstr ""
 "1. Спарте мишу з кожним комп’ютером на окремому каналі Easy-Switch, а потім "
 "задайте обидва канали вище."
 
-#: settings-qt/bridge/backend.py:2859
+#: settings-qt/bridge/backend.py:2865
 msgid "10 minutes"
 msgstr "10 хвилин"
 
-#: settings-qt/bridge/backend.py:2857
+#: settings-qt/bridge/backend.py:2863
 msgid "10 seconds"
 msgstr "10 секунд"
 
-#: settings-qt/bridge/backend.py:2860
+#: settings-qt/bridge/backend.py:2866
 msgid "2 hours"
 msgstr "2 години"
 
-#: settings-qt/bridge/backend.py:2858
+#: settings-qt/bridge/backend.py:2864
 msgid "2 minutes"
 msgstr "2 хвилини"
 
@@ -239,11 +239,11 @@ msgstr ""
 "3. Установіть і відкрийте JuhFlow на Mac. Застосунок сам знайде цей "
 "комп’ютер."
 
-#: settings-qt/bridge/backend.py:2859
+#: settings-qt/bridge/backend.py:2865
 msgid "30 minutes"
 msgstr "30 хвилин"
 
-#: settings-qt/bridge/backend.py:2857
+#: settings-qt/bridge/backend.py:2863
 msgid "30 seconds"
 msgstr "30 секунд"
 
@@ -255,11 +255,11 @@ msgstr ""
 "4. Схваліть Mac у розділі «Комп’ютери», коли він запитає доступ. До цього "
 "нічого не передається."
 
-#: settings-qt/bridge/backend.py:2858
+#: settings-qt/bridge/backend.py:2864
 msgid "5 minutes"
 msgstr "5 хвилин"
 
-#: settings-qt/bridge/backend.py:2857
+#: settings-qt/bridge/backend.py:2863
 msgid "5 seconds"
 msgstr "5 секунд"
 
@@ -338,7 +338,7 @@ msgstr "Макрос завершено"
 msgid "A macro is running. Esc stops it."
 msgstr "Виконується макрос. Esc зупиняє його."
 
-#: settings-qt/bridge/backend.py:3876
+#: settings-qt/bridge/backend.py:3882
 msgid "A number of times"
 msgstr "Задану кількість разів"
 
@@ -462,7 +462,7 @@ msgstr "Додати пресет"
 msgid "Add template"
 msgstr "Додати шаблон"
 
-#: settings-qt/bridge/backend.py:3109
+#: settings-qt/bridge/backend.py:3115
 msgid "Added profile: {app}"
 msgstr "Додано профіль: {app}"
 
@@ -494,7 +494,7 @@ msgstr "Після того як руки прибрано з клавіш"
 msgid "Alert"
 msgstr "Сигнал"
 
-#: settings-qt/bridge/backend.py:4606
+#: settings-qt/bridge/backend.py:4612
 msgid "All apps"
 msgstr "Усі застосунки"
 
@@ -502,7 +502,7 @@ msgstr "Усі застосунки"
 msgid "All files (*)"
 msgstr "Усі файли (*)"
 
-#: settings-qt/bridge/backend.py:4488
+#: settings-qt/bridge/backend.py:4494
 msgid "Already matches your desktop"
 msgstr "Уже відповідає робочого столу"
 
@@ -558,7 +558,7 @@ msgstr "Зміна застосунку"
 msgid "App: %1"
 msgstr "Застосунок: %1"
 
-#: settings-qt/bridge/backend.py:4500
+#: settings-qt/bridge/backend.py:4506
 msgid "Applied desktop defaults to {count} actions"
 msgstr "Типові дії робочого столу застосовано до {count} дій"
 
@@ -615,7 +615,7 @@ msgstr "Спить. Порухайте мишу, щоб розбудити"
 msgid "Asleep. Press any key to wake it"
 msgstr "Спить. Натисніть будь-яку клавішу, щоб розбудити"
 
-#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5115
+#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5121
 msgid "Automatic"
 msgstr "Автоматично"
 
@@ -637,7 +637,7 @@ msgstr "Автоматично: за розміром екрана"
 msgid "Automatic: the light sensor sets the brightness"
 msgstr "Автоматично: яскравістю керує датчик освітлення"
 
-#: settings-qt/bridge/backend.py:4278 settings-qt/bridge/backend.py:5299
+#: settings-qt/bridge/backend.py:4284 settings-qt/bridge/backend.py:5305
 msgid "Autostart: {error}"
 msgstr "Автозапуск: {error}"
 
@@ -652,7 +652,7 @@ msgstr "Не спить"
 msgid "Back"
 msgstr "Назад"
 
-#: settings-qt/bridge/backend.py:2741 settings-qt/bridge/backend.py:3883
+#: settings-qt/bridge/backend.py:2747 settings-qt/bridge/backend.py:3889
 msgid "Back button"
 msgstr "Кнопка «Назад»"
 
@@ -686,7 +686,7 @@ msgstr "Під час заряджання підсвічування горит
 msgid "Backup"
 msgstr "Резервна копія"
 
-#: settings-qt/bridge/backend.py:4384
+#: settings-qt/bridge/backend.py:4390
 msgid "Backup saved as {name}"
 msgstr "Резервну копію збережено як {name}"
 
@@ -789,7 +789,7 @@ msgstr "Приймач Bolt"
 msgid "Brightness"
 msgstr "Яскравість"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:966 settings-qt/bridge/keypad.py:91
+#: settings-qt/qml/pages/ButtonsPage.qml:966 settings-qt/bridge/keypad.py:96
 msgid "Browser"
 msgstr "Браузер"
 
@@ -857,7 +857,7 @@ msgstr "Калькулятор"
 msgid "Calm"
 msgstr "Спокійний"
 
-#: settings-qt/bridge/keypad.py:111
+#: settings-qt/bridge/keypad.py:116
 msgid "Camera"
 msgstr "Камера"
 
@@ -945,7 +945,7 @@ msgstr "Перевірити брандмауер"
 msgid "Checked each time the keyboard wakes up"
 msgstr "Перевіряється щоразу, коли клавіатура прокидається"
 
-#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:4966
+#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:4972
 msgid "Checking…"
 msgstr "Перевірка…"
 
@@ -1065,7 +1065,7 @@ msgstr "Колірна тема"
 msgid "Command"
 msgstr "Команда"
 
-#: settings-qt/bridge/keypad.py:107
+#: settings-qt/bridge/keypad.py:112
 msgid "Commands"
 msgstr "Команди"
 
@@ -1131,11 +1131,11 @@ msgstr "Підключено%1"
 msgid "Connection"
 msgstr "З’єднання"
 
-#: settings-qt/bridge/backend.py:4043
+#: settings-qt/bridge/backend.py:4049
 msgid "Copied"
 msgstr "Скопійовано"
 
-#: settings-qt/bridge/backend.py:3196
+#: settings-qt/bridge/backend.py:3202
 msgid "Copied to {app}"
 msgstr "Скопійовано до {app}"
 
@@ -1173,23 +1173,23 @@ msgstr "Копіювати ID пристрою"
 msgid "Copy to another app"
 msgstr "Копіювати до іншого застосунку"
 
-#: settings-qt/bridge/backend.py:3958
+#: settings-qt/bridge/backend.py:3964
 msgid "Could not back up the settings, nothing was reset: {error}"
 msgstr "Не вдалося створити копію налаштувань, нічого не скинуто: {error}"
 
-#: settings-qt/bridge/backend.py:4853
+#: settings-qt/bridge/backend.py:4859
 msgid "Could not open the plugins folder: {error}"
 msgstr "Не вдалося відкрити теку плагінів: {error}"
 
-#: settings-qt/bridge/backend.py:4968
+#: settings-qt/bridge/backend.py:4974
 msgid "Could not reach GitHub. Trying again tomorrow."
 msgstr "Не вдалося зв’язатися з GitHub. Спробуємо завтра."
 
-#: settings-qt/bridge/backend.py:5248
+#: settings-qt/bridge/backend.py:5254
 msgid "Could not restart the service: {error}"
 msgstr "Не вдалося перезапустити службу: {error}"
 
-#: settings-qt/bridge/backend.py:4929
+#: settings-qt/bridge/backend.py:4935
 msgid "Could not restart: {error}"
 msgstr "Не вдалося перезапустити: {error}"
 
@@ -1197,7 +1197,7 @@ msgstr "Не вдалося перезапустити: {error}"
 msgid "Could not restore the keypad page"
 msgstr "Не вдалося відновити сторінку клавішної панелі"
 
-#: settings-qt/bridge/keypad.py:60
+#: settings-qt/bridge/keypad.py:65
 msgid "Could not save a keypad plate"
 msgstr "Не вдалося зберегти зображення клавіші"
 
@@ -1205,7 +1205,7 @@ msgstr "Не вдалося зберегти зображення клавіші
 msgid "Could not save keypad: {error}"
 msgstr "Не вдалося зберегти налаштування клавішної панелі: {error}"
 
-#: settings-qt/bridge/backend.py:5266
+#: settings-qt/bridge/backend.py:5272
 msgid "Could not start the radial menu: {error}"
 msgstr "Не вдалося запустити радіальне меню: {error}"
 
@@ -1213,7 +1213,7 @@ msgstr "Не вдалося запустити радіальне меню: {err
 msgid "Could not switch the keypad page"
 msgstr "Не вдалося перемкнути сторінку клавішної панелі"
 
-#: settings-qt/bridge/backend.py:5237
+#: settings-qt/bridge/backend.py:5243
 msgid "Could not write the log: {error}"
 msgstr "Не вдалося записати журнал: {error}"
 
@@ -1346,7 +1346,7 @@ msgstr "Середовище робочого столу"
 msgid "Desktops"
 msgstr "Робочі столи"
 
-#: settings-qt/bridge/keypad.py:106
+#: settings-qt/bridge/keypad.py:111
 msgid "Dev tools"
 msgstr "Розробник"
 
@@ -1375,7 +1375,7 @@ msgstr ""
 "Пристрої, батарея та клавіатура зчитуються через фонову службу. Запустіть "
 "її, і сторінка заповниться автоматично."
 
-#: settings-qt/bridge/backend.py:5203
+#: settings-qt/bridge/backend.py:5209
 msgid "Diagnostics copied. Paste them into your bug report."
 msgstr "Діагностику скопійовано. Вставте її у звіт про помилку."
 
@@ -1521,7 +1521,7 @@ msgstr "Редагування"
 msgid "Editing for"
 msgstr "Редагування для"
 
-#: settings-qt/bridge/keypad.py:105
+#: settings-qt/bridge/keypad.py:110
 msgid "Editor"
 msgstr "Редактор"
 
@@ -1576,7 +1576,7 @@ msgstr "Повсякденне"
 msgid "Export JuhRadial MX settings"
 msgstr "Експорт налаштувань JuhRadial MX"
 
-#: settings-qt/bridge/backend.py:3912 settings-qt/bridge/backend.py:4386
+#: settings-qt/bridge/backend.py:3918 settings-qt/bridge/backend.py:4392
 msgid "Export failed: {error}"
 msgstr "Помилка експорту: {error}"
 
@@ -1597,7 +1597,7 @@ msgstr "Виразний"
 msgid "Extra actions for the ring, from plugin folders"
 msgstr "Додаткові дії кільця з тек плагінів"
 
-#: settings-qt/bridge/backend.py:2739 settings-qt/bridge/backend.py:3886
+#: settings-qt/bridge/backend.py:2745 settings-qt/bridge/backend.py:3892
 msgid "Extra side button"
 msgstr "Додаткова бічна кнопка"
 
@@ -1609,7 +1609,7 @@ msgstr "Можливості"
 msgid "Feral GameMode is not installed"
 msgstr "Feral GameMode не встановлено"
 
-#: settings-qt/bridge/keypad.py:94
+#: settings-qt/bridge/keypad.py:99
 msgid "Files"
 msgstr "Файли"
 
@@ -1713,7 +1713,7 @@ msgstr "Примусово ввімкнути звичайний режим"
 msgid "Forget"
 msgstr "Забути"
 
-#: settings-qt/bridge/backend.py:5108
+#: settings-qt/bridge/backend.py:5114
 msgid "Forgotten. It has to be approved again to use Flow"
 msgstr "Забуто. Для Flow потрібне повторне схвалення"
 
@@ -1724,7 +1724,7 @@ msgstr "Забуто. Для Flow потрібне повторне схвале
 msgid "Forward"
 msgstr "Вперед"
 
-#: settings-qt/bridge/backend.py:2740 settings-qt/bridge/backend.py:3884
+#: settings-qt/bridge/backend.py:2746 settings-qt/bridge/backend.py:3890
 msgid "Forward button"
 msgstr "Кнопка «Вперед»"
 
@@ -1781,7 +1781,7 @@ msgid "Gaming mode is on and sets its own DPI until you turn it off."
 msgstr ""
 "Ігровий режим увімкнено, він задає власний DPI, поки ви його не вимкнете."
 
-#: settings-qt/bridge/backend.py:3514
+#: settings-qt/bridge/backend.py:3520
 msgid "Gaming mode needs the JuhRadial service"
 msgstr "Для ігрового режиму потрібна служба JuhRadial"
 
@@ -1831,7 +1831,7 @@ msgstr "GitHub Light"
 msgid "Give a ring slice the submenu action to add links here."
 msgstr "Призначте сектору кільця дію підменю, щоб додавати сюди посилання."
 
-#: settings-qt/bridge/backend.py:2965
+#: settings-qt/bridge/backend.py:2971
 msgid "Give a slice a submenu first"
 msgstr "Спочатку призначте сектору підменю"
 
@@ -2038,7 +2038,7 @@ msgstr "Імпорт"
 msgid "Import JuhRadial MX settings"
 msgstr "Імпорт налаштувань JuhRadial MX"
 
-#: settings-qt/bridge/backend.py:4434
+#: settings-qt/bridge/backend.py:4440
 msgid "Import failed: {error}"
 msgstr "Помилка імпорту: {error}"
 
@@ -2050,7 +2050,7 @@ msgstr "Імпорт налаштувань"
 msgid "Import this backup?"
 msgstr "Імпортувати цю резервну копію?"
 
-#: settings-qt/bridge/backend.py:3927
+#: settings-qt/bridge/backend.py:3933
 msgid "Imported macro"
 msgstr "Імпортований макрос"
 
@@ -2165,7 +2165,7 @@ msgstr "Клавіатура"
 msgid "Keyboard %1%"
 msgstr "Клавіатура %1%"
 
-#: settings-qt/bridge/backend.py:2189
+#: settings-qt/bridge/backend.py:2195
 msgid "Keyboard battery low"
 msgstr "Низький заряд клавіатури"
 
@@ -2219,7 +2219,7 @@ msgstr "Останнє зчитування"
 msgid "Launch behaviour, tray and updates"
 msgstr "Запуск, системний лоток і оновлення"
 
-#: settings-qt/bridge/keypad.py:113
+#: settings-qt/bridge/keypad.py:118
 msgid "Leave"
 msgstr "Вийти"
 
@@ -2235,7 +2235,7 @@ msgstr "Лівий клік"
 msgid "Left is a firm push, right a light touch"
 msgstr "Ліворуч сильне натискання, праворуч легкий дотик"
 
-#: settings-qt/bridge/backend.py:3093
+#: settings-qt/bridge/backend.py:3099
 msgid "Letters, digits, dots, dashes and underscores only"
 msgstr "Лише літери, цифри, крапки, дефіси й підкреслення"
 
@@ -2296,7 +2296,7 @@ msgstr "Очікування іншого комп’ютера"
 msgid "Lit at level %1 of %2 right now. Moving the slider switches to Manual"
 msgstr "Зараз світить на рівні %1 із %2. Рух повзунка вмикає ручний режим"
 
-#: settings-qt/bridge/keypad.py:96
+#: settings-qt/bridge/keypad.py:101
 msgid "Lock"
 msgstr "Блокування"
 
@@ -2304,7 +2304,7 @@ msgstr "Блокування"
 msgid "Lock Screen"
 msgstr "Заблокувати екран"
 
-#: settings-qt/bridge/backend.py:5297
+#: settings-qt/bridge/backend.py:5303
 msgid "Login entry repaired"
 msgstr "Запис автозапуску виправлено"
 
@@ -2354,7 +2354,7 @@ msgstr "Mac"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:95
 #: settings-qt/qml/components/CustomActionEditor.qml:157
-#: settings-qt/bridge/backend.py:3868
+#: settings-qt/bridge/backend.py:3874
 msgid "Macro"
 msgstr "Макрос"
 
@@ -2362,7 +2362,7 @@ msgstr "Макрос"
 msgid "Macro deleted"
 msgstr "Макрос видалено"
 
-#: settings-qt/bridge/backend.py:3914
+#: settings-qt/bridge/backend.py:3920
 msgid "Macro exported"
 msgstr "Макрос експортовано"
 
@@ -2394,7 +2394,7 @@ msgstr "Макрос «%1» ніколи не запускається"
 msgid "Macro: %1"
 msgstr "Макрос: %1"
 
-#: settings-qt/bridge/backend.py:3895
+#: settings-qt/bridge/backend.py:3901
 msgid "Macro: {name}"
 msgstr "Макрос: {name}"
 
@@ -2411,7 +2411,7 @@ msgstr "Створено %1"
 msgid "MagSpeed modes, direction and speed"
 msgstr "Режими MagSpeed, напрямок і швидкість"
 
-#: settings-qt/bridge/keypad.py:95
+#: settings-qt/bridge/keypad.py:100
 msgid "Mail"
 msgstr "Пошта"
 
@@ -2460,7 +2460,7 @@ msgstr "Розмиття тла меню"
 msgid "Menu opens"
 msgstr "Відкриття меню"
 
-#: settings-qt/bridge/keypad.py:87
+#: settings-qt/bridge/keypad.py:92
 msgid "Mic mute"
 msgstr "Вимк. мік."
 
@@ -2468,7 +2468,7 @@ msgstr "Вимк. мік."
 msgid "Middle Click"
 msgstr "Середній клік"
 
-#: settings-qt/bridge/backend.py:2742
+#: settings-qt/bridge/backend.py:2748
 msgid "Middle click"
 msgstr "Середній клік"
 
@@ -2506,7 +2506,7 @@ msgstr "Ще"
 msgid "Mouse"
 msgstr "Миша"
 
-#: settings-qt/bridge/backend.py:2180
+#: settings-qt/bridge/backend.py:2186
 msgid "Mouse battery low"
 msgstr "Низький заряд миші"
 
@@ -2557,7 +2557,7 @@ msgstr "Перемістити вгору"
 msgid "Movement below this many pixels counts as a press"
 msgstr "Рух менше цієї кількості пікселів вважається натисканням"
 
-#: settings-qt/bridge/keypad.py:103
+#: settings-qt/bridge/keypad.py:108
 msgid "Music"
 msgstr "Музика"
 
@@ -2595,7 +2595,7 @@ msgstr "Neon Sci-Fi (3D)"
 msgid "New link"
 msgstr "Нове посилання"
 
-#: settings-qt/bridge/backend.py:3706
+#: settings-qt/bridge/backend.py:3712
 msgid "New macro"
 msgstr "Новий макрос"
 
@@ -2603,7 +2603,7 @@ msgstr "Новий макрос"
 msgid "New page"
 msgstr "Нова сторінка"
 
-#: settings-qt/bridge/keypad.py:101
+#: settings-qt/bridge/keypad.py:106
 msgid "Next"
 msgstr "Наступний"
 
@@ -2651,7 +2651,7 @@ msgstr "Застосунок не обрано"
 msgid "No applications found"
 msgstr "Застосунків не знайдено"
 
-#: settings-qt/bridge/backend.py:3882
+#: settings-qt/bridge/backend.py:3888
 msgid "No button"
 msgstr "Без кнопки"
 
@@ -2667,7 +2667,7 @@ msgstr "Без згасань, зсувів і плавних переходів
 msgid "No firewall service is running here, so Flow is not blocked by one."
 msgstr "Тут не запущено служби брандмауера, тож вона не блокує Flow."
 
-#: settings-qt/bridge/backend.py:3656
+#: settings-qt/bridge/backend.py:3662
 msgid "No keyboard to record from. Your user needs to read /dev/input "
 msgstr ""
 "Немає клавіатури для запису. Вашому користувачеві потрібен доступ на "
@@ -2761,7 +2761,7 @@ msgstr "Nord"
 msgid "Normal push"
 msgstr "Звичайне натискання"
 
-#: settings-qt/bridge/backend.py:4973
+#: settings-qt/bridge/backend.py:4979
 msgid "Not checked yet."
 msgstr "Ще не перевірено."
 
@@ -2812,7 +2812,7 @@ msgstr ""
 msgid "Not set: the mouse stays here when the cursor leaves"
 msgstr "Не встановлено: миша лишається тут, коли курсор виходить"
 
-#: settings-qt/bridge/keypad.py:98
+#: settings-qt/bridge/keypad.py:103
 msgid "Notes"
 msgstr "Нотатки"
 
@@ -2824,7 +2824,7 @@ msgstr "Перевизначень ще немає: відкрийте для в
 msgid "Nothing shows up? A firewall may block Flow."
 msgstr "Нічого не з’являється? Брандмауер може блокувати Flow."
 
-#: settings-qt/bridge/backend.py:3696
+#: settings-qt/bridge/backend.py:3702
 msgid "Nothing was recorded. Press some keys while it records."
 msgstr "Нічого не записано. Натисніть кілька клавіш під час запису."
 
@@ -2865,7 +2865,7 @@ msgstr "Вимк.: вказівник рухається точно пропор
 msgid "On"
 msgstr "Увімк."
 
-#: settings-qt/bridge/backend.py:3878
+#: settings-qt/bridge/backend.py:3884
 msgid "On / off"
 msgstr "Увімк. / вимк."
 
@@ -2902,7 +2902,7 @@ msgstr ""
 msgid "On: faster movements carry the pointer further"
 msgstr "Увімк.: швидші рухи переміщують вказівник далі"
 
-#: settings-qt/bridge/backend.py:3875
+#: settings-qt/bridge/backend.py:3881
 msgid "Once"
 msgstr "Один раз"
 
@@ -3148,11 +3148,11 @@ msgstr ""
 msgid "Picks the theme closest to your desktop's accent colour"
 msgstr "Вибирає тему, найближчу до акцентного кольору робочого столу"
 
-#: settings-qt/bridge/backend.py:2874
+#: settings-qt/bridge/backend.py:2880
 msgid "Pin saved: {slot} = {x}, {y}"
 msgstr "Маркер збережено: {slot} = {x}, {y}"
 
-#: settings-qt/bridge/keypad.py:100
+#: settings-qt/bridge/keypad.py:105
 msgid "Play"
 msgstr "Відтворити"
 
@@ -3168,11 +3168,11 @@ msgstr "Відтворення/Пауза"
 msgid "Playback, volume and microphone"
 msgstr "Відтворення, гучність і мікрофон"
 
-#: settings-qt/bridge/backend.py:3876
+#: settings-qt/bridge/backend.py:3882
 msgid "Plays the steps again and again, as often as you set."
 msgstr "Повторює кроки задану кількість разів."
 
-#: settings-qt/bridge/backend.py:3875
+#: settings-qt/bridge/backend.py:3881
 msgid "Plays the steps one time."
 msgstr "Виконує кроки один раз."
 
@@ -3229,7 +3229,7 @@ msgstr "Точний DPI під час утримання"
 msgid "Preset %1"
 msgstr "Пресет %1"
 
-#: settings-qt/bridge/backend.py:3572
+#: settings-qt/bridge/backend.py:3578
 msgid "Preset %d"
 msgstr "Пресет %d"
 
@@ -3274,7 +3274,7 @@ msgstr "Запобігати повторним імпульсам"
 msgid "Preview of the radial menu"
 msgstr "Попередній перегляд радіального меню"
 
-#: settings-qt/bridge/keypad.py:100
+#: settings-qt/bridge/keypad.py:105
 msgid "Previous"
 msgstr "Попередній"
 
@@ -3295,7 +3295,7 @@ msgstr "Профіль для %1 видалено"
 msgid "Profile: %1"
 msgstr "Профіль: %1"
 
-#: settings-qt/bridge/backend.py:2994
+#: settings-qt/bridge/backend.py:3000
 msgid "Profiles save failed: {error}"
 msgstr "Помилка збереження профілів: {error}"
 
@@ -3478,7 +3478,7 @@ msgstr "Виправити"
 msgid "Repeat"
 msgstr "Повтор"
 
-#: settings-qt/bridge/backend.py:3877
+#: settings-qt/bridge/backend.py:3883
 msgid "Repeats while you hold the bound button."
 msgstr "Повторюється, поки ви утримуєте прив’язану кнопку."
 
@@ -3531,11 +3531,11 @@ msgstr "Перезапустити"
 msgid "Restart now"
 msgstr "Перезапустити зараз"
 
-#: settings-qt/bridge/backend.py:5246
+#: settings-qt/bridge/backend.py:5252
 msgid "Restarting the background service…"
 msgstr "Перезапуск фонової служби…"
 
-#: settings-qt/bridge/backend.py:5264
+#: settings-qt/bridge/backend.py:5270
 msgid "Restarting the radial menu…"
 msgstr "Перезапуск радіального меню…"
 
@@ -3669,7 +3669,7 @@ msgstr "Як у всіх застосунках"
 msgid "Save"
 msgstr "Зберегти"
 
-#: settings-qt/bridge/backend.py:1766
+#: settings-qt/bridge/backend.py:1772
 msgid "Save failed: {error}"
 msgstr "Помилка збереження: {error}"
 
@@ -3681,11 +3681,11 @@ msgstr "Зберегти клавішу"
 msgid "Saved"
 msgstr "Збережено"
 
-#: settings-qt/bridge/backend.py:2283
+#: settings-qt/bridge/backend.py:2289
 msgid "Saved. JuhRadial applies it when its service starts."
 msgstr "Збережено. JuhRadial застосує це після запуску служби."
 
-#: settings-qt/bridge/backend.py:2285
+#: settings-qt/bridge/backend.py:2291
 msgid "Saved. The mouse gets it when it wakes up or comes back."
 msgstr "Збережено. Миша отримає налаштування після пробудження або повернення."
 
@@ -3801,7 +3801,7 @@ msgstr ""
 "датчика освітлення"
 
 #: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:112
-#: settings-qt/bridge/keypad.py:97 settings-qt/bridge/backend.py:635
+#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/backend.py:635
 msgid "Settings"
 msgstr "Налаштування"
 
@@ -3809,7 +3809,7 @@ msgstr "Налаштування"
 msgid "Settings imported"
 msgstr "Налаштування імпортовано"
 
-#: settings-qt/bridge/backend.py:4444
+#: settings-qt/bridge/backend.py:4450
 msgid "Settings imported. The previous files are kept as .bak"
 msgstr "Налаштування імпортовано. Попередні файли збережено як .bak"
 
@@ -3830,7 +3830,7 @@ msgid "Settings you change are saved and applied when the mouse is back."
 msgstr ""
 "Змінені налаштування зберігаються й застосовуються після повернення миші."
 
-#: settings-qt/bridge/keypad.py:112
+#: settings-qt/bridge/keypad.py:117
 msgid "Share"
 msgstr "Поділитися"
 
@@ -3889,7 +3889,7 @@ msgstr "Показати радіальне меню"
 msgid "Show tray icon"
 msgstr "Показати іконку в лотку"
 
-#: settings-qt/bridge/backend.py:2738
+#: settings-qt/bridge/backend.py:2744
 msgid "Side button"
 msgstr "Бічна кнопка"
 
@@ -3920,7 +3920,7 @@ msgstr "Зміна сектора"
 msgid "Slice tick rate"
 msgstr "Інтервал імпульсів секторів"
 
-#: settings-qt/bridge/backend.py:2889
+#: settings-qt/bridge/backend.py:2895
 msgid "Slice {n}"
 msgstr "Сектор {n}"
 
@@ -4024,7 +4024,7 @@ msgstr "Запустити"
 msgid "Start service"
 msgstr "Запустити службу"
 
-#: settings-qt/bridge/backend.py:3653
+#: settings-qt/bridge/backend.py:3659
 msgid "Start the JuhRadial MX service to record a macro."
 msgstr "Запустіть службу JuhRadial MX для запису макросу."
 
@@ -4040,7 +4040,7 @@ msgstr "Запустити службу"
 msgid "Starting…"
 msgstr "Запуск…"
 
-#: settings-qt/bridge/backend.py:5291
+#: settings-qt/bridge/backend.py:5297
 msgid "Starts at login with {path}"
 msgstr "Запускається під час входу через {path}"
 
@@ -4153,11 +4153,11 @@ msgstr "Перемкнути на комп’ютер 3"
 msgid "System"
 msgstr "Система"
 
-#: settings-qt/bridge/backend.py:5310
+#: settings-qt/bridge/backend.py:5316
 msgid "System default"
 msgstr "Типовий системний"
 
-#: settings-qt/bridge/backend.py:5209
+#: settings-qt/bridge/backend.py:5215
 msgid "System information copied"
 msgstr "Відомості про систему скопійовано"
 
@@ -4177,7 +4177,7 @@ msgstr "Вкладки та сторінки"
 msgid "Task Switcher"
 msgstr "Перемикач завдань"
 
-#: settings-qt/bridge/backend.py:1703
+#: settings-qt/bridge/backend.py:1709
 msgid "Template added. Keys for missing apps stay unassigned."
 msgstr ""
 "Шаблон додано. Клавіші для відсутніх застосунків лишаються непризначеними."
@@ -4187,7 +4187,7 @@ msgstr ""
 msgid "Templates"
 msgstr "Шаблони"
 
-#: settings-qt/bridge/keypad.py:92 settings-qt/bridge/keypad.py:108
+#: settings-qt/bridge/keypad.py:97 settings-qt/bridge/keypad.py:113
 msgid "Terminal"
 msgstr "Термінал"
 
@@ -4208,13 +4208,13 @@ msgstr "Лише текст і лише зі схваленими комп’ю�
 msgid "Text to type"
 msgstr "Текст для введення"
 
-#: settings-qt/bridge/backend.py:4763
+#: settings-qt/bridge/backend.py:4769
 msgid "That custom action cannot run: check the shortcut, link or command."
 msgstr ""
 "Ця власна дія не може виконатися: перевірте сполучення клавіш, посилання або "
 "команду."
 
-#: settings-qt/bridge/backend.py:3925
+#: settings-qt/bridge/backend.py:3931
 msgid "That file is not a JuhRadial MX macro."
 msgstr "Цей файл не є макросом JuhRadial MX."
 
@@ -4230,7 +4230,7 @@ msgstr ""
 "Службу JuhRadial MX не запущено. Зміни зберігаються й застосуються після її "
 "запуску."
 
-#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3248
+#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3254
 msgid "The JuhRadial service is not running"
 msgstr "Службу JuhRadial не запущено"
 
@@ -4262,7 +4262,7 @@ msgstr ""
 msgid "The background service is not running"
 msgstr "Фонову службу не запущено"
 
-#: settings-qt/bridge/backend.py:2015
+#: settings-qt/bridge/backend.py:2021
 msgid "The background service is not running."
 msgstr "Фонову службу не запущено."
 
@@ -4270,7 +4270,7 @@ msgstr "Фонову службу не запущено."
 msgid "The battery drops to the alert level set on Devices"
 msgstr "Заряд падає до рівня попередження, заданого на вкладці «Пристрої»"
 
-#: settings-qt/bridge/backend.py:3878
+#: settings-qt/bridge/backend.py:3884
 msgid "The bound button starts it, the next press stops it."
 msgstr "Прив’язана кнопка запускає макрос, наступне натискання зупиняє."
 
@@ -4286,11 +4286,11 @@ msgstr ""
 "Під час першого використання застосунку без профілю налаштування "
 "запропонують його створити. Запит з’явиться один раз для кожного застосунку"
 
-#: settings-qt/bridge/backend.py:2189
+#: settings-qt/bridge/backend.py:2195
 msgid "The keyboard"
 msgstr "Клавіатура"
 
-#: settings-qt/bridge/backend.py:2832
+#: settings-qt/bridge/backend.py:2838
 msgid "The keyboard did not answer. Press a key to wake it, then try again."
 msgstr ""
 "Клавіатура не відповіла. Натисніть клавішу, щоб розбудити її, і спробуйте "
@@ -4308,11 +4308,11 @@ msgstr ""
 msgid "The keypad configuration was not saved"
 msgstr "Конфігурацію клавішної панелі не збережено"
 
-#: settings-qt/bridge/backend.py:5285
+#: settings-qt/bridge/backend.py:5291
 msgid "The login entry is missing."
 msgstr "Запис автозапуску відсутній."
 
-#: settings-qt/bridge/backend.py:5290
+#: settings-qt/bridge/backend.py:5296
 msgid "The login entry points at a program that is gone."
 msgstr "Запис автозапуску вказує на програму, якої вже немає."
 
@@ -4324,7 +4324,7 @@ msgstr ""
 "Оформлення кільця. Незалежно від теми застосунку: вісім дій завжди на своїх "
 "місцях."
 
-#: settings-qt/bridge/backend.py:3632
+#: settings-qt/bridge/backend.py:3638
 msgid "The macro could not be saved. Is the JuhRadial MX service running?"
 msgstr "Не вдалося зберегти макрос. Чи запущено службу JuhRadial MX?"
 
@@ -4332,11 +4332,11 @@ msgstr "Не вдалося зберегти макрос. Чи запущено
 msgid "The mouse comes back from another computer"
 msgstr "Миша повертається з іншого комп’ютера"
 
-#: settings-qt/bridge/backend.py:2288
+#: settings-qt/bridge/backend.py:2294
 msgid "The mouse did not accept this change."
 msgstr "Миша не прийняла цю зміну."
 
-#: settings-qt/bridge/backend.py:3460
+#: settings-qt/bridge/backend.py:3466
 msgid "The mouse did not switch. Is it awake, and is that computer paired?"
 msgstr "Миша не перемкнулася. Вона не спить? Комп’ютер спарено?"
 
@@ -4414,7 +4414,7 @@ msgstr "Натискна панель під великим пальцем"
 msgid "The radial menu appears"
 msgstr "З’являється радіальне меню"
 
-#: settings-qt/bridge/backend.py:2017
+#: settings-qt/bridge/backend.py:2023
 msgid "The radial menu is not running."
 msgstr "Радіальне меню не запущено."
 
@@ -4430,7 +4430,7 @@ msgstr "Кільце й далі відкривається в іграх"
 msgid "The same ring as everywhere"
 msgstr "Те саме кільце, що й усюди"
 
-#: settings-qt/bridge/backend.py:2023
+#: settings-qt/bridge/backend.py:2029
 msgid ""
 "The service cannot reach the mouse. Check that your user is in the input "
 "group."
@@ -4438,7 +4438,7 @@ msgstr ""
 "Служба не може зв’язатися з мишею. Перевірте, чи ваш користувач входить до "
 "групи input."
 
-#: settings-qt/bridge/backend.py:2020
+#: settings-qt/bridge/backend.py:2026
 msgid "The service is {daemon} and this app is {app}: reinstall so they match."
 msgstr ""
 "Версія служби: {daemon}, застосунку: {app}. Перевстановіть, щоб версії "
@@ -4481,7 +4481,7 @@ msgstr "Тема: %1"
 msgid "Themes"
 msgstr "Теми"
 
-#: settings-qt/bridge/backend.py:3095
+#: settings-qt/bridge/backend.py:3101
 msgid "There is already a profile for {app}"
 msgstr "Профіль для {app} уже існує"
 
@@ -4520,7 +4520,7 @@ msgstr "Канал цього комп’ютера"
 msgid "This computer's name"
 msgstr "Назва цього комп’ютера"
 
-#: settings-qt/bridge/backend.py:4412
+#: settings-qt/bridge/backend.py:4418
 msgid "This is not a JuhRadial MX backup."
 msgstr "Це не резервна копія JuhRadial MX."
 
@@ -4528,7 +4528,7 @@ msgstr "Це не резервна копія JuhRadial MX."
 msgid "This list"
 msgstr "Цей список"
 
-#: settings-qt/bridge/backend.py:4037
+#: settings-qt/bridge/backend.py:4043
 msgid "This mouse follows your global settings again"
 msgstr "Ця миша знову використовує глобальні налаштування"
 
@@ -4557,7 +4557,7 @@ msgstr "Ця миша працює у звичайному режимі без �
 msgid "This mouse loses its own settings and uses your global ones."
 msgstr "Миша втратить власні налаштування й використовуватиме глобальні."
 
-#: settings-qt/bridge/backend.py:4608
+#: settings-qt/bridge/backend.py:4614
 msgid "This mouse only"
 msgstr "Лише ця миша"
 
@@ -4733,7 +4733,7 @@ msgstr "Видалити прив’язку"
 msgid "Undo"
 msgstr "Скасувати зміну"
 
-#: settings-qt/bridge/backend.py:3975
+#: settings-qt/bridge/backend.py:3981
 msgid "Undo failed: {error}"
 msgstr "Не вдалося скасувати: {error}"
 
@@ -4819,7 +4819,7 @@ msgstr "Використовує ваш акцентний колір"
 msgid "Usual"
 msgstr "Звичайний"
 
-#: settings-qt/bridge/backend.py:4970
+#: settings-qt/bridge/backend.py:4976
 msgid "Version {version} is available."
 msgstr "Доступна версія {version}."
 
@@ -4831,11 +4831,11 @@ msgstr "Версії, посилання й подяки"
 msgid "Virtual Desktops"
 msgstr "Віртуальні робочі столи"
 
-#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/keypad.py:114
+#: settings-qt/bridge/keypad.py:107 settings-qt/bridge/keypad.py:119
 msgid "Vol down"
 msgstr "Тихіше"
 
-#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/keypad.py:114
+#: settings-qt/bridge/keypad.py:107 settings-qt/bridge/keypad.py:119
 msgid "Vol up"
 msgstr "Гучніше"
 
@@ -4901,7 +4901,7 @@ msgstr "Що нового"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:76
 #: settings-qt/qml/pages/ButtonsPage.qml:88
-#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:3885
+#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:3891
 #: settings-qt/bridge/backend.py:649
 msgid "Wheel click"
 msgstr "Клік коліщатком"
@@ -4970,7 +4970,7 @@ msgstr "Яка кнопка відкриває радіальне меню на 
 msgid "While a button set to Precision DPI is held"
 msgstr "Поки утримується кнопка з дією «Точний DPI»"
 
-#: settings-qt/bridge/backend.py:3877
+#: settings-qt/bridge/backend.py:3883
 msgid "While held"
 msgstr "Під час утримання"
 
@@ -4999,7 +4999,7 @@ msgstr "Windows"
 msgid "With several screens, the one whose edge leads to the other computer"
 msgstr "За кількох екранів: той, чий край веде до іншого комп’ютера"
 
-#: settings-qt/bridge/backend.py:4972
+#: settings-qt/bridge/backend.py:4978
 msgid "You have the latest version."
 msgstr "У вас найновіша версія."
 
@@ -5023,7 +5023,7 @@ msgstr "Робочий стіл запитує менше анімації, то
 msgid "Your desktop does not report an accent colour"
 msgstr "Робочий стіл не повідомляє акцентний колір"
 
-#: settings-qt/bridge/backend.py:3273
+#: settings-qt/bridge/backend.py:3279
 msgid "Your desktop does not tell JuhRadial which window is in front"
 msgstr "Робочий стіл не повідомляє JuhRadial, яке вікно на передньому плані"
 
@@ -5103,7 +5103,7 @@ msgstr "профілі застосунків"
 msgid "back"
 msgstr "назад"
 
-#: settings-qt/bridge/backend.py:4457
+#: settings-qt/bridge/backend.py:4463
 msgid "built-in emoji picker"
 msgstr "вбудований вибір емодзі"
 
@@ -5205,35 +5205,35 @@ msgstr "під час утримання"
 msgid "window class"
 msgstr "клас вікна"
 
-#: settings-qt/bridge/backend.py:2197
+#: settings-qt/bridge/backend.py:2203
 msgid "{device} is at {percent}%. Time to recharge."
 msgstr "{device}: заряд {percent}%. Час зарядити."
 
-#: settings-qt/bridge/backend.py:5098
+#: settings-qt/bridge/backend.py:5104
 msgid "{name} can now use Flow with this computer"
 msgstr "{name} тепер може використовувати Flow із цим комп’ютером"
 
-#: settings-qt/bridge/backend.py:3868
+#: settings-qt/bridge/backend.py:3874
 msgid "{name} copy"
 msgstr "Копія {name}"
 
-#: settings-qt/bridge/backend.py:3806
+#: settings-qt/bridge/backend.py:3812
 msgid "{name} is no longer bound to that button"
 msgstr "{name} більше не прив’язано до цієї кнопки"
 
-#: settings-qt/bridge/backend.py:5103
+#: settings-qt/bridge/backend.py:5109
 msgid "{name} was turned away"
 msgstr "{name}: доступ відхилено"
 
-#: settings-qt/bridge/backend.py:2863
+#: settings-qt/bridge/backend.py:2869
 msgid "{n} minutes"
 msgstr "{n} хвилин"
 
-#: settings-qt/bridge/backend.py:2862
+#: settings-qt/bridge/backend.py:2868
 msgid "{n} seconds"
 msgstr "{n} секунд"
 
-#: settings-qt/bridge/backend.py:4043
+#: settings-qt/bridge/backend.py:4049
 msgid "{what} copied"
 msgstr "{what} скопійовано"
 

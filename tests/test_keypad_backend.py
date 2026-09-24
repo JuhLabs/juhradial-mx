@@ -77,7 +77,21 @@ def test_templates_only_offer_supported_actions_and_installed_apps(backend):
     assert backend.applyKeypadTemplate("developer")
     key = backend.keypadPages[-1]["keys"][0]
     assert key["custom"]["kind"] == "command"
-    assert "org.kde.konsole.desktop" in key["custom"]["value"]
+    # The app's own Exec command, like the ring's app picker (no gtk-launch dependency).
+    assert key["custom"]["value"] == "konsole"
+    # Name and icon as the App picker stores them: the editor opens on its App tab.
+    assert key["custom"]["label"] == "Konsole" and key["custom"]["icon"]
+
+
+def test_template_glyphs_are_bundled():
+    # Without an icon theme (Hyprland, sway, niri) only the bundled set draws (#34).
+    from bridge.keypad import template_keys
+    icons = Path(__file__).resolve().parents[1] / "settings-qt" / "assets" / "icons"
+    for template in ("everyday", "media", "developer", "meetings"):
+        for key in template_keys(template, [], bk.BUTTON_ACTIONS):
+            name = key["icon"]
+            if name and not name.startswith("desktop:"):
+                assert any((icons / d / f"{name}.svg").is_file() for d in ("mono", "nav")), name
 
 
 def test_invalid_key_and_page_edits_leave_config_unchanged(backend):
@@ -141,6 +155,43 @@ def test_unresolved_application_icon_still_renders_a_visible_glyph(tmp_path):
     bright = sum(image.pixelColor(x, y).lightness() > 70
                  for x in range(21, 97) for y in range(9, 85))
     assert bright > 150
+
+
+def test_unknown_glyph_name_still_renders_a_visible_glyph(tmp_path):
+    from bridge.keypad import render_plate
+    plate = tmp_path / "unknown.jpg"
+    render_plate({"icon": "no-such-glyph-symbolic", "label": ""}, plate, lambda _: "")
+    image = QImage(str(plate))
+    bright = sum(image.pixelColor(x, y).lightness() > 70
+                 for x in range(21, 97) for y in range(9, 85))
+    assert bright > 150
+
+
+def test_empty_key_plate_stays_blank(tmp_path):
+    from bridge.keypad import empty_key, render_plate
+    plate = tmp_path / "empty.jpg"
+    render_plate(empty_key(), plate, lambda _: "")
+    image = QImage(str(plate))
+    assert not any(image.pixelColor(x, y).lightness() > 70
+                   for x in range(21, 97) for y in range(9, 85))
+
+
+def test_bundled_glyph_wins_over_a_theme_colour_fallback(tmp_path, monkeypatch):
+    # On Breeze, accessories-calculator-symbolic falls back to the colour app
+    # icon, which the plate tint turned into a solid block.
+    import bridge.keypad as kp
+    from PyQt6.QtGui import QColor, QIcon, QPixmap
+
+    def render(name):
+        plate = tmp_path / f"{name}.jpg"
+        kp.render_plate({"icon": "accessories-calculator-symbolic", "label": ""}, plate, lambda _: "")
+        return QImage(str(plate))
+
+    reference = render("reference")
+    solid = QPixmap(64, 64)
+    solid.fill(QColor("#3daee9"))
+    monkeypatch.setattr(kp.QIcon, "fromTheme", staticmethod(lambda name: QIcon(solid)))
+    assert render("themed") == reference
 
 
 def test_deleting_a_page_updates_the_visible_key_editor(backend):

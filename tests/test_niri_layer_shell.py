@@ -72,6 +72,49 @@ def test_real_host_startup_failure_falls_back(monkeypatch, tmp_path):
     assert len(messages) == 1
 
 
+def test_host_refuses_without_the_gi_cairo_converter(tmp_path):
+    # #100/#128 condition: pycairo present, PyGObject's cairo module missing.
+    # The host must exit before "ready" so the overlay keeps the old path.
+    import ctypes.util
+    import os
+    import subprocess
+
+    pytest.importorskip("gi")
+    pytest.importorskip("cairo")
+    if not ctypes.util.find_library("gtk4-layer-shell"):
+        pytest.skip("gtk4-layer-shell not installed")
+    (tmp_path / "sitecustomize.py").write_text("import sys\nsys.modules['gi._gi_cairo'] = None\n")
+    host = Path(__file__).resolve().parents[1] / "overlay" / "overlay_layer_shell.py"
+    result = subprocess.run(
+        [sys.executable, str(host), "--host"],
+        env=dict(os.environ, PYTHONPATH=str(tmp_path)),
+        stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30,
+    )
+    assert '["ready"]' not in result.stdout
+    assert result.returncode != 0 and "cairo" in result.stderr
+
+
+def test_host_reports_a_bad_command_and_keeps_reading():
+    # One failing command must not stall the ones behind it in the same read.
+    import ctypes.util
+    import os
+    import subprocess
+
+    pytest.importorskip("gi")
+    if not ctypes.util.find_library("gtk4-layer-shell") or not os.environ.get("WAYLAND_DISPLAY"):
+        pytest.skip("needs gtk4-layer-shell and a Wayland session")
+    host = Path(__file__).resolve().parents[1] / "overlay" / "overlay_layer_shell.py"
+    result = subprocess.run(
+        [sys.executable, str(host), "--host"], input='not json\n["frame",0,1,2,"x"]\n',
+        capture_output=True, text=True, timeout=30,
+    )
+    if '["ready"]' not in result.stdout:
+        pytest.skip("layer shell unavailable on this compositor")
+    assert '"unavailable", 0' in result.stdout
+    assert '["painted", 0]' in result.stdout
+    assert result.returncode == 0
+
+
 @pytest.mark.parametrize("case", [
     "stationary_enter_places_and_renders_existing_menu",
     "tap_before_pointer_enter_is_preserved",

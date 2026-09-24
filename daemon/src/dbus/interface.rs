@@ -502,6 +502,10 @@ impl JuhRadialService {
         x: i32,
         y: i32,
     ) -> fdo::Result<()> {
+        if self.gaming_mode.read().is_ok_and(|gm| gm.should_suppress_overlay()) {
+            tracing::debug!(x, y, "ShowMenuAtCursor suppressed - gaming mode active");
+            return Ok(());
+        }
         tracing::info!(x, y, "ShowMenuAtCursor called from KWin script");
         Self::menu_requested(&emitter, x, y).await?;
         Ok(())

@@ -143,6 +143,9 @@ pub struct EvdevHandler {
     kwin_available: Option<crate::compositor::KWinAvailability>,
     /// Native KWin scripting client backed by the daemon's session connection.
     kwin_scripting: Option<crate::compositor::KWinScripting>,
+    /// Gaming mode, to hand a game's ring job to the main loop (see
+    /// gaming::ring_job_active).
+    gaming_mode: Option<crate::gaming::SharedGamingMode>,
     /// Cursor-delta tracker for directional gestures. Fed from this loop's
     /// REL events; started and finished by the HID++ handler that owns the
     /// diverted gesture button. The evdev button path is not involved: on
@@ -174,6 +177,7 @@ impl EvdevHandler {
             active_button_action: None,
             kwin_available: None,
             kwin_scripting: None,
+            gaming_mode: None,
             gesture_tracker: None,
         }
     }
@@ -200,6 +204,7 @@ impl EvdevHandler {
             active_button_action: None,
             kwin_available: None,
             kwin_scripting: None,
+            gaming_mode: None,
             gesture_tracker: None,
         }
     }
@@ -224,6 +229,10 @@ impl EvdevHandler {
     /// Reuse the daemon's native D-Bus connection for KWin cursor scripts.
     pub fn set_kwin_scripting(&mut self, scripting: crate::compositor::KWinScripting) {
         self.kwin_scripting = Some(scripting);
+    }
+
+    pub fn set_gaming_mode(&mut self, gaming: crate::gaming::SharedGamingMode) {
+        self.gaming_mode = Some(gaming);
     }
 
     /// Set which key codes should be suppressed (eaten) from the OS.
@@ -876,7 +885,8 @@ impl EvdevHandler {
                         .map(|k| k.is_owned())
                         .unwrap_or(false);
 
-                    if crate::compositor::cursor_backend(kwin_owned)
+                    let ring_job = crate::gaming::ring_job_active(self.gaming_mode.as_ref());
+                    if crate::compositor::cursor_backend(kwin_owned && !ring_job)
                         == crate::compositor::CursorBackend::KWin
                     {
                         tracing::info!(

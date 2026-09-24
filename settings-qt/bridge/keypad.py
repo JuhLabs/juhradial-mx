@@ -1,6 +1,5 @@
 """MX Keypad plate rendering and installed-application templates."""
 import pathlib
-import shlex
 import shutil
 
 from PyQt6.QtCore import Qt, QRect, QRectF, QSize
@@ -29,15 +28,21 @@ def render_plate(key, destination, app_icon):
     glyph = QImage(152, 152, QImage.Format.Format_ARGB32_Premultiplied)
     glyph.fill(Qt.GlobalColor.transparent)
     gp = QPainter(glyph)
-    themed = QIcon(icon) if pathlib.Path(icon).is_absolute() else QIcon.fromTheme(icon)
-    if not themed.isNull():
-        themed.paint(gp, QRect(0, 0, 152, 152))
-    else:
-        for directory in ("mono", "nav"):
-            path = ASSETS / "icons" / directory / (pathlib.Path(icon).name + ".svg")
-            if path.is_file():
-                QSvgRenderer(str(path)).render(gp, QRectF(0, 0, 152, 152))
-                break
+    if pathlib.Path(icon).is_absolute():
+        QIcon(icon).paint(gp, QRect(0, 0, 152, 152))
+    elif icon:
+        # The bundled family first, like the settings previews: a theme's colour
+        # fallback for a missing -symbolic name would tint into a solid block.
+        bundled = (ASSETS / "icons" / d / (pathlib.Path(icon).name + ".svg") for d in ("mono", "nav"))
+        path = next((b for b in bundled if b.is_file()), None)
+        themed = QIcon.fromTheme(icon) if path is None else QIcon()
+        if path is not None:
+            QSvgRenderer(str(path)).render(gp, QRectF(0, 0, 152, 152))
+        elif not themed.isNull():
+            themed.paint(gp, QRect(0, 0, 152, 152))
+        else:  # neither bundle nor theme: never a blank plate (#34)
+            fallback = ASSETS / "icons" / "mono" / "application-x-executable-symbolic.svg"
+            QSvgRenderer(str(fallback)).render(gp, QRectF(0, 0, 152, 152))
     # Application icons retain their colours; glyphs use a bright plate accent.
     if not pathlib.Path(icon).is_absolute():
         gp.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
@@ -75,7 +80,7 @@ def template_keys(template, apps, actions):
         found = next((a for token in tokens for a in apps if token in a["id"].lower()), None)
         if found:
             return {"action": "custom", "label": found["name"], "icon": "desktop:" + found["id"],
-                    "custom": {"kind": "command", "value": "gtk-launch " + shlex.quote(found["id"])}}
+                    "custom": {"kind": "command", "value": found["command"]}}
         return {**empty_key(), "label": label, "icon": icon}
 
     def mic():

@@ -105,8 +105,9 @@ _translation = load_translation(configured_language())
 
 
 def _(message: str) -> str:
-    """Translate a Python-side UI string (unchanged text when untranslated)."""
-    return _translation.gettext(message)
+    """Translate a Python-side UI string (unchanged text when untranslated).
+    Empty stays empty: gettext("") is the catalog header."""
+    return _translation.gettext(message) if message else message
 
 
 def install_translator(app) -> GettextTranslator:

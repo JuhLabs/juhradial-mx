@@ -167,11 +167,11 @@ msgstr "，打开"
 msgid ", this computer"
 msgstr "，本机"
 
-#: settings-qt/bridge/backend.py:2859
+#: settings-qt/bridge/backend.py:2865
 msgid "1 hour"
 msgstr "1 小时"
 
-#: settings-qt/bridge/backend.py:2858
+#: settings-qt/bridge/backend.py:2864
 msgid "1 minute"
 msgstr "1 分钟"
 
@@ -182,19 +182,19 @@ msgid ""
 msgstr ""
 "1. 使用不同的 Easy-Switch 通道将鼠标与各台电脑配对，然后在上方设置两个通道。"
 
-#: settings-qt/bridge/backend.py:2859
+#: settings-qt/bridge/backend.py:2865
 msgid "10 minutes"
 msgstr "10 分钟"
 
-#: settings-qt/bridge/backend.py:2857
+#: settings-qt/bridge/backend.py:2863
 msgid "10 seconds"
 msgstr "10 秒"
 
-#: settings-qt/bridge/backend.py:2860
+#: settings-qt/bridge/backend.py:2866
 msgid "2 hours"
 msgstr "2 小时"
 
-#: settings-qt/bridge/backend.py:2858
+#: settings-qt/bridge/backend.py:2864
 msgid "2 minutes"
 msgstr "2 分钟"
 
@@ -207,11 +207,11 @@ msgid ""
 "3. Install and open JuhFlow on the Mac. It finds this computer by itself."
 msgstr "3. 在 Mac 上安装并打开 JuhFlow，它会自动找到本机。"
 
-#: settings-qt/bridge/backend.py:2859
+#: settings-qt/bridge/backend.py:2865
 msgid "30 minutes"
 msgstr "30 分钟"
 
-#: settings-qt/bridge/backend.py:2857
+#: settings-qt/bridge/backend.py:2863
 msgid "30 seconds"
 msgstr "30 秒"
 
@@ -221,11 +221,11 @@ msgid ""
 "that."
 msgstr "4. 收到请求后，在“电脑”中批准 Mac。批准前不会共享任何内容。"
 
-#: settings-qt/bridge/backend.py:2858
+#: settings-qt/bridge/backend.py:2864
 msgid "5 minutes"
 msgstr "5 分钟"
 
-#: settings-qt/bridge/backend.py:2857
+#: settings-qt/bridge/backend.py:2863
 msgid "5 seconds"
 msgstr "5 秒"
 
@@ -298,7 +298,7 @@ msgstr "宏播放完毕时"
 msgid "A macro is running. Esc stops it."
 msgstr "宏正在运行。按 Esc 停止。"
 
-#: settings-qt/bridge/backend.py:3876
+#: settings-qt/bridge/backend.py:3882
 msgid "A number of times"
 msgstr "指定次数"
 
@@ -419,7 +419,7 @@ msgstr "添加预设"
 msgid "Add template"
 msgstr "添加模板"
 
-#: settings-qt/bridge/backend.py:3109
+#: settings-qt/bridge/backend.py:3115
 msgid "Added profile: {app}"
 msgstr "已添加配置文件：{app}"
 
@@ -449,7 +449,7 @@ msgstr "双手离开按键后"
 msgid "Alert"
 msgstr "警告"
 
-#: settings-qt/bridge/backend.py:4606
+#: settings-qt/bridge/backend.py:4612
 msgid "All apps"
 msgstr "所有应用"
 
@@ -457,7 +457,7 @@ msgstr "所有应用"
 msgid "All files (*)"
 msgstr "所有文件 (*)"
 
-#: settings-qt/bridge/backend.py:4488
+#: settings-qt/bridge/backend.py:4494
 msgid "Already matches your desktop"
 msgstr "已与桌面匹配"
 
@@ -507,7 +507,7 @@ msgstr "应用切换"
 msgid "App: %1"
 msgstr "应用：%1"
 
-#: settings-qt/bridge/backend.py:4500
+#: settings-qt/bridge/backend.py:4506
 msgid "Applied desktop defaults to {count} actions"
 msgstr "已将桌面默认值应用到 {count} 个操作"
 
@@ -564,7 +564,7 @@ msgstr "休眠中，移动即可唤醒"
 msgid "Asleep. Press any key to wake it"
 msgstr "休眠中，按任意键即可唤醒"
 
-#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5115
+#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5121
 msgid "Automatic"
 msgstr "自动"
 
@@ -586,7 +586,7 @@ msgstr "自动：适配各屏幕"
 msgid "Automatic: the light sensor sets the brightness"
 msgstr "自动：由光线传感器设置亮度"
 
-#: settings-qt/bridge/backend.py:4278 settings-qt/bridge/backend.py:5299
+#: settings-qt/bridge/backend.py:4284 settings-qt/bridge/backend.py:5305
 msgid "Autostart: {error}"
 msgstr "自动启动：{error}"
 
@@ -601,7 +601,7 @@ msgstr "已唤醒"
 msgid "Back"
 msgstr "后退"
 
-#: settings-qt/bridge/backend.py:2741 settings-qt/bridge/backend.py:3883
+#: settings-qt/bridge/backend.py:2747 settings-qt/bridge/backend.py:3889
 msgid "Back button"
 msgstr "后退按钮"
 
@@ -635,7 +635,7 @@ msgstr "充电时背光保持时间"
 msgid "Backup"
 msgstr "备份"
 
-#: settings-qt/bridge/backend.py:4384
+#: settings-qt/bridge/backend.py:4390
 msgid "Backup saved as {name}"
 msgstr "备份已保存为 {name}"
 
@@ -735,7 +735,7 @@ msgstr "Bolt 接收器"
 msgid "Brightness"
 msgstr "亮度"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:966 settings-qt/bridge/keypad.py:91
+#: settings-qt/qml/pages/ButtonsPage.qml:966 settings-qt/bridge/keypad.py:96
 msgid "Browser"
 msgstr "浏览器"
 
@@ -801,7 +801,7 @@ msgstr "计算器"
 msgid "Calm"
 msgstr "平缓"
 
-#: settings-qt/bridge/keypad.py:111
+#: settings-qt/bridge/keypad.py:116
 msgid "Camera"
 msgstr "摄像头"
 
@@ -889,7 +889,7 @@ msgstr "检查防火墙"
 msgid "Checked each time the keyboard wakes up"
 msgstr "每次键盘唤醒时检查"
 
-#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:4966
+#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:4972
 msgid "Checking…"
 msgstr "正在检查…"
 
@@ -1006,7 +1006,7 @@ msgstr "配色主题"
 msgid "Command"
 msgstr "命令"
 
-#: settings-qt/bridge/keypad.py:107
+#: settings-qt/bridge/keypad.py:112
 msgid "Commands"
 msgstr "命令"
 
@@ -1070,11 +1070,11 @@ msgstr "已连接%1"
 msgid "Connection"
 msgstr "连接"
 
-#: settings-qt/bridge/backend.py:4043
+#: settings-qt/bridge/backend.py:4049
 msgid "Copied"
 msgstr "已复制"
 
-#: settings-qt/bridge/backend.py:3196
+#: settings-qt/bridge/backend.py:3202
 msgid "Copied to {app}"
 msgstr "已复制到 {app}"
 
@@ -1112,23 +1112,23 @@ msgstr "复制单元 ID"
 msgid "Copy to another app"
 msgstr "复制到其他应用"
 
-#: settings-qt/bridge/backend.py:3958
+#: settings-qt/bridge/backend.py:3964
 msgid "Could not back up the settings, nothing was reset: {error}"
 msgstr "无法备份设置，未进行重置：{error}"
 
-#: settings-qt/bridge/backend.py:4853
+#: settings-qt/bridge/backend.py:4859
 msgid "Could not open the plugins folder: {error}"
 msgstr "无法打开插件文件夹：{error}"
 
-#: settings-qt/bridge/backend.py:4968
+#: settings-qt/bridge/backend.py:4974
 msgid "Could not reach GitHub. Trying again tomorrow."
 msgstr "无法连接 GitHub，将于明天重试。"
 
-#: settings-qt/bridge/backend.py:5248
+#: settings-qt/bridge/backend.py:5254
 msgid "Could not restart the service: {error}"
 msgstr "无法重启服务：{error}"
 
-#: settings-qt/bridge/backend.py:4929
+#: settings-qt/bridge/backend.py:4935
 msgid "Could not restart: {error}"
 msgstr "无法重启：{error}"
 
@@ -1136,7 +1136,7 @@ msgstr "无法重启：{error}"
 msgid "Could not restore the keypad page"
 msgstr "无法恢复按键面板页面"
 
-#: settings-qt/bridge/keypad.py:60
+#: settings-qt/bridge/keypad.py:65
 msgid "Could not save a keypad plate"
 msgstr "无法保存按键面板的按键图像"
 
@@ -1144,7 +1144,7 @@ msgstr "无法保存按键面板的按键图像"
 msgid "Could not save keypad: {error}"
 msgstr "无法保存按键面板：{error}"
 
-#: settings-qt/bridge/backend.py:5266
+#: settings-qt/bridge/backend.py:5272
 msgid "Could not start the radial menu: {error}"
 msgstr "无法启动径向菜单：{error}"
 
@@ -1152,7 +1152,7 @@ msgstr "无法启动径向菜单：{error}"
 msgid "Could not switch the keypad page"
 msgstr "无法切换按键面板页面"
 
-#: settings-qt/bridge/backend.py:5237
+#: settings-qt/bridge/backend.py:5243
 msgid "Could not write the log: {error}"
 msgstr "无法写入日志：{error}"
 
@@ -1285,7 +1285,7 @@ msgstr "桌面环境"
 msgid "Desktops"
 msgstr "桌面"
 
-#: settings-qt/bridge/keypad.py:106
+#: settings-qt/bridge/keypad.py:111
 msgid "Dev tools"
 msgstr "开发工具"
 
@@ -1313,7 +1313,7 @@ msgid ""
 msgstr ""
 "通过后台服务读取设备、电池和键盘信息。启动服务后，此页面会自动显示信息。"
 
-#: settings-qt/bridge/backend.py:5203
+#: settings-qt/bridge/backend.py:5209
 msgid "Diagnostics copied. Paste them into your bug report."
 msgstr "诊断信息已复制，请粘贴到问题报告中。"
 
@@ -1455,7 +1455,7 @@ msgstr "编辑中"
 msgid "Editing for"
 msgstr "编辑对象"
 
-#: settings-qt/bridge/keypad.py:105
+#: settings-qt/bridge/keypad.py:110
 msgid "Editor"
 msgstr "编辑器"
 
@@ -1508,7 +1508,7 @@ msgstr "日常"
 msgid "Export JuhRadial MX settings"
 msgstr "导出 JuhRadial MX 设置"
 
-#: settings-qt/bridge/backend.py:3912 settings-qt/bridge/backend.py:4386
+#: settings-qt/bridge/backend.py:3918 settings-qt/bridge/backend.py:4392
 msgid "Export failed: {error}"
 msgstr "导出失败：{error}"
 
@@ -1529,7 +1529,7 @@ msgstr "鲜明"
 msgid "Extra actions for the ring, from plugin folders"
 msgstr "从插件文件夹为操作环添加更多操作"
 
-#: settings-qt/bridge/backend.py:2739 settings-qt/bridge/backend.py:3886
+#: settings-qt/bridge/backend.py:2745 settings-qt/bridge/backend.py:3892
 msgid "Extra side button"
 msgstr "额外侧键"
 
@@ -1541,7 +1541,7 @@ msgstr "功能"
 msgid "Feral GameMode is not installed"
 msgstr "未安装 Feral GameMode"
 
-#: settings-qt/bridge/keypad.py:94
+#: settings-qt/bridge/keypad.py:99
 msgid "Files"
 msgstr "文件"
 
@@ -1639,7 +1639,7 @@ msgstr "强制通用模式"
 msgid "Forget"
 msgstr "忘记"
 
-#: settings-qt/bridge/backend.py:5108
+#: settings-qt/bridge/backend.py:5114
 msgid "Forgotten. It has to be approved again to use Flow"
 msgstr "已忘记。使用 Flow 前需要重新批准"
 
@@ -1650,7 +1650,7 @@ msgstr "已忘记。使用 Flow 前需要重新批准"
 msgid "Forward"
 msgstr "前进"
 
-#: settings-qt/bridge/backend.py:2740 settings-qt/bridge/backend.py:3884
+#: settings-qt/bridge/backend.py:2746 settings-qt/bridge/backend.py:3890
 msgid "Forward button"
 msgstr "前进按钮"
 
@@ -1705,7 +1705,7 @@ msgstr "游戏模式"
 msgid "Gaming mode is on and sets its own DPI until you turn it off."
 msgstr "游戏模式已开启，关闭前会使用独立 DPI。"
 
-#: settings-qt/bridge/backend.py:3514
+#: settings-qt/bridge/backend.py:3520
 msgid "Gaming mode needs the JuhRadial service"
 msgstr "游戏模式需要 JuhRadial 服务"
 
@@ -1755,7 +1755,7 @@ msgstr "GitHub Light"
 msgid "Give a ring slice the submenu action to add links here."
 msgstr "为环形扇区分配子菜单操作，即可在此添加链接。"
 
-#: settings-qt/bridge/backend.py:2965
+#: settings-qt/bridge/backend.py:2971
 msgid "Give a slice a submenu first"
 msgstr "请先为扇区分配子菜单"
 
@@ -1948,7 +1948,7 @@ msgstr "导入"
 msgid "Import JuhRadial MX settings"
 msgstr "导入 JuhRadial MX 设置"
 
-#: settings-qt/bridge/backend.py:4434
+#: settings-qt/bridge/backend.py:4440
 msgid "Import failed: {error}"
 msgstr "导入失败：{error}"
 
@@ -1960,7 +1960,7 @@ msgstr "导入设置"
 msgid "Import this backup?"
 msgstr "导入此备份？"
 
-#: settings-qt/bridge/backend.py:3927
+#: settings-qt/bridge/backend.py:3933
 msgid "Imported macro"
 msgstr "导入的宏"
 
@@ -2072,7 +2072,7 @@ msgstr "键盘"
 msgid "Keyboard %1%"
 msgstr "键盘 %1%"
 
-#: settings-qt/bridge/backend.py:2189
+#: settings-qt/bridge/backend.py:2195
 msgid "Keyboard battery low"
 msgstr "键盘电量低"
 
@@ -2123,7 +2123,7 @@ msgstr "上次读取"
 msgid "Launch behaviour, tray and updates"
 msgstr "启动行为、托盘和更新"
 
-#: settings-qt/bridge/keypad.py:113
+#: settings-qt/bridge/keypad.py:118
 msgid "Leave"
 msgstr "离开"
 
@@ -2139,7 +2139,7 @@ msgstr "左键点击"
 msgid "Left is a firm push, right a light touch"
 msgstr "左侧需用力按，右侧轻触即可"
 
-#: settings-qt/bridge/backend.py:3093
+#: settings-qt/bridge/backend.py:3099
 msgid "Letters, digits, dots, dashes and underscores only"
 msgstr "仅限字母、数字、点、连字符和下划线"
 
@@ -2200,7 +2200,7 @@ msgstr "正在等待另一台电脑"
 msgid "Lit at level %1 of %2 right now. Moving the slider switches to Manual"
 msgstr "当前亮度 %1 / %2。移动滑块将切换为手动"
 
-#: settings-qt/bridge/keypad.py:96
+#: settings-qt/bridge/keypad.py:101
 msgid "Lock"
 msgstr "锁定"
 
@@ -2208,7 +2208,7 @@ msgstr "锁定"
 msgid "Lock Screen"
 msgstr "锁定屏幕"
 
-#: settings-qt/bridge/backend.py:5297
+#: settings-qt/bridge/backend.py:5303
 msgid "Login entry repaired"
 msgstr "登录启动项已修复"
 
@@ -2258,7 +2258,7 @@ msgstr "Mac"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:95
 #: settings-qt/qml/components/CustomActionEditor.qml:157
-#: settings-qt/bridge/backend.py:3868
+#: settings-qt/bridge/backend.py:3874
 msgid "Macro"
 msgstr "宏"
 
@@ -2266,7 +2266,7 @@ msgstr "宏"
 msgid "Macro deleted"
 msgstr "宏已删除"
 
-#: settings-qt/bridge/backend.py:3914
+#: settings-qt/bridge/backend.py:3920
 msgid "Macro exported"
 msgstr "宏已导出"
 
@@ -2298,7 +2298,7 @@ msgstr "宏“%1”不会运行"
 msgid "Macro: %1"
 msgstr "宏：%1"
 
-#: settings-qt/bridge/backend.py:3895
+#: settings-qt/bridge/backend.py:3901
 msgid "Macro: {name}"
 msgstr "宏：{name}"
 
@@ -2315,7 +2315,7 @@ msgstr "创建于 %1"
 msgid "MagSpeed modes, direction and speed"
 msgstr "MagSpeed 模式、方向和速度"
 
-#: settings-qt/bridge/keypad.py:95
+#: settings-qt/bridge/keypad.py:100
 msgid "Mail"
 msgstr "邮件"
 
@@ -2364,7 +2364,7 @@ msgstr "菜单背景模糊"
 msgid "Menu opens"
 msgstr "菜单打开"
 
-#: settings-qt/bridge/keypad.py:87
+#: settings-qt/bridge/keypad.py:92
 msgid "Mic mute"
 msgstr "麦克风静音"
 
@@ -2372,7 +2372,7 @@ msgstr "麦克风静音"
 msgid "Middle Click"
 msgstr "中键点击"
 
-#: settings-qt/bridge/backend.py:2742
+#: settings-qt/bridge/backend.py:2748
 msgid "Middle click"
 msgstr "中键点击"
 
@@ -2410,7 +2410,7 @@ msgstr "更多"
 msgid "Mouse"
 msgstr "鼠标"
 
-#: settings-qt/bridge/backend.py:2180
+#: settings-qt/bridge/backend.py:2186
 msgid "Mouse battery low"
 msgstr "鼠标电量低"
 
@@ -2461,7 +2461,7 @@ msgstr "上移"
 msgid "Movement below this many pixels counts as a press"
 msgstr "移动小于此像素数时视为按下"
 
-#: settings-qt/bridge/keypad.py:103
+#: settings-qt/bridge/keypad.py:108
 msgid "Music"
 msgstr "音乐"
 
@@ -2499,7 +2499,7 @@ msgstr "Neon Sci-Fi (3D)"
 msgid "New link"
 msgstr "新建链接"
 
-#: settings-qt/bridge/backend.py:3706
+#: settings-qt/bridge/backend.py:3712
 msgid "New macro"
 msgstr "新建宏"
 
@@ -2507,7 +2507,7 @@ msgstr "新建宏"
 msgid "New page"
 msgstr "新建页面"
 
-#: settings-qt/bridge/keypad.py:101
+#: settings-qt/bridge/keypad.py:106
 msgid "Next"
 msgstr "下一首"
 
@@ -2555,7 +2555,7 @@ msgstr "未选择应用程序"
 msgid "No applications found"
 msgstr "未找到应用程序"
 
-#: settings-qt/bridge/backend.py:3882
+#: settings-qt/bridge/backend.py:3888
 msgid "No button"
 msgstr "无按钮"
 
@@ -2571,7 +2571,7 @@ msgstr "关闭此窗口的淡入淡出、滑动和交叉渐变效果。"
 msgid "No firewall service is running here, so Flow is not blocked by one."
 msgstr "本机没有运行防火墙服务，因此 Flow 未被防火墙阻止。"
 
-#: settings-qt/bridge/backend.py:3656
+#: settings-qt/bridge/backend.py:3662
 msgid "No keyboard to record from. Your user needs to read /dev/input "
 msgstr "没有可录制的键盘。您的用户需要 /dev/input 的读取权限 "
 
@@ -2657,7 +2657,7 @@ msgstr "Nord"
 msgid "Normal push"
 msgstr "正常按压"
 
-#: settings-qt/bridge/backend.py:4973
+#: settings-qt/bridge/backend.py:4979
 msgid "Not checked yet."
 msgstr "尚未检查。"
 
@@ -2706,7 +2706,7 @@ msgstr "未设置：鼠标不会随光标返回，当前通道为 %1"
 msgid "Not set: the mouse stays here when the cursor leaves"
 msgstr "未设置：光标离开时鼠标仍留在本机"
 
-#: settings-qt/bridge/keypad.py:98
+#: settings-qt/bridge/keypad.py:103
 msgid "Notes"
 msgstr "笔记"
 
@@ -2718,7 +2718,7 @@ msgstr "尚无独立设置，打开以选择"
 msgid "Nothing shows up? A firewall may block Flow."
 msgstr "没有设备出现？防火墙可能阻止了 Flow。"
 
-#: settings-qt/bridge/backend.py:3696
+#: settings-qt/bridge/backend.py:3702
 msgid "Nothing was recorded. Press some keys while it records."
 msgstr "未录制到内容。请在录制时按下按键。"
 
@@ -2759,7 +2759,7 @@ msgstr "关闭：指针严格按鼠标移动距离移动"
 msgid "On"
 msgstr "开"
 
-#: settings-qt/bridge/backend.py:3878
+#: settings-qt/bridge/backend.py:3884
 msgid "On / off"
 msgstr "开 / 关"
 
@@ -2794,7 +2794,7 @@ msgstr "游戏运行时开启，结束后关闭。手动切换的开关保持原
 msgid "On: faster movements carry the pointer further"
 msgstr "开启：移动越快，指针移动越远"
 
-#: settings-qt/bridge/backend.py:3875
+#: settings-qt/bridge/backend.py:3881
 msgid "Once"
 msgstr "一次"
 
@@ -3033,11 +3033,11 @@ msgstr "为默认扇区选择截图工具、文件管理器和便笺应用"
 msgid "Picks the theme closest to your desktop's accent colour"
 msgstr "选择最接近桌面强调色的主题"
 
-#: settings-qt/bridge/backend.py:2874
+#: settings-qt/bridge/backend.py:2880
 msgid "Pin saved: {slot} = {x}, {y}"
 msgstr "标记已保存：{slot} = {x}, {y}"
 
-#: settings-qt/bridge/keypad.py:100
+#: settings-qt/bridge/keypad.py:105
 msgid "Play"
 msgstr "播放"
 
@@ -3053,11 +3053,11 @@ msgstr "播放/暂停"
 msgid "Playback, volume and microphone"
 msgstr "播放、音量和麦克风"
 
-#: settings-qt/bridge/backend.py:3876
+#: settings-qt/bridge/backend.py:3882
 msgid "Plays the steps again and again, as often as you set."
 msgstr "按设置的次数反复播放步骤。"
 
-#: settings-qt/bridge/backend.py:3875
+#: settings-qt/bridge/backend.py:3881
 msgid "Plays the steps one time."
 msgstr "播放步骤一次。"
 
@@ -3114,7 +3114,7 @@ msgstr "按住使用精确 DPI"
 msgid "Preset %1"
 msgstr "预设 %1"
 
-#: settings-qt/bridge/backend.py:3572
+#: settings-qt/bridge/backend.py:3578
 msgid "Preset %d"
 msgstr "预设 %d"
 
@@ -3157,7 +3157,7 @@ msgstr "防止重复振动"
 msgid "Preview of the radial menu"
 msgstr "径向菜单预览"
 
-#: settings-qt/bridge/keypad.py:100
+#: settings-qt/bridge/keypad.py:105
 msgid "Previous"
 msgstr "上一首"
 
@@ -3178,7 +3178,7 @@ msgstr "已移除 %1 的配置文件"
 msgid "Profile: %1"
 msgstr "配置文件：%1"
 
-#: settings-qt/bridge/backend.py:2994
+#: settings-qt/bridge/backend.py:3000
 msgid "Profiles save failed: {error}"
 msgstr "配置文件保存失败：{error}"
 
@@ -3357,7 +3357,7 @@ msgstr "修复"
 msgid "Repeat"
 msgstr "重复"
 
-#: settings-qt/bridge/backend.py:3877
+#: settings-qt/bridge/backend.py:3883
 msgid "Repeats while you hold the bound button."
 msgstr "按住绑定按钮时重复播放。"
 
@@ -3409,11 +3409,11 @@ msgstr "重启"
 msgid "Restart now"
 msgstr "立即重启"
 
-#: settings-qt/bridge/backend.py:5246
+#: settings-qt/bridge/backend.py:5252
 msgid "Restarting the background service…"
 msgstr "正在重启后台服务…"
 
-#: settings-qt/bridge/backend.py:5264
+#: settings-qt/bridge/backend.py:5270
 msgid "Restarting the radial menu…"
 msgstr "正在重启径向菜单…"
 
@@ -3545,7 +3545,7 @@ msgstr "与所有应用相同"
 msgid "Save"
 msgstr "保存"
 
-#: settings-qt/bridge/backend.py:1766
+#: settings-qt/bridge/backend.py:1772
 msgid "Save failed: {error}"
 msgstr "保存失败：{error}"
 
@@ -3557,11 +3557,11 @@ msgstr "保存按键"
 msgid "Saved"
 msgstr "已保存"
 
-#: settings-qt/bridge/backend.py:2283
+#: settings-qt/bridge/backend.py:2289
 msgid "Saved. JuhRadial applies it when its service starts."
 msgstr "已保存。JuhRadial 会在服务启动时应用。"
 
-#: settings-qt/bridge/backend.py:2285
+#: settings-qt/bridge/backend.py:2291
 msgid "Saved. The mouse gets it when it wakes up or comes back."
 msgstr "已保存。鼠标唤醒或返回后会接收设置。"
 
@@ -3671,7 +3671,7 @@ msgid ""
 msgstr "通过键盘亮度键设置，稍后光线传感器会重新接管"
 
 #: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:112
-#: settings-qt/bridge/keypad.py:97 settings-qt/bridge/backend.py:635
+#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/backend.py:635
 msgid "Settings"
 msgstr "设置"
 
@@ -3679,7 +3679,7 @@ msgstr "设置"
 msgid "Settings imported"
 msgstr "设置已导入"
 
-#: settings-qt/bridge/backend.py:4444
+#: settings-qt/bridge/backend.py:4450
 msgid "Settings imported. The previous files are kept as .bak"
 msgstr "设置已导入。原文件已保留为 .bak"
 
@@ -3699,7 +3699,7 @@ msgstr "某个应用位于前台时改变的设置"
 msgid "Settings you change are saved and applied when the mouse is back."
 msgstr "更改会保存，并在鼠标返回时应用。"
 
-#: settings-qt/bridge/keypad.py:112
+#: settings-qt/bridge/keypad.py:117
 msgid "Share"
 msgstr "共享屏幕"
 
@@ -3758,7 +3758,7 @@ msgstr "显示径向菜单"
 msgid "Show tray icon"
 msgstr "显示托盘图标"
 
-#: settings-qt/bridge/backend.py:2738
+#: settings-qt/bridge/backend.py:2744
 msgid "Side button"
 msgstr "侧键"
 
@@ -3789,7 +3789,7 @@ msgstr "扇区切换"
 msgid "Slice tick rate"
 msgstr "扇区振动间隔"
 
-#: settings-qt/bridge/backend.py:2889
+#: settings-qt/bridge/backend.py:2895
 msgid "Slice {n}"
 msgstr "扇区 {n}"
 
@@ -3889,7 +3889,7 @@ msgstr "启动它"
 msgid "Start service"
 msgstr "启动服务"
 
-#: settings-qt/bridge/backend.py:3653
+#: settings-qt/bridge/backend.py:3659
 msgid "Start the JuhRadial MX service to record a macro."
 msgstr "请启动 JuhRadial MX 服务以录制宏。"
 
@@ -3905,7 +3905,7 @@ msgstr "启动服务"
 msgid "Starting…"
 msgstr "正在启动…"
 
-#: settings-qt/bridge/backend.py:5291
+#: settings-qt/bridge/backend.py:5297
 msgid "Starts at login with {path}"
 msgstr "登录时通过 {path} 启动"
 
@@ -4016,11 +4016,11 @@ msgstr "切换到电脑 3"
 msgid "System"
 msgstr "系统"
 
-#: settings-qt/bridge/backend.py:5310
+#: settings-qt/bridge/backend.py:5316
 msgid "System default"
 msgstr "系统默认"
 
-#: settings-qt/bridge/backend.py:5209
+#: settings-qt/bridge/backend.py:5215
 msgid "System information copied"
 msgstr "系统信息已复制"
 
@@ -4040,7 +4040,7 @@ msgstr "标签页与页面"
 msgid "Task Switcher"
 msgstr "任务切换器"
 
-#: settings-qt/bridge/backend.py:1703
+#: settings-qt/bridge/backend.py:1709
 msgid "Template added. Keys for missing apps stay unassigned."
 msgstr "模板已添加。未找到的应用对应的按键保持未分配。"
 
@@ -4049,7 +4049,7 @@ msgstr "模板已添加。未找到的应用对应的按键保持未分配。"
 msgid "Templates"
 msgstr "模板"
 
-#: settings-qt/bridge/keypad.py:92 settings-qt/bridge/keypad.py:108
+#: settings-qt/bridge/keypad.py:97 settings-qt/bridge/keypad.py:113
 msgid "Terminal"
 msgstr "终端"
 
@@ -4070,11 +4070,11 @@ msgstr "仅共享文本，且仅与已批准的电脑共享"
 msgid "Text to type"
 msgstr "要输入的文本"
 
-#: settings-qt/bridge/backend.py:4763
+#: settings-qt/bridge/backend.py:4769
 msgid "That custom action cannot run: check the shortcut, link or command."
 msgstr "无法运行此自定义操作，请检查快捷键、链接或命令。"
 
-#: settings-qt/bridge/backend.py:3925
+#: settings-qt/bridge/backend.py:3931
 msgid "That file is not a JuhRadial MX macro."
 msgstr "此文件不是 JuhRadial MX 宏。"
 
@@ -4088,7 +4088,7 @@ msgid ""
 "starts."
 msgstr "JuhRadial MX 服务未运行。更改会保存，并在服务启动时应用。"
 
-#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3248
+#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3254
 msgid "The JuhRadial service is not running"
 msgstr "JuhRadial 服务未运行"
 
@@ -4114,7 +4114,7 @@ msgstr "游戏模式开启时使用当前预设。设为 DPI 循环的按钮可�
 msgid "The background service is not running"
 msgstr "后台服务未运行"
 
-#: settings-qt/bridge/backend.py:2015
+#: settings-qt/bridge/backend.py:2021
 msgid "The background service is not running."
 msgstr "后台服务未运行。"
 
@@ -4122,7 +4122,7 @@ msgstr "后台服务未运行。"
 msgid "The battery drops to the alert level set on Devices"
 msgstr "电量降至“设备”中设置的提醒电量时"
 
-#: settings-qt/bridge/backend.py:3878
+#: settings-qt/bridge/backend.py:3884
 msgid "The bound button starts it, the next press stops it."
 msgstr "按绑定按钮开始，再按一次停止。"
 
@@ -4136,11 +4136,11 @@ msgid ""
 "app is asked about once"
 msgstr "首次使用没有配置文件的应用时，“设置”会建议创建。每个应用仅询问一次"
 
-#: settings-qt/bridge/backend.py:2189
+#: settings-qt/bridge/backend.py:2195
 msgid "The keyboard"
 msgstr "键盘"
 
-#: settings-qt/bridge/backend.py:2832
+#: settings-qt/bridge/backend.py:2838
 msgid "The keyboard did not answer. Press a key to wake it, then try again."
 msgstr "键盘未响应。按键唤醒后重试。"
 
@@ -4154,11 +4154,11 @@ msgstr "键盘正在休眠。按任意键后，点击上方“重新检查”以
 msgid "The keypad configuration was not saved"
 msgstr "按键面板配置未保存"
 
-#: settings-qt/bridge/backend.py:5285
+#: settings-qt/bridge/backend.py:5291
 msgid "The login entry is missing."
 msgstr "登录启动项缺失。"
 
-#: settings-qt/bridge/backend.py:5290
+#: settings-qt/bridge/backend.py:5296
 msgid "The login entry points at a program that is gone."
 msgstr "登录启动项指向的程序已不存在。"
 
@@ -4168,7 +4168,7 @@ msgid ""
 "move."
 msgstr "操作环的外观。与应用主题独立，八个操作的位置始终不变。"
 
-#: settings-qt/bridge/backend.py:3632
+#: settings-qt/bridge/backend.py:3638
 msgid "The macro could not be saved. Is the JuhRadial MX service running?"
 msgstr "无法保存宏。JuhRadial MX 服务是否正在运行？"
 
@@ -4176,11 +4176,11 @@ msgstr "无法保存宏。JuhRadial MX 服务是否正在运行？"
 msgid "The mouse comes back from another computer"
 msgstr "鼠标从另一台电脑切换回来时"
 
-#: settings-qt/bridge/backend.py:2288
+#: settings-qt/bridge/backend.py:2294
 msgid "The mouse did not accept this change."
 msgstr "鼠标未接受此更改。"
 
-#: settings-qt/bridge/backend.py:3460
+#: settings-qt/bridge/backend.py:3466
 msgid "The mouse did not switch. Is it awake, and is that computer paired?"
 msgstr "鼠标未切换。是否已唤醒并与该电脑配对？"
 
@@ -4247,7 +4247,7 @@ msgstr "拇指下方的压力面板"
 msgid "The radial menu appears"
 msgstr "径向菜单出现时"
 
-#: settings-qt/bridge/backend.py:2017
+#: settings-qt/bridge/backend.py:2023
 msgid "The radial menu is not running."
 msgstr "径向菜单未运行。"
 
@@ -4263,13 +4263,13 @@ msgstr "游戏中仍可打开操作环"
 msgid "The same ring as everywhere"
 msgstr "与其他位置相同的操作环"
 
-#: settings-qt/bridge/backend.py:2023
+#: settings-qt/bridge/backend.py:2029
 msgid ""
 "The service cannot reach the mouse. Check that your user is in the input "
 "group."
 msgstr "服务无法访问鼠标。请确认您的用户属于 input 组。"
 
-#: settings-qt/bridge/backend.py:2020
+#: settings-qt/bridge/backend.py:2026
 msgid "The service is {daemon} and this app is {app}: reinstall so they match."
 msgstr "服务版本为 {daemon}，此应用版本为 {app}。请重新安装以保持一致。"
 
@@ -4308,7 +4308,7 @@ msgstr "主题：%1"
 msgid "Themes"
 msgstr "主题"
 
-#: settings-qt/bridge/backend.py:3095
+#: settings-qt/bridge/backend.py:3101
 msgid "There is already a profile for {app}"
 msgstr "{app} 已有配置文件"
 
@@ -4345,7 +4345,7 @@ msgstr "本机通道"
 msgid "This computer's name"
 msgstr "本机名称"
 
-#: settings-qt/bridge/backend.py:4412
+#: settings-qt/bridge/backend.py:4418
 msgid "This is not a JuhRadial MX backup."
 msgstr "这不是 JuhRadial MX 备份。"
 
@@ -4353,7 +4353,7 @@ msgstr "这不是 JuhRadial MX 备份。"
 msgid "This list"
 msgstr "此列表"
 
-#: settings-qt/bridge/backend.py:4037
+#: settings-qt/bridge/backend.py:4043
 msgid "This mouse follows your global settings again"
 msgstr "此鼠标重新遵循全局设置"
 
@@ -4382,7 +4382,7 @@ msgstr "此鼠标以通用模式运行，没有电脑插槽。"
 msgid "This mouse loses its own settings and uses your global ones."
 msgstr "此鼠标将清除独立设置，改用全局设置。"
 
-#: settings-qt/bridge/backend.py:4608
+#: settings-qt/bridge/backend.py:4614
 msgid "This mouse only"
 msgstr "仅此鼠标"
 
@@ -4553,7 +4553,7 @@ msgstr "解除绑定"
 msgid "Undo"
 msgstr "撤销"
 
-#: settings-qt/bridge/backend.py:3975
+#: settings-qt/bridge/backend.py:3981
 msgid "Undo failed: {error}"
 msgstr "撤销失败：{error}"
 
@@ -4635,7 +4635,7 @@ msgstr "使用您的强调色"
 msgid "Usual"
 msgstr "常用"
 
-#: settings-qt/bridge/backend.py:4970
+#: settings-qt/bridge/backend.py:4976
 msgid "Version {version} is available."
 msgstr "版本 {version} 已可用。"
 
@@ -4647,11 +4647,11 @@ msgstr "版本、链接和致谢"
 msgid "Virtual Desktops"
 msgstr "虚拟桌面"
 
-#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/keypad.py:114
+#: settings-qt/bridge/keypad.py:107 settings-qt/bridge/keypad.py:119
 msgid "Vol down"
 msgstr "调低音量"
 
-#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/keypad.py:114
+#: settings-qt/bridge/keypad.py:107 settings-qt/bridge/keypad.py:119
 msgid "Vol up"
 msgstr "调高音量"
 
@@ -4715,7 +4715,7 @@ msgstr "新功能"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:76
 #: settings-qt/qml/pages/ButtonsPage.qml:88
-#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:3885
+#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:3891
 #: settings-qt/bridge/backend.py:649
 msgid "Wheel click"
 msgstr "滚轮点击"
@@ -4781,7 +4781,7 @@ msgstr "此鼠标用于打开径向菜单的按钮"
 msgid "While a button set to Precision DPI is held"
 msgstr "按住设为精确 DPI 的按钮时"
 
-#: settings-qt/bridge/backend.py:3877
+#: settings-qt/bridge/backend.py:3883
 msgid "While held"
 msgstr "按住时"
 
@@ -4810,7 +4810,7 @@ msgstr "Windows"
 msgid "With several screens, the one whose edge leads to the other computer"
 msgstr "多屏幕时，选择边缘通往另一台电脑的屏幕"
 
-#: settings-qt/bridge/backend.py:4972
+#: settings-qt/bridge/backend.py:4978
 msgid "You have the latest version."
 msgstr "当前已是最新版本。"
 
@@ -4834,7 +4834,7 @@ msgstr "桌面要求减少动画，因此已自动开启。"
 msgid "Your desktop does not report an accent colour"
 msgstr "桌面未提供强调色"
 
-#: settings-qt/bridge/backend.py:3273
+#: settings-qt/bridge/backend.py:3279
 msgid "Your desktop does not tell JuhRadial which window is in front"
 msgstr "桌面未向 JuhRadial 提供前台窗口信息"
 
@@ -4910,7 +4910,7 @@ msgstr "应用配置文件"
 msgid "back"
 msgstr "后退"
 
-#: settings-qt/bridge/backend.py:4457
+#: settings-qt/bridge/backend.py:4463
 msgid "built-in emoji picker"
 msgstr "内置表情符号选择器"
 
@@ -5012,35 +5012,35 @@ msgstr "按住时"
 msgid "window class"
 msgstr "窗口类名"
 
-#: settings-qt/bridge/backend.py:2197
+#: settings-qt/bridge/backend.py:2203
 msgid "{device} is at {percent}%. Time to recharge."
 msgstr "{device} 电量为 {percent}%，请充电。"
 
-#: settings-qt/bridge/backend.py:5098
+#: settings-qt/bridge/backend.py:5104
 msgid "{name} can now use Flow with this computer"
 msgstr "{name} 现在可以与本机使用 Flow"
 
-#: settings-qt/bridge/backend.py:3868
+#: settings-qt/bridge/backend.py:3874
 msgid "{name} copy"
 msgstr "{name} 副本"
 
-#: settings-qt/bridge/backend.py:3806
+#: settings-qt/bridge/backend.py:3812
 msgid "{name} is no longer bound to that button"
 msgstr "{name} 已解除与该按钮的绑定"
 
-#: settings-qt/bridge/backend.py:5103
+#: settings-qt/bridge/backend.py:5109
 msgid "{name} was turned away"
 msgstr "已拒绝 {name}"
 
-#: settings-qt/bridge/backend.py:2863
+#: settings-qt/bridge/backend.py:2869
 msgid "{n} minutes"
 msgstr "{n} 分钟"
 
-#: settings-qt/bridge/backend.py:2862
+#: settings-qt/bridge/backend.py:2868
 msgid "{n} seconds"
 msgstr "{n} 秒"
 
-#: settings-qt/bridge/backend.py:4043
+#: settings-qt/bridge/backend.py:4049
 msgid "{what} copied"
 msgstr "已复制{what}"
 

@@ -184,3 +184,12 @@ def test_template_holds_the_runtime_table_labels():
         missing = [c for c in cells if c and extract._escape(c) not in found]
         assert not missing, f"{name}: {missing}"
     assert "Disabled" in found and "Sharp click" in found
+
+
+def test_empty_python_string_is_not_the_catalog_header(monkeypatch):
+    # Search rows with no section call _(""); gettext("") returns the header.
+    from bridge import i18n
+    monkeypatch.setattr(i18n, "_translation", i18n.load_translation("de"))
+    assert "Project-Id-Version" in i18n._translation.gettext("")
+    assert i18n._("") == ""
+    assert i18n._("Disabled") == "Deaktiviert"

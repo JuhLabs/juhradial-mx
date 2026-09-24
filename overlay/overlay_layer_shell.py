@@ -117,6 +117,10 @@ def run_host():
     import cairo
     import gi
 
+    # Without PyGObject's cairo converter, drawing and the input region fail
+    # only after full-output surfaces are mapped (#100, #128): refuse here so
+    # the overlay falls back instead.
+    gi.require_foreign("cairo")
     gi.require_version("Gtk", "4.0")
     gi.require_version("Gtk4LayerShell", "1.0")
     from gi.repository import Gdk, GLib, Gtk, Gtk4LayerShell as LS
@@ -258,13 +262,20 @@ def run_host():
             self.buffer += data
             while b"\n" in self.buffer:
                 line, self.buffer = self.buffer.split(b"\n", 1)
-                command, *args = json.loads(line)
-                if command == "show":
-                    self.show(*args)
-                elif command == "hide":
+                try:
+                    command, *args = json.loads(line)
+                    if command == "show":
+                        self.show(*args)
+                    elif command == "hide":
+                        self.hide()
+                    elif command == "frame":
+                        self.frame(*args)
+                except Exception as error:
+                    # An exception would remove this watch and leave input-grabbing
+                    # surfaces mapped with nobody listening: unmap, report, and go
+                    # on with the next command.
                     self.hide()
-                elif command == "frame":
-                    self.frame(*args)
+                    emit("unavailable", self.serial, f"layer-shell host error: {error}")
             return GLib.SOURCE_CONTINUE
 
     css = Gtk.CssProvider()

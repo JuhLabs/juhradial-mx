@@ -295,6 +295,13 @@ impl GamingMode {
 /// Thread-safe shared gaming mode state
 pub type SharedGamingMode = Arc<RwLock<GamingMode>>;
 
+/// Whether a gesture press belongs to the game's ring job (run by the main
+/// loop's Pressed branch) rather than the menu. The KWin cursor script opens
+/// the menu directly, so the input handlers skip it while this holds.
+pub fn ring_job_active(gaming: Option<&SharedGamingMode>) -> bool {
+    gaming.is_some_and(|g| g.read().is_ok_and(|g| g.ring_action().is_some()))
+}
+
 /// Create a new shared gaming mode instance
 pub fn new_shared_gaming_mode(haptic_manager: SharedHapticManager) -> SharedGamingMode {
     Arc::new(RwLock::new(GamingMode::new(haptic_manager)))
@@ -313,6 +320,18 @@ mod tests {
     fn test_haptic_manager() -> SharedHapticManager {
         let config = HapticConfig::default();
         new_shared_haptic_manager(&config)
+    }
+
+    #[test]
+    fn ring_job_takes_the_press_only_in_a_game_with_a_ring_job() {
+        let gm = new_shared_gaming_mode(test_haptic_manager());
+        assert!(!ring_job_active(None));
+        assert!(!ring_job_active(Some(&gm)));
+        let cfg = crate::config::GamingConfig { ring_button: "dpi_shift".into(), ..Default::default() };
+        gm.write().unwrap().apply_config(&cfg);
+        assert!(!ring_job_active(Some(&gm)), "not in a game yet");
+        gm.write().unwrap().enable();
+        assert!(ring_job_active(Some(&gm)));
     }
 
     #[test]

@@ -1695,6 +1695,12 @@ class Backend(QObject):
         keys = template_keys(template, self.listApplications(), BUTTON_ACTIONS)
         if keys is None:
             return False
+        # Store app keys the way the App picker does (name + cached icon), so
+        # the custom action editor opens them on its App tab.
+        for key in keys:
+            if key["icon"].startswith("desktop:") and key["custom"].get("kind") == "command":
+                key["custom"]["label"] = key["label"]
+                key["custom"]["icon"] = self.cacheAppIcon(key["icon"][8:]) or "application-x-executable-symbolic"
         name = next(t["name"] for t in self.keypadTemplates() if t["id"] == template)
         pages = self.keypadPages
         pages.append({"name": name, "keys": keys})

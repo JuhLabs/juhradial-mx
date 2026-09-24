@@ -180,11 +180,11 @@ msgstr ", açık"
 msgid ", this computer"
 msgstr ", bu bilgisayar"
 
-#: settings-qt/bridge/backend.py:2859
+#: settings-qt/bridge/backend.py:2865
 msgid "1 hour"
 msgstr "1 saat"
 
-#: settings-qt/bridge/backend.py:2858
+#: settings-qt/bridge/backend.py:2864
 msgid "1 minute"
 msgstr "1 dakika"
 
@@ -196,19 +196,19 @@ msgstr ""
 "1. Fareyi her bilgisayarla ayrı bir Easy-Switch kanalında eşleştirin, "
 "ardından yukarıda iki kanalı da ayarlayın."
 
-#: settings-qt/bridge/backend.py:2859
+#: settings-qt/bridge/backend.py:2865
 msgid "10 minutes"
 msgstr "10 dakika"
 
-#: settings-qt/bridge/backend.py:2857
+#: settings-qt/bridge/backend.py:2863
 msgid "10 seconds"
 msgstr "10 saniye"
 
-#: settings-qt/bridge/backend.py:2860
+#: settings-qt/bridge/backend.py:2866
 msgid "2 hours"
 msgstr "2 saat"
 
-#: settings-qt/bridge/backend.py:2858
+#: settings-qt/bridge/backend.py:2864
 msgid "2 minutes"
 msgstr "2 dakika"
 
@@ -221,11 +221,11 @@ msgid ""
 "3. Install and open JuhFlow on the Mac. It finds this computer by itself."
 msgstr "3. Mac'te JuhFlow'u yükleyip açın. Bu bilgisayarı kendisi bulur."
 
-#: settings-qt/bridge/backend.py:2859
+#: settings-qt/bridge/backend.py:2865
 msgid "30 minutes"
 msgstr "30 dakika"
 
-#: settings-qt/bridge/backend.py:2857
+#: settings-qt/bridge/backend.py:2863
 msgid "30 seconds"
 msgstr "30 saniye"
 
@@ -237,11 +237,11 @@ msgstr ""
 "4. İstek geldiğinde Mac'i Bilgisayarlar altında onaylayın. Öncesinde hiçbir "
 "şey paylaşılmaz."
 
-#: settings-qt/bridge/backend.py:2858
+#: settings-qt/bridge/backend.py:2864
 msgid "5 minutes"
 msgstr "5 dakika"
 
-#: settings-qt/bridge/backend.py:2857
+#: settings-qt/bridge/backend.py:2863
 msgid "5 seconds"
 msgstr "5 saniye"
 
@@ -320,7 +320,7 @@ msgstr "Bir makro tamamlanır"
 msgid "A macro is running. Esc stops it."
 msgstr "Bir makro çalışıyor. Esc ile durdurabilirsiniz."
 
-#: settings-qt/bridge/backend.py:3876
+#: settings-qt/bridge/backend.py:3882
 msgid "A number of times"
 msgstr "Belirli sayıda"
 
@@ -444,7 +444,7 @@ msgstr "Ön ayar ekle"
 msgid "Add template"
 msgstr "Şablon ekle"
 
-#: settings-qt/bridge/backend.py:3109
+#: settings-qt/bridge/backend.py:3115
 msgid "Added profile: {app}"
 msgstr "Profil eklendi: {app}"
 
@@ -476,7 +476,7 @@ msgstr "Elleriniz tuşlardan ayrıldıktan sonra"
 msgid "Alert"
 msgstr "Uyarı"
 
-#: settings-qt/bridge/backend.py:4606
+#: settings-qt/bridge/backend.py:4612
 msgid "All apps"
 msgstr "Tüm uygulamalar"
 
@@ -484,7 +484,7 @@ msgstr "Tüm uygulamalar"
 msgid "All files (*)"
 msgstr "Tüm dosyalar (*)"
 
-#: settings-qt/bridge/backend.py:4488
+#: settings-qt/bridge/backend.py:4494
 msgid "Already matches your desktop"
 msgstr "Masaüstünüzle zaten uyumlu"
 
@@ -539,7 +539,7 @@ msgstr "Uygulama değişimi"
 msgid "App: %1"
 msgstr "Uygulama: %1"
 
-#: settings-qt/bridge/backend.py:4500
+#: settings-qt/bridge/backend.py:4506
 msgid "Applied desktop defaults to {count} actions"
 msgstr "Masaüstü varsayılanları {count} eyleme uygulandı"
 
@@ -598,7 +598,7 @@ msgstr "Uykuda. Uyandırmak için hareket ettirin"
 msgid "Asleep. Press any key to wake it"
 msgstr "Uykuda. Uyandırmak için herhangi bir tuşa basın"
 
-#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5115
+#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5121
 msgid "Automatic"
 msgstr "Otomatik"
 
@@ -620,7 +620,7 @@ msgstr "Otomatik: her ekrana uyar"
 msgid "Automatic: the light sensor sets the brightness"
 msgstr "Otomatik: parlaklığı ışık sensörü ayarlar"
 
-#: settings-qt/bridge/backend.py:4278 settings-qt/bridge/backend.py:5299
+#: settings-qt/bridge/backend.py:4284 settings-qt/bridge/backend.py:5305
 msgid "Autostart: {error}"
 msgstr "Otomatik başlatma: {error}"
 
@@ -635,7 +635,7 @@ msgstr "Uyanık"
 msgid "Back"
 msgstr "Geri"
 
-#: settings-qt/bridge/backend.py:2741 settings-qt/bridge/backend.py:3883
+#: settings-qt/bridge/backend.py:2747 settings-qt/bridge/backend.py:3889
 msgid "Back button"
 msgstr "Geri düğmesi"
 
@@ -669,7 +669,7 @@ msgstr "Şarj sırasında arka aydınlatmanın açık kalma süresi"
 msgid "Backup"
 msgstr "Yedek"
 
-#: settings-qt/bridge/backend.py:4384
+#: settings-qt/bridge/backend.py:4390
 msgid "Backup saved as {name}"
 msgstr "Yedek {name} olarak kaydedildi"
 
@@ -772,7 +772,7 @@ msgstr "Bolt alıcı"
 msgid "Brightness"
 msgstr "Parlaklık"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:966 settings-qt/bridge/keypad.py:91
+#: settings-qt/qml/pages/ButtonsPage.qml:966 settings-qt/bridge/keypad.py:96
 msgid "Browser"
 msgstr "Tarayıcı"
 
@@ -840,7 +840,7 @@ msgstr "Hesap makinesi"
 msgid "Calm"
 msgstr "Sakin"
 
-#: settings-qt/bridge/keypad.py:111
+#: settings-qt/bridge/keypad.py:116
 msgid "Camera"
 msgstr "Kamera"
 
@@ -928,7 +928,7 @@ msgstr "Güvenlik duvarını kontrol et"
 msgid "Checked each time the keyboard wakes up"
 msgstr "Klavye her uyandığında kontrol edilir"
 
-#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:4966
+#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:4972
 msgid "Checking…"
 msgstr "Kontrol ediliyor…"
 
@@ -1047,7 +1047,7 @@ msgstr "Renk teması"
 msgid "Command"
 msgstr "Komut"
 
-#: settings-qt/bridge/keypad.py:107
+#: settings-qt/bridge/keypad.py:112
 msgid "Commands"
 msgstr "Komutlar"
 
@@ -1112,11 +1112,11 @@ msgstr "Bağlandı%1"
 msgid "Connection"
 msgstr "Bağlantı"
 
-#: settings-qt/bridge/backend.py:4043
+#: settings-qt/bridge/backend.py:4049
 msgid "Copied"
 msgstr "Kopyalandı"
 
-#: settings-qt/bridge/backend.py:3196
+#: settings-qt/bridge/backend.py:3202
 msgid "Copied to {app}"
 msgstr "{app} uygulamasına kopyalandı"
 
@@ -1154,23 +1154,23 @@ msgstr "Birim kimliğini kopyala"
 msgid "Copy to another app"
 msgstr "Başka uygulamaya kopyala"
 
-#: settings-qt/bridge/backend.py:3958
+#: settings-qt/bridge/backend.py:3964
 msgid "Could not back up the settings, nothing was reset: {error}"
 msgstr "Ayarlar yedeklenemedi, hiçbir şey sıfırlanmadı: {error}"
 
-#: settings-qt/bridge/backend.py:4853
+#: settings-qt/bridge/backend.py:4859
 msgid "Could not open the plugins folder: {error}"
 msgstr "Eklenti klasörü açılamadı: {error}"
 
-#: settings-qt/bridge/backend.py:4968
+#: settings-qt/bridge/backend.py:4974
 msgid "Could not reach GitHub. Trying again tomorrow."
 msgstr "GitHub'a ulaşılamadı. Yarın tekrar denenecek."
 
-#: settings-qt/bridge/backend.py:5248
+#: settings-qt/bridge/backend.py:5254
 msgid "Could not restart the service: {error}"
 msgstr "Hizmet yeniden başlatılamadı: {error}"
 
-#: settings-qt/bridge/backend.py:4929
+#: settings-qt/bridge/backend.py:4935
 msgid "Could not restart: {error}"
 msgstr "Yeniden başlatılamadı: {error}"
 
@@ -1178,7 +1178,7 @@ msgstr "Yeniden başlatılamadı: {error}"
 msgid "Could not restore the keypad page"
 msgstr "Tuş takımı sayfası geri yüklenemedi"
 
-#: settings-qt/bridge/keypad.py:60
+#: settings-qt/bridge/keypad.py:65
 msgid "Could not save a keypad plate"
 msgstr "Tuş görseli kaydedilemedi"
 
@@ -1186,7 +1186,7 @@ msgstr "Tuş görseli kaydedilemedi"
 msgid "Could not save keypad: {error}"
 msgstr "Tuş takımı ayarları kaydedilemedi: {error}"
 
-#: settings-qt/bridge/backend.py:5266
+#: settings-qt/bridge/backend.py:5272
 msgid "Could not start the radial menu: {error}"
 msgstr "Radyal menü başlatılamadı: {error}"
 
@@ -1194,7 +1194,7 @@ msgstr "Radyal menü başlatılamadı: {error}"
 msgid "Could not switch the keypad page"
 msgstr "Tuş takımı sayfası değiştirilemedi"
 
-#: settings-qt/bridge/backend.py:5237
+#: settings-qt/bridge/backend.py:5243
 msgid "Could not write the log: {error}"
 msgstr "Günlük yazılamadı: {error}"
 
@@ -1328,7 +1328,7 @@ msgstr "Masaüstü ortamı"
 msgid "Desktops"
 msgstr "Masaüstleri"
 
-#: settings-qt/bridge/keypad.py:106
+#: settings-qt/bridge/keypad.py:111
 msgid "Dev tools"
 msgstr "Geliştirici"
 
@@ -1357,7 +1357,7 @@ msgstr ""
 "Cihazlar, pil ve klavye arka plan hizmetinden okunur. Hizmeti başlatınca bu "
 "sayfa kendiliğinden dolar."
 
-#: settings-qt/bridge/backend.py:5203
+#: settings-qt/bridge/backend.py:5209
 msgid "Diagnostics copied. Paste them into your bug report."
 msgstr "Tanılama bilgileri kopyalandı. Hata raporunuza yapıştırın."
 
@@ -1502,7 +1502,7 @@ msgstr "Düzenleniyor"
 msgid "Editing for"
 msgstr "Şunun için düzenleniyor"
 
-#: settings-qt/bridge/keypad.py:105
+#: settings-qt/bridge/keypad.py:110
 msgid "Editor"
 msgstr "Editör"
 
@@ -1559,7 +1559,7 @@ msgstr "Gündelik"
 msgid "Export JuhRadial MX settings"
 msgstr "JuhRadial MX ayarlarını dışa aktar"
 
-#: settings-qt/bridge/backend.py:3912 settings-qt/bridge/backend.py:4386
+#: settings-qt/bridge/backend.py:3918 settings-qt/bridge/backend.py:4392
 msgid "Export failed: {error}"
 msgstr "Dışa aktarma başarısız: {error}"
 
@@ -1580,7 +1580,7 @@ msgstr "Canlı"
 msgid "Extra actions for the ring, from plugin folders"
 msgstr "Eklenti klasörlerinden halka için ek eylemler"
 
-#: settings-qt/bridge/backend.py:2739 settings-qt/bridge/backend.py:3886
+#: settings-qt/bridge/backend.py:2745 settings-qt/bridge/backend.py:3892
 msgid "Extra side button"
 msgstr "Ek yan düğme"
 
@@ -1592,7 +1592,7 @@ msgstr "Özellikler"
 msgid "Feral GameMode is not installed"
 msgstr "Feral GameMode yüklü değil"
 
-#: settings-qt/bridge/keypad.py:94
+#: settings-qt/bridge/keypad.py:99
 msgid "Files"
 msgstr "Dosyalar"
 
@@ -1696,7 +1696,7 @@ msgstr "Genel modu zorla"
 msgid "Forget"
 msgstr "Unut"
 
-#: settings-qt/bridge/backend.py:5108
+#: settings-qt/bridge/backend.py:5114
 msgid "Forgotten. It has to be approved again to use Flow"
 msgstr "Unutuldu. Flow kullanmak için yeniden onaylanmalı"
 
@@ -1707,7 +1707,7 @@ msgstr "Unutuldu. Flow kullanmak için yeniden onaylanmalı"
 msgid "Forward"
 msgstr "İleri"
 
-#: settings-qt/bridge/backend.py:2740 settings-qt/bridge/backend.py:3884
+#: settings-qt/bridge/backend.py:2746 settings-qt/bridge/backend.py:3890
 msgid "Forward button"
 msgstr "İleri düğmesi"
 
@@ -1763,7 +1763,7 @@ msgstr "Oyun modu"
 msgid "Gaming mode is on and sets its own DPI until you turn it off."
 msgstr "Oyun modu açık ve kapatana kadar kendi DPI değerini kullanır."
 
-#: settings-qt/bridge/backend.py:3514
+#: settings-qt/bridge/backend.py:3520
 msgid "Gaming mode needs the JuhRadial service"
 msgstr "Oyun modu için JuhRadial hizmeti gerekir"
 
@@ -1814,7 +1814,7 @@ msgid "Give a ring slice the submenu action to add links here."
 msgstr ""
 "Buraya bağlantı eklemek için bir halka dilimine alt menü eylemini atayın."
 
-#: settings-qt/bridge/backend.py:2965
+#: settings-qt/bridge/backend.py:2971
 msgid "Give a slice a submenu first"
 msgstr "Önce bir dilime alt menü atayın"
 
@@ -2018,7 +2018,7 @@ msgstr "İçe aktar"
 msgid "Import JuhRadial MX settings"
 msgstr "JuhRadial MX ayarlarını içe aktar"
 
-#: settings-qt/bridge/backend.py:4434
+#: settings-qt/bridge/backend.py:4440
 msgid "Import failed: {error}"
 msgstr "İçe aktarma başarısız: {error}"
 
@@ -2030,7 +2030,7 @@ msgstr "Ayarları içe aktar"
 msgid "Import this backup?"
 msgstr "Bu yedek içe aktarılsın mı?"
 
-#: settings-qt/bridge/backend.py:3927
+#: settings-qt/bridge/backend.py:3933
 msgid "Imported macro"
 msgstr "İçe aktarılan makro"
 
@@ -2145,7 +2145,7 @@ msgstr "Klavye"
 msgid "Keyboard %1%"
 msgstr "Klavye %1%"
 
-#: settings-qt/bridge/backend.py:2189
+#: settings-qt/bridge/backend.py:2195
 msgid "Keyboard battery low"
 msgstr "Klavye pili azaldı"
 
@@ -2198,7 +2198,7 @@ msgstr "Son okuma"
 msgid "Launch behaviour, tray and updates"
 msgstr "Başlatma davranışı, sistem tepsisi ve güncellemeler"
 
-#: settings-qt/bridge/keypad.py:113
+#: settings-qt/bridge/keypad.py:118
 msgid "Leave"
 msgstr "Ayrıl"
 
@@ -2214,7 +2214,7 @@ msgstr "Sol tıklama"
 msgid "Left is a firm push, right a light touch"
 msgstr "Sol taraf sert basış, sağ taraf hafif dokunuştur"
 
-#: settings-qt/bridge/backend.py:3093
+#: settings-qt/bridge/backend.py:3099
 msgid "Letters, digits, dots, dashes and underscores only"
 msgstr "Yalnızca harf, rakam, nokta, kısa çizgi ve alt çizgi"
 
@@ -2276,7 +2276,7 @@ msgid "Lit at level %1 of %2 right now. Moving the slider switches to Manual"
 msgstr ""
 "Şu anda %1 / %2 seviyesinde yanıyor. Kaydırıcıyı oynatmak Elle moduna geçer"
 
-#: settings-qt/bridge/keypad.py:96
+#: settings-qt/bridge/keypad.py:101
 msgid "Lock"
 msgstr "Kilitle"
 
@@ -2284,7 +2284,7 @@ msgstr "Kilitle"
 msgid "Lock Screen"
 msgstr "Ekranı kilitle"
 
-#: settings-qt/bridge/backend.py:5297
+#: settings-qt/bridge/backend.py:5303
 msgid "Login entry repaired"
 msgstr "Oturum açma girdisi onarıldı"
 
@@ -2334,7 +2334,7 @@ msgstr "Mac"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:95
 #: settings-qt/qml/components/CustomActionEditor.qml:157
-#: settings-qt/bridge/backend.py:3868
+#: settings-qt/bridge/backend.py:3874
 msgid "Macro"
 msgstr "Makro"
 
@@ -2342,7 +2342,7 @@ msgstr "Makro"
 msgid "Macro deleted"
 msgstr "Makro silindi"
 
-#: settings-qt/bridge/backend.py:3914
+#: settings-qt/bridge/backend.py:3920
 msgid "Macro exported"
 msgstr "Makro dışa aktarıldı"
 
@@ -2374,7 +2374,7 @@ msgstr "“%1” makrosu hiç çalışmıyor"
 msgid "Macro: %1"
 msgstr "Makro: %1"
 
-#: settings-qt/bridge/backend.py:3895
+#: settings-qt/bridge/backend.py:3901
 msgid "Macro: {name}"
 msgstr "Makro: {name}"
 
@@ -2391,7 +2391,7 @@ msgstr "%1 oluşturuldu"
 msgid "MagSpeed modes, direction and speed"
 msgstr "MagSpeed modları, yön ve hız"
 
-#: settings-qt/bridge/keypad.py:95
+#: settings-qt/bridge/keypad.py:100
 msgid "Mail"
 msgstr "Posta"
 
@@ -2440,7 +2440,7 @@ msgstr "Menü arka planını bulanıklaştırma"
 msgid "Menu opens"
 msgstr "Menü açılır"
 
-#: settings-qt/bridge/keypad.py:87
+#: settings-qt/bridge/keypad.py:92
 msgid "Mic mute"
 msgstr "Mik. sessiz"
 
@@ -2448,7 +2448,7 @@ msgstr "Mik. sessiz"
 msgid "Middle Click"
 msgstr "Orta tıklama"
 
-#: settings-qt/bridge/backend.py:2742
+#: settings-qt/bridge/backend.py:2748
 msgid "Middle click"
 msgstr "Orta tıklama"
 
@@ -2486,7 +2486,7 @@ msgstr "Daha fazla"
 msgid "Mouse"
 msgstr "Fare"
 
-#: settings-qt/bridge/backend.py:2180
+#: settings-qt/bridge/backend.py:2186
 msgid "Mouse battery low"
 msgstr "Fare pili azaldı"
 
@@ -2537,7 +2537,7 @@ msgstr "Yukarı taşı"
 msgid "Movement below this many pixels counts as a press"
 msgstr "Bu piksel sayısından az hareket, basış sayılır"
 
-#: settings-qt/bridge/keypad.py:103
+#: settings-qt/bridge/keypad.py:108
 msgid "Music"
 msgstr "Müzik"
 
@@ -2575,7 +2575,7 @@ msgstr "Neon Sci-Fi (3D)"
 msgid "New link"
 msgstr "Yeni bağlantı"
 
-#: settings-qt/bridge/backend.py:3706
+#: settings-qt/bridge/backend.py:3712
 msgid "New macro"
 msgstr "Yeni makro"
 
@@ -2583,7 +2583,7 @@ msgstr "Yeni makro"
 msgid "New page"
 msgstr "Yeni sayfa"
 
-#: settings-qt/bridge/keypad.py:101
+#: settings-qt/bridge/keypad.py:106
 msgid "Next"
 msgstr "Sonraki"
 
@@ -2631,7 +2631,7 @@ msgstr "Uygulama seçilmedi"
 msgid "No applications found"
 msgstr "Uygulama bulunamadı"
 
-#: settings-qt/bridge/backend.py:3882
+#: settings-qt/bridge/backend.py:3888
 msgid "No button"
 msgstr "Düğme yok"
 
@@ -2649,7 +2649,7 @@ msgstr ""
 "Burada güvenlik duvarı hizmeti çalışmıyor, dolayısıyla Flow bu nedenle "
 "engellenmiyor."
 
-#: settings-qt/bridge/backend.py:3656
+#: settings-qt/bridge/backend.py:3662
 msgid "No keyboard to record from. Your user needs to read /dev/input "
 msgstr ""
 "Kayıt yapılacak klavye yok. Kullanıcınızın /dev/input okuma izni olmalı "
@@ -2741,7 +2741,7 @@ msgstr "Nord"
 msgid "Normal push"
 msgstr "Normal basış"
 
-#: settings-qt/bridge/backend.py:4973
+#: settings-qt/bridge/backend.py:4979
 msgid "Not checked yet."
 msgstr "Henüz kontrol edilmedi."
 
@@ -2790,7 +2790,7 @@ msgstr "Ayarlanmamış: fare imleçle geri dönmez. Şu anda %1 kanalında"
 msgid "Not set: the mouse stays here when the cursor leaves"
 msgstr "Ayarlanmamış: imleç giderken fare burada kalır"
 
-#: settings-qt/bridge/keypad.py:98
+#: settings-qt/bridge/keypad.py:103
 msgid "Notes"
 msgstr "Notlar"
 
@@ -2802,7 +2802,7 @@ msgstr "Henüz özel ayar yok: seçmek için açın"
 msgid "Nothing shows up? A firewall may block Flow."
 msgstr "Hiçbir şey görünmüyor mu? Güvenlik duvarı Flow'u engelliyor olabilir."
 
-#: settings-qt/bridge/backend.py:3696
+#: settings-qt/bridge/backend.py:3702
 msgid "Nothing was recorded. Press some keys while it records."
 msgstr "Hiçbir şey kaydedilmedi. Kayıt sırasında birkaç tuşa basın."
 
@@ -2843,7 +2843,7 @@ msgstr "Kapalı: işaret tam olarak fare hareketiyle orantılı ilerler"
 msgid "On"
 msgstr "Açık"
 
-#: settings-qt/bridge/backend.py:3878
+#: settings-qt/bridge/backend.py:3884
 msgid "On / off"
 msgstr "Açık / kapalı"
 
@@ -2880,7 +2880,7 @@ msgstr ""
 msgid "On: faster movements carry the pointer further"
 msgstr "Açık: hızlı hareketler işareti daha uzağa taşır"
 
-#: settings-qt/bridge/backend.py:3875
+#: settings-qt/bridge/backend.py:3881
 msgid "Once"
 msgstr "Bir kez"
 
@@ -3126,11 +3126,11 @@ msgstr ""
 msgid "Picks the theme closest to your desktop's accent colour"
 msgstr "Masaüstünüzün vurgu rengine en yakın temayı seçer"
 
-#: settings-qt/bridge/backend.py:2874
+#: settings-qt/bridge/backend.py:2880
 msgid "Pin saved: {slot} = {x}, {y}"
 msgstr "İşaretçi kaydedildi: {slot} = {x}, {y}"
 
-#: settings-qt/bridge/keypad.py:100
+#: settings-qt/bridge/keypad.py:105
 msgid "Play"
 msgstr "Oynat"
 
@@ -3146,11 +3146,11 @@ msgstr "Oynat/Duraklat"
 msgid "Playback, volume and microphone"
 msgstr "Oynatma, ses düzeyi ve mikrofon"
 
-#: settings-qt/bridge/backend.py:3876
+#: settings-qt/bridge/backend.py:3882
 msgid "Plays the steps again and again, as often as you set."
 msgstr "Adımları ayarladığınız sayıda tekrar tekrar oynatır."
 
-#: settings-qt/bridge/backend.py:3875
+#: settings-qt/bridge/backend.py:3881
 msgid "Plays the steps one time."
 msgstr "Adımları bir kez oynatır."
 
@@ -3207,7 +3207,7 @@ msgstr "Basılıyken hassas DPI"
 msgid "Preset %1"
 msgstr "Ön ayar %1"
 
-#: settings-qt/bridge/backend.py:3572
+#: settings-qt/bridge/backend.py:3578
 msgid "Preset %d"
 msgstr "Ön ayar %d"
 
@@ -3252,7 +3252,7 @@ msgstr "Yinelenen titreşimleri önle"
 msgid "Preview of the radial menu"
 msgstr "Radyal menü önizlemesi"
 
-#: settings-qt/bridge/keypad.py:100
+#: settings-qt/bridge/keypad.py:105
 msgid "Previous"
 msgstr "Önceki"
 
@@ -3273,7 +3273,7 @@ msgstr "%1 profili kaldırıldı"
 msgid "Profile: %1"
 msgstr "Profil: %1"
 
-#: settings-qt/bridge/backend.py:2994
+#: settings-qt/bridge/backend.py:3000
 msgid "Profiles save failed: {error}"
 msgstr "Profiller kaydedilemedi: {error}"
 
@@ -3455,7 +3455,7 @@ msgstr "Onar"
 msgid "Repeat"
 msgstr "Tekrarla"
 
-#: settings-qt/bridge/backend.py:3877
+#: settings-qt/bridge/backend.py:3883
 msgid "Repeats while you hold the bound button."
 msgstr "Bağlı düğmeyi basılı tuttuğunuz sürece tekrarlar."
 
@@ -3508,11 +3508,11 @@ msgstr "Yeniden başlat"
 msgid "Restart now"
 msgstr "Şimdi yeniden başlat"
 
-#: settings-qt/bridge/backend.py:5246
+#: settings-qt/bridge/backend.py:5252
 msgid "Restarting the background service…"
 msgstr "Arka plan hizmeti yeniden başlatılıyor…"
 
-#: settings-qt/bridge/backend.py:5264
+#: settings-qt/bridge/backend.py:5270
 msgid "Restarting the radial menu…"
 msgstr "Radyal menü yeniden başlatılıyor…"
 
@@ -3646,7 +3646,7 @@ msgstr "Tüm uygulamalarla aynı"
 msgid "Save"
 msgstr "Kaydet"
 
-#: settings-qt/bridge/backend.py:1766
+#: settings-qt/bridge/backend.py:1772
 msgid "Save failed: {error}"
 msgstr "Kaydetme başarısız: {error}"
 
@@ -3658,11 +3658,11 @@ msgstr "Tuşu kaydet"
 msgid "Saved"
 msgstr "Kaydedildi"
 
-#: settings-qt/bridge/backend.py:2283
+#: settings-qt/bridge/backend.py:2289
 msgid "Saved. JuhRadial applies it when its service starts."
 msgstr "Kaydedildi. JuhRadial, hizmeti başladığında uygular."
 
-#: settings-qt/bridge/backend.py:2285
+#: settings-qt/bridge/backend.py:2291
 msgid "Saved. The mouse gets it when it wakes up or comes back."
 msgstr "Kaydedildi. Fare uyandığında veya geri geldiğinde alır."
 
@@ -3776,7 +3776,7 @@ msgstr ""
 "devralır"
 
 #: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:112
-#: settings-qt/bridge/keypad.py:97 settings-qt/bridge/backend.py:635
+#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/backend.py:635
 msgid "Settings"
 msgstr "Ayarlar"
 
@@ -3784,7 +3784,7 @@ msgstr "Ayarlar"
 msgid "Settings imported"
 msgstr "Ayarlar içe aktarıldı"
 
-#: settings-qt/bridge/backend.py:4444
+#: settings-qt/bridge/backend.py:4450
 msgid "Settings imported. The previous files are kept as .bak"
 msgstr "Ayarlar içe aktarıldı. Önceki dosyalar .bak olarak saklandı"
 
@@ -3804,7 +3804,7 @@ msgstr "Bir uygulama öndeyken değişen ayarlar"
 msgid "Settings you change are saved and applied when the mouse is back."
 msgstr "Değiştirdiğiniz ayarlar kaydedilir ve fare geri geldiğinde uygulanır."
 
-#: settings-qt/bridge/keypad.py:112
+#: settings-qt/bridge/keypad.py:117
 msgid "Share"
 msgstr "Paylaş"
 
@@ -3863,7 +3863,7 @@ msgstr "Radyal menüyü göster"
 msgid "Show tray icon"
 msgstr "Tepsi simgesini göster"
 
-#: settings-qt/bridge/backend.py:2738
+#: settings-qt/bridge/backend.py:2744
 msgid "Side button"
 msgstr "Yan düğme"
 
@@ -3894,7 +3894,7 @@ msgstr "Dilim değişimi"
 msgid "Slice tick rate"
 msgstr "Dilim titreşim aralığı"
 
-#: settings-qt/bridge/backend.py:2889
+#: settings-qt/bridge/backend.py:2895
 msgid "Slice {n}"
 msgstr "Dilim {n}"
 
@@ -3996,7 +3996,7 @@ msgstr "Başlat"
 msgid "Start service"
 msgstr "Hizmeti başlat"
 
-#: settings-qt/bridge/backend.py:3653
+#: settings-qt/bridge/backend.py:3659
 msgid "Start the JuhRadial MX service to record a macro."
 msgstr "Makro kaydetmek için JuhRadial MX hizmetini başlatın."
 
@@ -4012,7 +4012,7 @@ msgstr "Hizmeti başlat"
 msgid "Starting…"
 msgstr "Başlatılıyor…"
 
-#: settings-qt/bridge/backend.py:5291
+#: settings-qt/bridge/backend.py:5297
 msgid "Starts at login with {path}"
 msgstr "Oturum açıldığında {path} ile başlar"
 
@@ -4125,11 +4125,11 @@ msgstr "Bilgisayar 3'e geç"
 msgid "System"
 msgstr "Sistem"
 
-#: settings-qt/bridge/backend.py:5310
+#: settings-qt/bridge/backend.py:5316
 msgid "System default"
 msgstr "Sistem varsayılanı"
 
-#: settings-qt/bridge/backend.py:5209
+#: settings-qt/bridge/backend.py:5215
 msgid "System information copied"
 msgstr "Sistem bilgileri kopyalandı"
 
@@ -4149,7 +4149,7 @@ msgstr "Sekmeler ve sayfalar"
 msgid "Task Switcher"
 msgstr "Görev değiştirici"
 
-#: settings-qt/bridge/backend.py:1703
+#: settings-qt/bridge/backend.py:1709
 msgid "Template added. Keys for missing apps stay unassigned."
 msgstr "Şablon eklendi. Eksik uygulamaların tuşları atanmamış kalır."
 
@@ -4158,7 +4158,7 @@ msgstr "Şablon eklendi. Eksik uygulamaların tuşları atanmamış kalır."
 msgid "Templates"
 msgstr "Şablonlar"
 
-#: settings-qt/bridge/keypad.py:92 settings-qt/bridge/keypad.py:108
+#: settings-qt/bridge/keypad.py:97 settings-qt/bridge/keypad.py:113
 msgid "Terminal"
 msgstr "Terminal"
 
@@ -4179,12 +4179,12 @@ msgstr "Yalnızca metin ve yalnızca onayladığınız bilgisayarlarla"
 msgid "Text to type"
 msgstr "Yazılacak metin"
 
-#: settings-qt/bridge/backend.py:4763
+#: settings-qt/bridge/backend.py:4769
 msgid "That custom action cannot run: check the shortcut, link or command."
 msgstr ""
 "Bu özel eylem çalışamaz: kısayolu, bağlantıyı veya komutu kontrol edin."
 
-#: settings-qt/bridge/backend.py:3925
+#: settings-qt/bridge/backend.py:3931
 msgid "That file is not a JuhRadial MX macro."
 msgstr "Bu dosya bir JuhRadial MX makrosu değil."
 
@@ -4200,7 +4200,7 @@ msgstr ""
 "JuhRadial MX hizmeti çalışmıyor. Değişiklikler kaydedilir ve hizmet "
 "başlayınca uygulanır."
 
-#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3248
+#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3254
 msgid "The JuhRadial service is not running"
 msgstr "JuhRadial hizmeti çalışmıyor"
 
@@ -4232,7 +4232,7 @@ msgstr ""
 msgid "The background service is not running"
 msgstr "Arka plan hizmeti çalışmıyor"
 
-#: settings-qt/bridge/backend.py:2015
+#: settings-qt/bridge/backend.py:2021
 msgid "The background service is not running."
 msgstr "Arka plan hizmeti çalışmıyor."
 
@@ -4240,7 +4240,7 @@ msgstr "Arka plan hizmeti çalışmıyor."
 msgid "The battery drops to the alert level set on Devices"
 msgstr "Pil, Cihazlar sekmesinde ayarlanan uyarı seviyesine düşer"
 
-#: settings-qt/bridge/backend.py:3878
+#: settings-qt/bridge/backend.py:3884
 msgid "The bound button starts it, the next press stops it."
 msgstr "Bağlı düğme başlatır, sonraki basış durdurur."
 
@@ -4256,11 +4256,11 @@ msgstr ""
 "Profili olmayan bir uygulamayı ilk kullandığınızda Ayarlar profil önerir. "
 "Her uygulama için bir kez sorulur"
 
-#: settings-qt/bridge/backend.py:2189
+#: settings-qt/bridge/backend.py:2195
 msgid "The keyboard"
 msgstr "Klavye"
 
-#: settings-qt/bridge/backend.py:2832
+#: settings-qt/bridge/backend.py:2838
 msgid "The keyboard did not answer. Press a key to wake it, then try again."
 msgstr ""
 "Klavye yanıt vermedi. Uyandırmak için bir tuşa basın, sonra yeniden deneyin."
@@ -4277,11 +4277,11 @@ msgstr ""
 msgid "The keypad configuration was not saved"
 msgstr "Tuş takımı yapılandırması kaydedilmedi"
 
-#: settings-qt/bridge/backend.py:5285
+#: settings-qt/bridge/backend.py:5291
 msgid "The login entry is missing."
 msgstr "Oturum açma girdisi eksik."
 
-#: settings-qt/bridge/backend.py:5290
+#: settings-qt/bridge/backend.py:5296
 msgid "The login entry points at a program that is gone."
 msgstr "Oturum açma girdisi artık bulunmayan bir programa işaret ediyor."
 
@@ -4293,7 +4293,7 @@ msgstr ""
 "Halkanın görünümü. Uygulama temasından bağımsızdır: sekiz eyleminizin yeri "
 "değişmez."
 
-#: settings-qt/bridge/backend.py:3632
+#: settings-qt/bridge/backend.py:3638
 msgid "The macro could not be saved. Is the JuhRadial MX service running?"
 msgstr "Makro kaydedilemedi. JuhRadial MX hizmeti çalışıyor mu?"
 
@@ -4301,11 +4301,11 @@ msgstr "Makro kaydedilemedi. JuhRadial MX hizmeti çalışıyor mu?"
 msgid "The mouse comes back from another computer"
 msgstr "Fare başka bir bilgisayardan geri döner"
 
-#: settings-qt/bridge/backend.py:2288
+#: settings-qt/bridge/backend.py:2294
 msgid "The mouse did not accept this change."
 msgstr "Fare bu değişikliği kabul etmedi."
 
-#: settings-qt/bridge/backend.py:3460
+#: settings-qt/bridge/backend.py:3466
 msgid "The mouse did not switch. Is it awake, and is that computer paired?"
 msgstr "Fare geçiş yapmadı. Uyanık mı ve o bilgisayarla eşleşmiş mi?"
 
@@ -4380,7 +4380,7 @@ msgstr "Başparmağınızın altındaki basınç paneli"
 msgid "The radial menu appears"
 msgstr "Radyal menü görünür"
 
-#: settings-qt/bridge/backend.py:2017
+#: settings-qt/bridge/backend.py:2023
 msgid "The radial menu is not running."
 msgstr "Radyal menü çalışmıyor."
 
@@ -4396,7 +4396,7 @@ msgstr "Halka oyunlarda da açılır"
 msgid "The same ring as everywhere"
 msgstr "Her yerdekiyle aynı halka"
 
-#: settings-qt/bridge/backend.py:2023
+#: settings-qt/bridge/backend.py:2029
 msgid ""
 "The service cannot reach the mouse. Check that your user is in the input "
 "group."
@@ -4404,7 +4404,7 @@ msgstr ""
 "Hizmet fareye ulaşamıyor. Kullanıcınızın input grubunda olduğunu kontrol "
 "edin."
 
-#: settings-qt/bridge/backend.py:2020
+#: settings-qt/bridge/backend.py:2026
 msgid "The service is {daemon} and this app is {app}: reinstall so they match."
 msgstr ""
 "Hizmet sürümü {daemon}, uygulama sürümü {app}: eşleşmeleri için yeniden "
@@ -4447,7 +4447,7 @@ msgstr "Tema: %1"
 msgid "Themes"
 msgstr "Temalar"
 
-#: settings-qt/bridge/backend.py:3095
+#: settings-qt/bridge/backend.py:3101
 msgid "There is already a profile for {app}"
 msgstr "{app} için zaten bir profil var"
 
@@ -4486,7 +4486,7 @@ msgstr "Bu bilgisayarın kanalı"
 msgid "This computer's name"
 msgstr "Bu bilgisayarın adı"
 
-#: settings-qt/bridge/backend.py:4412
+#: settings-qt/bridge/backend.py:4418
 msgid "This is not a JuhRadial MX backup."
 msgstr "Bu bir JuhRadial MX yedeği değil."
 
@@ -4494,7 +4494,7 @@ msgstr "Bu bir JuhRadial MX yedeği değil."
 msgid "This list"
 msgstr "Bu liste"
 
-#: settings-qt/bridge/backend.py:4037
+#: settings-qt/bridge/backend.py:4043
 msgid "This mouse follows your global settings again"
 msgstr "Bu fare yeniden genel ayarlarınızı kullanıyor"
 
@@ -4525,7 +4525,7 @@ msgstr "Bu fare bilgisayar yuvaları olmayan genel modda çalışıyor."
 msgid "This mouse loses its own settings and uses your global ones."
 msgstr "Bu fare kendi ayarlarını kaybeder ve genel ayarlarınızı kullanır."
 
-#: settings-qt/bridge/backend.py:4608
+#: settings-qt/bridge/backend.py:4614
 msgid "This mouse only"
 msgstr "Yalnızca bu fare"
 
@@ -4700,7 +4700,7 @@ msgstr "Bağlamayı kaldır"
 msgid "Undo"
 msgstr "Geri al"
 
-#: settings-qt/bridge/backend.py:3975
+#: settings-qt/bridge/backend.py:3981
 msgid "Undo failed: {error}"
 msgstr "Geri alma başarısız: {error}"
 
@@ -4785,7 +4785,7 @@ msgstr "Vurgu renginizi kullanır"
 msgid "Usual"
 msgstr "Normal"
 
-#: settings-qt/bridge/backend.py:4970
+#: settings-qt/bridge/backend.py:4976
 msgid "Version {version} is available."
 msgstr "{version} sürümü mevcut."
 
@@ -4797,11 +4797,11 @@ msgstr "Sürümler, bağlantılar ve katkıda bulunanlar"
 msgid "Virtual Desktops"
 msgstr "Sanal masaüstleri"
 
-#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/keypad.py:114
+#: settings-qt/bridge/keypad.py:107 settings-qt/bridge/keypad.py:119
 msgid "Vol down"
 msgstr "Sesi kıs"
 
-#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/keypad.py:114
+#: settings-qt/bridge/keypad.py:107 settings-qt/bridge/keypad.py:119
 msgid "Vol up"
 msgstr "Sesi aç"
 
@@ -4867,7 +4867,7 @@ msgstr "Yenilikler"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:76
 #: settings-qt/qml/pages/ButtonsPage.qml:88
-#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:3885
+#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:3891
 #: settings-qt/bridge/backend.py:649
 msgid "Wheel click"
 msgstr "Tekerlek tıklaması"
@@ -4935,7 +4935,7 @@ msgstr "Bu farede radyal menüyü hangi düğme açar"
 msgid "While a button set to Precision DPI is held"
 msgstr "Hassas DPI'ya atanan düğme basılı tutulurken"
 
-#: settings-qt/bridge/backend.py:3877
+#: settings-qt/bridge/backend.py:3883
 msgid "While held"
 msgstr "Basılı tutarken"
 
@@ -4964,7 +4964,7 @@ msgstr "Windows"
 msgid "With several screens, the one whose edge leads to the other computer"
 msgstr "Birden çok ekranda, kenarı diğer bilgisayara açılan ekran"
 
-#: settings-qt/bridge/backend.py:4972
+#: settings-qt/bridge/backend.py:4978
 msgid "You have the latest version."
 msgstr "En son sürümü kullanıyorsunuz."
 
@@ -4988,7 +4988,7 @@ msgstr "Masaüstünüz daha az animasyon istediği için bu zaten açık."
 msgid "Your desktop does not report an accent colour"
 msgstr "Masaüstünüz vurgu rengi bildirmiyor"
 
-#: settings-qt/bridge/backend.py:3273
+#: settings-qt/bridge/backend.py:3279
 msgid "Your desktop does not tell JuhRadial which window is in front"
 msgstr "Masaüstünüz hangi pencerenin önde olduğunu JuhRadial'a bildirmiyor"
 
@@ -5067,7 +5067,7 @@ msgstr "uygulama profilleri"
 msgid "back"
 msgstr "geri"
 
-#: settings-qt/bridge/backend.py:4457
+#: settings-qt/bridge/backend.py:4463
 msgid "built-in emoji picker"
 msgstr "yerleşik emoji seçici"
 
@@ -5169,35 +5169,35 @@ msgstr "basılı tutarken"
 msgid "window class"
 msgstr "pencere sınıfı"
 
-#: settings-qt/bridge/backend.py:2197
+#: settings-qt/bridge/backend.py:2203
 msgid "{device} is at {percent}%. Time to recharge."
 msgstr "{device} pil seviyesi {percent}%. Şarj zamanı."
 
-#: settings-qt/bridge/backend.py:5098
+#: settings-qt/bridge/backend.py:5104
 msgid "{name} can now use Flow with this computer"
 msgstr "{name} artık bu bilgisayarla Flow kullanabilir"
 
-#: settings-qt/bridge/backend.py:3868
+#: settings-qt/bridge/backend.py:3874
 msgid "{name} copy"
 msgstr "{name} kopyası"
 
-#: settings-qt/bridge/backend.py:3806
+#: settings-qt/bridge/backend.py:3812
 msgid "{name} is no longer bound to that button"
 msgstr "{name} artık o düğmeye bağlı değil"
 
-#: settings-qt/bridge/backend.py:5103
+#: settings-qt/bridge/backend.py:5109
 msgid "{name} was turned away"
 msgstr "{name} reddedildi"
 
-#: settings-qt/bridge/backend.py:2863
+#: settings-qt/bridge/backend.py:2869
 msgid "{n} minutes"
 msgstr "{n} dakika"
 
-#: settings-qt/bridge/backend.py:2862
+#: settings-qt/bridge/backend.py:2868
 msgid "{n} seconds"
 msgstr "{n} saniye"
 
-#: settings-qt/bridge/backend.py:4043
+#: settings-qt/bridge/backend.py:4049
 msgid "{what} copied"
 msgstr "{what} kopyalandı"
 

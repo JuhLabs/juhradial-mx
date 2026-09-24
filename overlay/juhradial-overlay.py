@@ -1614,6 +1614,11 @@ def create_tray_icon(app, radial_menu):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    if _LAYER_SHELL is not None:
+        # Qt has read "wayland;offscreen" for this process; apps started from
+        # slices and Settings inherit the usual value, so a Qt app without the
+        # wayland plugin still maps through XWayland instead of offscreen.
+        os.environ["QT_QPA_PLATFORM"] = "xcb;wayland"
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("JuhRadial MX")
     app.setDesktopFileName("juhradial-mx")
