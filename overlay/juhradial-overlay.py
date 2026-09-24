@@ -102,6 +102,7 @@ from overlay_constants import (
     CENTER_ZONE_RADIUS,
     SHADOW_OFFSET,
     SUBMENU_EXTEND,
+    SUBMENU_ITEM_SPREAD_DEG,
     compute_ring_scale,
     map_and_clamp_menu,
     hover_gate,
@@ -1511,8 +1512,13 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         SUBITEM_SIZE = 32
 
         num_items = len(submenu)
-        spread = 15
+        spread = SUBMENU_ITEM_SPREAD_DEG
 
+        # Pick the NEAREST item within range rather than the first one scanned:
+        # the hit radius can exceed half the spacing on a tightly packed fan, and
+        # first-match would then hand overlapping area to the lower index.
+        best_index = -1
+        best_distance = None
         for i, item in enumerate(submenu):
             offset = (i - (num_items - 1) / 2) * spread
             item_angle = math.radians(parent_angle + offset)
@@ -1520,10 +1526,13 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             item_y = SUBMENU_RADIUS * math.sin(item_angle)
 
             dist_to_item = math.hypot(dx - item_x, dy - item_y)
-            if dist_to_item < SUBITEM_SIZE:
-                return i
+            if dist_to_item < SUBITEM_SIZE and (
+                best_distance is None or dist_to_item < best_distance
+            ):
+                best_index = i
+                best_distance = dist_to_item
 
-        return -1
+        return best_index
 
     def mouseMoveEvent(self, event):
         # In toggle mode, _poll_cursor handles hover exclusively to avoid

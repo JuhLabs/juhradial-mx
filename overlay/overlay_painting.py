@@ -29,6 +29,7 @@ from overlay_constants import (
     MENU_RADIUS,
     CENTER_ZONE_RADIUS,
     ICON_ZONE_RADIUS,
+    SUBMENU_ITEM_SPREAD_DEG,
 )
 from i18n import _
 
@@ -63,8 +64,14 @@ class RadialMenuPaintingMixin:
         if ring_scale != 1.0:
             p.scale(ring_scale, ring_scale)
 
-        cx = self.win_px / 2
-        cy = self.win_px / 2
+        # win_px is a DEVICE-pixel size, but p.scale(ring_scale) above already
+        # put the painter in logical base coordinates, so the centre has to be
+        # expressed in that same space. Using win_px / 2 directly centred the
+        # ring at win_px / 2 * ring_scale device px while hit-testing measured
+        # from win_px / 2, leaving the visible ring offset from its own hit
+        # regions by (ring_scale - 1) * win_px / 2 px down and right.
+        cx = self.win_px / 2 / ring_scale
+        cy = self.win_px / 2 / ring_scale
 
         # Menu open bloom - the dial locks in: scale with a hair of overshoot
         # plus a subtle rotation settle, like a machined wheel clicking home.
@@ -1109,7 +1116,7 @@ class RadialMenuPaintingMixin:
         SUBITEM_RADIUS = 24  # Size of each subitem circle
 
         num_items = len(submenu)
-        spread = 18  # Degrees between items
+        spread = SUBMENU_ITEM_SPREAD_DEG
 
         for i, item in enumerate(submenu):
             is_highlighted = i == self.highlighted_subitem
