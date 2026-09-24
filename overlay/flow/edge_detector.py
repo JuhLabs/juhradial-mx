@@ -25,6 +25,32 @@ from .constants import (
 logger = logging.getLogger("juhradial.flow.edge")
 
 
+CTRL_CACHE_S = 0.1
+_modifier_proxy = None
+
+
+def daemon_modifiers() -> list:
+    """Modifier keys held right now, from the JuhRadial service (it reads the
+    keyboards' kernel key state, so this works on every desktop). [] when
+    the service cannot answer: then Flow does not cross (fails closed)."""
+    global _modifier_proxy
+    try:
+        import gi
+        gi.require_version("Gio", "2.0")
+        from gi.repository import Gio
+        if _modifier_proxy is None:
+            _modifier_proxy = Gio.DBusProxy.new_for_bus_sync(
+                Gio.BusType.SESSION,
+                Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES | Gio.DBusProxyFlags.DO_NOT_CONNECT_SIGNALS,
+                None, "org.kde.juhradialmx", "/org/kde/juhradialmx/Daemon",
+                "org.kde.juhradialmx.Daemon", None)
+        reply = _modifier_proxy.call_sync("ModifiersHeld", None, Gio.DBusCallFlags.NONE, 200, None)
+        return list(reply.unpack()[0])
+    except Exception as e:  # service down, older service, no PyGObject
+        logger.debug("Modifier state unavailable: %s", e)
+        return []
+
+
 class ScreenEdgeDetector:
     """Monitors cursor position and detects screen edge dwelling.
 
@@ -67,6 +93,9 @@ class ScreenEdgeDetector:
         self._flow_direction = "right"
         self._flow_monitor = ""  # "" = any monitor, "DP-3" = specific
         self._edge_sensitivity = 50  # 0-100, scales the dwell threshold
+        self._cross_with_ctrl = False  # "Hold Ctrl to cross"
+        self._ctrl_checked = 0.0
+        self._ctrl_down = False
         self._config_mtime: float = 0.0
 
         # Cached flow monitor geometry (set from main thread, avoids Qt from bg thread)
@@ -292,6 +321,14 @@ class ScreenEdgeDetector:
         self._prev_time = 0.0
         self._last_fire_time = 0.0
 
+    def _ctrl_held(self, now: float) -> bool:
+        """Whether Ctrl is down, asked at most every CTRL_CACHE_S while the
+        cursor rests on the Flow edge (nowhere else)."""
+        if now - self._ctrl_checked >= CTRL_CACHE_S:
+            self._ctrl_checked = now
+            self._ctrl_down = "ctrl" in daemon_modifiers()
+        return self._ctrl_down
+
     def _reload_config(self):
         """Reload extend_edge_zone from config (checked periodically)."""
         try:
@@ -308,6 +345,7 @@ class ScreenEdgeDetector:
                     self._flow_direction = flow.get("direction", "right")
                     self._flow_monitor = flow.get("monitor", "")
                     self._edge_sensitivity = flow.get("edge_sensitivity", 50)
+                    self._cross_with_ctrl = bool(flow.get("cross_with_ctrl", False))
         except Exception as e:
             # Fail-soft: a missing or malformed config keeps the previous
             # flow settings; the next mtime change retries.
@@ -479,6 +517,11 @@ class ScreenEdgeDetector:
                 if abs(cx - center_x) > half_zone:
                     self._reset_dwell()
                     return near_edge
+
+        # "Hold Ctrl to cross": the edge leads on only while Ctrl is down.
+        if self._cross_with_ctrl and not self._ctrl_held(now):
+            self._reset_dwell()
+            return True
 
         # Velocity-based instant trigger: fast cursor slam fires immediately
         if velocity >= EDGE_VELOCITY_INSTANT_PX_PER_S:

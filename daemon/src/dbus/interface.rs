@@ -653,6 +653,11 @@ impl JuhRadialService {
         }
     }
 
+    /// Modifier keys held right now ("ctrl", "shift", "alt", "super").
+    async fn modifiers_held(&self) -> fdo::Result<Vec<String>> {
+        Ok(tokio::task::spawn_blocking(crate::keyboard::modifiers_held).await.unwrap_or_default())
+    }
+
     /// Bolt and Unifying receivers with their paired devices:
     /// [(hidraw path, "bolt" | "unifying", [(slot, kind, wpid, name, role)])],
     /// role "mouse" / "keyboard" for the devices JuhRadial drives, else "".

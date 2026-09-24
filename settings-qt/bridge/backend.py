@@ -737,6 +737,7 @@ SEARCH_INDEX = [
     ("flow", "Share clipboard", "Behaviour", "clipboard share copy paste sync text"),
     ("flow", "Show the edge glow", "Behaviour", "indicator glow edge hide"),
     ("flow", "Use the whole edge", "Behaviour", "extend edge zone full length"),
+    ("flow", "Hold Ctrl to cross", "Behaviour", "ctrl modifier hold key accident switch edge"),
     # Themes
     ("themes", "Colour theme", "Colour theme", "theme color colour accent wallpaper appearance"),
     ("themes", "Match the desktop accent", "Colour theme", "automatic desktop accent kde gnome follow"),
@@ -2457,6 +2458,41 @@ class Backend(QObject):
     def _set_active_profile(self, app):
         self._active_profile = app
         self.liveChanged.emit()
+
+    # ---- Flow: asks the ring process (org.kde.juhradialmx.overlay) ----
+    def _overlay_call(self, method, *args, done=None):
+        msg = QDBusMessage.createMethodCall("org.kde.juhradialmx.overlay", "/Overlay",
+                                            "org.kde.juhradialmx.Overlay", method)
+        msg.setArguments(list(args))
+        watcher = QDBusPendingCallWatcher(QDBusConnection.sessionBus().asyncCall(msg, 3000), self)
+        watchers = self.__dict__.setdefault("_overlay_watchers", set())
+        watchers.add(watcher)  # alive until it answers
+
+        def finished(w):
+            watchers.discard(w)
+            try:
+                reply = QDBusPendingReply(w)
+                args = None if reply.isError() else list(reply.reply().arguments())
+                if done is not None:
+                    done(None if args is None else (args[0] if args else True))
+            except Exception as e:  # a slot must never raise under PyQt6
+                print(f"overlay {method} failed: {e}", file=sys.stderr)
+            finally:
+                w.deleteLater()
+        watcher.finished.connect(finished)
+
+    @pyqtSlot()
+    def sendFlowCursor(self):
+        """Send the cursor to the other computer now, as if it crossed the edge."""
+        self._overlay_call("SendCursor", done=lambda ok: None if ok else self.notify(
+            _("The ring is not running, or Flow is off. Start JuhRadial MX and turn Flow on."), "warning"))
+
+    @pyqtSlot(str)
+    def identifyScreens(self, flow_label):
+        """A card with each monitor's number and name for a few seconds."""
+        self._overlay_call("IdentifyScreens", str(self.get("flow.monitor", "") or ""), flow_label,
+                           done=lambda ok: None if ok else self.notify(
+                               _("The ring is not running. Start JuhRadial MX to identify screens."), "warning"))
 
     # ---- USB receivers (Devices tab) ----
     receiversChanged = pyqtSignal()

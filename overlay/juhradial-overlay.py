@@ -80,6 +80,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PyQt6.QtCore import (
     Qt,
+    QObject,
     pyqtSlot,
     QPropertyAnimation,
     QEasingCurve,
@@ -88,6 +89,8 @@ from PyQt6.QtCore import (
     QFileSystemWatcher,
 )
 from PyQt6.QtGui import (
+    QCursor,
+    QGuiApplication,
     QPainter,
     QBrush,
     QIcon,
@@ -1614,6 +1617,38 @@ def create_tray_icon(app, radial_menu):
     return tray
 
 
+class _OverlayBus(QObject):
+    """org.kde.juhradialmx.overlay /Overlay: what Settings asks the ring
+    process for (Flow lives here)."""
+
+    @pyqtSlot(result=bool)
+    def SendCursor(self):
+        from flow import get_handoff_manager
+        manager = get_handoff_manager()
+        if manager is None:
+            return False
+        screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
+        g = screen.geometry()
+        manager.send_cursor({"x": g.x(), "y": g.y(), "width": g.width(), "height": g.height()})
+        return True
+
+    @pyqtSlot(str, str)
+    def IdentifyScreens(self, flow_monitor, flow_label):
+        from overlay_identify import identify_screens
+        identify_screens(flow_monitor, flow_label)
+
+
+_overlay_bus = None
+
+
+def _export_overlay_bus(bus):
+    global _overlay_bus
+    _overlay_bus = _OverlayBus()
+    if not bus.registerObject("/Overlay", "org.kde.juhradialmx.Overlay", _overlay_bus,
+                              QDBusConnection.RegisterOption.ExportAllSlots):
+        print("OVERLAY: could not export /Overlay on D-Bus")
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     if _LAYER_SHELL is not None:
@@ -1644,6 +1679,7 @@ if __name__ == "__main__":
         )
         sys.exit(0)
 
+    _export_overlay_bus(bus)
     app.processEvents()
 
     # Load submenu icons and 3D radial image (requires QApplication)

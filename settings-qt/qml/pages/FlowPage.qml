@@ -292,6 +292,18 @@ Item {
                         title: qsTr("Where is the other computer")
                         subtitle: qsTr("Click the side of this screen it sits on. The cursor crosses over there")
                         icon: page._ic + "view-dual-symbolic"
+                        Row {
+                            spacing: Theme.gapS
+                            PrimaryButton {
+                                text: qsTr("Identify screens"); ghost: true
+                                onClicked: Backend.identifyScreens(qsTr("Flow crosses from this screen"))
+                            }
+                            PrimaryButton {
+                                text: qsTr("Send cursor now"); ghost: true
+                                enabled: page.flowOn
+                                onClicked: Backend.sendFlowCursor()
+                            }
+                        }
                     }
                     Divider {}
                     Item {
@@ -439,6 +451,17 @@ Item {
                             accessibleName: qsTr("Use the whole edge")
                             checked: page.cfg("flow.extend_edge_zone", false)
                             onToggled: (v) => Backend.setLocal("flow.extend_edge_zone", v)
+                        }
+                    }
+                    Divider {}
+                    SettingRow {
+                        label: qsTr("Hold Ctrl to cross")
+                        desc: qsTr("The edge leads to the other computer only while you hold Ctrl, so a quick move never switches by accident")
+                        Toggle {
+                            enabled: page.flowOn
+                            accessibleName: qsTr("Hold Ctrl to cross")
+                            checked: page.cfg("flow.cross_with_ctrl", false)
+                            onToggled: (v) => Backend.setLocal("flow.cross_with_ctrl", v)
                         }
                     }
                 }

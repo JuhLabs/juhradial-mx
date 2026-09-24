@@ -446,6 +446,46 @@ pub fn host_switch_in_report(report: &[u8], index: u8, feature: u8) -> Option<(u
         .then(|| (report[4], report[5]))
 }
 
+/// Modifier names in `held` order for keys that `pressed` reports down.
+#[cfg(target_os = "linux")]
+fn held_modifiers(pressed: impl Fn(evdev::KeyCode) -> bool) -> Vec<&'static str> {
+    use evdev::KeyCode as K;
+    [
+        ("ctrl", K::KEY_LEFTCTRL, K::KEY_RIGHTCTRL),
+        ("shift", K::KEY_LEFTSHIFT, K::KEY_RIGHTSHIFT),
+        ("alt", K::KEY_LEFTALT, K::KEY_RIGHTALT),
+        ("super", K::KEY_LEFTMETA, K::KEY_RIGHTMETA),
+    ]
+    .into_iter()
+    .filter(|&(_, left, right)| pressed(left) || pressed(right))
+    .map(|(name, _, _)| name)
+    .collect()
+}
+
+/// Modifier keys held right now on any keyboard ("ctrl", "shift", "alt",
+/// "super"), from each keyboard's kernel key state (EVIOCGKEY): no grab, and
+/// the same on every desktop. Flow asks it for "hold Ctrl to cross".
+pub fn modifiers_held() -> Vec<String> {
+    #[cfg(target_os = "linux")]
+    {
+        let mut held: Vec<&'static str> = Vec::new();
+        for (_, device) in evdev::enumerate() {
+            if !device.supported_keys().is_some_and(|k| k.contains(evdev::KeyCode::KEY_LEFTCTRL)) {
+                continue;
+            }
+            let Ok(state) = device.get_key_state() else { continue };
+            for name in held_modifiers(|key| state.contains(key)) {
+                if !held.contains(&name) {
+                    held.push(name);
+                }
+            }
+        }
+        held.into_iter().map(str::to_string).collect()
+    }
+    #[cfg(not(target_os = "linux"))]
+    Vec::new()
+}
+
 /// The keyboard's backlight keys (or its light sensor) changed the level:
 /// the BACKLIGHT2 event `[levels, level, status, effect]` (OpenLogi, Solaar).
 /// Returns `(level, levels, status)`.
@@ -870,6 +910,15 @@ async fn run_grabbed(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn held_modifiers_name_either_side_once() {
+        use evdev::KeyCode as K;
+        assert_eq!(held_modifiers(|k| k == K::KEY_RIGHTCTRL), ["ctrl"]);
+        assert_eq!(held_modifiers(|k| matches!(k, K::KEY_LEFTSHIFT | K::KEY_LEFTMETA)), ["shift", "super"]);
+        assert!(held_modifiers(|k| k == K::KEY_A).is_empty());
+    }
 
     #[test]
     fn backlight_keys_are_the_backlight2_event_of_our_keyboard() {

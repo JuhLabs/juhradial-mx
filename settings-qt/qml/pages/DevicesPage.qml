@@ -824,13 +824,44 @@ Item {
                     SettingRow {
                         visible: Backend.isGeneric
                         label: qsTr("Radial menu button")
-                        desc: qsTr("Which button opens the radial menu on this mouse")
-                        ComboBox {
-                            width: 220
-                            accessibleName: qsTr("Radial menu button")
-                            model: Backend.genericTriggerOptions()
-                            currentId: Backend.genericTrigger
-                            onActivated2: (id) => Backend.setGenericTrigger(id)
+                        desc: qsTr("Which button opens the radial menu on this mouse. Press it on the box, or pick it.")
+                        Row {
+                            spacing: Theme.gapS
+                            // Press the button: its evdev code, as libinput hands it to Qt
+                            // (side 275, extra 276, forward 277, back 278, wheel 274).
+                            Rectangle {
+                                width: 150; height: 36; radius: Theme.radiusCtl
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: pressGeneric.containsMouse ? Theme.accentSubtle : Theme.surfaceInset
+                                border.width: 1; border.color: pressGeneric.containsMouse ? Theme.accent : Theme.border
+                                Accessible.role: Accessible.StaticText
+                                Accessible.name: qsTr("Press the mouse button here")
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: qsTr("Press it here")
+                                    color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                                }
+                                MouseArea {
+                                    id: pressGeneric
+                                    anchors.fill: parent; hoverEnabled: true
+                                    acceptedButtons: Qt.BackButton | Qt.ForwardButton | Qt.ExtraButton3 | Qt.ExtraButton4 | Qt.MiddleButton
+                                    onPressed: (m) => {
+                                        if (m.button === Qt.BackButton) Backend.setGenericTrigger("275")
+                                        else if (m.button === Qt.ForwardButton) Backend.setGenericTrigger("276")
+                                        else if (m.button === Qt.ExtraButton3) Backend.setGenericTrigger("277")
+                                        else if (m.button === Qt.ExtraButton4) Backend.setGenericTrigger("278")
+                                        else if (m.button === Qt.MiddleButton) Backend.setGenericTrigger("274")
+                                    }
+                                }
+                            }
+                            ComboBox {
+                                width: 220
+                                anchors.verticalCenter: parent.verticalCenter
+                                accessibleName: qsTr("Radial menu button")
+                                model: Backend.genericTriggerOptions()
+                                currentId: Backend.genericTrigger
+                                onActivated2: (id) => Backend.setGenericTrigger(id)
+                            }
                         }
                     }
                 }

@@ -1188,3 +1188,49 @@ def test_existing_fast_slam_still_fires_immediately(monkeypatch):
     assert detector._check_edge() is False
     assert len(hits) == 1
     assert hits[0][0] == "right"
+
+
+def test_hold_ctrl_to_cross_gates_the_edge(monkeypatch):
+    cursor = ModuleType("overlay_cursor")
+    cursor.get_cursor_pos = lambda: (1919, 540)
+    cursor.get_screen_geometry = lambda cursor_pos=None: {"x": 0, "y": 0, "width": 1920, "height": 1080}
+    monkeypatch.setitem(sys.modules, "overlay_cursor", cursor)
+    monkeypatch.setitem(sys.modules, "overlay.overlay_cursor", cursor)
+    hits = []
+    detector = ScreenEdgeDetector()
+    detector.on_edge_hit = lambda *a: hits.append(a)
+    detector._flow_direction, detector._extend_edge_zone = "right", True
+    detector._cross_with_ctrl = True
+    held = []
+    monkeypatch.setattr(edge_module, "daemon_modifiers", lambda: list(held))
+
+    def slam():
+        detector._prev_pos, detector._prev_time = (0, 540), time.monotonic() - 0.01
+        detector._last_fire_time = 0.0
+        detector._ctrl_checked = 0.0
+        return detector._check_edge()
+
+    slam()
+    assert hits == []          # at the edge without Ctrl: stays here
+    held.append("ctrl")
+    slam()
+    assert len(hits) == 1      # with Ctrl held it crosses
+    detector._cross_with_ctrl = False
+    held.clear()
+    slam()
+    assert len(hits) == 2      # the option off: the edge alone crosses
+
+
+def test_send_cursor_is_an_edge_hit_at_the_middle_of_the_flow_edge():
+    from flow.handoff import FlowHandoffManager
+    manager = FlowHandoffManager.__new__(FlowHandoffManager)
+    manager._flow_monitor_screen = None
+    manager.get_flow_config = lambda: {"direction": "left"}
+    hits = []
+    manager.on_edge_hit = lambda *a: hits.append(a)
+    manager.send_cursor({"x": 3072, "y": 0, "width": 1920, "height": 1080})
+    assert hits == [("left", 3072, 540, {"x": 3072, "y": 0, "width": 1920, "height": 1080})]
+    manager._flow_monitor_screen = {"x": 0, "y": 0, "width": 3072, "height": 1728}
+    manager.get_flow_config = lambda: {"direction": "bottom"}
+    manager.send_cursor({"x": 3072, "y": 0, "width": 1920, "height": 1080})
+    assert hits[-1][:3] == ("bottom", 1536, 1727)  # the Flow monitor wins
