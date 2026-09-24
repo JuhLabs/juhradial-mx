@@ -1614,11 +1614,14 @@ class Backend(QObject):
                 for p, page in enumerate(pages):
                     for k, key in enumerate(page["keys"], 1):
                         render_plate(key, pathlib.Path(staging) / f"p{p}-k{k}.jpg", self.cacheAppIcon)
+                        for n, state in enumerate(key.get("states") or [], 1):
+                            render_plate(state, pathlib.Path(staging) / f"p{p}-k{k}-s{n}.jpg", self.cacheAppIcon)
                 fresh = {f.name for f in pathlib.Path(staging).iterdir()}
                 for plate in pathlib.Path(staging).iterdir():
                     os.replace(plate, dest / plate.name)
-            # Frames of a key that is no longer animated (or gone) must not play.
-            for old in [*dest.glob("*.anim"), *dest.glob("*-a[0-9][0-9][0-9].jpg")]:
+            # Frames of a key that is no longer animated (or gone), and the plate
+            # of a state a key no longer has, must go.
+            for old in [*dest.glob("*.anim"), *dest.glob("*-a[0-9][0-9][0-9].jpg"), *dest.glob("*-s[0-9]*.jpg")]:
                 if old.name not in fresh:
                     old.unlink(missing_ok=True)
             # Merge: other keypad settings (brightness, ...) survive a page save.
@@ -1665,6 +1668,20 @@ class Backend(QObject):
             key["plate"] = plate
         if art_path(obj.get("art")) is not None:
             key["art"] = obj["art"]
+        style = obj.get("style") if isinstance(obj.get("style"), dict) else {}
+        style = {**({"background": style["background"].lower()} if isinstance(style.get("background"), str)
+                    and re.fullmatch(r"#[0-9a-fA-F]{6}", style["background"]) else {}),
+                 **({"hide_label": True} if style.get("hide_label") is True else {})}
+        if style:
+            key["style"] = style
+        # A two-state key: the second state is a key of its own (no nesting).
+        states = obj.get("states")
+        if isinstance(states, list) and states:
+            second = states[0] if isinstance(states[0], dict) else None
+            second = self._clean_keypad_key({k: v for k, v in second.items() if k != "states"}) if second else None
+            if second is None:
+                return None
+            key["states"] = [second]
         return key
 
     @pyqtSlot(int, int, "QVariant", result=bool)
@@ -1748,17 +1765,34 @@ class Backend(QObject):
             pages[page].pop("profile", None)
         self._save_keypad(pages)
 
+    @pyqtSlot(int, bool)
+    def setKeypadPageFolder(self, page, on):
+        """A folder opens only from a "page" key; while it is up either page
+        button goes back to the page it was opened from."""
+        pages = self.keypadPages
+        if not 0 <= page < len(pages):
+            return
+        if on:
+            pages[page]["folder"] = True
+        else:
+            pages[page].pop("folder", None)
+        self._save_keypad(pages)
+
     @pyqtSlot(int, str)
     def renameKeypadPage(self, page, name):
         pages = self.keypadPages
         if 0 <= page < len(pages) and name.strip():
             old = str(pages[page].get("name", "")).strip()
             new = name.strip()[:60]
+            # "page" keys go by name: the daemon takes "next"/"previous" as
+            # steps, else the FIRST page of that name (ignoring case), so only
+            # keys that reach this very page follow the rename.
+            first = next((i for i, p in enumerate(pages) if str(p.get("name", "")).strip().lower() == old.lower()), None)
+            follows = bool(old) and old.lower() not in ("next", "previous") and first == page
             pages[page]["name"] = new
-            # "page" keys go by name (the daemon matches it ignoring case).
-            for key in (k for pg in pages for k in pg.get("keys", []) if isinstance(k, dict)):
+            for key in (k for pg in pages for k in pg.get("keys", []) if isinstance(k, dict) and follows):
                 custom = key.get("custom") or {}
-                if old and custom.get("kind") == "page" and str(custom.get("value", "")).strip().lower() == old.lower():
+                if custom.get("kind") == "page" and str(custom.get("value", "")).strip().lower() == old.lower():
                     custom["value"] = new
                     for holder in (key, custom):
                         if holder.get("label") == old:
@@ -1877,7 +1911,11 @@ class Backend(QObject):
             image = str(picture)
         # A pack never points a key at a file on this computer: pictures come
         # from the pack's own pictures/ folder only.
-        key = self._clean_keypad_key({k: v for k, v in raw["juhradial"].items() if k != "plate"})
+        own = {k: v for k, v in raw["juhradial"].items() if k != "plate"}
+        if isinstance(own.get("states"), list):
+            own["states"] = [{k: v for k, v in st.items() if k != "plate"} if isinstance(st, dict) else st
+                             for st in own["states"]]
+        key = self._clean_keypad_key(own)
         if key is None:
             return None
         if key["custom"].get("kind") == "command" and key["custom"].get("value") not in {a.get("command") for a in apps}:
@@ -1944,8 +1982,10 @@ class Backend(QObject):
                 for raw in page.get("keys") if isinstance(page.get("keys"), list) else []:
                     slot = raw.get("slot") if isinstance(raw, dict) else None
                     if isinstance(slot, int) and 0 <= slot < 9:
-                        img = pack / chosen / f"{raw.get('id', '')}.jpg"
-                        img = str(img) if chosen and img.is_file() else ""
+                        # The id names a file in the pack, never a path out of it.
+                        img = pack / chosen / (pathlib.Path(str(raw.get("id", ""))).name + ".jpg")
+                        inside = img.resolve().is_relative_to(pack.resolve())
+                        img = str(img) if chosen and inside and img.is_file() else ""
                         keys[slot] = self._own_pack_key(raw, img, apps, pack) or self._pack_key(raw, img, apps)
                 from bridge.keypad import empty_key
                 profiles = page.get("mac_profiles")
@@ -1958,10 +1998,12 @@ class Backend(QObject):
                     classes = sorted({c for prof in profiles for c in self.PACK_PROFILE_APPS.get(prof, [])})
                 entry = {"name": str(page.get("title") or page.get("id") or _("Page"))[:60],
                          "keys": [k or empty_key() for k in keys]}
+                if page.get("folder") is True:
+                    entry["folder"] = True
                 if classes:
                     entry["apps"] = classes
                     # The page joins its built-in profile's group (unknown ids are dropped).
-                    if page.get("profile") in builtin:
+                    if isinstance(page.get("profile"), str) and page["profile"] in builtin:
                         entry["profile"] = page["profile"]
                 pages.append(entry)
             if len(pages) == first or len(pages) > 255 or not self._save_keypad(pages, first):
@@ -2188,6 +2230,8 @@ class Backend(QObject):
                              "apps": list(pages[index].get("apps", [])), "keys": keys}
                     if pages[index].get("profile"):
                         entry["profile"] = pages[index]["profile"]
+                    if pages[index].get("folder"):
+                        entry["folder"] = True
                     spec.append(entry)
                 zf.writestr("portable.json", json.dumps({"generator": "JuhRadial MX", "version": 1, "pages": spec},
                                                         indent=1, ensure_ascii=False))
@@ -2316,7 +2360,9 @@ class Backend(QObject):
     # delegate), so they must read the _prime() cache, never D-Bus directly.
     @pyqtProperty(str, notify=liveChanged)
     def deviceName(self):
-        return self._device_name or "MX Master 4"
+        """The daemon's name for the mouse; "" until it answers (never a guess:
+        an MX Master 3S owner must not see "MX Master 4" while it is down)."""
+        return self._device_name
 
     @pyqtProperty(str, notify=liveChanged)
     def deviceMode(self):

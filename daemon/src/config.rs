@@ -519,11 +519,13 @@ pub struct KeypadConfig {
     /// Panel brightness 1..=100; None leaves the device's own level.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brightness: Option<u8>,
+    /// Blank the keys and ignore presses while the screen is locked.
+    pub dim_on_lock: bool,
 }
 
 impl Default for KeypadConfig {
     fn default() -> Self {
-        Self { enabled: true, active_page: 0, pages: Vec::new(), brightness: None }
+        Self { enabled: true, active_page: 0, pages: Vec::new(), brightness: None, dim_on_lock: true }
     }
 }
 
@@ -540,6 +542,10 @@ pub struct KeypadPage {
     /// general pages shown for every app without pages of its own.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub apps: Vec<String>,
+    /// A folder: left out of the page-button rotation and opened by a
+    /// "page" key; while it is up, either page button goes back.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub folder: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -549,11 +555,15 @@ pub struct KeypadKey {
     pub label: String,
     pub icon: String,
     pub custom: CustomAction,
+    /// A multistate key: the states after the key's own one. Each press runs
+    /// the state shown, then the key turns to the next (plate `-s<n>.jpg`).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub states: Vec<KeypadKey>,
 }
 
 impl Default for KeypadKey {
     fn default() -> Self {
-        Self { action: ButtonAction::None, label: String::new(), icon: String::new(), custom: CustomAction::default() }
+        Self { action: ButtonAction::None, label: String::new(), icon: String::new(), custom: CustomAction::default(), states: Vec::new() }
     }
 }
 // ---- End MX Keypad ----

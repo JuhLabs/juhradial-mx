@@ -216,6 +216,10 @@ impl Keypad {
             .custom_flags(libc::O_NONBLOCK | libc::O_CLOEXEC).open(path).map(Self)
     }
 
+    /// Wrap an open report channel: a hidraw fd, or in tests one end of a
+    /// datagram socket pair standing in for the device (one report each).
+    pub fn from_file(file: File) -> Self { Self(file) }
+
     fn ready(&self, events: libc::c_short, timeout: Duration) -> io::Result<bool> {
         let deadline = Instant::now() + timeout;
         loop {

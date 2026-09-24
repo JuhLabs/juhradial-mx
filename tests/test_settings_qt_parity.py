@@ -196,7 +196,7 @@ def test_set_app_points_a_slice_at_the_application(backend, tmp_path):
 
 
 def test_cache_app_icon_writes_the_overlay_icon_cache(backend, tmp_path, monkeypatch):
-    gi = pytest.importorskip("gi")
+    pytest.importorskip("gi")
     from gi.repository import Gio
     icon_src = tmp_path / "src.png"
     from PyQt6.QtGui import QPixmap
@@ -210,6 +210,21 @@ def test_cache_app_icon_writes_the_overlay_icon_cache(backend, tmp_path, monkeyp
     path = backend.cacheAppIcon("juhtest.desktop")
     assert path == str(tmp_path / "icons" / "juhtest.desktop.png")
     assert Path(path).is_file()
+
+
+def test_the_app_list_leaves_out_terminal_apps_like_the_gtk_picker(backend, tmp_path, monkeypatch):
+    # #118: a Terminal=true entry started from a slice opens no window.
+    pytest.importorskip("gi")
+    from gi.repository import Gio
+    apps = []
+    for name, terminal in (("JuhWindow", "false"), ("JuhTerm", "true")):
+        desktop = tmp_path / f"{name.lower()}.desktop"
+        desktop.write_text(f"[Desktop Entry]\nType=Application\nName={name}\nExec=true %U\nTerminal={terminal}\n")
+        apps.append(Gio.DesktopAppInfo.new_from_filename(str(desktop)))
+    monkeypatch.setattr(Gio.AppInfo, "get_all", staticmethod(lambda: apps))
+    listed = {a["name"]: a for a in backend.listApplications()}
+    assert "JuhWindow" in listed and "JuhTerm" not in listed
+    assert listed["JuhWindow"]["command"] == "true"
 
 
 # ---------------------------------------------------------------------------

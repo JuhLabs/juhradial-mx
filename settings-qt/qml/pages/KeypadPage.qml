@@ -1,5 +1,6 @@
 import QtCore
 import QtQuick
+import QtQuick.Controls.Basic as B
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import "../components"
@@ -11,6 +12,8 @@ Item {
     readonly property var status: Backend.keypadStatus
     readonly property int currentPage: Math.max(0, Math.min(status.active_page, pages.length - 1))
     property int selectedKey: 1
+    // Which keypad the Key plates card draws (the device sells in both colours).
+    property bool graphite: Backend.get("ui.keypad_colour", "pale") === "graphite"
     property int litKey: 0
     property int bump: 0
 
@@ -21,7 +24,7 @@ Item {
 
     Connections {
         target: Backend
-        function onConfigChanged() { editor.load() }
+        function onConfigChanged() { editor.reloadIfChanged() }
         function onKeypadChanged() { page.bump++ }
         function onKeypadKeyPressed(p, key) {
             if (p === page.currentPage) { page.litKey = key; flash.restart() }
@@ -121,18 +124,28 @@ Item {
                     Divider {}
                     RowLayout {
                         width: parent.width; spacing: Theme.gapL
-                        Rectangle {
-                            id: body
+                        // The keypad as it looks (pale grey or graphite): plates sit in
+                        // its glass windows and its page buttons turn pages here too.
+                        Column {
                             Layout.preferredWidth: Math.min(420, gridColumn.width * 0.53)
-                            Layout.preferredHeight: width * 1.13
-                            radius: 26; color: "#181b20"
-                            border.width: 1; border.color: Theme.borderStrong
+                            Layout.alignment: Qt.AlignTop
+                            spacing: Theme.gapS
                             Item {
-                                id: lcd
-                                anchors.top: parent.top; anchors.topMargin: 18
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                width: parent.width - 30; height: width
-                                readonly property real unit: width / 480
+                                id: body
+                                width: parent.width; height: width * 1.1689
+                                // [x, y, w, h] as fractions of the image, measured on both
+                                // colours (planning/passes/tools/keypad_front_layout.py).
+                                readonly property var keys: [
+                                    [0.1446, 0.1393, 0.2024, 0.1712], [0.3988, 0.1393, 0.2032, 0.1719], [0.6545, 0.1393, 0.2024, 0.1712],
+                                    [0.1446, 0.3548, 0.2024, 0.1706], [0.3988, 0.3542, 0.2032, 0.1712], [0.6545, 0.3548, 0.2024, 0.1706],
+                                    [0.1446, 0.5684, 0.2024, 0.1712], [0.3988, 0.5684, 0.2032, 0.1712], [0.6545, 0.5684, 0.2032, 0.1719]]
+                                readonly property var buttons: [[0.1393, 0.7865, 0.2199, 0.1048], [0.3927, 0.7865, 0.2207, 0.1048]]
+                                Image {
+                                    anchors.fill: parent
+                                    source: assetsDir + "/devices/mx_keypad_front_" + (page.graphite ? "graphite" : "pale") + ".png"
+                                    sourceSize.width: 900
+                                    fillMode: Image.Stretch; smooth: true; mipmap: true
+                                }
                                 Repeater {
                                     model: 9
                                     Rectangle {
@@ -140,28 +153,25 @@ Item {
                                         required property int index
                                         readonly property int keyNumber: index + 1
                                         readonly property var binding: (page.bump, Backend.keypadKey(page.currentPage, keyNumber))
-                                        x: (23 + index % 3 * 158) * lcd.unit
-                                        y: (6 + Math.floor(index / 3) * 158) * lcd.unit
-                                        width: 118 * lcd.unit; height: width
-                                        radius: 8; color: "#070b14"
-                                        border.width: 2
-                                        border.color: page.litKey === keyNumber ? "#efe6cf" : (page.selectedKey === keyNumber ? Theme.accent : Theme.border)
+                                        readonly property var r: body.keys[index]
+                                        x: r[0] * body.width; y: r[1] * body.height
+                                        width: r[2] * body.width; height: r[3] * body.height
+                                        radius: width * 0.05; color: "#070b14"
                                         activeFocusOnTab: true
                                         Accessible.role: Accessible.Button
                                         Accessible.name: qsTr("Key %1: %2").arg(keyNumber).arg(binding.label || qsTr("Unassigned"))
                                         Accessible.onPressAction: page.editKey(keyNumber)
                                         Keys.onSpacePressed: page.editKey(keyNumber)
                                         Keys.onReturnPressed: page.editKey(keyNumber)
-                                        FocusHalo { active: keyTile.activeFocus; radius: 8 }
                                         Image {
-                                            anchors.fill: parent; anchors.margins: 3
+                                            anchors.fill: parent; anchors.margins: 1
                                             source: (Backend.keypadRevision, page.bump, Backend.keypadPlate(page.currentPage, keyTile.keyNumber))
                                             cache: false; smooth: true
                                         }
                                         // An animated picture plays here as it does on the key.
                                         AnimatedImage {
                                             readonly property string pic: keyTile.binding.plate || ""
-                                            anchors.fill: parent; anchors.margins: 3
+                                            anchors.fill: parent; anchors.margins: 1
                                             visible: /\.(gif|webp)$/i.test(pic)
                                             source: visible ? "file://" + pic : ""
                                             fillMode: Image.PreserveAspectCrop; smooth: true
@@ -173,30 +183,62 @@ Item {
                                             color: Theme.textMuted; font.family: Theme.fontMono; font.pixelSize: Theme.fsH3
                                         }
                                         Rectangle {
-                                            anchors.fill: parent; radius: 8
+                                            anchors.fill: parent; radius: parent.radius
                                             color: Theme.accent; opacity: page.litKey === keyTile.keyNumber ? 0.35 : 0
                                         }
+                                        // Selected / pressed ring, drawn over the plate.
+                                        Rectangle {
+                                            anchors.fill: parent; anchors.margins: -3; radius: parent.radius + 3
+                                            color: "transparent"; border.width: 2
+                                            border.color: page.litKey === keyTile.keyNumber ? "#efe6cf" : Theme.accent
+                                            visible: page.litKey === keyTile.keyNumber || page.selectedKey === keyTile.keyNumber
+                                        }
+                                        FocusHalo { active: keyTile.activeFocus; radius: keyTile.radius }
                                         MouseArea {
                                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                             onClicked: page.editKey(keyTile.keyNumber)
                                         }
                                     }
                                 }
+                                Repeater {
+                                    model: 2
+                                    Rectangle {
+                                        id: pageKey
+                                        required property int index
+                                        readonly property var r: body.buttons[index]
+                                        readonly property string tip: index === 0 ? qsTr("Previous keypad page") : qsTr("Next keypad page")
+                                        x: r[0] * body.width; y: r[1] * body.height
+                                        width: r[2] * body.width; height: r[3] * body.height
+                                        radius: height * 0.22
+                                        enabled: page.pages.length > 1
+                                        color: !enabled ? "transparent" : pageMa.pressed ? "#30000000"
+                                             : pageMa.containsMouse ? (page.graphite ? "#18FFFFFF" : "#12000000") : "transparent"
+                                        activeFocusOnTab: true
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: tip
+                                        Accessible.onPressAction: page.step(index === 0 ? -1 : 1)
+                                        Keys.onSpacePressed: page.step(index === 0 ? -1 : 1)
+                                        Keys.onReturnPressed: page.step(index === 0 ? -1 : 1)
+                                        B.ToolTip.visible: pageMa.containsMouse
+                                        B.ToolTip.text: tip
+                                        B.ToolTip.delay: 600
+                                        FocusHalo { active: pageKey.activeFocus; radius: pageKey.radius }
+                                        MouseArea {
+                                            id: pageMa
+                                            anchors.fill: parent; hoverEnabled: true
+                                            cursorShape: pageKey.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                            onClicked: if (pageKey.enabled) page.step(pageKey.index === 0 ? -1 : 1)
+                                        }
+                                    }
+                                }
                             }
-                            Row {
+                            SegmentedControl {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom; anchors.bottomMargin: 15
-                                spacing: 16
-                                IconButton {
-                                    diameter: 38; icon: "go-previous-symbolic"; tint: Theme.textBody
-                                    tip: qsTr("Previous keypad page"); enabled: page.pages.length > 1
-                                    onClicked: page.step(-1)
-                                }
-                                IconButton {
-                                    diameter: 38; icon: "go-next-symbolic"; tint: Theme.textBody
-                                    tip: qsTr("Next keypad page"); enabled: page.pages.length > 1
-                                    onClicked: page.step(1)
-                                }
+                                width: Math.min(parent.width, 240)
+                                accessibleName: qsTr("Keypad colour")
+                                model: [{ id: "pale", name: qsTr("Pale grey") }, { id: "graphite", name: qsTr("Graphite") }]
+                                currentId: page.graphite ? "graphite" : "pale"
+                                onActivated: (id) => { Backend.setLocal("ui.keypad_colour", id); page.graphite = id === "graphite" }
                             }
                         }
                         KeypadKeyEditor {
@@ -239,6 +281,15 @@ Item {
                             from: 5; to: 100
                             value: Backend.get("keypad.brightness", 100) || 100
                             onCommitted: (v) => Backend.set("keypad.brightness", Math.round(v))
+                        }
+                    }
+                    SettingRow {
+                        width: parent.width
+                        label: qsTr("Blank while the screen is locked")
+                        desc: qsTr("The keys go dark and do nothing until you unlock")
+                        Toggle {
+                            checked: Backend.get("keypad.dim_on_lock", true)
+                            onToggled: (v) => Backend.set("keypad.dim_on_lock", v)
                         }
                     }
                     Repeater {
@@ -311,6 +362,15 @@ Item {
                                         visible: (pageRow.pg.apps || []).length > 0
                                         icon: "edit-clear-symbolic"; tip: qsTr("Show this page for all apps")
                                         onClicked: Backend.setKeypadPageApps(pageRow.index, [])
+                                    }
+                                    IconButton {
+                                        icon: "folder-symbolic"
+                                        tint: pageRow.pg.folder ? Theme.accent : Theme.textBody
+                                        tip: pageRow.pg.folder ? qsTr("Folder: a page key opens it and either page button goes back. Click to make it a normal page")
+                                                               : qsTr("Make this page a folder")
+                                        Accessible.checkable: true
+                                        Accessible.checked: !!pageRow.pg.folder
+                                        onClicked: Backend.setKeypadPageFolder(pageRow.index, !pageRow.pg.folder)
                                     }
                                     IconButton {
                                         icon: "go-previous-symbolic"; rotation: 90

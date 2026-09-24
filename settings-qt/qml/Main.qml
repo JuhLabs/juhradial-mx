@@ -173,11 +173,13 @@ ApplicationWindow {
 
     // ---- content ----
     RowLayout {
+        id: shell
         anchors.fill: parent
         anchors.margins: 16
         spacing: 16
 
         GlassCard {
+            id: railCard
             rail: true
             Layout.preferredWidth: 256
             Layout.fillHeight: true
@@ -226,19 +228,47 @@ ApplicationWindow {
                 }
                 Rectangle { width: parent.width; height: 1; color: Theme.border }
                 Item { width: 1; height: 8 }
-                Repeater {
-                    model: navModel
-                    NavItem {
-                        label: model.label
-                        icon: model.key
-                        active: nav.current === index
-                        visible: !(model.logitechOnly && Backend.isGeneric) && (model.key !== "keypad" || Backend.keypadVisible)
-                        onClicked: nav.current = index
+            }
+            // The tabs scroll when the window is too short for all of them.
+            Flickable {
+                id: navFlick
+                anchors.left: parent.left; anchors.right: parent.right
+                anchors.top: railCol.bottom; anchors.bottom: railFooter.top
+                anchors.leftMargin: 12; anchors.rightMargin: 12
+                clip: true
+                contentHeight: navCol.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+                // Keep the active tab in view (a short window, a jump from search).
+                function revealCurrent() {
+                    for (var i = 0; i < navCol.children.length; i++) {
+                        var item = navCol.children[i]
+                        if (!item.active || !item.visible) continue
+                        if (item.y < contentY) contentY = item.y
+                        else if (item.y + item.height > contentY + height) contentY = Math.max(0, item.y + item.height - height)
+                    }
+                }
+                onHeightChanged: revealCurrent()
+                onContentHeightChanged: revealCurrent()
+                Connections { target: nav; function onCurrentChanged() { navFlick.revealCurrent() } }
+                Column {
+                    id: navCol
+                    width: parent.width
+                    spacing: 2
+                    Repeater {
+                        model: navModel
+                        NavItem {
+                            label: model.label
+                            icon: model.key
+                            active: nav.current === index
+                            visible: !(model.logitechOnly && Backend.isGeneric) && (model.key !== "keypad" || Backend.keypadVisible)
+                            onClicked: nav.current = index
+                        }
                     }
                 }
             }
             // footer: version + a small, quiet support link
             Column {
+                id: railFooter
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                 anchors.margins: 12
                 spacing: 8
@@ -300,11 +330,19 @@ ApplicationWindow {
                 // The mode switches keep their labels while everything fits;
                 // on a narrow window they go bare (tooltips stay) and the
                 // search field gives up some width.
-                readonly property real modeLabels: minimalLabel.implicitWidth + genericLabel.implicitWidth + 16
-                readonly property bool roomy: width >= pageTitle.implicitWidth + 220 + modeLabels + 92
-                                                      + statusBadges.implicitWidth + 5 * spacing
+                // Measured on the shell, which the header's own minimum cannot
+                // stretch (its own width would keep "roomy" on for good).
+                readonly property real room: shell.width - railCard.width - shell.spacing
+                readonly property real modesWide: minimalLabel.implicitWidth + genericLabel.implicitWidth + 2 * 46 + 2 * 8 + Theme.gapL
+                readonly property bool roomy: room >= pageTitle.implicitWidth + 220 + modesWide
+                                                     + statusBadges.implicitWidth + 5 * spacing
                 Text {
                     id: pageTitle
+                    // A long translated title gives way last, with an ellipsis.
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: implicitWidth
+                    Layout.minimumWidth: Math.min(implicitWidth, 110)
+                    elide: Text.ElideRight
                     text: navModel.get(nav.current).label
                     color: Theme.textPrimary
                     font.family: Theme.fontDisplay; font.pixelSize: Theme.fsH1; font.weight: Font.DemiBold
@@ -373,6 +411,8 @@ ApplicationWindow {
                             onToggled: (v) => {
                                 Backend.setDeviceMode(v ? "generic" : "auto")
                                 checked = Qt.binding(() => quickModes.generic)
+                                // The tab in front may be one generic mode hides.
+                                if (v && navModel.get(nav.current).logitechOnly) Backend.goTo("devices")
                                 if (v) win.undoToast(qsTr("Generic mode is on: the Logitech tabs are hidden. Pick the menu button on Devices."),
                                                      function () { Backend.setDeviceMode("auto") })
                             }
@@ -385,7 +425,7 @@ ApplicationWindow {
                     spacing: Theme.gapS
                     Layout.alignment: Qt.AlignVCenter
                     Badge {
-                        text: Backend.deviceName
+                        text: Backend.deviceName || qsTr("No mouse yet")
                         accent: Backend.daemonAvailable; dot: Backend.daemonAvailable
                         anchors.verticalCenter: parent.verticalCenter
                     }

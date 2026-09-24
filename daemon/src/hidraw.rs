@@ -1037,6 +1037,41 @@ mod tests {
         assert!(h.press_time.is_none());
     }
 
+    /// A held Custom (hold-while-pressed keys) is released even when another
+    /// diverted button takes the "first pressed" slot before everything is
+    /// let go: its keys must never stay down.
+    #[tokio::test]
+    async fn held_custom_is_released_when_another_button_took_its_slot() {
+        use crate::config::ButtonAction;
+        let (tx, mut rx) = mpsc::channel(16);
+        let mut h = HidrawHandler::new(tx);
+        let config = crate::config::new_shared_config();
+        config.write().unwrap().buttons.back = ButtonAction::Custom;
+        config.write().unwrap().buttons.forward = ButtonAction::Copy;
+        h.set_shared_config(config);
+        let custom_edges = |events: &[GestureEvent]| -> Vec<bool> {
+            events.iter().filter_map(|e| match e {
+                GestureEvent::ButtonActionEvent { action: ButtonAction::Custom, pressed, .. } => Some(*pressed),
+                _ => None,
+            }).collect()
+        };
+
+        h.handle_button_event(&diverted_button_report(button_cid::BACK_BUTTON)).await;
+        assert_eq!(custom_edges(&drain(&mut rx)), [true]);
+        // Back let go while Forward is held: Forward is now the first pressed.
+        h.handle_button_event(&diverted_button_report(button_cid::FORWARD_BUTTON)).await;
+        let mut edges = custom_edges(&drain(&mut rx));
+        h.handle_button_event(&diverted_button_report(0)).await;
+        edges.extend(custom_edges(&drain(&mut rx)));
+        assert!(!edges.is_empty() && edges.iter().all(|pressed| !pressed), "released, never pressed again: {edges:?}");
+        assert!(!h.custom_down);
+
+        // Plain press and release of the Custom button: exactly one release.
+        h.handle_button_event(&diverted_button_report(button_cid::BACK_BUTTON)).await;
+        h.handle_button_event(&diverted_button_report(0)).await;
+        assert_eq!(custom_edges(&drain(&mut rx)), [true, false]);
+    }
+
     /// With the feature off (the default and every existing config) the
     /// gesture button dispatches exactly as before.
     #[tokio::test]

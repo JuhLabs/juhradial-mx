@@ -86,7 +86,7 @@ msgstr "%1, %2 DPI"
 msgid "%1: %2"
 msgstr "%1: %2"
 
-#: settings-qt/qml/pages/SettingsPage.qml:825
+#: settings-qt/qml/pages/SettingsPage.qml:827
 msgid "%1: %2 to %3"
 msgstr "%1: от %2 до %3"
 
@@ -106,7 +106,7 @@ msgstr ""
 msgid "%1× in a row"
 msgstr "%1× подряд"
 
-#: settings-qt/qml/pages/SettingsPage.qml:620
+#: settings-qt/qml/pages/SettingsPage.qml:622
 msgid "%n action"
 msgid_plural "%n actions"
 msgstr[0] "%n действие"
@@ -141,7 +141,7 @@ msgstr[2] "%n кнопок работают иначе в этом прилож�
 msgid "%n found"
 msgstr "Найдено: %n"
 
-#: settings-qt/qml/pages/SettingsPage.qml:783
+#: settings-qt/qml/pages/SettingsPage.qml:785
 msgid "%n icon"
 msgid_plural "%n icons"
 msgstr[0] "%n значок"
@@ -155,7 +155,7 @@ msgstr[0] "Пока %n событие клавиши"
 msgstr[1] "Пока %n события клавиш"
 msgstr[2] "Пока %n событий клавиш"
 
-#: settings-qt/qml/pages/SettingsPage.qml:782
+#: settings-qt/qml/pages/SettingsPage.qml:784
 msgid "%n macro file"
 msgid_plural "%n macro files"
 msgstr[0] "%n файл макроса"
@@ -176,7 +176,7 @@ msgstr[0] "%n шаг"
 msgstr[1] "%n шага"
 msgstr[2] "%n шагов"
 
-#: settings-qt/qml/pages/SettingsPage.qml:784
+#: settings-qt/qml/pages/SettingsPage.qml:786
 msgid "%n theme"
 msgid_plural "%n themes"
 msgstr[0] "%n тема"
@@ -195,11 +195,11 @@ msgstr ", открыто"
 msgid ", this computer"
 msgstr ", этот компьютер"
 
-#: settings-qt/bridge/backend.py:3478
+#: settings-qt/bridge/backend.py:3548
 msgid "1 hour"
 msgstr "1 час"
 
-#: settings-qt/bridge/backend.py:3477
+#: settings-qt/bridge/backend.py:3547
 msgid "1 minute"
 msgstr "1 минута"
 
@@ -211,11 +211,11 @@ msgstr ""
 "1. Сопрягите мышь с каждым компьютером на отдельном канале Easy-Switch, "
 "затем укажите оба канала выше."
 
-#: settings-qt/bridge/backend.py:3478
+#: settings-qt/bridge/backend.py:3548
 msgid "10 minutes"
 msgstr "10 минут"
 
-#: settings-qt/bridge/backend.py:3476
+#: settings-qt/bridge/backend.py:3546
 msgid "10 seconds"
 msgstr "10 секунд"
 
@@ -223,11 +223,11 @@ msgstr "10 секунд"
 msgid "1st Unread"
 msgstr "1-е непр."
 
-#: settings-qt/bridge/backend.py:3479
+#: settings-qt/bridge/backend.py:3549
 msgid "2 hours"
 msgstr "2 часа"
 
-#: settings-qt/bridge/backend.py:3477
+#: settings-qt/bridge/backend.py:3547
 msgid "2 minutes"
 msgstr "2 минуты"
 
@@ -242,11 +242,11 @@ msgstr ""
 "3. Установите и откройте JuhFlow на Mac. Приложение само найдёт этот "
 "компьютер."
 
-#: settings-qt/bridge/backend.py:3478
+#: settings-qt/bridge/backend.py:3548
 msgid "30 minutes"
 msgstr "30 минут"
 
-#: settings-qt/bridge/backend.py:3476
+#: settings-qt/bridge/backend.py:3546
 msgid "30 seconds"
 msgstr "30 секунд"
 
@@ -258,11 +258,11 @@ msgstr ""
 "4. Одобрите Mac в разделе «Компьютеры», когда он запросит доступ. До этого "
 "ничего не передаётся."
 
-#: settings-qt/bridge/backend.py:3477
+#: settings-qt/bridge/backend.py:3547
 msgid "5 minutes"
 msgstr "5 минут"
 
-#: settings-qt/bridge/backend.py:3476
+#: settings-qt/bridge/backend.py:3546
 msgid "5 seconds"
 msgstr "5 секунд"
 
@@ -341,7 +341,7 @@ msgstr "Макрос завершён"
 msgid "A macro is running. Esc stops it."
 msgstr "Выполняется макрос. Esc останавливает его."
 
-#: settings-qt/bridge/backend.py:4495
+#: settings-qt/bridge/backend.py:4565
 msgid "A number of times"
 msgstr "Заданное число раз"
 
@@ -349,7 +349,7 @@ msgstr "Заданное число раз"
 msgid "A phone-like ring"
 msgstr "Звонок как у телефона"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:101
+#: settings-qt/qml/components/KeypadKeyEditor.qml:188
 msgid ""
 "A picture fills the whole key, label included; an animated GIF plays on the "
 "key. Art keeps your label on the key; a glyph or app icon sits above it. "
@@ -359,7 +359,7 @@ msgstr ""
 "проигрывается на клавише. Графика оставляет метку на клавише; символ или "
 "значок приложения размещается над ней. Длинные метки сокращаются."
 
-#: settings-qt/qml/pages/SettingsPage.qml:608
+#: settings-qt/qml/pages/SettingsPage.qml:610
 msgid ""
 "A plugin is a folder with a plugin.json that adds actions: a command, a D-"
 "Bus call or a script. They show up in the slice picker without a restart."
@@ -380,7 +380,7 @@ msgstr "Мягкая подсветка края, ведущего к друго
 msgid "A tap, then a longer one"
 msgstr "Касание, затем более долгое"
 
-#: settings-qt/qml/pages/SettingsPage.qml:644 settings-qt/bridge/backend.py:769
+#: settings-qt/qml/pages/SettingsPage.qml:646 settings-qt/bridge/backend.py:769
 msgid "About"
 msgstr "О программе"
 
@@ -393,7 +393,7 @@ msgstr "Об этой мыши"
 msgid "Above"
 msgstr "Сверху"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:27
+#: settings-qt/qml/components/KeypadKeyEditor.qml:67
 #: settings-qt/qml/pages/ScrollPage.qml:466 settings-qt/bridge/backend.py:673
 msgid "Action"
 msgstr "Действие"
@@ -423,7 +423,7 @@ msgstr "Кольцо действий и рабочий стол"
 msgid "Actions ring"
 msgstr "Кольцо действий"
 
-#: settings-qt/qml/pages/KeypadPage.qml:296
+#: settings-qt/qml/pages/KeypadPage.qml:350
 msgid "Active"
 msgstr "Активна"
 
@@ -437,11 +437,11 @@ msgstr "Сейчас активно"
 msgid "Add"
 msgstr "Добавить"
 
-#: settings-qt/qml/pages/KeypadPage.qml:118
+#: settings-qt/qml/pages/KeypadPage.qml:121
 msgid "Add a page or choose a template to get started"
 msgstr "Добавьте страницу или выберите шаблон, чтобы начать"
 
-#: settings-qt/qml/pages/KeypadPage.qml:393
+#: settings-qt/qml/pages/KeypadPage.qml:456
 msgid "Add a ready page. Missing apps leave keys for you to assign."
 msgstr ""
 "Добавьте готовую страницу. Клавиши отсутствующих приложений вы назначите "
@@ -470,8 +470,8 @@ msgstr "Добавить по классу окна"
 msgid "Add link"
 msgstr "Добавить ссылку"
 
-#: settings-qt/qml/pages/KeypadPage.qml:228
-#: settings-qt/qml/pages/KeypadPage.qml:268
+#: settings-qt/qml/pages/KeypadPage.qml:270
+#: settings-qt/qml/pages/KeypadPage.qml:319
 msgid "Add page"
 msgstr "Добавить страницу"
 
@@ -479,19 +479,19 @@ msgstr "Добавить страницу"
 msgid "Add preset"
 msgstr "Добавить пресет"
 
-#: settings-qt/qml/pages/KeypadPage.qml:368
+#: settings-qt/qml/pages/KeypadPage.qml:431
 msgid "Add profile"
 msgstr "Добавить профиль"
 
-#: settings-qt/qml/pages/KeypadPage.qml:406
+#: settings-qt/qml/pages/KeypadPage.qml:469
 msgid "Add template"
 msgstr "Добавить шаблон"
 
-#: settings-qt/qml/pages/KeypadPage.qml:368
+#: settings-qt/qml/pages/KeypadPage.qml:431
 msgid "Added"
 msgstr "Добавлен"
 
-#: settings-qt/bridge/backend.py:3728
+#: settings-qt/bridge/backend.py:3798
 msgid "Added profile: {app}"
 msgstr "Добавлен профиль: {app}"
 
@@ -511,7 +511,7 @@ msgstr "Настроить маркеры"
 msgid "Advanced"
 msgstr "Дополнительно"
 
-#: settings-qt/qml/pages/SettingsPage.qml:255
+#: settings-qt/qml/pages/SettingsPage.qml:257
 msgid ""
 "After a quick tap the menu stays open; a click anywhere outside the ring "
 "closes it"
@@ -534,16 +534,16 @@ msgstr "Предупреждение"
 msgid "Align"
 msgstr "Выровнять"
 
-#: settings-qt/qml/pages/KeypadPage.qml:304 settings-qt/bridge/backend.py:2095
-#: settings-qt/bridge/backend.py:5225
+#: settings-qt/qml/pages/KeypadPage.qml:358 settings-qt/bridge/backend.py:2156
+#: settings-qt/bridge/backend.py:5295
 msgid "All apps"
 msgstr "Все приложения"
 
-#: settings-qt/qml/pages/SettingsPage.qml:731
+#: settings-qt/qml/pages/SettingsPage.qml:733
 msgid "All files (*)"
 msgstr "Все файлы (*)"
 
-#: settings-qt/bridge/backend.py:5107
+#: settings-qt/bridge/backend.py:5177
 msgid "Already matches your desktop"
 msgstr "Уже соответствует рабочему столу"
 
@@ -578,16 +578,16 @@ msgid "Answer"
 msgstr "Ответить"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:106
-#: settings-qt/qml/pages/SettingsPage.qml:653
+#: settings-qt/qml/pages/SettingsPage.qml:655
 msgid "App"
 msgstr "Приложение"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:91
+#: settings-qt/qml/components/KeypadKeyEditor.qml:131
 msgid "App icon"
 msgstr "Значок приложения"
 
 #: settings-qt/qml/Main.qml:61 settings-qt/qml/pages/AppsPage.qml:340
-#: settings-qt/qml/pages/KeypadPage.qml:347
+#: settings-qt/qml/pages/KeypadPage.qml:410
 #: settings-qt/qml/pages/ScrollPage.qml:192 settings-qt/bridge/backend.py:633
 #: settings-qt/bridge/backend.py:702 settings-qt/bridge/backend.py:703
 #: settings-qt/bridge/backend.py:704 settings-qt/bridge/backend.py:763
@@ -602,11 +602,11 @@ msgstr "Смена приложения"
 msgid "App: %1"
 msgstr "Приложение: %1"
 
-#: settings-qt/bridge/backend.py:5119
+#: settings-qt/bridge/backend.py:5189
 msgid "Applied desktop defaults to {count} actions"
 msgstr "Стандартные действия рабочего стола применены к {count} действиям"
 
-#: settings-qt/qml/pages/SettingsPage.qml:836
+#: settings-qt/qml/pages/SettingsPage.qml:838
 msgid "Apply"
 msgstr "Применить"
 
@@ -614,7 +614,7 @@ msgstr "Применить"
 msgid "Apply desktop defaults"
 msgstr "Применить стандартные действия рабочего стола"
 
-#: settings-qt/qml/pages/SettingsPage.qml:407
+#: settings-qt/qml/pages/SettingsPage.qml:409
 msgid "Apply desktop defaults…"
 msgstr "Применить стандартные действия рабочего стола…"
 
@@ -626,7 +626,7 @@ msgstr "Одобрить"
 msgid "Approved, not connected right now"
 msgstr "Одобрен, сейчас не подключён"
 
-#: settings-qt/bridge/backend.py:1786
+#: settings-qt/bridge/backend.py:1832
 msgid "Apps and daily essentials"
 msgstr "Приложения и всё нужное на каждый день"
 
@@ -638,7 +638,7 @@ msgstr "Приложения, открытые с запуска JuhRadial, мо
 msgid "Archive"
 msgstr "Архив"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:89
+#: settings-qt/qml/components/KeypadKeyEditor.qml:129
 msgid "Art"
 msgstr "Графика"
 
@@ -658,7 +658,7 @@ msgstr "Без изменений"
 msgid "As recorded"
 msgstr "Как записано"
 
-#: settings-qt/qml/pages/SettingsPage.qml:464
+#: settings-qt/qml/pages/SettingsPage.qml:466
 msgid "Asks GitHub once a day; nothing about you is sent."
 msgstr "Проверяет GitHub раз в день; данные о вас не отправляются."
 
@@ -680,13 +680,13 @@ msgid "Assess"
 msgstr "Оценить"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:187
-#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5742
+#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5812
 msgid "Automatic"
 msgstr "Автоматически"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:797
 #: settings-qt/qml/pages/ButtonsPage.qml:803
-#: settings-qt/qml/pages/SettingsPage.qml:92 settings-qt/bridge/backend.py:750
+#: settings-qt/qml/pages/SettingsPage.qml:94 settings-qt/bridge/backend.py:750
 msgid "Automatic size"
 msgstr "Автоматический размер"
 
@@ -702,7 +702,7 @@ msgstr "Автоматически: по размеру экрана"
 msgid "Automatic: the light sensor sets the brightness"
 msgstr "Автоматически: яркостью управляет датчик освещения"
 
-#: settings-qt/bridge/backend.py:4897 settings-qt/bridge/backend.py:5926
+#: settings-qt/bridge/backend.py:4967 settings-qt/bridge/backend.py:5996
 msgid "Autostart: {error}"
 msgstr "Автозапуск: {error}"
 
@@ -710,7 +710,7 @@ msgstr "Автозапуск: {error}"
 msgid "Awake"
 msgstr "Не спит"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:205
+#: settings-qt/qml/components/CustomActionEditor.qml:206
 #: settings-qt/qml/pages/ButtonsPage.qml:78
 #: settings-qt/qml/pages/ButtonsPage.qml:95
 #: settings-qt/qml/pages/ButtonsPage.qml:102 settings-qt/bridge/backend.py:133
@@ -722,7 +722,7 @@ msgstr "Назад"
 msgid "Back 10s"
 msgstr "Назад 10с"
 
-#: settings-qt/bridge/backend.py:3347 settings-qt/bridge/backend.py:4502
+#: settings-qt/bridge/backend.py:3417 settings-qt/bridge/backend.py:4572
 msgid "Back button"
 msgstr "Кнопка «Назад»"
 
@@ -730,7 +730,7 @@ msgstr "Кнопка «Назад»"
 msgid "Back to the default"
 msgstr "Вернуть стандартное значение"
 
-#: settings-qt/qml/pages/SettingsPage.qml:542
+#: settings-qt/qml/pages/SettingsPage.qml:544
 msgid "Background service"
 msgstr "Фоновая служба"
 
@@ -751,12 +751,12 @@ msgstr "Подсветка горит в течение"
 msgid "Backlight stays on while charging for"
 msgstr "При зарядке подсветка горит в течение"
 
-#: settings-qt/qml/pages/SettingsPage.qml:499 settings-qt/bridge/backend.py:766
+#: settings-qt/qml/pages/SettingsPage.qml:501 settings-qt/bridge/backend.py:766
 #: settings-qt/bridge/backend.py:767 settings-qt/assets/keypad/art/art.json
 msgid "Backup"
 msgstr "Резервная копия"
 
-#: settings-qt/bridge/backend.py:5003
+#: settings-qt/bridge/backend.py:5073
 msgid "Backup saved as {name}"
 msgstr "Резервная копия сохранена как {name}"
 
@@ -810,7 +810,7 @@ msgstr "Снизу"
 msgid "Beta"
 msgstr "Бета"
 
-#: settings-qt/qml/pages/SettingsPage.qml:130
+#: settings-qt/qml/pages/SettingsPage.qml:132
 msgid "Bigger or smaller slice icons, the ring stays the same"
 msgstr "Размер значков секторов меняется, размер кольца остаётся прежним"
 
@@ -847,9 +847,17 @@ msgstr "Привязать к кнопке…"
 msgid "Bind “%1” to a button"
 msgstr "Привязать «%1» к кнопке"
 
+#: settings-qt/qml/pages/KeypadPage.qml:288
+msgid "Blank while the screen is locked"
+msgstr "Гасить при блокировке экрана"
+
 #: settings-qt/assets/keypad/profiles.json
 msgid "Blender"
 msgstr "Blender"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:156
+msgid "Blue"
+msgstr "Синий"
 
 #: settings-qt/qml/pages/DashboardPage.qml:59
 #: settings-qt/qml/pages/DevicesPage.qml:24
@@ -877,7 +885,7 @@ msgstr "Мозг"
 msgid "Brightness"
 msgstr "Яркость"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:958 settings-qt/bridge/keypad.py:229
+#: settings-qt/qml/pages/ButtonsPage.qml:958 settings-qt/bridge/keypad.py:276
 #: settings-qt/assets/keypad/profiles.json
 msgid "Browser"
 msgstr "Браузер"
@@ -932,7 +940,7 @@ msgstr ""
 "Кнопки, сообщаемые мышью, без маркера выше. Назначьте действие для перехвата "
 "кнопки; «Отключено» оставляет её штатную функцию."
 
-#: settings-qt/qml/pages/SettingsPage.qml:856
+#: settings-qt/qml/pages/SettingsPage.qml:858
 msgid ""
 "Buttons, ring slices, pointer and scroll, haptics, gaming, Flow and these "
 "settings go back to their defaults. Your macros and app profiles stay. A "
@@ -942,7 +950,7 @@ msgstr ""
 "и эти настройки будут сброшены. Макросы и профили приложений сохранятся. "
 "Копия позволит отменить сброс."
 
-#: settings-qt/qml/pages/SettingsPage.qml:698
+#: settings-qt/qml/pages/SettingsPage.qml:700
 msgid ""
 "By JuhLabs, with code from @gcarmin, @frizikk and @iceteaSA, and fixes "
 "shaped by everyone who reported an issue."
@@ -958,22 +966,22 @@ msgstr "Калькул."
 msgid "Calm"
 msgstr "Спокойный"
 
-#: settings-qt/bridge/keypad.py:249 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:296 settings-qt/assets/keypad/profiles.json
 msgid "Camera"
 msgstr "Камера"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:253
+#: settings-qt/qml/components/CustomActionEditor.qml:254
 #: settings-qt/qml/components/MacroBindDialog.qml:157
 #: settings-qt/qml/pages/DevicesPage.qml:763
-#: settings-qt/qml/pages/DevicesPage.qml:816
+#: settings-qt/qml/pages/DevicesPage.qml:817
 #: settings-qt/qml/pages/EasySwitchPage.qml:159
-#: settings-qt/qml/pages/SettingsPage.qml:792
-#: settings-qt/qml/pages/SettingsPage.qml:834
-#: settings-qt/qml/pages/SettingsPage.qml:863
+#: settings-qt/qml/pages/SettingsPage.qml:794
+#: settings-qt/qml/pages/SettingsPage.qml:836
+#: settings-qt/qml/pages/SettingsPage.qml:865
 msgid "Cancel"
 msgstr "Отмена"
 
-#: settings-qt/qml/pages/SettingsPage.qml:764
+#: settings-qt/qml/pages/SettingsPage.qml:766
 msgid "Cannot import this file"
 msgstr "Не удалось импортировать этот файл"
 
@@ -993,7 +1001,7 @@ msgstr "Catppuccin Latte"
 msgid "Catppuccin Mocha"
 msgstr "Catppuccin Mocha"
 
-#: settings-qt/qml/pages/SettingsPage.qml:115 settings-qt/bridge/backend.py:752
+#: settings-qt/qml/pages/SettingsPage.qml:117 settings-qt/bridge/backend.py:752
 msgid "Center zone"
 msgstr "Центральная зона"
 
@@ -1010,7 +1018,7 @@ msgstr "Менять ползунки и параметры"
 msgid "Change what a button does (click a row below)"
 msgstr "Изменить действие кнопки (нажмите строку ниже)"
 
-#: settings-qt/qml/pages/SettingsPage.qml:680
+#: settings-qt/qml/pages/SettingsPage.qml:682
 msgid "Changelog"
 msgstr "Список изменений"
 
@@ -1058,19 +1066,19 @@ msgstr ""
 #: settings-qt/qml/pages/DevicesPage.qml:402
 #: settings-qt/qml/pages/DevicesPage.qml:585
 #: settings-qt/qml/pages/FlowPage.qml:252
-#: settings-qt/qml/pages/SettingsPage.qml:536
+#: settings-qt/qml/pages/SettingsPage.qml:538
 msgid "Check again"
 msgstr "Проверить снова"
 
-#: settings-qt/qml/pages/SettingsPage.qml:463 settings-qt/bridge/backend.py:758
+#: settings-qt/qml/pages/SettingsPage.qml:465 settings-qt/bridge/backend.py:758
 msgid "Check for updates"
 msgstr "Проверить обновления"
 
-#: settings-qt/qml/pages/SettingsPage.qml:476
+#: settings-qt/qml/pages/SettingsPage.qml:478
 msgid "Check now"
 msgstr "Проверить сейчас"
 
-#: settings-qt/bridge/backend.py:1680
+#: settings-qt/bridge/backend.py:1697
 msgid "Check the custom action before saving this key"
 msgstr "Проверьте своё действие перед сохранением клавиши"
 
@@ -1082,37 +1090,41 @@ msgstr "Проверить межсетевой экран"
 msgid "Checked each time the keyboard wakes up"
 msgstr "Проверяется при каждом пробуждении клавиатуры"
 
-#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:5593
+#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:5663
 msgid "Checking…"
 msgstr "Проверка…"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:131
+#: settings-qt/qml/components/KeypadKeyEditor.qml:218
 msgid "Choose a glyph"
 msgstr "Выберите символ"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:220
+#: settings-qt/qml/components/CustomActionEditor.qml:221
 msgid "Choose a macro"
 msgstr "Выберите макрос"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:145
+#: settings-qt/qml/components/CustomActionEditor.qml:202
+msgid "Choose a page"
+msgstr "Выберите страницу"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:232
 msgid "Choose a picture for this key"
 msgstr "Выберите изображение для этой клавиши"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:233
+#: settings-qt/qml/components/CustomActionEditor.qml:234
 msgid "Choose a plugin action"
 msgstr "Выберите действие плагина"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:43
+#: settings-qt/qml/components/KeypadKeyEditor.qml:83
 msgid "Choose a shortcut, app, command or macro"
 msgstr "Выберите сочетание клавиш, приложение, команду или макрос"
 
 #: settings-qt/qml/components/ActionPicker.qml:12
-#: settings-qt/qml/components/KeypadKeyEditor.qml:35
+#: settings-qt/qml/components/KeypadKeyEditor.qml:75
 #: settings-qt/qml/components/SliceEditor.qml:199
 msgid "Choose an action"
 msgstr "Выберите действие"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:24
+#: settings-qt/qml/components/KeypadKeyEditor.qml:50
 msgid "Choose an action, then make its plate easy to read"
 msgstr "Выберите действие, затем сделайте изображение клавиши разборчивым"
 
@@ -1129,7 +1141,7 @@ msgstr "Выберите графику клавиши"
 msgid "Choose…"
 msgstr "Выбрать…"
 
-#: settings-qt/qml/pages/SettingsPage.qml:164
+#: settings-qt/qml/pages/SettingsPage.qml:166
 #: settings-qt/qml/pages/ThemesPage.qml:373
 msgid "Classic"
 msgstr "Классический"
@@ -1181,7 +1193,7 @@ msgid ""
 msgstr ""
 "Нажмите маркер для переназначения кнопки или нажмите её на мыши, чтобы найти"
 
-#: settings-qt/qml/pages/SettingsPage.qml:254 settings-qt/bridge/backend.py:757
+#: settings-qt/qml/pages/SettingsPage.qml:256 settings-qt/bridge/backend.py:757
 msgid "Click outside to close"
 msgstr "Нажмите снаружи, чтобы закрыть"
 
@@ -1250,6 +1262,7 @@ msgstr ""
 "Codex, Чат и Работа в настольном приложении ChatGPT: панели, проверка, "
 "модели, голос и навигация."
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:147
 #: settings-qt/qml/components/SliceEditor.qml:168
 msgid "Colour"
 msgstr "Цвет"
@@ -1274,7 +1287,7 @@ msgstr ""
 "Палитра команд, терминал, редактирование и отладка для VS Code, VSCodium и "
 "Code - OSS."
 
-#: settings-qt/bridge/keypad.py:245 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:292 settings-qt/assets/keypad/profiles.json
 msgid "Commands"
 msgstr "Команды"
 
@@ -1325,14 +1338,14 @@ msgstr ""
 "Конфигурация повреждена; используются значения по умолчанию (копия: "
 "config.json.bad)"
 
-#: settings-qt/qml/pages/KeypadPage.qml:105
+#: settings-qt/qml/pages/KeypadPage.qml:108
 msgid "Connect your MX Keypad to use these keys."
 msgstr "Подключите MX Keypad, чтобы использовать эти клавиши."
 
 #: settings-qt/qml/pages/DashboardPage.qml:61
 #: settings-qt/qml/pages/DevicesPage.qml:28
 #: settings-qt/qml/pages/FlowPage.qml:83
-#: settings-qt/qml/pages/KeypadPage.qml:84
+#: settings-qt/qml/pages/KeypadPage.qml:87
 msgid "Connected"
 msgstr "Подключено"
 
@@ -1374,11 +1387,11 @@ msgstr "Контекст"
 msgid "Control panel"
 msgstr "Управление"
 
-#: settings-qt/bridge/backend.py:4662
+#: settings-qt/bridge/backend.py:4732
 msgid "Copied"
 msgstr "Скопировано"
 
-#: settings-qt/bridge/backend.py:3815
+#: settings-qt/bridge/backend.py:3885
 msgid "Copied to {app}"
 msgstr "Скопировано в {app}"
 
@@ -1399,7 +1412,7 @@ msgstr "Коп. путь"
 msgid "Copy diagnostics"
 msgstr "Копировать диагностику"
 
-#: settings-qt/qml/pages/SettingsPage.qml:566
+#: settings-qt/qml/pages/SettingsPage.qml:568
 msgid "Copy system info"
 msgstr "Копировать сведения о системе"
 
@@ -1420,51 +1433,51 @@ msgstr "Копировать ID устройства"
 msgid "Copy to another app"
 msgstr "Копировать в другое приложение"
 
-#: settings-qt/bridge/backend.py:4577
+#: settings-qt/bridge/backend.py:4647
 msgid "Could not back up the settings, nothing was reset: {error}"
 msgstr "Не удалось создать копию настроек, ничего не сброшено: {error}"
 
-#: settings-qt/bridge/backend.py:1730
+#: settings-qt/bridge/backend.py:1747
 msgid "Could not copy the picture: {error}"
 msgstr "Не удалось скопировать изображение: {error}"
 
-#: settings-qt/bridge/backend.py:1952 settings-qt/bridge/backend.py:1955
+#: settings-qt/bridge/backend.py:2012 settings-qt/bridge/backend.py:2015
 msgid "Could not import the pack: {error}"
 msgstr "Не удалось импортировать набор: {error}"
 
-#: settings-qt/bridge/backend.py:5480
+#: settings-qt/bridge/backend.py:5550
 msgid "Could not open the plugins folder: {error}"
 msgstr "Не удалось открыть папку плагинов: {error}"
 
-#: settings-qt/bridge/backend.py:5595
+#: settings-qt/bridge/backend.py:5665
 msgid "Could not reach GitHub. Trying again tomorrow."
 msgstr "Не удалось связаться с GitHub. Повторим завтра."
 
-#: settings-qt/bridge/backend.py:5875
+#: settings-qt/bridge/backend.py:5945
 msgid "Could not restart the service: {error}"
 msgstr "Не удалось перезапустить службу: {error}"
 
-#: settings-qt/bridge/backend.py:5556
+#: settings-qt/bridge/backend.py:5626
 msgid "Could not restart: {error}"
 msgstr "Не удалось перезапустить: {error}"
 
-#: settings-qt/bridge/backend.py:1782
+#: settings-qt/bridge/backend.py:1828
 msgid "Could not restore the keypad page"
 msgstr "Не удалось восстановить страницу клавишной панели"
 
-#: settings-qt/bridge/keypad.py:198
+#: settings-qt/bridge/keypad.py:238 settings-qt/bridge/keypad.py:245
 msgid "Could not save a keypad plate"
 msgstr "Не удалось сохранить изображение клавиши"
 
-#: settings-qt/bridge/backend.py:1631
+#: settings-qt/bridge/backend.py:1634
 msgid "Could not save keypad: {error}"
 msgstr "Не удалось сохранить настройки клавишной панели: {error}"
 
-#: settings-qt/bridge/backend.py:2173
+#: settings-qt/bridge/backend.py:2239
 msgid "Could not save the pack: {error}"
 msgstr "Не удалось сохранить набор: {error}"
 
-#: settings-qt/bridge/backend.py:5893
+#: settings-qt/bridge/backend.py:5963
 msgid "Could not start the radial menu: {error}"
 msgstr "Не удалось запустить радиальное меню: {error}"
 
@@ -1472,11 +1485,11 @@ msgstr "Не удалось запустить радиальное меню: {e
 msgid "Could not switch the keypad page"
 msgstr "Не удалось переключить страницу клавишной панели"
 
-#: settings-qt/bridge/backend.py:2534
+#: settings-qt/bridge/backend.py:2604
 msgid "Could not try the profile. Is the JuhRadial service running?"
 msgstr "Не удалось запустить пробу профиля. Служба JuhRadial запущена?"
 
-#: settings-qt/bridge/backend.py:5864
+#: settings-qt/bridge/backend.py:5934
 msgid "Could not write the log: {error}"
 msgstr "Не удалось записать журнал: {error}"
 
@@ -1512,7 +1525,7 @@ msgstr "Ctrl+Shift+V"
 msgid "Ctrl+V"
 msgstr "Ctrl+V"
 
-#: settings-qt/qml/pages/SettingsPage.qml:280
+#: settings-qt/qml/pages/SettingsPage.qml:282
 msgid "Currently %1"
 msgstr "Сейчас %1"
 
@@ -1581,15 +1594,15 @@ msgstr "DPI для %1"
 msgid "DPI presets"
 msgstr "Пресеты DPI"
 
-#: settings-qt/qml/pages/SettingsPage.qml:654
+#: settings-qt/qml/pages/SettingsPage.qml:656
 msgid "Daemon"
 msgstr "Демон"
 
-#: settings-qt/qml/Main.qml:220
+#: settings-qt/qml/Main.qml:222
 msgid "Daemon connected"
 msgstr "Демон подключён"
 
-#: settings-qt/qml/Main.qml:220
+#: settings-qt/qml/Main.qml:222
 msgid "Daemon offline"
 msgstr "Демон недоступен"
 
@@ -1601,7 +1614,7 @@ msgstr "Dark Ember (3D)"
 msgid "Dashboard"
 msgstr "Обзор"
 
-#: settings-qt/qml/pages/SettingsPage.qml:116
+#: settings-qt/qml/pages/SettingsPage.qml:118
 msgid "Dead zone in the middle where nothing is selected"
 msgstr "Мёртвая зона в центре, где ничего не выбирается"
 
@@ -1613,6 +1626,7 @@ msgstr "Заглушить"
 msgid "Debug"
 msgstr "Отладка"
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:155
 #: settings-qt/qml/pages/ScrollPage.qml:343
 msgid "Default"
 msgstr "По умолчанию"
@@ -1621,7 +1635,7 @@ msgstr "По умолчанию"
 msgid "Default patterns restored"
 msgstr "Стандартные шаблоны восстановлены"
 
-#: settings-qt/qml/pages/SettingsPage.qml:146
+#: settings-qt/qml/pages/SettingsPage.qml:148
 msgid "Default sizes"
 msgstr "Стандартные размеры"
 
@@ -1637,7 +1651,7 @@ msgstr "Определ."
 msgid "Delete"
 msgstr "Удалить"
 
-#: settings-qt/qml/pages/KeypadPage.qml:323
+#: settings-qt/qml/pages/KeypadPage.qml:386
 msgid "Delete page"
 msgstr "Удалить страницу"
 
@@ -1661,7 +1675,7 @@ msgstr "Рабочий стол слева"
 msgid "Desktop Right"
 msgstr "Рабочий стол справа"
 
-#: settings-qt/qml/pages/SettingsPage.qml:391 settings-qt/bridge/backend.py:761
+#: settings-qt/qml/pages/SettingsPage.qml:393 settings-qt/bridge/backend.py:761
 msgid "Desktop environment"
 msgstr "Среда рабочего стола"
 
@@ -1673,15 +1687,15 @@ msgstr "Рабочие столы"
 msgid "Dev Tools"
 msgstr "Разработка"
 
-#: settings-qt/bridge/keypad.py:244
+#: settings-qt/bridge/keypad.py:291
 msgid "Dev tools"
 msgstr "Разработчик"
 
-#: settings-qt/bridge/backend.py:1788
+#: settings-qt/bridge/backend.py:1834
 msgid "Developer"
 msgstr "Разработка"
 
-#: settings-qt/qml/pages/SettingsPage.qml:655
+#: settings-qt/qml/pages/SettingsPage.qml:657
 msgid "Device mode"
 msgstr "Режим устройства"
 
@@ -1702,7 +1716,7 @@ msgstr ""
 "Устройства, аккумулятор и клавиатура считываются через фоновую службу. "
 "Запустите её, и страница заполнится автоматически."
 
-#: settings-qt/bridge/backend.py:5830
+#: settings-qt/bridge/backend.py:5900
 msgid "Diagnostics copied. Paste them into your bug report."
 msgstr "Диагностика скопирована. Вставьте её в отчёт об ошибке."
 
@@ -1737,7 +1751,7 @@ msgstr "Не сохранять"
 msgid "Discord"
 msgstr "Discord"
 
-#: settings-qt/qml/pages/SettingsPage.qml:678
+#: settings-qt/qml/pages/SettingsPage.qml:680
 msgid "Documentation"
 msgstr "Документация"
 
@@ -1769,7 +1783,7 @@ msgstr ""
 "Точек на дюйм: выше значение, дальше движение указателя при том же движении "
 "руки"
 
-#: settings-qt/qml/pages/SettingsPage.qml:470
+#: settings-qt/qml/pages/SettingsPage.qml:472
 msgid "Download %1"
 msgstr "Скачать %1"
 
@@ -1827,6 +1841,11 @@ msgstr ""
 "Каждый компьютер задаёт имя своего слота при сопряжении. Отсюда берутся "
 "имена выше."
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:55
+msgid ""
+"Each press runs the state the key shows, then the key turns to the other one"
+msgstr "Каждое нажатие выполняет действие состояния, показанного на клавише, после чего клавиша переключается на другое состояние"
+
 #: settings-qt/qml/pages/GamingPage.qml:316
 msgid "Each press steps to the next DPI preset"
 msgstr "Каждое нажатие выбирает следующий пресет DPI"
@@ -1868,7 +1887,7 @@ msgstr "Реж. ред."
 msgid "Edit action %1"
 msgstr "Изменить действие %1"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:48
+#: settings-qt/qml/components/KeypadKeyEditor.qml:88
 msgid "Edit custom action"
 msgstr "Изменить своё действие"
 
@@ -1881,11 +1900,11 @@ msgstr "Редактирование"
 msgid "Editing for"
 msgstr "Редактирование для"
 
-#: settings-qt/bridge/keypad.py:243
+#: settings-qt/bridge/keypad.py:290
 msgid "Editor"
 msgstr "Редактор"
 
-#: settings-qt/bridge/backend.py:1788
+#: settings-qt/bridge/backend.py:1834
 msgid "Editor, terminal and editing shortcuts"
 msgstr "Редактор, терминал и сочетания клавиш для правки"
 
@@ -1958,7 +1977,7 @@ msgstr "События"
 msgid "Every slice"
 msgstr "Каждый сектор"
 
-#: settings-qt/bridge/backend.py:1786
+#: settings-qt/bridge/backend.py:1832
 msgid "Everyday"
 msgstr "Повседневное"
 
@@ -1974,20 +1993,20 @@ msgstr "Экспорт"
 msgid "Export As"
 msgstr "Эксп. как"
 
-#: settings-qt/qml/pages/SettingsPage.qml:721
+#: settings-qt/qml/pages/SettingsPage.qml:723
 msgid "Export JuhRadial MX settings"
 msgstr "Экспорт настроек JuhRadial MX"
 
-#: settings-qt/bridge/backend.py:4531 settings-qt/bridge/backend.py:5005
+#: settings-qt/bridge/backend.py:4601 settings-qt/bridge/backend.py:5075
 msgid "Export failed: {error}"
 msgstr "Ошибка экспорта: {error}"
 
-#: settings-qt/qml/pages/SettingsPage.qml:504 settings-qt/bridge/backend.py:766
+#: settings-qt/qml/pages/SettingsPage.qml:506 settings-qt/bridge/backend.py:766
 msgid "Export settings"
 msgstr "Экспорт настроек"
 
 #: settings-qt/qml/pages/MacrosPage.qml:104
-#: settings-qt/qml/pages/SettingsPage.qml:507
+#: settings-qt/qml/pages/SettingsPage.qml:509
 msgid "Export…"
 msgstr "Экспорт…"
 
@@ -1995,11 +2014,11 @@ msgstr "Экспорт…"
 msgid "Expressive"
 msgstr "Выразительный"
 
-#: settings-qt/qml/pages/SettingsPage.qml:591
+#: settings-qt/qml/pages/SettingsPage.qml:593
 msgid "Extra actions for the ring, from plugin folders"
 msgstr "Дополнительные действия кольца из папок плагинов"
 
-#: settings-qt/bridge/backend.py:3345 settings-qt/bridge/backend.py:4505
+#: settings-qt/bridge/backend.py:3415 settings-qt/bridge/backend.py:4575
 msgid "Extra side button"
 msgstr "Дополнительная боковая кнопка"
 
@@ -2015,7 +2034,7 @@ msgstr "Feral GameMode не установлен"
 msgid "File tree"
 msgstr "Проводник"
 
-#: settings-qt/bridge/keypad.py:232 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:279 settings-qt/assets/keypad/profiles.json
 msgid "Files"
 msgstr "Файлы"
 
@@ -2079,6 +2098,10 @@ msgstr "Сильное нажатие"
 #: settings-qt/qml/pages/DevicesPage.qml:671
 msgid "Firmware"
 msgstr "Прошивка"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:62
+msgid "First state"
+msgstr "Первое состояние"
 
 #: settings-qt/qml/Main.qml:50
 msgid "First time in %1. Give it its own profile?"
@@ -2145,6 +2168,12 @@ msgstr "Папка ниже"
 msgid "Folder Up"
 msgstr "Папка выше"
 
+#: settings-qt/qml/pages/KeypadPage.qml:369
+msgid ""
+"Folder: a page key opens it and either page button goes back. Click to make "
+"it a normal page"
+msgstr "Папка: открывается клавишей страницы, любая из кнопок страниц возвращает назад. Нажмите, чтобы сделать её обычной страницей"
+
 #: settings-qt/qml/pages/ButtonsPage.qml:472
 msgid "Follow all apps"
 msgstr "Как во всех приложениях"
@@ -2156,7 +2185,7 @@ msgstr "Как во всех приложениях"
 msgid "Follows Point & Scroll"
 msgstr "Как в разделе «Указатель и прокрутка»"
 
-#: settings-qt/qml/pages/KeypadPage.qml:304
+#: settings-qt/qml/pages/KeypadPage.qml:358
 msgid "For %1"
 msgstr "Для %1"
 
@@ -2170,7 +2199,7 @@ msgstr ""
 "Для игр, которые GameMode не видит, и приложений, которым нужны игровые "
 "пресеты"
 
-#: settings-qt/qml/pages/SettingsPage.qml:366
+#: settings-qt/qml/pages/SettingsPage.qml:368
 msgid "For this window and the radial menu"
 msgstr "Для этого окна и радиального меню"
 
@@ -2178,7 +2207,7 @@ msgstr "Для этого окна и радиального меню"
 msgid "For when detection picks the wrong mouse"
 msgstr "Если определена не та мышь"
 
-#: settings-qt/qml/pages/DevicesPage.qml:790
+#: settings-qt/qml/Main.qml:409 settings-qt/qml/pages/DevicesPage.qml:790
 #: settings-qt/qml/pages/DevicesPage.qml:793 settings-qt/bridge/backend.py:718
 msgid "Force generic mode"
 msgstr "Принудительно включить обычный режим"
@@ -2187,7 +2216,7 @@ msgstr "Принудительно включить обычный режим"
 msgid "Forget"
 msgstr "Забыть"
 
-#: settings-qt/bridge/backend.py:5735
+#: settings-qt/bridge/backend.py:5805
 msgid "Forgotten. It has to be approved again to use Flow"
 msgstr "Забыт. Для Flow нужно повторное одобрение"
 
@@ -2222,7 +2251,7 @@ msgstr ""
 msgid "Forward"
 msgstr "Вперёд"
 
-#: settings-qt/bridge/backend.py:3346 settings-qt/bridge/backend.py:4503
+#: settings-qt/bridge/backend.py:3416 settings-qt/bridge/backend.py:4573
 msgid "Forward button"
 msgstr "Кнопка «Вперёд»"
 
@@ -2252,7 +2281,7 @@ msgstr "Со стороны"
 msgid "Front"
 msgstr "Спереди"
 
-#: settings-qt/qml/pages/SettingsPage.qml:245
+#: settings-qt/qml/pages/SettingsPage.qml:247
 msgid "Frost what is behind the ring"
 msgstr "Размыть фон за кольцом"
 
@@ -2307,7 +2336,7 @@ msgstr "Игровой режим"
 msgid "Gaming mode is on and sets its own DPI until you turn it off."
 msgstr "Игровой режим включён и задаёт свой DPI, пока вы его не выключите."
 
-#: settings-qt/bridge/backend.py:4133
+#: settings-qt/bridge/backend.py:4203
 msgid "Gaming mode needs the JuhRadial service"
 msgstr "Для игрового режима нужна служба JuhRadial"
 
@@ -2326,6 +2355,18 @@ msgstr "Ворота"
 #: settings-qt/assets/keypad/profiles.json
 msgid "General"
 msgstr "Общее"
+
+#: settings-qt/qml/Main.qml:416
+msgid ""
+"Generic mode is on: the Logitech tabs are hidden. Pick the menu button on "
+"Devices."
+msgstr ""
+"Обычный режим включён: вкладки Logitech скрыты. Выберите кнопку меню на "
+"вкладке «Устройства»."
+
+#: settings-qt/qml/Main.qml:403
+msgid "Generic mouse"
+msgstr "Обычная мышь"
 
 #: settings-qt/qml/pages/DevicesPage.qml:216
 msgid "Generic mouse mode is on, so Logitech features are hidden."
@@ -2358,7 +2399,7 @@ msgstr "Начало работы"
 msgid "Git"
 msgstr "Git"
 
-#: settings-qt/qml/pages/SettingsPage.qml:679
+#: settings-qt/qml/pages/SettingsPage.qml:681
 msgid "GitHub"
 msgstr "GitHub"
 
@@ -2371,7 +2412,7 @@ msgid "Give a ring slice the submenu action to add links here."
 msgstr ""
 "Назначьте сектору кольца действие подменю, чтобы добавлять сюда ссылки."
 
-#: settings-qt/bridge/backend.py:3584
+#: settings-qt/bridge/backend.py:3654
 msgid "Give a slice a submenu first"
 msgstr "Сначала назначьте сектору подменю"
 
@@ -2387,7 +2428,7 @@ msgstr ""
 msgid "Give it a name"
 msgstr "Задайте имя"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:90
+#: settings-qt/qml/components/KeypadKeyEditor.qml:130
 msgid "Glyph"
 msgstr "Символ"
 
@@ -2431,11 +2472,20 @@ msgstr "Golden Classic (3D)"
 msgid "Google Meet"
 msgstr "Google Meet"
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:155
+#: settings-qt/qml/pages/KeypadPage.qml:239
+msgid "Graphite"
+msgstr "Графитовый"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:157
+msgid "Green"
+msgstr "Зелёный"
+
 #: settings-qt/assets/keypad/profiles.json
 msgid "Group"
 msgstr "Сгруппир."
 
-#: settings-qt/qml/pages/KeypadPage.qml:220
+#: settings-qt/qml/pages/KeypadPage.qml:262
 msgid ""
 "Grouped by the apps that bring them up. Page buttons cycle within the group "
 "in front."
@@ -2519,7 +2569,7 @@ msgstr "Скрыть"
 msgid "Hide Docks"
 msgstr "Скр.панели"
 
-#: settings-qt/qml/pages/SettingsPage.qml:237
+#: settings-qt/qml/Main.qml:372 settings-qt/qml/pages/SettingsPage.qml:239
 msgid "Hide the ring and show only the action icons"
 msgstr "Скрыть кольцо, оставив только значки действий"
 
@@ -2561,8 +2611,8 @@ msgid ""
 msgstr ""
 "Зафиксируйте режим колёсика на время игры; после неё вернётся обычный режим"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:210
-#: settings-qt/qml/components/CustomActionEditor.qml:212
+#: settings-qt/qml/components/CustomActionEditor.qml:211
+#: settings-qt/qml/components/CustomActionEditor.qml:213
 msgid "Hold while pressed"
 msgstr "Удерживать при нажатии"
 
@@ -2624,7 +2674,7 @@ msgid "How strong every pulse is. The mouse keeps it, also on other computers"
 msgstr ""
 "Сила каждого импульса. Мышь запоминает её, в том числе для других компьютеров"
 
-#: settings-qt/qml/pages/SettingsPage.qml:156
+#: settings-qt/qml/pages/SettingsPage.qml:158
 msgid "How the slice icons are drawn, in the ring and in this window"
 msgstr "Как выглядят значки секторов в кольце и этом окне"
 
@@ -2632,11 +2682,11 @@ msgstr "Как выглядят значки секторов в кольце и
 msgid "How this computer shows on this page. The mouse calls it %1"
 msgstr "Имя этого компьютера на странице. Мышь называет его %1"
 
-#: settings-qt/qml/pages/SettingsPage.qml:274
+#: settings-qt/qml/pages/SettingsPage.qml:276
 msgid "How this settings window looks"
 msgstr "Внешний вид этого окна настроек"
 
-#: settings-qt/qml/pages/SettingsPage.qml:600
+#: settings-qt/qml/pages/SettingsPage.qml:602
 msgid "How to write one"
 msgstr "Как написать плагин"
 
@@ -2665,11 +2715,11 @@ msgstr "Значок в радиальном меню"
 msgid "Icon in radial menu for %1"
 msgstr "Значок в радиальном меню для %1"
 
-#: settings-qt/qml/pages/SettingsPage.qml:129 settings-qt/bridge/backend.py:753
+#: settings-qt/qml/pages/SettingsPage.qml:131 settings-qt/bridge/backend.py:753
 msgid "Icon size"
 msgstr "Размер значков"
 
-#: settings-qt/qml/pages/SettingsPage.qml:155
+#: settings-qt/qml/pages/SettingsPage.qml:157
 #: settings-qt/qml/pages/ThemesPage.qml:360
 #: settings-qt/qml/pages/ThemesPage.qml:371 settings-qt/bridge/backend.py:745
 #: settings-qt/bridge/backend.py:754
@@ -2680,43 +2730,51 @@ msgstr "Стиль значков"
 msgid "Identify screens"
 msgstr "Определить экраны"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:63
+#: settings-qt/bridge/backend.py:2564
+msgid ""
+"Identify screens needs X11 windows, which the ring does not use on this "
+"desktop."
+msgstr ""
+"Для функции «Определить экраны» нужны окна X11, которые кольцо не использует "
+"на этом рабочем столе."
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:103
 msgid "Image"
 msgstr "Изображение"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:146
+#: settings-qt/qml/components/KeypadKeyEditor.qml:233
 msgid "Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp *.svg)"
 msgstr "Изображения (*.png *.jpg *.jpeg *.webp *.gif *.bmp *.svg)"
 
-#: settings-qt/qml/pages/SettingsPage.qml:795
+#: settings-qt/qml/pages/SettingsPage.qml:797
 msgid "Import"
 msgstr "Импорт"
 
-#: settings-qt/qml/pages/SettingsPage.qml:729
+#: settings-qt/qml/pages/SettingsPage.qml:731
 msgid "Import JuhRadial MX settings"
 msgstr "Импорт настроек JuhRadial MX"
 
-#: settings-qt/qml/pages/KeypadPage.qml:444
+#: settings-qt/qml/pages/KeypadPage.qml:507
 msgid "Import a keypad pack"
 msgstr "Импорт набора для клавишной панели"
 
-#: settings-qt/bridge/backend.py:5053
+#: settings-qt/bridge/backend.py:5123
 msgid "Import failed: {error}"
 msgstr "Ошибка импорта: {error}"
 
-#: settings-qt/qml/pages/KeypadPage.qml:395
+#: settings-qt/qml/pages/KeypadPage.qml:458
 msgid "Import pack"
 msgstr "Импорт набора"
 
-#: settings-qt/qml/pages/SettingsPage.qml:512 settings-qt/bridge/backend.py:767
+#: settings-qt/qml/pages/SettingsPage.qml:514 settings-qt/bridge/backend.py:767
 msgid "Import settings"
 msgstr "Импорт настроек"
 
-#: settings-qt/qml/pages/SettingsPage.qml:764
+#: settings-qt/qml/pages/SettingsPage.qml:766
 msgid "Import this backup?"
 msgstr "Импортировать эту резервную копию?"
 
-#: settings-qt/bridge/backend.py:4546
+#: settings-qt/bridge/backend.py:4616
 msgid "Imported macro"
 msgstr "Импортированный макрос"
 
@@ -2725,7 +2783,7 @@ msgid "Imports"
 msgstr "Импорты"
 
 #: settings-qt/qml/pages/MacrosPage.qml:330
-#: settings-qt/qml/pages/SettingsPage.qml:515
+#: settings-qt/qml/pages/SettingsPage.qml:517
 msgid "Import…"
 msgstr "Импорт…"
 
@@ -2752,7 +2810,7 @@ msgstr "Установите imwheel для изменения скорости 
 msgid "Install xinput to change pointer acceleration"
 msgstr "Установите xinput для изменения ускорения указателя"
 
-#: settings-qt/qml/pages/SettingsPage.qml:360
+#: settings-qt/qml/pages/SettingsPage.qml:362
 msgid "Interface language and desktop integration"
 msgstr "Язык интерфейса и интеграция с рабочим столом"
 
@@ -2808,7 +2866,7 @@ msgstr "Служба JuhRadial"
 msgid "Kdenlive"
 msgstr "Kdenlive"
 
-#: settings-qt/qml/pages/SettingsPage.qml:499
+#: settings-qt/qml/pages/SettingsPage.qml:501
 msgid "Keep a copy of your setup or move it to another machine"
 msgstr "Сохраните копию настроек или перенесите их на другой компьютер"
 
@@ -2816,7 +2874,7 @@ msgstr "Сохраните копию настроек или перенесит
 msgid "Keep editing"
 msgstr "Продолжить редактирование"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:58
+#: settings-qt/qml/components/KeypadKeyEditor.qml:98
 msgid "Keep it short"
 msgstr "Лучше коротко"
 
@@ -2828,29 +2886,33 @@ msgstr "Оставить макрос"
 msgid "Keep remap"
 msgstr "Оставить переназначение"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:23
 #: settings-qt/qml/components/KeypadKeyEditor.qml:49
-#: settings-qt/qml/components/KeypadKeyEditor.qml:120
+#: settings-qt/qml/components/KeypadKeyEditor.qml:89
+#: settings-qt/qml/components/KeypadKeyEditor.qml:207
 msgid "Key %1"
 msgstr "Клавиша %1"
 
-#: settings-qt/qml/pages/KeypadPage.qml:151
+#: settings-qt/qml/pages/KeypadPage.qml:162
 msgid "Key %1: %2"
 msgstr "Клавиша %1: %2"
 
-#: settings-qt/qml/pages/KeypadPage.qml:235
+#: settings-qt/qml/pages/KeypadPage.qml:277
 msgid "Key brightness"
 msgstr "Яркость клавиш"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:57
+#: settings-qt/qml/components/KeypadKeyEditor.qml:153
+msgid "Key colour"
+msgstr "Цвет клавиши"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:97
 msgid "Key label"
 msgstr "Метка клавиши"
 
-#: settings-qt/qml/pages/KeypadPage.qml:117 settings-qt/bridge/backend.py:640
+#: settings-qt/qml/pages/KeypadPage.qml:120 settings-qt/bridge/backend.py:640
 msgid "Key plates"
 msgstr "Изображения клавиш"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:108
+#: settings-qt/qml/components/KeypadKeyEditor.qml:195
 msgid "Key saved"
 msgstr "Клавиша сохранена"
 
@@ -2864,7 +2926,7 @@ msgstr "Клавиатура"
 msgid "Keyboard %1%"
 msgstr "Клавиатура %1%"
 
-#: settings-qt/bridge/backend.py:2757
+#: settings-qt/bridge/backend.py:2827
 msgid "Keyboard battery low"
 msgstr "Низкий заряд клавиатуры"
 
@@ -2872,11 +2934,15 @@ msgstr "Низкий заряд клавиатуры"
 msgid "Keyboard shortcuts"
 msgstr "Сочетания клавиш"
 
-#: settings-qt/qml/pages/KeypadPage.qml:445
+#: settings-qt/qml/pages/KeypadPage.qml:238
+msgid "Keypad colour"
+msgstr "Цвет клавишной панели"
+
+#: settings-qt/qml/pages/KeypadPage.qml:508
 msgid "Keypad pack (*.zip portable.json)"
 msgstr "Набор для клавишной панели (*.zip portable.json)"
 
-#: settings-qt/qml/pages/KeypadPage.qml:439
+#: settings-qt/qml/pages/KeypadPage.qml:502
 msgid "Keypad pack (*.zip)"
 msgstr "Набор для клавишной панели (*.zip)"
 
@@ -2884,13 +2950,13 @@ msgstr "Набор для клавишной панели (*.zip)"
 msgid "Keypad page"
 msgstr "Страница клавишной панели"
 
-#: settings-qt/bridge/backend.py:1645
+#: settings-qt/bridge/backend.py:1648
 msgid "Keypad saved; reconnect the device to refresh its keys"
 msgstr ""
 "Настройки клавишной панели сохранены; переподключите устройство, чтобы "
 "обновить клавиши"
 
-#: settings-qt/bridge/backend.py:1640
+#: settings-qt/bridge/backend.py:1643
 msgid "Keypad saved; the service could not reload it"
 msgstr ""
 "Настройки клавишной панели сохранены; служба не смогла их перезагрузить"
@@ -2911,16 +2977,16 @@ msgstr "Стук"
 msgid "Krita"
 msgstr "Krita"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:52
+#: settings-qt/qml/components/KeypadKeyEditor.qml:92
 #: settings-qt/qml/components/SliceEditor.qml:110
 msgid "Label"
 msgstr "Метка"
 
-#: settings-qt/qml/pages/SettingsPage.qml:365 settings-qt/bridge/backend.py:760
+#: settings-qt/qml/pages/SettingsPage.qml:367 settings-qt/bridge/backend.py:760
 msgid "Language"
 msgstr "Язык"
 
-#: settings-qt/qml/pages/SettingsPage.qml:360 settings-qt/bridge/backend.py:760
+#: settings-qt/qml/pages/SettingsPage.qml:362 settings-qt/bridge/backend.py:760
 #: settings-qt/bridge/backend.py:761 settings-qt/bridge/backend.py:762
 msgid "Language & desktop"
 msgstr "Язык и рабочий стол"
@@ -2930,7 +2996,7 @@ msgstr "Язык и рабочий стол"
 msgid "Last reading"
 msgstr "Последнее считывание"
 
-#: settings-qt/qml/pages/SettingsPage.qml:431
+#: settings-qt/qml/pages/SettingsPage.qml:433
 msgid "Launch behaviour, tray and updates"
 msgstr "Запуск, системный лоток и обновления"
 
@@ -2938,7 +3004,7 @@ msgstr "Запуск, системный лоток и обновления"
 msgid "Layers"
 msgstr "Слои"
 
-#: settings-qt/bridge/keypad.py:251 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:298 settings-qt/assets/keypad/profiles.json
 msgid "Leave"
 msgstr "Выйти"
 
@@ -2954,7 +3020,7 @@ msgstr "Левый клик"
 msgid "Left is a firm push, right a light touch"
 msgstr "Слева сильное нажатие, справа лёгкое касание"
 
-#: settings-qt/bridge/backend.py:3712
+#: settings-qt/bridge/backend.py:3782
 msgid "Letters, digits, dots, dashes and underscores only"
 msgstr "Только буквы, цифры, точки, дефисы и подчёркивания"
 
@@ -2971,7 +3037,7 @@ msgstr "Библиотека"
 msgid "LibreOffice"
 msgstr "LibreOffice"
 
-#: settings-qt/qml/pages/SettingsPage.qml:681
+#: settings-qt/qml/pages/SettingsPage.qml:683
 msgid "License"
 msgstr "Лицензия"
 
@@ -2987,7 +3053,7 @@ msgstr "Лёгкое касание"
 msgid "Like"
 msgstr "Нравится"
 
-#: settings-qt/qml/pages/SettingsPage.qml:163
+#: settings-qt/qml/pages/SettingsPage.qml:165
 #: settings-qt/qml/pages/ThemesPage.qml:373
 msgid "Line"
 msgstr "Линейный"
@@ -3041,7 +3107,7 @@ msgstr "Найти сбой"
 msgid "Location"
 msgstr "Адрес"
 
-#: settings-qt/bridge/keypad.py:234 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:281 settings-qt/assets/keypad/profiles.json
 msgid "Lock"
 msgstr "Блокировка"
 
@@ -3058,7 +3124,7 @@ msgstr "Фикс.тесты"
 msgid "Logi Bolt receiver %1"
 msgstr "Приёмник Logi Bolt %1"
 
-#: settings-qt/bridge/backend.py:5924
+#: settings-qt/bridge/backend.py:5994
 msgid "Login entry repaired"
 msgstr "Запись автозапуска исправлена"
 
@@ -3066,7 +3132,7 @@ msgstr "Запись автозапуска исправлена"
 msgid "Logitech MX Keys S over its receiver"
 msgstr "Logitech MX Keys S через приёмник"
 
-#: settings-qt/qml/pages/SettingsPage.qml:597
+#: settings-qt/qml/pages/SettingsPage.qml:599
 msgid "Look for new plugins"
 msgstr "Найти новые плагины"
 
@@ -3086,13 +3152,13 @@ msgstr "Низкий"
 msgid "Low battery"
 msgstr "Низкий заряд"
 
-#: settings-qt/qml/Main.qml:68 settings-qt/qml/pages/KeypadPage.qml:72
+#: settings-qt/qml/Main.qml:68 settings-qt/qml/pages/KeypadPage.qml:75
 #: settings-qt/bridge/backend.py:631 settings-qt/bridge/backend.py:640
 #: settings-qt/bridge/backend.py:641 settings-qt/bridge/backend.py:642
 msgid "MX Keypad"
 msgstr "MX Keypad"
 
-#: settings-qt/qml/pages/KeypadPage.qml:97
+#: settings-qt/qml/pages/KeypadPage.qml:100
 msgid "MX Keypad with nine display keys and two page buttons"
 msgstr "MX Keypad с девятью клавишами-дисплеями и двумя кнопками страниц"
 
@@ -3111,8 +3177,8 @@ msgid "Mac"
 msgstr "Mac"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:108
-#: settings-qt/qml/components/CustomActionEditor.qml:219
-#: settings-qt/bridge/backend.py:4487
+#: settings-qt/qml/components/CustomActionEditor.qml:220
+#: settings-qt/bridge/backend.py:4557
 msgid "Macro"
 msgstr "Макрос"
 
@@ -3120,7 +3186,7 @@ msgstr "Макрос"
 msgid "Macro deleted"
 msgstr "Макрос удалён"
 
-#: settings-qt/bridge/backend.py:4533
+#: settings-qt/bridge/backend.py:4603
 msgid "Macro exported"
 msgstr "Макрос экспортирован"
 
@@ -3152,7 +3218,7 @@ msgstr "Макрос «%1» никогда не запускается"
 msgid "Macro: %1"
 msgstr "Макрос: %1"
 
-#: settings-qt/bridge/backend.py:4514
+#: settings-qt/bridge/backend.py:4584
 msgid "Macro: {name}"
 msgstr "Макрос: {name}"
 
@@ -3161,7 +3227,7 @@ msgstr "Макрос: {name}"
 msgid "Macros"
 msgstr "Макросы"
 
-#: settings-qt/qml/pages/SettingsPage.qml:771
+#: settings-qt/qml/pages/SettingsPage.qml:773
 msgid "Made %1"
 msgstr "Создано %1"
 
@@ -3169,7 +3235,7 @@ msgstr "Создано %1"
 msgid "MagSpeed modes, direction and speed"
 msgstr "Режимы MagSpeed, направление и скорость"
 
-#: settings-qt/bridge/keypad.py:233
+#: settings-qt/bridge/keypad.py:280
 msgid "Mail"
 msgstr "Почта"
 
@@ -3184,6 +3250,10 @@ msgstr "Использовать настройки всех приложени�
 #: settings-qt/qml/pages/ButtonsPage.qml:892
 msgid "Make it a link again"
 msgstr "Снова сделать ссылкой"
+
+#: settings-qt/qml/pages/KeypadPage.qml:370
+msgid "Make this page a folder"
+msgstr "Сделать эту страницу папкой"
 
 #: settings-qt/qml/pages/DevicesPage.qml:458
 msgid "Manual"
@@ -3201,7 +3271,7 @@ msgstr "Прочитано"
 msgid "Match the desktop accent"
 msgstr "Использовать акцентный цвет рабочего стола"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:960 settings-qt/bridge/backend.py:1787
+#: settings-qt/qml/pages/ButtonsPage.qml:960 settings-qt/bridge/backend.py:1833
 #: settings-qt/bridge/backend.py:117 settings-qt/assets/keypad/profiles.json
 msgid "Media"
 msgstr "Мультимедиа"
@@ -3222,11 +3292,11 @@ msgstr "Средний"
 msgid "Meeting"
 msgstr "Встреча"
 
-#: settings-qt/bridge/backend.py:1789
+#: settings-qt/bridge/backend.py:1835
 msgid "Meetings"
 msgstr "Встречи"
 
-#: settings-qt/qml/pages/SettingsPage.qml:244 settings-qt/bridge/backend.py:755
+#: settings-qt/qml/pages/SettingsPage.qml:246 settings-qt/bridge/backend.py:755
 msgid "Menu background blur"
 msgstr "Размытие фона меню"
 
@@ -3242,7 +3312,7 @@ msgstr "Микрофон"
 msgid "Mic Mute"
 msgstr "Микр. выкл"
 
-#: settings-qt/bridge/keypad.py:225
+#: settings-qt/bridge/keypad.py:272
 msgid "Mic mute"
 msgstr "Откл. мик."
 
@@ -3262,7 +3332,7 @@ msgstr "Microsoft Teams"
 msgid "Middle Click"
 msgstr "Средний клик"
 
-#: settings-qt/bridge/backend.py:3348
+#: settings-qt/bridge/backend.py:3418
 msgid "Middle click"
 msgstr "Средний клик"
 
@@ -3295,12 +3365,12 @@ msgstr "Модель"
 msgid "Monitor switch"
 msgstr "Смена монитора"
 
-#: settings-qt/qml/pages/SettingsPage.qml:161
+#: settings-qt/qml/pages/SettingsPage.qml:163
 #: settings-qt/qml/pages/ThemesPage.qml:372
 msgid "Mono"
 msgstr "Моно"
 
-#: settings-qt/qml/pages/SettingsPage.qml:162
+#: settings-qt/qml/pages/SettingsPage.qml:164
 #: settings-qt/qml/pages/ThemesPage.qml:372
 msgid "Mono 2"
 msgstr "Моно 2"
@@ -3320,7 +3390,7 @@ msgstr "Мышь"
 msgid "Mouse and keyboard move together"
 msgstr "Мышь и клавиатура переходят вместе"
 
-#: settings-qt/bridge/backend.py:2748
+#: settings-qt/bridge/backend.py:2818
 msgid "Mouse battery low"
 msgstr "Низкий заряд мыши"
 
@@ -3344,11 +3414,11 @@ msgstr "Переходить между элементами и использо
 msgid "Move down"
 msgstr "Переместить вниз"
 
-#: settings-qt/qml/pages/KeypadPage.qml:319
+#: settings-qt/qml/pages/KeypadPage.qml:382
 msgid "Move page down"
 msgstr "Переместить страницу вниз"
 
-#: settings-qt/qml/pages/KeypadPage.qml:314
+#: settings-qt/qml/pages/KeypadPage.qml:377
 msgid "Move page up"
 msgstr "Переместить страницу вверх"
 
@@ -3370,7 +3440,7 @@ msgstr "Переместить вверх"
 msgid "Movement below this many pixels counts as a press"
 msgstr "Перемещение меньше этого числа пикселей считается нажатием"
 
-#: settings-qt/bridge/keypad.py:241
+#: settings-qt/bridge/keypad.py:288
 msgid "Music"
 msgstr "Музыка"
 
@@ -3428,7 +3498,7 @@ msgstr ""
 "Навигация, новая папка, переименование, разделение окна, терминал и "
 "копирование пути для KDE Dolphin."
 
-#: settings-qt/qml/pages/KeypadPage.qml:366
+#: settings-qt/qml/pages/KeypadPage.qml:429
 msgid "Needs %1"
 msgstr "Требуется: %1"
 
@@ -3468,7 +3538,7 @@ msgstr "Новая вкл."
 msgid "New Window"
 msgstr "Новое окно"
 
-#: settings-qt/qml/pages/KeypadPage.qml:224
+#: settings-qt/qml/pages/KeypadPage.qml:266
 msgid "New app profile"
 msgstr "Новый профиль приложения"
 
@@ -3481,17 +3551,17 @@ msgstr "Новый чат"
 msgid "New link"
 msgstr "Новая ссылка"
 
-#: settings-qt/bridge/backend.py:4325
+#: settings-qt/bridge/backend.py:4395
 msgid "New macro"
 msgstr "Новый макрос"
 
-#: settings-qt/qml/pages/KeypadPage.qml:229
-#: settings-qt/qml/pages/KeypadPage.qml:269 settings-qt/bridge/backend.py:1697
+#: settings-qt/qml/pages/KeypadPage.qml:271
+#: settings-qt/qml/pages/KeypadPage.qml:320 settings-qt/bridge/backend.py:1714
 msgid "New page"
 msgstr "Новая страница"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:205
-#: settings-qt/bridge/keypad.py:239 settings-qt/assets/keypad/profiles.json
+#: settings-qt/qml/components/CustomActionEditor.qml:206
+#: settings-qt/bridge/keypad.py:286 settings-qt/assets/keypad/profiles.json
 msgid "Next"
 msgstr "Следующий"
 
@@ -3519,7 +3589,7 @@ msgstr "След.ошиб."
 msgid "Next Tab"
 msgstr "След. вкл."
 
-#: settings-qt/qml/pages/KeypadPage.qml:197
+#: settings-qt/qml/pages/KeypadPage.qml:209
 msgid "Next keypad page"
 msgstr "Следующая страница клавишной панели"
 
@@ -3535,7 +3605,7 @@ msgstr "Следующий пресет"
 msgid "Next tab (Shift for previous)"
 msgstr "Следующая вкладка (Shift для предыдущей)"
 
-#: settings-qt/qml/pages/KeypadPage.qml:78
+#: settings-qt/qml/pages/KeypadPage.qml:81
 msgid "Nine keys, your everyday actions"
 msgstr "Девять клавиш для повседневных действий"
 
@@ -3568,7 +3638,7 @@ msgstr "Приложение не выбрано"
 msgid "No applications found"
 msgstr "Приложения не найдены"
 
-#: settings-qt/bridge/backend.py:4501
+#: settings-qt/bridge/backend.py:4571
 msgid "No button"
 msgstr "Без кнопки"
 
@@ -3576,7 +3646,7 @@ msgstr "Без кнопки"
 msgid "No button opens it yet"
 msgstr "Пока ни одна кнопка не открывает меню"
 
-#: settings-qt/qml/pages/SettingsPage.qml:341
+#: settings-qt/qml/pages/SettingsPage.qml:343
 msgid "No fades, slides or crossfades in this window."
 msgstr "Без затуханий, сдвигов и плавных переходов в этом окне."
 
@@ -3585,7 +3655,7 @@ msgid "No firewall service is running here, so Flow is not blocked by one."
 msgstr ""
 "Здесь не запущена служба межсетевого экрана, поэтому она не блокирует Flow."
 
-#: settings-qt/bridge/backend.py:4275
+#: settings-qt/bridge/backend.py:4345
 msgid "No keyboard to record from. Your user needs to read /dev/input "
 msgstr ""
 "Нет клавиатуры для записи. Вашему пользователю нужен доступ на чтение /dev/"
@@ -3610,7 +3680,11 @@ msgid "No mouse found. Changes are saved and sent when it connects."
 msgstr ""
 "Мышь не найдена. Изменения сохранены и будут отправлены при подключении."
 
-#: settings-qt/qml/pages/DashboardPage.qml:246
+#: settings-qt/qml/Main.qml:428 settings-qt/qml/pages/DashboardPage.qml:246
+#: settings-qt/qml/pages/DevicesPage.qml:278
+#: settings-qt/qml/pages/DevicesPage.qml:305
+#: settings-qt/qml/pages/DevicesPage.qml:548
+#: settings-qt/qml/pages/DevicesPage.qml:654
 msgid "No mouse yet"
 msgstr "Мыши пока нет"
 
@@ -3622,19 +3696,19 @@ msgstr ""
 "Другого компьютера пока нет. Откройте JuhFlow на Mac (см. «Настроить Mac» "
 "ниже); он найдёт этот компьютер и запросит подключение."
 
-#: settings-qt/qml/pages/KeypadPage.qml:88
+#: settings-qt/qml/pages/KeypadPage.qml:91
 msgid "No pages yet"
 msgstr "Страниц пока нет"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:233
+#: settings-qt/qml/components/CustomActionEditor.qml:234
 msgid "No plugins installed"
 msgstr "Плагины не установлены"
 
-#: settings-qt/qml/pages/SettingsPage.qml:607
+#: settings-qt/qml/pages/SettingsPage.qml:609
 msgid "No plugins yet"
 msgstr "Плагинов пока нет"
 
-#: settings-qt/bridge/backend.py:1904
+#: settings-qt/bridge/backend.py:1956
 msgid "No portable.json in this pack"
 msgstr "В этом наборе нет portable.json"
 
@@ -3646,7 +3720,7 @@ msgstr "Без импульсов в игровом режиме"
 msgid "No pulses while one of these apps is in front"
 msgstr "Без импульсов, пока одно из этих приложений на переднем плане"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:220
+#: settings-qt/qml/components/CustomActionEditor.qml:221
 msgid "No saved macros yet"
 msgstr "Сохранённых макросов пока нет"
 
@@ -3659,7 +3733,7 @@ msgid "No steps yet. Add keys, text, a pause, a click or scrolling below."
 msgstr ""
 "Шагов пока нет. Добавьте ниже клавиши, текст, паузу, клик или прокрутку."
 
-#: settings-qt/qml/pages/SettingsPage.qml:692
+#: settings-qt/qml/pages/SettingsPage.qml:694
 msgid ""
 "No telemetry. JuhRadial MX sends nothing about you; the only network request "
 "is the optional daily update check."
@@ -3687,12 +3761,12 @@ msgstr "Nord"
 msgid "Normal push"
 msgstr "Обычное нажатие"
 
-#: settings-qt/bridge/backend.py:5600
+#: settings-qt/bridge/backend.py:5670
 msgid "Not checked yet."
 msgstr "Ещё не проверено."
 
 #: settings-qt/qml/pages/FlowPage.qml:83
-#: settings-qt/qml/pages/KeypadPage.qml:84
+#: settings-qt/qml/pages/KeypadPage.qml:87
 msgid "Not connected"
 msgstr "Не подключено"
 
@@ -3705,7 +3779,7 @@ msgstr "Не найдено"
 msgid "Not found. Connect it with its Bolt or Unifying receiver"
 msgstr "Не найдено. Подключите через приёмник Bolt или Unifying"
 
-#: settings-qt/qml/pages/SettingsPage.qml:619
+#: settings-qt/qml/pages/SettingsPage.qml:621
 msgid "Not loaded"
 msgstr "Не загружено"
 
@@ -3713,11 +3787,11 @@ msgstr "Не загружено"
 msgid "Not reported yet"
 msgstr "Ещё не сообщено"
 
-#: settings-qt/qml/pages/SettingsPage.qml:544
+#: settings-qt/qml/pages/SettingsPage.qml:546
 msgid "Not running. Buttons, haptics and the ring do not work without it."
 msgstr "Не запущена. Без неё кнопки, тактильная отдача и кольцо не работают."
 
-#: settings-qt/qml/pages/SettingsPage.qml:554
+#: settings-qt/qml/pages/SettingsPage.qml:556
 msgid "Not running. The gesture button has nothing to open."
 msgstr "Не запущено. Кнопке жестов нечего открывать."
 
@@ -3736,7 +3810,7 @@ msgstr "Не задано: мышь не вернётся с курсором. �
 msgid "Not set: the mouse stays here when the cursor leaves"
 msgstr "Не задано: мышь останется здесь, когда курсор уйдёт"
 
-#: settings-qt/bridge/keypad.py:236
+#: settings-qt/bridge/keypad.py:283
 msgid "Notes"
 msgstr "Заметки"
 
@@ -3752,7 +3826,7 @@ msgstr "Ничего не сопряжено, или приёмник не от�
 msgid "Nothing shows up? A firewall may block Flow."
 msgstr "Ничего не появляется? Межсетевой экран может блокировать Flow."
 
-#: settings-qt/bridge/backend.py:4315
+#: settings-qt/bridge/backend.py:4385
 msgid "Nothing was recorded. Press some keys while it records."
 msgstr "Ничего не записано. Нажмите несколько клавиш во время записи."
 
@@ -3809,7 +3883,7 @@ msgstr "Офис"
 msgid "On"
 msgstr "Вкл."
 
-#: settings-qt/bridge/backend.py:4497
+#: settings-qt/bridge/backend.py:4567
 msgid "On / off"
 msgstr "Вкл. / выкл."
 
@@ -3830,7 +3904,7 @@ msgstr "Включается автоматически"
 msgid "On in this app"
 msgstr "Вкл. в этом приложении"
 
-#: settings-qt/qml/pages/SettingsPage.qml:82
+#: settings-qt/qml/pages/SettingsPage.qml:84
 msgid "On this screen: %1 px across"
 msgstr "На этом экране: %1 пикс. в ширину"
 
@@ -3846,7 +3920,7 @@ msgstr ""
 msgid "On: faster movements carry the pointer further"
 msgstr "Вкл.: быстрые движения перемещают указатель дальше"
 
-#: settings-qt/bridge/backend.py:4494
+#: settings-qt/bridge/backend.py:4564
 msgid "Once"
 msgstr "Один раз"
 
@@ -3870,7 +3944,7 @@ msgstr "Один импульс для первого пресета, два д�
 msgid "One soft, rounded click"
 msgstr "Один мягкий, округлый щелчок"
 
-#: settings-qt/qml/pages/SettingsPage.qml:505
+#: settings-qt/qml/pages/SettingsPage.qml:507
 msgid ""
 "One zip file with your configuration, profiles, macros, slice icons and "
 "themes. Flow pairing keys stay on this machine"
@@ -3886,11 +3960,11 @@ msgstr ""
 "Запросы в одно нажатие для ИИ-агентов программирования: план, сначала тесты, "
 "проверка и отладка. Вставляются в Claude Code, Codex и настольные приложения."
 
-#: settings-qt/qml/pages/SettingsPage.qml:246
+#: settings-qt/qml/pages/SettingsPage.qml:248
 msgid "Only KDE Plasma can frost the background behind the ring"
 msgstr "Только KDE Plasma может размывать фон за кольцом"
 
-#: settings-qt/qml/pages/KeypadPage.qml:378
+#: settings-qt/qml/pages/KeypadPage.qml:441
 msgid "Only apps on this computer"
 msgstr "Только приложения на этом компьютере"
 
@@ -3919,12 +3993,12 @@ msgid "Open an application instead"
 msgstr "Открывать приложение вместо ссылки"
 
 #: settings-qt/qml/pages/DashboardPage.qml:336
-#: settings-qt/qml/pages/SettingsPage.qml:565
+#: settings-qt/qml/pages/SettingsPage.qml:567
 msgid "Open log"
 msgstr "Открыть журнал"
 
-#: settings-qt/qml/pages/SettingsPage.qml:609
-#: settings-qt/qml/pages/SettingsPage.qml:628
+#: settings-qt/qml/pages/SettingsPage.qml:611
+#: settings-qt/qml/pages/SettingsPage.qml:630
 msgid "Open plugins folder"
 msgstr "Открыть папку плагинов"
 
@@ -3976,7 +4050,7 @@ msgstr "Другие элементы управления"
 msgid "Other key…"
 msgstr "Другая клавиша…"
 
-#: settings-qt/qml/pages/SettingsPage.qml:103
+#: settings-qt/qml/pages/SettingsPage.qml:105
 msgid "Outer radius. Icons, submenus and the centre label scale with it"
 msgstr ""
 "Внешний радиус. Значки, подменю и центральная метка масштабируются вместе с "
@@ -4011,7 +4085,7 @@ msgstr "Обзор"
 msgid "Own ring"
 msgstr "Своё кольцо"
 
-#: settings-qt/bridge/backend.py:1960
+#: settings-qt/bridge/backend.py:2020
 msgid ""
 "Pack imported: {n} pages. Keys without a Linux action keep their picture for "
 "you to assign."
@@ -4019,20 +4093,20 @@ msgstr ""
 "Набор импортирован, страниц: {n}. Клавиши без действия для Linux сохраняют "
 "изображение, чтобы вы назначили действие сами."
 
-#: settings-qt/bridge/backend.py:2175
+#: settings-qt/bridge/backend.py:2241
 msgid "Pack saved: {path}"
 msgstr "Набор сохранён: {path}"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:109
-#: settings-qt/bridge/backend.py:1944
+#: settings-qt/bridge/backend.py:1999
 msgid "Page"
 msgstr "Страница"
 
-#: settings-qt/qml/pages/KeypadPage.qml:291
+#: settings-qt/qml/pages/KeypadPage.qml:345
 msgid "Page %1 name"
 msgstr "Название страницы %1"
 
-#: settings-qt/qml/pages/KeypadPage.qml:88
+#: settings-qt/qml/pages/KeypadPage.qml:91
 msgid "Page %1 of %2"
 msgstr "Страница %1 из %2"
 
@@ -4044,15 +4118,15 @@ msgstr "Страница вниз"
 msgid "Page Up"
 msgstr "Страница вверх"
 
-#: settings-qt/qml/pages/KeypadPage.qml:326
+#: settings-qt/qml/pages/KeypadPage.qml:389
 msgid "Page deleted"
 msgstr "Страница удалена"
 
-#: settings-qt/qml/pages/KeypadPage.qml:219 settings-qt/bridge/backend.py:641
+#: settings-qt/qml/pages/KeypadPage.qml:261 settings-qt/bridge/backend.py:641
 msgid "Pages"
 msgstr "Страницы"
 
-#: settings-qt/qml/pages/KeypadPage.qml:348
+#: settings-qt/qml/pages/KeypadPage.qml:411
 msgid ""
 "Pages that come up by themselves while an app is in front. Your most used "
 "apps first."
@@ -4088,6 +4162,10 @@ msgid ""
 msgstr ""
 "Сопряжение и его отмена выполняются в Logi Options+ или Solaar: JuhRadial "
 "только считывает приёмники."
+
+#: settings-qt/qml/pages/KeypadPage.qml:239
+msgid "Pale grey"
+msgstr "Светло-серый"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Palette"
@@ -4188,7 +4266,7 @@ msgstr "Выберите это приложение в переключател
 msgid "Picker"
 msgstr "Пипетка"
 
-#: settings-qt/qml/pages/SettingsPage.qml:392
+#: settings-qt/qml/pages/SettingsPage.qml:394
 msgid ""
 "Picks the screenshot tool, file manager and note app for the default slices"
 msgstr ""
@@ -4199,11 +4277,11 @@ msgstr ""
 msgid "Picks the theme closest to your desktop's accent colour"
 msgstr "Выбирает тему, наиболее близкую к акцентному цвету рабочего стола"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:92
+#: settings-qt/qml/components/KeypadKeyEditor.qml:132
 msgid "Picture"
 msgstr "Изображение"
 
-#: settings-qt/bridge/backend.py:3493
+#: settings-qt/bridge/backend.py:3563
 msgid "Pin saved: {slot} = {x}, {y}"
 msgstr "Маркер сохранён: {slot} = {x}, {y}"
 
@@ -4221,7 +4299,7 @@ msgstr "План"
 msgid "Plan first"
 msgstr "Снач. план"
 
-#: settings-qt/bridge/keypad.py:238
+#: settings-qt/bridge/keypad.py:285
 msgid "Play"
 msgstr "Пуск"
 
@@ -4247,15 +4325,15 @@ msgstr ""
 msgid "Play/Pause"
 msgstr "Пуск/Пауза"
 
-#: settings-qt/bridge/backend.py:1787
+#: settings-qt/bridge/backend.py:1833
 msgid "Playback, volume and microphone"
 msgstr "Воспроизведение, громкость и микрофон"
 
-#: settings-qt/bridge/backend.py:4495
+#: settings-qt/bridge/backend.py:4565
 msgid "Plays the steps again and again, as often as you set."
 msgstr "Повторяет шаги заданное число раз."
 
-#: settings-qt/bridge/backend.py:4494
+#: settings-qt/bridge/backend.py:4564
 msgid "Plays the steps one time."
 msgstr "Выполняет шаги один раз."
 
@@ -4263,11 +4341,11 @@ msgstr "Выполняет шаги один раз."
 msgid "Plugin"
 msgstr "Плагин"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:232
+#: settings-qt/qml/components/CustomActionEditor.qml:233
 msgid "Plugin action"
 msgstr "Действие плагина"
 
-#: settings-qt/qml/pages/SettingsPage.qml:591 settings-qt/bridge/backend.py:768
+#: settings-qt/qml/pages/SettingsPage.qml:593 settings-qt/bridge/backend.py:768
 msgid "Plugins"
 msgstr "Плагины"
 
@@ -4312,7 +4390,7 @@ msgstr "Точный DPI при удержании"
 msgid "Preset %1"
 msgstr "Пресет %1"
 
-#: settings-qt/bridge/backend.py:4191
+#: settings-qt/bridge/backend.py:4261
 msgid "Preset %d"
 msgstr "Пресет %d"
 
@@ -4330,7 +4408,7 @@ msgstr "Нажать Enter после вставки"
 msgid "Press force"
 msgstr "Сила нажатия"
 
-#: settings-qt/qml/pages/DevicesPage.qml:841
+#: settings-qt/qml/pages/DevicesPage.qml:842
 msgid "Press it here"
 msgstr "Нажмите её здесь"
 
@@ -4350,7 +4428,7 @@ msgstr ""
 msgid "Press the keys now, Esc to stop"
 msgstr "Нажимайте клавиши, Esc для остановки"
 
-#: settings-qt/qml/pages/DevicesPage.qml:838
+#: settings-qt/qml/pages/DevicesPage.qml:839
 msgid "Press the mouse button here"
 msgstr "Нажмите кнопку мыши здесь"
 
@@ -4394,7 +4472,7 @@ msgstr "Просмотр"
 msgid "Preview of the radial menu"
 msgstr "Предпросмотр радиального меню"
 
-#: settings-qt/bridge/keypad.py:238 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:285 settings-qt/assets/keypad/profiles.json
 msgid "Previous"
 msgstr "Предыдущий"
 
@@ -4402,11 +4480,11 @@ msgstr "Предыдущий"
 msgid "Previous Tab"
 msgstr "Предыдущая вкладка"
 
-#: settings-qt/qml/pages/KeypadPage.qml:192
+#: settings-qt/qml/pages/KeypadPage.qml:209
 msgid "Previous keypad page"
 msgstr "Предыдущая страница клавишной панели"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:202
+#: settings-qt/qml/components/CustomActionEditor.qml:203
 msgid "Previous page"
 msgstr "Предыдущая страница"
 
@@ -4418,7 +4496,7 @@ msgstr "Печать"
 msgid "Problems"
 msgstr "Проблемы"
 
-#: settings-qt/bridge/backend.py:2051
+#: settings-qt/bridge/backend.py:2112
 msgid "Profile added: {name}"
 msgstr "Профиль добавлен: {name}"
 
@@ -4431,7 +4509,7 @@ msgstr "Профиль для %1 удалён"
 msgid "Profile: %1"
 msgstr "Профиль: %1"
 
-#: settings-qt/bridge/backend.py:3613
+#: settings-qt/bridge/backend.py:3683
 msgid "Profiles save failed: {error}"
 msgstr "Ошибка сохранения профилей: {error}"
 
@@ -4455,6 +4533,10 @@ msgstr "Импульс при смене пресета"
 #: settings-qt/qml/pages/HapticsPage.qml:121
 msgid "Pulses from the motor in your MX Master 4"
 msgstr "Импульсы мотора в MX Master 4"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:158
+msgid "Purple"
+msgstr "Фиолетовый"
 
 #: settings-qt/qml/pages/FlowPage.qml:228
 msgid ""
@@ -4512,8 +4594,8 @@ msgstr "Без отдачи, пока приложение на переднем
 
 #: settings-qt/qml/pages/AppsPage.qml:242
 #: settings-qt/qml/pages/HapticsPage.qml:203
-#: settings-qt/qml/pages/SettingsPage.qml:57
-#: settings-qt/qml/pages/SettingsPage.qml:552 settings-qt/bridge/backend.py:750
+#: settings-qt/qml/pages/SettingsPage.qml:59
+#: settings-qt/qml/pages/SettingsPage.qml:554 settings-qt/bridge/backend.py:750
 #: settings-qt/bridge/backend.py:751 settings-qt/bridge/backend.py:752
 #: settings-qt/bridge/backend.py:753 settings-qt/bridge/backend.py:754
 #: settings-qt/bridge/backend.py:755 settings-qt/bridge/backend.py:756
@@ -4521,8 +4603,8 @@ msgstr "Без отдачи, пока приложение на переднем
 msgid "Radial menu"
 msgstr "Радиальное меню"
 
-#: settings-qt/qml/pages/DevicesPage.qml:826
-#: settings-qt/qml/pages/DevicesPage.qml:860 settings-qt/bridge/backend.py:719
+#: settings-qt/qml/pages/DevicesPage.qml:827
+#: settings-qt/qml/pages/DevicesPage.qml:861 settings-qt/bridge/backend.py:719
 msgid "Radial menu button"
 msgstr "Кнопка радиального меню"
 
@@ -4627,15 +4709,19 @@ msgstr ""
 "Записывает нажатия клавиш и кнопок мыши. Движение указателя не записывается; "
 "прокрутку и паузы добавьте в редакторе."
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:157
+msgid "Red"
+msgstr "Красный"
+
 #: settings-qt/bridge/backend.py:144 settings-qt/assets/keypad/profiles.json
 msgid "Redo"
 msgstr "Повторить"
 
-#: settings-qt/qml/pages/SettingsPage.qml:338 settings-qt/bridge/backend.py:749
+#: settings-qt/qml/pages/SettingsPage.qml:340 settings-qt/bridge/backend.py:749
 msgid "Reduce motion"
 msgstr "Уменьшить анимацию"
 
-#: settings-qt/qml/pages/SettingsPage.qml:330 settings-qt/bridge/backend.py:748
+#: settings-qt/qml/pages/SettingsPage.qml:332 settings-qt/bridge/backend.py:748
 msgid "Reduce transparency"
 msgstr "Уменьшить прозрачность"
 
@@ -4653,7 +4739,7 @@ msgstr "Обновить"
 msgid "Remove %1"
 msgstr "Удалить %1"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:95
+#: settings-qt/qml/components/KeypadKeyEditor.qml:135
 msgid "Remove picture"
 msgstr "Удалить изображение"
 
@@ -4690,7 +4776,7 @@ msgstr "Открыть закрытую вкладку"
 msgid "Reopen Tab"
 msgstr "Восст.вкл."
 
-#: settings-qt/qml/pages/SettingsPage.qml:444
+#: settings-qt/qml/pages/SettingsPage.qml:446
 msgid "Repair"
 msgstr "Исправить"
 
@@ -4699,11 +4785,11 @@ msgstr "Исправить"
 msgid "Repeat"
 msgstr "Повтор"
 
-#: settings-qt/bridge/backend.py:4496
+#: settings-qt/bridge/backend.py:4566
 msgid "Repeats while you hold the bound button."
 msgstr "Повторяется, пока вы удерживаете привязанную кнопку."
 
-#: settings-qt/qml/pages/SettingsPage.qml:779
+#: settings-qt/qml/pages/SettingsPage.qml:781
 msgid "Replaces: %1"
 msgstr "Заменяет: %1"
 
@@ -4711,7 +4797,7 @@ msgstr "Заменяет: %1"
 msgid "Replay"
 msgstr "Повтор"
 
-#: settings-qt/qml/pages/SettingsPage.qml:567
+#: settings-qt/qml/pages/SettingsPage.qml:569
 msgid "Report a bug"
 msgstr "Сообщить об ошибке"
 
@@ -4748,7 +4834,7 @@ msgstr "Сбросить оформление"
 msgid "Reset the remap"
 msgstr "Сбросить переназначение"
 
-#: settings-qt/qml/pages/SettingsPage.qml:705
+#: settings-qt/qml/pages/SettingsPage.qml:707
 msgid ""
 "Resets every setting on these tabs. Macros and app profiles are kept, and "
 "Undo brings your settings back."
@@ -4756,37 +4842,37 @@ msgstr ""
 "Сбрасывает все настройки на этих вкладках. Макросы и профили приложений "
 "сохраняются, а «Отменить» возвращает ваши настройки."
 
-#: settings-qt/qml/pages/SettingsPage.qml:546
-#: settings-qt/qml/pages/SettingsPage.qml:556
+#: settings-qt/qml/pages/SettingsPage.qml:548
+#: settings-qt/qml/pages/SettingsPage.qml:558
 msgid "Restart"
 msgstr "Перезапустить"
 
-#: settings-qt/qml/pages/SettingsPage.qml:385
+#: settings-qt/qml/pages/SettingsPage.qml:387
 msgid "Restart now"
 msgstr "Перезапустить сейчас"
 
-#: settings-qt/bridge/backend.py:5873
+#: settings-qt/bridge/backend.py:5943
 msgid "Restarting the background service…"
 msgstr "Перезапуск фоновой службы…"
 
-#: settings-qt/bridge/backend.py:5891
+#: settings-qt/bridge/backend.py:5961
 msgid "Restarting the radial menu…"
 msgstr "Перезапуск радиального меню…"
 
-#: settings-qt/qml/pages/SettingsPage.qml:865
+#: settings-qt/qml/pages/SettingsPage.qml:867
 msgid "Restore"
 msgstr "Восстановить"
 
 #: settings-qt/qml/pages/HapticsPage.qml:193
-#: settings-qt/qml/pages/SettingsPage.qml:704 settings-qt/bridge/backend.py:769
+#: settings-qt/qml/pages/SettingsPage.qml:706 settings-qt/bridge/backend.py:769
 msgid "Restore defaults"
 msgstr "Восстановить по умолчанию"
 
-#: settings-qt/qml/pages/SettingsPage.qml:850
+#: settings-qt/qml/pages/SettingsPage.qml:852
 msgid "Restore defaults?"
 msgstr "Восстановить настройки по умолчанию?"
 
-#: settings-qt/qml/pages/SettingsPage.qml:707
+#: settings-qt/qml/pages/SettingsPage.qml:709
 msgid "Restore defaults…"
 msgstr "Восстановить по умолчанию…"
 
@@ -4845,7 +4931,7 @@ msgid "Ring shown"
 msgstr "Кольцо показано"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:789
-#: settings-qt/qml/pages/SettingsPage.qml:102
+#: settings-qt/qml/pages/SettingsPage.qml:104
 #: settings-qt/qml/pages/ThemesPage.qml:366 settings-qt/bridge/backend.py:658
 #: settings-qt/bridge/backend.py:751
 msgid "Ring size"
@@ -4855,7 +4941,7 @@ msgstr "Размер кольца"
 msgid "Ring size, icon size and the centre zone are in Settings"
 msgstr "Размер кольца, значков и центральная зона находятся в настройках"
 
-#: settings-qt/qml/pages/SettingsPage.qml:94
+#: settings-qt/qml/pages/SettingsPage.qml:96
 msgid ""
 "Ring, centre zone and icons fit each monitor. Turn off to set them yourself."
 msgstr ""
@@ -4900,15 +4986,15 @@ msgstr "Запуск"
 msgid "Run (Ctrl+R)"
 msgstr "Запустить (Ctrl+R)"
 
-#: settings-qt/qml/pages/SettingsPage.qml:437
+#: settings-qt/qml/pages/SettingsPage.qml:439
 msgid "Run JuhRadial MX automatically when you log in"
 msgstr "Запускать JuhRadial MX автоматически при входе"
 
-#: settings-qt/qml/pages/SettingsPage.qml:553
+#: settings-qt/qml/pages/SettingsPage.qml:555
 msgid "Running"
 msgstr "Запущено"
 
-#: settings-qt/qml/pages/SettingsPage.qml:543
+#: settings-qt/qml/pages/SettingsPage.qml:545
 msgid "Running, version %1"
 msgstr "Запущено, версия %1"
 
@@ -4924,7 +5010,7 @@ msgstr "Запускает макрос"
 msgid "Runs a plugin action"
 msgstr "Выполняет действие плагина"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:246
+#: settings-qt/qml/components/CustomActionEditor.qml:247
 msgid "Runs through the shell, like a terminal would."
 msgstr "Выполняется через оболочку, как в терминале."
 
@@ -4940,26 +5026,26 @@ msgstr "Как во всех приложениях"
 msgid "Sampler"
 msgstr "Пипетка"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:254
+#: settings-qt/qml/components/CustomActionEditor.qml:255
 #: settings-qt/qml/components/MacroEditor.qml:434
 #: settings-qt/qml/pages/MacrosPage.qml:304
 #: settings-qt/assets/keypad/profiles.json
 msgid "Save"
 msgstr "Сохранить"
 
-#: settings-qt/bridge/backend.py:2238
+#: settings-qt/bridge/backend.py:2304
 msgid "Save failed: {error}"
 msgstr "Ошибка сохранения: {error}"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:105
+#: settings-qt/qml/components/KeypadKeyEditor.qml:192
 msgid "Save key"
 msgstr "Сохранить клавишу"
 
-#: settings-qt/qml/pages/KeypadPage.qml:435
+#: settings-qt/qml/pages/KeypadPage.qml:498
 msgid "Save pages as a keypad pack"
 msgstr "Сохранить страницы как набор для клавишной панели"
 
-#: settings-qt/qml/pages/KeypadPage.qml:272
+#: settings-qt/qml/pages/KeypadPage.qml:323
 msgid "Save these pages as a pack to share"
 msgstr "Сохраните эти страницы как набор, чтобы поделиться"
 
@@ -4968,11 +5054,11 @@ msgstr "Сохраните эти страницы как набор, чтобы
 msgid "Saved"
 msgstr "Сохранено"
 
-#: settings-qt/bridge/backend.py:2851 settings-qt/bridge/backend.py:2887
+#: settings-qt/bridge/backend.py:2921 settings-qt/bridge/backend.py:2957
 msgid "Saved. JuhRadial applies it when its service starts."
 msgstr "Сохранено. JuhRadial применит это при запуске службы."
 
-#: settings-qt/bridge/backend.py:2853 settings-qt/bridge/backend.py:2889
+#: settings-qt/bridge/backend.py:2923 settings-qt/bridge/backend.py:2959
 msgid "Saved. The mouse gets it when it wakes up or comes back."
 msgstr "Сохранено. Мышь получит настройку после пробуждения или возврата."
 
@@ -5094,12 +5180,16 @@ msgstr "Поиск графики…"
 msgid "Second opinion"
 msgstr "Второе мнение"
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:62
+msgid "Second state"
+msgstr "Второе состояние"
+
 #: settings-qt/assets/keypad/profiles.json
 #: settings-qt/assets/keypad/art/art.json
 msgid "Security"
 msgstr "Уязвимости"
 
-#: settings-qt/qml/pages/SettingsPage.qml:513
+#: settings-qt/qml/pages/SettingsPage.qml:515
 msgid ""
 "See what a backup holds before it replaces anything. The current files are "
 "kept, and Undo puts them back"
@@ -5165,15 +5255,15 @@ msgstr ""
 "датчику освещения"
 
 #: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:112
-#: settings-qt/bridge/keypad.py:235 settings-qt/bridge/backend.py:635
+#: settings-qt/bridge/keypad.py:282 settings-qt/bridge/backend.py:635
 msgid "Settings"
 msgstr "Настройки"
 
-#: settings-qt/qml/pages/SettingsPage.qml:799
+#: settings-qt/qml/pages/SettingsPage.qml:801
 msgid "Settings imported"
 msgstr "Настройки импортированы"
 
-#: settings-qt/bridge/backend.py:5063
+#: settings-qt/bridge/backend.py:5133
 msgid "Settings imported. The previous files are kept as .bak"
 msgstr "Настройки импортированы. Предыдущие файлы сохранены как .bak"
 
@@ -5181,7 +5271,7 @@ msgstr "Настройки импортированы. Предыдущие фа
 msgid "Settings only for this mouse"
 msgstr "Настройки только для этой мыши"
 
-#: settings-qt/qml/pages/SettingsPage.qml:870
+#: settings-qt/qml/pages/SettingsPage.qml:872
 msgid "Settings restored to defaults"
 msgstr "Настройки сброшены по умолчанию"
 
@@ -5197,7 +5287,7 @@ msgstr "Изменённые настройки сохраняются и при
 msgid "Shading"
 msgstr "Затенение"
 
-#: settings-qt/bridge/keypad.py:250 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:297 settings-qt/assets/keypad/profiles.json
 msgid "Share"
 msgstr "Поделиться"
 
@@ -5233,7 +5323,7 @@ msgid "Shotcut"
 msgstr "Shotcut"
 
 #: settings-qt/qml/pages/HapticsPage.qml:274
-#: settings-qt/qml/pages/KeypadPage.qml:296
+#: settings-qt/qml/pages/KeypadPage.qml:350
 msgid "Show"
 msgstr "Показать"
 
@@ -5245,7 +5335,7 @@ msgstr "Раб. стол"
 msgid "Show Desktop"
 msgstr "Показать рабочий стол"
 
-#: settings-qt/qml/pages/KeypadPage.qml:378
+#: settings-qt/qml/pages/KeypadPage.qml:441
 msgid "Show all profiles"
 msgstr "Показать все профили"
 
@@ -5253,8 +5343,12 @@ msgstr "Показать все профили"
 msgid "Show as a list"
 msgstr "Показать списком"
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:183
+msgid "Show label"
+msgstr "Показать метку"
+
 #: settings-qt/qml/pages/ButtonsPage.qml:583
-#: settings-qt/qml/pages/SettingsPage.qml:60
+#: settings-qt/qml/pages/SettingsPage.qml:62
 #: settings-qt/qml/pages/ThemesPage.qml:243
 msgid "Show on screen"
 msgstr "Показать на экране"
@@ -5272,15 +5366,15 @@ msgstr "Показать мышь"
 msgid "Show the radial menu"
 msgstr "Показать радиальное меню"
 
-#: settings-qt/qml/pages/KeypadPage.qml:309
+#: settings-qt/qml/pages/KeypadPage.qml:363
 msgid "Show this page for all apps"
 msgstr "Показывать эту страницу для всех приложений"
 
-#: settings-qt/qml/pages/SettingsPage.qml:455 settings-qt/bridge/backend.py:765
+#: settings-qt/qml/pages/SettingsPage.qml:457 settings-qt/bridge/backend.py:765
 msgid "Show tray icon"
 msgstr "Показать значок в лотке"
 
-#: settings-qt/bridge/backend.py:2095
+#: settings-qt/bridge/backend.py:2156
 msgid "Shown while no app below is in front"
 msgstr "Показывается, когда ни одно приложение ниже не активно"
 
@@ -5288,7 +5382,7 @@ msgstr "Показывается, когда ни одно приложение 
 msgid "Shuffle"
 msgstr "Перемешать"
 
-#: settings-qt/bridge/backend.py:3344
+#: settings-qt/bridge/backend.py:3414
 msgid "Side button"
 msgstr "Боковая кнопка"
 
@@ -5300,11 +5394,16 @@ msgstr "Бок. чат"
 msgid "Sidebar"
 msgstr "Бок.панель"
 
-#: settings-qt/qml/pages/SettingsPage.qml:236 settings-qt/bridge/backend.py:756
+#: settings-qt/qml/Main.qml:379
+msgid "Simplified"
+msgstr "Упрощённое"
+
+#: settings-qt/qml/Main.qml:385 settings-qt/qml/pages/SettingsPage.qml:238
+#: settings-qt/bridge/backend.py:756
 msgid "Simplified wheel"
 msgstr "Упрощённое колесо"
 
-#: settings-qt/qml/pages/SettingsPage.qml:57
+#: settings-qt/qml/pages/SettingsPage.qml:59
 msgid "Size, icons and behaviour of the on-screen ring"
 msgstr "Размер, значки и поведение экранного кольца"
 
@@ -5352,7 +5451,7 @@ msgstr "Смена сектора"
 msgid "Slice tick rate"
 msgstr "Интервал импульсов секторов"
 
-#: settings-qt/bridge/backend.py:3508
+#: settings-qt/bridge/backend.py:3578
 msgid "Slice {n}"
 msgstr "Сектор {n}"
 
@@ -5407,14 +5506,14 @@ msgstr "Мягкий щелчок"
 msgid "Solarized Light"
 msgstr "Solarized Light"
 
-#: settings-qt/qml/pages/SettingsPage.qml:331
+#: settings-qt/qml/pages/SettingsPage.qml:333
 msgid ""
 "Solid cards instead of frosted glass. Easier to read, lighter on the GPU."
 msgstr ""
 "Непрозрачные карточки вместо матового стекла. Легче читать, меньше нагрузка "
 "на видеокарту."
 
-#: settings-qt/bridge/backend.py:1789
+#: settings-qt/bridge/backend.py:1835
 msgid "Sound controls; choose your app's camera, share and leave shortcuts"
 msgstr ""
 "Управление звуком; выберите сочетания клавиш вашего приложения для камеры, "
@@ -5458,12 +5557,12 @@ msgstr ""
 msgid "Square"
 msgstr "Квадрат"
 
-#: settings-qt/qml/pages/SettingsPage.qml:546
-#: settings-qt/qml/pages/SettingsPage.qml:556
+#: settings-qt/qml/pages/SettingsPage.qml:548
+#: settings-qt/qml/pages/SettingsPage.qml:558
 msgid "Start"
 msgstr "Запустить"
 
-#: settings-qt/qml/pages/SettingsPage.qml:436 settings-qt/bridge/backend.py:764
+#: settings-qt/qml/pages/SettingsPage.qml:438 settings-qt/bridge/backend.py:764
 msgid "Start at login"
 msgstr "Запуск при входе"
 
@@ -5483,7 +5582,7 @@ msgstr "Запустить"
 msgid "Start service"
 msgstr "Запустить службу"
 
-#: settings-qt/bridge/backend.py:4272
+#: settings-qt/bridge/backend.py:4342
 msgid "Start the JuhRadial MX service to record a macro."
 msgstr "Запустите службу JuhRadial MX для записи макроса."
 
@@ -5499,14 +5598,18 @@ msgstr "Запустить службу"
 msgid "Starting…"
 msgstr "Запуск…"
 
-#: settings-qt/bridge/backend.py:5918
+#: settings-qt/bridge/backend.py:5988
 msgid "Starts at login with {path}"
 msgstr "Запускается при входе через {path}"
 
-#: settings-qt/qml/pages/SettingsPage.qml:431 settings-qt/bridge/backend.py:758
+#: settings-qt/qml/pages/SettingsPage.qml:433 settings-qt/bridge/backend.py:758
 #: settings-qt/bridge/backend.py:764 settings-qt/bridge/backend.py:765
 msgid "Startup"
 msgstr "Запуск"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:61
+msgid "State to edit"
+msgstr "Редактируемое состояние"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Status"
@@ -5577,11 +5680,11 @@ msgstr "Едва заметный"
 msgid "Suggest profiles for new apps"
 msgstr "Предлагать профили для новых приложений"
 
-#: settings-qt/qml/Main.qml:274
+#: settings-qt/qml/Main.qml:304
 msgid "Support"
 msgstr "Поддержка"
 
-#: settings-qt/qml/Main.qml:281
+#: settings-qt/qml/Main.qml:311
 msgid "Support JuhRadial MX"
 msgstr "Поддержать JuhRadial MX"
 
@@ -5651,11 +5754,11 @@ msgstr "Сист. микр"
 msgid "System"
 msgstr "Система"
 
-#: settings-qt/bridge/backend.py:5937
+#: settings-qt/bridge/backend.py:6007
 msgid "System default"
 msgstr "Системное по умолчанию"
 
-#: settings-qt/bridge/backend.py:5836
+#: settings-qt/bridge/backend.py:5906
 msgid "System information copied"
 msgstr "Сведения о системе скопированы"
 
@@ -5702,6 +5805,10 @@ msgstr "Переключатель задач"
 msgid "Teach me"
 msgstr "Объясни"
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:156
+msgid "Teal"
+msgstr "Бирюзовый"
+
 #: settings-qt/assets/keypad/profiles.json
 msgid "Telegram"
 msgstr "Telegram"
@@ -5710,13 +5817,13 @@ msgstr "Telegram"
 msgid "Temp chat"
 msgstr "Врем. чат"
 
-#: settings-qt/bridge/backend.py:1808
+#: settings-qt/bridge/backend.py:1854
 msgid "Template added. Keys for missing apps stay unassigned."
 msgstr ""
 "Шаблон добавлен. Клавиши для отсутствующих приложений остаются "
 "неназначенными."
 
-#: settings-qt/qml/pages/KeypadPage.qml:392
+#: settings-qt/qml/pages/KeypadPage.qml:455
 #: settings-qt/qml/pages/MacrosPage.qml:327 settings-qt/bridge/backend.py:642
 msgid "Templates"
 msgstr "Шаблоны"
@@ -5725,7 +5832,7 @@ msgstr "Шаблоны"
 msgid "Term Panel"
 msgstr "Пан. терм."
 
-#: settings-qt/bridge/keypad.py:230 settings-qt/bridge/keypad.py:246
+#: settings-qt/bridge/keypad.py:277 settings-qt/bridge/keypad.py:293
 #: settings-qt/assets/keypad/profiles.json
 #: settings-qt/assets/keypad/art/art.json
 msgid "Terminal"
@@ -5767,13 +5874,13 @@ msgstr "Текст для ввода"
 msgid "Text, a prompt or a /command"
 msgstr "Текст, запрос или /команда"
 
-#: settings-qt/bridge/backend.py:5390
+#: settings-qt/bridge/backend.py:5460
 msgid "That custom action cannot run: check the shortcut, link or command."
 msgstr ""
 "Это действие не может выполниться: проверьте сочетание клавиш, ссылку или "
 "команду."
 
-#: settings-qt/bridge/backend.py:4544
+#: settings-qt/bridge/backend.py:4614
 msgid "That file is not a JuhRadial MX macro."
 msgstr "Этот файл не является макросом JuhRadial MX."
 
@@ -5789,7 +5896,7 @@ msgstr ""
 "Служба JuhRadial MX не запущена. Изменения сохраняются и применятся при её "
 "запуске."
 
-#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3867
+#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3937
 msgid "The JuhRadial service is not running"
 msgstr "Служба JuhRadial не запущена"
 
@@ -5801,7 +5908,7 @@ msgstr ""
 "Служба JuhRadial не запущена. Изменения сохраняются и применятся при её "
 "запуске."
 
-#: settings-qt/qml/pages/DevicesPage.qml:813
+#: settings-qt/qml/pages/DevicesPage.qml:814
 msgid ""
 "The Logitech tabs disappear until you turn this off again, and the radial "
 "menu opens with the button you pick below."
@@ -5821,7 +5928,7 @@ msgstr ""
 msgid "The background service is not running"
 msgstr "Фоновая служба не запущена"
 
-#: settings-qt/bridge/backend.py:2582
+#: settings-qt/bridge/backend.py:2652
 msgid "The background service is not running."
 msgstr "Фоновая служба не запущена."
 
@@ -5830,7 +5937,7 @@ msgid "The battery drops to the alert level set on Devices"
 msgstr ""
 "Заряд падает до уровня предупреждения, заданного на вкладке «Устройства»"
 
-#: settings-qt/bridge/backend.py:4497
+#: settings-qt/bridge/backend.py:4567
 msgid "The bound button starts it, the next press stops it."
 msgstr "Привязанная кнопка запускает макрос, следующее нажатие останавливает."
 
@@ -5854,11 +5961,11 @@ msgstr ""
 "При первом использовании приложения без профиля настройки предложат его "
 "создать. Вопрос задаётся один раз для каждого приложения"
 
-#: settings-qt/bridge/backend.py:2757
+#: settings-qt/bridge/backend.py:2827
 msgid "The keyboard"
 msgstr "Клавиатура"
 
-#: settings-qt/bridge/backend.py:3451
+#: settings-qt/bridge/backend.py:3521
 msgid "The keyboard did not answer. Press a key to wake it, then try again."
 msgstr ""
 "Клавиатура не ответила. Нажмите клавишу, чтобы разбудить её, и повторите "
@@ -5872,23 +5979,27 @@ msgstr ""
 "Клавиатура спит. Нажмите любую клавишу, затем «Проверить снова» выше для "
 "чтения подсветки."
 
-#: settings-qt/bridge/backend.py:1629
+#: settings-qt/bridge/backend.py:1632
 msgid "The keypad configuration was not saved"
 msgstr "Конфигурация клавишной панели не сохранена"
 
-#: settings-qt/qml/pages/KeypadPage.qml:236
+#: settings-qt/qml/pages/KeypadPage.qml:278
 msgid "The keypad keeps it after it wakes"
 msgstr "Клавишная панель сохраняет её после пробуждения"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:211
+#: settings-qt/qml/pages/KeypadPage.qml:289
+msgid "The keys go dark and do nothing until you unlock"
+msgstr "Клавиши гаснут и ничего не делают до разблокировки"
+
+#: settings-qt/qml/components/CustomActionEditor.qml:212
 msgid "The keys stay down as long as you hold the button (push to talk)"
 msgstr "Клавиши остаются нажатыми, пока вы удерживаете кнопку (как рация)"
 
-#: settings-qt/bridge/backend.py:5912
+#: settings-qt/bridge/backend.py:5982
 msgid "The login entry is missing."
 msgstr "Запись автозапуска отсутствует."
 
-#: settings-qt/bridge/backend.py:5917
+#: settings-qt/bridge/backend.py:5987
 msgid "The login entry points at a program that is gone."
 msgstr "Запись автозапуска указывает на программу, которой больше нет."
 
@@ -5900,7 +6011,7 @@ msgstr ""
 "Оформление кольца. Независимо от темы приложения: восемь действий всегда на "
 "своих местах."
 
-#: settings-qt/bridge/backend.py:4251
+#: settings-qt/bridge/backend.py:4321
 msgid "The macro could not be saved. Is the JuhRadial MX service running?"
 msgstr "Не удалось сохранить макрос. Служба JuhRadial MX запущена?"
 
@@ -5908,11 +6019,11 @@ msgstr "Не удалось сохранить макрос. Служба JuhRad
 msgid "The mouse comes back from another computer"
 msgstr "Мышь возвращается с другого компьютера"
 
-#: settings-qt/bridge/backend.py:2856 settings-qt/bridge/backend.py:2894
+#: settings-qt/bridge/backend.py:2926 settings-qt/bridge/backend.py:2964
 msgid "The mouse did not accept this change."
 msgstr "Мышь не приняла изменение."
 
-#: settings-qt/bridge/backend.py:4079
+#: settings-qt/bridge/backend.py:4149
 msgid "The mouse did not switch. Is it awake, and is that computer paired?"
 msgstr "Мышь не переключилась. Она не спит? Компьютер сопряжён?"
 
@@ -5965,7 +6076,7 @@ msgstr ""
 msgid "The mouse was busy. Try again"
 msgstr "Мышь была занята. Попробуйте снова"
 
-#: settings-qt/qml/pages/SettingsPage.qml:379
+#: settings-qt/qml/pages/SettingsPage.qml:381
 msgid "The new language is used after a restart."
 msgstr "Новый язык будет применён после перезапуска."
 
@@ -5974,11 +6085,11 @@ msgstr "Новый язык будет применён после переза�
 msgid "The other computer's channel"
 msgstr "Канал другого компьютера"
 
-#: settings-qt/bridge/backend.py:1898
+#: settings-qt/bridge/backend.py:1950
 msgid "The pack contains an unsafe path"
 msgstr "Набор содержит небезопасный путь"
 
-#: settings-qt/bridge/backend.py:1908 settings-qt/bridge/backend.py:1950
+#: settings-qt/bridge/backend.py:1960 settings-qt/bridge/backend.py:2010
 msgid "The pack has no pages to add"
 msgstr "В наборе нет страниц для добавления"
 
@@ -5998,17 +6109,17 @@ msgstr "Нажимная панель под большим пальцем"
 msgid "The radial menu appears"
 msgstr "Появляется радиальное меню"
 
-#: settings-qt/bridge/backend.py:2584
+#: settings-qt/bridge/backend.py:2654
 msgid "The radial menu is not running."
 msgstr "Радиальное меню не запущено."
 
-#: settings-qt/bridge/backend.py:2488
+#: settings-qt/bridge/backend.py:2556
 msgid ""
 "The ring is not running, or Flow is off. Start JuhRadial MX and turn Flow on."
 msgstr ""
 "Кольцо не запущено или Flow выключен. Запустите JuhRadial MX и включите Flow."
 
-#: settings-qt/bridge/backend.py:2495
+#: settings-qt/bridge/backend.py:2563
 msgid "The ring is not running. Start JuhRadial MX to identify screens."
 msgstr "Кольцо не запущено. Запустите JuhRadial MX, чтобы определить экраны."
 
@@ -6024,7 +6135,7 @@ msgstr "Кольцо по-прежнему открывается в играх"
 msgid "The same ring as everywhere"
 msgstr "То же кольцо, что и везде"
 
-#: settings-qt/bridge/backend.py:2590
+#: settings-qt/bridge/backend.py:2660
 msgid ""
 "The service cannot reach the mouse. Check that your user is in the input "
 "group."
@@ -6032,7 +6143,7 @@ msgstr ""
 "Служба не может связаться с мышью. Проверьте, что ваш пользователь входит в "
 "группу input."
 
-#: settings-qt/bridge/backend.py:2587
+#: settings-qt/bridge/backend.py:2657
 msgid "The service is {daemon} and this app is {app}: reinstall so they match."
 msgstr ""
 "Версия службы: {daemon}, приложения: {app}. Переустановите, чтобы версии "
@@ -6047,7 +6158,7 @@ msgstr "Минимальный интервал между импульсами 
 msgid "The side wheel under your thumb"
 msgstr "Боковое колёсико под большим пальцем"
 
-#: settings-qt/qml/pages/SettingsPage.qml:412
+#: settings-qt/qml/pages/SettingsPage.qml:414
 msgid "The slices already match %1"
 msgstr "Секторы уже соответствуют %1"
 
@@ -6063,7 +6174,7 @@ msgstr ""
 "Поверхность классического кольца и его меню. Светлые кольца подходят светлым "
 "рабочим столам."
 
-#: settings-qt/qml/pages/SettingsPage.qml:279 settings-qt/bridge/backend.py:747
+#: settings-qt/qml/pages/SettingsPage.qml:281 settings-qt/bridge/backend.py:747
 msgid "Theme"
 msgstr "Тема"
 
@@ -6075,7 +6186,7 @@ msgstr "Тема: %1"
 msgid "Themes"
 msgstr "Темы"
 
-#: settings-qt/bridge/backend.py:3714
+#: settings-qt/bridge/backend.py:3784
 msgid "There is already a profile for {app}"
 msgstr "Профиль для {app} уже существует"
 
@@ -6118,7 +6229,7 @@ msgstr "Канал этого компьютера"
 msgid "This computer's name"
 msgstr "Имя этого компьютера"
 
-#: settings-qt/bridge/backend.py:5031
+#: settings-qt/bridge/backend.py:5101
 msgid "This is not a JuhRadial MX backup."
 msgstr "Это не резервная копия JuhRadial MX."
 
@@ -6134,7 +6245,7 @@ msgstr "Этот список"
 msgid "This mouse"
 msgstr "Эта мышь"
 
-#: settings-qt/bridge/backend.py:4656
+#: settings-qt/bridge/backend.py:4726
 msgid "This mouse follows your global settings again"
 msgstr "Эта мышь снова использует глобальные настройки"
 
@@ -6165,7 +6276,7 @@ msgstr "Эта мышь работает в обычном режиме без �
 msgid "This mouse loses its own settings and uses your global ones."
 msgstr "Мышь потеряет собственные настройки и перейдёт на глобальные."
 
-#: settings-qt/bridge/backend.py:5227
+#: settings-qt/bridge/backend.py:5297
 msgid "This mouse only"
 msgstr "Только эта мышь"
 
@@ -6266,7 +6377,7 @@ msgstr "Воспроизведение, перемотка и громкость
 msgid "Troubleshoot"
 msgstr "Устранить неполадку"
 
-#: settings-qt/qml/pages/SettingsPage.qml:532 settings-qt/bridge/backend.py:759
+#: settings-qt/qml/pages/SettingsPage.qml:534 settings-qt/bridge/backend.py:759
 msgid "Troubleshooting"
 msgstr "Устранение неполадок"
 
@@ -6299,7 +6410,7 @@ msgstr "Попробуйте прокрутку здесь"
 msgid "Try the thumb wheel here"
 msgstr "Попробуйте боковое колёсико здесь"
 
-#: settings-qt/bridge/backend.py:2543
+#: settings-qt/bridge/backend.py:2613
 msgid "Trying this profile for a minute: use the mouse and the ring now."
 msgstr "Профиль включён на минуту для пробы: попробуйте мышь и кольцо сейчас."
 
@@ -6340,6 +6451,10 @@ msgstr "Два стука"
 msgid "Two rising taps"
 msgstr "Два нарастающих касания"
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:54
+msgid "Two states"
+msgstr "Два состояния"
+
 #: settings-qt/qml/components/DpiControl.qml:82
 msgid "Type a DPI, then press Enter"
 msgstr "Введите DPI и нажмите Enter"
@@ -6372,7 +6487,7 @@ msgstr "USB"
 msgid "USB cable"
 msgstr "Кабель USB"
 
-#: settings-qt/qml/pages/KeypadPage.qml:151
+#: settings-qt/qml/pages/KeypadPage.qml:162
 msgid "Unassigned"
 msgstr "Не назначено"
 
@@ -6389,7 +6504,7 @@ msgstr "Подчеркн."
 msgid "Undo"
 msgstr "Отменить"
 
-#: settings-qt/bridge/backend.py:4594
+#: settings-qt/bridge/backend.py:4664
 msgid "Undo failed: {error}"
 msgstr "Не удалось отменить: {error}"
 
@@ -6471,11 +6586,11 @@ msgstr "Загрузить"
 msgid "Usage"
 msgstr "Расход"
 
-#: settings-qt/qml/pages/DevicesPage.qml:818
+#: settings-qt/qml/pages/DevicesPage.qml:819
 msgid "Use generic mode"
 msgstr "Использовать обычный режим"
 
-#: settings-qt/qml/pages/SettingsPage.qml:814
+#: settings-qt/qml/pages/SettingsPage.qml:816
 msgid "Use the %1 apps?"
 msgstr "Использовать приложения %1?"
 
@@ -6488,7 +6603,7 @@ msgstr "Использовать настройку рабочего стола"
 msgid "Use the whole edge"
 msgstr "Использовать весь край"
 
-#: settings-qt/qml/pages/DevicesPage.qml:791
+#: settings-qt/qml/Main.qml:396 settings-qt/qml/pages/DevicesPage.qml:791
 msgid ""
 "Use this mouse as a standard mouse. Easy-Switch, Haptics, Gaming and Flow "
 "are hidden"
@@ -6496,7 +6611,7 @@ msgstr ""
 "Использовать мышь как стандартную. Easy-Switch, тактильная отдача, игры и "
 "Flow будут скрыты"
 
-#: settings-qt/qml/pages/KeypadPage.qml:365
+#: settings-qt/qml/pages/KeypadPage.qml:428
 msgid "Used %1 min"
 msgstr "Использование: %1 мин"
 
@@ -6520,11 +6635,11 @@ msgstr "Обычный"
 msgid "VS Code"
 msgstr "VS Code"
 
-#: settings-qt/bridge/backend.py:5597
+#: settings-qt/bridge/backend.py:5667
 msgid "Version {version} is available."
 msgstr "Доступна версия {version}."
 
-#: settings-qt/qml/pages/SettingsPage.qml:644
+#: settings-qt/qml/pages/SettingsPage.qml:646
 msgid "Versions, links and credits"
 msgstr "Версии, ссылки и благодарности"
 
@@ -6557,11 +6672,11 @@ msgstr "Тише"
 msgid "Vol Up"
 msgstr "Громче"
 
-#: settings-qt/bridge/keypad.py:240 settings-qt/bridge/keypad.py:252
+#: settings-qt/bridge/keypad.py:287 settings-qt/bridge/keypad.py:299
 msgid "Vol down"
 msgstr "Тише"
 
-#: settings-qt/bridge/keypad.py:240 settings-qt/bridge/keypad.py:252
+#: settings-qt/bridge/keypad.py:287 settings-qt/bridge/keypad.py:299
 msgid "Vol up"
 msgstr "Громче"
 
@@ -6585,7 +6700,7 @@ msgstr "Ожидание кнопки…"
 msgid "Waiting for your approval"
 msgstr "Ожидает вашего одобрения"
 
-#: settings-qt/qml/pages/SettingsPage.qml:315
+#: settings-qt/qml/pages/SettingsPage.qml:317
 msgid "Wallpapers and wheel skins in Themes"
 msgstr "Обои и оформление колеса в разделе «Темы»"
 
@@ -6641,7 +6756,7 @@ msgstr "Что нового"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:76
 #: settings-qt/qml/pages/ButtonsPage.qml:88
-#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:4504
+#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:4574
 #: settings-qt/bridge/backend.py:649
 msgid "Wheel click"
 msgstr "Клик колёсиком"
@@ -6673,7 +6788,7 @@ msgstr "Когда Feral GameMode запускает игру"
 msgid "When a device on battery drops to this level"
 msgstr "Когда заряд устройства падает до этого уровня"
 
-#: settings-qt/qml/pages/SettingsPage.qml:456
+#: settings-qt/qml/pages/SettingsPage.qml:458
 msgid ""
 "When hidden, open Settings from your app launcher. Notifications still "
 "appear."
@@ -6681,7 +6796,7 @@ msgstr ""
 "Если значок скрыт, откройте настройки из меню приложений. Уведомления "
 "продолжают появляться."
 
-#: settings-qt/qml/pages/SettingsPage.qml:532
+#: settings-qt/qml/pages/SettingsPage.qml:534
 msgid "When something does not respond"
 msgstr "Если что-то не отвечает"
 
@@ -6703,11 +6818,11 @@ msgstr "Пока эти приложения на переднем плане"
 msgid "Where is the other computer"
 msgstr "Где другой компьютер"
 
-#: settings-qt/qml/pages/KeypadPage.qml:429
+#: settings-qt/qml/pages/KeypadPage.qml:492
 msgid "Which app is this profile for?"
 msgstr "Для какого приложения этот профиль?"
 
-#: settings-qt/qml/pages/DevicesPage.qml:827
+#: settings-qt/qml/pages/DevicesPage.qml:828
 msgid ""
 "Which button opens the radial menu on this mouse. Press it on the box, or "
 "pick it."
@@ -6719,7 +6834,7 @@ msgstr ""
 msgid "While a button set to Precision DPI is held"
 msgstr "Пока удерживается кнопка с действием «Точный DPI»"
 
-#: settings-qt/bridge/backend.py:4496
+#: settings-qt/bridge/backend.py:4566
 msgid "While held"
 msgstr "При удержании"
 
@@ -6731,7 +6846,7 @@ msgstr "Пока клавиатура заряжается по USB"
 msgid "Whisper"
 msgstr "Шёпот"
 
-#: settings-qt/qml/pages/SettingsPage.qml:274 settings-qt/bridge/backend.py:747
+#: settings-qt/qml/pages/SettingsPage.qml:276 settings-qt/bridge/backend.py:747
 #: settings-qt/bridge/backend.py:748 settings-qt/bridge/backend.py:749
 msgid "Window"
 msgstr "Окно"
@@ -6768,7 +6883,7 @@ msgstr "Рентген"
 msgid "Yes"
 msgstr "Да"
 
-#: settings-qt/bridge/backend.py:5599
+#: settings-qt/bridge/backend.py:5669
 msgid "You have the latest version."
 msgstr "У вас последняя версия."
 
@@ -6784,7 +6899,7 @@ msgstr "Вы отпускаете кнопку над сектором, и вы�
 msgid "You let go on a slice with nothing on it"
 msgstr "Вы отпускаете кнопку над пустым сектором"
 
-#: settings-qt/qml/pages/SettingsPage.qml:340
+#: settings-qt/qml/pages/SettingsPage.qml:342
 msgid "Your desktop asks for less animation, so it is already on."
 msgstr "Рабочий стол запрашивает меньше анимации, поэтому это уже включено."
 
@@ -6792,7 +6907,7 @@ msgstr "Рабочий стол запрашивает меньше анимац
 msgid "Your desktop does not report an accent colour"
 msgstr "Рабочий стол не сообщает акцентный цвет"
 
-#: settings-qt/bridge/backend.py:3892
+#: settings-qt/bridge/backend.py:3962
 msgid "Your desktop does not tell JuhRadial which window is in front"
 msgstr "Рабочий стол не сообщает JuhRadial, какое окно на переднем плане"
 
@@ -6833,12 +6948,12 @@ msgstr "Ваш набор шаблонов. Выберите стиль, что�
 msgid "Your own size, set in Settings"
 msgstr "Свой размер, заданный в настройках"
 
-#: settings-qt/qml/pages/SettingsPage.qml:95
+#: settings-qt/qml/pages/SettingsPage.qml:97
 msgid "Your own sizes below, scaled to each monitor."
 msgstr "Свои размеры ниже, масштабируемые для каждого монитора."
 
-#: settings-qt/qml/pages/SettingsPage.qml:723
-#: settings-qt/qml/pages/SettingsPage.qml:731
+#: settings-qt/qml/pages/SettingsPage.qml:725
+#: settings-qt/qml/pages/SettingsPage.qml:733
 msgid "Zip archive (*.zip)"
 msgstr "Архив zip (*.zip)"
 
@@ -6892,7 +7007,7 @@ msgstr "компьютер"
 msgid "actions"
 msgstr "действия"
 
-#: settings-qt/qml/pages/SettingsPage.qml:781
+#: settings-qt/qml/pages/SettingsPage.qml:783
 msgid "app profiles"
 msgstr "профили приложений"
 
@@ -6900,7 +7015,7 @@ msgstr "профили приложений"
 msgid "back"
 msgstr "назад"
 
-#: settings-qt/bridge/backend.py:5076
+#: settings-qt/bridge/backend.py:5146
 msgid "built-in emoji picker"
 msgstr "встроенный выбор эмодзи"
 
@@ -6936,7 +7051,7 @@ msgstr "тактильная отдача"
 msgid "held %1 ms"
 msgstr "удержание %1 мс"
 
-#: settings-qt/bridge/backend.py:1952
+#: settings-qt/bridge/backend.py:2012
 msgid "it is password protected"
 msgstr "он защищён паролем"
 
@@ -6976,7 +7091,7 @@ msgstr "моно"
 msgid "mono 2"
 msgstr "моно 2"
 
-#: settings-qt/qml/pages/SettingsPage.qml:825
+#: settings-qt/qml/pages/SettingsPage.qml:827
 msgid "nothing"
 msgstr "ничего"
 
@@ -6993,7 +7108,7 @@ msgstr "вкл. / выкл."
 msgid "right"
 msgstr "справа"
 
-#: settings-qt/qml/pages/SettingsPage.qml:780
+#: settings-qt/qml/pages/SettingsPage.qml:782
 msgid "settings"
 msgstr "настройки"
 
@@ -7017,35 +7132,35 @@ msgstr "при удержании"
 msgid "window class"
 msgstr "класс окна"
 
-#: settings-qt/bridge/backend.py:2765
+#: settings-qt/bridge/backend.py:2835
 msgid "{device} is at {percent}%. Time to recharge."
 msgstr "{device}: заряд {percent}%. Пора зарядить."
 
-#: settings-qt/bridge/backend.py:5725
+#: settings-qt/bridge/backend.py:5795
 msgid "{name} can now use Flow with this computer"
 msgstr "{name} теперь может использовать Flow с этим компьютером"
 
-#: settings-qt/bridge/backend.py:4487
+#: settings-qt/bridge/backend.py:4557
 msgid "{name} copy"
 msgstr "Копия {name}"
 
-#: settings-qt/bridge/backend.py:4425
+#: settings-qt/bridge/backend.py:4495
 msgid "{name} is no longer bound to that button"
 msgstr "{name} больше не привязан к этой кнопке"
 
-#: settings-qt/bridge/backend.py:5730
+#: settings-qt/bridge/backend.py:5800
 msgid "{name} was turned away"
 msgstr "{name}: доступ отклонён"
 
-#: settings-qt/bridge/backend.py:3482
+#: settings-qt/bridge/backend.py:3552
 msgid "{n} minutes"
 msgstr "{n} минут"
 
-#: settings-qt/bridge/backend.py:3481
+#: settings-qt/bridge/backend.py:3551
 msgid "{n} seconds"
 msgstr "{n} секунд"
 
-#: settings-qt/bridge/backend.py:4662
+#: settings-qt/bridge/backend.py:4732
 msgid "{what} copied"
 msgstr "{what} скопировано"
 

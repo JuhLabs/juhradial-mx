@@ -131,3 +131,16 @@ def test_muted_apps_and_tick_rate(backend):
     backend.setSliceTickRate("calm")
     assert backend.get("haptics.slice_debounce_ms") == 80
     assert backend.appClassFor("org.example.NoSuchApp.desktop") == "nosuchapp"
+
+
+def test_monitor_switch_has_its_own_switch_the_daemon_reads(backend):
+    # #122: haptics.monitor_switch_enabled, separate from the ring's events.
+    backend.setHapticEventEnabled("monitor_switch", False)
+    assert backend.get("haptics.monitor_switch_enabled") is False
+    assert backend.get("haptics.per_event_enabled.monitor_switch") is None
+    ev = {e["key"]: e for e in backend.hapticEvents()}
+    assert ev["monitor_switch"]["enabled"] is False and ev["monitor_switch"]["available"]
+    backend.setHapticEventPattern("monitor_switch", "subtle_collision")
+    assert backend.get("haptics.per_event.monitor_switch") == "subtle_collision"
+    config_rs = (Path(__file__).resolve().parents[1] / "daemon/src/config.rs").read_text()
+    assert "pub monitor_switch_enabled: bool" in config_rs

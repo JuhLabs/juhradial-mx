@@ -275,7 +275,7 @@ Item {
                         width: parent.width; height: mouseCol.implicitHeight + 12
                         activeFocusOnTab: true
                         Accessible.role: Accessible.ListItem
-                        Accessible.name: Backend.deviceName + ". " + page.linkText
+                        Accessible.name: (Backend.deviceName || qsTr("No mouse yet")) + ". " + page.linkText
                                          + (Backend.battery > 0 ? ". " + qsTr("Battery %1%").arg(Backend.battery) : "")
                         FocusHalo { active: mouseRow.activeFocus; radius: Theme.radiusCtl }
                         Column {
@@ -302,7 +302,7 @@ Item {
                                 ColumnLayout {
                                     Layout.fillWidth: true; spacing: 6
                                     Text {
-                                        text: Backend.deviceName; color: Theme.textPrimary
+                                        text: Backend.deviceName || qsTr("No mouse yet"); color: Theme.textPrimary
                                         font.family: Theme.fontUI; font.pixelSize: Theme.fsH3; font.weight: Font.DemiBold
                                         Layout.fillWidth: true; elide: Text.ElideRight
                                     }
@@ -545,7 +545,7 @@ Item {
                     Divider {}
                     SettingRow {
                         label: qsTr("Mouse")
-                        desc: Backend.deviceName
+                        desc: Backend.deviceName || qsTr("No mouse yet")
                         Toggle {
                             accessibleName: qsTr("Battery alert for the mouse")
                             checked: page.cfg("battery.alert_mouse", true)
@@ -651,7 +651,7 @@ Item {
                     }
                     Item { width: 1; height: Theme.gapS }
                     Divider {}
-                    InfoRow { label: qsTr("Model"); value: Backend.deviceName; mono: false }
+                    InfoRow { label: qsTr("Model"); value: Backend.deviceName || qsTr("No mouse yet"); mono: false }
                     Divider {}
                     InfoRow { label: qsTr("Connection"); value: page.linkText; mono: false }
                     Divider { visible: Backend.unitId !== "" }

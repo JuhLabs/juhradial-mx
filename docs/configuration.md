@@ -288,17 +288,39 @@ Off by default and inert until enabled: with the section absent or every switch 
 
 `ListKeyboardKeys` returns the evdev key codes of the first keyboard for a remap picker without grabbing it.
 
+## MX Keypad (`keypad`)
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `enabled` | bool | `true` | Drive a connected MX Keypad (`046d:c354`) |
+| `pages` | array | `[]` | Pages of nine keys (`name`, `keys`, optional `apps` window classes that bring the page up); Settings → MX Keypad edits them |
+| `active_page` | int | `0` | The page shown now |
+| `brightness` | int | unset | Panel brightness 1 to 100; unset leaves the keypad's own level |
+| `dim_on_lock` | bool | `true` | While the screen is locked the keys go blank and do nothing (a text key never types into the lock screen). Follows logind's `LockedHint`, which KDE Plasma and GNOME set; on desktops that do not set it the keypad stays as it is |
+
 ## Radial menu
 
 ### Display options
 
 ```json
 "radial": {
-  "minimal_mode": false
+  "minimal_mode": false,
+  "auto_fit": true,
+  "outer_radius": 150,
+  "inner_radius": 45,
+  "icon_scale": 1.0
 }
 ```
 
-`minimal_mode` shows icons only (no slice labels) when `true`.
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `minimal_mode` | bool | `false` | Simplified wheel: the action icons without the ring (also the "Simplified" switch in the Settings header) |
+| `auto_fit` | bool | unset | Automatic sizing: the ring keeps its default size, scaled to the monitor it opens on, and the three keys below stay in the file but are ignored. Unset means on, unless one of the three keys below is set (a ring sized before 0.4.5 keeps its size) |
+| `outer_radius` | int or `null` | `null` (150) | Ring radius in pixels, 80 to 250. Icons, submenus and the centre label scale with it |
+| `inner_radius` | int or `null` | `null` (45) | Centre zone radius in pixels, 20 up to 30 less than the outer radius |
+| `icon_scale` | number or `null` | `null` (1.0) | Slice icon size on top of the ring scale, 0.6 to 1.6 |
+
+`null` (or a missing key) uses the default. Settings → Settings → Radial menu sets all of them (Automatic, Ring size, Center zone, Icon size, Default sizes).
 
 ### Slices
 

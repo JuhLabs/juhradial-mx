@@ -750,6 +750,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let gaming = gaming_mode.clone();
         tokio::spawn(async move { juhradiald::gamemode::run_gamemode_watcher(conn, gaming).await });
     }
+    // Screen lock (logind LockedHint): the keypad goes blank while locked.
+    tokio::spawn(async { juhradiald::screen_lock::run(juhradiald::keypad::set_screen_locked).await });
     // ---- MX Keypad ----
     // The guard stops the HID worker on daemon shutdown. Both HID and action
     // execution have their own blocking workers, independent of mouse input.

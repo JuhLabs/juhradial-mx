@@ -242,3 +242,140 @@ def test_cli_profiles_show_the_tools_own_marks_not_generated_art(backend):
         assert rows[pid]["iconKind"] == "file" and rows[pid]["icon"].endswith("/keypad/brands/" + mark)
     for bad in ("brand/../art/x", "brand/Codex", "brands/codex", "/etc/passwd", None):
         assert keypad.brand_path(bad) is None
+
+
+def test_key_plates_device_images_match_the_layout_the_page_uses():
+    import re
+    qml = (Path(__file__).resolve().parents[1] / "settings-qt/qml/pages/KeypadPage.qml").read_text()
+    body = qml[qml.index("id: body"):qml.index("SegmentedControl {", qml.index("id: body"))]
+    aspect = float(re.search(r"height: width \* ([0-9.]+)", body).group(1))
+    rects = [[float(v) for v in m] for m in re.findall(r"\[([0-9.]+), ([0-9.]+), ([0-9.]+), ([0-9.]+)\]", body)]
+    keys, buttons = rects[:9], rects[9:]
+    assert len(keys) == 9 and len(buttons) == 2
+    for colour in ("pale", "graphite"):
+        image = QImage(str(Path(__file__).resolve().parents[1] / f"settings-qt/assets/devices/mx_keypad_front_{colour}.png"))
+        assert not image.isNull() and abs(image.height() / image.width() - aspect) < 0.002
+        at = lambda fx, fy: image.pixelColor(int(fx * image.width()), int(fy * image.height()))
+        assert at(0.01, 0.01).alpha() == 0, "transparent around the body"
+        for x, y, w, h in keys:
+            glass = at(x + w / 2, y + h / 2)
+            assert glass.lightness() < 25 and glass.alpha() == 255, (colour, x, y)
+        for x, y, w, h in buttons:
+            assert at(x + w / 2, y + h / 2).lightness() > at(keys[0][0] + 0.1, keys[0][1] + 0.08).lightness() + 20
+
+
+def test_rename_follows_only_keys_that_reach_that_page(backend, tmp_path):
+    # The daemon takes "next"/"previous" as steps and a name as its FIRST page.
+    for name in ("Home", "Code", "Code", "Next"):
+        backend.addKeypadPage(name)
+    go = lambda value: {"action": "custom", "label": value, "icon": "", "custom": {"kind": "page", "value": value}}
+    assert backend.saveKeypadKey(0, 1, go("Code"))
+    assert backend.saveKeypadKey(0, 2, go("next"))
+    backend.renameKeypadPage(2, "Code JB")      # the second "Code": no key reached it
+    backend.renameKeypadPage(3, "Tools")        # "next" is a step, not this page
+    keys = backend.keypadPages[0]["keys"]
+    assert keys[0]["custom"]["value"] == "Code" and keys[1]["custom"]["value"] == "next"
+    backend.renameKeypadPage(1, "Editor")       # the first "Code" is the one it opens
+    assert backend.keypadPages[0]["keys"][0]["custom"]["value"] == "Editor"
+
+
+def test_a_forged_pack_profile_cannot_break_the_import(backend, tmp_path):
+    notes = []
+    backend.notify = lambda text, kind: notes.append(kind)
+    forged = tmp_path / "forged.zip"
+    page = {"title": "X", "apps": ["code"], "profile": ["claude-code"], "keys": []}
+    with zipfile.ZipFile(forged, "w") as zf:
+        zf.writestr("portable.json", json.dumps({"pages": [page]}))
+    assert backend.importKeypadPack(str(forged))
+    assert "profile" not in backend.keypadPages[-1] and notes[-1] == "success"
+
+
+def test_only_animations_are_kept_and_the_newest_stay(tmp_path, monkeypatch):
+    monkeypatch.setattr(keypad, "_ANIMATIONS", {})
+    monkeypatch.setattr(keypad, "_ANIMATIONS_KEPT", 2)
+    still = tmp_path / "still.png"
+    QImage(8, 8, QImage.Format.Format_RGB32).save(str(still))
+    assert keypad._animation_frames(still) == ([], []) and keypad._ANIMATIONS == {}
+    gifs = []
+    for n in range(3):
+        gifs.append(tmp_path / f"g{n}.gif")
+        _gif(gifs[-1], ["#ff0000", "#00ff00"])
+    keypad._animation_frames(gifs[0])
+    keypad._animation_frames(gifs[1])
+    keypad._animation_frames(gifs[0])           # a hit makes it the newest
+    keypad._animation_frames(gifs[2])           # evicts the oldest: g1
+    kept = {Path(k[0]).name for k in keypad._ANIMATIONS}
+    assert kept == {"g0.gif", "g2.gif"}
+
+
+def test_folder_pages_are_marked_and_travel_in_packs(backend, tmp_path):
+    backend.addKeypadPage("Home")
+    backend.addKeypadPage("Tools")
+    backend.setKeypadPageFolder(1, True)
+    assert backend.keypadPages[1]["folder"] is True and "folder" not in backend.keypadPages[0]
+    pack = tmp_path / "f.zip"
+    assert backend.exportKeypadPack(str(pack), [1])
+    assert backend.importKeypadPack(str(pack))
+    assert backend.keypadPages[2]["folder"] is True
+    backend.setKeypadPageFolder(1, False)
+    assert "folder" not in backend.keypadPages[1]
+
+
+def test_two_state_keys_render_both_plates_and_clean_up(backend, tmp_path):
+    backend.addKeypadPage("Home")
+    second = {"action": "custom", "label": "Unmute", "icon": "",
+              "custom": {"kind": "shortcut", "value": "ctrl+shift+m"}}
+    key = {"action": "mute", "label": "Mute", "icon": "", "states": [second]}
+    assert backend.saveKeypadKey(0, 2, key)
+    stored = backend.keypadPages[0]["keys"][1]
+    assert stored["states"][0]["label"] == "Unmute" and "states" not in stored["states"][0]
+    plates = tmp_path / "keypad/plates"
+    assert (plates / "p0-k2.jpg").is_file() and (plates / "p0-k2-s1.jpg").is_file()
+    # A second state that cannot run makes the whole key unsavable.
+    assert not backend.saveKeypadKey(0, 2, {**key, "states": [{"action": "custom", "custom": {"kind": "shortcut", "value": "!!"}}]})
+    assert backend.saveKeypadKey(0, 2, {"action": "mute", "label": "Mute", "icon": ""})
+    assert "states" not in backend.keypadPages[0]["keys"][1]
+    assert not (plates / "p0-k2-s1.jpg").exists(), "the old state's plate must not show"
+
+
+def test_a_pack_state_never_points_at_a_local_file(backend, tmp_path):
+    raw = {"slot": 0, "id": "p1-k1", "juhradial": {"action": "mute", "label": "M", "icon": "", "custom": {},
+           "states": [{"action": "copy", "label": "C", "icon": "", "custom": {}, "plate": str(tmp_path / "config.json")}]}}
+    (tmp_path / "config.json").write_text("{}")
+    key = backend._own_pack_key(raw, "", [], tmp_path)
+    assert key["states"][0]["label"] == "C" and "plate" not in key["states"][0]
+
+
+def test_key_style_colours_the_plate_and_can_hide_the_label(backend, tmp_path):
+    backend.addKeypadPage("Home")
+    assert backend.saveKeypadKey(0, 1, {"action": "copy", "label": "Copy", "icon": "edit-copy-symbolic",
+                                        "style": {"background": "#0D2A4A", "hide_label": True, "evil": "x"}})
+    assert backend.keypadPages[0]["keys"][0]["style"] == {"background": "#0d2a4a", "hide_label": True}
+    assert backend.saveKeypadKey(0, 2, {"action": "copy", "label": "Copy", "icon": "edit-copy-symbolic",
+                                        "style": {"background": "red; x", "hide_label": "yes"}})
+    assert "style" not in backend.keypadPages[0]["keys"][1], "only #rrggbb and a real true are kept"
+    plates = tmp_path / "keypad/plates"
+    styled, plain = QImage(str(plates / "p0-k1.jpg")), QImage(str(plates / "p0-k2.jpg"))
+    corner = styled.pixelColor(2, 2)
+    assert abs(corner.red() - 0x0d) < 10 and abs(corner.blue() - 0x4a) < 10
+    # The label band (bottom middle) holds light text on the plain key only.
+    band = lambda img: max(img.pixelColor(x, 104).lightness() for x in range(30, 88))
+    assert band(plain) > 120 and band(styled) < 90
+
+
+@pytest.mark.parametrize("own", [False, True])
+def test_a_pack_key_id_cannot_reach_a_file_outside_the_pack(backend, tmp_path, own):
+    secret = tmp_path / "private"
+    secret.mkdir()
+    image = QImage(64, 64, QImage.Format.Format_RGB32)
+    image.fill(QColor("red"))
+    assert image.save(str(secret / "secret.jpg"))
+    raw = {"slot": 0, "id": "../" * 12 + str(secret / "secret").lstrip("/"), "label": "x"}
+    if own:
+        raw.update(juhradial={"action": "none", "label": "x", "icon": "", "custom": {}}, picture=True)
+    pack = tmp_path / "p.zip"
+    with zipfile.ZipFile(pack, "w") as zf:
+        zf.writestr("portable.json", json.dumps({"pages": [{"title": "P", "keys": [raw]}]}))
+        zf.writestr("keys-118/artsy/k1.jpg", b"")
+    assert backend.importKeypadPack(str(pack))
+    assert "private" not in str(backend.keypadPages[-1]["keys"][0].get("plate", ""))

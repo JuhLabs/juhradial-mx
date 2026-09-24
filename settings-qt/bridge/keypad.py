@@ -51,11 +51,13 @@ def empty_key():
 
 def render_plate(key, destination, app_icon):
     """Supersample at 2x; keep labels at 19 of the final 118 pixels."""
+    style = key.get("style") if isinstance(key.get("style"), dict) else {}
     image = QImage(236, 236, QImage.Format.Format_RGB32)
-    image.fill(QColor("#070b14"))
+    image.fill(QColor(style.get("background") or "#070b14"))
     painter = QPainter(image)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+    text = "" if style.get("hide_label") else key.get("label", "").upper()
     plate = key.get("plate", "")
     if plate and _draw_ready_plate(painter, plate):
         painter.end()
@@ -64,7 +66,7 @@ def render_plate(key, destination, app_icon):
         return
     art = art_path(key.get("art", ""))
     if art is not None:
-        _draw_art(painter, art, key["art"].startswith("minimal/"), bool(key.get("label", "").strip()))
+        _draw_art(painter, art, key["art"].startswith("minimal/"), bool(text.strip()))
     else:
         _draw_glyph(painter, key.get("icon", ""), app_icon)
     families = QFontDatabase.families()
@@ -75,7 +77,6 @@ def render_plate(key, destination, app_icon):
     font.setStretch(QFont.Stretch.Condensed)
     painter.setFont(font)
     painter.setPen(QColor("#efe6cf"))
-    text = key.get("label", "").upper()
     if art is None and not key.get("icon") and text:
         # Label only (no glyph): the name is the whole key, as big as it fits.
         box = QRect(12, 12, 212, 212)
@@ -185,10 +186,13 @@ def _animation_frames(path):
         return [], []
     memo = (str(path), st.st_mtime_ns, st.st_size)
     if memo in _ANIMATIONS:
+        _ANIMATIONS[memo] = _ANIMATIONS.pop(memo)  # most recent last
         return _ANIMATIONS[memo]
     reader = QImageReader(str(path))
+    if not reader.supportsAnimation():
+        return [], []  # a still picture: nothing to decode or keep
     frames, delays = [], []
-    while reader.supportsAnimation() and len(delays) < MAX_FRAMES:
+    while len(delays) < MAX_FRAMES:
         frame = reader.read()
         if frame.isNull():
             break
@@ -205,7 +209,7 @@ def _animation_frames(path):
         painter.end()
         frames.append(_plate_jpeg(image))
     if len(frames) < 2:
-        frames, delays = [], []
+        return [], []
     if len(_ANIMATIONS) >= _ANIMATIONS_KEPT:
         _ANIMATIONS.pop(next(iter(_ANIMATIONS)))
     _ANIMATIONS[memo] = (frames, delays)

@@ -215,13 +215,17 @@ def test_deleting_a_page_updates_the_visible_key_editor(backend):
     assert page is not None, [e.toString() for e in component.errors()]
     editor = next(child for child in page.findChildren(QObject)
                   if child.metaObject().indexOfProperty("draft") >= 0)
-    assert editor.property("draft")["label"] == "COPY"
+
+    def draft():  # a JS object in the editor: read it the way saveKeypadKey does
+        d = editor.property("draft")
+        return d.toVariant() if hasattr(d, "toVariant") else d
+    assert draft()["label"] == "COPY"
     backend.keypadKeyPressed.emit(0, 3)
     assert page.property("litKey") == 3
     backend.keypadKeyPressed.emit(1, 7)
     assert page.property("litKey") == 3
     backend.deleteKeypadPage(0)
-    assert editor.property("draft")["label"] == "PASTE"
+    assert draft()["label"] == "PASTE"
     page.deleteLater()
 
 

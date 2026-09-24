@@ -124,6 +124,11 @@ def test_prime_is_fully_async_and_one_call_at_a_time(backend):
     assert backend.firmware == ["RBM 27.00.B0015"]
 
 
+def test_no_model_name_is_guessed_before_the_daemon_answers(backend):
+    # #136: an MX Master 3S must never read "MX Master 4" while the daemon is down.
+    assert backend.deviceName == ""
+
+
 def test_readouts_update_as_answers_land(backend):
     updates = []
     backend.liveChanged.connect(lambda: updates.append(backend.deviceName))

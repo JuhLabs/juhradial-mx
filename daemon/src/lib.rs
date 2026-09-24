@@ -30,6 +30,7 @@ pub mod plugins;
 pub mod presets;
 pub mod profiles;
 pub mod replay;
+pub mod screen_lock;
 pub mod theme;
 pub mod theme_watcher;
 pub mod window_tracker;
