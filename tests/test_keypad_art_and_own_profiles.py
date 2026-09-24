@@ -169,3 +169,76 @@ def test_cli_profiles_that_share_terminals_stay_apart(backend, monkeypatch):
     assert backend.applyKeypadProfile("prompts")
     assert backend.keypadPages[-1]["keys"][0]["custom"]["paste_with"] == "auto"
     assert backend.keypadPages[-1]["keys"][0]["art"] == "artsy/rewind-push"
+
+
+def test_gate_fixes_rename_profile_carry_and_clean_keys(backend, tmp_path, monkeypatch):
+    # Renaming a page updates the "page" keys that go to it (and their label).
+    backend.addKeypadPage("Home")
+    backend.addKeypadPage("Media")
+    go = {"action": "custom", "label": "Media", "icon": "",
+          "custom": {"kind": "page", "value": "media", "label": "Media"}}
+    assert backend.saveKeypadKey(0, 1, go)
+    backend.renameKeypadPage(1, "Music")
+    key = backend.keypadPages[0]["keys"][0]
+    assert key["custom"]["value"] == "Music" and key["label"] == "Music" and key["custom"]["label"] == "Music"
+
+    # A non-string action is refused instead of raising inside a slot.
+    assert backend._clean_keypad_key({"action": ["copy"]}) is None
+    assert backend._clean_keypad_key({"action": {"x": 1}}) is None
+
+    # Built-in profile pages carry their group through a pack; unknown ids drop.
+    assert backend.applyKeypadProfile("claude-code")
+    source = next(i for i, p in enumerate(backend.keypadPages) if p.get("profile") == "claude-code")
+    pack = tmp_path / "cc.zip"
+    assert backend.exportKeypadPack(str(pack), [source])
+    with zipfile.ZipFile(pack) as zf:
+        spec = json.loads(zf.read("portable.json"))
+    assert spec["pages"][0]["profile"] == "claude-code"
+    first = len(backend.keypadPages)
+    assert backend.importKeypadPack(str(pack))
+    assert backend.keypadPages[first].get("profile") == "claude-code"
+    spec["pages"][0]["profile"] = "not-a-profile"
+    # A pack key never points at a file on this computer.
+    spec["pages"][0]["keys"][0]["juhradial"]["plate"] = str(tmp_path / "config.json")
+    forged = tmp_path / "forged.zip"
+    with zipfile.ZipFile(forged, "w") as zf:
+        zf.writestr("portable.json", json.dumps(spec))
+    first = len(backend.keypadPages)
+    assert backend.importKeypadPack(str(forged))
+    assert "profile" not in backend.keypadPages[first]
+    assert "plate" not in backend.keypadPages[first]["keys"][0]
+
+    # Showing a profile page for all apps takes it out of the profile's group.
+    backend.setKeypadPageApps(first, [])
+    assert "profile" not in backend.keypadPages[first] and "apps" not in backend.keypadPages[first]
+
+
+def test_cli_tools_are_found_in_user_install_folders(tmp_path, monkeypatch):
+    monkeypatch.setattr(bk.shutil, "which", lambda name: None)
+    monkeypatch.setattr(bk.pathlib.Path, "home", staticmethod(lambda: tmp_path))
+    assert not bk.Backend._has_command("claude")
+    for folder, tool in ((".claude/local", "claude"), (".volta/bin", "codex"), (".nvm/versions/node/v22.1.0/bin", "gemini")):
+        (tmp_path / folder).mkdir(parents=True)
+        (tmp_path / folder / tool).write_text("")
+        assert bk.Backend._has_command(tool), folder
+
+
+def test_animation_frames_are_decoded_once_per_file_version(tmp_path, monkeypatch):
+    gif = tmp_path / "a.gif"
+    _gif(gif, ["#ff0000", "#00ff00"])
+    reads = []
+    real = keypad.QImageReader
+    monkeypatch.setattr(keypad, "QImageReader", lambda p: reads.append(p) or real(p))
+    first = keypad._animation_frames(gif)
+    assert len(first[0]) == 2 and keypad._animation_frames(gif) == first and len(reads) == 1
+    os.utime(gif, ns=(1, 1))
+    keypad._animation_frames(gif)
+    assert len(reads) == 2, "a changed file is decoded again"
+
+
+def test_cli_profiles_show_the_tools_own_marks_not_generated_art(backend):
+    rows = {r["id"]: r for r in backend.keypadProfiles()}
+    for pid, mark in (("claude-code", "claude-code.svg"), ("codex-cli", "codex.svg")):
+        assert rows[pid]["iconKind"] == "file" and rows[pid]["icon"].endswith("/keypad/brands/" + mark)
+    for bad in ("brand/../art/x", "brand/Codex", "brands/codex", "/etc/passwd", None):
+        assert keypad.brand_path(bad) is None

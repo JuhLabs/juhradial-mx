@@ -585,7 +585,7 @@ Item {
                         PrimaryButton { text: qsTr("Check again"); ghost: true; onClicked: Backend.refreshReceivers() }
                     }
                     Text {
-                        visible: Backend.receivers !== null && Backend.receivers.length === 0
+                        visible: !!Backend.receivers && Backend.receivers.length === 0
                         width: parent.width; wrapMode: Text.WordWrap
                         text: qsTr("No Bolt or Unifying receiver is plugged in. Devices on Bluetooth pair through your desktop's Bluetooth settings.")
                         color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
@@ -793,8 +793,9 @@ Item {
                             accessibleName: qsTr("Force generic mode")
                             checked: page.forcedGeneric
                             onToggled: (v) => {
-                                if (v) { page.askGeneric = true; checked = false }
+                                if (v) page.askGeneric = true
                                 else Backend.setDeviceMode("auto")
+                                checked = Qt.binding(() => page.forcedGeneric)
                             }
                         }
                     }

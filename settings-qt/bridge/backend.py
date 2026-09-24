@@ -1653,7 +1653,7 @@ class Backend(QObject):
         if not isinstance(obj, dict):
             return None
         action = obj.get("action", "none")
-        if action not in {a[0] for a in BUTTON_ACTIONS} - HIDDEN_BUTTON_ACTIONS:
+        if not isinstance(action, str) or action not in {a[0] for a in BUTTON_ACTIONS} - HIDDEN_BUTTON_ACTIONS:
             return None
         custom = self._clean_custom(obj.get("custom")) if action == "custom" else {}
         if custom is None:
@@ -1743,14 +1743,26 @@ class Backend(QObject):
         if clean:
             pages[page]["apps"] = clean
         else:
+            # A general page belongs to no built-in profile's group any more.
             pages[page].pop("apps", None)
+            pages[page].pop("profile", None)
         self._save_keypad(pages)
 
     @pyqtSlot(int, str)
     def renameKeypadPage(self, page, name):
         pages = self.keypadPages
         if 0 <= page < len(pages) and name.strip():
-            pages[page]["name"] = name.strip()[:60]
+            old = str(pages[page].get("name", "")).strip()
+            new = name.strip()[:60]
+            pages[page]["name"] = new
+            # "page" keys go by name (the daemon matches it ignoring case).
+            for key in (k for pg in pages for k in pg.get("keys", []) if isinstance(k, dict)):
+                custom = key.get("custom") or {}
+                if old and custom.get("kind") == "page" and str(custom.get("value", "")).strip().lower() == old.lower():
+                    custom["value"] = new
+                    for holder in (key, custom):
+                        if holder.get("label") == old:
+                            holder["label"] = new
             self._save_keypad(pages)
 
     @pyqtSlot(int, int)
@@ -1863,7 +1875,9 @@ class Backend(QObject):
         picture = pack / "pictures" / pathlib.Path(str(raw.get("picture_file") or "none")).name
         if raw.get("picture") and picture.is_file():
             image = str(picture)
-        key = self._clean_keypad_key(raw["juhradial"])
+        # A pack never points a key at a file on this computer: pictures come
+        # from the pack's own pictures/ folder only.
+        key = self._clean_keypad_key({k: v for k, v in raw["juhradial"].items() if k != "plate"})
         if key is None:
             return None
         if key["custom"].get("kind") == "command" and key["custom"].get("value") not in {a.get("command") for a in apps}:
@@ -1920,6 +1934,7 @@ class Backend(QObject):
             if (spec.parent / "pictures").is_dir():
                 shutil.copytree(spec.parent / "pictures", pack / "pictures", dirs_exist_ok=True)
             apps = self.listApplications()
+            builtin = {p["id"] for p in self._keypad_catalogue()}
             pages = self.keypadPages
             first = len(pages)
             for page in page_list:
@@ -1945,6 +1960,9 @@ class Backend(QObject):
                          "keys": [k or empty_key() for k in keys]}
                 if classes:
                     entry["apps"] = classes
+                    # The page joins its built-in profile's group (unknown ids are dropped).
+                    if page.get("profile") in builtin:
+                        entry["profile"] = page["profile"]
                 pages.append(entry)
             if len(pages) == first or len(pages) > 255 or not self._save_keypad(pages, first):
                 raise ValueError(_("The pack has no pages to add"))
@@ -2015,8 +2033,9 @@ class Backend(QObject):
         """Whether a command-line tool is installed (PATH, or the user-level
         folders its installers use, which a desktop session's PATH may lack)."""
         home = pathlib.Path.home()
-        return bool(shutil.which(name)) or any(
-            (home / d / name).is_file() for d in (".local/bin", ".npm-global/bin", ".bun/bin"))
+        dirs = [home / d for d in (".local/bin", ".npm-global/bin", ".bun/bin", ".volta/bin", ".claude/local")]
+        dirs += (home / ".nvm/versions/node").glob("*/bin")
+        return bool(shutil.which(name)) or any((d / name).is_file() for d in dirs)
 
     @pyqtSlot(str, result=bool)
     def applyKeypadProfile(self, profile_id):
@@ -2053,11 +2072,11 @@ class Backend(QObject):
 
     @staticmethod
     def _row_icon(app_icon, fallback):
-        """(icon, kind) for a profile row: the catalogue's own art first, then
-        the installed app's icon ("file" for a path, "app" for a theme name),
-        then the catalogue glyph."""
-        from bridge.keypad import art_path
-        art = art_path(fallback)
+        """(icon, kind) for a profile row: the catalogue's own art or tool mark
+        first, then the installed app's icon ("file" for a path, "app" for a
+        theme name), then the catalogue glyph."""
+        from bridge.keypad import art_path, brand_path
+        art = art_path(fallback) or brand_path(fallback)
         if art is not None:
             return str(art), "file"
         if app_icon:
@@ -2165,8 +2184,11 @@ class Backend(QObject):
                             entry["picture_file"] = f"pictures/{ident}{picture.suffix.lower()}"
                             zf.write(picture, entry["picture_file"])
                         keys.append(entry)
-                    spec.append({"id": f"page-{n + 1}", "title": pages[index].get("name", ""),
-                                 "apps": list(pages[index].get("apps", [])), "keys": keys})
+                    entry = {"id": f"page-{n + 1}", "title": pages[index].get("name", ""),
+                             "apps": list(pages[index].get("apps", [])), "keys": keys}
+                    if pages[index].get("profile"):
+                        entry["profile"] = pages[index]["profile"]
+                    spec.append(entry)
                 zf.writestr("portable.json", json.dumps({"generator": "JuhRadial MX", "version": 1, "pages": spec},
                                                         indent=1, ensure_ascii=False))
         except OSError as error:
@@ -2492,7 +2514,9 @@ class Backend(QObject):
         """A card with each monitor's number and name for a few seconds."""
         self._overlay_call("IdentifyScreens", str(self.get("flow.monitor", "") or ""), flow_label,
                            done=lambda ok: None if ok else self.notify(
-                               _("The ring is not running. Start JuhRadial MX to identify screens."), "warning"))
+                               _("The ring is not running. Start JuhRadial MX to identify screens.") if ok is None
+                               else _("Identify screens needs X11 windows, which the ring does not use on this desktop."),
+                               "warning"))
 
     # ---- USB receivers (Devices tab) ----
     receiversChanged = pyqtSignal()

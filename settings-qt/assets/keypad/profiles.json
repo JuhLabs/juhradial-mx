@@ -4050,7 +4050,7 @@
    "id": "claude-code",
    "name": "Claude Code",
    "description": "Slash commands, hold-to-talk voice, modes and review for the Claude Code CLI in a terminal or VS Code.",
-   "icon": "artsy/claude",
+   "icon": "brand/claude-code",
    "apps": [
     "org.kde.konsole",
     "konsole",
@@ -4969,7 +4969,7 @@
    "id": "codex-cli",
    "name": "Codex CLI",
    "description": "Slash commands, voice, plan mode, reasoning effort and review for the OpenAI Codex CLI in a terminal or VS Code.",
-   "icon": "artsy/chatgpt",
+   "icon": "brand/codex",
    "apps": [
     "org.kde.konsole",
     "konsole",

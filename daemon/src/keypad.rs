@@ -43,6 +43,19 @@ pub fn refresh() { REVISION.fetch_add(1, Ordering::Relaxed); }
 /// runtime only, they win over the rendered plate until cleared.
 type KeyImages = Vec<((u8, u8), Vec<u8>)>;
 static KEY_IMAGES: Mutex<KeyImages> = Mutex::new(Vec::new());
+/// Keys whose live image changed; the worker repaints only these, so other
+/// keys keep their animation running.
+static DIRTY_KEYS: Mutex<Vec<(u8, u8)>> = Mutex::new(Vec::new());
+
+fn mark_dirty(page: u8, key: u8) {
+    if let Ok(mut dirty) = DIRTY_KEYS.lock() {
+        if !dirty.contains(&(page, key)) { dirty.push((page, key)); }
+    }
+}
+
+fn take_dirty() -> Vec<(u8, u8)> {
+    DIRTY_KEYS.lock().map(|mut d| std::mem::take(&mut *d)).unwrap_or_default()
+}
 
 /// Show `jpeg` (a 118 x 118 baseline JPEG, at most 64 KB) on a key.
 pub fn set_key_image(page: u8, key: u8, jpeg: Vec<u8>) -> Result<(), String> {
@@ -56,14 +69,15 @@ pub fn set_key_image(page: u8, key: u8, jpeg: Vec<u8>) -> Result<(), String> {
     images.retain(|(at, _)| *at != (page, key));
     images.push(((page, key), jpeg));
     drop(images);
-    refresh();
+    mark_dirty(page, key);
     Ok(())
 }
 
 /// Give a key its own plate back.
 pub fn clear_key_image(page: u8, key: u8) {
+    if !(1..=9).contains(&key) { return; }
     if let Ok(mut images) = KEY_IMAGES.lock() { images.retain(|(at, _)| *at != (page, key)); }
-    refresh();
+    mark_dirty(page, key);
 }
 
 fn key_image(page: u8, key: u8) -> Option<Vec<u8>> {
@@ -121,6 +135,12 @@ struct Peek { since: Instant, from: u8, active: bool }
 fn peek_target(config: &KeypadConfig, visible: &[u8]) -> Option<u8> {
     let general = config.pages.iter().take(usize::from(u8::MAX)).position(|p| p.apps.is_empty())? as u8;
     (!visible.contains(&general)).then_some(general)
+}
+
+/// Where releasing a peek lands: the page it started from while that is still
+/// shown (focus may have moved meanwhile), else the first shown page.
+fn peek_return(visible: &[u8], from: u8) -> Option<u8> {
+    if visible.contains(&from) { Some(from) } else { visible.first().copied() }
 }
 
 /// The page a page button turns to, within the pages shown for the app.
@@ -212,15 +232,16 @@ fn load_animation(dir: &Path, page: u8, key: u8) -> Option<Animation> {
     Some(Animation { frames, due: Instant::now() + delays[0], delays, next: 1 })
 }
 
+/// Paint one key (live image, else its plate, else black) and load its animation.
+fn push_key(keypad: &mut Keypad, dir: &Path, page: u8, key: u8, configured: bool) -> io::Result<Option<Animation>> {
+    let live = key_image(page, key);
+    let data = if configured { read_jpeg(&dir.join(format!("p{page}-k{key}.jpg"))) } else { None };
+    keypad.write_image(KeyWindow::new(key).unwrap(), live.as_deref().or(data.as_deref()).unwrap_or(BLACK))?;
+    Ok(if configured && data.is_some() && live.is_none() { load_animation(dir, page, key) } else { None })
+}
+
 fn push_plates(keypad: &mut Keypad, dir: &Path, page: u8, configured: bool) -> io::Result<Vec<Option<Animation>>> {
-    let mut animations = Vec::with_capacity(9);
-    for key in 1..=9 {
-        let live = key_image(page, key);
-        let data = if configured { read_jpeg(&dir.join(format!("p{page}-k{key}.jpg"))) } else { None };
-        keypad.write_image(KeyWindow::new(key).unwrap(), live.as_deref().or(data.as_deref()).unwrap_or(BLACK))?;
-        animations.push(if configured && data.is_some() && live.is_none() { load_animation(dir, page, key) } else { None });
-    }
-    Ok(animations)
+    (1..=9).map(|key| push_key(keypad, dir, page, key, configured)).collect()
 }
 
 /// How long the read may wait: until the next frame is due, at most IDLE_READ.
@@ -315,10 +336,15 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
                     }
                 }
             }
+            let dirty = take_dirty();
             if shown.as_ref() != Some(&cfg) || revision != next_revision {
                 animations = push_plates(keypad, &dir, cfg.page_index(), !cfg.pages.is_empty())?;
                 shown = Some(cfg.clone());
                 revision = next_revision;
+            } else {
+                for (page, key) in dirty.into_iter().filter(|&(page, _)| page == cfg.page_index()) {
+                    animations[key as usize - 1] = push_key(keypad, &dir, page, key, !cfg.pages.is_empty())?;
+                }
             }
             if let Some(held) = peek.as_mut().filter(|p| !p.active && p.since.elapsed() >= PEEK_AFTER) {
                 let visible = visible_pages(&cfg, app.as_deref().unwrap_or(""));
@@ -354,7 +380,7 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
                     }
                     if pages.contains(&PageButton::Left) && !next.contains(&PageButton::Left) {
                         if let Some(held) = peek.take() {
-                            let back = if held.active { Some(held.from) } else {
+                            let back = if held.active { peek_return(&visible, held.from) } else {
                                 turn_page(&visible, cfg.page_index(), PageButton::Left)
                             };
                             if let Some(page) = back {
@@ -440,7 +466,18 @@ mod tests {
         assert_eq!(key_image(7, 3).as_deref(), Some(BLACK));
         assert_eq!(key_image(7, 4), None);
         clear_key_image(7, 3);
+        clear_key_image(7, 0);
         assert_eq!(key_image(7, 3), None);
+        let dirty = take_dirty();
+        assert_eq!(dirty.iter().filter(|&&k| k == (7, 3)).count(), 1, "one repaint of that key only");
+        assert!(!dirty.contains(&(7, 4)) && !dirty.contains(&(7, 0)));
+    }
+
+    #[test]
+    fn a_peek_returns_to_its_page_only_while_that_page_is_shown() {
+        assert_eq!(peek_return(&[1, 2], 2), Some(2));
+        assert_eq!(peek_return(&[0, 4], 2), Some(0), "focus moved to an app without that page");
+        assert_eq!(peek_return(&[], 2), None);
     }
 
     #[test]

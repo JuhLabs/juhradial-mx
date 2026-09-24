@@ -25,9 +25,11 @@ Item {
     property var autostart: Backend.autostartStatus()
     property var services: Backend.serviceStatus()
     function refreshStatus() { autostart = Backend.autostartStatus(); services = Backend.serviceStatus() }
+    // The header's Simplified switch writes the same key.
+    property bool minimal: !!Backend.get("radial.minimal_mode", false)
     Connections {
         target: Backend
-        function onConfigChanged() { page.autostart = Backend.autostartStatus() }
+        function onConfigChanged() { page.autostart = Backend.autostartStatus(); page.minimal = !!Backend.get("radial.minimal_mode", false) }
         function onAvailabilityChanged() { page.services = Backend.serviceStatus() }
     }
     readonly property string _accent: Theme.accent.toString().slice(1)
@@ -236,8 +238,8 @@ Item {
                         label: qsTr("Simplified wheel")
                         desc: qsTr("Hide the ring and show only the action icons")
                         Toggle {
-                            checked: Backend.get("radial.minimal_mode", false)
-                            onToggled: (v) => Backend.setLocal("radial.minimal_mode", v)
+                            checked: page.minimal
+                            onToggled: (v) => { Backend.setLocal("radial.minimal_mode", v); checked = Qt.binding(() => page.minimal) }
                         }
                     }
                     SettingRow {

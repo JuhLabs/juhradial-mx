@@ -4,7 +4,7 @@ import pathlib
 import re
 import shutil
 
-from PyQt6.QtCore import Qt, QRect, QRectF, QSize
+from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, Qt, QRect, QRectF, QSize
 from PyQt6.QtGui import QColor, QFont, QFontDatabase, QFontMetrics, QIcon, QImage, QImageReader, QLinearGradient, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 
@@ -30,6 +30,18 @@ def art_path(ref):
     if not isinstance(ref, str) or not _ART_REF.fullmatch(ref):
         return None
     path = ART / (ref + ".jpg")
+    return path if path.is_file() else None
+
+
+BRANDS = ASSETS / "keypad" / "brands"
+_BRAND_REF = re.compile(r"brand/[a-z0-9-]+")
+
+
+def brand_path(ref):
+    """The bundled mark of a command-line tool, "brand/<id>" (profile rows), or None."""
+    if not isinstance(ref, str) or not _BRAND_REF.fullmatch(ref):
+        return None
+    path = BRANDS / (ref.removeprefix("brand/") + ".svg")
     return path if path.is_file() else None
 
 
@@ -158,16 +170,25 @@ MAX_FRAMES = 240
 MIN_DELAY_MS = 33
 
 
-def _save_animation(path, destination):
-    """Frames of an animated picture (GIF, animated WebP) beside the plate:
-    <stem>-a000.jpg, ... and <stem>.anim with one delay in ms per line.
-    Nothing is written for a still picture."""
+# Decoded animations by (file, mtime_ns, size): every keypad save re-renders
+# all plates, and decoding a long GIF each time made saving slow.
+_ANIMATIONS = {}
+_ANIMATIONS_KEPT = 16
+
+
+def _animation_frames(path):
+    """([118 px JPEG bytes], [delay ms]) of an animated picture; ([], []) for a
+    still one."""
+    try:
+        st = pathlib.Path(path).stat()
+    except OSError:
+        return [], []
+    memo = (str(path), st.st_mtime_ns, st.st_size)
+    if memo in _ANIMATIONS:
+        return _ANIMATIONS[memo]
     reader = QImageReader(str(path))
-    if not reader.supportsAnimation():
-        return
-    written = []
-    delays = []
-    while len(delays) < MAX_FRAMES:
+    frames, delays = [], []
+    while reader.supportsAnimation() and len(delays) < MAX_FRAMES:
         frame = reader.read()
         if frame.isNull():
             break
@@ -182,14 +203,36 @@ def _save_animation(path, destination):
                               Qt.TransformationMode.SmoothTransformation)
         painter.drawImage(0, 0, scaled, (scaled.width() - 236) // 2, (scaled.height() - 236) // 2, 236, 236)
         painter.end()
-        out = destination.with_name(f"{destination.stem}-a{len(written):03d}.jpg")
-        _save_plate(image, out)
-        written.append(out)
-    if len(written) < 2:
-        for out in written:
-            out.unlink(missing_ok=True)
+        frames.append(_plate_jpeg(image))
+    if len(frames) < 2:
+        frames, delays = [], []
+    if len(_ANIMATIONS) >= _ANIMATIONS_KEPT:
+        _ANIMATIONS.pop(next(iter(_ANIMATIONS)))
+    _ANIMATIONS[memo] = (frames, delays)
+    return frames, delays
+
+
+def _save_animation(path, destination):
+    """Frames of an animated picture (GIF, animated WebP) beside the plate:
+    <stem>-a000.jpg, ... and <stem>.anim with one delay in ms per line.
+    Nothing is written for a still picture."""
+    frames, delays = _animation_frames(path)
+    if not frames:
         return
+    for i, data in enumerate(frames):
+        destination.with_name(f"{destination.stem}-a{i:03d}.jpg").write_bytes(data)
     destination.with_name(destination.stem + ".anim").write_text("".join(f"{d}\n" for d in delays))
+
+
+def _plate_jpeg(image):
+    """A 118 px key image as JPEG bytes."""
+    data = QByteArray()
+    buffer = QBuffer(data)
+    buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+    image = image.scaled(QSize(118, 118), Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
+    if not image.save(buffer, "JPEG", 90):
+        raise OSError(_("Could not save a keypad plate"))
+    return bytes(data)
 
 
 def _save_plate(image, destination):

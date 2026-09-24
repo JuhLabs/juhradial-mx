@@ -578,27 +578,15 @@ async fn run_link_watcher_linux(config: SharedConfig, connection: zbus::Connecti
                         announce_keyboard_battery(&connection).await;
                         learn_keyboard(&indices).await;
                         // Link-ups that queued while this read ran (a first
-                        // connect can take seconds) are answered by it.
-                        while matches!(rx.try_recv(), Ok(LinkEvent::Up)) {}
-                    }
-                    Some(LinkEvent::Backlight(level, levels, status)) => {
-                        tracing::debug!(level, levels, status, "Keyboard backlight changed");
-                        if let Err(e) = connection
-                            .emit_signal(None::<&str>, crate::dbus::DBUS_PATH, crate::dbus::DBUS_INTERFACE,
-                                "KeyboardBacklightChanged", &(level, levels, status))
-                            .await
-                        {
-                            tracing::warn!(error = %e, "Failed to emit KeyboardBacklightChanged");
-                        }
-                    }
-                    Some(LinkEvent::HostSwitch(old, new)) => {
-                        tracing::info!(old, new, "Keyboard Easy-Switch key");
-                        if move_together() {
-                            if let Some(slot) = crate::easy_switch::keyboard_left(old, new) {
-                                crate::easy_switch::move_mouse(slot);
+                        // connect can take seconds) are answered by it; the
+                        // other events that queued still count, in order.
+                        while let Ok(queued) = rx.try_recv() {
+                            if queued != LinkEvent::Up {
+                                keyboard_event(queued, &connection).await;
                             }
                         }
                     }
+                    Some(other) => keyboard_event(other, &connection).await,
                     None => break,
                 },
                 _ = tokio::time::sleep(Duration::from_secs(5)) => {
@@ -610,6 +598,32 @@ async fn run_link_watcher_linux(config: SharedConfig, connection: zbus::Connecti
         }
         let _ = reader.await;
         tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+}
+
+/// A backlight change or an Easy-Switch key press from the keyboard.
+#[cfg(target_os = "linux")]
+async fn keyboard_event(event: LinkEvent, connection: &zbus::Connection) {
+    match event {
+        LinkEvent::Backlight(level, levels, status) => {
+            tracing::debug!(level, levels, status, "Keyboard backlight changed");
+            if let Err(e) = connection
+                .emit_signal(None::<&str>, crate::dbus::DBUS_PATH, crate::dbus::DBUS_INTERFACE,
+                    "KeyboardBacklightChanged", &(level, levels, status))
+                .await
+            {
+                tracing::warn!(error = %e, "Failed to emit KeyboardBacklightChanged");
+            }
+        }
+        LinkEvent::HostSwitch(old, new) => {
+            tracing::info!(old, new, "Keyboard Easy-Switch key");
+            if move_together() {
+                if let Some(slot) = crate::easy_switch::keyboard_left(old, new) {
+                    crate::easy_switch::move_mouse(slot);
+                }
+            }
+        }
+        LinkEvent::Up => {}
     }
 }
 
@@ -627,17 +641,15 @@ fn move_together() -> bool {
 #[cfg(target_os = "linux")]
 async fn learn_keyboard(indices: &Arc<EventIndices>) {
     use std::sync::atomic::Ordering;
-    let together = move_together();
+    // Learned whether or not "move together" is on, so turning it on works
+    // at once; the switch itself checks the setting when a key is pressed.
     let need_backlight = indices.backlight.load(Ordering::Relaxed) == 0;
-    let need_host = together && indices.change_host.load(Ordering::Relaxed) == 0;
-    if !need_backlight && !together {
-        return;
-    }
+    let need_host = indices.change_host.load(Ordering::Relaxed) == 0;
     let learned = tokio::task::spawn_blocking(move || {
         let mut m = manager().lock().ok()?;
         let backlight = if need_backlight { m.backlight_index() } else { None };
         let host = if need_host { m.change_host_index() } else { None };
-        let slots = if together { m.hosts_table() } else { Vec::new() };
+        let slots = m.hosts_table();
         Some((backlight, host, slots))
     })
     .await

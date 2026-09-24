@@ -1266,7 +1266,9 @@ impl HidppDevice {
                         }
                         // Check for error response (0xFF feature_index indicates error)
                         // Format: [report_type, device_idx, 0xFF, orig_feature_idx, orig_fn_sw, error_code, ...]
-                        if response[2] == 0xFF {
+                        // Errors for another device on the same receiver
+                        // (a pairing-table read, the keyboard) are not ours.
+                        if response[1] == self.device_index && response[2] == 0xFF {
                             let error_code = response[5];
                             let error_msg = match error_code {
                                 0x00 => "No error",
@@ -1293,7 +1295,7 @@ impl HidppDevice {
                         // HID++ 1.0 receiver error (0x8F): the paired device
                         // cannot answer (0x04 = radio parked). Remembered so
                         // callers can tell "asleep" from a real failure.
-                        if response[2] == 0x8F {
+                        if response[1] == self.device_index && response[2] == 0x8F {
                             if let Some(code) = receiver_error_code(&response[..len], self.device_index) {
                                 self.last_receiver_error = Some(code);
                             }

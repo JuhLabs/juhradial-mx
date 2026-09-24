@@ -294,9 +294,17 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 14
             RowLayout {
+                id: header
                 Layout.fillWidth: true
                 spacing: Theme.gapL
+                // The mode switches keep their labels while everything fits;
+                // on a narrow window they go bare (tooltips stay) and the
+                // search field gives up some width.
+                readonly property real modeLabels: minimalLabel.implicitWidth + genericLabel.implicitWidth + 16
+                readonly property bool roomy: width >= pageTitle.implicitWidth + 220 + modeLabels + 92
+                                                      + statusBadges.implicitWidth + 5 * spacing
                 Text {
+                    id: pageTitle
                     text: navModel.get(nav.current).label
                     color: Theme.textPrimary
                     font.family: Theme.fontDisplay; font.pixelSize: Theme.fsH1; font.weight: Font.DemiBold
@@ -307,11 +315,73 @@ ApplicationWindow {
                     id: search
                     Layout.fillWidth: true
                     Layout.maximumWidth: 460
-                    Layout.minimumWidth: 220
+                    Layout.minimumWidth: header.roomy ? 220 : 150
                     Layout.alignment: Qt.AlignVCenter
+                }
+                // Quick switches for the two modes people flip most; they
+                // follow config.json, so the Settings and Devices rows agree.
+                Row {
+                    id: quickModes
+                    spacing: Theme.gapL
+                    Layout.alignment: Qt.AlignVCenter
+                    property int bump: 0
+                    Connections { target: Backend; function onConfigChanged() { quickModes.bump++ } }
+                    readonly property bool minimal: (bump, !!Backend.get("radial.minimal_mode", false))
+                    readonly property bool generic: (bump, Backend.get("device_mode", "auto") === "generic")
+                    Row {
+                        spacing: 8
+                        ToolTip.visible: minimalHover.hovered
+                        ToolTip.text: qsTr("Hide the ring and show only the action icons")
+                        ToolTip.delay: 600
+                        HoverHandler { id: minimalHover }
+                        Text {
+                            id: minimalLabel
+                            visible: header.roomy
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("Simplified")
+                            color: Theme.textBody
+                            font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall; font.weight: Font.Medium
+                        }
+                        Toggle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            accessibleName: qsTr("Simplified wheel")
+                            checked: quickModes.minimal
+                            onToggled: (v) => {
+                                Backend.setLocal("radial.minimal_mode", v)
+                                checked = Qt.binding(() => quickModes.minimal)
+                            }
+                        }
+                    }
+                    Row {
+                        spacing: 8
+                        ToolTip.visible: genericHover.hovered
+                        ToolTip.text: qsTr("Use this mouse as a standard mouse. Easy-Switch, Haptics, Gaming and Flow are hidden")
+                        ToolTip.delay: 600
+                        HoverHandler { id: genericHover }
+                        Text {
+                            id: genericLabel
+                            visible: header.roomy
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("Generic mouse")
+                            color: Theme.textBody
+                            font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall; font.weight: Font.Medium
+                        }
+                        Toggle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            accessibleName: qsTr("Force generic mode")
+                            checked: quickModes.generic
+                            onToggled: (v) => {
+                                Backend.setDeviceMode(v ? "generic" : "auto")
+                                checked = Qt.binding(() => quickModes.generic)
+                                if (v) win.undoToast(qsTr("Generic mode is on: the Logitech tabs are hidden. Pick the menu button on Devices."),
+                                                     function () { Backend.setDeviceMode("auto") })
+                            }
+                        }
+                    }
                 }
                 Item { Layout.fillWidth: true; Layout.preferredWidth: 1 }
                 Row {
+                    id: statusBadges
                     spacing: Theme.gapS
                     Layout.alignment: Qt.AlignVCenter
                     Badge {

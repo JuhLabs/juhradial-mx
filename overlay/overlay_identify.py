@@ -46,7 +46,11 @@ class _Card(QWidget):
 
 def identify_screens(flow_monitor="", flow_label=""):
     """Show the cards for SHOW_MS. `flow_monitor` is the connector name Flow
-    watches ("" = any); its card carries `flow_label`."""
+    watches ("" = any); its card carries `flow_label`. False when the ring is
+    not an X11 client (niri's layer-shell ring), where a card cannot be placed
+    on a chosen monitor."""
+    if QGuiApplication.platformName() != "xcb":
+        return False
     for card in _cards:
         card.close()
     _cards.clear()
@@ -56,3 +60,4 @@ def identify_screens(flow_monitor="", flow_label=""):
         card.show()
         _cards.append(card)
     QTimer.singleShot(SHOW_MS, lambda: [c.close() for c in _cards])
+    return True

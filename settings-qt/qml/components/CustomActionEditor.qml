@@ -199,7 +199,8 @@ B.Popup {
             visible: ed.kind === "page"
             width: parent.width
             accessibleName: qsTr("Keypad page")
-            model: [{ id: "next", name: qsTr("Next page") }, { id: "previous", name: qsTr("Previous page") }]
+            model: [{ id: "", name: qsTr("Choose a page") }, { id: "next", name: qsTr("Next page") },
+                    { id: "previous", name: qsTr("Previous page") }]
                    .concat(ed.keypadPages.map(function (n) { return { id: n, name: n } }))
             currentId: ed.kind === "page" ? ed.value : ""
             onActivated2: (id) => { ed.value = id; ed.label = id === "next" ? qsTr("Next") : id === "previous" ? qsTr("Back") : id }

@@ -1621,21 +1621,30 @@ class _OverlayBus(QObject):
     """org.kde.juhradialmx.overlay /Overlay: what Settings asks the ring
     process for (Flow lives here)."""
 
+    # A slot that raises aborts the whole app under PyQt6: answer False instead.
     @pyqtSlot(result=bool)
     def SendCursor(self):
-        from flow import get_handoff_manager
-        manager = get_handoff_manager()
-        if manager is None:
+        try:
+            from flow import get_handoff_manager
+            manager = get_handoff_manager()
+            if manager is None:
+                return False
+            screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
+            g = screen.geometry()
+            manager.send_cursor({"x": g.x(), "y": g.y(), "width": g.width(), "height": g.height()})
+            return True
+        except Exception as e:
+            print(f"OVERLAY: SendCursor failed: {e}")
             return False
-        screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
-        g = screen.geometry()
-        manager.send_cursor({"x": g.x(), "y": g.y(), "width": g.width(), "height": g.height()})
-        return True
 
-    @pyqtSlot(str, str)
+    @pyqtSlot(str, str, result=bool)
     def IdentifyScreens(self, flow_monitor, flow_label):
-        from overlay_identify import identify_screens
-        identify_screens(flow_monitor, flow_label)
+        try:
+            from overlay_identify import identify_screens
+            return identify_screens(flow_monitor, flow_label)
+        except Exception as e:
+            print(f"OVERLAY: IdentifyScreens failed: {e}")
+            return False
 
 
 _overlay_bus = None

@@ -285,6 +285,9 @@ Item {
                                     required property int modelData
                                     readonly property int index: modelData
                                     readonly property var pg: page.pages[modelData] || ({ name: "", apps: [] })
+                                    // Moves stay inside the group: swap with the neighbour page it lists.
+                                    readonly property var siblings: group.modelData.pages
+                                    readonly property int pos: siblings.indexOf(modelData)
                                     width: pageColumn.width; spacing: Theme.gapS
                                     InputField {
                                         Layout.fillWidth: true; Layout.leftMargin: 48
@@ -311,13 +314,13 @@ Item {
                                     }
                                     IconButton {
                                         icon: "go-previous-symbolic"; rotation: 90
-                                        tip: qsTr("Move page up"); enabled: pageRow.index > 0
-                                        onClicked: Backend.moveKeypadPage(pageRow.index, pageRow.index - 1)
+                                        tip: qsTr("Move page up"); enabled: pageRow.pos > 0
+                                        onClicked: Backend.moveKeypadPage(pageRow.index, pageRow.siblings[pageRow.pos - 1])
                                     }
                                     IconButton {
                                         icon: "go-next-symbolic"; rotation: 90
-                                        tip: qsTr("Move page down"); enabled: pageRow.index + 1 < page.pages.length
-                                        onClicked: Backend.moveKeypadPage(pageRow.index, pageRow.index + 1)
+                                        tip: qsTr("Move page down"); enabled: pageRow.pos + 1 < pageRow.siblings.length
+                                        onClicked: Backend.moveKeypadPage(pageRow.index, pageRow.siblings[pageRow.pos + 1])
                                     }
                                     IconButton {
                                         icon: "edit-delete-symbolic"; tip: qsTr("Delete page")

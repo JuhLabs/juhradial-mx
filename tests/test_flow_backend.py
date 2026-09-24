@@ -130,3 +130,17 @@ def test_overlay_applies_the_flow_switch_live(monkeypatch):
     cfg["enabled"] = False
     flow_pkg.apply_config()
     assert calls[-1] == "stop"
+
+
+def test_identify_screens_refuses_without_x11_and_settings_says_why(backend, monkeypatch):
+    import overlay_identify
+    assert QGuiApplication.platformName() != "xcb"
+    assert overlay_identify.identify_screens("", "Flow") is False, "no cards off X11 (niri layer shell)"
+    assert overlay_identify._cards == []
+
+    notes = []
+    monkeypatch.setattr(backend, "notify", lambda text, kind: notes.append(text))
+    for answer in (None, False, True):
+        monkeypatch.setattr(backend, "_overlay_call", lambda method, *a, done=None: done(answer))
+        backend.identifyScreens("Flow")
+    assert len(notes) == 2 and "not running" in notes[0] and "X11" in notes[1]
