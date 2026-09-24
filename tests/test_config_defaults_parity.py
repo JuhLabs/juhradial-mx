@@ -59,7 +59,7 @@ def test_gaming_suppress_overlay_matches_the_daemon():
     ("scroll", "smartshift_threshold"),
     ("scroll", "natural"),
     ("scroll", "smooth"),
-    ("radial", "icon_style"),       # readers default to mono
+    ("radial", "icon_style"),       # readers default to mono2
     ("radial", "monochrome_icons"),
 ])
 def test_keys_that_must_never_be_merged_into_a_save(path):

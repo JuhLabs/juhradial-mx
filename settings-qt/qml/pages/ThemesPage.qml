@@ -66,7 +66,7 @@ Item {
     }
     function resetLook() {
         var t = Theme.index, a = Theme.auto, w = Backend.get("radial.wheel", ""), p = page.palette, s = Theme.iconStyle
-        Theme.setIndex(0); Backend.set("radial.wheel", "none"); Backend.set("theme", "phosphor"); page.setIconStyle("mono")
+        Theme.setIndex(0); Backend.set("radial.wheel", "none"); Backend.set("theme", "phosphor"); page.setIconStyle("mono2")
         Window.window.undoToast(qsTr("Look reset"), function () {
             if (a) Theme.setAuto(true); else Theme.setIndex(t)
             Backend.set("radial.wheel", w); Backend.set("theme", p); page.setIconStyle(s)

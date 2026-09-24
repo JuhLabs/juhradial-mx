@@ -962,14 +962,14 @@ def load_minimal_mode():
 def load_icon_style():
     """Icon style from config.json: radial.icon_style, written by the settings
     app; older configs carry only radial.monochrome_icons (kept: true = mono,
-    false = line). Neither key: mono, the default since 0.4.5."""
+    false = line). Neither key: mono2 (Monochrome 2), the default since 0.4.5."""
     radial = _config_radial_section()
     style = radial.get("icon_style")
     if style in ICON_STYLES:
         return style
     if "monochrome_icons" in radial:
         return "mono" if radial.get("monochrome_icons") else "line"
-    return "mono"
+    return "mono2"
 
 
 ICON_STYLE = load_icon_style()

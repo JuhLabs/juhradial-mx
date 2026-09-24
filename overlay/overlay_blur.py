@@ -34,6 +34,15 @@ def circle_strips(cx, cy, radius, strips=48):
     return rects
 
 
+def ring_blur_rects(win_px, radius, dpr=1.0):
+    """The ring disc in X11 window pixels. Qt sizes the window in logical
+    pixels, but under XWayland scaling (Xft.dpi 120: devicePixelRatio 1.25)
+    the X11 window and this property are in device pixels; logical values
+    frost a smaller disc up-left of the ring."""
+    half = win_px * dpr / 2
+    return circle_strips(half, half, radius * dpr)
+
+
 class _X11:
     """One lazily opened Xlib connection (None when X11 is unavailable)."""
 

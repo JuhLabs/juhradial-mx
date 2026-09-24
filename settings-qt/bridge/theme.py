@@ -68,7 +68,7 @@ ICON_STYLES = ("line", "classic", "mono", "mono2")
 def resolve_icon_style(state, cfg):
     """The settings window follows the ring: ui_state.json icon_style, then
     config radial.icon_style, then the legacy monochrome_icons flag, then
-    mono (the 0.4.5 default). Read only; nothing is written back."""
+    mono2 (Monochrome 2, the 0.4.5 default). Read only; nothing is written back."""
     style = state.get("icon_style") if isinstance(state, dict) else None
     if style in ICON_STYLES:
         return style
@@ -78,7 +78,7 @@ def resolve_icon_style(state, cfg):
         return radial["icon_style"]
     if "monochrome_icons" in radial:
         return "mono" if radial["monochrome_icons"] else "line"
-    return "mono"
+    return "mono2"
 
 
 KDEGLOBALS = _XDG_CONFIG / "kdeglobals"

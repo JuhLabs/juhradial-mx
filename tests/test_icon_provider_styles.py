@@ -114,3 +114,7 @@ def test_icon_styles_agree_across_settings_and_overlay(settings_main):
     assert settings_main.ICON_STYLES == theme.ICON_STYLES == overlay_actions.ICON_STYLES
     assert theme.resolve_icon_style({"icon_style": "mono2"}, {}) == "mono2"
     assert theme.resolve_icon_style({}, {"radial": {"icon_style": "mono2"}}) == "mono2"
+    # Monochrome 2 is the default; explicit choices and the old flag are kept.
+    assert theme.resolve_icon_style({}, {}) == "mono2"
+    assert theme.resolve_icon_style({}, {"radial": {"icon_style": "mono"}}) == "mono"
+    assert theme.resolve_icon_style({}, {"radial": {"monochrome_icons": True}}) == "mono"

@@ -802,7 +802,7 @@ DEFAULT_CONFIG = {
     # Absent on purpose: language (absent = desktop locale; "en" pinned English
     # on the first unrelated save), pointer.dpi and the scroll device keys (the
     # daemon replays whatever is present, so a merged default would be forced
-    # onto the mouse at every wake), radial.icon_style (readers default to mono).
+    # onto the mouse at every wake), radial.icon_style (readers default to mono2).
     "radial_menu": {"slices": DEFAULT_SLICES,
                     "easy_switch_shortcuts": False,
                     "easy_switch_host_os": ["unknown", "unknown", "unknown"]},

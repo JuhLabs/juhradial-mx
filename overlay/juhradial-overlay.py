@@ -866,8 +866,8 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             rects = []
             if on:
                 outer = (overlay_actions.RADIAL_PARAMS or {}).get("ring_outer", MENU_RADIUS - 6)
-                half = self.win_px // 2
-                rects = overlay_blur.circle_strips(half, half, outer * self.ring_scale)
+                rects = overlay_blur.ring_blur_rects(
+                    self.win_px, outer * self.ring_scale, self.devicePixelRatioF())
             overlay_blur.set_blur_behind(self.winId(), rects)
         except Exception as e:  # never let a cosmetic effect break the menu
             print(f"OVERLAY: blur-behind skipped: {e}")
