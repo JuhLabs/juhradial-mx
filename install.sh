@@ -31,6 +31,8 @@ GRAY='\033[0;90m'
 
 # ── Configuration ────────────────────────────────────────────────────
 REPO_URL="https://github.com/JuhLabs/juhradial-mx"
+# The release this installer ships (scripts/bump-version.sh keeps it in step).
+RELEASE_VERSION="0.4.5-beta.1"
 INSTALL_DIR="/opt/juhradial-mx"
 BIN_DIR="/usr/local/bin"
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
@@ -542,17 +544,22 @@ fetch_release() {
     [ "$(uname -m)" = "x86_64" ] || return 1
 
     local api url tmp tarball top uid gid
-    # Newest first; drafts are not listed. The first Linux tarball wins.
-    api="https://api.github.com/repos/JuhLabs/juhradial-mx/releases?per_page=10"
-    url="$(curl -fsSL -H 'Accept: application/vnd.github+json' "$api" 2>/dev/null \
-        | grep -o '"browser_download_url": *"[^"]*linux-x86_64\.tar\.gz"' \
-        | head -1 | sed 's/.*"\(https[^"]*\)"/\1/')"
-    [ -n "$url" ] || return 1
-
-    log_info "Downloading $(basename "$url")..."
     tmp="$(mktemp -d)"
     tarball="$tmp/release.tar.gz"
-    curl -fsSL -o "$tarball" "$url" || { rm -rf "$tmp"; return 1; }
+    # This release's tarball by its fixed address: no GitHub API call (the API
+    # allows 60 unauthenticated calls an hour per address), and it counts.
+    url="$REPO_URL/releases/download/v$RELEASE_VERSION/juhradial-mx-$RELEASE_VERSION-linux-x86_64.tar.gz"
+    log_info "Downloading $(basename "$url")..."
+    if ! curl -fsSL -o "$tarball" "$url"; then
+        # Not released yet (master ahead of it): the newest release with a
+        # Linux tarball, newest first, drafts not listed.
+        api="https://api.github.com/repos/JuhLabs/juhradial-mx/releases?per_page=10"
+        url="$(curl -fsSL -H 'Accept: application/vnd.github+json' "$api" 2>/dev/null \
+            | grep -o '"browser_download_url": *"[^"]*linux-x86_64\.tar\.gz"' \
+            | head -1 | sed 's/.*"\(https[^"]*\)"/\1/')"
+        [ -n "$url" ] && curl -fsSL -o "$tarball" "$url" || { rm -rf "$tmp"; return 1; }
+        log_info "Downloaded $(basename "$url")"
+    fi
     tar -xzf "$tarball" -C "$tmp" || { rm -rf "$tmp"; return 1; }
     top="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
     [ -f "$top/daemon/Cargo.toml" ] || { rm -rf "$tmp"; return 1; }

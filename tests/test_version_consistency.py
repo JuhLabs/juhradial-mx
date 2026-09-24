@@ -50,6 +50,8 @@ SITES = {
     "README.md": (r'img\.shields\.io/badge/version-(\S+?)-cyan\.svg', badge_form),
     ".github/SECURITY.md": (r"^\| (\S+)\s*\| :white_check_mark: Current release \|", str),
     "settings-qt/VERSION": (r"^(\S+)$", str),
+    # The one-line installer downloads this release's tarball directly.
+    "install.sh": (r'^RELEASE_VERSION="(\S+)"$', str),
 }
 
 
