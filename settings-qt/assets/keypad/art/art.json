@@ -1,0 +1,463 @@
+{
+ "version": 1,
+ "sets": [
+  {
+   "id": "artsy",
+   "name": "Artsy"
+  },
+  {
+   "id": "minimal",
+   "name": "Minimal"
+  }
+ ],
+ "art": [
+  {
+   "id": "backup",
+   "name": "Backup",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "brain",
+   "name": "Brain",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "chatgpt",
+   "name": "ChatGPT",
+   "sets": [
+    "artsy"
+   ]
+  },
+  {
+   "id": "claude",
+   "name": "Claude",
+   "sets": [
+    "artsy"
+   ]
+  },
+  {
+   "id": "compact",
+   "name": "Compact",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "compass",
+   "name": "Compass",
+   "sets": [
+    "artsy"
+   ]
+  },
+  {
+   "id": "containers",
+   "name": "Containers",
+   "sets": [
+    "artsy"
+   ]
+  },
+  {
+   "id": "context",
+   "name": "Context",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "admin",
+   "name": "Control panel",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "rewind-push",
+   "name": "Crossroads",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "crystal",
+   "name": "Crystal",
+   "sets": [
+    "artsy"
+   ]
+  },
+  {
+   "id": "effort",
+   "name": "Effort",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "focus",
+   "name": "Focus",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "fork",
+   "name": "Fork",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "fresh-eyes",
+   "name": "Fresh eyes",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "gate",
+   "name": "Gate",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "git-status",
+   "name": "Git",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "go-do-it",
+   "name": "Go",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "goal",
+   "name": "Goal",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "goal-clear",
+   "name": "Goal done",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "regression",
+   "name": "Guard",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "handoff",
+   "name": "Handoff",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "hypothesis",
+   "name": "Hypothesis",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "interview",
+   "name": "Interview",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "vault-log",
+   "name": "Journal",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "locate",
+   "name": "Locate",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "tests-spec",
+   "name": "Lock tests",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "loop-status",
+   "name": "Loop",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "mode",
+   "name": "Mode",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "model",
+   "name": "Model",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "plan",
+   "name": "Plan",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "plan-first",
+   "name": "Plan first",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "prove-it",
+   "name": "Prove it",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "recap",
+   "name": "Recap",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "reproduce",
+   "name": "Reproduce",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "resume",
+   "name": "Resume",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "review",
+   "name": "Review",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "rewind",
+   "name": "Rewind",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "scout",
+   "name": "Scout",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "second-eyes",
+   "name": "Second opinion",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "security",
+   "name": "Security",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "send",
+   "name": "Send",
+   "sets": [
+    "minimal"
+   ]
+  },
+  {
+   "id": "stack-up",
+   "name": "Servers",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "ship",
+   "name": "Ship",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "small-slice",
+   "name": "Slice",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "esc",
+   "name": "Stop",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "minimal-diff",
+   "name": "Surgical",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "teach-me",
+   "name": "Teach me",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "terminal",
+   "name": "Terminal",
+   "sets": [
+    "artsy"
+   ]
+  },
+  {
+   "id": "test-first",
+   "name": "Test first",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "tests",
+   "name": "Tests",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "trace",
+   "name": "Trace",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "usage",
+   "name": "Usage",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "voice",
+   "name": "Voice",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "site",
+   "name": "Website",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  },
+  {
+   "id": "workshop",
+   "name": "Workshop",
+   "sets": [
+    "artsy"
+   ]
+  },
+  {
+   "id": "workspace",
+   "name": "Workspace",
+   "sets": [
+    "artsy",
+    "minimal"
+   ]
+  }
+ ]
+}

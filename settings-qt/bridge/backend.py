@@ -1596,8 +1596,13 @@ class Backend(QObject):
                 for p, page in enumerate(pages):
                     for k, key in enumerate(page["keys"], 1):
                         render_plate(key, pathlib.Path(staging) / f"p{p}-k{k}.jpg", self.cacheAppIcon)
-                for plate in pathlib.Path(staging).glob("*.jpg"):
+                fresh = {f.name for f in pathlib.Path(staging).iterdir()}
+                for plate in pathlib.Path(staging).iterdir():
                     os.replace(plate, dest / plate.name)
+            # Frames of a key that is no longer animated (or gone) must not play.
+            for old in [*dest.glob("*.anim"), *dest.glob("*-a[0-9][0-9][0-9].jpg")]:
+                if old.name not in fresh:
+                    old.unlink(missing_ok=True)
             # Merge: other keypad settings (brightness, ...) survive a page save.
             section = dict(self.get("keypad", {}) or {})
             section.update(enabled=bool(self.get("keypad.enabled", True)), active_page=active, pages=pages)
@@ -1624,6 +1629,26 @@ class Backend(QObject):
         self.daemon.call_then("ReloadConfig", reloaded)
         return True
 
+    def _clean_keypad_key(self, obj):
+        """A keypad key as stored, or None when its action cannot run."""
+        from bridge.keypad import art_path
+        if not isinstance(obj, dict):
+            return None
+        action = obj.get("action", "none")
+        if action not in {a[0] for a in BUTTON_ACTIONS} - HIDDEN_BUTTON_ACTIONS:
+            return None
+        custom = self._clean_custom(obj.get("custom")) if action == "custom" else {}
+        if custom is None:
+            return None
+        key = {"action": action, "label": str(obj.get("label", ""))[:40],
+               "icon": str(obj.get("icon", "")), "custom": custom}
+        plate = str(obj.get("plate", "") or "")
+        if plate and pathlib.Path(plate).is_absolute() and pathlib.Path(plate).is_file():
+            key["plate"] = plate
+        if art_path(obj.get("art")) is not None:
+            key["art"] = obj["art"]
+        return key
+
     @pyqtSlot(int, int, "QVariant", result=bool)
     def saveKeypadKey(self, page, key, obj):
         if hasattr(obj, "toVariant"):
@@ -1631,26 +1656,41 @@ class Backend(QObject):
         pages = self.keypadPages
         if not (0 <= page < len(pages) and 1 <= key <= 9 and isinstance(obj, dict)):
             return False
-        action = obj.get("action", "none")
-        if action not in {a[0] for a in BUTTON_ACTIONS} - HIDDEN_BUTTON_ACTIONS:
+        clean = self._clean_keypad_key(obj)
+        if clean is None:
+            if obj.get("action") == "custom":
+                self.notify(_("Check the custom action before saving this key"), "danger")
             return False
-        custom = self._clean_custom(obj.get("custom")) if action == "custom" else {}
-        if custom is None:
-            self.notify(_("Check the custom action before saving this key"), "danger")
-            return False
-        pages[page]["keys"][key - 1] = {"action": action, "label": str(obj.get("label", ""))[:40],
-                                        "icon": str(obj.get("icon", "")), "custom": custom}
-        plate = str(obj.get("plate", "") or "")
-        if plate and pathlib.Path(plate).is_absolute() and pathlib.Path(plate).is_file():
-            pages[page]["keys"][key - 1]["plate"] = plate
+        pages[page]["keys"][key - 1] = clean
         return self._save_keypad(pages)
 
     @pyqtSlot(str, result=bool)
     def addKeypadPage(self, name):
+        return self.addKeypadGroupPage(name, [])
+
+    @pyqtSlot(str, "QVariant", result=bool)
+    def addKeypadGroupPage(self, name, apps):
+        """A new empty page that comes up with these apps ([] = all apps)."""
         from bridge.keypad import empty_key
+        if hasattr(apps, "toVariant"):
+            apps = apps.toVariant()
         pages = self.keypadPages
-        pages.append({"name": name.strip()[:60] or _("New page"), "keys": [empty_key() for _ in range(9)]})
+        entry = {"name": name.strip()[:60] or _("New page"), "keys": [empty_key() for _ in range(9)]}
+        clean = sorted({str(a).strip().lower() for a in (apps or []) if str(a).strip()})
+        if clean:
+            entry["apps"] = clean
+        pages.append(entry)
         return self._save_keypad(pages, len(pages) - 1)
+
+    @pyqtSlot(str, result=bool)
+    def addKeypadAppProfile(self, desktop_id):
+        """Start an own profile: a page named after the app that comes up
+        while it is in front."""
+        cls = self.appClassFor(desktop_id)
+        if not cls:
+            return False
+        app = next((a for a in self.listApplications() if a.get("id") == desktop_id), {})
+        return self.addKeypadGroupPage(app.get("name") or cls, [cls])
 
     @pyqtSlot(str, result=str)
     def importKeypadImage(self, url):
@@ -1658,7 +1698,7 @@ class Backend(QObject):
         key keeps it when the original moves; returns the copy's path or ""."""
         import hashlib
         src = pathlib.Path(QUrl(url).toLocalFile() if url.startswith("file:") else url)
-        if src.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".svg") or not src.is_file():
+        if src.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg") or not src.is_file():
             return ""
         try:
             data = src.read_bytes()
@@ -1793,6 +1833,28 @@ class Backend(QObject):
             key.update(action="custom", custom={"kind": "command", "value": f"playerctl -p spotify {act['action']}"})
         return key
 
+    def _own_pack_key(self, raw, image, apps, pack):
+        """A key from a JuhRadial MX export, restored exactly (None for other
+        packs). Its image stands in for a picture or an icon this computer
+        does not have; an exported picture file (a GIF too) is used as is."""
+        if not isinstance(raw, dict) or not isinstance(raw.get("juhradial"), dict):
+            return None
+        picture = pack / "pictures" / pathlib.Path(str(raw.get("picture_file") or "none")).name
+        if raw.get("picture") and picture.is_file():
+            image = str(picture)
+        key = self._clean_keypad_key(raw["juhradial"])
+        if key is None:
+            return None
+        if key["custom"].get("kind") == "command" and key["custom"].get("value") not in {a.get("command") for a in apps}:
+            # A shared pack must not bind a shell command to a harmless-looking
+            # key: only launches of apps installed here come along.
+            key.update(action="none", custom={})
+        icon = key.get("icon", "")
+        missing_icon = icon.startswith("/") and not pathlib.Path(icon).is_file()
+        if image and (raw.get("picture") or missing_icon):
+            key["plate"] = image
+        return key
+
     @pyqtSlot(str, result=bool)
     def importKeypadPack(self, url):
         """Import a keypad pack: a folder or .zip holding portable.json and
@@ -1834,6 +1896,8 @@ class Backend(QObject):
             pack = pathlib.Path(tempfile.mkdtemp(prefix=f"{safe}-", dir=packs))
             for name in sets:
                 shutil.copytree(art / name, pack / name, dirs_exist_ok=True)
+            if (spec.parent / "pictures").is_dir():
+                shutil.copytree(spec.parent / "pictures", pack / "pictures", dirs_exist_ok=True)
             apps = self.listApplications()
             pages = self.keypadPages
             first = len(pages)
@@ -1845,11 +1909,14 @@ class Backend(QObject):
                     slot = raw.get("slot") if isinstance(raw, dict) else None
                     if isinstance(slot, int) and 0 <= slot < 9:
                         img = pack / chosen / f"{raw.get('id', '')}.jpg"
-                        keys[slot] = self._pack_key(raw, str(img) if chosen and img.is_file() else "", apps)
+                        img = str(img) if chosen and img.is_file() else ""
+                        keys[slot] = self._own_pack_key(raw, img, apps, pack) or self._pack_key(raw, img, apps)
                 from bridge.keypad import empty_key
                 profiles = page.get("mac_profiles")
                 profiles = profiles if isinstance(profiles, dict) else {}
-                if "general" in profiles or not profiles:
+                if isinstance(page.get("apps"), list):  # a JuhRadial MX export
+                    classes = sorted({str(a).strip().lower() for a in page["apps"] if str(a).strip()})
+                elif "general" in profiles or not profiles:
                     classes = []
                 else:
                     classes = sorted({c for prof in profiles for c in self.PACK_PROFILE_APPS.get(prof, [])})
@@ -1894,7 +1961,8 @@ class Backend(QObject):
     def keypadProfiles(self):
         """Every built-in app profile: installed apps first, then by the time
         those apps spent in front (app_usage.json, written by the service)."""
-        installed = {str(a.get("id", "")).lower() for a in self.listApplications()}
+        app_icons = {str(a.get("id", "")).lower(): a.get("icon", "") for a in self.listApplications()}
+        installed = set(app_icons)
         usage = self._app_usage()
         pages = self.keypadPages
         out = []
@@ -1903,7 +1971,11 @@ class Backend(QObject):
             ids = {str(d).lower() for d in prof.get("desktop_ids", [])}
             used = sum(usage.get(a, 0) for a in apps)
             added = bool(apps) and any(sorted(pg.get("apps", [])) == sorted(apps) for pg in pages)
+            own = next((app_icons[str(d).lower()] for d in prof.get("desktop_ids", [])
+                        if app_icons.get(str(d).lower())), "")
+            icon, icon_kind = self._row_icon(own, prof.get("icon", ""))
             out.append({"id": prof["id"], "name": _(prof.get("name", prof["id"])),
+                        "icon": icon, "iconKind": icon_kind,
                         "description": _(prof.get("description", "")),
                         "installed": not apps or bool(ids & installed) or used > 0,
                         "minutes": used // 60, "added": added,
@@ -1917,7 +1989,7 @@ class Backend(QObject):
         prof = next((p for p in self._keypad_catalogue() if p["id"] == profile_id), None)
         if prof is None:
             return False
-        from bridge.keypad import empty_key
+        from bridge.keypad import art_path, empty_key
         known = {a[0] for a in BUTTON_ACTIONS} - HIDDEN_BUTTON_ACTIONS
         apps = sorted({str(a).lower() for a in prof.get("apps", [])})
         pages = self.keypadPages
@@ -1931,6 +2003,8 @@ class Backend(QObject):
                 if action in known and custom is not None:
                     key.update(action=action, custom=custom or {},
                                label=_(str(raw.get("label", "")))[:40], icon=str(raw.get("icon", "")))
+                    if art_path(raw.get("art")) is not None:
+                        key["art"] = raw["art"]
                 keys.append(key)
             keys += [empty_key() for _unused in range(9 - len(keys))]
             entry = {"name": _(str(page.get("name", prof.get("name", "")))), "keys": keys}
@@ -1940,6 +2014,123 @@ class Backend(QObject):
         if len(pages) > 255 or not self._save_keypad(pages, first):
             return False
         self.notify(_("Profile added: {name}").format(name=_(prof.get("name", ""))), "success")
+        return True
+
+    @staticmethod
+    def _row_icon(app_icon, fallback):
+        """(icon, kind) for a profile row: the catalogue's own art first, then
+        the installed app's icon ("file" for a path, "app" for a theme name),
+        then the catalogue glyph."""
+        from bridge.keypad import art_path
+        art = art_path(fallback)
+        if art is not None:
+            return str(art), "file"
+        if app_icon:
+            return app_icon, ("file" if app_icon.startswith("/") else "app")
+        return fallback or "input-keyboard-symbolic", "glyph"
+
+    def _class_apps(self):
+        """Installed apps by the window class their windows carry (cached)."""
+        if getattr(self, "_class_app_cache", None) is None:
+            found = {}
+            for app in self.listApplications():
+                found.setdefault(self.appClassFor(app.get("id", "")), app)
+            self._class_app_cache = found
+        return self._class_app_cache
+
+    @pyqtSlot(result="QVariant")
+    def keypadGroups(self):
+        """The pages as they come up: the all-apps pages first, then one group
+        per app set (a built-in profile's or the user's own), in page order."""
+        pages = self.keypadPages
+        grouped = {}
+        for i, page in enumerate(pages):
+            grouped.setdefault(tuple(sorted(page.get("apps", []))), []).append(i)
+        catalogue = {tuple(sorted(str(a).lower() for a in p.get("apps", []))): p
+                     for p in self._keypad_catalogue() if p.get("apps")}
+        installed = self._class_apps()
+        out = []
+        for apps, indexes in sorted(grouped.items(), key=lambda kv: (bool(kv[0]), kv[1][0])):
+            if not apps:
+                out.append({"name": _("All apps"), "desc": _("Shown while no app below is in front"),
+                            "icon": "input-keyboard-symbolic", "iconKind": "glyph", "apps": [], "pages": indexes})
+                continue
+            prof = catalogue.get(apps) or {}
+            names = [installed[c]["name"] if c in installed else c for c in apps]
+            app = next((installed[c] for c in apps if c in installed), {})
+            icon, icon_kind = self._row_icon(app.get("icon", ""), prof.get("icon", "application-x-executable-symbolic"))
+            out.append({"name": _(prof["name"]) if prof else names[0],
+                        "desc": ", ".join(names[:3]) + (f" +{len(names) - 3}" if len(names) > 3 else ""),
+                        "icon": icon, "iconKind": icon_kind, "apps": list(apps), "pages": indexes})
+        return out
+
+    @pyqtSlot(result="QVariant")
+    def keypadArt(self):
+        """The bundled key art for the picker: [{id "<set>/<name>", name, set, path}]."""
+        from bridge.keypad import art_catalogue, art_path
+        catalogue = art_catalogue()
+        out = []
+        for art_set in catalogue.get("sets", []):
+            for art in catalogue.get("art", []):
+                ref = f"{art_set.get('id')}/{art.get('id')}"
+                path = art_path(ref) if art_set.get("id") in art.get("sets", []) else None
+                if path is not None:
+                    out.append({"id": ref, "name": _(art.get("name", "")), "set": art_set["id"], "path": str(path)})
+        return out
+
+    @pyqtSlot(result="QVariant")
+    def keypadArtSets(self):
+        from bridge.keypad import art_catalogue
+        return [{"id": s.get("id", ""), "name": _(s.get("name", ""))} for s in art_catalogue().get("sets", [])]
+
+    @pyqtSlot(str, result=str)
+    def keypadArtPath(self, ref):
+        from bridge.keypad import art_path
+        path = art_path(ref)
+        return str(path) if path is not None else ""
+
+    @pyqtSlot(str, "QVariant", result=bool)
+    def exportKeypadPack(self, url, indexes):
+        """Save pages as a keypad pack (.zip: portable.json + key images) that
+        Import pack reads back with the same actions, art, pictures and apps."""
+        import zipfile
+        if hasattr(indexes, "toVariant"):
+            indexes = indexes.toVariant()
+        dest = pathlib.Path(QUrl(url).toLocalFile() if url.startswith("file:") else url)
+        if dest.suffix.lower() != ".zip":
+            dest = dest.with_suffix(".zip")
+        pages = self.keypadPages
+        chosen = [int(i) for i in (indexes or []) if isinstance(i, (int, float)) and 0 <= int(i) < len(pages)]
+        if not chosen:
+            return False
+        plates = CONFIG_DIR / "keypad" / "plates"
+        spec = []
+        try:
+            with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
+                for n, index in enumerate(chosen):
+                    keys = []
+                    for slot, key in enumerate(pages[index]["keys"]):
+                        ident = f"p{n + 1}-k{slot + 1}"
+                        plate = plates / f"p{index}-k{slot + 1}.jpg"
+                        if plate.is_file():
+                            zf.write(plate, f"keys-118/juhradial/{ident}.jpg")
+                        entry = {"slot": slot, "id": ident, "label": key.get("label", ""),
+                                 "juhradial": {k: v for k, v in key.items() if k != "plate"},
+                                 "picture": bool(key.get("plate"))}
+                        # The picture itself travels too: a GIF keeps playing.
+                        picture = pathlib.Path(key.get("plate", "") or "")
+                        if key.get("plate") and picture.is_file():
+                            entry["picture_file"] = f"pictures/{ident}{picture.suffix.lower()}"
+                            zf.write(picture, entry["picture_file"])
+                        keys.append(entry)
+                    spec.append({"id": f"page-{n + 1}", "title": pages[index].get("name", ""),
+                                 "apps": list(pages[index].get("apps", [])), "keys": keys})
+                zf.writestr("portable.json", json.dumps({"generator": "JuhRadial MX", "version": 1, "pages": spec},
+                                                        indent=1, ensure_ascii=False))
+        except OSError as error:
+            self.notify(_("Could not save the pack: {error}").format(error=error), "danger")
+            return False
+        self.notify(_("Pack saved: {path}").format(path=dest.name), "success")
         return True
 
     @pyqtSlot(result="QVariant")

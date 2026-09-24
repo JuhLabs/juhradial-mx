@@ -46,8 +46,10 @@ fn input_sets_diff_and_page_reports() {
     assert_eq!(parse_input(&[0x11, 0xff, 0x0b, 0, 1, 0xa1, 1, 0xa2, 0, 0]),
         Some(Input::Pages(vec![PageButton::Left, PageButton::Right])));
     assert_eq!(parse_input(&[0x11, 0xff, 0x0b, 0, 0, 0]), Some(Input::Pages(vec![])));
-    for bad in [&[0x13, 0xff, 0x2b][..], &[], &[0x13, 0xff, 2, 0, 0, 1, 10, 0],
-        &[0x13, 0xff, 2, 0, 0, 1, 1], &[0x11, 0xff, 0x0b, 0, 1]] {
+    // An image ack as the device sends it (captured on hardware): a burst of
+    // animation frames must never read as "every key released".
+    for bad in [&[0x13, 0xff, 0x2b][..], &[0x13, 0xff, 2, 0x2b, 0xc1, 0, 0, 0], &[],
+        &[0x13, 0xff, 2, 0, 0, 1, 10, 0], &[0x13, 0xff, 2, 0, 0, 1, 1], &[0x11, 0xff, 0x0b, 0, 1]] {
         assert_eq!(parse_input(bad), None);
     }
 }

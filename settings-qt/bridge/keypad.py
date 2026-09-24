@@ -1,14 +1,36 @@
 """MX Keypad plate rendering and installed-application templates."""
+import json
 import pathlib
+import re
 import shutil
 
 from PyQt6.QtCore import Qt, QRect, QRectF, QSize
-from PyQt6.QtGui import QColor, QFont, QFontDatabase, QFontMetrics, QIcon, QImage, QPainter
+from PyQt6.QtGui import QColor, QFont, QFontDatabase, QFontMetrics, QIcon, QImage, QImageReader, QLinearGradient, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 
 from bridge.i18n import _
 
 ASSETS = pathlib.Path(__file__).resolve().parents[1] / "assets"
+ART = ASSETS / "keypad" / "art"
+_ART_REF = re.compile(r"(artsy|minimal)/[a-z0-9-]+")
+
+
+def art_catalogue():
+    """The bundled key art: {"sets": [{id, name}], "art": [{id, name, sets}]}."""
+    try:
+        data = json.loads((ART / "art.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"sets": [], "art": []}
+    return data if isinstance(data, dict) else {"sets": [], "art": []}
+
+
+def art_path(ref):
+    """The file of a bundled art reference "<set>/<id>", or None. Keys store
+    the reference, not the path, so they survive a move of the install."""
+    if not isinstance(ref, str) or not _ART_REF.fullmatch(ref):
+        return None
+    path = ART / (ref + ".jpg")
+    return path if path.is_file() else None
 
 
 def empty_key():
@@ -26,8 +48,44 @@ def render_plate(key, destination, app_icon):
     if plate and _draw_ready_plate(painter, plate):
         painter.end()
         _save_plate(image, destination)
+        _save_animation(plate, pathlib.Path(destination))
         return
-    icon = key.get("icon", "")
+    art = art_path(key.get("art", ""))
+    if art is not None:
+        _draw_art(painter, art, key["art"].startswith("minimal/"), bool(key.get("label", "").strip()))
+    else:
+        _draw_glyph(painter, key.get("icon", ""), app_icon)
+    families = QFontDatabase.families()
+    family = next((f for f in ("Barlow Condensed", "Oswald", "Roboto Condensed", "DejaVu Sans") if f in families), "Sans Serif")
+    font = QFont(family)
+    font.setPixelSize(38)
+    font.setWeight(QFont.Weight.ExtraBold)
+    font.setStretch(QFont.Stretch.Condensed)
+    painter.setFont(font)
+    painter.setPen(QColor("#efe6cf"))
+    text = key.get("label", "").upper()
+    if art is None and not key.get("icon") and text:
+        # Label only (no glyph): the name is the whole key, as big as it fits.
+        box = QRect(12, 12, 212, 212)
+        flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
+        for size in range(76, 29, -4):
+            font.setPixelSize(size)
+            fit = QFontMetrics(font).boundingRect(box, flags, text)
+            if fit.width() <= box.width() and fit.height() <= box.height():
+                break
+        else:  # a word too long even at the smallest size: break inside it
+            flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWrapAnywhere
+        painter.setFont(font)
+        painter.drawText(box, flags, text)
+    else:
+        label = QFontMetrics(font).elidedText(text, Qt.TextElideMode.ElideRight, 216)
+        painter.drawText(QRect(10, 183, 216, 46), Qt.AlignmentFlag.AlignCenter, label)
+    painter.end()
+    _save_plate(image, destination)
+
+
+def _draw_glyph(painter, icon, app_icon):
+    """The key's glyph or application icon above the label."""
     if icon.startswith("desktop:"):
         icon = app_icon(icon[8:]) or "application-x-executable-symbolic"
     glyph = QImage(152, 152, QImage.Format.Format_ARGB32_Premultiplied)
@@ -54,33 +112,32 @@ def render_plate(key, destination, app_icon):
         gp.fillRect(glyph.rect(), QColor("#5cc3ee"))
     gp.end()
     painter.drawImage(42, 18, glyph)
-    families = QFontDatabase.families()
-    family = next((f for f in ("Barlow Condensed", "Oswald", "Roboto Condensed", "DejaVu Sans") if f in families), "Sans Serif")
-    font = QFont(family)
-    font.setPixelSize(38)
-    font.setWeight(QFont.Weight.ExtraBold)
-    font.setStretch(QFont.Stretch.Condensed)
-    painter.setFont(font)
-    painter.setPen(QColor("#efe6cf"))
-    text = key.get("label", "").upper()
-    if not key.get("icon") and text:
-        # Label only (no glyph): the name is the whole key, as big as it fits.
-        box = QRect(12, 12, 212, 212)
-        flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
-        for size in range(76, 29, -4):
-            font.setPixelSize(size)
-            fit = QFontMetrics(font).boundingRect(box, flags, text)
-            if fit.width() <= box.width() and fit.height() <= box.height():
-                break
-        else:  # a word too long even at the smallest size: break inside it
-            flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWrapAnywhere
-        painter.setFont(font)
-        painter.drawText(box, flags, text)
-    else:
-        label = QFontMetrics(font).elidedText(text, Qt.TextElideMode.ElideRight, 216)
-        painter.drawText(QRect(10, 183, 216, 46), Qt.AlignmentFlag.AlignCenter, label)
-    painter.end()
-    _save_plate(image, destination)
+
+
+def _draw_art(painter, path, minimal, labelled):
+    """Bundled key art, laid out like the pack plates: the artsy set fills the
+    key and darkens under the label; the minimal set sits smaller above it."""
+    picture = QImage(str(path))
+    if picture.isNull():
+        return
+    if minimal:
+        side = 170 if labelled else 212
+        scaled = picture.scaled(QSize(side, side), Qt.AspectRatioMode.KeepAspectRatio,
+                                Qt.TransformationMode.SmoothTransformation)
+        # Lighten: the art's black ground takes the plate colour, no box shows.
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Lighten)
+        painter.drawImage((236 - scaled.width()) // 2, 8 if labelled else 12, scaled)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        return
+    scaled = picture.scaled(QSize(236, 236), Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                            Qt.TransformationMode.SmoothTransformation)
+    painter.drawImage(0, 0, scaled, (scaled.width() - 236) // 2, (scaled.height() - 236) // 2, 236, 236)
+    if labelled:
+        band = QLinearGradient(0, 132, 0, 236)
+        band.setColorAt(0.0, QColor(7, 11, 20, 0))
+        band.setColorAt(0.5, QColor(7, 11, 20, 215))
+        band.setColorAt(1.0, QColor(7, 11, 20, 245))
+        painter.fillRect(0, 132, 236, 104, band)
 
 
 def _draw_ready_plate(painter, path):
@@ -94,6 +151,45 @@ def _draw_ready_plate(painter, path):
                             Qt.TransformationMode.SmoothTransformation)
     painter.drawImage(0, 0, scaled, (scaled.width() - 236) // 2, (scaled.height() - 236) // 2, 236, 236)
     return True
+
+
+# An animated picture plays on its key: the service streams these frames.
+MAX_FRAMES = 240
+MIN_DELAY_MS = 33
+
+
+def _save_animation(path, destination):
+    """Frames of an animated picture (GIF, animated WebP) beside the plate:
+    <stem>-a000.jpg, ... and <stem>.anim with one delay in ms per line.
+    Nothing is written for a still picture."""
+    reader = QImageReader(str(path))
+    if not reader.supportsAnimation():
+        return
+    written = []
+    delays = []
+    while len(delays) < MAX_FRAMES:
+        frame = reader.read()
+        if frame.isNull():
+            break
+        delay = reader.nextImageDelay()
+        # Browsers show 0-10 ms GIF delays at 100 ms; so does the keypad.
+        delays.append(100 if delay <= 10 else max(MIN_DELAY_MS, delay))
+        image = QImage(236, 236, QImage.Format.Format_RGB32)
+        image.fill(QColor("#070b14"))
+        painter = QPainter(image)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        scaled = frame.scaled(QSize(236, 236), Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                              Qt.TransformationMode.SmoothTransformation)
+        painter.drawImage(0, 0, scaled, (scaled.width() - 236) // 2, (scaled.height() - 236) // 2, 236, 236)
+        painter.end()
+        out = destination.with_name(f"{destination.stem}-a{len(written):03d}.jpg")
+        _save_plate(image, out)
+        written.append(out)
+    if len(written) < 2:
+        for out in written:
+            out.unlink(missing_ok=True)
+        return
+    destination.with_name(destination.stem + ".anim").write_text("".join(f"{d}\n" for d in delays))
 
 
 def _save_plate(image, destination):

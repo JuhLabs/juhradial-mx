@@ -59,6 +59,13 @@ def collect_profiles(found):
         for text in texts:
             if isinstance(text, str) and text:
                 found.setdefault(_escape(text), []).append(rel)
+    # Key art names and styles (assets/keypad/art/art.json), shown through _().
+    art = HERE / "assets" / "keypad" / "art" / "art.json"
+    if art.exists():
+        data = json.loads(art.read_text(encoding="utf-8"))
+        for entry in data.get("sets", []) + data.get("art", []):
+            if isinstance(entry.get("name"), str) and entry["name"]:
+                found.setdefault(_escape(entry["name"]), []).append(art.relative_to(REPO).as_posix())
 
 
 def _escape(text):

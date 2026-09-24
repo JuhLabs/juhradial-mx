@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import QtQuick.Dialogs
 import QtQuick.Layouts
@@ -29,6 +30,28 @@ Item {
     Timer { id: flash; interval: 300; onTriggered: page.litKey = 0 }
     Component.onCompleted: Backend.refreshKeypadStatus()
     component Divider: Rectangle { width: parent.width; height: 1; color: Theme.border }
+    // A profile's or app's icon: its own art or app icon, else an accent glyph.
+    component RowIcon: Rectangle {
+        property string icon: ""
+        property string kind: "glyph"
+        width: 36; height: 36; radius: 9
+        color: kind === "glyph" ? Theme.accentFaint : "#0CFFFFFF"
+        border.width: 1; border.color: Theme.border
+        Image {
+            anchors.fill: parent; anchors.margins: parent.kind === "app" ? 5 : 2
+            visible: parent.kind !== "glyph"
+            source: parent.kind === "file" ? "file://" + parent.icon
+                  : (parent.kind === "app" ? "image://icon/raw/" + parent.icon : "")
+            sourceSize.width: 72; sourceSize.height: 72
+            fillMode: Image.PreserveAspectFit; smooth: true; asynchronous: true
+        }
+        ActionIcon {
+            anchors.centerIn: parent
+            visible: parent.kind === "glyph"
+            iconName: parent.kind === "glyph" ? parent.icon : ""
+            tint: Theme.accent; px: 20
+        }
+    }
 
     Flickable {
         anchors.fill: parent
@@ -135,6 +158,14 @@ Item {
                                             source: (Backend.keypadRevision, page.bump, Backend.keypadPlate(page.currentPage, keyTile.keyNumber))
                                             cache: false; smooth: true
                                         }
+                                        // An animated picture plays here as it does on the key.
+                                        AnimatedImage {
+                                            readonly property string pic: keyTile.binding.plate || ""
+                                            anchors.fill: parent; anchors.margins: 3
+                                            visible: /\.(gif|webp)$/i.test(pic)
+                                            source: visible ? "file://" + pic : ""
+                                            fillMode: Image.PreserveAspectCrop; smooth: true
+                                        }
                                         Text {
                                             anchors.centerIn: parent
                                             visible: !keyTile.binding.label && !keyTile.binding.icon
@@ -186,10 +217,17 @@ Item {
                     anchors.fill: parent; anchors.margins: Theme.padCard; spacing: Theme.gapS
                     CardHeader {
                         width: parent.width; title: qsTr("Pages")
-                        subtitle: qsTr("Page buttons wrap from the last page to the first")
-                        PrimaryButton {
-                            text: qsTr("Add page"); ghost: true; enabled: page.pages.length < 255
-                            onClicked: Backend.addKeypadPage(qsTr("New page"))
+                        subtitle: qsTr("Grouped by the apps that bring them up. Page buttons cycle within the group in front.")
+                        Row {
+                            spacing: Theme.gapS
+                            PrimaryButton {
+                                text: qsTr("New app profile"); ghost: true; enabled: page.pages.length < 255
+                                onClicked: profileAppPicker.open()
+                            }
+                            PrimaryButton {
+                                text: qsTr("Add page"); ghost: true; enabled: page.pages.length < 255
+                                onClicked: Backend.addKeypadPage(qsTr("New page"))
+                            }
                         }
                     }
                     SettingRow {
@@ -203,51 +241,91 @@ Item {
                             onCommitted: (v) => Backend.set("keypad.brightness", Math.round(v))
                         }
                     }
-                    Divider {}
                     Repeater {
-                        model: page.pages
-                        RowLayout {
-                            required property int index
+                        model: (Backend.keypadRevision, page.bump, Backend.keypadGroups())
+                        Column {
+                            id: group
                             required property var modelData
                             width: pageColumn.width; spacing: Theme.gapS
-                            InputField {
-                                Layout.fillWidth: true
-                                accessibleName: qsTr("Page %1 name").arg(index + 1)
-                                text: modelData.name
-                                onEditingFinished: Backend.renameKeypadPage(index, text)
+                            Divider {}
+                            RowLayout {
+                                width: parent.width; spacing: Theme.gap
+                                RowIcon { icon: group.modelData.icon; kind: group.modelData.iconKind }
+                                Column {
+                                    Layout.fillWidth: true; spacing: 2
+                                    Text {
+                                        width: parent.width; elide: Text.ElideRight
+                                        text: group.modelData.name; color: Theme.textPrimary
+                                        font.family: Theme.fontUI; font.pixelSize: Theme.fsBody; font.weight: Font.DemiBold
+                                    }
+                                    Text {
+                                        width: parent.width; elide: Text.ElideRight
+                                        text: group.modelData.desc; color: Theme.textMuted
+                                        font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                                    }
+                                }
+                                PrimaryButton {
+                                    text: qsTr("Add page"); ghost: true; enabled: page.pages.length < 255
+                                    onClicked: Backend.addKeypadGroupPage(qsTr("New page"), group.modelData.apps)
+                                }
+                                IconButton {
+                                    icon: "document-export"; tip: qsTr("Save these pages as a pack to share")
+                                    onClicked: {
+                                        exportDialog.indexes = group.modelData.pages
+                                        exportDialog.selectedFile = exportDialog.currentFolder + "/"
+                                            + (group.modelData.name.replace(/[^A-Za-z0-9 _-]/g, "").trim() || "keypad") + ".zip"
+                                        exportDialog.open()
+                                    }
+                                }
                             }
-                            PrimaryButton {
-                                text: index === page.currentPage ? qsTr("Active") : qsTr("Show")
-                                ghost: index !== page.currentPage
-                                onClicked: Backend.setKeypadPage(index)
-                            }
-                            // Which apps bring this page up (none = the general pages).
-                            PrimaryButton {
-                                ghost: true
-                                readonly property var apps: modelData.apps || []
-                                text: apps.length ? qsTr("For %1").arg(apps.length > 1 ? apps[0] + " +" + (apps.length - 1) : apps[0]) : qsTr("All apps")
-                                onClicked: { pageAppPicker.pageIndex = index; pageAppPicker.open() }
-                            }
-                            IconButton {
-                                visible: (modelData.apps || []).length > 0
-                                icon: "edit-clear-symbolic"; tip: qsTr("Show this page for all apps")
-                                onClicked: Backend.setKeypadPageApps(index, [])
-                            }
-                            IconButton {
-                                icon: "go-previous-symbolic"; rotation: 90
-                                tip: qsTr("Move page up"); enabled: index > 0
-                                onClicked: Backend.moveKeypadPage(index, index - 1)
-                            }
-                            IconButton {
-                                icon: "go-next-symbolic"; rotation: 90
-                                tip: qsTr("Move page down"); enabled: index + 1 < page.pages.length
-                                onClicked: Backend.moveKeypadPage(index, index + 1)
-                            }
-                            IconButton {
-                                icon: "edit-delete-symbolic"; tip: qsTr("Delete page")
-                                onClicked: {
-                                    var snapshot = Backend.deleteKeypadPage(index)
-                                    if (snapshot) page.Window.window.undoToast(qsTr("Page deleted"), function() { Backend.restoreKeypadPages(snapshot) })
+                            Repeater {
+                                model: group.modelData.pages
+                                RowLayout {
+                                    id: pageRow
+                                    required property int modelData
+                                    readonly property int index: modelData
+                                    readonly property var pg: page.pages[modelData] || ({ name: "", apps: [] })
+                                    width: pageColumn.width; spacing: Theme.gapS
+                                    InputField {
+                                        Layout.fillWidth: true; Layout.leftMargin: 48
+                                        accessibleName: qsTr("Page %1 name").arg(pageRow.index + 1)
+                                        text: pageRow.pg.name
+                                        onEditingFinished: Backend.renameKeypadPage(pageRow.index, text)
+                                    }
+                                    PrimaryButton {
+                                        text: pageRow.index === page.currentPage ? qsTr("Active") : qsTr("Show")
+                                        ghost: pageRow.index !== page.currentPage
+                                        onClicked: Backend.setKeypadPage(pageRow.index)
+                                    }
+                                    // Which apps bring this page up (none = the general pages).
+                                    PrimaryButton {
+                                        ghost: true
+                                        readonly property var apps: pageRow.pg.apps || []
+                                        text: apps.length ? qsTr("For %1").arg(apps.length > 1 ? apps[0] + " +" + (apps.length - 1) : apps[0]) : qsTr("All apps")
+                                        onClicked: { pageAppPicker.pageIndex = pageRow.index; pageAppPicker.open() }
+                                    }
+                                    IconButton {
+                                        visible: (pageRow.pg.apps || []).length > 0
+                                        icon: "edit-clear-symbolic"; tip: qsTr("Show this page for all apps")
+                                        onClicked: Backend.setKeypadPageApps(pageRow.index, [])
+                                    }
+                                    IconButton {
+                                        icon: "go-previous-symbolic"; rotation: 90
+                                        tip: qsTr("Move page up"); enabled: pageRow.index > 0
+                                        onClicked: Backend.moveKeypadPage(pageRow.index, pageRow.index - 1)
+                                    }
+                                    IconButton {
+                                        icon: "go-next-symbolic"; rotation: 90
+                                        tip: qsTr("Move page down"); enabled: pageRow.index + 1 < page.pages.length
+                                        onClicked: Backend.moveKeypadPage(pageRow.index, pageRow.index + 1)
+                                    }
+                                    IconButton {
+                                        icon: "edit-delete-symbolic"; tip: qsTr("Delete page")
+                                        onClicked: {
+                                            var snapshot = Backend.deleteKeypadPage(pageRow.index)
+                                            if (snapshot) page.Window.window.undoToast(qsTr("Page deleted"), function() { Backend.restoreKeypadPages(snapshot) })
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -272,17 +350,26 @@ Item {
                     Divider {}
                     Repeater {
                         model: profileCard.profiles.filter(function (p) { return profileCard.showAll || p.installed })
-                        SettingRow {
+                        Row {
+                            id: profileRow
                             required property var modelData
-                            label: modelData.name
-                            desc: modelData.description
-                                  + (modelData.minutes > 0 ? "  " + qsTr("Used %1 min").arg(modelData.minutes) : "")
-                                  + (modelData.requires.length ? "  " + qsTr("Needs %1").arg(modelData.requires.join(", ")) : "")
-                            PrimaryButton {
-                                text: modelData.added ? qsTr("Added") : qsTr("Add profile")
-                                ghost: true
-                                enabled: !modelData.added && page.pages.length < 254
-                                onClicked: { Backend.applyKeypadProfile(modelData.id); editor.load() }
+                            width: profileColumn.width; spacing: Theme.gap
+                            RowIcon {
+                                anchors.verticalCenter: parent.verticalCenter
+                                icon: profileRow.modelData.icon; kind: profileRow.modelData.iconKind
+                            }
+                            SettingRow {
+                                width: parent.width - 36 - Theme.gap
+                                label: profileRow.modelData.name
+                                desc: profileRow.modelData.description
+                                      + (profileRow.modelData.minutes > 0 ? "  " + qsTr("Used %1 min").arg(profileRow.modelData.minutes) : "")
+                                      + (profileRow.modelData.requires.length ? "  " + qsTr("Needs %1").arg(profileRow.modelData.requires.join(", ")) : "")
+                                PrimaryButton {
+                                    text: profileRow.modelData.added ? qsTr("Added") : qsTr("Add profile")
+                                    ghost: true
+                                    enabled: !profileRow.modelData.added && page.pages.length < 254
+                                    onClicked: { Backend.applyKeypadProfile(profileRow.modelData.id); editor.load() }
+                                }
                             }
                         }
                     }
@@ -336,6 +423,21 @@ Item {
             if (cls && apps.indexOf(cls) < 0) apps.push(cls)
             Backend.setKeypadPageApps(pageIndex, apps)
         }
+    }
+    AppPicker {
+        id: profileAppPicker
+        title: qsTr("Which app is this profile for?")
+        onPicked: (app) => { if (Backend.addKeypadAppProfile(app.id)) editor.load() }
+    }
+    FileDialog {
+        id: exportDialog
+        property var indexes: []
+        title: qsTr("Save pages as a keypad pack")
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "zip"
+        currentFolder: StandardPaths.writableLocation(StandardPaths.DocumentsLocation)
+        nameFilters: [qsTr("Keypad pack (*.zip)")]
+        onAccepted: Backend.exportKeypadPack(selectedFile.toString(), indexes)
     }
     FileDialog {
         id: packDialog

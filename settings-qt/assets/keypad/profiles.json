@@ -6,6 +6,7 @@
    "id": "browser",
    "name": "Web browser",
    "description": "Tabs, navigation and address bar for Firefox and Chromium-based browsers.",
+   "icon": "web-browser-symbolic",
    "apps": [
     "firefox",
     "firefox-esr",
@@ -213,6 +214,7 @@
    "id": "vscode",
    "name": "VS Code",
    "description": "Command palette, terminal, editing and debugging for VS Code, VSCodium and Code - OSS.",
+   "icon": "applications-development-symbolic",
    "apps": [
     "code",
     "code-oss",
@@ -420,6 +422,7 @@
    "id": "terminal",
    "name": "Terminal",
    "description": "Tabs, clipboard, find and zoom for tabbed terminals, plus shell editing keys.",
+   "icon": "utilities-terminal-symbolic",
    "apps": [
     "org.kde.konsole",
     "konsole",
@@ -628,6 +631,7 @@
    "id": "kitty",
    "name": "kitty",
    "description": "kitty's own tab, window, search and font-size keys, plus shell editing keys.",
+   "icon": "utilities-terminal-symbolic",
    "apps": [
     "kitty"
    ],
@@ -822,6 +826,7 @@
    "id": "terminal-minimal",
    "name": "Alacritty and foot",
    "description": "Clipboard, zoom and shell keys for terminals without tabs.",
+   "icon": "utilities-terminal-symbolic",
    "apps": [
     "alacritty",
     "foot",
@@ -928,6 +933,7 @@
    "id": "media",
    "name": "Music and video players",
    "description": "Transport, seek and volume for any MPRIS media player.",
+   "icon": "media-playback-start-symbolic",
    "apps": [
     "rhythmbox",
     "org.gnome.rhythmbox3",
@@ -1065,6 +1071,7 @@
    "id": "spotify",
    "name": "Spotify",
    "description": "Spotify transport, seek, like and volume, targeted at Spotify only.",
+   "icon": "headphones",
    "apps": [
     "spotify",
     "com.spotify.client"
@@ -1176,6 +1183,7 @@
    "id": "zoom",
    "name": "Zoom",
    "description": "Mute, camera, share and raise hand in Zoom meetings.",
+   "icon": "video-camera",
    "apps": [
     "zoom"
    ],
@@ -1284,6 +1292,7 @@
    "id": "teams",
    "name": "Microsoft Teams",
    "description": "Mute, share, raise hand, answer and leave in Teams (teams-for-linux or PWA).",
+   "icon": "people",
    "apps": [
     "teams-for-linux",
     "com.github.ismaelmartinez.teams_for_linux"
@@ -1393,6 +1402,7 @@
    "id": "google-meet",
    "name": "Google Meet",
    "description": "Mic, camera, raise hand, chat and people in a Google Meet tab (select manually).",
+   "icon": "video-camera",
    "apps": [],
    "desktop_ids": [],
    "requires": [
@@ -1496,6 +1506,7 @@
    "id": "obs",
    "name": "OBS Studio",
    "description": "Record, pause, stream, replay, virtual camera and scene switching through obs-cmd.",
+   "icon": "media-record",
    "apps": [
     "obs",
     "com.obsproject.studio"
@@ -1606,6 +1617,7 @@
    "id": "gimp",
    "name": "GIMP",
    "description": "Zoom, brush size, colour picking, undo and export for GIMP 3.",
+   "icon": "brush",
    "apps": [
     "gimp",
     "gimp-3.0",
@@ -1801,6 +1813,7 @@
    "id": "krita",
    "name": "Krita",
    "description": "Zoom, brush size, sampler, eraser, canvas rotation and undo for Krita.",
+   "icon": "brush",
    "apps": [
     "krita",
     "org.kde.krita"
@@ -1988,6 +2001,7 @@
    "id": "inkscape",
    "name": "Inkscape",
    "description": "Zoom, dropper, layers, export, tools and grouping for Inkscape 1.x.",
+   "icon": "tool-pen",
    "apps": [
     "inkscape",
     "org.inkscape.inkscape"
@@ -2173,6 +2187,7 @@
    "id": "blender",
    "name": "Blender",
    "description": "Transform, edit mode, add, search and numpad viewpoints for Blender's default keymap.",
+   "icon": "scene",
    "apps": [
     "blender",
     "org.blender.blender"
@@ -2362,6 +2377,7 @@
    "id": "libreoffice",
    "name": "LibreOffice",
    "description": "Formatting, save, find and replace, comments and print preview for Writer, Calc and Impress.",
+   "icon": "document-edit-symbolic",
    "apps": [
     "libreoffice-writer",
     "libreoffice-calc",
@@ -2564,6 +2580,7 @@
    "id": "onlyoffice",
    "name": "ONLYOFFICE",
    "description": "Formatting, save, find and replace, comments and print for ONLYOFFICE Desktop Editors.",
+   "icon": "document-edit-symbolic",
    "apps": [
     "onlyoffice"
    ],
@@ -2667,6 +2684,7 @@
    "id": "dolphin",
    "name": "Dolphin",
    "description": "Navigation, new folder, rename, split view, terminal and path copy for KDE Dolphin.",
+   "icon": "folder-symbolic",
    "apps": [
     "org.kde.dolphin",
     "dolphin"
@@ -2861,6 +2879,7 @@
    "id": "gtk-files",
    "name": "Files, Nemo and Thunar",
    "description": "Navigation, new folder, rename, search, hidden files and tabs for GNOME Files, Nemo and Thunar.",
+   "icon": "folder-symbolic",
    "apps": [
     "org.gnome.nautilus",
     "nautilus",
@@ -3049,6 +3068,7 @@
    "id": "discord",
    "name": "Discord",
    "description": "Quick switcher, unread navigation, upload, emoji, mute and deafen for Discord.",
+   "icon": "chat",
    "apps": [
     "discord",
     "com.discordapp.discord"
@@ -3155,6 +3175,7 @@
    "id": "slack",
    "name": "Slack",
    "description": "Quick switcher, unreads, upload and huddle controls for Slack.",
+   "icon": "chat",
    "apps": [
     "slack",
     "com.slack.slack"
@@ -3261,6 +3282,7 @@
    "id": "telegram",
    "name": "Telegram",
    "description": "Chat and folder navigation, search, saved messages and archive for Telegram Desktop.",
+   "icon": "chat",
    "apps": [
     "org.telegram.desktop",
     "telegramdesktop",
@@ -3368,6 +3390,7 @@
    "id": "element",
    "name": "Element",
    "description": "Room search, unread navigation, upload and call mic/camera for Element.",
+   "icon": "chat",
    "apps": [
     "element",
     "im.riot.riot",
@@ -3480,6 +3503,7 @@
    "id": "jetbrains",
    "name": "JetBrains IDEs",
    "description": "Find action, run, debug, navigation, refactoring and VCS for IntelliJ-based IDEs.",
+   "icon": "applications-development-symbolic",
    "apps": [
     "jetbrains-idea",
     "jetbrains-idea-ce",
@@ -3686,6 +3710,7 @@
    "id": "kdenlive",
    "name": "Kdenlive",
    "description": "Play, cut at playhead, undo, timeline zoom and edit-point navigation for Kdenlive.",
+   "icon": "video-display-symbolic",
    "apps": [
     "kdenlive",
     "org.kde.kdenlive"
@@ -3784,6 +3809,7 @@
    "id": "shotcut",
    "name": "Shotcut",
    "description": "Play, split, undo, timeline zoom and edit navigation for Shotcut.",
+   "icon": "video-display-symbolic",
    "apps": [
     "shotcut",
     "org.shotcut.shotcut"
@@ -3881,6 +3907,7 @@
    "id": "general",
    "name": "General",
    "description": "Media, volume, screenshot, lock and desktop actions when no app profile matches.",
+   "icon": "input-keyboard-symbolic",
    "apps": [],
    "desktop_ids": [],
    "requires": [

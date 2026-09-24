@@ -136,6 +136,16 @@ class IconProvider(QQuickImageProvider):
         if len(parts) == 2 and parts[0] in ICON_STYLES:
             style, name = parts[0], parts[1]
         base = self._base(name, w, h, style)
+        if base.isNull() and tint is None:
+            # An app icon outside the Qt theme (no platform theme, Flatpak
+            # exports): the XDG hicolor/pixmaps file, as cacheAppIcon finds it.
+            from bridge.backend import _xdg_icon_file
+            found = _xdg_icon_file(name)
+            if found.endswith(".svg"):
+                base = self._render_svg(found, w, h)
+            elif found:
+                base = QPixmap(found).scaled(w, h, Qt.AspectRatioMode.KeepAspectRatio,
+                                             Qt.TransformationMode.SmoothTransformation)
         if base.isNull():
             base = QPixmap(w, h)
             base.fill(Qt.GlobalColor.transparent)

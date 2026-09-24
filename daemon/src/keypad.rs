@@ -7,7 +7,7 @@ use std::io;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 static CONNECTED: AtomicBool = AtomicBool::new(false);
@@ -112,13 +112,67 @@ fn plates_dir(config: &SharedConfig) -> std::path::PathBuf {
         .or_else(Config::default_config_dir).unwrap_or_default().join("keypad/plates")
 }
 
-fn push_plates(keypad: &mut Keypad, dir: &Path, page: u8, configured: bool) -> io::Result<()> {
+fn read_jpeg(path: &Path) -> Option<Vec<u8>> {
+    std::fs::read(path).ok()
+        .filter(|b| b.len() <= 65535 && b.starts_with(&[0xff, 0xd8]) && b.ends_with(&[0xff, 0xd9]))
+}
+
+/// Upper bounds for one animated key (Settings renders at most this many).
+const MAX_FRAMES: usize = 240;
+const MIN_FRAME: Duration = Duration::from_millis(33);
+const MAX_FRAME: Duration = Duration::from_secs(10);
+/// Longest wait for a key report when no frame is due.
+const IDLE_READ: Duration = Duration::from_millis(100);
+
+/// An animated key (a GIF or animated WebP picture): the JPEG frames Settings
+/// rendered next to its plate (`p{page}-k{key}-aNNN.jpg`) with their delays in
+/// ms (`p{page}-k{key}.anim`, one per line). The device takes a small key
+/// image in about half a millisecond, so nine keys at 30 fps are cheap.
+struct Animation {
+    frames: Vec<Vec<u8>>,
+    delays: Vec<Duration>,
+    next: usize,
+    due: Instant,
+}
+
+fn load_animation(dir: &Path, page: u8, key: u8) -> Option<Animation> {
+    let manifest = std::fs::read_to_string(dir.join(format!("p{page}-k{key}.anim"))).ok()?;
+    let mut delays: Vec<Duration> = manifest.lines().take(MAX_FRAMES)
+        .map_while(|line| line.trim().parse::<u64>().ok())
+        .map(|ms| Duration::from_millis(ms).clamp(MIN_FRAME, MAX_FRAME)).collect();
+    let frames: Vec<Vec<u8>> = (0..delays.len())
+        .map_while(|i| read_jpeg(&dir.join(format!("p{page}-k{key}-a{i:03}.jpg")))).collect();
+    if frames.len() < 2 { return None; }
+    delays.truncate(frames.len());
+    // The plate (frame 0) is on the key already; frame 1 follows its delay.
+    Some(Animation { frames, due: Instant::now() + delays[0], delays, next: 1 })
+}
+
+fn push_plates(keypad: &mut Keypad, dir: &Path, page: u8, configured: bool) -> io::Result<Vec<Option<Animation>>> {
+    let mut animations = Vec::with_capacity(9);
     for key in 1..=9 {
-        let data = if configured {
-            std::fs::read(dir.join(format!("p{page}-k{key}.jpg"))).ok()
-                .filter(|b| b.len() <= 65535 && b.starts_with(&[0xff, 0xd8]) && b.ends_with(&[0xff, 0xd9]))
-        } else { None };
+        let data = if configured { read_jpeg(&dir.join(format!("p{page}-k{key}.jpg"))) } else { None };
         keypad.write_image(KeyWindow::new(key).unwrap(), data.as_deref().unwrap_or(BLACK))?;
+        animations.push(if configured && data.is_some() { load_animation(dir, page, key) } else { None });
+    }
+    Ok(animations)
+}
+
+/// How long the read may wait: until the next frame is due, at most IDLE_READ.
+fn next_wait(animations: &[Option<Animation>], now: Instant) -> Duration {
+    animations.iter().flatten().map(|a| a.due.saturating_duration_since(now)).min()
+        .map_or(IDLE_READ, |d| d.min(IDLE_READ))
+}
+
+/// Show every frame that is due. The next one is timed from now, so a late
+/// tick (a slow page push) never makes a key race through frames.
+fn play_due(keypad: &mut Keypad, animations: &mut [Option<Animation>]) -> io::Result<()> {
+    let now = Instant::now();
+    for (i, slot) in animations.iter_mut().enumerate() {
+        let Some(anim) = slot.as_mut().filter(|a| a.due <= now) else { continue };
+        keypad.write_image(KeyWindow::new(i as u8 + 1).unwrap(), &anim.frames[anim.next])?;
+        anim.due = now + anim.delays[anim.next];
+        anim.next = (anim.next + 1) % anim.frames.len();
     }
     Ok(())
 }
@@ -165,6 +219,7 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
     let mut shown = None;
     let mut revision = u64::MAX;
     let mut app = None;
+    let mut animations: Vec<Option<Animation>> = Vec::new();
     let result = (|| {
         while !tx.is_closed() && !stop.load(Ordering::Relaxed) {
             let mut cfg = config.read().map(|c| c.keypad.clone()).unwrap_or_default();
@@ -190,11 +245,13 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
                 }
             }
             if shown.as_ref() != Some(&cfg) || revision != next_revision {
-                push_plates(keypad, &dir, cfg.page_index(), !cfg.pages.is_empty())?;
+                animations = push_plates(keypad, &dir, cfg.page_index(), !cfg.pages.is_empty())?;
                 shown = Some(cfg.clone());
                 revision = next_revision;
             }
-            let Some(data) = keypad.read_report(Duration::from_millis(100))? else { continue };
+            let report = keypad.read_report(next_wait(&animations, Instant::now()))?;
+            play_due(keypad, &mut animations)?;
+            let Some(data) = report else { continue };
             match mx_keypad::parse_input(&data) {
                 Some(Input::Keys(keys)) => held.update(keys, &cfg, tx),
                 Some(Input::Pages(next)) => {
@@ -274,5 +331,32 @@ mod tests {
         assert!(set_page(&c, 1).is_err());
         c.write().unwrap().keypad.active_page = 200;
         assert_eq!(status(&c).2, 0);
+    }
+
+    #[test]
+    fn animated_keys_load_bounded_frames_and_wait_for_the_next_one() {
+        let dir = std::env::temp_dir().join(format!("keypad-anim-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // Delays are clamped to 33 ms..10 s; a missing frame ends the loop.
+        std::fs::write(dir.join("p2-k5.anim"), "0\n120\n99999\n40\n").unwrap();
+        for i in 0..3 { std::fs::write(dir.join(format!("p2-k5-a{i:03}.jpg")), BLACK).unwrap(); }
+        let anim = load_animation(&dir, 2, 5).unwrap();
+        assert_eq!(anim.frames.len(), 3);
+        assert_eq!(anim.delays, [MIN_FRAME, Duration::from_millis(120), MAX_FRAME]);
+        assert_eq!(anim.next, 1);
+        // One frame is a still picture; a broken frame or no manifest is none.
+        std::fs::write(dir.join("p2-k6.anim"), "50\n50\n").unwrap();
+        std::fs::write(dir.join("p2-k6-a000.jpg"), BLACK).unwrap();
+        std::fs::write(dir.join("p2-k6-a001.jpg"), b"not a jpeg").unwrap();
+        assert!(load_animation(&dir, 2, 6).is_none());
+        assert!(load_animation(&dir, 2, 7).is_none());
+        let now = Instant::now();
+        assert_eq!(next_wait(&[None, None], now), IDLE_READ);
+        let soon = Animation { frames: vec![], delays: vec![], next: 0, due: now + Duration::from_millis(20) };
+        assert_eq!(next_wait(&[None, Some(soon)], now), Duration::from_millis(20));
+        let late = Animation { frames: vec![], delays: vec![], next: 0, due: now };
+        assert_eq!(next_wait(&[Some(late)], now + Duration::from_millis(5)), Duration::ZERO);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

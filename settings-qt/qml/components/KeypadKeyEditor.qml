@@ -66,18 +66,27 @@ Column {
     Flow {
         width: parent.width
         spacing: Theme.gapS
-        Image {
+        // AnimatedImage plays a GIF or animated WebP the way the key will.
+        AnimatedImage {
             visible: (ed.draft.plate || "") !== ""
             width: 40; height: 40
             source: (ed.draft.plate || "") !== "" ? "file://" + ed.draft.plate : ""
-            sourceSize.width: 80; sourceSize.height: 80
             fillMode: Image.PreserveAspectCrop; smooth: true
         }
+        Image {
+            readonly property string art: (ed.draft.plate || "") === "" ? Backend.keypadArtPath(ed.draft.art || "") : ""
+            visible: art !== ""
+            width: 40; height: 40
+            source: art !== "" ? "file://" + art : ""
+            sourceSize.width: 80; sourceSize.height: 80
+            fillMode: Image.PreserveAspectFit; smooth: true
+        }
         ActionIcon {
-            visible: (ed.draft.plate || "") === "" && !(ed.draft.icon || "").startsWith("desktop:")
+            visible: (ed.draft.plate || "") === "" && (ed.draft.art || "") === "" && !(ed.draft.icon || "").startsWith("desktop:")
             iconName: ed.draft.icon || "input-keyboard-symbolic"
             tint: Theme.accent; px: 32
         }
+        PrimaryButton { text: qsTr("Art"); ghost: true; onClicked: artPicker.open() }
         PrimaryButton { text: qsTr("Glyph"); ghost: true; onClicked: glyphPicker.open() }
         PrimaryButton { text: qsTr("App icon"); ghost: true; onClicked: iconAppPicker.open() }
         PrimaryButton { text: qsTr("Picture"); ghost: true; onClicked: pictureDialog.open() }
@@ -89,7 +98,7 @@ Column {
     }
     Text {
         width: parent.width; wrapMode: Text.WordWrap
-        text: qsTr("A picture fills the whole key, label included. Otherwise the glyph or app icon sits above the label; long labels are shortened.")
+        text: qsTr("A picture fills the whole key, label included; an animated GIF plays on the key. Art keeps your label on the key; a glyph or app icon sits above it. Long labels are shortened.")
         color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
     }
     PrimaryButton {
@@ -112,27 +121,32 @@ Column {
             else if (row) { ed.update("label", row.name); ed.update("icon", row.icon) }
         }
     }
+    KeypadArtPicker {
+        id: artPicker
+        currentId: ed.draft.art || ""
+        onPicked: (id) => { ed.update("art", id); ed.update("plate", "") }
+    }
     ActionPicker {
         id: glyphPicker
         title: qsTr("Choose a glyph")
         actions: Backend.keypadGlyphs()
         currentId: ed.draft.icon
-        onPicked: (id) => { ed.update("icon", id); ed.update("plate", "") }
+        onPicked: (id) => { ed.update("icon", id); ed.update("plate", ""); ed.update("art", "") }
     }
     AppPicker {
         id: iconAppPicker
         onPicked: (app) => {
             ed.update("icon", Backend.cacheAppIcon(app.id) || "application-x-executable-symbolic")
-            ed.update("plate", "")
+            ed.update("plate", ""); ed.update("art", "")
         }
     }
     FileDialog {
         id: pictureDialog
         title: qsTr("Choose a picture for this key")
-        nameFilters: [qsTr("Images (*.png *.jpg *.jpeg *.webp *.bmp *.svg)")]
+        nameFilters: [qsTr("Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp *.svg)")]
         onAccepted: {
             var path = Backend.importKeypadImage(selectedFile.toString())
-            if (path !== "") ed.update("plate", path)
+            if (path !== "") { ed.update("plate", path); ed.update("art", "") }
         }
     }
     CustomActionEditor {
