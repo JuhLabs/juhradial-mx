@@ -692,7 +692,8 @@ SEARCH_INDEX = [
     ("macros", "Start from a template", "Library", "template starter example duplicate line signature"),
     # App profiles
     ("apps", "App profiles", "", "per-app application profile dpi smartshift focus window class"),
-    ("apps", "Add application", "", "add app profile window class per-app override"),
+    ("apps", "Add by window class", "App profiles", "add app profile window class per-app override"),
+    ("apps", "Recently used", "App profiles", "recent apps add profile one click"),
     # Easy-Switch
     ("easyswitch", "Easy-Switch shortcuts in radial menu", "Easy-Switch", "easy-switch radial menu slices host-switch"),
     ("easyswitch", "Operating system", "Paired computers", "easy-switch host os operating system computer"),
@@ -1269,6 +1270,21 @@ class SliceModel(QAbstractListModel):
         self._backend._set_path(["radial_menu", "slices"], self.slices())
         self._backend._save()
         self._backend.reloadConfig()
+
+
+class AppSliceModel(SliceModel):
+    """One app's own radial menu (profiles.json hardware.<app>.slices); the
+    overlay shows it while that app's profile is active."""
+
+    app = ""
+
+    def _persist(self):
+        if not self.app:
+            return
+        data = self._backend._load_profiles()
+        hw = data.setdefault("hardware", {}).setdefault(self.app, {})
+        hw["slices"] = self.slices()
+        self._backend._save_profiles(data)
         self.changed.emit()
 
 
@@ -1357,6 +1373,7 @@ class Backend(QObject):
         self.daemon = Daemon()
         self._slices = SliceModel(self)
         self._slices.load(self.get("radial_menu.slices") or [])
+        self._app_slices = AppSliceModel(self)
 
         # live hardware state
         self._battery = 0
@@ -1416,6 +1433,7 @@ class Backend(QObject):
         self.daemon.ratchetChanged.connect(self._set_ratchet_live)
         self.daemon.gamingModeChanged.connect(self._set_gaming_live)
         self._pending_app = ""
+        self._recent_apps = []
         self.daemon.newAppSeen.connect(self._on_new_app)
         self._kb_info = None
         self._kb_last_battery = 0
@@ -2652,41 +2670,120 @@ class Backend(QObject):
         except Exception as e:
             self.toast.emit(_("Profiles save failed: {error}").format(error=e))
 
+    def _profile_globals(self):
+        """What a profile falls back to where it overrides nothing."""
+        mode = self.scrollMode
+        return {"dpi": self._dpi, "smartshiftEnabled": mode == "smartshift",
+                "smartshiftThreshold": _to_int(self.get("scroll.smartshift_threshold", 50), 50),
+                "hires": bool(self.get("scroll.smooth", True)), "thumbwheel": self.thumbwheelMode}
+
     @pyqtSlot(result="QVariant")
     def appProfiles(self):
-        hw = (self._load_profiles().get("hardware") or {})
+        """Every profile: which settings it overrides (the rest follow the
+        global ones), their values, its own ring and buttons."""
+        hw_all = (self._load_profiles().get("hardware") or {})
+        g = self._profile_globals()
         out = []
-        for app, h in hw.items():
-            ss = h.get("smartshift") or {}
+        for app, h in hw_all.items():
+            h = h if isinstance(h, dict) else {}
+            ss = h.get("smartshift") if isinstance(h.get("smartshift"), dict) else None
             # profiles.json stores the device threshold the daemon sends to the
             # mouse; the slider speaks sensitivity % through the PR #123
             # mapping, the same one saveAppProfile writes with.
-            dev_thr = _to_int(ss.get("threshold"), self._dev_threshold(50))
-            ui_thr = self._ui_threshold(dev_thr)
-            out.append({"app": app,
-                        "dpi": int(h.get("dpi", 1600)),
-                        "smartshiftEnabled": bool(ss.get("enabled", True)),
+            ui_thr = (self._ui_threshold(_to_int(ss.get("threshold"), self._dev_threshold(50)))
+                      if ss else g["smartshiftThreshold"])
+            tw = h.get("thumbwheel")
+            out.append({"app": app, "name": self._app_display_name(app), "icon": self._app_icon_name(app),
+                        "overrides": {"dpi": "dpi" in h, "smartshift": ss is not None,
+                                      "hires": "hires" in h, "thumbwheel": tw is not None},
+                        "dpi": _to_int(h.get("dpi"), g["dpi"]) if "dpi" in h else g["dpi"],
+                        "smartshiftEnabled": bool(ss.get("enabled", True)) if ss else g["smartshiftEnabled"],
                         "smartshiftThreshold": ui_thr,
-                        "hires": bool(h.get("hires", True)),
-                        "thumbwheel": "off" if h.get("thumbwheel") == "scroll"
-                                      else str(h.get("thumbwheel", "off"))})
-        out.sort(key=lambda x: x["app"])
+                        "hires": bool(h["hires"]) if "hires" in h else g["hires"],
+                        "thumbwheel": ("off" if tw == "scroll" else str(tw)) if tw is not None else g["thumbwheel"],
+                        "ownRing": isinstance(h.get("slices"), list) and len(h["slices"]) == 8,
+                        "buttons": len(h.get("buttons") or {})})
+        out.sort(key=lambda x: x["name"].lower())
         return out
+
+    @staticmethod
+    def _app_icon_name(app):
+        """The desktop entry's icon name for a window class, or ""."""
+        try:
+            from gi.repository import Gio
+            for candidate in (app, app.lower()):
+                try:
+                    info = Gio.DesktopAppInfo.new(candidate + ".desktop")
+                except Exception:
+                    info = None
+                if info is not None and isinstance(info.get_icon(), Gio.ThemedIcon):
+                    names = info.get_icon().get_names() or []
+                    return names[0] if names else ""
+        except Exception:
+            pass
+        return ""
+
+    @pyqtSlot(result="QVariant")
+    def recentApps(self):
+        """Apps seen in front this session without a profile (newest first),
+        for one-click profiles."""
+        have = set((self._load_profiles().get("hardware") or {}).keys())
+        return [{"app": a, "name": self._app_display_name(a)}
+                for a in self._recent_apps if a not in have][:6]
+
+    @pyqtProperty(QObject, constant=True)
+    def appSlices(self):
+        """The slices of the app picked with editAppSlices()."""
+        return self._app_slices
+
+    @pyqtSlot(str, result=bool)
+    def appHasOwnRing(self, app):
+        hw = (self._load_profiles().get("hardware") or {}).get(app) or {}
+        return isinstance(hw.get("slices"), list) and len(hw["slices"]) == 8
+
+    @pyqtSlot(str, bool)
+    def setAppOwnRing(self, app, on):
+        """Give an app its own radial menu (a copy of the global one to start
+        from), or send it back to the global one."""
+        data = self._load_profiles()
+        hw = data.setdefault("hardware", {}).setdefault(app, {})
+        if on:
+            hw["slices"] = copy.deepcopy(self._slices.slices())
+        else:
+            hw.pop("slices", None)
+        self._save_profiles(data)
+        self.editAppSlices(app)
+
+    @pyqtSlot(str)
+    def editAppSlices(self, app):
+        hw = (self._load_profiles().get("hardware") or {}).get(app) or {}
+        self._app_slices.app = app
+        self._app_slices.load(hw.get("slices") if self.appHasOwnRing(app) else self._slices.slices())
+
+    @pyqtSlot(str, result=str)
+    def appProfileError(self, app):
+        """Why a window class cannot be added ("" = it can)."""
+        app = (app or "").strip().lower()
+        if not app:
+            return ""
+        if not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", app):
+            return _("Letters, digits, dots, dashes and underscores only")
+        if app in (self._load_profiles().get("hardware") or {}):
+            return _("There is already a profile for {app}").format(app=app)
+        return ""
 
     @pyqtSlot(str)
     def addAppProfile(self, app):
+        """A new profile overrides nothing until you choose what it changes,
+        so adding one never changes how the app behaves (audit 4.9 #3)."""
         app = (app or "").strip().lower()
-        if not app:
+        if not app or self.appProfileError(app):
             return
         data = self._load_profiles()
-        hw = data.setdefault("hardware", {})
-        if app not in hw:
-            hw[app] = {"dpi": 1600,
-                       "smartshift": {"enabled": True, "threshold": self._dev_threshold(50)},
-                       "hires": True, "thumbwheel": "off"}
-            self._save_profiles(data)
-            self.reloadConfig()
-            self.toast.emit(_("Added profile: {app}").format(app=app))
+        data.setdefault("hardware", {})[app] = {}
+        self._save_profiles(data)
+        self.reloadConfig()
+        self.toast.emit(_("Added profile: {app}").format(app=self._app_display_name(app)))
 
     # ---- profile suggestions for newly focused apps (NewAppSeen) ----
     # Our own windows and the desktop shell are never worth a profile.
@@ -2710,6 +2807,10 @@ class Backend(QObject):
         return app not in (self._load_profiles().get("hardware") or {})
 
     def _on_new_app(self, app):
+        cls = (app or "").strip().lower()
+        if cls and cls not in self._recent_apps and self._should_suggest(cls):
+            self._recent_apps.insert(0, cls)
+            del self._recent_apps[12:]
         if self._should_suggest(app):
             self._pending_app = app.strip().lower()
             self.profileSuggested.emit()
@@ -2748,34 +2849,63 @@ class Backend(QObject):
         self.setLocal("app.profile_prompted", (prompted + [app])[-self.PROMPTED_MAX:])
         return {"app": app, "name": self._app_display_name(app)}
 
-    @pyqtSlot(str)
+    @pyqtSlot(str, result="QVariant")
     def removeAppProfile(self, app):
+        """Delete a profile; returns it for restoreAppProfile (Undo)."""
         data = self._load_profiles()
         hw = data.get("hardware") or {}
-        if app in hw:
-            del hw[app]
+        old = hw.pop(app, None)
+        if old is not None:
             self._save_profiles(data)
             self.reloadConfig()
+        return old
+
+    @pyqtSlot(str, str)
+    def copyAppProfile(self, src, dst):
+        """Give `dst` the same profile as `src` (settings, buttons, ring)."""
+        dst = (dst or "").strip().lower()
+        data = self._load_profiles()
+        hw = data.setdefault("hardware", {})
+        if src in hw and dst and dst != src:
+            hw[dst] = copy.deepcopy(hw[src])
+            self._save_profiles(data)
+            self.reloadConfig()
+            self.toast.emit(_("Copied to {app}").format(app=self._app_display_name(dst)))
+
+    @pyqtSlot(str, "QVariant")
+    def restoreAppProfile(self, app, entry):
+        if not app or not isinstance(entry, dict):
+            return
+        data = self._load_profiles()
+        data.setdefault("hardware", {})[app] = entry
+        self._save_profiles(data)
+        self.reloadConfig()
 
     @pyqtSlot(str, "QVariant")
     def saveAppProfile(self, app, obj):
+        """Write the settings the profile overrides (obj.overrides); the rest
+        are left out so they follow the global settings. Buttons, custom
+        actions and the app's own ring are kept (edited elsewhere)."""
         app = (app or "").strip().lower()
         if not app or not isinstance(obj, dict):
             return
-        entry = {"dpi": self.snapDpi(_to_int(obj.get("dpi", 1600), 1600)),
-                 "smartshift": {"enabled": bool(obj.get("smartshiftEnabled", True)),
-                                # UI sensitivity % -> device threshold 1..49,
-                                # same conversion as the global scroll slider.
-                                "threshold": self._dev_threshold(
-                                    max(1, min(100, int(obj.get("smartshiftThreshold", 50)))))},
-                 "hires": bool(obj.get("hires", True)),
-                 "thumbwheel": self._tw_store(str(obj.get("thumbwheel", "off")),
-                                              bool(self.get("thumbwheel.invert", False)))}
+        over = obj.get("overrides") or {}
         data = self._load_profiles()
         old = (data.get("hardware") or {}).get(app) or {}
-        for key in ("buttons", "custom"):  # edited on the Buttons tab
-            if old.get(key):
-                entry[key] = old[key]
+        entry = {k: old[k] for k in ("buttons", "custom", "slices") if old.get(k)}
+        if over.get("dpi"):
+            entry["dpi"] = self.snapDpi(_to_int(obj.get("dpi", 1000), 1000))
+        if over.get("smartshift"):
+            entry["smartshift"] = {"enabled": bool(obj.get("smartshiftEnabled", True)),
+                                   # UI sensitivity % -> device threshold 1..49,
+                                   # same conversion as the global scroll slider.
+                                   "threshold": self._dev_threshold(
+                                       max(1, min(100, _to_int(obj.get("smartshiftThreshold", 50), 50))))}
+        if over.get("hires"):
+            entry["hires"] = bool(obj.get("hires", True))
+        if over.get("thumbwheel"):
+            entry["thumbwheel"] = self._tw_store(str(obj.get("thumbwheel", "off")),
+                                                 bool(self.get("thumbwheel.invert", False)))
         data.setdefault("hardware", {})[app] = entry
         self._save_profiles(data)
         self.reloadConfig()

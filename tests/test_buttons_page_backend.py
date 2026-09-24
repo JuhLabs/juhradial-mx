@@ -155,7 +155,7 @@ def test_app_custom_actions_live_in_the_profile(backend):
     hw = backend._load_profiles()["hardware"]["gimp"]
     assert hw["buttons"]["back"] == "custom" and hw["custom"]["back"]["value"] == "ctrl+z"
     # saving the app's pointer settings on the App profiles tab keeps them
-    backend.saveAppProfile("gimp", {"dpi": 800})
+    backend.saveAppProfile("gimp", {"dpi": 800, "overrides": {"dpi": True}})
     hw = backend._load_profiles()["hardware"]["gimp"]
     assert hw["dpi"] == 800 and hw["buttons"]["back"] == "custom" and hw["custom"]["back"]["kind"] == "shortcut"
 

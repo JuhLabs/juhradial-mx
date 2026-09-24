@@ -1577,7 +1577,8 @@ def create_tray_icon(app, radial_menu):
     tray.setContextMenu(menu)
     tray.setVisible(tray_icon_wanted())
     # Tooltip (device, battery, host, profile) and icon badge follow the daemon.
-    tray.status = TrayStatus(tray, icon, parent=tray)
+    tray.status = TrayStatus(tray, icon, parent=tray,
+                             on_profile=lambda app: setattr(overlay_actions, "ACTIVE_APP", app))
     tray.status.bind_gaming_action(gaming_action)
 
     return tray

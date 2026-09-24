@@ -3,11 +3,13 @@ import QtQuick.Controls.Basic as B
 
 // Full editor for one radial slice: pick the base action, then customise its
 // label, command/URL and colour, and nudge its position. Reads/writes through
-// the shared Slices model (Slices.sliceAt / setAction / setLabel / setCommand /
+// `model` (the shared Slices unless set: sliceAt / setAction / setLabel / setCommand /
 // setColor / swap). Open by setting `row` then open().
 B.Popup {
     id: ed
     property int row: -1
+    // The slices being edited: the global ring, or one app's (Backend.appSlices).
+    property var model: Slices
     property var d: ({})
 
     modal: true; dim: true; focus: true
@@ -16,7 +18,7 @@ B.Popup {
     anchors.centerIn: B.Overlay.overlay
     closePolicy: B.Popup.CloseOnEscape | B.Popup.CloseOnPressOutside
 
-    function reload() { ed.d = Slices.sliceAt(ed.row) }
+    function reload() { ed.d = ed.model.sliceAt(ed.row) }
     onAboutToShow: reload()
 
     readonly property bool needsCommand: ["exec", "url"].indexOf(d.type || "") >= 0
@@ -57,9 +59,9 @@ B.Popup {
                 id: moveRow
                 spacing: 6
                 IconButton { icon: "go-previous-symbolic"; diameter: 30; tint: Theme.textBody
-                    onClicked: { var t = (ed.row + 7) % 8; Slices.swap(ed.row, t); ed.row = t; ed.reload() } }
+                    onClicked: { var t = (ed.row + 7) % 8; ed.model.swap(ed.row, t); ed.row = t; ed.reload() } }
                 IconButton { icon: "go-next-symbolic"; diameter: 30; tint: Theme.textBody
-                    onClicked: { var t = (ed.row + 1) % 8; Slices.swap(ed.row, t); ed.row = t; ed.reload() } }
+                    onClicked: { var t = (ed.row + 1) % 8; ed.model.swap(ed.row, t); ed.row = t; ed.reload() } }
             }
         }
 
@@ -113,7 +115,7 @@ B.Popup {
                     id: lf; anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
                     text: ed.d.label || ""; color: Theme.textBody; font.family: Theme.fontUI; font.pixelSize: Theme.fsBody
                     verticalAlignment: Text.AlignVCenter; background: Item {}
-                    onEditingFinished: if (text !== ed.d.label) Slices.setLabel(ed.row, text)
+                    onEditingFinished: if (text !== ed.d.label) ed.model.setLabel(ed.row, text)
                 }
             }
         }
@@ -144,7 +146,7 @@ B.Popup {
                     id: cf; anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 10
                     text: ed.d.command || ""; color: Theme.textBody; font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall
                     verticalAlignment: Text.AlignVCenter; background: Item {}
-                    onEditingFinished: if (text !== ed.d.command) Slices.setCommand(ed.row, text)
+                    onEditingFinished: if (text !== ed.d.command) ed.model.setCommand(ed.row, text)
                 }
             }
         }
@@ -156,7 +158,7 @@ B.Popup {
             KeyRecorder {
                 width: parent.width
                 value: ed.d.type === "shortcut" ? (ed.d.command || "") : ""
-                onEdited: (v) => { Slices.setCommand(ed.row, v); ed.reload() }
+                onEdited: (v) => { ed.model.setCommand(ed.row, v); ed.reload() }
             }
         }
 
@@ -178,7 +180,7 @@ B.Popup {
                         Accessible.checked: ed.d.color === modelData.name
                         MouseArea {
                             id: cma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: { Slices.setColor(ed.row, modelData.name); ed.reload() }
+                            onClicked: { ed.model.setColor(ed.row, modelData.name); ed.reload() }
                         }
                     }
                 }
@@ -197,12 +199,12 @@ B.Popup {
         title: qsTr("Choose an action")
         actions: []
         currentId: ed.d.actionId || ""
-        onPicked: (id) => { Slices.setAction(ed.row, id); ed.reload() }
+        onPicked: (id) => { ed.model.setAction(ed.row, id); ed.reload() }
     }
     AppPicker {
         id: appPicker
         onPicked: (app) => {
-            Slices.setApp(ed.row, app.command, app.name, Backend.cacheAppIcon(app.id))
+            ed.model.setApp(ed.row, app.command, app.name, Backend.cacheAppIcon(app.id))
             ed.reload()
         }
     }

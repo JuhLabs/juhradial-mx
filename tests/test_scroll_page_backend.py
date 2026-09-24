@@ -169,7 +169,8 @@ def test_thumbwheel_invert_always_applies(backend):
 
 def test_app_profile_thumbwheel_follows_invert(backend):
     backend.setThumbwheelInvert(True)
-    backend.saveAppProfile("gimp", {"dpi": 1234, "thumbwheel": "off"})
+    backend.saveAppProfile("gimp", {"dpi": 1234, "thumbwheel": "off",
+                                    "overrides": {"dpi": True, "thumbwheel": True}})
     prof = backend._load_profiles()["hardware"]["gimp"]
     assert prof["thumbwheel"] == "scroll" and prof["dpi"] == 1250
     assert backend.appProfiles()[0]["thumbwheel"] == "off"

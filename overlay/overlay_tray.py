@@ -115,8 +115,10 @@ def notify_low_battery(device, percent):
 class TrayStatus(QObject):
     """Keeps a QSystemTrayIcon's tooltip and badge in step with the daemon."""
 
-    def __init__(self, tray, base_icon, bus=None, notify=notify_low_battery, parent=None):
+    def __init__(self, tray, base_icon, bus=None, notify=notify_low_battery, parent=None,
+                 on_profile=None):
         super().__init__(parent)
+        self.on_profile = on_profile
         self.tray = tray
         self.base_icon = base_icon
         self.notify = notify
@@ -170,6 +172,8 @@ class TrayStatus(QObject):
 
     def set_profile(self, profile):
         self.profile = profile
+        if self.on_profile is not None:
+            self.on_profile(profile)
         self.refresh()
 
     def set_gaming(self, on):

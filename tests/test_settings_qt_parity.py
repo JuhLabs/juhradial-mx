@@ -335,7 +335,8 @@ def test_app_profile_threshold_reads_back_what_was_saved(backend, tmp_path, monk
     for ui in (1, 25, 50, 75, 100):
         backend.saveAppProfile("firefox", {"dpi": 1600, "smartshiftEnabled": True,
                                            "smartshiftThreshold": ui, "hires": True,
-                                           "thumbwheel": "off"})
+                                           "thumbwheel": "off",
+                                           "overrides": {"smartshift": True}})
         shown = _app_profile(backend, "firefox")["smartshiftThreshold"]
         assert abs(shown - ui) <= 2, (ui, shown)
         # saving what the page shows must not drift the stored value
@@ -345,11 +346,14 @@ def test_app_profile_threshold_reads_back_what_was_saved(backend, tmp_path, monk
 
 def test_new_app_profile_uses_the_global_default_threshold(backend, tmp_path, monkeypatch):
     monkeypatch.setattr(bk, "PROFILES", tmp_path / "profiles.json")
+    # A new profile overrides nothing (audit 4.9 #3): it shows the global
+    # settings until you choose what it changes.
     backend.addAppProfile("Firefox")
     stored = json.loads((tmp_path / "profiles.json").read_text())["hardware"]["firefox"]
-    assert stored["smartshift"]["threshold"] == bk.Backend._dev_threshold(50)
-    assert 1 <= stored["smartshift"]["threshold"] <= 49
-    assert _app_profile(backend, "firefox")["smartshiftThreshold"] in (49, 50, 51)
+    assert stored == {}
+    prof = _app_profile(backend, "firefox")
+    assert not any(prof["overrides"].values())
+    assert prof["smartshiftThreshold"] == 50
 
 
 def test_legacy_app_profile_thresholds_clamp_into_range(backend, tmp_path, monkeypatch):

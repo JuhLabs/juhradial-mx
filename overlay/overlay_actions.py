@@ -538,6 +538,28 @@ def resolve_screenshot_command(configured_cmd: str) -> str:
     return configured_cmd
 
 
+# The app whose profile is active (ActiveProfileChanged); its own slices,
+# when profiles.json gives it some, replace the global ring.
+ACTIVE_APP = ""
+
+
+def app_slices(app, profiles_path=None):
+    """The 8 slices of `app`'s own radial menu, or None."""
+    import json
+    from pathlib import Path
+
+    if not app:
+        return None
+    path = profiles_path or Path.home() / ".config" / "juhradial" / "profiles.json"
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            hw = (json.load(f).get("hardware") or {}).get(app) or {}
+    except (OSError, ValueError, AttributeError):
+        return None
+    slices = hw.get("slices")
+    return slices if isinstance(slices, list) and len(slices) == 8 else None
+
+
 def load_actions_from_config():
     """Load radial menu actions from config file"""
     import json
@@ -553,7 +575,7 @@ def load_actions_from_config():
             with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
 
-            slices = config.get("radial_menu", {}).get("slices", [])
+            slices = app_slices(ACTIVE_APP) or config.get("radial_menu", {}).get("slices", [])
             easy_switch_enabled = config.get("radial_menu", {}).get(
                 "easy_switch_shortcuts", False
             )
