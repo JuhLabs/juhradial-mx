@@ -216,12 +216,12 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          path: assets
+          path: release-assets
           merge-multiple: true
 
       - name: Checksums for every asset
         run: |
-          cd assets
+          cd release-assets
           rm -f SHA256SUMS
           # GitHub renames asset files with special characters; keep the
           # pre-release tilde of the .deb/.rpm version out of the file names
@@ -254,8 +254,8 @@ jobs:
           pre=()
           case "$tag" in *-*) pre=(--prerelease) ;; esac
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" assets/* --clobber
+            gh release upload "$tag" release-assets/* --clobber
             gh release edit "$tag" --notes-file notes.md "${pre[@]}"
           else
-            gh release create "$tag" assets/* --draft "${pre[@]}" --title "JuhRadial MX $tag" --notes-file notes.md
+            gh release create "$tag" release-assets/* --draft "${pre[@]}" --title "JuhRadial MX $tag" --notes-file notes.md
           fi
