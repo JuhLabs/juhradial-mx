@@ -46,7 +46,7 @@ class FlowHandoffManager:
         self.juhflow_bridge = juhflow_bridge
 
         # {peer_name: FlowPresenceClient}
-        self.presence_clients: Dict[str, 'FlowPresenceClient'] = {}
+        self.presence_clients: Dict[str, FlowPresenceClient] = {}
         self._clients_lock = threading.Lock()
 
         # {peer_name: edge} - which edge each peer is assigned to

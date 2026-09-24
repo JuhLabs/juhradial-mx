@@ -208,7 +208,7 @@ def main():
         # If the name never freed (e.g. pre-update owner without a Quit
         # slot), continue anyway: a visible window beats a silent exit.
 
-    _translator = install_translator(app)  # qsTr() -> gettext catalogs; keep the reference for the app's lifetime
+    _ = install_translator(app)  # qsTr() -> gettext catalogs; _ keeps the reference for the app's lifetime
     engine = QQmlApplicationEngine()
     engine.addImageProvider("icon", IconProvider())
 
@@ -348,7 +348,8 @@ def _run_perf_pass(app, engine, t_start, out_path):
             state["pass"] += 1
             state["i"] = 0
             if state["pass"] >= len(passes):
-                return finish()
+                finish()
+                return
         label, seq = passes[state["pass"]]
         idx = seq[state["i"]]
         state["t0"] = time.perf_counter()

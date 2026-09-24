@@ -20,6 +20,7 @@ sys.path.insert(0, os.fspath(REPO_ROOT / "overlay"))
 from PyQt6.QtGui import QColor, QGuiApplication, QIcon, QPixmap  # noqa: E402
 
 _qt_app = QGuiApplication.instance() or QGuiApplication([])
+assert _qt_app is not None
 
 import overlay_tray as ot  # noqa: E402
 

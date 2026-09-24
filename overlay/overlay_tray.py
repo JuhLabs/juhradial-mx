@@ -135,7 +135,7 @@ def notify_low_battery(device, percent, kind="mouse"):
             ["notify-send", "-a", APP_NAME, "-i", "battery-low-symbolic", "-u", "critical",
              title, f"{device or fallback} is at {percent}%. Time to recharge."])
     except Exception:
-        pass
+        pass  # notify-send not installed: the tray icon still shows the level
 
 
 def _low_step(owner, latch, percent, charging, level):
@@ -267,7 +267,7 @@ class TrayStatus(QObject):
             a = msg.arguments()
             self.set_battery(_int(a[0]), str(a[1]))
         except Exception:
-            pass
+            pass  # malformed signal: keep the last known state
 
     @pyqtSlot(QDBusMessage)
     def _on_kb_battery(self, msg):
@@ -275,21 +275,21 @@ class TrayStatus(QObject):
             a = msg.arguments()
             self.set_keyboard_battery(_int(a[0]), bool(a[1]))
         except Exception:
-            pass
+            pass  # malformed signal: keep the last known state
 
     @pyqtSlot(QDBusMessage)
     def _on_host(self, msg):
         try:
             self.set_host(_int(msg.arguments()[0]))
         except Exception:
-            pass
+            pass  # malformed signal: keep the last known state
 
     @pyqtSlot(QDBusMessage)
     def _on_device_name(self, msg):
         try:
             self.set_device(str(msg.arguments()[0]))
         except Exception:
-            pass
+            pass  # malformed signal: keep the last known state
         # The mouse just came online: its hosts and battery may be new too.
         self.prime()
 
@@ -298,14 +298,14 @@ class TrayStatus(QObject):
         try:
             self.set_gaming(bool(msg.arguments()[0]))
         except Exception:
-            pass
+            pass  # malformed signal: keep the last known state
 
     @pyqtSlot(QDBusMessage)
     def _on_profile(self, msg):
         try:
             self.set_profile(str(msg.arguments()[0]))
         except Exception:
-            pass
+            pass  # malformed signal: keep the last known state
 
     # ---- priming (async, never blocks the overlay) ----
     def prime(self):
@@ -346,5 +346,5 @@ class TrayStatus(QObject):
             try:
                 callback(args)
             except Exception:
-                pass
+                pass  # an exception escaping a Qt slot would abort the process
         watcher.finished.connect(finished)

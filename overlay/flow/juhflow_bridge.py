@@ -341,8 +341,8 @@ class JuhFlowBridge:
                     old.close()
                 self._peers[peer_id] = peer
 
-            logger.info("JuhFlow peer connected: %s (%s, %s, %s)",
-                        peer_hostname, peer_platform, addr[0], state)
+            logger.info("JuhFlow peer connected: %s (%s, %s)",
+                        peer_hostname, peer_platform, addr[0])
             if state != TRUSTED and self.on_pending:
                 self.on_pending(peer_hostname, peer_fp)
 

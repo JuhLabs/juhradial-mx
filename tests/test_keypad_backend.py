@@ -15,6 +15,7 @@ from PyQt6.QtGui import QGuiApplication, QImage
 import bridge.backend as bk
 
 _app = QGuiApplication.instance() or QGuiApplication([])
+assert _app is not None
 
 
 @pytest.fixture
@@ -179,18 +180,18 @@ def test_empty_key_plate_stays_blank(tmp_path):
 def test_bundled_glyph_wins_over_a_theme_colour_fallback(tmp_path, monkeypatch):
     # On Breeze, accessories-calculator-symbolic falls back to the colour app
     # icon, which the plate tint turned into a solid block.
-    import bridge.keypad as kp
+    from bridge.keypad import render_plate
     from PyQt6.QtGui import QColor, QIcon, QPixmap
 
     def render(name):
         plate = tmp_path / f"{name}.jpg"
-        kp.render_plate({"icon": "accessories-calculator-symbolic", "label": ""}, plate, lambda _: "")
+        render_plate({"icon": "accessories-calculator-symbolic", "label": ""}, plate, lambda _: "")
         return QImage(str(plate))
 
     reference = render("reference")
     solid = QPixmap(64, 64)
     solid.fill(QColor("#3daee9"))
-    monkeypatch.setattr(kp.QIcon, "fromTheme", staticmethod(lambda name: QIcon(solid)))
+    monkeypatch.setattr(QIcon, "fromTheme", staticmethod(lambda name: QIcon(solid)))
     assert render("themed") == reference
 
 

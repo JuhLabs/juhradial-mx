@@ -32,6 +32,7 @@ from PyQt6.QtDBus import QDBusArgument  # noqa: E402
 from PyQt6.QtGui import QGuiApplication  # noqa: E402
 
 _qt_app = QGuiApplication.instance() or QGuiApplication([])
+assert _qt_app is not None
 
 import bridge.backend as bk  # noqa: E402
 

@@ -22,6 +22,7 @@ sys.path.insert(0, os.fspath(REPO / "overlay"))
 from PyQt6.QtGui import QGuiApplication  # noqa: E402
 
 _qt_app = QGuiApplication.instance() or QGuiApplication([])
+assert _qt_app is not None
 
 import bridge.backend as bk  # noqa: E402
 

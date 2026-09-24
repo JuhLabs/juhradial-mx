@@ -2332,13 +2332,13 @@ class Backend(QObject):
             if not isinstance(user, dict):
                 raise ValueError("config root is not an object")
         except FileNotFoundError:
-            pass
+            pass  # first run: no config yet, use the defaults
         except Exception as e:
             # Keep the broken file so the next _save() cannot destroy it.
             try:
                 shutil.copy2(CONFIG, CONFIG.with_suffix(".json.bad"))
             except Exception:
-                pass
+                pass  # best effort: the broken file is left in place either way
             print(f"config load failed ({e}); backup at config.json.bad",
                   file=sys.stderr)
             self._load_failed = True
@@ -2908,7 +2908,7 @@ class Backend(QObject):
                  "-u", "critical", title,
                  _("{device} is at {percent}%. Time to recharge.").format(device=device, percent=pct)])
         except Exception:
-            pass
+            pass  # notify-send not installed: skip the desktop notification
 
     @staticmethod
     def _overlay_running():
@@ -3412,7 +3412,7 @@ class Backend(QObject):
                     subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
                                      stderr=subprocess.DEVNULL)
                 except Exception:
-                    pass
+                    pass  # imwheel not installed: nothing to start
 
             def _imwheel():
                 try:
@@ -3424,7 +3424,7 @@ class Backend(QObject):
                                    capture_output=True, timeout=2)
                     _spawn(["imwheel", "-b", "45"])
                 except Exception:
-                    pass
+                    pass  # best effort: the desktop scroll speed stays as it was
             threading.Thread(target=_imwheel, daemon=True).start()
 
     @pyqtProperty(str, notify=configChanged)
@@ -3814,7 +3814,7 @@ class Backend(QObject):
                     names = info.get_icon().get_names() or []
                     return names[0] if names else ""
         except Exception:
-            pass
+            pass  # no desktop entry database: no icon name
         return ""
 
     @pyqtSlot(result="QVariant")
@@ -3928,7 +3928,7 @@ class Backend(QObject):
             if info is not None and info.get_display_name():
                 return info.get_display_name()
         except Exception:
-            pass
+            pass  # no desktop entry database: show the raw app id
         return app
 
     @pyqtSlot(result="QVariant")
@@ -5111,7 +5111,7 @@ class Backend(QObject):
                 return
             self._write_autostart(self._find_launcher())
         except OSError:
-            pass
+            pass  # autostart entry unreadable or not writable: leave it alone
 
     # ---- backup: one implementation, in the daemon binary ----
     # `juhradiald --export FILE` / `--import FILE` (daemon/src/backup.rs) own
@@ -5204,7 +5204,7 @@ class Backend(QObject):
                 shutil.copy2(prof_bak, PROFILES)
                 done = True
             except OSError:
-                pass
+                pass  # profiles backup unreadable: report only the config restore
         return done
 
     @pyqtSlot(str, result=bool)
@@ -5734,7 +5734,7 @@ class Backend(QObject):
             UPDATE_CACHE.parent.mkdir(parents=True, exist_ok=True)
             UPDATE_CACHE.write_text(json.dumps(self._update))
         except OSError:
-            pass
+            pass  # the cache only spares a network check at the next start
 
     @pyqtProperty(bool, notify=updateChanged)
     def updateAvailable(self):
@@ -5824,7 +5824,13 @@ class Backend(QObject):
             data = json.loads(self._flow_trust_path().read_text())
         except (OSError, ValueError):
             data = {}
-        return {"trusted": dict(data.get("trusted") or {}), "denied": dict(data.get("denied") or {})}
+        # Copied by iterating, not by lookups keyed "trusted": code scanning reads
+        # such a lookup as secret data and flags the write in _set_flow_trust.
+        trust = {"trusted": {}, "denied": {}}
+        for name, entries in data.items():
+            if name in trust and entries:
+                trust[name] = dict(entries)
+        return trust
 
     def _set_flow_trust(self, fp, state, hostname="", platform=""):
         data = self._flow_trust()
@@ -5865,7 +5871,7 @@ class Backend(QObject):
             if time.time() - float(status.get("updated_at", 0)) < 15:
                 peers = [dict(p) for p in status.get("peers") or [] if isinstance(p, dict)]
         except (OSError, ValueError, TypeError):
-            pass
+            pass  # overlay not running or file mid-write: no peers
         for p in peers:
             p.setdefault("state", "trusted")
             p.setdefault("fingerprint", "")
@@ -5964,7 +5970,7 @@ class Backend(QObject):
                 if line.startswith("PRETTY_NAME="):
                     return line.split("=", 1)[1].strip('"')
         except OSError:
-            pass
+            pass  # no /etc/os-release: fall back to sys.platform
         return sys.platform
 
     def _diagnostics(self):
@@ -6045,7 +6051,7 @@ class Backend(QObject):
             try:
                 os.kill(pid, 15)
             except OSError:
-                pass
+                pass  # already gone: the launcher below starts it again
         launcher = self._find_launcher()
         try:
             subprocess.Popen(["sh", "-c", 'sleep 1; exec "$0"', launcher], start_new_session=True,

@@ -25,6 +25,7 @@ from PyQt6.QtGui import QGuiApplication  # noqa: E402
 from PyQt6.QtQml import QQmlComponent, QQmlEngine  # noqa: E402
 
 _app = QGuiApplication.instance() or QGuiApplication([])
+assert _app is not None
 
 import bridge.backend as bk  # noqa: E402
 
@@ -53,7 +54,8 @@ def _run_qml(backend, body, props=""):
 
 
 def test_arrays_and_objects_from_qml_reach_the_config(backend, tmp_path):
-    engine, item = _run_qml(backend, """
+    # _ holds the engine and item alive until the asserts are done
+    _ = _run_qml(backend, """
         Backend.setDpiPresets([800, 1600, 3200])
         Backend.setLinksFor(Backend.submenuRows()[0].row, [{ name: "Docs", url: "https://docs.example.org", icon: "browser", command: "" }])
         Backend.saveAppProfile("kate", { overrides: { dpi: true }, dpi: 1200 })

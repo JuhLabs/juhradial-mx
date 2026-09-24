@@ -94,7 +94,7 @@ class GettextTranslator(QTranslator):
             if result and result != source_text:
                 return result
         except Exception:
-            pass
+            pass  # lookup failed: None makes Qt keep the source text
         return None
 
     def isEmpty(self):

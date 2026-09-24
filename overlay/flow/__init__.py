@@ -279,7 +279,7 @@ def _notify_pending_peer(hostname, fp):
              f"JuhRadial MX Settings > Flow (code {fp})."],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
-        pass
+        pass  # notify-send missing: Settings still lists the pending computer
 
 
 def _read_flow_config():

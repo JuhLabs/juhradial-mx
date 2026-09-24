@@ -97,7 +97,7 @@ def desktop_prefers_reduced_motion(kdeglobals_text="", gsettings_value=""):
                 if float(line.split("=", 1)[1]) <= 0:
                     return True
             except ValueError:
-                pass
+                pass  # not a number: ignore it and use the gsettings value
     return gsettings_value.strip().lower() == "false"
 
 
@@ -189,14 +189,14 @@ class Theme(QObject):
         try:
             kde = KDEGLOBALS.read_text(encoding="utf-8", errors="replace")
         except OSError:
-            pass
+            pass  # no kdeglobals (not KDE): nothing to read
         gnome = ""
         try:
             gnome = subprocess.run(
                 ["gsettings", "get", "org.gnome.desktop.interface", "enable-animations"],
                 capture_output=True, text=True, timeout=2).stdout
         except Exception:
-            pass
+            pass  # no gsettings (not GNOME) or it timed out
         self._desktopMotion.emit(desktop_prefers_reduced_motion(kde, gnome))
 
     def _set_desktop_motion(self, v):
@@ -288,7 +288,7 @@ class Theme(QObject):
             if 0 <= i < len(THEMES):
                 return i
         except Exception:
-            pass
+            pass  # missing or unreadable UI state: use the default theme
         return 0
 
     def _save_index(self):

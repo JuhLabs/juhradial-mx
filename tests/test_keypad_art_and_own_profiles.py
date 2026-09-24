@@ -16,6 +16,7 @@ import bridge.backend as bk
 from bridge import keypad
 
 _app = QGuiApplication.instance() or QGuiApplication([])
+assert _app is not None
 ART = Path(__file__).resolve().parents[1] / "settings-qt" / "assets" / "keypad" / "art"
 
 
