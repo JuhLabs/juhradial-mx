@@ -132,7 +132,7 @@ sudo rm -f /etc/udev/rules.d/99-juhradialmx.rules /etc/udev/rules.d/60-ydotool-u
 
 - A Wayland compositor (KDE Plasma 6, GNOME, Hyprland, COSMIC, Sway, niri) or X11.
 - Rust toolchain (Cargo >= 1.78) to build the daemon. The installer provides this if needed.
-- Python 3 with PyQt6 (overlay and the Qt/QML settings app; QtQuick.Effects needs Qt 6.5 or newer) and GTK4 + libadwaita via PyGObject (the fallback GTK settings app on older Qt).
+- Python 3 with PyQt6 (overlay and the Qt/QML settings app; the Qt settings app needs Qt 6.9 or newer) and GTK4 + libadwaita via PyGObject (the fallback GTK settings app on older Qt).
 - XWayland, used for overlay window positioning on Wayland.
 - A supported mouse (Logitech MX Master 4 / 3S / 3 for full HID++, or any mouse in generic evdev mode). See [FAQ](faq.md) for device coverage.
 

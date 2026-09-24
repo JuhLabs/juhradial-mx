@@ -16,7 +16,7 @@ The system is three cooperating processes that share state only through D-Bus an
 | --- | --- | --- | --- |
 | Daemon | Rust (Tokio) | `juhradiald` | Talks HID++ to the device, diverts buttons and the thumb wheel, reads input via evdev and hidraw, injects actions through uinput, and exposes the D-Bus service. |
 | Overlay | Python, PyQt6 | `overlay/juhradial-overlay.py` | The radial menu window. Subscribes to `MenuRequested(x, y)`, positions itself at the cursor, and renders the wheel. |
-| Settings UI | Python, PyQt6 + QML | `settings-qt/` | Configuration app (the GTK4 app in `overlay/settings_*.py` remains as the fallback on Qt < 6.5). Writes `~/.config/juhradial/config.json` and calls `ReloadConfig`. |
+| Settings UI | Python, PyQt6 + QML | `settings-qt/` | Configuration app (the GTK4 app in `overlay/settings_*.py` remains as the fallback on Qt < 6.9). Writes `~/.config/juhradial/config.json` and calls `ReloadConfig`. |
 
 ```mermaid
 flowchart TD
@@ -123,7 +123,7 @@ The gesture path is the canonical example of how a hardware event becomes a visi
 
 ## The settings UI
 
-`settings-qt/` is a PyQt6 + QML application: `main.py` boots the engine and the D-Bus single-instance gate, `bridge/backend.py` is the config and daemon bridge, `bridge/theme.py` the design tokens and theme list, and `qml/pages/*.qml` one page per tab on a shared set of components in `qml/components/`. `scripts/juhradial-settings.sh` starts it whenever PyQt6's QML module imports (Qt >= 6.5) and otherwise falls back to the GTK4 application in `overlay/settings_*.py`, one module per page. Whichever app runs is the only writer of `~/.config/juhradial/config.json`. After a save it calls `ReloadConfig` so the daemon re-reads the file and re-applies volatile device state (haptic patterns, thumb-wheel divert, non-gesture button diverts, and per-app hardware profiles) without a restart. Device-state pages (DPI, SmartShift, Easy-Switch, thumb wheel) call the daemon's getters and setters directly over D-Bus.
+`settings-qt/` is a PyQt6 + QML application: `main.py` boots the engine and the D-Bus single-instance gate, `bridge/backend.py` is the config and daemon bridge, `bridge/theme.py` the design tokens and theme list, and `qml/pages/*.qml` one page per tab on a shared set of components in `qml/components/`. `scripts/juhradial-settings.sh` starts it whenever PyQt6's QML module imports and Qt is 6.9 or newer (so does the tray's Settings entry), and otherwise falls back to the GTK4 application in `overlay/settings_*.py`, one module per page. Whichever app runs is the only writer of `~/.config/juhradial/config.json`. After a save it calls `ReloadConfig` so the daemon re-reads the file and re-applies volatile device state (haptic patterns, thumb-wheel divert, non-gesture button diverts, and per-app hardware profiles) without a restart. Device-state pages (DPI, SmartShift, Easy-Switch, thumb wheel) call the daemon's getters and setters directly over D-Bus.
 
 ## D-Bus interface
 
