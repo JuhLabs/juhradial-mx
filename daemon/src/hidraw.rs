@@ -86,6 +86,9 @@ pub struct HidrawHandler {
     shared_config: Option<crate::config::SharedConfig>,
     /// The action that was triggered on button press (for release handling)
     active_button_action: Option<crate::config::ButtonAction>,
+    /// A Custom button went down since all buttons were last up: its release
+    /// must reach the daemon even when another button took over the slot.
+    custom_down: bool,
     /// ThumbWheel feature index (0x2150), used to disambiguate diverted
     /// thumb-wheel rotation notifications from diverted button events.
     thumbwheel_feature_index: Option<u8>,
@@ -150,6 +153,7 @@ impl HidrawHandler {
             active_macro_cid: None,
             shared_config: None,
             active_button_action: None,
+            custom_down: false,
             thumbwheel_feature_index: None,
             notification_indices: Default::default(),
             kwin_available: None,
@@ -450,6 +454,7 @@ impl HidrawHandler {
             } else if data.len() >= 5 && Some(data[1]) == self.mouse_device_index {
                 // Link-up is reported as connected once the refresh it
                 // triggers reaches the mouse; link-down means it left.
+                self.release_held_custom();
                 if crate::link_state::report(crate::link_state::LinkState::Away, None) {
                     tracing::info!("Mouse link down (another host or switched off)");
                 }
@@ -672,6 +677,7 @@ impl HidrawHandler {
                 self.handle_gesture_button(true).await;
             } else {
                 // Non-radial action: dispatch immediately via event channel
+                self.custom_down |= action == crate::config::ButtonAction::Custom;
                 self.active_button_action = Some(action);
                 self.press_time = Some(Instant::now());
                 let _ = self
@@ -702,7 +708,15 @@ impl HidrawHandler {
                     .await;
             }
         } else if cid == 0 {
-            // All buttons released
+            // All buttons released. A held Custom whose slot another button
+            // took over still gets its release (a duplicate is harmless).
+            if std::mem::take(&mut self.custom_down)
+                && self.active_button_action != Some(crate::config::ButtonAction::Custom)
+            {
+                let _ = self.event_tx.send(GestureEvent::ButtonActionEvent {
+                    repeats: 1, action: crate::config::ButtonAction::Custom, pressed: false, source: None,
+                }).await;
+            }
             if self.press_time.is_some() && self.directional_press {
                 self.directional_press = false;
                 self.active_button_action = None;
@@ -850,7 +864,18 @@ impl HidrawHandler {
     }
 
     /// Close the current hidraw handle and clear transient press state.
+    /// The mouse went away mid-hold (hidraw closed, or the receiver lost its
+    /// link on an Easy-Switch): release a held Custom's keys on this computer.
+    fn release_held_custom(&mut self) {
+        if std::mem::take(&mut self.custom_down) {
+            let _ = self.event_tx.try_send(GestureEvent::ButtonActionEvent {
+                repeats: 1, action: crate::config::ButtonAction::Custom, pressed: false, source: None,
+            });
+        }
+    }
+
     pub fn close(&mut self) {
+        self.release_held_custom();
         self.device = None;
         self.device_path = None;
         self.press_time = None;

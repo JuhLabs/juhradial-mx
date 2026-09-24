@@ -65,13 +65,17 @@ def render_plate(key, destination, app_icon):
     text = key.get("label", "").upper()
     if not key.get("icon") and text:
         # Label only (no glyph): the name is the whole key, as big as it fits.
+        box = QRect(12, 12, 212, 212)
         flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
         for size in range(76, 29, -4):
             font.setPixelSize(size)
-            if QFontMetrics(font).boundingRect(QRect(12, 12, 212, 212), flags, text).height() <= 212:
+            fit = QFontMetrics(font).boundingRect(box, flags, text)
+            if fit.width() <= box.width() and fit.height() <= box.height():
                 break
+        else:  # a word too long even at the smallest size: break inside it
+            flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWrapAnywhere
         painter.setFont(font)
-        painter.drawText(QRect(12, 12, 212, 212), flags, text)
+        painter.drawText(box, flags, text)
     else:
         label = QFontMetrics(font).elidedText(text, Qt.TextElideMode.ElideRight, 216)
         painter.drawText(QRect(10, 183, 216, 46), Qt.AlignmentFlag.AlignCenter, label)

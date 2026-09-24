@@ -97,12 +97,12 @@ Item {
             Rectangle {
                 anchors.fill: parent; radius: width / 2
                 visible: btnImg === ""
-                color: rp.palette && rp.wheelKey === "none" ? rp.palette.base : "#1B1F28"; border.width: 1.5
+                color: rp.palette ? rp.palette.base : "#1B1F28"; border.width: 1.5
                 border.color: rp.mono ? Theme.borderStrong : hex
             }
             ActionIcon {
                 anchors.centerIn: parent; visible: btnImg === ""
-                iconName: icon; tint: rp.mono ? (rp.palette && rp.wheelKey === "none" ? rp.palette.icon : Theme.textBody) : hex
+                iconName: icon; tint: rp.mono ? (rp.palette ? rp.palette.icon : Theme.textBody) : hex
                 px: Math.max(8, Math.round(parent.width * 0.5))
             }
         }

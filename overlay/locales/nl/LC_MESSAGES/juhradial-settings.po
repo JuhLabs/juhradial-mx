@@ -187,11 +187,11 @@ msgstr ", geopend"
 msgid ", this computer"
 msgstr ", deze computer"
 
-#: settings-qt/bridge/backend.py:3080
+#: settings-qt/bridge/backend.py:3098
 msgid "1 hour"
 msgstr "1 uur"
 
-#: settings-qt/bridge/backend.py:3079
+#: settings-qt/bridge/backend.py:3097
 msgid "1 minute"
 msgstr "1 minuut"
 
@@ -203,11 +203,11 @@ msgstr ""
 "1. Koppel de muis met elke computer op een eigen Easy-Switch-kanaal en stel "
 "hierboven beide kanalen in."
 
-#: settings-qt/bridge/backend.py:3080
+#: settings-qt/bridge/backend.py:3098
 msgid "10 minutes"
 msgstr "10 minuten"
 
-#: settings-qt/bridge/backend.py:3078
+#: settings-qt/bridge/backend.py:3096
 msgid "10 seconds"
 msgstr "10 seconden"
 
@@ -215,11 +215,11 @@ msgstr "10 seconden"
 msgid "1st Unread"
 msgstr "1e nieuw"
 
-#: settings-qt/bridge/backend.py:3081
+#: settings-qt/bridge/backend.py:3099
 msgid "2 hours"
 msgstr "2 uur"
 
-#: settings-qt/bridge/backend.py:3079
+#: settings-qt/bridge/backend.py:3097
 msgid "2 minutes"
 msgstr "2 minuten"
 
@@ -233,11 +233,11 @@ msgid ""
 msgstr ""
 "3. Installeer en open JuhFlow op de Mac. Het vindt deze computer vanzelf."
 
-#: settings-qt/bridge/backend.py:3080
+#: settings-qt/bridge/backend.py:3098
 msgid "30 minutes"
 msgstr "30 minuten"
 
-#: settings-qt/bridge/backend.py:3078
+#: settings-qt/bridge/backend.py:3096
 msgid "30 seconds"
 msgstr "30 seconden"
 
@@ -249,11 +249,11 @@ msgstr ""
 "4. Geef de Mac toestemming onder Computers wanneer deze erom vraagt. Tot dan "
 "wordt niets gedeeld."
 
-#: settings-qt/bridge/backend.py:3079
+#: settings-qt/bridge/backend.py:3097
 msgid "5 minutes"
 msgstr "5 minuten"
 
-#: settings-qt/bridge/backend.py:3078
+#: settings-qt/bridge/backend.py:3096
 msgid "5 seconds"
 msgstr "5 seconden"
 
@@ -334,7 +334,7 @@ msgstr "Een macro is voltooid"
 msgid "A macro is running. Esc stops it."
 msgstr "Er wordt een macro uitgevoerd. Esc stopt deze."
 
-#: settings-qt/bridge/backend.py:4097
+#: settings-qt/bridge/backend.py:4115
 msgid "A number of times"
 msgstr "Een aantal keer"
 
@@ -482,7 +482,7 @@ msgstr "Sjabloon toevoegen"
 msgid "Added"
 msgstr "Toegevoegd"
 
-#: settings-qt/bridge/backend.py:3330
+#: settings-qt/bridge/backend.py:3348
 msgid "Added profile: {app}"
 msgstr "Profiel toegevoegd: {app}"
 
@@ -525,7 +525,7 @@ msgstr "Waarschuwing"
 msgid "Align"
 msgstr "Uitlijnen"
 
-#: settings-qt/qml/pages/KeypadPage.qml:228 settings-qt/bridge/backend.py:4827
+#: settings-qt/qml/pages/KeypadPage.qml:228 settings-qt/bridge/backend.py:4845
 msgid "All apps"
 msgstr "Alle applicaties"
 
@@ -533,7 +533,7 @@ msgstr "Alle applicaties"
 msgid "All files (*)"
 msgstr "Alle bestanden (*)"
 
-#: settings-qt/bridge/backend.py:4709
+#: settings-qt/bridge/backend.py:4727
 msgid "Already matches your desktop"
 msgstr "Past al bij je bureaublad"
 
@@ -592,7 +592,7 @@ msgstr "Applicatiewissel"
 msgid "App: %1"
 msgstr "Applicatie: %1"
 
-#: settings-qt/bridge/backend.py:4721
+#: settings-qt/bridge/backend.py:4739
 msgid "Applied desktop defaults to {count} actions"
 msgstr "Bureaubladstandaarden toegepast op {count} acties"
 
@@ -656,7 +656,7 @@ msgstr "In slaapstand. Beweeg de muis om deze te wekken"
 msgid "Asleep. Press any key to wake it"
 msgstr "In slaapstand. Druk op een toets om het te wekken"
 
-#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5344
+#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5362
 msgid "Automatic"
 msgstr "Automatisch"
 
@@ -678,7 +678,7 @@ msgstr "Automatisch: past bij elk scherm"
 msgid "Automatic: the light sensor sets the brightness"
 msgstr "Automatisch: de lichtsensor regelt de helderheid"
 
-#: settings-qt/bridge/backend.py:4499 settings-qt/bridge/backend.py:5528
+#: settings-qt/bridge/backend.py:4517 settings-qt/bridge/backend.py:5546
 msgid "Autostart: {error}"
 msgstr "Automatisch starten: {error}"
 
@@ -697,7 +697,7 @@ msgstr "Terug"
 msgid "Back 10s"
 msgstr "10s terug"
 
-#: settings-qt/bridge/backend.py:2962 settings-qt/bridge/backend.py:4104
+#: settings-qt/bridge/backend.py:2980 settings-qt/bridge/backend.py:4122
 msgid "Back button"
 msgstr "Terugknop"
 
@@ -731,7 +731,7 @@ msgstr "Tijdens opladen blijft de toetsverlichting aan gedurende"
 msgid "Backup"
 msgstr "Back-up"
 
-#: settings-qt/bridge/backend.py:4605
+#: settings-qt/bridge/backend.py:4623
 msgid "Backup saved as {name}"
 msgstr "Back-up opgeslagen als {name}"
 
@@ -847,7 +847,7 @@ msgstr "Bladwijzer"
 msgid "Brightness"
 msgstr "Helderheid"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:958 settings-qt/bridge/keypad.py:129
+#: settings-qt/qml/pages/ButtonsPage.qml:958 settings-qt/bridge/keypad.py:133
 #: settings-qt/assets/keypad/profiles.json
 msgid "Browser"
 msgstr "Browser"
@@ -928,7 +928,7 @@ msgstr "Rekenmachine"
 msgid "Calm"
 msgstr "Kalm"
 
-#: settings-qt/bridge/keypad.py:149 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:153 settings-qt/assets/keypad/profiles.json
 msgid "Camera"
 msgstr "Camera"
 
@@ -1036,7 +1036,7 @@ msgstr "Firewall controleren"
 msgid "Checked each time the keyboard wakes up"
 msgstr "Gecontroleerd zodra het toetsenbord wakker wordt"
 
-#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:5195
+#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:5213
 msgid "Checking…"
 msgstr "Controleren…"
 
@@ -1181,7 +1181,7 @@ msgstr ""
 "Opdrachtpalet, terminal, bewerken en debuggen voor VS Code, VSCodium en Code "
 "- OSS."
 
-#: settings-qt/bridge/keypad.py:145
+#: settings-qt/bridge/keypad.py:149
 msgid "Commands"
 msgstr "Opdrachten"
 
@@ -1258,11 +1258,11 @@ msgstr "Verbinding"
 msgid "Contacts"
 msgstr "Contacten"
 
-#: settings-qt/bridge/backend.py:4264
+#: settings-qt/bridge/backend.py:4282
 msgid "Copied"
 msgstr "Gekopieerd"
 
-#: settings-qt/bridge/backend.py:3417
+#: settings-qt/bridge/backend.py:3435
 msgid "Copied to {app}"
 msgstr "Gekopieerd naar {app}"
 
@@ -1304,7 +1304,7 @@ msgstr "Apparaat-ID kopiëren"
 msgid "Copy to another app"
 msgstr "Naar andere applicatie kopiëren"
 
-#: settings-qt/bridge/backend.py:4179
+#: settings-qt/bridge/backend.py:4197
 msgid "Could not back up the settings, nothing was reset: {error}"
 msgstr ""
 "Kan geen back-up van de instellingen maken; niets is teruggezet: {error}"
@@ -1313,23 +1313,23 @@ msgstr ""
 msgid "Could not copy the picture: {error}"
 msgstr "Kan de afbeelding niet kopiëren: {error}"
 
-#: settings-qt/bridge/backend.py:1849
+#: settings-qt/bridge/backend.py:1864 settings-qt/bridge/backend.py:1867
 msgid "Could not import the pack: {error}"
 msgstr "Kan het pakket niet importeren: {error}"
 
-#: settings-qt/bridge/backend.py:5082
+#: settings-qt/bridge/backend.py:5100
 msgid "Could not open the plugins folder: {error}"
 msgstr "Kan de plug-inmap niet openen: {error}"
 
-#: settings-qt/bridge/backend.py:5197
+#: settings-qt/bridge/backend.py:5215
 msgid "Could not reach GitHub. Trying again tomorrow."
 msgstr "Kan GitHub niet bereiken. Morgen volgt een nieuwe poging."
 
-#: settings-qt/bridge/backend.py:5477
+#: settings-qt/bridge/backend.py:5495
 msgid "Could not restart the service: {error}"
 msgstr "Kan de service niet herstarten: {error}"
 
-#: settings-qt/bridge/backend.py:5158
+#: settings-qt/bridge/backend.py:5176
 msgid "Could not restart: {error}"
 msgstr "Kan niet herstarten: {error}"
 
@@ -1337,7 +1337,7 @@ msgstr "Kan niet herstarten: {error}"
 msgid "Could not restore the keypad page"
 msgstr "Kan de pagina van het keypad niet herstellen"
 
-#: settings-qt/bridge/keypad.py:98
+#: settings-qt/bridge/keypad.py:102
 msgid "Could not save a keypad plate"
 msgstr "Kan een toetsafbeelding van het keypad niet opslaan"
 
@@ -1345,7 +1345,7 @@ msgstr "Kan een toetsafbeelding van het keypad niet opslaan"
 msgid "Could not save keypad: {error}"
 msgstr "Kan het keypad niet opslaan: {error}"
 
-#: settings-qt/bridge/backend.py:5495
+#: settings-qt/bridge/backend.py:5513
 msgid "Could not start the radial menu: {error}"
 msgstr "Kan het radiaalmenu niet starten: {error}"
 
@@ -1353,7 +1353,7 @@ msgstr "Kan het radiaalmenu niet starten: {error}"
 msgid "Could not switch the keypad page"
 msgstr "Kan niet van pagina wisselen op het keypad"
 
-#: settings-qt/bridge/backend.py:5466
+#: settings-qt/bridge/backend.py:5484
 msgid "Could not write the log: {error}"
 msgstr "Kan het logboek niet schrijven: {error}"
 
@@ -1538,7 +1538,7 @@ msgstr "Bureaubladen"
 msgid "Dev Tools"
 msgstr "Dev-tools"
 
-#: settings-qt/bridge/keypad.py:144
+#: settings-qt/bridge/keypad.py:148
 msgid "Dev tools"
 msgstr "DevTools"
 
@@ -1567,7 +1567,7 @@ msgstr ""
 "Apparaten, batterij en toetsenbord worden via de achtergrondservice "
 "uitgelezen. Start deze en de pagina wordt vanzelf gevuld."
 
-#: settings-qt/bridge/backend.py:5432
+#: settings-qt/bridge/backend.py:5450
 msgid "Diagnostics copied. Paste them into your bug report."
 msgstr "Diagnostiek gekopieerd. Plak deze in je bugmelding."
 
@@ -1740,7 +1740,7 @@ msgstr "Bewerken"
 msgid "Editing for"
 msgstr "Bewerken voor"
 
-#: settings-qt/bridge/keypad.py:143
+#: settings-qt/bridge/keypad.py:147
 msgid "Editor"
 msgstr "Editor"
 
@@ -1817,7 +1817,7 @@ msgstr "Export als"
 msgid "Export JuhRadial MX settings"
 msgstr "JuhRadial MX-instellingen exporteren"
 
-#: settings-qt/bridge/backend.py:4133 settings-qt/bridge/backend.py:4607
+#: settings-qt/bridge/backend.py:4151 settings-qt/bridge/backend.py:4625
 msgid "Export failed: {error}"
 msgstr "Exporteren mislukt: {error}"
 
@@ -1838,7 +1838,7 @@ msgstr "Expressief"
 msgid "Extra actions for the ring, from plugin folders"
 msgstr "Extra acties voor de ring uit plug-inmappen"
 
-#: settings-qt/bridge/backend.py:2960 settings-qt/bridge/backend.py:4107
+#: settings-qt/bridge/backend.py:2978 settings-qt/bridge/backend.py:4125
 msgid "Extra side button"
 msgstr "Extra zijknop"
 
@@ -1850,7 +1850,7 @@ msgstr "Functies"
 msgid "Feral GameMode is not installed"
 msgstr "Feral GameMode is niet geïnstalleerd"
 
-#: settings-qt/bridge/keypad.py:132 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:136 settings-qt/assets/keypad/profiles.json
 msgid "Files"
 msgstr "Bestanden"
 
@@ -2010,7 +2010,7 @@ msgstr "Generieke modus afdwingen"
 msgid "Forget"
 msgstr "Vergeten"
 
-#: settings-qt/bridge/backend.py:5337
+#: settings-qt/bridge/backend.py:5355
 msgid "Forgotten. It has to be approved again to use Flow"
 msgstr "Vergeten. Opnieuw toestemming nodig om Flow te gebruiken"
 
@@ -2041,7 +2041,7 @@ msgstr ""
 msgid "Forward"
 msgstr "Vooruit"
 
-#: settings-qt/bridge/backend.py:2961 settings-qt/bridge/backend.py:4105
+#: settings-qt/bridge/backend.py:2979 settings-qt/bridge/backend.py:4123
 msgid "Forward button"
 msgstr "Vooruitknop"
 
@@ -2122,7 +2122,7 @@ msgstr "Gamingmodus"
 msgid "Gaming mode is on and sets its own DPI until you turn it off."
 msgstr "Gamingmodus is aan en bepaalt de DPI totdat je deze uitzet."
 
-#: settings-qt/bridge/backend.py:3735
+#: settings-qt/bridge/backend.py:3753
 msgid "Gaming mode needs the JuhRadial service"
 msgstr "Gamingmodus vereist de JuhRadial-service"
 
@@ -2181,7 +2181,7 @@ msgid "Give a ring slice the submenu action to add links here."
 msgstr ""
 "Wijs de submenuactie toe aan een ringsegment om hier links toe te voegen."
 
-#: settings-qt/bridge/backend.py:3186
+#: settings-qt/bridge/backend.py:3204
 msgid "Give a slice a submenu first"
 msgstr "Geef eerst een segment een submenu"
 
@@ -2456,7 +2456,7 @@ msgstr "JuhRadial MX-instellingen importeren"
 msgid "Import a keypad pack"
 msgstr "Keypad-pakket importeren"
 
-#: settings-qt/bridge/backend.py:4655
+#: settings-qt/bridge/backend.py:4673
 msgid "Import failed: {error}"
 msgstr "Importeren mislukt: {error}"
 
@@ -2472,7 +2472,7 @@ msgstr "Instellingen importeren"
 msgid "Import this backup?"
 msgstr "Deze back-up importeren?"
 
-#: settings-qt/bridge/backend.py:4148
+#: settings-qt/bridge/backend.py:4166
 msgid "Imported macro"
 msgstr "Geïmporteerde macro"
 
@@ -2611,7 +2611,7 @@ msgstr "Toetsenbord"
 msgid "Keyboard %1%"
 msgstr "Toetsenbord %1%"
 
-#: settings-qt/bridge/backend.py:2410
+#: settings-qt/bridge/backend.py:2428
 msgid "Keyboard battery low"
 msgstr "Batterij toetsenbord bijna leeg"
 
@@ -2675,7 +2675,7 @@ msgstr "Startgedrag, systeemvak en updates"
 msgid "Layers"
 msgstr "Lagen"
 
-#: settings-qt/bridge/keypad.py:151 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:155 settings-qt/assets/keypad/profiles.json
 msgid "Leave"
 msgstr "Verlaten"
 
@@ -2691,7 +2691,7 @@ msgstr "Linkerklik"
 msgid "Left is a firm push, right a light touch"
 msgstr "Links stevig drukken, rechts licht aanraken"
 
-#: settings-qt/bridge/backend.py:3314
+#: settings-qt/bridge/backend.py:3332
 msgid "Letters, digits, dots, dashes and underscores only"
 msgstr "Alleen letters, cijfers, punten, streepjes en onderstrepingstekens"
 
@@ -2773,7 +2773,7 @@ msgstr ""
 msgid "Location"
 msgstr "Locatie"
 
-#: settings-qt/bridge/keypad.py:134 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:138 settings-qt/assets/keypad/profiles.json
 msgid "Lock"
 msgstr "Vergrendel"
 
@@ -2781,7 +2781,7 @@ msgstr "Vergrendel"
 msgid "Lock Screen"
 msgstr "Scherm vergrendelen"
 
-#: settings-qt/bridge/backend.py:5526
+#: settings-qt/bridge/backend.py:5544
 msgid "Login entry repaired"
 msgstr "Aanmelditem hersteld"
 
@@ -2831,7 +2831,7 @@ msgstr "Mac"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:105
 #: settings-qt/qml/components/CustomActionEditor.qml:206
-#: settings-qt/bridge/backend.py:4089
+#: settings-qt/bridge/backend.py:4107
 msgid "Macro"
 msgstr "Macro"
 
@@ -2839,7 +2839,7 @@ msgstr "Macro"
 msgid "Macro deleted"
 msgstr "Macro verwijderd"
 
-#: settings-qt/bridge/backend.py:4135
+#: settings-qt/bridge/backend.py:4153
 msgid "Macro exported"
 msgstr "Macro geëxporteerd"
 
@@ -2871,7 +2871,7 @@ msgstr "Macro ‘%1’ wordt nooit uitgevoerd"
 msgid "Macro: %1"
 msgstr "Macro: %1"
 
-#: settings-qt/bridge/backend.py:4116
+#: settings-qt/bridge/backend.py:4134
 msgid "Macro: {name}"
 msgstr "Macro: {name}"
 
@@ -2888,7 +2888,7 @@ msgstr "%1 gemaakt"
 msgid "MagSpeed modes, direction and speed"
 msgstr "MagSpeed-modi, richting en snelheid"
 
-#: settings-qt/bridge/keypad.py:133
+#: settings-qt/bridge/keypad.py:137
 msgid "Mail"
 msgstr "Mail"
 
@@ -2961,7 +2961,7 @@ msgstr "Microfoon"
 msgid "Mic Mute"
 msgstr "Mic dempen"
 
-#: settings-qt/bridge/keypad.py:125
+#: settings-qt/bridge/keypad.py:129
 msgid "Mic mute"
 msgstr "Mic uit"
 
@@ -2970,8 +2970,8 @@ msgid ""
 "Mic, camera, raise hand, chat and people in a Google Meet tab (select "
 "manually)."
 msgstr ""
-"Microfoon, camera, hand opsteken, chat en deelnemers in een Google "
-"Meet-tabblad (handmatig kiezen)."
+"Microfoon, camera, hand opsteken, chat en deelnemers in een Google Meet-"
+"tabblad (handmatig kiezen)."
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Microsoft Teams"
@@ -2981,7 +2981,7 @@ msgstr "Microsoft Teams"
 msgid "Middle Click"
 msgstr "Middelklik"
 
-#: settings-qt/bridge/backend.py:2963
+#: settings-qt/bridge/backend.py:2981
 msgid "Middle click"
 msgstr "Middelklik"
 
@@ -3024,7 +3024,7 @@ msgstr "Meer"
 msgid "Mouse"
 msgstr "Muis"
 
-#: settings-qt/bridge/backend.py:2401
+#: settings-qt/bridge/backend.py:2419
 msgid "Mouse battery low"
 msgstr "Batterij muis bijna leeg"
 
@@ -3079,7 +3079,7 @@ msgstr "Omhoog verplaatsen"
 msgid "Movement below this many pixels counts as a press"
 msgstr "Beweging onder dit aantal pixels telt als een druk"
 
-#: settings-qt/bridge/keypad.py:141
+#: settings-qt/bridge/keypad.py:145
 msgid "Music"
 msgstr "Muziek"
 
@@ -3176,7 +3176,7 @@ msgstr "Venster +"
 msgid "New link"
 msgstr "Nieuwe link"
 
-#: settings-qt/bridge/backend.py:3927
+#: settings-qt/bridge/backend.py:3945
 msgid "New macro"
 msgstr "Nieuwe macro"
 
@@ -3184,7 +3184,7 @@ msgstr "Nieuwe macro"
 msgid "New page"
 msgstr "Nieuwe pagina"
 
-#: settings-qt/bridge/keypad.py:139 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:143 settings-qt/assets/keypad/profiles.json
 msgid "Next"
 msgstr "Volgende"
 
@@ -3249,7 +3249,7 @@ msgstr "Geen applicatie geselecteerd"
 msgid "No applications found"
 msgstr "Geen applicaties gevonden"
 
-#: settings-qt/bridge/backend.py:4103
+#: settings-qt/bridge/backend.py:4121
 msgid "No button"
 msgstr "Geen knop"
 
@@ -3265,7 +3265,7 @@ msgstr "Geen vervagingen, schuifanimaties of overgangen in dit venster."
 msgid "No firewall service is running here, so Flow is not blocked by one."
 msgstr "Hier draait geen firewallservice die Flow blokkeert."
 
-#: settings-qt/bridge/backend.py:3877
+#: settings-qt/bridge/backend.py:3895
 msgid "No keyboard to record from. Your user needs to read /dev/input "
 msgstr ""
 "Geen toetsenbord om van op te nemen. Je gebruiker moet /dev/input kunnen "
@@ -3314,7 +3314,7 @@ msgstr "Geen plug-ins geïnstalleerd"
 msgid "No plugins yet"
 msgstr "Nog geen plug-ins"
 
-#: settings-qt/bridge/backend.py:1816
+#: settings-qt/bridge/backend.py:1821
 msgid "No portable.json in this pack"
 msgstr "Geen portable.json in dit pakket"
 
@@ -3369,7 +3369,7 @@ msgstr "Nord"
 msgid "Normal push"
 msgstr "Normale druk"
 
-#: settings-qt/bridge/backend.py:5202
+#: settings-qt/bridge/backend.py:5220
 msgid "Not checked yet."
 msgstr "Nog niet gecontroleerd."
 
@@ -3421,7 +3421,7 @@ msgstr ""
 msgid "Not set: the mouse stays here when the cursor leaves"
 msgstr "Niet ingesteld: de muis blijft hier wanneer de cursor vertrekt"
 
-#: settings-qt/bridge/keypad.py:136
+#: settings-qt/bridge/keypad.py:140
 msgid "Notes"
 msgstr "Notities"
 
@@ -3433,7 +3433,7 @@ msgstr "Nog niets aangepast: openen om te kiezen"
 msgid "Nothing shows up? A firewall may block Flow."
 msgstr "Verschijnt er niets? Een firewall blokkeert mogelijk Flow."
 
-#: settings-qt/bridge/backend.py:3917
+#: settings-qt/bridge/backend.py:3935
 msgid "Nothing was recorded. Press some keys while it records."
 msgstr "Er is niets opgenomen. Druk tijdens de opname op enkele toetsen."
 
@@ -3490,7 +3490,7 @@ msgstr "Office"
 msgid "On"
 msgstr "Aan"
 
-#: settings-qt/bridge/backend.py:4099
+#: settings-qt/bridge/backend.py:4117
 msgid "On / off"
 msgstr "Aan / uit"
 
@@ -3527,7 +3527,7 @@ msgstr ""
 msgid "On: faster movements carry the pointer further"
 msgstr "Aan: snellere bewegingen brengen de aanwijzer verder"
 
-#: settings-qt/bridge/backend.py:4096
+#: settings-qt/bridge/backend.py:4114
 msgid "Once"
 msgstr "Eenmaal"
 
@@ -3681,7 +3681,7 @@ msgstr "Overzicht"
 msgid "Own ring"
 msgstr "Eigen ring"
 
-#: settings-qt/bridge/backend.py:1854
+#: settings-qt/bridge/backend.py:1872
 msgid ""
 "Pack imported: {n} pages. Keys without a Linux action keep their picture for "
 "you to assign."
@@ -3689,7 +3689,7 @@ msgstr ""
 "Pakket geïmporteerd: {n} pagina’s. Toetsen zonder Linux-actie behouden hun "
 "afbeelding, zodat je ze zelf kunt toewijzen."
 
-#: settings-qt/bridge/backend.py:1841
+#: settings-qt/bridge/backend.py:1856
 msgid "Page"
 msgstr "Pagina"
 
@@ -3855,7 +3855,7 @@ msgstr ""
 msgid "Picture"
 msgstr "Afbeelding"
 
-#: settings-qt/bridge/backend.py:3095
+#: settings-qt/bridge/backend.py:3113
 msgid "Pin saved: {slot} = {x}, {y}"
 msgstr "Markering opgeslagen: {slot} = {x}, {y}"
 
@@ -3863,7 +3863,7 @@ msgstr "Markering opgeslagen: {slot} = {x}, {y}"
 msgid "Places"
 msgstr "Plaatsen"
 
-#: settings-qt/bridge/keypad.py:138
+#: settings-qt/bridge/keypad.py:142
 msgid "Play"
 msgstr "Afspelen"
 
@@ -3893,11 +3893,11 @@ msgstr "Afspelen/Pauzeren"
 msgid "Playback, volume and microphone"
 msgstr "Afspelen, volume en microfoon"
 
-#: settings-qt/bridge/backend.py:4097
+#: settings-qt/bridge/backend.py:4115
 msgid "Plays the steps again and again, as often as you set."
 msgstr "Herhaalt de stappen zo vaak als je instelt."
 
-#: settings-qt/bridge/backend.py:4096
+#: settings-qt/bridge/backend.py:4114
 msgid "Plays the steps one time."
 msgstr "Voert de stappen eenmaal uit."
 
@@ -3954,7 +3954,7 @@ msgstr "Precisie-DPI zolang ingedrukt"
 msgid "Preset %1"
 msgstr "Preset %1"
 
-#: settings-qt/bridge/backend.py:3793
+#: settings-qt/bridge/backend.py:3811
 msgid "Preset %d"
 msgstr "Preset %d"
 
@@ -4028,7 +4028,7 @@ msgstr "Voorbeeld"
 msgid "Preview of the radial menu"
 msgstr "Voorbeeld van het radiaalmenu"
 
-#: settings-qt/bridge/keypad.py:138 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:142 settings-qt/assets/keypad/profiles.json
 msgid "Previous"
 msgstr "Vorige"
 
@@ -4048,7 +4048,7 @@ msgstr "Afdrukken"
 msgid "Problems"
 msgstr "Problemen"
 
-#: settings-qt/bridge/backend.py:1924
+#: settings-qt/bridge/backend.py:1942
 msgid "Profile added: {name}"
 msgstr "Profiel toegevoegd: {name}"
 
@@ -4061,7 +4061,7 @@ msgstr "Profiel voor %1 verwijderd"
 msgid "Profile: %1"
 msgstr "Profiel: %1"
 
-#: settings-qt/bridge/backend.py:3215
+#: settings-qt/bridge/backend.py:3233
 msgid "Profiles save failed: {error}"
 msgstr "Profielen opslaan mislukt: {error}"
 
@@ -4303,7 +4303,7 @@ msgstr "Herstellen"
 msgid "Repeat"
 msgstr "Herhalen"
 
-#: settings-qt/bridge/backend.py:4098
+#: settings-qt/bridge/backend.py:4116
 msgid "Repeats while you hold the bound button."
 msgstr "Herhaalt zolang je de gekoppelde knop ingedrukt houdt."
 
@@ -4365,11 +4365,11 @@ msgstr "Herstarten"
 msgid "Restart now"
 msgstr "Nu herstarten"
 
-#: settings-qt/bridge/backend.py:5475
+#: settings-qt/bridge/backend.py:5493
 msgid "Restarting the background service…"
 msgstr "Achtergrondservice herstarten…"
 
-#: settings-qt/bridge/backend.py:5493
+#: settings-qt/bridge/backend.py:5511
 msgid "Restarting the radial menu…"
 msgstr "Radiaalmenu herstarten…"
 
@@ -4461,8 +4461,8 @@ msgstr "Vooruit rollen scrolt naar links in plaats van rechts"
 #: settings-qt/assets/keypad/profiles.json
 msgid "Room search, unread navigation, upload and call mic/camera for Element."
 msgstr ""
-"Kamers zoeken, navigatie tussen ongelezen kamers, uploaden en "
-"microfoon/camera tijdens gesprekken voor Element."
+"Kamers zoeken, navigatie tussen ongelezen kamers, uploaden en microfoon/"
+"camera tijdens gesprekken voor Element."
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Rooms"
@@ -4535,7 +4535,7 @@ msgstr "Kleurpipet"
 msgid "Save"
 msgstr "Opslaan"
 
-#: settings-qt/bridge/backend.py:1987
+#: settings-qt/bridge/backend.py:2005
 msgid "Save failed: {error}"
 msgstr "Opslaan mislukt: {error}"
 
@@ -4548,11 +4548,11 @@ msgstr "Toets opslaan"
 msgid "Saved"
 msgstr "Opgeslagen"
 
-#: settings-qt/bridge/backend.py:2504
+#: settings-qt/bridge/backend.py:2522
 msgid "Saved. JuhRadial applies it when its service starts."
 msgstr "Opgeslagen. JuhRadial past dit toe zodra de service start."
 
-#: settings-qt/bridge/backend.py:2506
+#: settings-qt/bridge/backend.py:2524
 msgid "Saved. The mouse gets it when it wakes up or comes back."
 msgstr "Opgeslagen. De muis ontvangt dit zodra deze wakker wordt of terugkomt."
 
@@ -4704,7 +4704,7 @@ msgstr ""
 "neemt het later weer over"
 
 #: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:112
-#: settings-qt/bridge/keypad.py:135 settings-qt/bridge/backend.py:635
+#: settings-qt/bridge/keypad.py:139 settings-qt/bridge/backend.py:635
 msgid "Settings"
 msgstr "Instellingen"
 
@@ -4712,7 +4712,7 @@ msgstr "Instellingen"
 msgid "Settings imported"
 msgstr "Instellingen geïmporteerd"
 
-#: settings-qt/bridge/backend.py:4665
+#: settings-qt/bridge/backend.py:4683
 msgid "Settings imported. The previous files are kept as .bak"
 msgstr "Instellingen geïmporteerd. Vorige bestanden blijven bewaard als .bak"
 
@@ -4737,7 +4737,7 @@ msgstr "Wijzigingen worden opgeslagen en toegepast wanneer de muis terug is."
 msgid "Shading"
 msgstr "Shading"
 
-#: settings-qt/bridge/keypad.py:150 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:154 settings-qt/assets/keypad/profiles.json
 msgid "Share"
 msgstr "Delen"
 
@@ -4820,7 +4820,7 @@ msgstr "Systeemvakpictogram tonen"
 msgid "Shuffle"
 msgstr "Shuffle"
 
-#: settings-qt/bridge/backend.py:2959
+#: settings-qt/bridge/backend.py:2977
 msgid "Side button"
 msgstr "Zijknop"
 
@@ -4859,7 +4859,7 @@ msgstr "Segmentwissel"
 msgid "Slice tick rate"
 msgstr "Pulsinterval van segmenten"
 
-#: settings-qt/bridge/backend.py:3110
+#: settings-qt/bridge/backend.py:3128
 msgid "Slice {n}"
 msgstr "Segment {n}"
 
@@ -4984,7 +4984,7 @@ msgstr "Starten"
 msgid "Start service"
 msgstr "Service starten"
 
-#: settings-qt/bridge/backend.py:3874
+#: settings-qt/bridge/backend.py:3892
 msgid "Start the JuhRadial MX service to record a macro."
 msgstr "Start de JuhRadial MX-service om een macro op te nemen."
 
@@ -5000,7 +5000,7 @@ msgstr "De service starten"
 msgid "Starting…"
 msgstr "Starten…"
 
-#: settings-qt/bridge/backend.py:5520
+#: settings-qt/bridge/backend.py:5538
 msgid "Starts at login with {path}"
 msgstr "Start bij aanmelden met {path}"
 
@@ -5137,11 +5137,11 @@ msgstr "Systeemmic"
 msgid "System"
 msgstr "Systeem"
 
-#: settings-qt/bridge/backend.py:5539
+#: settings-qt/bridge/backend.py:5557
 msgid "System default"
 msgstr "Systeemstandaard"
 
-#: settings-qt/bridge/backend.py:5438
+#: settings-qt/bridge/backend.py:5456
 msgid "System information copied"
 msgstr "Systeeminformatie gekopieerd"
 
@@ -5198,7 +5198,7 @@ msgstr "Sjablonen"
 msgid "Term Panel"
 msgstr "Termpaneel"
 
-#: settings-qt/bridge/keypad.py:130 settings-qt/bridge/keypad.py:146
+#: settings-qt/bridge/keypad.py:134 settings-qt/bridge/keypad.py:150
 #: settings-qt/assets/keypad/profiles.json
 msgid "Terminal"
 msgstr "Terminal"
@@ -5230,13 +5230,13 @@ msgstr "Te typen tekst"
 msgid "Text, a prompt or a /command"
 msgstr "Tekst, een prompt of een /opdracht"
 
-#: settings-qt/bridge/backend.py:4992
+#: settings-qt/bridge/backend.py:5010
 msgid "That custom action cannot run: check the shortcut, link or command."
 msgstr ""
 "Deze aangepaste actie kan niet worden uitgevoerd: controleer de sneltoets, "
 "link of opdracht."
 
-#: settings-qt/bridge/backend.py:4146
+#: settings-qt/bridge/backend.py:4164
 msgid "That file is not a JuhRadial MX macro."
 msgstr "Dat bestand is geen JuhRadial MX-macro."
 
@@ -5252,7 +5252,7 @@ msgstr ""
 "De JuhRadial MX-service is niet actief. Wijzigingen worden opgeslagen en "
 "toegepast zodra deze start."
 
-#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3469
+#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3487
 msgid "The JuhRadial service is not running"
 msgstr "De JuhRadial-service is niet actief"
 
@@ -5284,7 +5284,7 @@ msgstr ""
 msgid "The background service is not running"
 msgstr "De achtergrondservice is niet actief"
 
-#: settings-qt/bridge/backend.py:2236
+#: settings-qt/bridge/backend.py:2254
 msgid "The background service is not running."
 msgstr "De achtergrondservice is niet actief."
 
@@ -5293,7 +5293,7 @@ msgid "The battery drops to the alert level set on Devices"
 msgstr ""
 "De batterij zakt tot het waarschuwingsniveau dat bij Apparaten is ingesteld"
 
-#: settings-qt/bridge/backend.py:4099
+#: settings-qt/bridge/backend.py:4117
 msgid "The bound button starts it, the next press stops it."
 msgstr "De gekoppelde knop start de macro; nogmaals drukken stopt deze."
 
@@ -5309,11 +5309,11 @@ msgstr ""
 "Bij het eerste gebruik van een applicatie zonder profiel stelt Instellingen "
 "er een voor. Elke applicatie wordt eenmaal gevraagd"
 
-#: settings-qt/bridge/backend.py:2410
+#: settings-qt/bridge/backend.py:2428
 msgid "The keyboard"
 msgstr "Het toetsenbord"
 
-#: settings-qt/bridge/backend.py:3053
+#: settings-qt/bridge/backend.py:3071
 msgid "The keyboard did not answer. Press a key to wake it, then try again."
 msgstr ""
 "Het toetsenbord antwoordde niet. Druk op een toets om het te wekken en "
@@ -5340,11 +5340,11 @@ msgid "The keys stay down as long as you hold the button (push to talk)"
 msgstr ""
 "De toetsen blijven ingedrukt zolang je de knop vasthoudt (push-to-talk)"
 
-#: settings-qt/bridge/backend.py:5514
+#: settings-qt/bridge/backend.py:5532
 msgid "The login entry is missing."
 msgstr "Het aanmelditem ontbreekt."
 
-#: settings-qt/bridge/backend.py:5519
+#: settings-qt/bridge/backend.py:5537
 msgid "The login entry points at a program that is gone."
 msgstr "Het aanmelditem verwijst naar een programma dat niet meer bestaat."
 
@@ -5356,7 +5356,7 @@ msgstr ""
 "Het uiterlijk van de ring staat los van het applicatiethema: je acht acties "
 "blijven op hun plek."
 
-#: settings-qt/bridge/backend.py:3853
+#: settings-qt/bridge/backend.py:3871
 msgid "The macro could not be saved. Is the JuhRadial MX service running?"
 msgstr "Kan de macro niet opslaan. Is de JuhRadial MX-service actief?"
 
@@ -5364,11 +5364,11 @@ msgstr "Kan de macro niet opslaan. Is de JuhRadial MX-service actief?"
 msgid "The mouse comes back from another computer"
 msgstr "De muis komt terug van een andere computer"
 
-#: settings-qt/bridge/backend.py:2509
+#: settings-qt/bridge/backend.py:2527
 msgid "The mouse did not accept this change."
 msgstr "De muis heeft deze wijziging niet geaccepteerd."
 
-#: settings-qt/bridge/backend.py:3681
+#: settings-qt/bridge/backend.py:3699
 msgid "The mouse did not switch. Is it awake, and is that computer paired?"
 msgstr ""
 "De muis is niet gewisseld. Is deze wakker en is die computer gekoppeld?"
@@ -5430,11 +5430,11 @@ msgstr "De nieuwe taal wordt na een herstart gebruikt."
 msgid "The other computer's channel"
 msgstr "Kanaal van de andere computer"
 
-#: settings-qt/bridge/backend.py:1810
+#: settings-qt/bridge/backend.py:1815
 msgid "The pack contains an unsafe path"
 msgstr "Het pakket bevat een onveilig pad"
 
-#: settings-qt/bridge/backend.py:1847
+#: settings-qt/bridge/backend.py:1825 settings-qt/bridge/backend.py:1862
 msgid "The pack has no pages to add"
 msgstr "Het pakket heeft geen pagina’s om toe te voegen"
 
@@ -5454,7 +5454,7 @@ msgstr "Het drukpaneel onder je duim"
 msgid "The radial menu appears"
 msgstr "Het radiaalmenu verschijnt"
 
-#: settings-qt/bridge/backend.py:2238
+#: settings-qt/bridge/backend.py:2256
 msgid "The radial menu is not running."
 msgstr "Het radiaalmenu is niet actief."
 
@@ -5471,7 +5471,7 @@ msgstr "De ring opent nog steeds in spellen"
 msgid "The same ring as everywhere"
 msgstr "Dezelfde ring als overal"
 
-#: settings-qt/bridge/backend.py:2244
+#: settings-qt/bridge/backend.py:2262
 msgid ""
 "The service cannot reach the mouse. Check that your user is in the input "
 "group."
@@ -5479,7 +5479,7 @@ msgstr ""
 "De service kan de muis niet bereiken. Controleer of je gebruiker in de groep "
 "input zit."
 
-#: settings-qt/bridge/backend.py:2241
+#: settings-qt/bridge/backend.py:2259
 msgid "The service is {daemon} and this app is {app}: reinstall so they match."
 msgstr ""
 "De service is {daemon} en deze applicatie is {app}: installeer opnieuw zodat "
@@ -5524,7 +5524,7 @@ msgstr "Thema: %1"
 msgid "Themes"
 msgstr "Thema’s"
 
-#: settings-qt/bridge/backend.py:3316
+#: settings-qt/bridge/backend.py:3334
 msgid "There is already a profile for {app}"
 msgstr "Er bestaat al een profiel voor {app}"
 
@@ -5563,7 +5563,7 @@ msgstr "Kanaal van deze computer"
 msgid "This computer's name"
 msgstr "Naam van deze computer"
 
-#: settings-qt/bridge/backend.py:4633
+#: settings-qt/bridge/backend.py:4651
 msgid "This is not a JuhRadial MX backup."
 msgstr "Dit is geen JuhRadial MX-back-up."
 
@@ -5571,7 +5571,7 @@ msgstr "Dit is geen JuhRadial MX-back-up."
 msgid "This list"
 msgstr "Deze lijst"
 
-#: settings-qt/bridge/backend.py:4258
+#: settings-qt/bridge/backend.py:4276
 msgid "This mouse follows your global settings again"
 msgstr "Deze muis volgt weer je algemene instellingen"
 
@@ -5604,7 +5604,7 @@ msgstr ""
 "Deze muis verliest de eigen instellingen en gebruikt je algemene "
 "instellingen."
 
-#: settings-qt/bridge/backend.py:4829
+#: settings-qt/bridge/backend.py:4847
 msgid "This mouse only"
 msgstr "Alleen deze muis"
 
@@ -5812,7 +5812,7 @@ msgstr "Onderstr."
 msgid "Undo"
 msgstr "Ongedaan maken"
 
-#: settings-qt/bridge/backend.py:4196
+#: settings-qt/bridge/backend.py:4214
 msgid "Undo failed: {error}"
 msgstr "Ongedaan maken mislukt: {error}"
 
@@ -5933,7 +5933,7 @@ msgstr "Gebruikelijk"
 msgid "VS Code"
 msgstr "VS Code"
 
-#: settings-qt/bridge/backend.py:5199
+#: settings-qt/bridge/backend.py:5217
 msgid "Version {version} is available."
 msgstr "Versie {version} is beschikbaar."
 
@@ -5965,11 +5965,11 @@ msgstr "Volume -"
 msgid "Vol Up"
 msgstr "Volume +"
 
-#: settings-qt/bridge/keypad.py:140 settings-qt/bridge/keypad.py:152
+#: settings-qt/bridge/keypad.py:144 settings-qt/bridge/keypad.py:156
 msgid "Vol down"
 msgstr "Zachter"
 
-#: settings-qt/bridge/keypad.py:140 settings-qt/bridge/keypad.py:152
+#: settings-qt/bridge/keypad.py:144 settings-qt/bridge/keypad.py:156
 msgid "Vol up"
 msgstr "Harder"
 
@@ -6039,7 +6039,7 @@ msgstr "Wat is er nieuw"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:76
 #: settings-qt/qml/pages/ButtonsPage.qml:88
-#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:4106
+#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:4124
 #: settings-qt/bridge/backend.py:649
 msgid "Wheel click"
 msgstr "Wielklik"
@@ -6107,7 +6107,7 @@ msgstr "Welke knop het radiaalmenu op deze muis opent"
 msgid "While a button set to Precision DPI is held"
 msgstr "Zolang een knop ingesteld op Precisie-DPI wordt ingedrukt"
 
-#: settings-qt/bridge/backend.py:4098
+#: settings-qt/bridge/backend.py:4116
 msgid "While held"
 msgstr "Terwijl ingedrukt"
 
@@ -6142,7 +6142,7 @@ msgstr ""
 msgid "X-Ray"
 msgstr "Röntgen"
 
-#: settings-qt/bridge/backend.py:5201
+#: settings-qt/bridge/backend.py:5219
 msgid "You have the latest version."
 msgstr "Je hebt de nieuwste versie."
 
@@ -6166,7 +6166,7 @@ msgstr "Je bureaublad vraagt om minder animatie, dus dit staat al aan."
 msgid "Your desktop does not report an accent colour"
 msgstr "Je bureaublad meldt geen accentkleur"
 
-#: settings-qt/bridge/backend.py:3494
+#: settings-qt/bridge/backend.py:3512
 msgid "Your desktop does not tell JuhRadial which window is in front"
 msgstr ""
 "Je bureaublad vertelt JuhRadial niet welk venster op de voorgrond staat"
@@ -6282,7 +6282,7 @@ msgstr "applicatieprofielen"
 msgid "back"
 msgstr "terug"
 
-#: settings-qt/bridge/backend.py:4678
+#: settings-qt/bridge/backend.py:4696
 msgid "built-in emoji picker"
 msgstr "ingebouwde emojikiezer"
 
@@ -6317,6 +6317,10 @@ msgstr "haptiek"
 #: settings-qt/qml/components/MacroEditor.qml:250
 msgid "held %1 ms"
 msgstr "%1 ms ingedrukt"
+
+#: settings-qt/bridge/backend.py:1864
+msgid "it is password protected"
+msgstr "het is met een wachtwoord beveiligd"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "kitty"
@@ -6395,35 +6399,35 @@ msgstr "terwijl ingedrukt"
 msgid "window class"
 msgstr "vensterklasse"
 
-#: settings-qt/bridge/backend.py:2418
+#: settings-qt/bridge/backend.py:2436
 msgid "{device} is at {percent}%. Time to recharge."
 msgstr "{device} staat op {percent}%. Tijd om op te laden."
 
-#: settings-qt/bridge/backend.py:5327
+#: settings-qt/bridge/backend.py:5345
 msgid "{name} can now use Flow with this computer"
 msgstr "{name} kan nu Flow met deze computer gebruiken"
 
-#: settings-qt/bridge/backend.py:4089
+#: settings-qt/bridge/backend.py:4107
 msgid "{name} copy"
 msgstr "Kopie van {name}"
 
-#: settings-qt/bridge/backend.py:4027
+#: settings-qt/bridge/backend.py:4045
 msgid "{name} is no longer bound to that button"
 msgstr "{name} is niet meer aan die knop gekoppeld"
 
-#: settings-qt/bridge/backend.py:5332
+#: settings-qt/bridge/backend.py:5350
 msgid "{name} was turned away"
 msgstr "{name} is afgewezen"
 
-#: settings-qt/bridge/backend.py:3084
+#: settings-qt/bridge/backend.py:3102
 msgid "{n} minutes"
 msgstr "{n} minuten"
 
-#: settings-qt/bridge/backend.py:3083
+#: settings-qt/bridge/backend.py:3101
 msgid "{n} seconds"
 msgstr "{n} seconden"
 
-#: settings-qt/bridge/backend.py:4264
+#: settings-qt/bridge/backend.py:4282
 msgid "{what} copied"
 msgstr "{what} gekopieerd"
 

@@ -1676,7 +1676,7 @@ struct ActionContext {
     shift_restore: Option<u16>,
     /// A hold-while-pressed custom action whose keys are down (release
     /// events carry no source button, so the press remembers it).
-    held_custom: Option<juhradiald::config::CustomAction>,
+    held_custom: Option<(Option<u16>, juhradiald::config::CustomAction)>,
 }
 
 /// What an MX Keypad key bound to the Actions Ring does on one edge. Like the
@@ -1715,7 +1715,7 @@ impl ActionContext {
             (A::DpiShift, true) => self.dpi_shift(true).await,
             (A::DpiShift, false) => self.dpi_shift(false).await,
             (A::Custom, false) => {
-                if let Some(held) = self.held_custom.take() {
+                if let Some((_, held)) = self.held_custom.take() {
                     run_custom_action(&held, &self.macro_engine, false).await;
                 }
             }
@@ -1743,9 +1743,21 @@ impl ActionContext {
         match custom {
             Some(custom) => {
                 info!(slot = ?slot, kind = %custom.kind, "Custom button action");
+                if custom.hold {
+                    match self.held_custom.take() {
+                        // The held button again, listed ahead of another diverted one.
+                        Some(held) if held.0 == source => {
+                            self.held_custom = Some(held);
+                            return;
+                        }
+                        // A second hold button: release the first one's keys.
+                        Some((_, previous)) => run_custom_action(&previous, &self.macro_engine, false).await,
+                        None => {}
+                    }
+                }
                 run_custom_action(&custom, &self.macro_engine, true).await;
                 if custom.hold {
-                    self.held_custom = Some(custom);
+                    self.held_custom = Some((source, custom));
                 }
             }
             None => warn!(slot = ?slot, "Button set to custom but no custom action is saved for it"),
@@ -1918,9 +1930,16 @@ async fn run_custom_action(
     }
     let result = match custom.kind.as_str() {
         // Not trimmed: leading/trailing spaces are part of the text.
-        "text" => juhradiald::actions::paste_text(&custom.value, &custom.paste_with, custom.enter)
-            .await
-            .map_err(|e| e.to_string()),
+        // Off the button/keypad loop: a slow clipboard must not stall input.
+        "text" => {
+            let (text, with, enter) = (custom.value.clone(), custom.paste_with.clone(), custom.enter);
+            tokio::spawn(async move {
+                if let Err(e) = juhradiald::actions::paste_text(&text, &with, enter).await {
+                    error!(kind = "text", error = %e, "Custom button action failed");
+                }
+            });
+            Ok(())
+        }
         "shortcut" => ActionExecutor::execute(&Action {
             action_type: ActionType::Shortcut(value.to_string()),
             label: None,

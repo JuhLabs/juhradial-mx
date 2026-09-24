@@ -1765,12 +1765,13 @@ class Backend(QObject):
         key["label"] = str(raw.get("label", ""))[:40]
         if image:
             key["plate"] = image
-        act = raw.get("action") or {}
+        act = raw.get("action")
+        act = act if isinstance(act, dict) else {}
         kind = act.get("kind")
         if kind == "launch":
-            name = str(act.get("name", "")).lower()
+            name = str(act.get("name", "")).strip().lower()
             found = next((a for a in apps if a.get("name", "").lower() == name
-                          or name.replace(" ", "") in a.get("id", "").lower()), None)
+                          or name.replace(" ", "") in a.get("id", "").lower()), None) if name else None
             if found:
                 key.update(action="custom", custom={"kind": "command", "value": found["command"],
                                                     "label": found["name"],
@@ -1785,7 +1786,9 @@ class Backend(QObject):
             custom = {"kind": "text", "value": str(act["text"]), "enter": bool(act.get("enter"))}
             if "terminal" in str(act.get("target", "")):
                 custom["paste_with"] = "ctrl+shift+v"
-            key.update(action="custom", custom=self._clean_custom(custom))
+            custom = self._clean_custom(custom)
+            if custom:
+                key.update(action="custom", custom=custom)
         elif kind == "spotify" and act.get("action") in ("previous", "play-pause", "next"):
             key.update(action="custom", custom={"kind": "command", "value": f"playerctl -p spotify {act['action']}"})
         return key
@@ -1798,7 +1801,9 @@ class Backend(QObject):
         artsy, minimal, then any other, is used."""
         import shutil
         import zipfile
+        import zlib
         src = pathlib.Path(QUrl(url).toLocalFile() if url.startswith("file:") else url)
+        label = src.stem if src.suffix.lower() == ".zip" else ""  # before src becomes the temp dir
         work = None
         try:
             if src.suffix.lower() == ".zip":
@@ -1815,25 +1820,35 @@ class Backend(QObject):
             if spec is None:
                 raise ValueError(_("No portable.json in this pack"))
             data = json.loads(spec.read_text(encoding="utf-8"))
+            page_list = data.get("pages") if isinstance(data, dict) else None
+            if not isinstance(page_list, list):
+                raise ValueError(_("The pack has no pages to add"))
             base = spec.parent.parent if spec.parent.name == "profiles" else spec.parent
             art = next(iter(base.rglob("keys-118")), None)
             sets = sorted(d.name for d in art.iterdir() if d.is_dir()) if art else []
             chosen = next((s for s in ("artsy", "minimal") if s in sets), sets[0] if sets else "")
-            pack = CONFIG_DIR / "keypad" / "packs" / "".join(c if c.isalnum() or c in "-_" else "_" for c in root.name)[:60]
+            # Own folder per import: two packs (or two versions) never share pictures.
+            safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (label or base.name))[:50]
+            packs = CONFIG_DIR / "keypad" / "packs"
+            packs.mkdir(parents=True, exist_ok=True)
+            pack = pathlib.Path(tempfile.mkdtemp(prefix=f"{safe}-", dir=packs))
             for name in sets:
                 shutil.copytree(art / name, pack / name, dirs_exist_ok=True)
             apps = self.listApplications()
             pages = self.keypadPages
             first = len(pages)
-            for page in data.get("pages", []):
+            for page in page_list:
+                if not isinstance(page, dict):
+                    continue
                 keys = [None] * 9
-                for raw in page.get("keys", []):
-                    slot = raw.get("slot")
+                for raw in page.get("keys") if isinstance(page.get("keys"), list) else []:
+                    slot = raw.get("slot") if isinstance(raw, dict) else None
                     if isinstance(slot, int) and 0 <= slot < 9:
                         img = pack / chosen / f"{raw.get('id', '')}.jpg"
                         keys[slot] = self._pack_key(raw, str(img) if chosen and img.is_file() else "", apps)
                 from bridge.keypad import empty_key
-                profiles = page.get("mac_profiles") or {}
+                profiles = page.get("mac_profiles")
+                profiles = profiles if isinstance(profiles, dict) else {}
                 if "general" in profiles or not profiles:
                     classes = []
                 else:
@@ -1845,7 +1860,10 @@ class Backend(QObject):
                 pages.append(entry)
             if len(pages) == first or len(pages) > 255 or not self._save_keypad(pages, first):
                 raise ValueError(_("The pack has no pages to add"))
-        except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error:
+        except RuntimeError:  # an encrypted zip
+            self.notify(_("Could not import the pack: {error}").format(error=_("it is password protected")), "danger")
+            return False
+        except (OSError, ValueError, KeyError, EOFError, zlib.error, zipfile.BadZipFile) as error:
             self.notify(_("Could not import the pack: {error}").format(error=error), "danger")
             return False
         finally:

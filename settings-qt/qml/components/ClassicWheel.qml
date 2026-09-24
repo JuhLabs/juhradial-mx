@@ -42,9 +42,9 @@ Canvas {
             c.stroke()
         }
         if (cw.material !== "") {
-            // The ring's dark centre zone sits over the material, as on screen.
+            // The ring's centre zone in the palette surface sits over the material, as on screen.
             c.beginPath(); c.arc(cx, cy, ri, 0, 2 * Math.PI)
-            c.fillStyle = Qt.rgba(0.06, 0.08, 0.11, 0.94); c.fill()
+            c.fillStyle = Qt.rgba(cw.fill.r, cw.fill.g, cw.fill.b, 0.97); c.fill()
         }
         c.beginPath(); c.arc(cx, cy, ro, 0, 2 * Math.PI)
         c.lineWidth = Math.max(1.5, width / 48); c.strokeStyle = cw.stroke; c.stroke()

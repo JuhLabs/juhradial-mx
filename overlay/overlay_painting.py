@@ -551,7 +551,10 @@ class RadialMenuPaintingMixin:
         icon_y = cy + (icon_place_r + 3.0 * h) * math.sin(icon_angle)
 
         # Glow ring - fades in with highlight; icon pops slightly on hover
-        icon_radius = (26 + 2.0 * h) * self._get_ui_scale()
+        # icon_scale folds in the ring size (ui_scale) and Settings > Icon size;
+        # capped so neighbouring discs never overlap at the largest icon size.
+        icon_radius = min((26 + 2.0 * h) * (overlay_actions.RADIAL_PARAMS or {}).get("icon_scale", 1.0),
+                          icon_place_r * math.sin(math.pi / 8) - 2 + 2.0 * h)
 
         # Slice button (Line and Classic icon styles) replaces the disc and glyph.
         if self._draw_slice_button(p, icon_x, icon_y, index, icon_radius, h):
@@ -600,7 +603,8 @@ class RadialMenuPaintingMixin:
         icon_x = cx + (icon_place_r + 3.0 * h) * math.cos(icon_angle)
         icon_y = cy + (icon_place_r + 3.0 * h) * math.sin(icon_angle)
 
-        icon_radius = 26 + 2.0 * h
+        icon_radius = min((26 + 2.0 * h) * (overlay_actions.RADIAL_PARAMS or {}).get("icon_scale", 1.0),
+                          icon_place_r * math.sin(math.pi / 8) - 2 + 2.0 * h)
 
         # Slice button (Line and Classic icon styles): floating button, no disc.
         if self._draw_slice_button(p, icon_x, icon_y, index, icon_radius, h):

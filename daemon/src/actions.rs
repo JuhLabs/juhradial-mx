@@ -982,7 +982,29 @@ pub async fn write_dpi(dpi: u16) -> Result<(), ActionError> {
 
 /// Press (`down`) or release the keys of a shortcut: hold-while-pressed
 /// custom actions (push-to-talk). Modifiers go down first and come up last.
+///
+/// Edges run one at a time, in order, on one worker thread that waits for each
+/// helper: a release started while its press is still typing would reach the
+/// kernel first, be dropped, and leave the key down.
 pub fn shortcut_edge(keys: &str, down: bool) -> Result<(), ActionError> {
+    static EDGES: OnceLock<std::sync::mpsc::Sender<(String, bool)>> = OnceLock::new();
+    let edges = EDGES.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::channel::<(String, bool)>();
+        std::thread::spawn(move || {
+            for (keys, down) in rx {
+                if let Err(e) = run_shortcut_edge(&keys, down) {
+                    tracing::error!(error = %e, "Held shortcut failed");
+                }
+            }
+        });
+        tx
+    });
+    edges
+        .send((keys.to_string(), down))
+        .map_err(|e| ActionError::ExecutionFailed(e.to_string()))
+}
+
+fn run_shortcut_edge(keys: &str, down: bool) -> Result<(), ActionError> {
     let codes = ActionExecutor::shortcut_to_evdev_codes(keys);
     let (program, args) = match (is_wayland_session(), codes) {
         (true, Some(codes)) => ("ydotool", ydotool_edge_args(&codes, down)),
@@ -991,10 +1013,12 @@ pub fn shortcut_edge(keys: &str, down: bool) -> Result<(), ActionError> {
     let mut cmd = Command::new(program);
     cmd.args(&args);
     apply_session_env(&mut cmd);
-    let child = cmd
-        .spawn()
+    let status = cmd
+        .status()
         .map_err(|e| ActionError::ExecutionFailed(format!("{program} failed: {e}")))?;
-    reap_in_background(child, keys, program);
+    if !status.success() {
+        tracing::warn!(keys, program, "held shortcut helper failed");
+    }
     Ok(())
 }
 
@@ -1013,27 +1037,53 @@ fn ydotool_edge_args(codes: &[u16], down: bool) -> Vec<String> {
 /// the keyboard layout and mangles / " @ on many layouts.
 pub async fn paste_text(text: &str, paste_with: &str, enter: bool) -> Result<(), ActionError> {
     use std::io::Write;
-    let (program, args): (&str, &[&str]) = if is_wayland_session() {
-        ("wl-copy", &[])
+    // One paste at a time, in press order (clipboard, chord, Enter).
+    static PASTE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    let _turn = PASTE.lock().await;
+    // No xclip fallback on Wayland: Plasma 5 does not sync an X selection
+    // taken while a Wayland window has focus, so the old clipboard would paste.
+    let tools: &[(&str, &[&str])] = if is_wayland_session() {
+        &[("wl-copy", &[])]
     } else {
-        ("xclip", &["-selection", "clipboard"])
+        &[("xclip", &["-selection", "clipboard"])]
     };
-    let mut cmd = Command::new(program);
-    cmd.args(args).stdin(std::process::Stdio::piped());
-    apply_session_env(&mut cmd);
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| ActionError::ExecutionFailed(format!("{program} failed: {e}")))?;
+    let mut spawned = None;
+    for &(program, args) in tools {
+        let mut cmd = Command::new(program);
+        cmd.args(args).stdin(std::process::Stdio::piped());
+        apply_session_env(&mut cmd);
+        match cmd.spawn() {
+            Ok(child) => {
+                spawned = Some((program, child));
+                break;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(ActionError::ExecutionFailed(format!("{program} failed: {e}"))),
+        }
+    }
+    let (program, mut child) = spawned.ok_or_else(|| {
+        ActionError::ExecutionFailed("Pasting text needs wl-clipboard (Wayland) or xclip (X11)".into())
+    })?;
     if let Some(mut stdin) = child.stdin.take() {
         stdin
             .write_all(text.as_bytes())
             .map_err(|e| ActionError::ExecutionFailed(format!("{program} failed: {e}")))?;
     }
-    // Both tools fork a selection owner and exit once the clipboard is set.
-    let copied = tokio::task::spawn_blocking(move || child.wait())
-        .await
-        .map_err(|e| ActionError::ExecutionFailed(e.to_string()))?
-        .map_err(|e| ActionError::ExecutionFailed(e.to_string()))?;
+    // Both tools fork a selection owner and exit once the clipboard is set;
+    // where the compositor never grants it, give up instead of waiting forever.
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let copied = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if Instant::now() < deadline => tokio::time::sleep(Duration::from_millis(20)).await,
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(ActionError::ExecutionFailed(format!("{program} timed out setting the clipboard")));
+            }
+            Err(e) => return Err(ActionError::ExecutionFailed(e.to_string())),
+        }
+    };
     if !copied.success() {
         return Err(ActionError::ExecutionFailed(format!("{program} could not set the clipboard")));
     }

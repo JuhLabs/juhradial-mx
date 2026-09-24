@@ -170,11 +170,11 @@ msgstr ", 열기"
 msgid ", this computer"
 msgstr ", 이 컴퓨터"
 
-#: settings-qt/bridge/backend.py:3080
+#: settings-qt/bridge/backend.py:3098
 msgid "1 hour"
 msgstr "1시간"
 
-#: settings-qt/bridge/backend.py:3079
+#: settings-qt/bridge/backend.py:3097
 msgid "1 minute"
 msgstr "1분"
 
@@ -186,11 +186,11 @@ msgstr ""
 "1. 각 컴퓨터를 서로 다른 Easy-Switch 채널로 마우스와 페어링한 뒤 위에서 두 채"
 "널을 설정하세요."
 
-#: settings-qt/bridge/backend.py:3080
+#: settings-qt/bridge/backend.py:3098
 msgid "10 minutes"
 msgstr "10분"
 
-#: settings-qt/bridge/backend.py:3078
+#: settings-qt/bridge/backend.py:3096
 msgid "10 seconds"
 msgstr "10초"
 
@@ -198,11 +198,11 @@ msgstr "10초"
 msgid "1st Unread"
 msgstr "첫 안 읽음"
 
-#: settings-qt/bridge/backend.py:3081
+#: settings-qt/bridge/backend.py:3099
 msgid "2 hours"
 msgstr "2시간"
 
-#: settings-qt/bridge/backend.py:3079
+#: settings-qt/bridge/backend.py:3097
 msgid "2 minutes"
 msgstr "2분"
 
@@ -215,11 +215,11 @@ msgid ""
 "3. Install and open JuhFlow on the Mac. It finds this computer by itself."
 msgstr "3. Mac에 JuhFlow를 설치하고 여세요. 이 컴퓨터를 자동으로 찾습니다."
 
-#: settings-qt/bridge/backend.py:3080
+#: settings-qt/bridge/backend.py:3098
 msgid "30 minutes"
 msgstr "30분"
 
-#: settings-qt/bridge/backend.py:3078
+#: settings-qt/bridge/backend.py:3096
 msgid "30 seconds"
 msgstr "30초"
 
@@ -231,11 +231,11 @@ msgstr ""
 "4. 요청이 오면 컴퓨터 항목에서 Mac을 승인하세요. 승인 전에는 아무것도 공유하"
 "지 않습니다."
 
-#: settings-qt/bridge/backend.py:3079
+#: settings-qt/bridge/backend.py:3097
 msgid "5 minutes"
 msgstr "5분"
 
-#: settings-qt/bridge/backend.py:3078
+#: settings-qt/bridge/backend.py:3096
 msgid "5 seconds"
 msgstr "5초"
 
@@ -313,7 +313,7 @@ msgstr "매크로가 끝날 때"
 msgid "A macro is running. Esc stops it."
 msgstr "매크로 실행 중입니다. Esc로 멈춥니다."
 
-#: settings-qt/bridge/backend.py:4097
+#: settings-qt/bridge/backend.py:4115
 msgid "A number of times"
 msgstr "지정한 횟수"
 
@@ -457,7 +457,7 @@ msgstr "템플릿 추가"
 msgid "Added"
 msgstr "추가됨"
 
-#: settings-qt/bridge/backend.py:3330
+#: settings-qt/bridge/backend.py:3348
 msgid "Added profile: {app}"
 msgstr "프로필 추가됨: {app}"
 
@@ -499,7 +499,7 @@ msgstr "경고"
 msgid "Align"
 msgstr "정렬"
 
-#: settings-qt/qml/pages/KeypadPage.qml:228 settings-qt/bridge/backend.py:4827
+#: settings-qt/qml/pages/KeypadPage.qml:228 settings-qt/bridge/backend.py:4845
 msgid "All apps"
 msgstr "모든 앱"
 
@@ -507,7 +507,7 @@ msgstr "모든 앱"
 msgid "All files (*)"
 msgstr "모든 파일 (*)"
 
-#: settings-qt/bridge/backend.py:4709
+#: settings-qt/bridge/backend.py:4727
 msgid "Already matches your desktop"
 msgstr "이미 데스크톱과 일치합니다"
 
@@ -564,7 +564,7 @@ msgstr "앱 전환"
 msgid "App: %1"
 msgstr "앱: %1"
 
-#: settings-qt/bridge/backend.py:4721
+#: settings-qt/bridge/backend.py:4739
 msgid "Applied desktop defaults to {count} actions"
 msgstr "동작 {count}개에 데스크톱 기본값 적용됨"
 
@@ -625,7 +625,7 @@ msgstr "절전 중. 움직이면 깨어납니다"
 msgid "Asleep. Press any key to wake it"
 msgstr "절전 중. 아무 키나 누르면 깨어납니다"
 
-#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5344
+#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5362
 msgid "Automatic"
 msgstr "자동"
 
@@ -647,7 +647,7 @@ msgstr "자동: 각 화면에 맞춤"
 msgid "Automatic: the light sensor sets the brightness"
 msgstr "자동: 조도 센서가 밝기를 설정합니다"
 
-#: settings-qt/bridge/backend.py:4499 settings-qt/bridge/backend.py:5528
+#: settings-qt/bridge/backend.py:4517 settings-qt/bridge/backend.py:5546
 msgid "Autostart: {error}"
 msgstr "자동 시작: {error}"
 
@@ -666,7 +666,7 @@ msgstr "뒤로"
 msgid "Back 10s"
 msgstr "10초 뒤로"
 
-#: settings-qt/bridge/backend.py:2962 settings-qt/bridge/backend.py:4104
+#: settings-qt/bridge/backend.py:2980 settings-qt/bridge/backend.py:4122
 msgid "Back button"
 msgstr "뒤로 버튼"
 
@@ -700,7 +700,7 @@ msgstr "충전 중 백라이트 켜짐 시간"
 msgid "Backup"
 msgstr "백업"
 
-#: settings-qt/bridge/backend.py:4605
+#: settings-qt/bridge/backend.py:4623
 msgid "Backup saved as {name}"
 msgstr "백업을 {name}(으)로 저장했습니다"
 
@@ -814,7 +814,7 @@ msgstr "북마크"
 msgid "Brightness"
 msgstr "밝기"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:958 settings-qt/bridge/keypad.py:129
+#: settings-qt/qml/pages/ButtonsPage.qml:958 settings-qt/bridge/keypad.py:133
 #: settings-qt/assets/keypad/profiles.json
 msgid "Browser"
 msgstr "브라우저"
@@ -895,7 +895,7 @@ msgstr "계산기"
 msgid "Calm"
 msgstr "차분함"
 
-#: settings-qt/bridge/keypad.py:149 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:153 settings-qt/assets/keypad/profiles.json
 msgid "Camera"
 msgstr "카메라"
 
@@ -1001,7 +1001,7 @@ msgstr "방화벽 확인"
 msgid "Checked each time the keyboard wakes up"
 msgstr "키보드가 깨어날 때마다 확인합니다"
 
-#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:5195
+#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:5213
 msgid "Checking…"
 msgstr "확인 중…"
 
@@ -1141,7 +1141,7 @@ msgid ""
 "Code - OSS."
 msgstr "VS Code, VSCodium, Code - OSS용 명령 팔레트, 터미널, 편집 및 디버그."
 
-#: settings-qt/bridge/keypad.py:145
+#: settings-qt/bridge/keypad.py:149
 msgid "Commands"
 msgstr "명령"
 
@@ -1217,11 +1217,11 @@ msgstr "연결"
 msgid "Contacts"
 msgstr "연락처"
 
-#: settings-qt/bridge/backend.py:4264
+#: settings-qt/bridge/backend.py:4282
 msgid "Copied"
 msgstr "복사됨"
 
-#: settings-qt/bridge/backend.py:3417
+#: settings-qt/bridge/backend.py:3435
 msgid "Copied to {app}"
 msgstr "{app}에 복사됨"
 
@@ -1263,7 +1263,7 @@ msgstr "장치 ID 복사"
 msgid "Copy to another app"
 msgstr "다른 앱에 복사"
 
-#: settings-qt/bridge/backend.py:4179
+#: settings-qt/bridge/backend.py:4197
 msgid "Could not back up the settings, nothing was reset: {error}"
 msgstr "설정을 백업할 수 없어 초기화하지 않았습니다: {error}"
 
@@ -1271,23 +1271,23 @@ msgstr "설정을 백업할 수 없어 초기화하지 않았습니다: {error}"
 msgid "Could not copy the picture: {error}"
 msgstr "이미지를 복사할 수 없습니다: {error}"
 
-#: settings-qt/bridge/backend.py:1849
+#: settings-qt/bridge/backend.py:1864 settings-qt/bridge/backend.py:1867
 msgid "Could not import the pack: {error}"
 msgstr "팩을 가져올 수 없습니다: {error}"
 
-#: settings-qt/bridge/backend.py:5082
+#: settings-qt/bridge/backend.py:5100
 msgid "Could not open the plugins folder: {error}"
 msgstr "플러그인 폴더를 열 수 없습니다: {error}"
 
-#: settings-qt/bridge/backend.py:5197
+#: settings-qt/bridge/backend.py:5215
 msgid "Could not reach GitHub. Trying again tomorrow."
 msgstr "GitHub에 연결할 수 없습니다. 내일 다시 시도합니다."
 
-#: settings-qt/bridge/backend.py:5477
+#: settings-qt/bridge/backend.py:5495
 msgid "Could not restart the service: {error}"
 msgstr "서비스를 다시 시작할 수 없습니다: {error}"
 
-#: settings-qt/bridge/backend.py:5158
+#: settings-qt/bridge/backend.py:5176
 msgid "Could not restart: {error}"
 msgstr "다시 시작할 수 없습니다: {error}"
 
@@ -1295,7 +1295,7 @@ msgstr "다시 시작할 수 없습니다: {error}"
 msgid "Could not restore the keypad page"
 msgstr "키패드 페이지를 복원할 수 없습니다"
 
-#: settings-qt/bridge/keypad.py:98
+#: settings-qt/bridge/keypad.py:102
 msgid "Could not save a keypad plate"
 msgstr "키패드 키 이미지를 저장할 수 없습니다"
 
@@ -1303,7 +1303,7 @@ msgstr "키패드 키 이미지를 저장할 수 없습니다"
 msgid "Could not save keypad: {error}"
 msgstr "키패드를 저장할 수 없습니다: {error}"
 
-#: settings-qt/bridge/backend.py:5495
+#: settings-qt/bridge/backend.py:5513
 msgid "Could not start the radial menu: {error}"
 msgstr "방사형 메뉴를 시작할 수 없습니다: {error}"
 
@@ -1311,7 +1311,7 @@ msgstr "방사형 메뉴를 시작할 수 없습니다: {error}"
 msgid "Could not switch the keypad page"
 msgstr "키패드 페이지를 전환할 수 없습니다"
 
-#: settings-qt/bridge/backend.py:5466
+#: settings-qt/bridge/backend.py:5484
 msgid "Could not write the log: {error}"
 msgstr "로그를 쓸 수 없습니다: {error}"
 
@@ -1496,7 +1496,7 @@ msgstr "데스크톱"
 msgid "Dev Tools"
 msgstr "개발자 도구"
 
-#: settings-qt/bridge/keypad.py:144
+#: settings-qt/bridge/keypad.py:148
 msgid "Dev tools"
 msgstr "개발 도구"
 
@@ -1525,7 +1525,7 @@ msgstr ""
 "장치, 배터리, 키보드 정보는 백그라운드 서비스에서 읽습니다. 서비스를 시작하"
 "면 이 페이지에 자동으로 표시됩니다."
 
-#: settings-qt/bridge/backend.py:5432
+#: settings-qt/bridge/backend.py:5450
 msgid "Diagnostics copied. Paste them into your bug report."
 msgstr "진단 정보를 복사했습니다. 버그 보고서에 붙여 넣으세요."
 
@@ -1693,7 +1693,7 @@ msgstr "편집 중"
 msgid "Editing for"
 msgstr "편집 대상"
 
-#: settings-qt/bridge/keypad.py:143
+#: settings-qt/bridge/keypad.py:147
 msgid "Editor"
 msgstr "편집기"
 
@@ -1768,7 +1768,7 @@ msgstr "다른 이름 내보내기"
 msgid "Export JuhRadial MX settings"
 msgstr "JuhRadial MX 설정 내보내기"
 
-#: settings-qt/bridge/backend.py:4133 settings-qt/bridge/backend.py:4607
+#: settings-qt/bridge/backend.py:4151 settings-qt/bridge/backend.py:4625
 msgid "Export failed: {error}"
 msgstr "내보내기 실패: {error}"
 
@@ -1789,7 +1789,7 @@ msgstr "생동감"
 msgid "Extra actions for the ring, from plugin folders"
 msgstr "플러그인 폴더에서 링에 동작 추가"
 
-#: settings-qt/bridge/backend.py:2960 settings-qt/bridge/backend.py:4107
+#: settings-qt/bridge/backend.py:2978 settings-qt/bridge/backend.py:4125
 msgid "Extra side button"
 msgstr "추가 측면 버튼"
 
@@ -1801,7 +1801,7 @@ msgstr "기능"
 msgid "Feral GameMode is not installed"
 msgstr "Feral GameMode가 설치되지 않았습니다"
 
-#: settings-qt/bridge/keypad.py:132 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:136 settings-qt/assets/keypad/profiles.json
 msgid "Files"
 msgstr "파일"
 
@@ -1957,7 +1957,7 @@ msgstr "일반 모드 강제 사용"
 msgid "Forget"
 msgstr "등록 해제"
 
-#: settings-qt/bridge/backend.py:5337
+#: settings-qt/bridge/backend.py:5355
 msgid "Forgotten. It has to be approved again to use Flow"
 msgstr "등록을 해제했습니다. Flow를 사용하려면 다시 승인해야 합니다"
 
@@ -1985,7 +1985,7 @@ msgstr ""
 msgid "Forward"
 msgstr "앞으로"
 
-#: settings-qt/bridge/backend.py:2961 settings-qt/bridge/backend.py:4105
+#: settings-qt/bridge/backend.py:2979 settings-qt/bridge/backend.py:4123
 msgid "Forward button"
 msgstr "앞으로 버튼"
 
@@ -2064,7 +2064,7 @@ msgstr "게이밍 모드"
 msgid "Gaming mode is on and sets its own DPI until you turn it off."
 msgstr "게이밍 모드가 켜져 있으며 끌 때까지 전용 DPI를 사용합니다."
 
-#: settings-qt/bridge/backend.py:3735
+#: settings-qt/bridge/backend.py:3753
 msgid "Gaming mode needs the JuhRadial service"
 msgstr "게이밍 모드에는 JuhRadial 서비스가 필요합니다"
 
@@ -2122,7 +2122,7 @@ msgstr "GitHub Light"
 msgid "Give a ring slice the submenu action to add links here."
 msgstr "여기에 링크를 추가하려면 링 슬라이스에 하위 메뉴 동작을 지정하세요."
 
-#: settings-qt/bridge/backend.py:3186
+#: settings-qt/bridge/backend.py:3204
 msgid "Give a slice a submenu first"
 msgstr "먼저 슬라이스에 하위 메뉴 지정"
 
@@ -2390,7 +2390,7 @@ msgstr "JuhRadial MX 설정 가져오기"
 msgid "Import a keypad pack"
 msgstr "키패드 팩 가져오기"
 
-#: settings-qt/bridge/backend.py:4655
+#: settings-qt/bridge/backend.py:4673
 msgid "Import failed: {error}"
 msgstr "가져오기 실패: {error}"
 
@@ -2406,7 +2406,7 @@ msgstr "설정 가져오기"
 msgid "Import this backup?"
 msgstr "이 백업을 가져올까요?"
 
-#: settings-qt/bridge/backend.py:4148
+#: settings-qt/bridge/backend.py:4166
 msgid "Imported macro"
 msgstr "가져온 매크로"
 
@@ -2544,7 +2544,7 @@ msgstr "키보드"
 msgid "Keyboard %1%"
 msgstr "키보드 %1%"
 
-#: settings-qt/bridge/backend.py:2410
+#: settings-qt/bridge/backend.py:2428
 msgid "Keyboard battery low"
 msgstr "키보드 배터리 부족"
 
@@ -2607,7 +2607,7 @@ msgstr "시작 동작, 트레이 및 업데이트"
 msgid "Layers"
 msgstr "레이어"
 
-#: settings-qt/bridge/keypad.py:151 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:155 settings-qt/assets/keypad/profiles.json
 msgid "Leave"
 msgstr "나가기"
 
@@ -2623,7 +2623,7 @@ msgstr "왼쪽 클릭"
 msgid "Left is a firm push, right a light touch"
 msgstr "왼쪽은 강한 누름, 오른쪽은 가벼운 터치"
 
-#: settings-qt/bridge/backend.py:3314
+#: settings-qt/bridge/backend.py:3332
 msgid "Letters, digits, dots, dashes and underscores only"
 msgstr "영문자, 숫자, 마침표, 하이픈, 밑줄만 사용"
 
@@ -2705,7 +2705,7 @@ msgstr ""
 msgid "Location"
 msgstr "위치 입력"
 
-#: settings-qt/bridge/keypad.py:134 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:138 settings-qt/assets/keypad/profiles.json
 msgid "Lock"
 msgstr "잠금"
 
@@ -2713,7 +2713,7 @@ msgstr "잠금"
 msgid "Lock Screen"
 msgstr "화면 잠금"
 
-#: settings-qt/bridge/backend.py:5526
+#: settings-qt/bridge/backend.py:5544
 msgid "Login entry repaired"
 msgstr "로그인 시작 항목을 복구했습니다"
 
@@ -2763,7 +2763,7 @@ msgstr "Mac"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:105
 #: settings-qt/qml/components/CustomActionEditor.qml:206
-#: settings-qt/bridge/backend.py:4089
+#: settings-qt/bridge/backend.py:4107
 msgid "Macro"
 msgstr "매크로"
 
@@ -2771,7 +2771,7 @@ msgstr "매크로"
 msgid "Macro deleted"
 msgstr "매크로가 삭제되었습니다"
 
-#: settings-qt/bridge/backend.py:4135
+#: settings-qt/bridge/backend.py:4153
 msgid "Macro exported"
 msgstr "매크로를 내보냈습니다"
 
@@ -2803,7 +2803,7 @@ msgstr "매크로 “%1”이(가) 실행되지 않습니다"
 msgid "Macro: %1"
 msgstr "매크로: %1"
 
-#: settings-qt/bridge/backend.py:4116
+#: settings-qt/bridge/backend.py:4134
 msgid "Macro: {name}"
 msgstr "매크로: {name}"
 
@@ -2820,7 +2820,7 @@ msgstr "만든 날짜 %1"
 msgid "MagSpeed modes, direction and speed"
 msgstr "MagSpeed 모드, 방향 및 속도"
 
-#: settings-qt/bridge/keypad.py:133
+#: settings-qt/bridge/keypad.py:137
 msgid "Mail"
 msgstr "메일"
 
@@ -2893,7 +2893,7 @@ msgstr "마이크"
 msgid "Mic Mute"
 msgstr "마이크 음소거"
 
-#: settings-qt/bridge/keypad.py:125
+#: settings-qt/bridge/keypad.py:129
 msgid "Mic mute"
 msgstr "마이크 끔"
 
@@ -2912,7 +2912,7 @@ msgstr "Microsoft Teams"
 msgid "Middle Click"
 msgstr "가운데 클릭"
 
-#: settings-qt/bridge/backend.py:2963
+#: settings-qt/bridge/backend.py:2981
 msgid "Middle click"
 msgstr "가운데 클릭"
 
@@ -2955,7 +2955,7 @@ msgstr "더 보기"
 msgid "Mouse"
 msgstr "마우스"
 
-#: settings-qt/bridge/backend.py:2401
+#: settings-qt/bridge/backend.py:2419
 msgid "Mouse battery low"
 msgstr "마우스 배터리 부족"
 
@@ -3010,7 +3010,7 @@ msgstr "위로 이동"
 msgid "Movement below this many pixels counts as a press"
 msgstr "이 픽셀 수보다 적게 움직이면 누르기로 간주합니다"
 
-#: settings-qt/bridge/keypad.py:141
+#: settings-qt/bridge/keypad.py:145
 msgid "Music"
 msgstr "음악"
 
@@ -3104,7 +3104,7 @@ msgstr "새 창"
 msgid "New link"
 msgstr "새 링크"
 
-#: settings-qt/bridge/backend.py:3927
+#: settings-qt/bridge/backend.py:3945
 msgid "New macro"
 msgstr "새 매크로"
 
@@ -3112,7 +3112,7 @@ msgstr "새 매크로"
 msgid "New page"
 msgstr "새 페이지"
 
-#: settings-qt/bridge/keypad.py:139 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:143 settings-qt/assets/keypad/profiles.json
 msgid "Next"
 msgstr "다음 곡"
 
@@ -3176,7 +3176,7 @@ msgstr "선택한 응용 프로그램 없음"
 msgid "No applications found"
 msgstr "응용 프로그램을 찾지 못했습니다"
 
-#: settings-qt/bridge/backend.py:4103
+#: settings-qt/bridge/backend.py:4121
 msgid "No button"
 msgstr "버튼 없음"
 
@@ -3192,7 +3192,7 @@ msgstr "이 창에서 페이드, 슬라이드, 교차 페이드 효과를 사용
 msgid "No firewall service is running here, so Flow is not blocked by one."
 msgstr "실행 중인 방화벽 서비스가 없어 Flow가 방화벽에 차단되지 않습니다."
 
-#: settings-qt/bridge/backend.py:3877
+#: settings-qt/bridge/backend.py:3895
 msgid "No keyboard to record from. Your user needs to read /dev/input "
 msgstr ""
 "기록할 키보드가 없습니다. 사용자에게 /dev/input 읽기 권한이 필요합니다 "
@@ -3238,7 +3238,7 @@ msgstr "설치된 플러그인 없음"
 msgid "No plugins yet"
 msgstr "아직 플러그인이 없습니다"
 
-#: settings-qt/bridge/backend.py:1816
+#: settings-qt/bridge/backend.py:1821
 msgid "No portable.json in this pack"
 msgstr "이 팩에 portable.json이 없습니다"
 
@@ -3290,7 +3290,7 @@ msgstr "Nord"
 msgid "Normal push"
 msgstr "보통 누름"
 
-#: settings-qt/bridge/backend.py:5202
+#: settings-qt/bridge/backend.py:5220
 msgid "Not checked yet."
 msgstr "아직 확인하지 않았습니다."
 
@@ -3340,7 +3340,7 @@ msgstr ""
 msgid "Not set: the mouse stays here when the cursor leaves"
 msgstr "설정되지 않음: 커서가 떠나도 마우스는 여기에 남습니다"
 
-#: settings-qt/bridge/keypad.py:136
+#: settings-qt/bridge/keypad.py:140
 msgid "Notes"
 msgstr "메모"
 
@@ -3352,7 +3352,7 @@ msgstr "아직 별도 설정이 없습니다. 열어서 선택하세요"
 msgid "Nothing shows up? A firewall may block Flow."
 msgstr "아무것도 보이지 않나요? 방화벽이 Flow를 차단할 수 있습니다."
 
-#: settings-qt/bridge/backend.py:3917
+#: settings-qt/bridge/backend.py:3935
 msgid "Nothing was recorded. Press some keys while it records."
 msgstr "아무것도 기록되지 않았습니다. 기록 중에 키를 누르세요."
 
@@ -3409,7 +3409,7 @@ msgstr "오피스"
 msgid "On"
 msgstr "켜짐"
 
-#: settings-qt/bridge/backend.py:4099
+#: settings-qt/bridge/backend.py:4117
 msgid "On / off"
 msgstr "켜기 / 끄기"
 
@@ -3445,7 +3445,7 @@ msgstr ""
 msgid "On: faster movements carry the pointer further"
 msgstr "켜짐: 빠르게 움직일수록 포인터가 더 멀리 갑니다"
 
-#: settings-qt/bridge/backend.py:4096
+#: settings-qt/bridge/backend.py:4114
 msgid "Once"
 msgstr "한 번"
 
@@ -3600,7 +3600,7 @@ msgstr "개요"
 msgid "Own ring"
 msgstr "전용 링"
 
-#: settings-qt/bridge/backend.py:1854
+#: settings-qt/bridge/backend.py:1872
 msgid ""
 "Pack imported: {n} pages. Keys without a Linux action keep their picture for "
 "you to assign."
@@ -3608,7 +3608,7 @@ msgstr ""
 "팩을 가져왔습니다: 페이지 {n}개. Linux 동작이 없는 키는 직접 할당할 수 있도"
 "록 이미지를 유지합니다."
 
-#: settings-qt/bridge/backend.py:1841
+#: settings-qt/bridge/backend.py:1856
 msgid "Page"
 msgstr "페이지"
 
@@ -3770,7 +3770,7 @@ msgstr "데스크톱 강조색에 가장 가까운 테마를 선택합니다"
 msgid "Picture"
 msgstr "이미지 파일"
 
-#: settings-qt/bridge/backend.py:3095
+#: settings-qt/bridge/backend.py:3113
 msgid "Pin saved: {slot} = {x}, {y}"
 msgstr "핀 저장됨: {slot} = {x}, {y}"
 
@@ -3778,7 +3778,7 @@ msgstr "핀 저장됨: {slot} = {x}, {y}"
 msgid "Places"
 msgstr "위치 패널"
 
-#: settings-qt/bridge/keypad.py:138
+#: settings-qt/bridge/keypad.py:142
 msgid "Play"
 msgstr "재생"
 
@@ -3806,11 +3806,11 @@ msgstr "재생/일시 정지"
 msgid "Playback, volume and microphone"
 msgstr "재생, 볼륨, 마이크"
 
-#: settings-qt/bridge/backend.py:4097
+#: settings-qt/bridge/backend.py:4115
 msgid "Plays the steps again and again, as often as you set."
 msgstr "설정한 횟수만큼 단계를 반복 재생합니다."
 
-#: settings-qt/bridge/backend.py:4096
+#: settings-qt/bridge/backend.py:4114
 msgid "Plays the steps one time."
 msgstr "단계를 한 번 재생합니다."
 
@@ -3867,7 +3867,7 @@ msgstr "누르는 동안 정밀 DPI"
 msgid "Preset %1"
 msgstr "프리셋 %1"
 
-#: settings-qt/bridge/backend.py:3793
+#: settings-qt/bridge/backend.py:3811
 msgid "Preset %d"
 msgstr "프리셋 %d"
 
@@ -3941,7 +3941,7 @@ msgstr "미리 보기"
 msgid "Preview of the radial menu"
 msgstr "방사형 메뉴 미리 보기"
 
-#: settings-qt/bridge/keypad.py:138 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:142 settings-qt/assets/keypad/profiles.json
 msgid "Previous"
 msgstr "이전 곡"
 
@@ -3961,7 +3961,7 @@ msgstr "인쇄"
 msgid "Problems"
 msgstr "문제"
 
-#: settings-qt/bridge/backend.py:1924
+#: settings-qt/bridge/backend.py:1942
 msgid "Profile added: {name}"
 msgstr "프로필 추가됨: {name}"
 
@@ -3974,7 +3974,7 @@ msgstr "%1의 프로필을 제거했습니다"
 msgid "Profile: %1"
 msgstr "프로필: %1"
 
-#: settings-qt/bridge/backend.py:3215
+#: settings-qt/bridge/backend.py:3233
 msgid "Profiles save failed: {error}"
 msgstr "프로필 저장 실패: {error}"
 
@@ -4212,7 +4212,7 @@ msgstr "복구"
 msgid "Repeat"
 msgstr "반복"
 
-#: settings-qt/bridge/backend.py:4098
+#: settings-qt/bridge/backend.py:4116
 msgid "Repeats while you hold the bound button."
 msgstr "바인딩한 버튼을 누르고 있는 동안 반복합니다."
 
@@ -4273,11 +4273,11 @@ msgstr "다시 시작"
 msgid "Restart now"
 msgstr "지금 다시 시작"
 
-#: settings-qt/bridge/backend.py:5475
+#: settings-qt/bridge/backend.py:5493
 msgid "Restarting the background service…"
 msgstr "백그라운드 서비스 다시 시작 중…"
 
-#: settings-qt/bridge/backend.py:5493
+#: settings-qt/bridge/backend.py:5511
 msgid "Restarting the radial menu…"
 msgstr "방사형 메뉴 다시 시작 중…"
 
@@ -4440,7 +4440,7 @@ msgstr "샘플러"
 msgid "Save"
 msgstr "저장"
 
-#: settings-qt/bridge/backend.py:1987
+#: settings-qt/bridge/backend.py:2005
 msgid "Save failed: {error}"
 msgstr "저장 실패: {error}"
 
@@ -4453,11 +4453,11 @@ msgstr "키 저장"
 msgid "Saved"
 msgstr "저장됨"
 
-#: settings-qt/bridge/backend.py:2504
+#: settings-qt/bridge/backend.py:2522
 msgid "Saved. JuhRadial applies it when its service starts."
 msgstr "저장했습니다. JuhRadial 서비스가 시작되면 적용합니다."
 
-#: settings-qt/bridge/backend.py:2506
+#: settings-qt/bridge/backend.py:2524
 msgid "Saved. The mouse gets it when it wakes up or comes back."
 msgstr "저장했습니다. 마우스가 깨어나거나 돌아오면 전송합니다."
 
@@ -4605,7 +4605,7 @@ msgid ""
 msgstr "키보드 밝기 키로 설정하며 나중에 조도 센서가 다시 조절합니다"
 
 #: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:112
-#: settings-qt/bridge/keypad.py:135 settings-qt/bridge/backend.py:635
+#: settings-qt/bridge/keypad.py:139 settings-qt/bridge/backend.py:635
 msgid "Settings"
 msgstr "설정"
 
@@ -4613,7 +4613,7 @@ msgstr "설정"
 msgid "Settings imported"
 msgstr "설정을 가져왔습니다"
 
-#: settings-qt/bridge/backend.py:4665
+#: settings-qt/bridge/backend.py:4683
 msgid "Settings imported. The previous files are kept as .bak"
 msgstr "설정을 가져왔습니다. 이전 파일은 .bak으로 보관됩니다"
 
@@ -4637,7 +4637,7 @@ msgstr "변경한 설정은 저장되며 마우스가 돌아오면 적용됩니�
 msgid "Shading"
 msgstr "셰이딩"
 
-#: settings-qt/bridge/keypad.py:150 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/keypad.py:154 settings-qt/assets/keypad/profiles.json
 msgid "Share"
 msgstr "화면 공유"
 
@@ -4720,7 +4720,7 @@ msgstr "트레이 아이콘 표시"
 msgid "Shuffle"
 msgstr "셔플"
 
-#: settings-qt/bridge/backend.py:2959
+#: settings-qt/bridge/backend.py:2977
 msgid "Side button"
 msgstr "측면 버튼"
 
@@ -4759,7 +4759,7 @@ msgstr "슬라이스 변경"
 msgid "Slice tick rate"
 msgstr "슬라이스 진동 간격"
 
-#: settings-qt/bridge/backend.py:3110
+#: settings-qt/bridge/backend.py:3128
 msgid "Slice {n}"
 msgstr "슬라이스 {n}"
 
@@ -4882,7 +4882,7 @@ msgstr "시작하기"
 msgid "Start service"
 msgstr "서비스 시작"
 
-#: settings-qt/bridge/backend.py:3874
+#: settings-qt/bridge/backend.py:3892
 msgid "Start the JuhRadial MX service to record a macro."
 msgstr "매크로를 기록하려면 JuhRadial MX 서비스를 시작하세요."
 
@@ -4898,7 +4898,7 @@ msgstr "서비스 시작"
 msgid "Starting…"
 msgstr "시작 중…"
 
-#: settings-qt/bridge/backend.py:5520
+#: settings-qt/bridge/backend.py:5538
 msgid "Starts at login with {path}"
 msgstr "{path}(으)로 로그인 시 시작"
 
@@ -5033,11 +5033,11 @@ msgstr "시스템 마이크"
 msgid "System"
 msgstr "시스템"
 
-#: settings-qt/bridge/backend.py:5539
+#: settings-qt/bridge/backend.py:5557
 msgid "System default"
 msgstr "시스템 기본값"
 
-#: settings-qt/bridge/backend.py:5438
+#: settings-qt/bridge/backend.py:5456
 msgid "System information copied"
 msgstr "시스템 정보를 복사했습니다"
 
@@ -5089,7 +5089,7 @@ msgstr "템플릿"
 msgid "Term Panel"
 msgstr "터미널 패널"
 
-#: settings-qt/bridge/keypad.py:130 settings-qt/bridge/keypad.py:146
+#: settings-qt/bridge/keypad.py:134 settings-qt/bridge/keypad.py:150
 #: settings-qt/assets/keypad/profiles.json
 msgid "Terminal"
 msgstr "터미널"
@@ -5121,13 +5121,13 @@ msgstr "입력할 텍스트"
 msgid "Text, a prompt or a /command"
 msgstr "텍스트, 프롬프트 또는 /명령어"
 
-#: settings-qt/bridge/backend.py:4992
+#: settings-qt/bridge/backend.py:5010
 msgid "That custom action cannot run: check the shortcut, link or command."
 msgstr ""
 "이 사용자 지정 동작을 실행할 수 없습니다. 단축키, 링크 또는 명령을 확인하세"
 "요."
 
-#: settings-qt/bridge/backend.py:4146
+#: settings-qt/bridge/backend.py:4164
 msgid "That file is not a JuhRadial MX macro."
 msgstr "이 파일은 JuhRadial MX 매크로가 아닙니다."
 
@@ -5143,7 +5143,7 @@ msgstr ""
 "JuhRadial MX 서비스가 실행 중이 아닙니다. 변경 사항은 저장되며 시작 시 적용됩"
 "니다."
 
-#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3469
+#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3487
 msgid "The JuhRadial service is not running"
 msgstr "JuhRadial 서비스가 실행 중이 아닙니다"
 
@@ -5175,7 +5175,7 @@ msgstr ""
 msgid "The background service is not running"
 msgstr "백그라운드 서비스가 실행 중이 아닙니다"
 
-#: settings-qt/bridge/backend.py:2236
+#: settings-qt/bridge/backend.py:2254
 msgid "The background service is not running."
 msgstr "백그라운드 서비스가 실행 중이 아닙니다."
 
@@ -5183,7 +5183,7 @@ msgstr "백그라운드 서비스가 실행 중이 아닙니다."
 msgid "The battery drops to the alert level set on Devices"
 msgstr "배터리가 장치 탭에서 설정한 알림 수준까지 떨어질 때"
 
-#: settings-qt/bridge/backend.py:4099
+#: settings-qt/bridge/backend.py:4117
 msgid "The bound button starts it, the next press stops it."
 msgstr "바인딩한 버튼을 누르면 시작하고, 다시 누르면 멈춥니다."
 
@@ -5199,11 +5199,11 @@ msgstr ""
 "프로필 없는 앱을 처음 쓰면 설정에서 프로필을 제안합니다. 앱마다 한 번만 묻습"
 "니다"
 
-#: settings-qt/bridge/backend.py:2410
+#: settings-qt/bridge/backend.py:2428
 msgid "The keyboard"
 msgstr "키보드"
 
-#: settings-qt/bridge/backend.py:3053
+#: settings-qt/bridge/backend.py:3071
 msgid "The keyboard did not answer. Press a key to wake it, then try again."
 msgstr "키보드가 응답하지 않습니다. 키를 눌러 깨운 후 다시 시도하세요."
 
@@ -5228,11 +5228,11 @@ msgid "The keys stay down as long as you hold the button (push to talk)"
 msgstr ""
 "버튼을 누르고 있는 동안 키가 계속 눌린 상태로 유지됩니다 (푸시 투 토크)"
 
-#: settings-qt/bridge/backend.py:5514
+#: settings-qt/bridge/backend.py:5532
 msgid "The login entry is missing."
 msgstr "로그인 시작 항목이 없습니다."
 
-#: settings-qt/bridge/backend.py:5519
+#: settings-qt/bridge/backend.py:5537
 msgid "The login entry points at a program that is gone."
 msgstr "로그인 시작 항목이 존재하지 않는 프로그램을 가리킵니다."
 
@@ -5242,7 +5242,7 @@ msgid ""
 "move."
 msgstr "링의 외관입니다. 앱 테마와 별개이며 8개 동작의 위치는 변하지 않습니다."
 
-#: settings-qt/bridge/backend.py:3853
+#: settings-qt/bridge/backend.py:3871
 msgid "The macro could not be saved. Is the JuhRadial MX service running?"
 msgstr "매크로를 저장할 수 없습니다. JuhRadial MX 서비스가 실행 중인가요?"
 
@@ -5250,11 +5250,11 @@ msgstr "매크로를 저장할 수 없습니다. JuhRadial MX 서비스가 실�
 msgid "The mouse comes back from another computer"
 msgstr "마우스가 다른 컴퓨터에서 돌아올 때"
 
-#: settings-qt/bridge/backend.py:2509
+#: settings-qt/bridge/backend.py:2527
 msgid "The mouse did not accept this change."
 msgstr "마우스가 이 변경을 받아들이지 않았습니다."
 
-#: settings-qt/bridge/backend.py:3681
+#: settings-qt/bridge/backend.py:3699
 msgid "The mouse did not switch. Is it awake, and is that computer paired?"
 msgstr ""
 "마우스가 전환되지 않았습니다. 깨어 있고 해당 컴퓨터와 페어링되어 있나요?"
@@ -5310,11 +5310,11 @@ msgstr "새 언어는 다시 시작한 뒤 적용됩니다."
 msgid "The other computer's channel"
 msgstr "다른 컴퓨터의 채널"
 
-#: settings-qt/bridge/backend.py:1810
+#: settings-qt/bridge/backend.py:1815
 msgid "The pack contains an unsafe path"
 msgstr "팩에 안전하지 않은 경로가 있습니다"
 
-#: settings-qt/bridge/backend.py:1847
+#: settings-qt/bridge/backend.py:1825 settings-qt/bridge/backend.py:1862
 msgid "The pack has no pages to add"
 msgstr "팩에 추가할 페이지가 없습니다"
 
@@ -5334,7 +5334,7 @@ msgstr "엄지 아래의 압력 패널"
 msgid "The radial menu appears"
 msgstr "방사형 메뉴가 나타날 때"
 
-#: settings-qt/bridge/backend.py:2238
+#: settings-qt/bridge/backend.py:2256
 msgid "The radial menu is not running."
 msgstr "방사형 메뉴가 실행 중이 아닙니다."
 
@@ -5350,7 +5350,7 @@ msgstr "게임 중에도 링이 열립니다"
 msgid "The same ring as everywhere"
 msgstr "다른 곳과 같은 링"
 
-#: settings-qt/bridge/backend.py:2244
+#: settings-qt/bridge/backend.py:2262
 msgid ""
 "The service cannot reach the mouse. Check that your user is in the input "
 "group."
@@ -5358,7 +5358,7 @@ msgstr ""
 "서비스가 마우스에 접근할 수 없습니다. 사용자가 input 그룹에 속하는지 확인하세"
 "요."
 
-#: settings-qt/bridge/backend.py:2241
+#: settings-qt/bridge/backend.py:2259
 msgid "The service is {daemon} and this app is {app}: reinstall so they match."
 msgstr "서비스는 {daemon}, 이 앱은 {app}입니다. 다시 설치하여 버전을 맞추세요."
 
@@ -5397,7 +5397,7 @@ msgstr "테마: %1"
 msgid "Themes"
 msgstr "테마"
 
-#: settings-qt/bridge/backend.py:3316
+#: settings-qt/bridge/backend.py:3334
 msgid "There is already a profile for {app}"
 msgstr "{app}의 프로필이 이미 있습니다"
 
@@ -5436,7 +5436,7 @@ msgstr "이 컴퓨터의 채널"
 msgid "This computer's name"
 msgstr "이 컴퓨터의 이름"
 
-#: settings-qt/bridge/backend.py:4633
+#: settings-qt/bridge/backend.py:4651
 msgid "This is not a JuhRadial MX backup."
 msgstr "JuhRadial MX 백업이 아닙니다."
 
@@ -5444,7 +5444,7 @@ msgstr "JuhRadial MX 백업이 아닙니다."
 msgid "This list"
 msgstr "이 목록"
 
-#: settings-qt/bridge/backend.py:4258
+#: settings-qt/bridge/backend.py:4276
 msgid "This mouse follows your global settings again"
 msgstr "이 마우스가 다시 전역 설정을 따릅니다"
 
@@ -5473,7 +5473,7 @@ msgstr "이 마우스는 컴퓨터 슬롯이 없는 일반 모드로 작동합�
 msgid "This mouse loses its own settings and uses your global ones."
 msgstr "이 마우스의 전용 설정을 지우고 전역 설정을 사용합니다."
 
-#: settings-qt/bridge/backend.py:4829
+#: settings-qt/bridge/backend.py:4847
 msgid "This mouse only"
 msgstr "이 마우스만"
 
@@ -5677,7 +5677,7 @@ msgstr "밑줄"
 msgid "Undo"
 msgstr "실행 취소"
 
-#: settings-qt/bridge/backend.py:4196
+#: settings-qt/bridge/backend.py:4214
 msgid "Undo failed: {error}"
 msgstr "실행 취소 실패: {error}"
 
@@ -5797,7 +5797,7 @@ msgstr "평소"
 msgid "VS Code"
 msgstr "VS Code"
 
-#: settings-qt/bridge/backend.py:5199
+#: settings-qt/bridge/backend.py:5217
 msgid "Version {version} is available."
 msgstr "버전 {version}을 사용할 수 있습니다."
 
@@ -5829,11 +5829,11 @@ msgstr "볼륨 낮추기"
 msgid "Vol Up"
 msgstr "볼륨 높이기"
 
-#: settings-qt/bridge/keypad.py:140 settings-qt/bridge/keypad.py:152
+#: settings-qt/bridge/keypad.py:144 settings-qt/bridge/keypad.py:156
 msgid "Vol down"
 msgstr "볼륨 작게"
 
-#: settings-qt/bridge/keypad.py:140 settings-qt/bridge/keypad.py:152
+#: settings-qt/bridge/keypad.py:144 settings-qt/bridge/keypad.py:156
 msgid "Vol up"
 msgstr "볼륨 크게"
 
@@ -5901,7 +5901,7 @@ msgstr "새로운 기능"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:76
 #: settings-qt/qml/pages/ButtonsPage.qml:88
-#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:4106
+#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:4124
 #: settings-qt/bridge/backend.py:649
 msgid "Wheel click"
 msgstr "휠 클릭"
@@ -5967,7 +5967,7 @@ msgstr "이 마우스에서 방사형 메뉴를 여는 버튼"
 msgid "While a button set to Precision DPI is held"
 msgstr "정밀 DPI로 설정한 버튼을 누르는 동안"
 
-#: settings-qt/bridge/backend.py:4098
+#: settings-qt/bridge/backend.py:4116
 msgid "While held"
 msgstr "누르는 동안"
 
@@ -6000,7 +6000,7 @@ msgstr "여러 화면 중 다른 컴퓨터로 이어지는 가장자리가 있�
 msgid "X-Ray"
 msgstr "엑스레이"
 
-#: settings-qt/bridge/backend.py:5201
+#: settings-qt/bridge/backend.py:5219
 msgid "You have the latest version."
 msgstr "최신 버전입니다."
 
@@ -6024,7 +6024,7 @@ msgstr "데스크톱에서 애니메이션 줄이기를 요청하여 이미 켜�
 msgid "Your desktop does not report an accent colour"
 msgstr "데스크톱이 강조색을 알려 주지 않습니다"
 
-#: settings-qt/bridge/backend.py:3494
+#: settings-qt/bridge/backend.py:3512
 msgid "Your desktop does not tell JuhRadial which window is in front"
 msgstr "데스크톱이 맨 앞 창을 JuhRadial에 알려 주지 않습니다"
 
@@ -6131,7 +6131,7 @@ msgstr "앱 프로필"
 msgid "back"
 msgstr "뒤로"
 
-#: settings-qt/bridge/backend.py:4678
+#: settings-qt/bridge/backend.py:4696
 msgid "built-in emoji picker"
 msgstr "내장 이모지 선택기"
 
@@ -6166,6 +6166,10 @@ msgstr "햅틱"
 #: settings-qt/qml/components/MacroEditor.qml:250
 msgid "held %1 ms"
 msgstr "%1 ms 누름"
+
+#: settings-qt/bridge/backend.py:1864
+msgid "it is password protected"
+msgstr "암호로 보호되어 있습니다"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "kitty"
@@ -6242,35 +6246,35 @@ msgstr "누르는 동안"
 msgid "window class"
 msgstr "창 클래스"
 
-#: settings-qt/bridge/backend.py:2418
+#: settings-qt/bridge/backend.py:2436
 msgid "{device} is at {percent}%. Time to recharge."
 msgstr "{device}의 배터리가 {percent}%입니다. 충전해 주세요."
 
-#: settings-qt/bridge/backend.py:5327
+#: settings-qt/bridge/backend.py:5345
 msgid "{name} can now use Flow with this computer"
 msgstr "이제 {name}에서 이 컴퓨터와 Flow를 사용할 수 있습니다"
 
-#: settings-qt/bridge/backend.py:4089
+#: settings-qt/bridge/backend.py:4107
 msgid "{name} copy"
 msgstr "{name} 사본"
 
-#: settings-qt/bridge/backend.py:4027
+#: settings-qt/bridge/backend.py:4045
 msgid "{name} is no longer bound to that button"
 msgstr "{name}의 버튼 바인딩을 해제했습니다"
 
-#: settings-qt/bridge/backend.py:5332
+#: settings-qt/bridge/backend.py:5350
 msgid "{name} was turned away"
 msgstr "{name}을(를) 거절했습니다"
 
-#: settings-qt/bridge/backend.py:3084
+#: settings-qt/bridge/backend.py:3102
 msgid "{n} minutes"
 msgstr "{n}분"
 
-#: settings-qt/bridge/backend.py:3083
+#: settings-qt/bridge/backend.py:3101
 msgid "{n} seconds"
 msgstr "{n}초"
 
-#: settings-qt/bridge/backend.py:4264
+#: settings-qt/bridge/backend.py:4282
 msgid "{what} copied"
 msgstr "{what} 복사됨"
 
