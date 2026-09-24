@@ -1,7 +1,8 @@
 # JuhRadial MX release pipeline
 #
 # Runs on every v* tag. Builds the Linux release tarball (source snapshot plus
-# a prebuilt daemon), writes SHA256SUMS, and attaches everything to a DRAFT
+# a prebuilt daemon), a .deb and an .rpm, writes SHA256SUMS over all of them,
+# and attaches everything to a DRAFT
 # GitHub Release whose notes come from the matching CHANGELOG.md section.
 # Publishing the draft is a manual step by a maintainer.
 #
@@ -115,9 +116,77 @@ jobs:
           path: dist/
           if-no-files-found: error
 
+  deb:
+    name: Debian/Ubuntu package
+    needs: [linux]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.linux.outputs.tag }}
+
+      - name: Download the tarball
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: linux-x86_64
+          path: dist
+
+      - name: Build the .deb from the tarball
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          tar -xzf dist/juhradial-mx-*-linux-x86_64.tar.gz -C "$tmp"
+          bash packaging/deb/build-deb.sh "$tmp"/juhradial-mx-* "${{ needs.linux.outputs.version }}" deb-out
+          dpkg-deb --info deb-out/*.deb
+          dpkg-deb --contents deb-out/*.deb | grep -q ' ./usr/bin/juhradiald$'
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: deb
+          path: deb-out/
+          if-no-files-found: error
+
+  rpm:
+    name: Fedora package
+    needs: [linux]
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    timeout-minutes: 30
+    steps:
+      - name: Install build tools
+        run: dnf install -y --setopt=install_weak_deps=False git rpm-build dnf-plugins-core tar gzip
+
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.linux.outputs.tag }}
+
+      - name: Build the .rpm
+        run: |
+          set -euo pipefail
+          version="${{ needs.linux.outputs.version }}"
+          git config --global --add safe.directory "$PWD"
+          mkdir -p ~/rpmbuild/SOURCES
+          git archive --prefix="juhradial-mx-${version}/" -o ~/rpmbuild/SOURCES/juhradial-mx-${version}.tar.gz HEAD
+          dnf builddep -y packaging/rpm/juhradial-mx.spec
+          rpmbuild -bb packaging/rpm/juhradial-mx.spec
+          mkdir -p rpm-out
+          cp ~/rpmbuild/RPMS/*/juhradial-mx-*.rpm rpm-out/
+          rpm -qlp rpm-out/*.rpm | grep -q '^/usr/bin/juhradiald$'
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rpm
+          path: rpm-out/
+          if-no-files-found: error
+
   release:
     name: Draft GitHub Release
-    needs: [linux]
+    needs: [linux, deb, rpm]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
@@ -134,6 +203,13 @@ jobs:
         with:
           path: assets
           merge-multiple: true
+
+      - name: Checksums for every asset
+        run: |
+          cd assets
+          rm -f SHA256SUMS
+          sha256sum -- *.tar.gz *.deb *.rpm > SHA256SUMS
+          cat SHA256SUMS
 
       - name: Extract release notes from CHANGELOG.md
         run: |

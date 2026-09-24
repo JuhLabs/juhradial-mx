@@ -14,6 +14,7 @@ JuhRadial MX builds from source on every supported distribution. The fastest pat
 
 - [Quick start: the one-line installer](#quick-start-the-one-line-installer)
 - [What the installer does](#what-the-installer-does)
+- [Bazzite, Fedora Atomic and other image-based systems](#bazzite-fedora-atomic-and-other-image-based-systems)
 - [Requirements](#requirements)
 - [Manual installation per distro](#manual-installation-per-distro)
   - [Fedora](#fedora)
@@ -95,6 +96,37 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --defaul
 !!! tip
     On Ubuntu 24.04 this happens automatically. If you are installing manually there and `cargo build` fails on the lockfile version, run the two commands above (or `rustup update stable`) and rebuild.
 
+
+## Bazzite, Fedora Atomic and other image-based systems
+
+On image-based systems `/usr` is read-only, so the installer switches to user mode by itself (it checks `/run/ostree-booted`). You can also ask for it on any distro:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash -s -- --user
+```
+
+User mode puts everything under your home folder and uses `sudo` only for the udev rules, the `uinput` module and adding you to the `input` group (on Atomic systems it first copies the `input` entry from `/usr/lib/group` into `/etc/group`, which `usermod` needs). Add `--yes` to skip the questions.
+
+| Path | Contents |
+|------|----------|
+| `~/.local/share/juhradial-mx` | Source tree (used for updates) |
+| `~/.local/bin/juhradiald`, `juhradial-mx`, `juhradial-settings` | Daemon and launchers |
+| `~/.local/share/juhradial/` | Overlay, Qt settings app, Flow module, locales, assets |
+| `~/.local/share/applications/` | `.desktop` entries (they name the launchers by full path) |
+| `~/.config/systemd/user/juhradialmx-daemon.service` | systemd user service (`ExecStart=%h/.local/bin/juhradiald`) |
+
+Runtime packages (PyQt6, Qt SVG and Declarative, GTK 4, libadwaita, python-cryptography, ydotool) are checked with `rpm -q`; the installer offers to layer the missing ones with `rpm-ostree install` (a reboot makes them active). The daemon comes prebuilt with a release; without one it is compiled with the host toolchain, or inside a Fedora toolbox through `distrobox` when the host has no compiler (Bazzite and Aurora ship distrobox).
+
+To uninstall a user-mode install:
+
+```bash
+systemctl --user disable --now juhradialmx-daemon.service
+rm -f ~/.local/bin/juhradiald ~/.local/bin/juhradial-mx ~/.local/bin/juhradial-settings
+rm -rf ~/.local/share/juhradial-mx ~/.local/share/juhradial
+rm -f ~/.local/share/applications/juhradial-mx.desktop ~/.local/share/applications/org.kde.juhradialmx.settings.desktop
+rm -f ~/.config/systemd/user/juhradialmx-daemon.service ~/.config/autostart/juhradial-mx.desktop
+sudo rm -f /etc/udev/rules.d/99-juhradialmx.rules /etc/udev/rules.d/60-ydotool-uinput.rules && sudo udevadm control --reload-rules
+```
 
 ## Requirements
 

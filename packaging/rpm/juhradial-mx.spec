@@ -67,8 +67,9 @@ fi
 # Install daemon binary
 install -Dm755 daemon/target/release/juhradiald %{buildroot}%{_bindir}/juhradiald
 
-# Install launcher script
+# Install launcher scripts
 install -Dm755 scripts/juhradial-mx.sh %{buildroot}%{_bindir}/juhradial-mx
+install -Dm755 scripts/juhradial-settings.sh %{buildroot}%{_bindir}/juhradial-settings
 
 # Install overlay Python files
 install -dm755 %{buildroot}%{_datadir}/juhradial
@@ -94,14 +95,17 @@ cp -r settings-qt/bridge settings-qt/qml settings-qt/assets %{buildroot}%{_datad
 find %{buildroot}%{_datadir}/juhradial/settings-qt -type d -name __pycache__ -exec rm -rf {} +
 cp -r settings-qt/assets/wheels %{buildroot}%{_datadir}/juhradial/assets/
 
-# Install desktop file
+# Install desktop files
 install -Dm644 packaging/juhradial-mx.desktop %{buildroot}%{_datadir}/applications/juhradial-mx.desktop
+install -Dm644 packaging/org.kde.juhradialmx.settings.desktop %{buildroot}%{_datadir}/applications/org.kde.juhradialmx.settings.desktop
 
 # Install icon
 install -Dm644 assets/juhradial-mx.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/juhradial-mx.svg
 
 # Install systemd user service
 install -Dm644 packaging/systemd/juhradialmx-daemon.service %{buildroot}%{_userunitdir}/juhradialmx-daemon.service
+# The unit names the curl installer's /usr/local/bin; the package puts the daemon in %{_bindir}.
+sed -i 's|^ExecStart=/usr/local/bin/juhradiald|ExecStart=%{_bindir}/juhradiald|' %{buildroot}%{_userunitdir}/juhradialmx-daemon.service
 
 # Install udev rules
 install -Dm644 packaging/udev/99-juhradialmx.rules %{buildroot}%{_udevrulesdir}/99-juhradialmx.rules
@@ -125,8 +129,10 @@ install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdi
 %doc README.md CONTRIBUTING.md
 %{_bindir}/juhradiald
 %{_bindir}/juhradial-mx
+%{_bindir}/juhradial-settings
 %{_datadir}/juhradial/
 %{_datadir}/applications/juhradial-mx.desktop
+%{_datadir}/applications/org.kde.juhradialmx.settings.desktop
 %{_datadir}/icons/hicolor/scalable/apps/juhradial-mx.svg
 %{_userunitdir}/juhradialmx-daemon.service
 %{_udevrulesdir}/99-juhradialmx.rules

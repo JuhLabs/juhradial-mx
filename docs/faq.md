@@ -147,6 +147,8 @@ rm -f ~/.config/systemd/user/juhradialmx-daemon.service
 rm -rf ~/.config/juhradial
 ```
 
+Installed with `--user` (or on Bazzite / Fedora Atomic)? The files live under your home folder instead: see [Installation](installation.md#bazzite-fedora-atomic-and-other-image-based-systems) for the user-mode uninstall commands.
+
 !!! warning
     The last line deletes your saved configuration (themes, button maps, profiles, Flow pairing). Skip it if you plan to reinstall later.
 

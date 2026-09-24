@@ -2,6 +2,42 @@ msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
+#: settings-qt/qml/pages/FlowPage.qml:106 settings-qt/qml/pages/FlowPage.qml:107
+msgid " from %1"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:114
+msgid "%1 (this computer)"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:128
+msgid "%1 + drag"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:47 settings-qt/qml/pages/GamingPage.qml:28 settings-qt/qml/pages/GamingPage.qml:260
+msgid "%1 DPI"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:255
+msgid "%1 click"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:182 settings-qt/qml/pages/DashboardPage.qml:585
+msgid "%1 does"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:419
+msgid "%1 is remapped, so the macro “%2” bound to it never runs."
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:487
+msgid "%1 lets Flow through."
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:488
+msgid "%1 may block Flow. Open its ports with this command in a terminal:"
+msgstr ""
+
 #: settings-qt/qml/components/BatteryRing.qml:24
 msgid "%1 percent"
 msgstr ""
@@ -10,67 +46,331 @@ msgstr ""
 msgid "%1 percent, charging"
 msgstr ""
 
+#: settings-qt/qml/pages/MacrosPage.qml:63 settings-qt/qml/pages/MacrosPage.qml:271
+msgid "%1 s"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:234
+msgid "%1 skin, %2 ring colours, %3 icons"
+msgstr ""
+
+#: settings-qt/qml/components/DpiControl.qml:89
+msgid "%1 to %2"
+msgstr ""
+
+#: settings-qt/qml/components/DpiControl.qml:59
+msgid "%1 to %2 DPI"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:205
+msgid "%1, %2 DPI"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:54
+msgid "%1: %2"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:820
 msgid "%1: %2 to %3"
 msgstr ""
 
+#: settings-qt/qml/pages/ButtonsPage.qml:343
+msgid "%1: press a button on the mouse to find it in the list"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:397
+msgid "%1: the cursor crosses after %2 ms at the edge, so scrollbars and docks stay usable"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:64
+msgid "%1× in a row"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:615
-msgid "%n action(s)"
+msgid "%n action"
+msgid_plural "%n actions"
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:190
+msgid "%n app profile set their own DPI while that app is in front."
+msgid_plural "%n app profiles set their own DPI while that app is in front."
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/pages/AppsPage.qml:52
+msgid "%n button"
+msgid_plural "%n buttons"
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/pages/AppsPage.qml:293
+msgid "%n button do something else in this app"
+msgid_plural "%n buttons do something else in this app"
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:1055
+msgid "%n found"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:778
-msgid "%n icon(s)"
-msgstr ""
+msgid "%n icon"
+msgid_plural "%n icons"
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:240
+msgid "%n key event so far"
+msgid_plural "%n key events so far"
+msgstr[0] ""
+msgstr[1] ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:777
-msgid "%n macro file(s)"
-msgstr ""
+msgid "%n macro file"
+msgid_plural "%n macro files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:653
+msgid "%n setting differ from your global ones"
+msgid_plural "%n settings differ from your global ones"
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:62
+msgid "%n step"
+msgid_plural "%n steps"
+msgstr[0] ""
+msgstr[1] ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:779
-msgid "%n theme(s)"
+msgid "%n theme"
+msgid_plural "%n themes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/components/DpiControl.qml:176
+msgid "+ Save %1 as a stop"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:95
+msgid ", open"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:91
+msgid ", this computer"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2624
+msgid "1 hour"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2623
+msgid "1 minute"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:468
+msgid "1. Pair the mouse with each computer on its own Easy-Switch channel, then set both channels above."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2624
+msgid "10 minutes"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2622
+msgid "10 seconds"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2625
+msgid "2 hours"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2623
+msgid "2 minutes"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:469
+msgid "2. Keep both computers on the same network."
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:470
+msgid "3. Install and open JuhFlow on the Mac. It finds this computer by itself."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2624
+msgid "30 minutes"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2622
+msgid "30 seconds"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:471
+msgid "4. Approve the Mac under Computers when it asks. Nothing is shared before that."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2623
+msgid "5 minutes"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2622
+msgid "5 seconds"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:110
+msgid "A DPI preset for your game, the radial menu out of the way, and a gaming job for the ring button."
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:458
+msgid "A button remapped on the Buttons tab runs its remap, not a macro bound to it."
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:248
+msgid "A computer gets nothing from this one until you approve it here"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:252
+msgid "A lighter press than Logitech's default can click by accident while you hold the mouse."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:877
+msgid "A link starts with https://"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:48
+msgid "A link starts with https://, http:// or mailto:"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:344
+msgid "A macro is running. Esc stops it."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3641
+msgid "A number of times"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:603
 msgid "A plugin is a folder with a plugin.json that adds actions: a command, a D-Bus call or a script. They show up in the slice picker without a restart."
 msgstr ""
 
+#: settings-qt/qml/pages/FlowPage.qml:425
+msgid "A soft light on the edge that leads to the other computer"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:639
 msgid "About"
 msgstr ""
 
-#: settings-qt/qml/components/MacroEditor.qml:245
-msgid "Add delay"
+#: settings-qt/qml/pages/DevicesPage.qml:581
+msgid "About this mouse"
 msgstr ""
 
-#: settings-qt/qml/components/MacroEditor.qml:250
-msgid "Add text"
+#: settings-qt/qml/pages/FlowPage.qml:136
+msgid "Above"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1784
+#: settings-qt/qml/pages/ScrollPage.qml:437
+msgid "Action"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:579 settings-qt/qml/pages/DashboardPage.qml:461
+msgid "Actions Ring"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:74 settings-qt/qml/pages/ButtonsPage.qml:92 settings-qt/qml/pages/ButtonsPage.qml:105
+msgid "Actions ring"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:137
+msgid "Active now"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:322 settings-qt/qml/pages/AppsPage.qml:360
+msgid "Add"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:322
+msgid "Add after step %1"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:158 settings-qt/qml/pages/HapticsPage.qml:317
+msgid "Add app"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:388
+msgid "Add apps on the App profiles tab to give them their own buttons."
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:347
+msgid "Add by window class"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:915
+msgid "Add link"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:183
+msgid "Add preset"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2874
 msgid "Added profile: {app}"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:351
+msgid "Adjust markers"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:718 settings-qt/qml/pages/HapticsPage.qml:270
+msgid "Advanced"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:250
 msgid "After a quick tap the menu stays open; a click anywhere outside the ring closes it"
 msgstr ""
 
+#: settings-qt/qml/pages/DevicesPage.qml:483
+msgid "After your hands leave the keys"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4371
+msgid "All apps"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:726
 msgid "All files (*)"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2558
+#: settings-qt/bridge/backend.py:4253
 msgid "Already matches your desktop"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:648
+#: settings-qt/qml/pages/AppsPage.qml:174
+msgid "Always clicks in this app"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:115
+msgid "An accent and a matched wallpaper for this app. The radial menu uses the accent."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:160
+msgid "An app's thumb wheel is set on the App profiles tab."
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:89 settings-qt/qml/pages/SettingsPage.qml:648
 msgid "App"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:61
+#: settings-qt/qml/Main.qml:61 settings-qt/qml/pages/AppsPage.qml:333 settings-qt/qml/pages/ScrollPage.qml:191
 msgid "App profiles"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2570
+#: settings-qt/qml/pages/ButtonsPage.qml:889
+msgid "App: %1"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4265
 msgid "Applied desktop defaults to {count} actions"
 msgstr ""
 
@@ -82,40 +382,224 @@ msgstr ""
 msgid "Apply desktop defaults…"
 msgstr ""
 
+#: settings-qt/qml/pages/FlowPage.qml:120
+msgid "Approve"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:108
+msgid "Approved, not connected right now"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:369
+msgid "Apps you used since JuhRadial started, one click to add"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:335
+msgid "As is"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:349
+msgid "As recorded"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:459
 msgid "Asks GitHub once a day; nothing about you is sent."
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:92
+#: settings-qt/qml/pages/DashboardPage.qml:62 settings-qt/qml/pages/DevicesPage.qml:411
+msgid "Asleep"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:29
+msgid "Asleep. Move it to wake it"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:358
+msgid "Asleep. Press any key to wake it"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:4858
+msgid "Automatic"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:805 settings-qt/qml/pages/ButtonsPage.qml:811 settings-qt/qml/pages/SettingsPage.qml:92
 msgid "Automatic size"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2348 settings-qt/bridge/backend.py:2955
+#: settings-qt/qml/pages/ThemesPage.qml:119
+msgid "Automatic: %1"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:799
+msgid "Automatic: fits each screen"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:454
+msgid "Automatic: the light sensor sets the brightness"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4043 settings-qt/bridge/backend.py:5042
 msgid "Autostart: {error}"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:359
+msgid "Awake"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:78 settings-qt/qml/pages/ButtonsPage.qml:95 settings-qt/qml/pages/ButtonsPage.qml:102
+msgid "Back"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2506 settings-qt/bridge/backend.py:3648
+msgid "Back button"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:472
+msgid "Back to the default"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:537
 msgid "Background service"
 msgstr ""
 
+#: settings-qt/qml/pages/DevicesPage.qml:450 settings-qt/qml/pages/DevicesPage.qml:457
+msgid "Backlight"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:474
+msgid "Backlight brightness"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:486
+msgid "Backlight stays on for"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:499
+msgid "Backlight stays on while charging for"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:494
 msgid "Backup"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2454
+#: settings-qt/bridge/backend.py:4149
 msgid "Backup saved as {name}"
 msgstr ""
 
-#: settings-qt/qml/components/BatteryRing.qml:22
+#: settings-qt/qml/pages/HapticsPage.qml:29
+msgid "Balanced"
+msgstr ""
+
+#: settings-qt/qml/components/BatteryRing.qml:22 settings-qt/qml/pages/DevicesPage.qml:39
 msgid "Battery"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:279
+msgid "Battery %1%"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:561
+msgid "Battery alert for the keyboard"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:550
+msgid "Battery alert for the mouse"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:529
+msgid "Battery alerts"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:439
+msgid "Battery, backlight and moving with the mouse between computers"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:380
+msgid "Behaviour"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:136
+msgid "Below"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:392 settings-qt/qml/pages/DevicesPage.qml:434
+msgid "Beta"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:130
 msgid "Bigger or smaller slice icons, the ring stays the same"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:57
+#: settings-qt/qml/components/MacroBindDialog.qml:159
+msgid "Bind"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:354
+msgid "Bind macros to buttons on the Macros tab; they work in games too"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:321
+msgid "Bind one to the Back, Forward or wheel button, or run it from a ring slice or any button (Custom action)."
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:389
+msgid "Bind the macro to a button first."
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:432
+msgid "Bind to a button"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:102
+msgid "Bind to a button…"
+msgstr ""
+
+#: settings-qt/qml/components/MacroBindDialog.qml:74
+msgid "Bind “%1” to a button"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:59 settings-qt/qml/pages/DevicesPage.qml:24
+msgid "Bluetooth"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:58 settings-qt/qml/pages/DevicesPage.qml:23
+msgid "Bolt receiver"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:466
+msgid "Brightness"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:966
+msgid "Browser"
+msgstr ""
+
+#: settings-qt/qml/components/MacroBindDialog.qml:122
+msgid "Button"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:564
+msgid "Button map"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:340
+msgid "Button mapping"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:57 settings-qt/qml/pages/AppsPage.qml:292 settings-qt/qml/pages/AppsPage.qml:295 settings-qt/qml/pages/DevicesPage.qml:335
 msgid "Buttons"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:195
+msgid "Buttons back to their defaults"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:196
+msgid "Buttons follow all apps again"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:1053
+msgid "Buttons this mouse reports that have no marker above. Assign an action to divert one; Disabled leaves it native."
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:851
@@ -126,7 +610,7 @@ msgstr ""
 msgid "By JuhLabs, with code from @gcarmin, @frizikk and @iceteaSA, and fixes shaped by everyone who reported an issue."
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:787 settings-qt/qml/pages/SettingsPage.qml:829 settings-qt/qml/pages/SettingsPage.qml:858
+#: settings-qt/qml/components/CustomActionEditor.qml:187 settings-qt/qml/components/MacroBindDialog.qml:157 settings-qt/qml/pages/DevicesPage.qml:697 settings-qt/qml/pages/DevicesPage.qml:750 settings-qt/qml/pages/EasySwitchPage.qml:159 settings-qt/qml/pages/SettingsPage.qml:787 settings-qt/qml/pages/SettingsPage.qml:829 settings-qt/qml/pages/SettingsPage.qml:858
 msgid "Cancel"
 msgstr ""
 
@@ -138,7 +622,7 @@ msgstr ""
 msgid "Center zone"
 msgstr ""
 
-#: settings-qt/qml/components/SliceEditor.qml:82
+#: settings-qt/qml/components/SliceEditor.qml:99 settings-qt/qml/pages/ButtonsPage.qml:476
 msgid "Change"
 msgstr ""
 
@@ -146,19 +630,27 @@ msgstr ""
 msgid "Change sliders and choices"
 msgstr ""
 
+#: settings-qt/qml/pages/DashboardPage.qml:385
+msgid "Change what a button does (click a row below)"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:675
 msgid "Changelog"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:54
+msgid "Channel %1"
 msgstr ""
 
 #: settings-qt/qml/components/BatteryRing.qml:128
 msgid "Charge soon"
 msgstr ""
 
-#: settings-qt/qml/components/BatteryRing.qml:128
+#: settings-qt/qml/components/BatteryRing.qml:128 settings-qt/qml/pages/DevicesPage.qml:35
 msgid "Charging"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:531
+#: settings-qt/qml/pages/DevicesPage.qml:199 settings-qt/qml/pages/DevicesPage.qml:402 settings-qt/qml/pages/FlowPage.qml:252 settings-qt/qml/pages/FlowPage.qml:252 settings-qt/qml/pages/SettingsPage.qml:531
 msgid "Check again"
 msgstr ""
 
@@ -170,67 +662,199 @@ msgstr ""
 msgid "Check now"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2775
+#: settings-qt/qml/pages/FlowPage.qml:492
+msgid "Check the firewall"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:558
+msgid "Checked each time the keyboard wakes up"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:4709
 msgid "Checking…"
 msgstr ""
 
-#: settings-qt/qml/components/ActionPicker.qml:10 settings-qt/qml/components/SliceEditor.qml:170
+#: settings-qt/qml/components/CustomActionEditor.qml:154
+msgid "Choose a macro"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:167
+msgid "Choose a plugin action"
+msgstr ""
+
+#: settings-qt/qml/components/ActionPicker.qml:12 settings-qt/qml/components/SliceEditor.qml:199
 msgid "Choose an action"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:163
+#: settings-qt/qml/pages/AppsPage.qml:336 settings-qt/qml/pages/AppsPage.qml:409
+msgid "Choose an app"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:132
+msgid "Choose…"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:163 settings-qt/qml/pages/ThemesPage.qml:363
 msgid "Classic"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:328
+msgid "Click"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:89
+msgid "Click %1"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:565
+msgid "Click a button to change it"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:342
+msgid "Click a marker to reassign a button, or press it on the mouse to find it"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:249
 msgid "Click outside to close"
 msgstr ""
 
+#: settings-qt/qml/pages/FlowPage.qml:293
+msgid "Click the side of this screen it sits on. The cursor crosses over there"
+msgstr ""
+
+#: settings-qt/qml/components/KeyRecorder.qml:55
+msgid "Click, then press the shortcut"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:46
+msgid "Clicks on every notch, always"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:48
+msgid "Clicks until you flick it, then spins freely"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:133
+msgid "Close"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:115
 msgid "Close the window"
 msgstr ""
 
-#: settings-qt/qml/components/SliceEditor.qml:140
+#: settings-qt/qml/components/SliceEditor.qml:168
 msgid "Colour"
 msgstr ""
 
-#: settings-qt/qml/components/SliceEditor.qml:114
+#: settings-qt/qml/pages/ThemesPage.qml:114
+msgid "Colour theme"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:90 settings-qt/qml/components/CustomActionEditor.qml:142 settings-qt/qml/components/SliceEditor.qml:131 settings-qt/qml/pages/FlowPage.qml:513
 msgid "Command"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:934
+#: settings-qt/qml/pages/FlowPage.qml:42
+msgid "Computer"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:426 settings-qt/qml/pages/EasySwitchPage.qml:33
+msgid "Computer %1"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:315
+msgid "Computer %1 of %2"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:66 settings-qt/qml/pages/FlowPage.qml:247
+msgid "Computers"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1475
 msgid "Config was corrupt; using defaults (backup: config.json.bad)"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:61 settings-qt/qml/pages/DevicesPage.qml:28 settings-qt/qml/pages/FlowPage.qml:83
+msgid "Connected"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:240
+msgid "Connected devices"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:37
+msgid "Connected to %1"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:61 settings-qt/qml/pages/DevicesPage.qml:28
+msgid "Connected via %1"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:107
+msgid "Connected%1"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:590
+msgid "Connection"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3808
+msgid "Copied"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2961
+msgid "Copied to {app}"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:345 settings-qt/qml/pages/DevicesPage.qml:584
+msgid "Copy diagnostics"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:561
 msgid "Copy system info"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2080
+#: settings-qt/qml/pages/FlowPage.qml:512 settings-qt/qml/pages/FlowPage.qml:512
+msgid "Copy the command"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:422
+msgid "Copy the profile to"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:597 settings-qt/qml/pages/DevicesPage.qml:598
+msgid "Copy the unit ID"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:301
+msgid "Copy to another app"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3723
 msgid "Could not back up the settings, nothing was reset: {error}"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2691
+#: settings-qt/bridge/backend.py:4618
 msgid "Could not open the plugins folder: {error}"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2777
+#: settings-qt/bridge/backend.py:4711
 msgid "Could not reach GitHub. Trying again tomorrow."
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2904
+#: settings-qt/bridge/backend.py:4991
 msgid "Could not restart the service: {error}"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2738
+#: settings-qt/bridge/backend.py:4672
 msgid "Could not restart: {error}"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2922
+#: settings-qt/bridge/backend.py:5009
 msgid "Could not start the radial menu: {error}"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2893
+#: settings-qt/bridge/backend.py:4980
 msgid "Could not write the log: {error}"
 msgstr ""
 
@@ -238,8 +862,36 @@ msgstr ""
 msgid "Create profile"
 msgstr ""
 
+#: settings-qt/qml/pages/FlowPage.qml:436
+msgid "Cross anywhere along the edge, not only where the glow is"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:275
 msgid "Currently %1"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:164
+msgid "Custom"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:75 settings-qt/qml/pages/DashboardPage.qml:46
+msgid "Custom action"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:111
+msgid "Custom action (not set)"
+msgstr ""
+
+#: settings-qt/qml/components/DpiControl.qml:17 settings-qt/qml/components/DpiControl.qml:106 settings-qt/qml/pages/DashboardPage.qml:72 settings-qt/qml/pages/DashboardPage.qml:407 settings-qt/qml/pages/DevicesPage.qml:629
+msgid "DPI"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:168
+msgid "DPI for %1"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:179
+msgid "DPI presets"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:649
@@ -262,59 +914,179 @@ msgstr ""
 msgid "Dead zone in the middle where nothing is selected"
 msgstr ""
 
+#: settings-qt/qml/pages/HapticsPage.qml:40
+msgid "Default patterns restored"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:146
 msgid "Default sizes"
 msgstr ""
 
-#: settings-qt/qml/components/MacroEditor.qml:173
-msgid "Delay"
+#: settings-qt/qml/pages/ButtonsPage.qml:172
+msgid "Default: %1"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:105
+msgid "Delete"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:205
+msgid "Desktop"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:386
 msgid "Desktop environment"
 msgstr ""
 
+#: settings-qt/qml/pages/ButtonsPage.qml:965
+msgid "Desktops"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:650
 msgid "Device mode"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:63
+#: settings-qt/qml/Main.qml:63 settings-qt/qml/pages/EasySwitchPage.qml:201
 msgid "Devices"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:195
+msgid "Devices, battery and the keyboard are read through the background service. Start it, then this page fills in by itself."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4946
+msgid "Diagnostics copied. Paste them into your bug report."
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:298
+msgid "Direction"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:945 settings-qt/qml/pages/ButtonsPage.qml:950
+msgid "Directional gestures"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:409 settings-qt/qml/pages/MacrosPage.qml:302
+msgid "Discard"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:673
 msgid "Documentation"
 msgstr ""
 
-#: settings-qt/qml/components/SliceEditor.qml:164
+#: settings-qt/qml/components/SliceEditor.qml:36
+msgid "Does nothing"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:317
+msgid "Does nothing while the ring is hidden"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:193 settings-qt/qml/pages/DashboardPage.qml:366
 msgid "Done"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:351
+msgid "Done adjusting markers"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:197
+msgid "Dots per inch: higher moves the pointer further for the same hand movement"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:465
 msgid "Download %1"
 msgstr ""
 
-#: settings-qt/qml/components/MacroEditor.qml:286
+#: settings-qt/qml/pages/ButtonsPage.qml:1030
+msgid "Drag distance"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:982
+msgid "Drag down"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:400
+msgid "Drag each marker onto its button. Positions are saved as you go."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:981
+msgid "Drag left"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:981
+msgid "Drag right"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:980
+msgid "Drag up"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:424 settings-qt/qml/pages/MacrosPage.qml:103
 msgid "Duplicate"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:62
+#: settings-qt/qml/pages/EasySwitchPage.qml:241
+msgid "Each computer names its slot when it pairs, which is where the names above come from."
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:316
+msgid "Each press steps to the next DPI preset"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:62 settings-qt/qml/pages/DashboardPage.qml:428 settings-qt/qml/pages/DashboardPage.qml:503 settings-qt/qml/pages/DashboardPage.qml:543 settings-qt/qml/pages/DevicesPage.qml:632
 msgid "Easy-Switch"
 msgstr ""
 
-#: settings-qt/qml/components/MacroEditor.qml:103
-msgid "Edit %1"
+#: settings-qt/qml/pages/EasySwitchPage.qml:214
+msgid "Easy-Switch in the radial menu"
 msgstr ""
 
-#: settings-qt/qml/components/SliceEditor.qml:36
+#: settings-qt/qml/pages/EasySwitchPage.qml:255
+msgid "Easy-Switch needs a Logitech mouse"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:427
+msgid "Easy-Switch, %1 of %2"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:437
+msgid "Edit (Enter)"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:53
 msgid "Edit action %1"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:967
+msgid "Editing"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:375 settings-qt/qml/pages/ButtonsPage.qml:380
+msgid "Editing for"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:580
+msgid "Eight actions under your thumb. Click a slice to edit it, drag it onto another to swap them."
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:37
+msgid "Empty. Hold the Easy-Switch button for 3 seconds to pair a computer here"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:379
+msgid "Enter edits, F2 renames, Ctrl+R runs, Delete deletes"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:190
+msgid "Events"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:716
 msgid "Export JuhRadial MX settings"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2456
+#: settings-qt/bridge/backend.py:3677 settings-qt/bridge/backend.py:4151
 msgid "Export failed: {error}"
 msgstr ""
 
@@ -322,56 +1094,308 @@ msgstr ""
 msgid "Export settings"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:502
+#: settings-qt/qml/pages/MacrosPage.qml:104 settings-qt/qml/pages/SettingsPage.qml:502
 msgid "Export…"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:30
+msgid "Expressive"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:586
 msgid "Extra actions for the ring, from plugin folders"
 msgstr ""
 
+#: settings-qt/bridge/backend.py:2504 settings-qt/bridge/backend.py:3651
+msgid "Extra side button"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:619
+msgid "Features"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:146
+msgid "Feral GameMode is not installed"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:399 settings-qt/qml/pages/AppsPage.qml:400
+msgid "Filter profiles"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:47
+msgid "Firm push"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:605
+msgid "Firmware"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:50
 msgid "First time in %1. Give it its own profile?"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:65
+#: settings-qt/qml/pages/DashboardPage.qml:341
+msgid "Fix"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:297
+msgid "Fixed colours"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:349
+msgid "Fixed gap"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:65 settings-qt/qml/pages/DashboardPage.qml:438 settings-qt/qml/pages/FlowPage.qml:195 settings-qt/qml/pages/FlowPage.qml:207
 msgid "Flow"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:275
+msgid "Flow is starting. If this stays, restart the radial menu from Settings > Troubleshooting."
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:217
+msgid "Flow needs a Logitech mouse with Easy-Switch. This mouse runs in generic mode."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:472
+msgid "Follow all apps"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:160 settings-qt/qml/pages/AppsPage.qml:175 settings-qt/qml/pages/AppsPage.qml:205 settings-qt/qml/pages/AppsPage.qml:224
+msgid "Follows Point & Scroll"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:348
+msgid "For apps without a menu entry, for example steam_app_730"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:156
+msgid "For games GameMode does not see, and apps that want the gaming presets"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:361
 msgid "For this window and the radial menu"
 msgstr ""
 
+#: settings-qt/qml/pages/DevicesPage.qml:719
+msgid "For when detection picks the wrong mouse"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:724 settings-qt/qml/pages/DevicesPage.qml:727
+msgid "Force generic mode"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:125
+msgid "Forget"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4851
+msgid "Forgotten. It has to be approved again to use Flow"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:79 settings-qt/qml/pages/ButtonsPage.qml:94 settings-qt/qml/pages/ButtonsPage.qml:101
+msgid "Forward"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2505 settings-qt/bridge/backend.py:3649
+msgid "Forward button"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:356
+msgid "Found. Turn on its support to see its battery and backlight"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:413 settings-qt/qml/pages/GamingPage.qml:336
+msgid "Free-spin"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:240
 msgid "Frost what is behind the ring"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:64
+#: settings-qt/qml/pages/DevicesPage.qml:36
+msgid "Full"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:521
+msgid "GNOME on Wayland has no scroll speed setting"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:353
+msgid "Game macros"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:145
+msgid "Games started with gamemoderun, or with GameMode switched on in Steam, Lutris or Heroic"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:64 settings-qt/qml/pages/ScrollPage.qml:185
 msgid "Gaming"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:433 settings-qt/qml/pages/GamingPage.qml:89 settings-qt/qml/pages/GamingPage.qml:94
+msgid "Gaming mode"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:184
+msgid "Gaming mode is on and sets its own DPI until you turn it off."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3279
+msgid "Gaming mode needs the JuhRadial service"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:365
+msgid "Gaming mode while this app is in front"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:356
+msgid "Gap between steps"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:216
+msgid "Generic mouse mode is on, so Logitech features are hidden."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:75 settings-qt/qml/pages/ButtonsPage.qml:96 settings-qt/qml/pages/ButtonsPage.qml:104
+msgid "Gesture"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:632
+msgid "Gesture button"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:462
+msgid "Get JuhFlow"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:363
+msgid "Getting started"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:674
 msgid "GitHub"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1720
-msgid "Give a slice the AI Assistant action first"
+#: settings-qt/qml/pages/ButtonsPage.qml:833
+msgid "Give a ring slice the submenu action to add links here."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2730
+msgid "Give a slice a submenu first"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:408
+msgid "Give an app its own DPI, wheel, buttons or radial menu. It switches in when the app comes to the front."
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:253
+msgid "Give it a name"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:110
 msgid "Go to tab 1 to 10"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:59
+#: settings-qt/qml/pages/HapticsPage.qml:220
+msgid "Haptic Sense Panel"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:120 settings-qt/qml/pages/HapticsPage.qml:127
+msgid "Haptic feedback"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:199
+msgid "Haptic feedback is off, so none of these pulse."
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:136
+msgid "Haptic feedback needs an MX Master 4. Everything else in JuhRadial works as usual."
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:35
+msgid "Haptic style changed"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:59 settings-qt/qml/pages/DashboardPage.qml:420 settings-qt/qml/pages/DevicesPage.qml:339 settings-qt/qml/pages/DevicesPage.qml:631
 msgid "Haptics"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:311
+msgid "Hard"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:630
+msgid "Hi-res scroll"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:658 settings-qt/qml/pages/HapticsPage.qml:274
+msgid "Hide"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:232
 msgid "Hide the ring and show only the action icons"
 msgstr ""
 
+#: settings-qt/qml/pages/GamingPage.qml:315
+msgid "Hold for the precision DPI, let go to go back"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:240
+msgid "Hold it for 3 seconds to pair a new computer in that slot (its light blinks)."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:946
+msgid "Hold the gesture button and drag to run a different action per direction. A press without dragging keeps the gesture button's own action."
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:331
+msgid "Hold the wheel in one mode while playing; your usual mode comes back after"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:235
+msgid "How Easy-Switch works"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:177
+msgid "How fast the pointer moves, and the stops of the DPI buttons"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:396 settings-qt/qml/pages/FlowPage.qml:403
+msgid "How firmly to push"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:290
+msgid "How hard you flick before the wheel spins freely"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:229
+msgid "How hard you press the panel to click it"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:232
+msgid "How hard you press the panel to click it. Logitech's default is Hard"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:230
+msgid "How hard you press the panel to click it. Logitech's default is Light"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:231
+msgid "How hard you press the panel to click it. Logitech's default sits between Medium and Hard"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:141
+msgid "How strong every pulse is. The mouse keeps it, also on other computers"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:156
 msgid "How the slice icons are drawn, in the ring and in this window"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:182
+msgid "How this computer shows on this page. The mouse calls it %1"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:269
@@ -382,11 +1406,19 @@ msgstr ""
 msgid "How to write one"
 msgstr ""
 
+#: settings-qt/qml/pages/EasySwitchPage.qml:126
+msgid "Icon in radial menu"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:130
+msgid "Icon in radial menu for %1"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:129
 msgid "Icon size"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:155
+#: settings-qt/qml/pages/SettingsPage.qml:155 settings-qt/qml/pages/ThemesPage.qml:350 settings-qt/qml/pages/ThemesPage.qml:361
 msgid "Icon style"
 msgstr ""
 
@@ -398,7 +1430,7 @@ msgstr ""
 msgid "Import JuhRadial MX settings"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2504
+#: settings-qt/bridge/backend.py:4199
 msgid "Import failed: {error}"
 msgstr ""
 
@@ -410,27 +1442,95 @@ msgstr ""
 msgid "Import this backup?"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:510
+#: settings-qt/bridge/backend.py:3692
+msgid "Imported macro"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:330 settings-qt/qml/pages/SettingsPage.qml:510
 msgid "Import…"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:297
+msgid "In games"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:413
+msgid "Install %1 first: without it nothing is copied across"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:519
+msgid "Install imwheel to change the scroll speed"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:534
+msgid "Install xinput to change pointer acceleration"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:355
 msgid "Interface language and desktop integration"
 msgstr ""
 
+#: settings-qt/qml/pages/ScrollPage.qml:449
+msgid "Invert direction"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:247
+msgid "Its own"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:459
+msgid "JuhFlow is the small companion app on the other side. Windows is planned"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:189
+msgid "JuhRadial MX %1 is out."
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:608
+msgid "JuhRadial service"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:494
 msgid "Keep a copy of your setup or move it to another machine"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1649
-msgid "Keyboard not reachable: press a key to wake it, then try again"
+#: settings-qt/qml/components/MacroEditor.qml:414
+msgid "Keep editing"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:428
+msgid "Keep macro"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:424
+msgid "Keep remap"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:431 settings-qt/qml/pages/DevicesPage.qml:557
+msgid "Keyboard"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:261
+msgid "Keyboard %1%"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1954
+msgid "Keyboard battery low"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:102
 msgid "Keyboard shortcuts"
 msgstr ""
 
-#: settings-qt/qml/components/SliceEditor.qml:93
+#: settings-qt/qml/components/MacroEditor.qml:325
+msgid "Keys"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:88
+msgid "Kind of action"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:110
 msgid "Label"
 msgstr ""
 
@@ -442,31 +1542,139 @@ msgstr ""
 msgid "Language & desktop"
 msgstr ""
 
+#: settings-qt/qml/pages/DevicesPage.qml:326 settings-qt/qml/pages/DevicesPage.qml:411
+msgid "Last reading"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:426
 msgid "Launch behaviour, tray and updates"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:136
+msgid "Left"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:404
+msgid "Left is a firm push, right a light touch"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2858
+msgid "Letters, digits, dots, dashes and underscores only"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:468
+msgid "Level %1 of %2. 0 turns the backlight off"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:676
 msgid "License"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:162
+#: settings-qt/qml/pages/ScrollPage.qml:298
+msgid "Light"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:47
+msgid "Light touch"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:162 settings-qt/qml/pages/ThemesPage.qml:362
 msgid "Line"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2953
+#: settings-qt/qml/pages/ScrollPage.qml:401
+msgid "Line %1"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:49
+msgid "Line by line"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:356
+msgid "Lines per wheel notch, set in your desktop"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:90 settings-qt/qml/components/CustomActionEditor.qml:142 settings-qt/qml/components/SliceEditor.qml:131 settings-qt/qml/pages/ButtonsPage.qml:875
+msgid "Link"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:42
+msgid "Linux"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:39
+msgid "Listening for your other computer"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:469
+msgid "Lit at level %1 of %2 right now. Moving the slider switches to Manual"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5040
 msgid "Login entry repaired"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:432
+msgid "Logitech MX Keys S over its receiver"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:592
 msgid "Look for new plugins"
 msgstr ""
 
+#: settings-qt/qml/pages/ThemesPage.qml:66
+msgid "Look reset"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:38
+msgid "Low"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:362 settings-qt/qml/pages/DevicesPage.qml:384
+msgid "MX Keys S"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:438 settings-qt/qml/pages/DevicesPage.qml:441
+msgid "MX Keys S support"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:42 settings-qt/qml/pages/FlowPage.qml:42
+msgid "Mac"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:91 settings-qt/qml/components/CustomActionEditor.qml:153 settings-qt/bridge/backend.py:3633
+msgid "Macro"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:19
 msgid "Macro deleted"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:60
+#: settings-qt/bridge/backend.py:3679
+msgid "Macro exported"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:81 settings-qt/qml/pages/MacrosPage.qml:87
+msgid "Macro files (*.json)"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:126 settings-qt/qml/components/MacroEditor.qml:128 settings-qt/qml/pages/MacrosPage.qml:298 settings-qt/qml/pages/MacrosPage.qml:406
+msgid "Macro name"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:143
+msgid "Macro “%1” never runs"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:143
+msgid "Macro: %1"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3660
+msgid "Macro: {name}"
+msgstr ""
+
+#: settings-qt/qml/Main.qml:60 settings-qt/qml/pages/GamingPage.qml:355
 msgid "Macros"
 msgstr ""
 
@@ -474,56 +1682,260 @@ msgstr ""
 msgid "Made %1"
 msgstr ""
 
+#: settings-qt/qml/pages/ScrollPage.qml:260
+msgid "MagSpeed modes, direction and speed"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:422
+msgid "Make a profile for"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:364
+msgid "Make every button follow all apps"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:900
+msgid "Make it a link again"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:458
+msgid "Manual"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:452
+msgid "Manual: the brightness below stays as you set it"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:128
+msgid "Match the desktop accent"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:968
+msgid "Media"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:239
 msgid "Menu background blur"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:161
+#: settings-qt/bridge/backend.py:2507
+msgid "Middle click"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:77 settings-qt/qml/pages/ButtonsPage.qml:89 settings-qt/qml/pages/ButtonsPage.qml:100
+msgid "Mode shift"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:588
+msgid "Model"
+msgstr ""
+
+#: settings-qt/qml/pages/SettingsPage.qml:161 settings-qt/qml/pages/ThemesPage.qml:362
 msgid "Mono"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1340
+#: settings-qt/qml/pages/ButtonsPage.qml:810 settings-qt/qml/pages/MacrosPage.qml:443
+msgid "More"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:547 settings-qt/qml/pages/HapticsPage.qml:204
+msgid "Mouse"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1945
 msgid "Mouse battery low"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:288
+msgid "Mouse button"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:113
 msgid "Move between and use controls"
 msgstr ""
 
+#: settings-qt/qml/pages/GamingPage.qml:272
+msgid "Move down"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:385 settings-qt/qml/pages/FlowPage.qml:389
+msgid "Move the cursor across the edge"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:196
+msgid "Move the cursor, the mouse and what you copy to the computer next to this one"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:193
+msgid "Move the keyboard too"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:266
+msgid "Move up"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:1031
+msgid "Movement below this many pixels counts as a press"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:868 settings-qt/qml/pages/EasySwitchPage.qml:186
+msgid "Name"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:299
+msgid "Name this macro"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:323
+msgid "Natural scrolling"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:122
+msgid "Needs a mouse with a haptic motor"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:530
+msgid "Needs gsettings"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:247 settings-qt/qml/pages/ButtonsPage.qml:917
+msgid "New link"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3471
+msgid "New macro"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:323
+msgid "Next preset"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:112
 msgid "Next tab (Shift for previous)"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:510
+msgid "No MX Keys S found. Pair it with a Bolt or Unifying receiver on this computer; a keyboard on Bluetooth only is not supported yet."
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:407
+msgid "No app profiles yet"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:124
+msgid "No application chosen"
 msgstr ""
 
 #: settings-qt/qml/components/AppPicker.qml:133
 msgid "No applications found"
 msgstr ""
 
+#: settings-qt/bridge/backend.py:3647
+msgid "No button"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:463
+msgid "No button opens it yet"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:336
 msgid "No fades, slides or crossfades in this window."
 msgstr ""
 
-#: settings-qt/qml/components/SliceEditor.qml:76
+#: settings-qt/qml/pages/FlowPage.qml:486
+msgid "No firewall service is running here, so Flow is not blocked by one."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3421
+msgid "No keyboard to record from. Your user needs to read /dev/input "
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:93
 msgid "No label"
 msgstr ""
 
-#: settings-qt/qml/components/AppPicker.qml:133
+#: settings-qt/qml/pages/MacrosPage.qml:355
+msgid "No macros yet"
+msgstr ""
+
+#: settings-qt/qml/components/ActionPicker.qml:203 settings-qt/qml/components/AppPicker.qml:133
 msgid "No match"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:41
+msgid "No mouse found. Changes are saved and sent when it connects."
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:246
+msgid "No mouse yet"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:274
+msgid "No other computer yet. Open JuhFlow on your Mac (see Set up your Mac below); it finds this computer and asks to connect."
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:167
+msgid "No plugins installed"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:602
 msgid "No plugins yet"
 msgstr ""
 
+#: settings-qt/qml/pages/HapticsPage.qml:306
+msgid "No pulses while gaming mode is on"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:315
+msgid "No pulses while one of these apps is in front"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:154
+msgid "No saved macros yet"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:297
+msgid "No second pulse when the pointer wobbles back onto the same slice"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:155
+msgid "No steps yet. Add keys, text, a pause, a click or scrolling below."
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:687
 msgid "No telemetry. JuhRadial MX sends nothing about you; the only network request is the optional daily update check."
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2782
+#: settings-qt/qml/pages/DevicesPage.qml:652
+msgid "None. Pick This mouse only on the Buttons tab to give this mouse its own buttons"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:47
+msgid "Normal push"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4716
 msgid "Not checked yet."
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:83
+msgid "Not connected"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:64 settings-qt/qml/pages/DevicesPage.qml:31
+msgid "Not found"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:357
+msgid "Not found. Connect it with its Bolt or Unifying receiver"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:614
 msgid "Not loaded"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:641
+msgid "Not reported yet"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:539
@@ -534,8 +1946,104 @@ msgstr ""
 msgid "Not running. The gesture button has nothing to open."
 msgstr ""
 
+#: settings-qt/qml/components/KeyRecorder.qml:47 settings-qt/qml/pages/FlowPage.qml:51
+msgid "Not set"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:342
+msgid "Not set: the mouse does not come back with the cursor. It is on channel %1 now"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:356
+msgid "Not set: the mouse stays here when the cursor leaves"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:132
+msgid "Nothing overridden yet: open it to choose"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:485
+msgid "Nothing shows up? A firewall may block Flow."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3461
+msgid "Nothing was recorded. Press some keys while it records."
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:274
+msgid "Now: clicking"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:274
+msgid "Now: spinning"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:212 settings-qt/qml/pages/DashboardPage.qml:420 settings-qt/qml/pages/DashboardPage.qml:433 settings-qt/qml/pages/DashboardPage.qml:438 settings-qt/qml/pages/FlowPage.qml:35 settings-qt/qml/pages/GamingPage.qml:25
+msgid "Off"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:205
+msgid "Off in this app"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:386
+msgid "Off: Flow still shares the clipboard, the cursor stays here"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:238
+msgid "Off: the pointer moves exactly as far as the mouse"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:212 settings-qt/qml/pages/DashboardPage.qml:420 settings-qt/qml/pages/DashboardPage.qml:433 settings-qt/qml/pages/DashboardPage.qml:438 settings-qt/qml/pages/GamingPage.qml:27
+msgid "On"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3643
+msgid "On / off"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:495
+msgid "On a cable, stay on for"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:63 settings-qt/qml/pages/DevicesPage.qml:30
+msgid "On another computer"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:27
+msgid "On automatically"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:205
+msgid "On in this app"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:82
 msgid "On this screen: %1 px across"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:138
+msgid "On while a game runs, off again when it ends. A switch you flipped yourself stays as you left it"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:237
+msgid "On: faster movements carry the pointer further"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3640
+msgid "Once"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:157
+msgid "One feel for every event, from barely there to lively"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:530
+msgid "One notification per charge, and the tray icon turns red"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:344
+msgid "One pulse for the first preset, two for the second, and so on"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:500
@@ -546,7 +2054,27 @@ msgstr ""
 msgid "Only KDE Plasma can frost the background behind the ring"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:560
+#: settings-qt/qml/pages/ButtonsPage.qml:390
+msgid "Only this mouse. Buttons you leave alone follow all apps."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:391
+msgid "Only while %1 has focus. Buttons you leave alone follow all apps."
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:465 settings-qt/qml/pages/DashboardPage.qml:567
+msgid "Open Buttons"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:239
+msgid "Open an application from the submenu"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:895
+msgid "Open an application instead"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:336 settings-qt/qml/pages/SettingsPage.qml:560
 msgid "Open log"
 msgstr ""
 
@@ -554,52 +2082,342 @@ msgstr ""
 msgid "Open plugins folder"
 msgstr ""
 
+#: settings-qt/qml/pages/DashboardPage.qml:384
+msgid "Open the Actions Ring"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:383
+msgid "Open the Actions Ring: hold the %1"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:32
+msgid "Opens JuhRadial MX settings"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:30
+msgid "Opens a link"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:31
+msgid "Opens quick links"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:33
+msgid "Opens the emoji picker"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:317
+msgid "Opens the radial menu as usual"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:462
+msgid "Opens with: %1 (hold)"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:155
+msgid "Other computer"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:1052
+msgid "Other controls"
+msgstr ""
+
+#: settings-qt/qml/components/KeyRecorder.qml:122
+msgid "Other key…"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:103
 msgid "Outer radius. Icons, submenus and the centre label scale with it"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:160 settings-qt/qml/pages/AppsPage.qml:224
+msgid "Overridden for this app"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:161
+msgid "Override pointer speed"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:217
+msgid "Override smooth scrolling"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:187
+msgid "Override the scroll wheel"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:236
+msgid "Override the thumb wheel"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:51
+msgid "Own ring"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:36 settings-qt/qml/pages/EasySwitchPage.qml:40
+msgid "Paired"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:38
+msgid "Paired over Bluetooth"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:39
+msgid "Paired with a USB receiver"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:80
+msgid "Pattern for %1"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:272 settings-qt/qml/components/MacroEditor.qml:327
+msgid "Pause"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:87
+msgid "Pause %1 ms"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:386
+msgid "Pick a wheel skin on the Buttons tab"
 msgstr ""
 
 #: settings-qt/qml/components/AppPicker.qml:10
 msgid "Pick an application"
 msgstr ""
 
-#: settings-qt/qml/components/SliceEditor.qml:120
+#: settings-qt/qml/components/SliceEditor.qml:137
 msgid "Pick application"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:294
+msgid "Pick this app in the scope switcher on the Buttons tab"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:387
 msgid "Picks the screenshot tool, file manager and note app for the default slices"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1656
+#: settings-qt/qml/pages/ThemesPage.qml:130
+msgid "Picks the theme closest to your desktop's accent colour"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2639
 msgid "Pin saved: {slot} = {x}, {y}"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:73
+msgid "Play %1"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3641
+msgid "Plays the steps again and again, as often as you set."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3640
+msgid "Plays the steps one time."
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:91
+msgid "Plugin"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:166
+msgid "Plugin action"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:586
 msgid "Plugins"
 msgstr ""
 
-#: settings-qt/qml/Main.qml:58
+#: settings-qt/qml/Main.qml:58 settings-qt/qml/pages/DevicesPage.qml:336
 msgid "Point & Scroll"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1447
-msgid "Pointer acceleration needs GNOME gsettings"
+#: settings-qt/qml/pages/ScrollPage.qml:176
+msgid "Pointer"
 msgstr ""
 
-#: settings-qt/qml/components/RingPreview.qml:31
+#: settings-qt/qml/pages/ScrollPage.qml:235
+msgid "Pointer acceleration"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:59
+msgid "Pointer settings reset"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:159 settings-qt/qml/pages/ScrollPage.qml:195 settings-qt/qml/pages/ScrollPage.qml:206
+msgid "Pointer speed (DPI)"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:322 settings-qt/qml/pages/ScrollPage.qml:221
+msgid "Precision DPI"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:29
+msgid "Preset %1"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3337
+msgid "Preset %d"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:251
+msgid "Preset name"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:226 settings-qt/qml/pages/HapticsPage.qml:236
+msgid "Press force"
+msgstr ""
+
+#: settings-qt/qml/components/MacroBindDialog.qml:81
+msgid "Press the button on your mouse, or pick it below."
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:239
+msgid "Press the button under the mouse to step to the next computer; its light shows which one."
+msgstr ""
+
+#: settings-qt/qml/components/KeyRecorder.qml:54
+msgid "Press the keys now, Esc to stop"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:1013
+msgid "Press without dragging"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:29
+msgid "Presses a shortcut"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:296
+msgid "Prevent duplicate pulses"
+msgstr ""
+
+#: settings-qt/qml/components/RingPreview.qml:52
 msgid "Preview of the radial menu"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1749
+#: settings-qt/qml/pages/AppsPage.qml:41
+msgid "Profile for %1 removed"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:257 settings-qt/qml/pages/DevicesPage.qml:317
+msgid "Profile: %1"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2759
 msgid "Profiles save failed: {error}"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:57 settings-qt/qml/pages/SettingsPage.qml:547
+#: settings-qt/qml/pages/GamingPage.qml:343
+msgid "Pulse on preset change"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:121
+msgid "Pulses from the motor in your MX Master 4"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:228
+msgid "Push the cursor past the edge of this screen and it appears on your Mac. The mouse switches with it, and what you copied comes along."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:830
+msgid "Quick links"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:29
+msgid "Quiet"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:305
+msgid "Quiet in games"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:314
+msgid "Quiet in these apps"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:359
+msgid "Quiet while this app is in front"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:242 settings-qt/qml/pages/HapticsPage.qml:203 settings-qt/qml/pages/SettingsPage.qml:57 settings-qt/qml/pages/SettingsPage.qml:547
 msgid "Radial menu"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2063
-msgid "Recording failed"
+#: settings-qt/qml/pages/DevicesPage.qml:760 settings-qt/qml/pages/DevicesPage.qml:764
+msgid "Radial menu button"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:246
+msgid "Radial menu for %1"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:233
+msgid "Radial menu look"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:48 settings-qt/qml/pages/AppsPage.qml:182 settings-qt/qml/pages/DashboardPage.qml:412 settings-qt/qml/pages/GamingPage.qml:335
+msgid "Ratchet"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:245 settings-qt/qml/pages/DevicesPage.qml:246
+msgid "Read the devices again"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:71
+msgid "Read the slots again"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:60
+msgid "Reading the devices…"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:73
+msgid "Ready: %1"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:368
+msgid "Recently used"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:204 settings-qt/qml/pages/MacrosPage.qml:357
+msgid "Record"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:356
+msgid "Record a key sequence once, or start from a template."
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:199
+msgid "Record a macro"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:303
+msgid "Record again"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:86
+msgid "Record the keys"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:270
+msgid "Recorded %n step"
+msgid_plural "Recorded %n steps"
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:234
+msgid "Recording"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:233
+msgid "Recording from %1"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:200
+msgid "Records the keys you press and the mouse buttons you click. Pointer movement is not recorded; add scrolling and pauses in the editor."
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:333
@@ -610,8 +2428,36 @@ msgstr ""
 msgid "Reduce transparency"
 msgstr ""
 
+#: settings-qt/qml/pages/GamingPage.qml:61 settings-qt/qml/pages/GamingPage.qml:278 settings-qt/qml/pages/HapticsPage.qml:344
+msgid "Remove %1"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:305
+msgid "Remove profile"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:900
+msgid "Remove this link"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:255
+msgid "Remove this step"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:101
+msgid "Rename"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:439
 msgid "Repair"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:362 settings-qt/qml/components/MacroEditor.qml:369
+msgid "Repeat"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3642
+msgid "Repeats while you hold the bound button."
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:774
@@ -620,6 +2466,26 @@ msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:562
 msgid "Report a bug"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:1067
+msgid "Reports raw movement"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:663 settings-qt/qml/pages/DevicesPage.qml:699 settings-qt/qml/pages/ScrollPage.qml:179 settings-qt/qml/pages/ScrollPage.qml:262 settings-qt/qml/pages/ScrollPage.qml:433
+msgid "Reset"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:363
+msgid "Reset all buttons to their defaults"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:120
+msgid "Reset look"
+msgstr ""
+
+#: settings-qt/qml/components/MacroBindDialog.qml:143
+msgid "Reset the remap"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:700
@@ -634,11 +2500,11 @@ msgstr ""
 msgid "Restart now"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2902
+#: settings-qt/bridge/backend.py:4989
 msgid "Restarting the background service…"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2920
+#: settings-qt/bridge/backend.py:5007
 msgid "Restarting the radial menu…"
 msgstr ""
 
@@ -646,7 +2512,7 @@ msgstr ""
 msgid "Restore"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:699
+#: settings-qt/qml/pages/HapticsPage.qml:193 settings-qt/qml/pages/SettingsPage.qml:699
 msgid "Restore defaults"
 msgstr ""
 
@@ -658,12 +2524,60 @@ msgstr ""
 msgid "Restore defaults…"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:102
+#: settings-qt/qml/pages/DevicesPage.qml:223
+msgid "Return to automatic detection"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:325
+msgid "Reverses the wheel: the page moves the way you roll it"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:658
+msgid "Review"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:136
+msgid "Right"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:312 settings-qt/qml/pages/GamingPage.qml:321
+msgid "Ring button"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:306
+msgid "Ring colours"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:55
+msgid "Ring colours changed"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:30
+msgid "Ring hidden"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:30
+msgid "Ring shown"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:797 settings-qt/qml/pages/SettingsPage.qml:102 settings-qt/qml/pages/ThemesPage.qml:356
 msgid "Ring size"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:351
+msgid "Ring size, icon size and the centre zone are in Settings"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:94
 msgid "Ring, centre zone and icons fit each monitor. Turn off to set them yourself."
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:450
+msgid "Rolling forward scrolls left instead of right"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:427
+msgid "Run (Ctrl+R)"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:432
@@ -678,15 +2592,87 @@ msgstr ""
 msgid "Running, version %1"
 msgstr ""
 
-#: settings-qt/qml/components/MacroEditor.qml:290
+#: settings-qt/qml/components/SliceEditor.qml:28
+msgid "Runs a command"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:35
+msgid "Runs a macro"
+msgstr ""
+
+#: settings-qt/qml/components/SliceEditor.qml:34
+msgid "Runs a plugin action"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:180
+msgid "Runs through the shell, like a terminal would."
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:247
+msgid "Same"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:170
+msgid "Same as all apps"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:188 settings-qt/qml/components/MacroEditor.qml:434 settings-qt/qml/pages/MacrosPage.qml:304
 msgid "Save"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:990
+#: settings-qt/bridge/backend.py:1531
 msgid "Save failed: {error}"
 msgstr ""
 
-#: settings-qt/qml/components/ActionPicker.qml:45
+#: settings-qt/qml/pages/DashboardPage.qml:91
+msgid "Saved"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2048
+msgid "Saved. JuhRadial applies it when its service starts."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2050
+msgid "Saved. The mouse gets it when it wakes up or comes back."
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:327 settings-qt/qml/pages/FlowPage.qml:332
+msgid "Screen"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:329
+msgid "Scroll"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:90
+msgid "Scroll %1 × %2"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:355 settings-qt/qml/pages/ScrollPage.qml:366
+msgid "Scroll speed"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:173 settings-qt/qml/pages/GamingPage.qml:330 settings-qt/qml/pages/ScrollPage.qml:259
+msgid "Scroll wheel"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:334
+msgid "Scroll wheel in games"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:74
+msgid "Scroll wheel settings reset"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:344
+msgid "Scrolls in fine steps instead of whole lines, in apps that support it"
+msgstr ""
+
+#: settings-qt/qml/components/ActionPicker.qml:97
+msgid "Search actions"
+msgstr ""
+
+#: settings-qt/qml/components/ActionPicker.qml:92
 msgid "Search actions…"
 msgstr ""
 
@@ -706,6 +2692,26 @@ msgstr ""
 msgid "See what a backup holds before it replaces anything. The current files are kept, and Undo puts them back"
 msgstr ""
 
+#: settings-qt/qml/pages/DevicesPage.qml:631
+msgid "Sense Panel"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:57 settings-qt/qml/pages/DevicesPage.qml:26
+msgid "Service not running"
+msgstr ""
+
+#: settings-qt/qml/components/DpiControl.qml:131
+msgid "Set %1 DPI"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:458
+msgid "Set up your Mac"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:453
+msgid "Set with the keyboard's brightness keys; the light sensor takes over again later"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:111
 msgid "Settings"
 msgstr ""
@@ -714,24 +2720,64 @@ msgstr ""
 msgid "Settings imported"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2514
+#: settings-qt/bridge/backend.py:4209
 msgid "Settings imported. The previous files are kept as .bak"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:650
+msgid "Settings only for this mouse"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:865
 msgid "Settings restored to defaults"
 msgstr ""
 
-#: settings-qt/qml/components/SliceEditor.qml:114
-msgid "Shortcut (e.g. ctrl+c)"
+#: settings-qt/qml/pages/AppsPage.qml:334
+msgid "Settings that change while one app is in front"
 msgstr ""
 
-#: settings-qt/qml/pages/SettingsPage.qml:60
+#: settings-qt/qml/pages/DashboardPage.qml:268
+msgid "Settings you change are saved and applied when the mouse is back."
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:411 settings-qt/qml/pages/FlowPage.qml:417
+msgid "Share clipboard"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:89 settings-qt/qml/components/KeyRecorder.qml:46 settings-qt/qml/components/SliceEditor.qml:157
+msgid "Shortcut"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:274
+msgid "Show"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:358
+msgid "Show as a list"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:583 settings-qt/qml/pages/SettingsPage.qml:60 settings-qt/qml/pages/ThemesPage.qml:239
 msgid "Show on screen"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:424 settings-qt/qml/pages/FlowPage.qml:428
+msgid "Show the edge glow"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:358
+msgid "Show the mouse"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:303
+msgid "Show the radial menu"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:450
 msgid "Show tray icon"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2503
+msgid "Side button"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:231
@@ -742,8 +2788,64 @@ msgstr ""
 msgid "Size, icons and behaviour of the on-screen ring"
 msgstr ""
 
+#: settings-qt/qml/pages/AppsPage.qml:267 settings-qt/qml/pages/ButtonsPage.qml:677 settings-qt/qml/pages/DashboardPage.qml:503
+msgid "Slice %1: %2"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:215
+msgid "Slice 6 (%1) becomes a submenu of your computers"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:284 settings-qt/qml/pages/HapticsPage.qml:288
+msgid "Slice tick rate"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2654
+msgid "Slice {n}"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:48 settings-qt/qml/pages/AppsPage.qml:182 settings-qt/qml/pages/DashboardPage.qml:70 settings-qt/qml/pages/DashboardPage.qml:412 settings-qt/qml/pages/DevicesPage.qml:629
+msgid "SmartShift"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:174
+msgid "SmartShift in this app"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:193 settings-qt/qml/pages/ScrollPage.qml:289 settings-qt/qml/pages/ScrollPage.qml:305
+msgid "SmartShift threshold"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:197
+msgid "SmartShift threshold for %1"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:49
+msgid "Smooth"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:204 settings-qt/qml/pages/ScrollPage.qml:342
+msgid "Smooth scrolling"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:211
+msgid "Smooth scrolling for %1"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:326
 msgid "Solid cards instead of frosted glass. Easier to read, lighter on the GPU."
+msgstr ""
+
+#: settings-qt/qml/components/KeyRecorder.qml:121
+msgid "Special key"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:460
+msgid "Speed"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:47
+msgid "Spins freely, no clicks"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:541 settings-qt/qml/pages/SettingsPage.qml:551
@@ -754,12 +2856,80 @@ msgstr ""
 msgid "Start at login"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2947
+#: settings-qt/qml/pages/ButtonsPage.qml:962
+msgid "Start from"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:331
+msgid "Start it"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:326
+msgid "Start service"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3418
+msgid "Start the JuhRadial MX service to record a macro."
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:266
+msgid "Start the background service to control this mouse."
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:198
+msgid "Start the service"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:36
+msgid "Starting…"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5034
 msgid "Starts at login with {path}"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:426
 msgid "Startup"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:36
+msgid "Status not available yet"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:482
+msgid "Stay on for"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:174
+msgid "Step %1: %2"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:305
+msgid "Steps"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:462
+msgid "Steps per notch"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:204 settings-qt/qml/pages/MacrosPage.qml:347
+msgid "Stop"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:140 settings-qt/qml/pages/HapticsPage.qml:146
+msgid "Strength"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:155 settings-qt/qml/pages/HapticsPage.qml:169
+msgid "Style"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:840
+msgid "Submenu slice"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:386
+msgid "Suggest profiles for new apps"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:273
@@ -770,43 +2940,269 @@ msgstr ""
 msgid "Support JuhRadial MX"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2966
+#: settings-qt/qml/pages/ScrollPage.qml:451
+msgid "Swaps up and down for Volume and Zoom"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:139
+msgid "Switch"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:155
+msgid "Switch on what this app changes. Anything left off follows your global settings."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:177 settings-qt/qml/pages/EasySwitchPage.qml:161
+msgid "Switch to %1"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5053
 msgid "System default"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2865
+#: settings-qt/bridge/backend.py:4952
 msgid "System information copied"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:563
+msgid "THUMB SIDE"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:538
+msgid "TOP"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:327
+msgid "Templates"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:419
+msgid "Test"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:326
+msgid "Text"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:414
+msgid "Text only, and only with computers you approved"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:280 settings-qt/qml/components/MacroEditor.qml:281
+msgid "Text to type"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4528
+msgid "That custom action cannot run: check the shortcut, link or command."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3690
+msgid "That file is not a JuhRadial MX macro."
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:343
+msgid "The Easy-Switch channel the mouse uses for this computer"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:320
+msgid "The JuhRadial MX service is not running. Changes are saved and apply when it starts."
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3013
+msgid "The JuhRadial service is not running"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:37
+msgid "The JuhRadial service is not running. Changes are saved and applied when it starts."
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:747
+msgid "The Logitech tabs disappear until you turn this off again, and the radial menu opens with the button you pick below."
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:180
+msgid "The active preset applies while gaming mode is on. A button set to DPI cycle steps through them"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:59
+msgid "The background service is not running"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1780
+msgid "The background service is not running."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3643
+msgid "The bound button starts it, the next press stops it."
 msgstr ""
 
 #: settings-qt/qml/components/AppPicker.qml:135
 msgid "The desktop menu database is empty or unreadable."
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2941
+#: settings-qt/qml/pages/AppsPage.qml:387
+msgid "The first time you use an app without a profile, Settings offers one. Each app is asked about once"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1954
+msgid "The keyboard"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2597
+msgid "The keyboard did not answer. Press a key to wake it, then try again."
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:511
+msgid "The keyboard is asleep. Press any key, then Check again above to read its backlight."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5028
 msgid "The login entry is missing."
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2946
+#: settings-qt/bridge/backend.py:5033
 msgid "The login entry points at a program that is gone."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:786
+msgid "The look of the ring. Separate from the app theme: your eight actions never move."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3397
+msgid "The macro could not be saved. Is the JuhRadial MX service running?"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2053
+msgid "The mouse did not accept this change."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3225
+msgid "The mouse did not switch. Is it awake, and is that computer paired?"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:39
+msgid "The mouse is asleep. Changes are saved and sent when it wakes up."
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:40
+msgid "The mouse is on another computer. Changes are saved and sent when it comes back."
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:156
+msgid "The mouse leaves this computer. To come back, press the button under the mouse until light %1 is on."
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:67
+msgid "The mouse remembers up to %n computer. Its Easy-Switch button, or Switch here, moves it between them"
+msgid_plural "The mouse remembers up to %n computers. Its Easy-Switch button, or Switch here, moves it between them"
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/pages/FlowPage.qml:357
+msgid "The mouse switches to this channel when the cursor crosses over"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:374
 msgid "The new language is used after a restart."
 msgstr ""
 
+#: settings-qt/qml/pages/FlowPage.qml:354 settings-qt/qml/pages/FlowPage.qml:360
+msgid "The other computer's channel"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:221
+msgid "The pressure panel under your thumb"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1782
+msgid "The radial menu is not running."
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:304
+msgid "The ring stays hidden so a stray press never covers the game"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:304
+msgid "The ring still opens in games"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:243
+msgid "The same ring as everywhere"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1788
+msgid "The service cannot reach the mouse. Check that your user is in the input group."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1785
+msgid "The service is {daemon} and this app is {app}: reinstall so they match."
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:285
+msgid "The shortest time between two slice pulses when you sweep across the ring"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:431
+msgid "The side wheel under your thumb"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:407
 msgid "The slices already match %1"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:213
+msgid "The stops are where a button set to DPI cycle goes next."
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:309
+msgid "The surface of the Classic ring and its menus. Light rings suit light desktops."
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:274
 msgid "Theme"
 msgstr ""
 
+#: settings-qt/qml/pages/ThemesPage.qml:41
+msgid "Theme: %1"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:66
 msgid "Themes"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2482
+#: settings-qt/bridge/backend.py:2860
+msgid "There is already a profile for {app}"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:298
+msgid "These apply while gaming mode is on"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:610
+msgid "This app"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:243
+msgid "This app has its own slices"
+msgstr ""
+
+#: settings-qt/qml/components/MacroBindDialog.qml:149
+msgid "This button is remapped on the Buttons tab, and a remap wins over a macro. Reset it so the macro runs."
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:314
+msgid "This computer"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:340 settings-qt/qml/pages/FlowPage.qml:346
+msgid "This computer's channel"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:181 settings-qt/qml/pages/EasySwitchPage.qml:185
+msgid "This computer's name"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4177
 msgid "This is not a JuhRadial MX backup."
 msgstr ""
 
@@ -814,8 +3210,80 @@ msgstr ""
 msgid "This list"
 msgstr ""
 
-#: settings-qt/qml/components/MacroEditor.qml:133
-msgid "This macro has no steps yet. Add a delay or some text below, or re-record it."
+#: settings-qt/bridge/backend.py:3802
+msgid "This mouse follows your global settings again"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:198
+msgid "This mouse has a fixed DPI"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:135
+msgid "This mouse has no haptic motor"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:343
+msgid "This mouse has no high-resolution wheel"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:217
+msgid "This mouse is not a supported Logitech model, so it runs as a standard mouse."
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:256
+msgid "This mouse is running in generic mode, which has no computer slots."
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:694
+msgid "This mouse loses its own settings and uses your global ones."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4373
+msgid "This mouse only"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:324
+msgid "This mouse's wheel cannot be reversed here"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:364
+msgid "Three things worth trying first. This card goes away when you are done."
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:50 settings-qt/qml/pages/AppsPage.qml:223 settings-qt/qml/pages/ButtonsPage.qml:80 settings-qt/qml/pages/ButtonsPage.qml:93 settings-qt/qml/pages/ButtonsPage.qml:103 settings-qt/qml/pages/DevicesPage.qml:630 settings-qt/qml/pages/ScrollPage.qml:430
+msgid "Thumb wheel"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:441
+msgid "Thumb wheel action"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:202
+msgid "Thumb wheel does"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:230
+msgid "Thumb wheel for %1"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:87
+msgid "Thumb wheel settings reset"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:271
+msgid "Tick rate, duplicate pulses, and quiet in games or chosen apps"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:380
+msgid "Times"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:341 settings-qt/qml/components/MacroEditor.qml:348
+msgid "Timing"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:324
+msgid "Troubleshoot"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:527
@@ -826,23 +3294,157 @@ msgstr ""
 msgid "Try another name, or the command it runs."
 msgstr ""
 
-#: settings-qt/qml/components/SliceEditor.qml:114
-msgid "URL"
+#: settings-qt/qml/components/ActionPicker.qml:204
+msgid "Try another word."
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:508
+msgid "Try it: roll the thumb wheel here"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:411
+msgid "Try it: scroll here"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:384
+msgid "Try scrolling here"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:481
+msgid "Try the thumb wheel here"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:115
+msgid "Turn away"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:117
+msgid "Turn it on here, from the tray menu, with a button set to Gaming mode, or automatically below."
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:397
+msgid "Turn on"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:559
+msgid "Turn on MX Keys S support first"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:137
+msgid "Turn on automatically"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:196
+msgid "Turn on keyboard support on the Devices tab first"
+msgstr ""
+
+#: settings-qt/qml/components/DpiControl.qml:82
+msgid "Type a DPI, then press Enter"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:88
+msgid "Type text"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:241
+msgid "Type your sequence now, then press Stop."
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:88
+msgid "Type “%1”"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:59
+msgid "USB"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:24
+msgid "USB cable"
+msgstr ""
+
+#: settings-qt/qml/components/MacroBindDialog.qml:159
+msgid "Unbind"
 msgstr ""
 
 #: settings-qt/qml/Main.qml:22
 msgid "Undo"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2097
+#: settings-qt/bridge/backend.py:3740
 msgid "Undo failed: {error}"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:58 settings-qt/qml/pages/DevicesPage.qml:23
+msgid "Unifying receiver"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:594 settings-qt/qml/pages/DevicesPage.qml:599
+msgid "Unit ID"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:425
+msgid "Unknown"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:99
+msgid "Unnamed computer"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:398
+msgid "Untitled macro"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:832
+msgid "Up to four links or applications under a submenu slice. Brand sites keep their logo, other links show a globe."
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:63
+msgid "Updated %n minute ago"
+msgid_plural "Updated %n minutes ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:62
+msgid "Updated just now"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:752
+msgid "Use generic mode"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:809
 msgid "Use the %1 apps?"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2779
+#: settings-qt/qml/pages/ScrollPage.qml:336
+msgid "Use the desktop's setting"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:435 settings-qt/qml/pages/FlowPage.qml:439
+msgid "Use the whole edge"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:725
+msgid "Use this mouse as a standard mouse. Easy-Switch, Haptics, Gaming and Flow are hidden"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:461
+msgid "Used by Volume and Zoom"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:291
+msgid "Used in SmartShift mode only"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:297
+msgid "Uses your accent"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:322
+msgid "Usual"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4713
 msgid "Version {version} is available."
 msgstr ""
 
@@ -850,8 +3452,72 @@ msgstr ""
 msgid "Versions, links and credits"
 msgstr ""
 
+#: settings-qt/qml/components/MacroBindDialog.qml:101
+msgid "Waiting for a button…"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:38 settings-qt/qml/pages/FlowPage.qml:83
+msgid "Waiting for your approval"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:310
 msgid "Wallpapers and wheel skins in Themes"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:106
+msgid "Wants to use Flow with this computer%1. Code %2"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:535 settings-qt/qml/pages/DevicesPage.qml:539
+msgid "Warn me at"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:81
+msgid "What %1 does when you press it"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:191
+msgid "What pulses, and how each one feels. Rest on a pattern in the list to feel it"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:438
+msgid "What rolling the thumb wheel does"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:582
+msgid "What to include when you report a problem"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:192
+msgid "What's new"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:76 settings-qt/qml/pages/ButtonsPage.qml:88 settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:3650
+msgid "Wheel click"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:416 settings-qt/qml/pages/ScrollPage.qml:267 settings-qt/qml/pages/ScrollPage.qml:278
+msgid "Wheel mode"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:181
+msgid "Wheel mode for %1"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:783 settings-qt/qml/pages/ThemesPage.qml:259
+msgid "Wheel skin"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:49
+msgid "Wheel skin changed"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:143
+msgid "When Feral GameMode runs a game"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:536
+msgid "When a device on battery drops to this level"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:451
@@ -862,16 +3528,96 @@ msgstr ""
 msgid "When something does not respond"
 msgstr ""
 
+#: settings-qt/qml/pages/EasySwitchPage.qml:195
+msgid "When the mouse switches, your MX Keys follows to the same computer, matched by name. If the keyboard is asleep it follows when you next touch it"
+msgstr ""
+
+#: settings-qt/qml/pages/GamingPage.qml:155
+msgid "When these apps are in front"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:292
+msgid "Where is the other computer"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:761
+msgid "Which button opens the radial menu on this mouse"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:222
+msgid "While a button set to Precision DPI is held"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3642
+msgid "While held"
+msgstr ""
+
+#: settings-qt/qml/pages/DevicesPage.qml:496
+msgid "While the keyboard charges over USB"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:269
 msgid "Window"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2781
+#: settings-qt/qml/pages/AppsPage.qml:355
+msgid "Window class"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:42
+msgid "Windows"
+msgstr ""
+
+#: settings-qt/qml/pages/FlowPage.qml:328
+msgid "With several screens, the one whose edge leads to the other computer"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4715
 msgid "You have the latest version."
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:404
+msgid "You have unsaved changes."
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:335
 msgid "Your desktop asks for less animation, so it is already on."
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:131
+msgid "Your desktop does not report an accent colour"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3038
+msgid "Your desktop does not tell JuhRadial which window is in front"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:341
+msgid "Your desktop does not tell JuhRadial which window is in front, so profiles cannot switch here. On GNOME Wayland this needs the JuhRadial GNOME extension."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:535
+msgid "Your desktop has no acceleration setting JuhRadial can change"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:522
+msgid "Your desktop has no scroll speed setting JuhRadial can change"
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:335
+msgid "Your desktop reverses scrolling too, so the two cancel out and the wheel scrolls the usual way."
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:320
+msgid "Your macros"
+msgstr ""
+
+#: settings-qt/qml/pages/HapticsPage.qml:156
+msgid "Your own mix of patterns. Pick a style to start over"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:800
+msgid "Your own size, set in Settings"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:95
@@ -882,30 +3628,158 @@ msgstr ""
 msgid "Zip archive (*.zip)"
 msgstr ""
 
+#: settings-qt/qml/pages/FlowPage.qml:37
+msgid "a computer"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:770
+msgid "actions"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:776
 msgid "app profiles"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:2527
+#: settings-qt/qml/components/MacroEditor.qml:96
+msgid "back"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4222
 msgid "built-in emoji picker"
 msgstr ""
 
-#: settings-qt/qml/components/MacroEditor.qml:192
-msgid "ms"
+#: settings-qt/qml/pages/ThemesPage.qml:237
+msgid "classic"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:770
+msgid "click to edit"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:99
+msgid "down"
+msgstr ""
+
+#: settings-qt/qml/pages/EasySwitchPage.qml:216
+msgid "empty"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:143
+msgid "for example: konsole -e htop"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:96
+msgid "forward"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:69
+msgid "haptics"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:250
+msgid "held %1 ms"
+msgstr ""
+
+#: settings-qt/qml/pages/DashboardPage.qml:287
+msgid "last reading"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:95 settings-qt/qml/components/MacroEditor.qml:99
+msgid "left"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:237
+msgid "line"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:95
+msgid "middle"
+msgstr ""
+
+#: settings-qt/qml/pages/ThemesPage.qml:237
+msgid "mono"
 msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:820
 msgid "nothing"
 msgstr ""
 
+#: settings-qt/qml/pages/EasySwitchPage.qml:182
+msgid "nothing yet"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:66
+msgid "on / off"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:95 settings-qt/qml/components/MacroEditor.qml:99
+msgid "right"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:775
 msgid "settings"
 msgstr ""
 
-#: settings-qt/qml/components/MacroEditor.qml:207
-msgid "text to type"
+#: settings-qt/qml/pages/ButtonsPage.qml:760
+msgid "swap"
 msgstr ""
 
-#: settings-qt/bridge/backend.py:1341
+#: settings-qt/qml/pages/DashboardPage.qml:71
+msgid "thumb wheel"
+msgstr ""
+
+#: settings-qt/qml/components/MacroEditor.qml:99
+msgid "up"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:65
+msgid "while held"
+msgstr ""
+
+#: settings-qt/qml/pages/AppsPage.qml:354
+msgid "window class"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1962
 msgid "{device} is at {percent}%. Time to recharge."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4841
+msgid "{name} can now use Flow with this computer"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3633
+msgid "{name} copy"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3571
+msgid "{name} is no longer bound to that button"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4846
+msgid "{name} was turned away"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2628
+msgid "{n} minutes"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2627
+msgid "{n} seconds"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3808
+msgid "{what} copied"
+msgstr ""
+
+#: settings-qt/qml/pages/MacrosPage.qml:72
+msgid "“%1” deleted"
+msgstr ""
+
+#: settings-qt/qml/components/MacroBindDialog.qml:132
+msgid "“%1” uses this button now and will be unbound: one button runs one macro."
+msgstr ""
+
+#: settings-qt/qml/pages/ScrollPage.qml:372
+msgid "≈ %1 lines"
 msgstr ""

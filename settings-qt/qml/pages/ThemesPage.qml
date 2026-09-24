@@ -15,9 +15,10 @@ Item {
     // "" (fresh install) and "none" both mean the Classic ring.
     readonly property string wheelKey: {
         page.bump
-        var k = Backend.get("radial.wheel", "")
-        return (k === "" || k === "none") ? "none" : k
+        return Backend.wheelSkin
     }
+    // The palette behind the Classic Light skin (0.4.4's white classic ring).
+    readonly property string lightClassic: "github-light"
     readonly property string palette: (bump, Backend.get("theme", "phosphor"))
     readonly property var geo: (bump, Backend.ringGeometry())
     readonly property var palettes: Backend.ringPalettes()
@@ -43,10 +44,13 @@ Item {
         })
     }
     function setSkin(key) {
-        var before = Backend.get("radial.wheel", "")
+        var before = Backend.get("radial.wheel", ""), beforeTheme = page.palette
         if (key === page.wheelKey) return
-        Backend.set("radial.wheel", key)
-        Window.window.undoToast(qsTr("Wheel skin changed"), function () { Backend.set("radial.wheel", before) })
+        Backend.setWheelSkin(key)
+        Window.window.undoToast(qsTr("Wheel skin changed"), function () {
+            Backend.set("radial.wheel", before)
+            Backend.set("theme", beforeTheme)
+        })
     }
     function setPalette(key) {
         var before = page.palette
@@ -269,7 +273,12 @@ Item {
                                         name: modelData.name
                                         width: 120; height: 146
                                         onChosen: page.setSkin(modelData.key)
-                                        onHoveredChanged: page.hoverSkin = hovered ? modelData.key : (page.hoverSkin === modelData.key ? "" : page.hoverSkin)
+                                        onHoveredChanged: {
+                                            var key = modelData.key === "classic-light" ? "none" : modelData.key
+                                            page.hoverSkin = hovered ? key : (page.hoverSkin === key ? "" : page.hoverSkin)
+                                            if (modelData.key === "classic-light")
+                                                page.hoverPalette = hovered ? page.lightClassic : (page.hoverPalette === page.lightClassic ? "" : page.hoverPalette)
+                                        }
                                         Rectangle {
                                             anchors.fill: parent; radius: 14
                                             color: sk.sel ? Theme.accentSubtle : "#0CFFFFFF"
@@ -285,7 +294,12 @@ Item {
                                                         source: modelData.image; sourceSize.width: 176; sourceSize.height: 176
                                                         smooth: true; asynchronous: true
                                                     }
-                                                    ClassicWheel { anchors.centerIn: parent; visible: modelData.image === ""; size: 88 }
+                                                    ClassicWheel {
+                                                        anchors.centerIn: parent; visible: modelData.image === ""; size: 88
+                                                        fill: modelData.light ? "#FFFFFF" : "#1B1F28"
+                                                        hi: modelData.light ? "#EEF1F4" : "#2A303C"
+                                                        stroke: modelData.light ? "#D8DEE4" : "#38FFFFFF"
+                                                    }
                                                 }
                                                 Text {
                                                     anchors.horizontalCenter: parent.horizontalCenter

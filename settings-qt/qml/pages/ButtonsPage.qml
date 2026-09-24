@@ -789,8 +789,8 @@ Item {
                             }
                             WheelPicker {
                                 Layout.fillWidth: true
-                                current: page.wheelKey
-                                onSelected: (key) => { page.wheelKey = key; Backend.set("radial.wheel", key) }
+                                current: Backend.wheelSkin
+                                onSelected: (key) => { Backend.setWheelSkin(key); page.wheelKey = Backend.get("radial.wheel", "") || "none" }
                             }
                             SettingRow {
                                 Layout.fillWidth: true

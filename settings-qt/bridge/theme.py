@@ -353,7 +353,10 @@ class Theme(QObject):
     def wheelList(self):
         # "Classic" is the overlay's own vector ring (radial.wheel = "none"),
         # the 0.4.4 default; it has no image, the QML draws its preview.
-        out = [{"name": "Classic", "key": "none", "image": ""}]
+        # "Classic Light" is the same ring on the white GitHub Light surface:
+        # 0.4.4's light classic ring, offered as a skin (ThemesPage.setSkin).
+        out = [{"name": "Classic", "key": "none", "image": ""},
+               {"name": "Classic Light", "key": "classic-light", "image": "", "light": True}]
         for name, key in WHEELS:
             p = ASSETS / "wheels" / f"wheel_{key}.png"
             out.append({"name": name, "key": key,

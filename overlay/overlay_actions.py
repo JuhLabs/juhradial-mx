@@ -176,6 +176,7 @@ def load_radial_image():
         for path in (
             os.path.join(here, "..", "settings-qt", "assets", "wheels", fname),
             os.path.join(here, "..", "assets", "wheels", fname),
+            os.path.join(here, "assets", "wheels", fname),  # flat install (--user too)
             os.path.join("/usr/share/juhradial/assets/wheels", fname),
         ):
             if not os.path.exists(path):
@@ -215,6 +216,7 @@ def load_radial_image():
         os.path.join(
             os.path.dirname(__file__), "..", "assets", "radial-wheels", image_name
         ),
+        os.path.join(os.path.dirname(__file__), "assets", "radial-wheels", image_name),
         os.path.join("/usr/share/juhradial/assets/radial-wheels", image_name),
     ]
 
@@ -679,7 +681,9 @@ def _get_assets_dir():
 
 
 def _svg_to_pixmap(path, size=64):
-    """Pre-render SVG to QPixmap at fixed size (avoids huge buffer allocations)."""
+    """Pre-render SVG to QPixmap at fixed size (avoids huge buffer allocations),
+    centred with its aspect ratio kept (the Apple glyph is 814 x 1000)."""
+    from PyQt6.QtCore import QRectF
     from PyQt6.QtGui import QPixmap, QPainter, QImage
     renderer = QSvgRenderer(path)
     if not renderer.isValid():
@@ -687,9 +691,34 @@ def _svg_to_pixmap(path, size=64):
     img = QImage(size, size, QImage.Format.Format_ARGB32_Premultiplied)
     img.fill(0)
     p = QPainter(img)
-    renderer.render(p)
+    box = renderer.viewBoxF()
+    scale = size / max(box.width(), box.height(), 1e-6)
+    w, h = box.width() * scale, box.height() * scale
+    renderer.render(p, QRectF((size - w) / 2, (size - h) / 2, w, h))
     p.end()
     return QPixmap.fromImage(img)
+
+
+# Single-colour OS glyphs: painted in the ring's icon colour (white on dark
+# rings, dark on the light ones) instead of the SVG's black.
+MONO_OS_ICONS = {"os_macos", "os_ios", "os_unknown"}
+# Icons that are a full disc of their own and fill the whole submenu circle.
+DISC_OS_ICONS = {"os_linux"}
+_TINTED = {}
+
+
+def tinted_icon(name, pixmap, color):
+    """`pixmap` in `color` (alpha kept), cached per icon and colour."""
+    from PyQt6.QtGui import QPainter
+    key = (name, color.rgba())
+    if key not in _TINTED:
+        out = pixmap.copy()
+        p = QPainter(out)
+        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+        p.fillRect(out.rect(), color)
+        p.end()
+        _TINTED[key] = out
+    return _TINTED[key]
 
 
 def _is_user_icon_path(path):
@@ -769,7 +798,7 @@ def load_os_icons():
     for name, filename in icon_files.items():
         path = os.path.join(assets_dir, filename)
         if os.path.exists(path):
-            pixmap = _svg_to_pixmap(path)
+            pixmap = _svg_to_pixmap(path, 128)
             if pixmap:
                 OS_ICONS[name] = pixmap
                 print(f"Loaded OS icon: {name}")
@@ -811,6 +840,7 @@ def _settings_qt_script():
     here = os.path.dirname(os.path.abspath(__file__))
     for candidate in (
         os.path.join(here, "..", "settings-qt", "main.py"),
+        os.path.join(here, "settings-qt", "main.py"),  # flat install (--user too)
         "/usr/share/juhradial/settings-qt/main.py",
     ):
         if os.path.exists(candidate):

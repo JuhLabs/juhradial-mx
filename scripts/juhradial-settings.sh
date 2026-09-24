@@ -9,6 +9,8 @@
 # config.json. Set JUHRADIAL_SETTINGS=gtk to force GTK.
 
 here="$(cd "$(dirname "$0")" && pwd)"
+# install.sh --user puts the app under the user's data dir (#138).
+user_share="${XDG_DATA_HOME:-$HOME/.local/share}/juhradial"
 
 qt_ok() {
     python3 - <<'PY' 2>/dev/null
@@ -31,7 +33,7 @@ PY
 }
 
 if [ "${JUHRADIAL_SETTINGS:-}" != "gtk" ] && qt_ok; then
-    for qt_main in /usr/share/juhradial/settings-qt/main.py "$here/settings-qt/main.py" "$here/../settings-qt/main.py"; do
+    for qt_main in /usr/share/juhradial/settings-qt/main.py "$user_share/settings-qt/main.py" "$here/settings-qt/main.py" "$here/../settings-qt/main.py"; do
         if [ -f "$qt_main" ]; then
             exec python3 "$qt_main" "$@"
         fi
@@ -48,6 +50,8 @@ if ! adw_ok; then
 fi
 if [ -f /usr/share/juhradial/settings_dashboard.py ]; then
     exec python3 /usr/share/juhradial/settings_dashboard.py "$@"
+elif [ -f "$user_share/settings_dashboard.py" ]; then
+    exec python3 "$user_share/settings_dashboard.py" "$@"
 elif [ -f "$here/overlay/settings_dashboard.py" ]; then
     exec python3 "$here/overlay/settings_dashboard.py" "$@"
 elif [ -f "$here/../overlay/settings_dashboard.py" ]; then

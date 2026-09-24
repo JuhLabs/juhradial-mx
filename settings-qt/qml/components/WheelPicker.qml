@@ -73,7 +73,12 @@ Flickable {
                             sourceSize.width: 144; sourceSize.height: 144
                             smooth: true
                         }
-                        ClassicWheel { anchors.fill: parent; visible: modelData.image === ""; size: 72 }
+                        ClassicWheel {
+                            anchors.fill: parent; visible: modelData.image === ""; size: 72
+                            fill: modelData.light ? "#FFFFFF" : "#1B1F28"
+                            hi: modelData.light ? "#EEF1F4" : "#2A303C"
+                            stroke: modelData.light ? "#D8DEE4" : "#38FFFFFF"
+                        }
                     }
                     Text {
                         text: modelData.name

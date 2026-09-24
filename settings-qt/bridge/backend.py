@@ -364,9 +364,11 @@ RING_PALETTES = [
     ("3d-crystal", "Golden Classic (3D)", False, "#181614", "#38322a", "radialwheel5.png", "#d0c8a8"),
 ]
 # Where the overlay looks for the 3D images: the checkout / /usr/share/juhradial
-# (settings-qt's parent), then the /opt app dir.
+# (settings-qt's parent), then the /opt app dir, then a user-mode install.
 RADIAL_WHEEL_DIRS = [pathlib.Path(__file__).resolve().parents[2] / "assets" / "radial-wheels",
-                     pathlib.Path("/opt/juhradial-mx/assets/radial-wheels")]
+                     pathlib.Path("/opt/juhradial-mx/assets/radial-wheels"),
+                     pathlib.Path(os.environ.get("XDG_DATA_HOME") or pathlib.Path.home() / ".local/share")
+                     / "juhradial-mx" / "assets" / "radial-wheels"]
 
 
 def _radial_wheel_uri(name):
@@ -4043,7 +4045,7 @@ class Backend(QObject):
     @staticmethod
     def _installed_launcher():
         for c in (shutil.which("juhradial-mx"), "/usr/local/bin/juhradial-mx",
-                  "/usr/bin/juhradial-mx"):
+                  "/usr/bin/juhradial-mx", str(pathlib.Path.home() / ".local/bin/juhradial-mx")):
             if c and os.path.exists(c):
                 return c
         return None
@@ -4104,7 +4106,7 @@ class Backend(QObject):
         dev = (pathlib.Path(__file__).resolve().parents[2]
                / "daemon" / "target" / "release" / "juhradiald")
         for c in (shutil.which("juhradiald"), "/usr/local/bin/juhradiald",
-                  "/usr/bin/juhradiald", str(dev)):
+                  "/usr/bin/juhradiald", str(pathlib.Path.home() / ".local/bin/juhradiald"), str(dev)):
             if c and os.path.isfile(c) and os.access(c, os.X_OK):
                 return c
         return None
@@ -4624,6 +4626,28 @@ class Backend(QObject):
     @pyqtSlot(result="QVariant")
     def hapticPatterns(self):
         return [{"id": i, "name": _(n), "desc": _(d), "beats": b} for (i, n, d, b) in HAPTIC_PATTERNS]
+
+    # "Classic Light" (Themes, Buttons): the Classic ring on the white GitHub
+    # Light surface, the light classic ring 0.4.4 offered.
+    LIGHT_CLASSIC = "github-light"
+
+    @pyqtProperty(str, notify=configChanged)
+    def wheelSkin(self):
+        """The skin a picker shows as chosen: a wheel key, "none" or "classic-light"."""
+        k = self.get("radial.wheel", "") or "none"
+        if k != "none":
+            return k
+        return "classic-light" if self.get("theme", "phosphor") == self.LIGHT_CLASSIC else "none"
+
+    @pyqtSlot(str)
+    def setWheelSkin(self, key):
+        if key == "classic-light":
+            self.set("radial.wheel", "none")
+            self.set("theme", self.LIGHT_CLASSIC)
+            return
+        if key == "none" and self.get("theme", "phosphor") == self.LIGHT_CLASSIC:
+            self.set("theme", "phosphor")  # back to the dark Classic surface
+        self.set("radial.wheel", key)
 
     @pyqtSlot(result="QVariant")
     def ringPalettes(self):

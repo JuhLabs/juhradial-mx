@@ -671,6 +671,7 @@ class SettingsPage(Gtk.ScrolledWindow):
         candidates += [
             Path("/usr/local/bin/juhradial-mx"),  # curl installer
             Path("/usr/bin/juhradial-mx"),        # Arch / RPM packages
+            Path.home() / ".local/bin/juhradial-mx",  # install.sh --user
         ]
         return next((p for p in candidates if p.exists()), candidates[0])
 
@@ -719,6 +720,7 @@ class SettingsPage(Gtk.ScrolledWindow):
                     for p in (
                         Path("/usr/local/bin/juhradial-mx"),
                         Path("/usr/bin/juhradial-mx"),
+                        Path.home() / ".local/bin/juhradial-mx",
                     )
                     if p.exists()
                 ),

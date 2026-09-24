@@ -185,3 +185,13 @@ def test_diagnostics_carry_firmware_keyboard_and_journal(backend, monkeypatch):
 def test_generic_trigger_names_are_plain_words(backend):
     names = [o["name"] for o in backend.genericTriggerOptions()]
     assert names and not any("BTN_" in n for n in names)
+
+
+def test_classic_light_skin_is_the_classic_ring_on_the_white_surface(backend):
+    backend.setWheelSkin("classic-light")
+    assert backend.get("radial.wheel") == "none" and backend.get("theme") == "github-light"
+    assert backend.wheelSkin == "classic-light"
+    backend.setWheelSkin("none")
+    assert backend.get("theme") == "phosphor" and backend.wheelSkin == "none"
+    backend.setWheelSkin("chrome")
+    assert backend.wheelSkin == "chrome"

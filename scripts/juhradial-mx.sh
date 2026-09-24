@@ -7,13 +7,15 @@
 # main(), guarded by the BASH_SOURCE==$0 check at the bottom.
 
 # Locate the project tree (the one holding the overlay) from the launcher dir.
-# Works for a dev checkout (<repo>/scripts/..), an installed flat layout, and
-# the system install locations.
+# Works for a dev checkout (<repo>/scripts/..), an installed flat layout, a
+# user-mode install (install.sh --user: ~/.local/share/juhradial) and the
+# system install locations.
 resolve_project_root() {
-    local script_dir="$1" candidate
+    local script_dir="$1" candidate data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
     for candidate in \
         "$script_dir/.." \
         "$script_dir" \
+        "$data_home/juhradial" \
         /usr/share/juhradial \
         /opt/juhradial-mx; do
         candidate="$(cd "$candidate" 2>/dev/null && pwd || true)"
@@ -47,8 +49,9 @@ resolve_daemon() {
     local root="$1"
     local local_bin="${2:-/usr/local/bin/juhradiald}"
     local system_bin="${3:-/usr/bin/juhradiald}"
+    local user_bin="${4:-$HOME/.local/bin/juhradiald}"
     local candidate
-    for candidate in "$local_bin" "$system_bin" "$root/daemon/target/release/juhradiald"; do
+    for candidate in "$local_bin" "$system_bin" "$user_bin" "$root/daemon/target/release/juhradiald"; do
         if [ -x "$candidate" ]; then
             printf '%s\n' "$candidate"
             return 0

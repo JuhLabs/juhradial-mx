@@ -677,7 +677,10 @@ class RadialMenuPaintingMixin:
         if icon_id in all_icons:
             icon_size = size * 1.4
             icon_rect = QRectF(cx - icon_size / 2, cy - icon_size / 2, icon_size, icon_size)
-            p.drawPixmap(icon_rect.toRect(), all_icons[icon_id])
+            icon = all_icons[icon_id]
+            if icon_id in overlay_actions.MONO_OS_ICONS:
+                icon = overlay_actions.tinted_icon(icon_id, icon, QColor(color))
+            p.drawPixmap(icon_rect.toRect(), icon)
             return
         self._draw_icon(p, cx, cy, icon_id, size, color)
 
@@ -1266,11 +1269,15 @@ class RadialMenuPaintingMixin:
                 **overlay_actions.USER_ICONS,
             }
             if icon_name in all_icons:
-                icon_size = scaled_radius * 1.4
+                disc = icon_name in overlay_actions.DISC_OS_ICONS
+                icon_size = scaled_radius * (2.0 if disc else 1.4)
                 icon_rect = QRectF(
                     item_x - icon_size / 2, item_y - icon_size / 2, icon_size, icon_size
                 )
                 icon = all_icons[icon_name]
+                if icon_name in overlay_actions.MONO_OS_ICONS:
+                    tint = QColor(overlay_actions.COLORS["text"]) if is_highlighted else QColor(overlay_actions.COLORS["subtext1"])
+                    icon = overlay_actions.tinted_icon(icon_name, icon, tint)
                 p.drawPixmap(icon_rect.toRect(), icon)
             else:
                 # Fallback to drawn icon
