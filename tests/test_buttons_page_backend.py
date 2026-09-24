@@ -221,6 +221,7 @@ def test_ring_shortcut_slices_run_through_the_daemon():
 def test_key_recorder_names_keys_like_the_daemon(tmp_path):
     """keys.js turns Qt key events into the daemon's chord spelling and back
     into readable text."""
+    pytest.importorskip("PyQt6.QtQml")  # the Qt settings app is not installed on every CI image
     from PyQt6.QtCore import QUrl
     from PyQt6.QtQml import QQmlComponent, QQmlEngine
     keys = (REPO / "settings-qt" / "qml" / "components" / "keys.js").as_uri()

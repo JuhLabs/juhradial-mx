@@ -23,7 +23,10 @@ gi.require_version("Gdk", "4.0")
 
 from gi.repository import Gtk, Adw, Gio, Gdk
 
-try:  # GLib 2.86 deprecated Gio's alias of GioUnix.DesktopAppInfo
+try:  # GLib 2.86 deprecated Gio's alias; older GioUnix bindings differ
+    from gi.repository import GLib
+    if (GLib.MAJOR_VERSION, GLib.MINOR_VERSION) < (2, 86):
+        raise ImportError("GioUnix.DesktopAppInfo is only preferred from GLib 2.86")
     gi.require_version("GioUnix", "2.0")
     from gi.repository import GioUnix
     DesktopAppInfo = GioUnix.DesktopAppInfo

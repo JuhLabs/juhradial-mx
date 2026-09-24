@@ -195,6 +195,7 @@ def test_bundled_glyph_wins_over_a_theme_colour_fallback(tmp_path, monkeypatch):
 
 
 def test_deleting_a_page_updates_the_visible_key_editor(backend):
+    pytest.importorskip("PyQt6.QtQml")  # the Qt settings app is not installed on every CI image
     from PyQt6.QtCore import QObject, QUrl
     from PyQt6.QtQml import QQmlComponent, QQmlEngine
     from bridge.theme import Theme

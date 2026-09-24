@@ -115,6 +115,9 @@ def test_every_bridge_call_types_its_numeric_arguments():
 
 
 class _Capture:
+    # Stands in for bridge.backend.Daemon, which the deferred _prime() also reads.
+    available = True
+
     def __init__(self):
         self.calls = []
 

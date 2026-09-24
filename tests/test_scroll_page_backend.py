@@ -71,6 +71,7 @@ def test_threshold_never_flips_the_wheel(backend):
 
 def test_dpi_readout_follows_the_mouse_after_a_drag(tmp_path):
     """The shared Slider keeps its `value` binding through drags and keys."""
+    pytest.importorskip("PyQt6.QtQml")  # the Qt settings app is not installed on every CI image
     from PyQt6.QtCore import QUrl
     from PyQt6.QtQml import QQmlComponent, QQmlEngine
     from bridge.theme import Theme

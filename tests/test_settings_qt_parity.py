@@ -425,6 +425,7 @@ def test_ring_preview_follows_config_and_hover(backend, monkeypatch):
     """The Themes/Settings ring preview re-reads the skin and ring colours
     after a save (Backend.get has no notify signal) and shows a hovered skin
     or palette in place of the saved one."""
+    pytest.importorskip("PyQt6.QtQml")  # the Qt settings app is not installed on every CI image
     from PyQt6.QtCore import QUrl
     from PyQt6.QtQml import QQmlComponent, QQmlEngine
     from bridge.theme import Theme

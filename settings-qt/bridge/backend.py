@@ -22,6 +22,7 @@ import copy
 import tempfile
 import threading
 import time
+import weakref
 import re
 
 from PyQt6.QtCore import (
@@ -600,16 +601,18 @@ _DESKTOP_APP_INFO = []
 
 
 def _desktop_app_info():
-    """GLib's DesktopAppInfo class: GioUnix's (Gio's alias is deprecated since
-    GLib 2.86), or Gio's where the GLib predates the GioUnix namespace."""
+    """GLib's DesktopAppInfo class: GioUnix's from GLib 2.86 (Gio's alias is
+    deprecated there), Gio's before (older GioUnix bindings differ)."""
     if not _DESKTOP_APP_INFO:
         import gi
+        from gi.repository import Gio, GLib
         try:
+            if (GLib.MAJOR_VERSION, GLib.MINOR_VERSION) < (2, 86):
+                raise ValueError("GioUnix.DesktopAppInfo is only preferred from GLib 2.86")
             gi.require_version("GioUnix", "2.0")
             from gi.repository import GioUnix
             _DESKTOP_APP_INFO.append(GioUnix.DesktopAppInfo)
         except (ImportError, ValueError):
-            from gi.repository import Gio
             _DESKTOP_APP_INFO.append(Gio.DesktopAppInfo)
     return _DESKTOP_APP_INFO[0]
 
@@ -1545,7 +1548,9 @@ class Backend(QObject):
         # prime device state shortly after start (daemon may be warming up)
         QTimer.singleShot(150, self._prime)
         # daily update check, off the startup path
-        QTimer.singleShot(4000, lambda: self.checkForUpdates(False))
+        # (weakly: tests make many Backends, and a dropped one must not run it)
+        ref = weakref.ref(self)
+        QTimer.singleShot(4000, lambda: (b := ref()) is not None and b.checkForUpdates(False))
         if self._load_failed:
             # deferred so the QML shell exists before the toast fires
             QTimer.singleShot(800, lambda: self.toast.emit(
