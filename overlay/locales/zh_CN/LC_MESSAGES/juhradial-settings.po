@@ -192,7 +192,7 @@ msgstr "10 秒"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "1st Unread"
-msgstr ""
+msgstr "首条未读"
 
 #: settings-qt/bridge/backend.py:3081
 msgid "2 hours"
@@ -315,6 +315,8 @@ msgid ""
 "A picture fills the whole key, label included. Otherwise the glyph or app "
 "icon sits above the label; long labels are shortened."
 msgstr ""
+"图片会填满整个按键，包括标签。否则图标或应用图标显示在标签上方；过长的标签会"
+"被缩短。"
 
 #: settings-qt/qml/pages/SettingsPage.qml:608
 msgid ""
@@ -360,7 +362,7 @@ msgstr "执行操作"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Actions"
-msgstr ""
+msgstr "操作"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:579
 #: settings-qt/qml/pages/DashboardPage.qml:461
@@ -432,7 +434,7 @@ msgstr "添加预设"
 
 #: settings-qt/qml/pages/KeypadPage.qml:282
 msgid "Add profile"
-msgstr ""
+msgstr "添加配置文件"
 
 #: settings-qt/qml/pages/KeypadPage.qml:319
 msgid "Add template"
@@ -440,7 +442,7 @@ msgstr "添加模板"
 
 #: settings-qt/qml/pages/KeypadPage.qml:282
 msgid "Added"
-msgstr ""
+msgstr "已添加"
 
 #: settings-qt/bridge/backend.py:3330
 msgid "Added profile: {app}"
@@ -448,7 +450,7 @@ msgstr "已添加配置文件：{app}"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Address"
-msgstr ""
+msgstr "地址栏"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:351
 msgid "Adjust markers"
@@ -474,7 +476,7 @@ msgstr "双手离开按键后"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Alacritty and foot"
-msgstr ""
+msgstr "Alacritty 和 foot"
 
 #: settings-qt/bridge/backend.py:401
 msgid "Alert"
@@ -482,7 +484,7 @@ msgstr "警告"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Align"
-msgstr ""
+msgstr "对齐"
 
 #: settings-qt/qml/pages/KeypadPage.qml:228 settings-qt/bridge/backend.py:4827
 msgid "All apps"
@@ -520,7 +522,7 @@ msgstr "均匀的振动"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Answer"
-msgstr ""
+msgstr "接听"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:103
 #: settings-qt/qml/pages/SettingsPage.qml:653
@@ -529,7 +531,7 @@ msgstr "应用"
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:82
 msgid "App icon"
-msgstr ""
+msgstr "应用图标"
 
 #: settings-qt/qml/Main.qml:61 settings-qt/qml/pages/AppsPage.qml:333
 #: settings-qt/qml/pages/KeypadPage.qml:269
@@ -581,7 +583,7 @@ msgstr "JuhRadial 启动后使用过的应用，点击即可添加"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Archive"
-msgstr ""
+msgstr "归档"
 
 #: settings-qt/qml/pages/GamingPage.qml:335
 msgid "As is"
@@ -647,7 +649,7 @@ msgstr "后退"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Back 10s"
-msgstr ""
+msgstr "后退 10 秒"
 
 #: settings-qt/bridge/backend.py:2962 settings-qt/bridge/backend.py:4104
 msgid "Back button"
@@ -771,7 +773,7 @@ msgstr "将“%1”绑定到按钮"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Blender"
-msgstr ""
+msgstr "Blender"
 
 #: settings-qt/qml/pages/DashboardPage.qml:59
 #: settings-qt/qml/pages/DevicesPage.qml:24
@@ -780,7 +782,7 @@ msgstr "Bluetooth"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Bold"
-msgstr ""
+msgstr "加粗"
 
 #: settings-qt/qml/pages/DashboardPage.qml:58
 #: settings-qt/qml/pages/DevicesPage.qml:23
@@ -789,7 +791,7 @@ msgstr "Bolt 接收器"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Bookmark"
-msgstr ""
+msgstr "书签"
 
 #: settings-qt/qml/pages/DevicesPage.qml:466
 msgid "Brightness"
@@ -802,15 +804,15 @@ msgstr "浏览器"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Brush"
-msgstr ""
+msgstr "画笔"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Brush +"
-msgstr ""
+msgstr "画笔 +"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Brush -"
-msgstr ""
+msgstr "画笔 -"
 
 #: settings-qt/qml/components/MacroBindDialog.qml:122
 msgid "Button"
@@ -895,11 +897,11 @@ msgstr "无法导入此文件"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Canvas"
-msgstr ""
+msgstr "画布"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Captions"
-msgstr ""
+msgstr "字幕"
 
 #: settings-qt/bridge/backend.py:358
 msgid "Catppuccin Latte"
@@ -945,13 +947,13 @@ msgstr "充电中"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Chat"
-msgstr ""
+msgstr "聊天"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "Chat and folder navigation, search, saved messages and archive for Telegram "
 "Desktop."
-msgstr ""
+msgstr "适用于 Telegram Desktop 的聊天与文件夹导航、搜索、收藏消息和归档。"
 
 #: settings-qt/qml/pages/DevicesPage.qml:199
 #: settings-qt/qml/pages/DevicesPage.qml:402
@@ -994,7 +996,7 @@ msgstr "选择宏"
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:131
 msgid "Choose a picture for this key"
-msgstr ""
+msgstr "为此按键选择图片"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:220
 msgid "Choose a plugin action"
@@ -1030,11 +1032,11 @@ msgstr "经典"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Clear"
-msgstr ""
+msgstr "清屏"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Clear Line"
-msgstr ""
+msgstr "清除行"
 
 #: settings-qt/qml/components/MacroEditor.qml:328
 msgid "Click"
@@ -1075,7 +1077,7 @@ msgstr "逐格滚动，快速拨动后自由旋转"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Clipboard, zoom and shell keys for terminals without tabs."
-msgstr ""
+msgstr "适用于无标签页终端的剪贴板、缩放和 Shell 按键。"
 
 #: settings-qt/qml/components/MacroEditor.qml:133
 msgid "Close"
@@ -1095,7 +1097,7 @@ msgstr "关闭窗口"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Code"
-msgstr ""
+msgstr "代码"
 
 #: settings-qt/qml/components/SliceEditor.qml:168
 msgid "Colour"
@@ -1117,7 +1119,7 @@ msgstr "命令"
 msgid ""
 "Command palette, terminal, editing and debugging for VS Code, VSCodium and "
 "Code - OSS."
-msgstr ""
+msgstr "适用于 VS Code、VSCodium 和 Code - OSS 的命令面板、终端、编辑和调试。"
 
 #: settings-qt/bridge/keypad.py:145
 msgid "Commands"
@@ -1125,11 +1127,11 @@ msgstr "命令"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Comment"
-msgstr ""
+msgstr "注释"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Commit"
-msgstr ""
+msgstr "提交"
 
 #: settings-qt/bridge/backend.py:402
 msgid "Complete"
@@ -1193,7 +1195,7 @@ msgstr "连接"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Contacts"
-msgstr ""
+msgstr "联系人"
 
 #: settings-qt/bridge/backend.py:4264
 msgid "Copied"
@@ -1213,7 +1215,7 @@ msgstr "复制"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Copy Path"
-msgstr ""
+msgstr "复制路径"
 
 #: settings-qt/qml/pages/DashboardPage.qml:345
 #: settings-qt/qml/pages/DevicesPage.qml:584
@@ -1247,11 +1249,11 @@ msgstr "无法备份设置，未进行重置：{error}"
 
 #: settings-qt/bridge/backend.py:1669
 msgid "Could not copy the picture: {error}"
-msgstr ""
+msgstr "无法复制图片：{error}"
 
 #: settings-qt/bridge/backend.py:1849
 msgid "Could not import the pack: {error}"
-msgstr ""
+msgstr "无法导入配置包：{error}"
 
 #: settings-qt/bridge/backend.py:5082
 msgid "Could not open the plugins folder: {error}"
@@ -1299,7 +1301,7 @@ msgstr "创建配置文件"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Crop"
-msgstr ""
+msgstr "裁剪"
 
 #: settings-qt/qml/pages/FlowPage.qml:436
 msgid "Cross anywhere along the edge, not only where the glow is"
@@ -1311,11 +1313,11 @@ msgstr "Ctrl + Shift + V，大多数应用都支持"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:184
 msgid "Ctrl+Shift+V (terminals)"
-msgstr ""
+msgstr "Ctrl+Shift+V (终端)"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:184
 msgid "Ctrl+V (apps)"
-msgstr ""
+msgstr "Ctrl+V (应用)"
 
 #: settings-qt/qml/pages/SettingsPage.qml:280
 msgid "Currently %1"
@@ -1340,15 +1342,15 @@ msgstr "自定义操作（未设置）"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Cut"
-msgstr ""
+msgstr "剪切"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Cut All"
-msgstr ""
+msgstr "全部切割"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Cut Clip"
-msgstr ""
+msgstr "切割片段"
 
 #: settings-qt/bridge/backend.py:139
 msgid "Cycle DPI Presets"
@@ -1364,7 +1366,7 @@ msgstr "DPI"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "DPI Cycle"
-msgstr ""
+msgstr "切换 DPI"
 
 #: settings-qt/bridge/backend.py:141
 msgid "DPI Down"
@@ -1412,11 +1414,11 @@ msgstr "中间不选中任何内容的死区"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Deafen"
-msgstr ""
+msgstr "关闭声音"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Debug"
-msgstr ""
+msgstr "调试"
 
 #: settings-qt/qml/pages/HapticsPage.qml:40
 msgid "Default patterns restored"
@@ -1432,7 +1434,7 @@ msgstr "默认：%1"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Definition"
-msgstr ""
+msgstr "转到定义"
 
 #: settings-qt/qml/pages/MacrosPage.qml:105
 msgid "Delete"
@@ -1444,11 +1446,11 @@ msgstr "删除页面"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Desk Left"
-msgstr ""
+msgstr "左侧桌面"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Desk Right"
-msgstr ""
+msgstr "右侧桌面"
 
 #: settings-qt/qml/pages/HapticsPage.qml:205
 msgid "Desktop"
@@ -1472,7 +1474,7 @@ msgstr "桌面"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Dev Tools"
-msgstr ""
+msgstr "开发者工具"
 
 #: settings-qt/bridge/keypad.py:144
 msgid "Dev tools"
@@ -1527,7 +1529,7 @@ msgstr "放弃"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Discord"
-msgstr ""
+msgstr "Discord"
 
 #: settings-qt/qml/pages/SettingsPage.qml:678
 msgid "Documentation"
@@ -1543,7 +1545,7 @@ msgstr "环隐藏时不执行操作"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Dolphin"
-msgstr ""
+msgstr "Dolphin"
 
 #: settings-qt/qml/components/SliceEditor.qml:193
 #: settings-qt/qml/pages/DashboardPage.qml:366
@@ -1593,11 +1595,11 @@ msgstr "向上拖动"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Draw"
-msgstr ""
+msgstr "绘图"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Dropper"
-msgstr ""
+msgstr "吸管"
 
 #: settings-qt/qml/components/MacroEditor.qml:424
 #: settings-qt/qml/pages/MacrosPage.qml:103
@@ -1642,7 +1644,7 @@ msgstr "Easy-Switch，%1 / %2"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Edit"
-msgstr ""
+msgstr "编辑"
 
 #: settings-qt/qml/pages/MacrosPage.qml:437
 msgid "Edit (Enter)"
@@ -1650,7 +1652,7 @@ msgstr "编辑 (Enter)"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Edit Mode"
-msgstr ""
+msgstr "编辑模式"
 
 #: settings-qt/qml/components/SliceEditor.qml:53
 msgid "Edit action %1"
@@ -1685,11 +1687,11 @@ msgstr "拇指即可控制八个操作。点击扇区编辑，拖到其他扇区
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Element"
-msgstr ""
+msgstr "Element"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Emoji"
-msgstr ""
+msgstr "表情"
 
 #: settings-qt/bridge/backend.py:418 settings-qt/bridge/backend.py:681
 msgid "Empty slice"
@@ -1710,7 +1712,7 @@ msgstr "Enter 编辑，F2 重命名，Ctrl+R 运行，Delete 删除"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Eraser"
-msgstr ""
+msgstr "橡皮擦"
 
 #: settings-qt/qml/pages/HapticsPage.qml:190 settings-qt/bridge/backend.py:678
 #: settings-qt/bridge/backend.py:679 settings-qt/bridge/backend.py:680
@@ -1732,11 +1734,11 @@ msgstr "日常"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Export"
-msgstr ""
+msgstr "导出"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Export As"
-msgstr ""
+msgstr "导出为"
 
 #: settings-qt/qml/pages/SettingsPage.qml:721
 msgid "Export JuhRadial MX settings"
@@ -1781,11 +1783,11 @@ msgstr "文件"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Files, Nemo and Thunar"
-msgstr ""
+msgstr "Files、Nemo 和 Thunar"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Fill"
-msgstr ""
+msgstr "填充"
 
 #: settings-qt/qml/pages/AppsPage.qml:399
 #: settings-qt/qml/pages/AppsPage.qml:400
@@ -1794,29 +1796,29 @@ msgstr "筛选配置文件"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Find"
-msgstr ""
+msgstr "查找"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Find Class"
-msgstr ""
+msgstr "查找类"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Find File"
-msgstr ""
+msgstr "查找文件"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Find Text"
-msgstr ""
+msgstr "查找文本"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "Find action, run, debug, navigation, refactoring and VCS for IntelliJ-based "
 "IDEs."
-msgstr ""
+msgstr "适用于基于 IntelliJ 的 IDE 的查找操作、运行、调试、导航、重构和 VCS。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Find/Repl"
-msgstr ""
+msgstr "查找/替换"
 
 #: settings-qt/bridge/backend.py:405
 msgid "Firework"
@@ -1840,11 +1842,11 @@ msgstr "首次使用 %1，要为它创建独立配置文件吗？"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Fit"
-msgstr ""
+msgstr "适应窗口"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Fit Page"
-msgstr ""
+msgstr "适合页面"
 
 #: settings-qt/qml/pages/DashboardPage.qml:341
 msgid "Fix"
@@ -1881,11 +1883,11 @@ msgstr "Flow 需要支持 Easy-Switch 的罗技鼠标。此鼠标以通用模式
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Folder Dn"
-msgstr ""
+msgstr "下一文件夹"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Folder Up"
-msgstr ""
+msgstr "上一文件夹"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:472
 msgid "Follow all apps"
@@ -1900,7 +1902,7 @@ msgstr "遵循“指针与滚动”"
 
 #: settings-qt/qml/pages/KeypadPage.qml:228
 msgid "For %1"
-msgstr ""
+msgstr "用于 %1"
 
 #: settings-qt/qml/pages/AppsPage.qml:348
 msgid "For apps without a menu entry, for example steam_app_730"
@@ -1933,19 +1935,21 @@ msgstr "已忘记。使用 Flow 前需要重新批准"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Format"
-msgstr ""
+msgstr "格式化"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "Formatting, save, find and replace, comments and print for ONLYOFFICE "
 "Desktop Editors."
 msgstr ""
+"适用于 ONLYOFFICE Desktop Editors 的格式设置、保存、查找和替换、批注和打印。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "Formatting, save, find and replace, comments and print preview for Writer, "
 "Calc and Impress."
 msgstr ""
+"适用于 Writer、Calc 和 Impress 的格式设置、保存、查找和替换、批注和打印预览。"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:79
 #: settings-qt/qml/pages/ButtonsPage.qml:94
@@ -1964,11 +1968,11 @@ msgstr "已找到。启用支持以查看电量和背光"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Frame All"
-msgstr ""
+msgstr "显示全部"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Frame Sel"
-msgstr ""
+msgstr "显示所选"
 
 #: settings-qt/qml/pages/DashboardPage.qml:413
 #: settings-qt/qml/pages/GamingPage.qml:336
@@ -1977,7 +1981,7 @@ msgstr "自由旋转"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Front"
-msgstr ""
+msgstr "前视图"
 
 #: settings-qt/qml/pages/SettingsPage.qml:245
 msgid "Frost what is behind the ring"
@@ -1989,15 +1993,15 @@ msgstr "已充满"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Fullscreen"
-msgstr ""
+msgstr "全屏"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Fwd 10s"
-msgstr ""
+msgstr "前进 10 秒"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "GIMP"
-msgstr ""
+msgstr "GIMP"
 
 #: settings-qt/bridge/backend.py:521
 msgid "GNOME on Wayland has no scroll speed setting"
@@ -2047,7 +2051,7 @@ msgstr "步骤间隔"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "General"
-msgstr ""
+msgstr "通用"
 
 #: settings-qt/qml/pages/DevicesPage.qml:216
 msgid "Generic mouse mode is on, so Logitech features are hidden."
@@ -2077,7 +2081,7 @@ msgstr "入门"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Git"
-msgstr ""
+msgstr "Git"
 
 #: settings-qt/qml/pages/SettingsPage.qml:679
 msgid "GitHub"
@@ -2107,19 +2111,19 @@ msgstr "命名"
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:81
 msgid "Glyph"
-msgstr ""
+msgstr "图标"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Go Back"
-msgstr ""
+msgstr "返回"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Go to Decl"
-msgstr ""
+msgstr "转到声明"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Go to Line"
-msgstr ""
+msgstr "转到行"
 
 #: settings-qt/qml/Main.qml:111
 msgid "Go to tab 1 to 10"
@@ -2131,15 +2135,15 @@ msgstr "Golden Classic (3D)"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Google Meet"
-msgstr ""
+msgstr "Google Meet"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Group"
-msgstr ""
+msgstr "组合"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Hand"
-msgstr ""
+msgstr "举手"
 
 #: settings-qt/bridge/backend.py:400
 msgid "Happy"
@@ -2189,7 +2193,7 @@ msgstr "高分辨率滚动"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Hidden"
-msgstr ""
+msgstr "隐藏文件"
 
 #: settings-qt/qml/pages/DevicesPage.qml:658
 #: settings-qt/qml/pages/HapticsPage.qml:274
@@ -2198,7 +2202,7 @@ msgstr "隐藏"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Hide Docks"
-msgstr ""
+msgstr "隐藏停靠栏"
 
 #: settings-qt/qml/pages/SettingsPage.qml:237
 msgid "Hide the ring and show only the action icons"
@@ -2210,7 +2214,7 @@ msgstr "高"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "History"
-msgstr ""
+msgstr "历史"
 
 #: settings-qt/qml/pages/GamingPage.qml:315
 msgid "Hold for the precision DPI, let go to go back"
@@ -2237,7 +2241,7 @@ msgstr "游戏时固定滚轮模式，结束后恢复常用模式"
 #: settings-qt/qml/components/CustomActionEditor.qml:197
 #: settings-qt/qml/components/CustomActionEditor.qml:199
 msgid "Hold while pressed"
-msgstr ""
+msgstr "按住时保持"
 
 #: settings-qt/bridge/backend.py:151
 msgid "Home"
@@ -2304,15 +2308,15 @@ msgstr "编写方法"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Huddle"
-msgstr ""
+msgstr "抱团"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Huddle Mic"
-msgstr ""
+msgstr "抱团麦克风"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "IDE"
-msgstr ""
+msgstr "IDE"
 
 #: settings-qt/qml/pages/EasySwitchPage.qml:126
 msgid "Icon in radial menu"
@@ -2335,11 +2339,11 @@ msgstr "图标风格"
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:63
 msgid "Image"
-msgstr ""
+msgstr "图像"
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:132
 msgid "Images (*.png *.jpg *.jpeg *.webp *.bmp *.svg)"
-msgstr ""
+msgstr "图像 (*.png *.jpg *.jpeg *.webp *.bmp *.svg)"
 
 #: settings-qt/qml/pages/SettingsPage.qml:795
 msgid "Import"
@@ -2351,7 +2355,7 @@ msgstr "导入 JuhRadial MX 设置"
 
 #: settings-qt/qml/pages/KeypadPage.qml:342
 msgid "Import a keypad pack"
-msgstr ""
+msgstr "导入按键面板配置包"
 
 #: settings-qt/bridge/backend.py:4655
 msgid "Import failed: {error}"
@@ -2359,7 +2363,7 @@ msgstr "导入失败：{error}"
 
 #: settings-qt/qml/pages/KeypadPage.qml:308
 msgid "Import pack"
-msgstr ""
+msgstr "导入配置包"
 
 #: settings-qt/qml/pages/SettingsPage.qml:512 settings-qt/bridge/backend.py:765
 msgid "Import settings"
@@ -2375,7 +2379,7 @@ msgstr "导入的宏"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Imports"
-msgstr ""
+msgstr "优化导入"
 
 #: settings-qt/qml/pages/MacrosPage.qml:330
 #: settings-qt/qml/pages/SettingsPage.qml:515
@@ -2390,7 +2394,7 @@ msgstr "游戏中"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Inkscape"
-msgstr ""
+msgstr "Inkscape"
 
 #: settings-qt/qml/pages/FlowPage.qml:413
 msgid "Install %1 first: without it nothing is copied across"
@@ -2414,7 +2418,7 @@ msgstr "反转方向"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Italic"
-msgstr ""
+msgstr "斜体"
 
 #: settings-qt/qml/pages/AppsPage.qml:247
 msgid "Its own"
@@ -2422,7 +2426,7 @@ msgstr "独立"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "JetBrains IDEs"
-msgstr ""
+msgstr "JetBrains IDE"
 
 #: settings-qt/bridge/backend.py:408
 msgid "Jingle"
@@ -2447,7 +2451,7 @@ msgstr "JuhRadial 服务"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Kdenlive"
-msgstr ""
+msgstr "Kdenlive"
 
 #: settings-qt/qml/pages/SettingsPage.qml:499
 msgid "Keep a copy of your setup or move it to another machine"
@@ -2481,7 +2485,7 @@ msgstr "按键 %1：%2"
 
 #: settings-qt/qml/pages/KeypadPage.qml:197
 msgid "Key brightness"
-msgstr ""
+msgstr "按键亮度"
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:57
 msgid "Key label"
@@ -2515,7 +2519,7 @@ msgstr "键盘快捷键"
 
 #: settings-qt/qml/pages/KeypadPage.qml:343
 msgid "Keypad pack (*.zip portable.json)"
-msgstr ""
+msgstr "按键面板配置包 (*.zip portable.json)"
 
 #: settings-qt/bridge/backend.py:1622
 msgid "Keypad saved; reconnect the device to refresh its keys"
@@ -2539,7 +2543,7 @@ msgstr "敲击"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Krita"
-msgstr ""
+msgstr "Krita"
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:52
 #: settings-qt/qml/components/SliceEditor.qml:110
@@ -2566,7 +2570,7 @@ msgstr "启动行为、托盘和更新"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Layers"
-msgstr ""
+msgstr "图层"
 
 #: settings-qt/bridge/keypad.py:151 settings-qt/assets/keypad/profiles.json
 msgid "Leave"
@@ -2599,7 +2603,7 @@ msgstr "库"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "LibreOffice"
-msgstr ""
+msgstr "LibreOffice"
 
 #: settings-qt/qml/pages/SettingsPage.qml:681
 msgid "License"
@@ -2615,7 +2619,7 @@ msgstr "轻触"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Like"
-msgstr ""
+msgstr "喜欢"
 
 #: settings-qt/qml/pages/SettingsPage.qml:163
 #: settings-qt/qml/pages/ThemesPage.qml:373
@@ -2628,11 +2632,11 @@ msgstr "第 %1 行"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Line End"
-msgstr ""
+msgstr "行尾"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Line Start"
-msgstr ""
+msgstr "行首"
 
 #: settings-qt/qml/pages/AppsPage.qml:49
 msgid "Line by line"
@@ -2663,7 +2667,7 @@ msgstr "当前亮度 %1 / %2。移动滑块将切换为手动"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Location"
-msgstr ""
+msgstr "输入位置"
 
 #: settings-qt/bridge/keypad.py:134 settings-qt/assets/keypad/profiles.json
 msgid "Lock"
@@ -2806,7 +2810,7 @@ msgstr "手动：保持下方设置的亮度"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Mark Read"
-msgstr ""
+msgstr "标为已读"
 
 #: settings-qt/qml/pages/ThemesPage.qml:132 settings-qt/bridge/backend.py:741
 msgid "Match the desktop accent"
@@ -2821,7 +2825,7 @@ msgstr "媒体"
 msgid ""
 "Media, volume, screenshot, lock and desktop actions when no app profile "
 "matches."
-msgstr ""
+msgstr "没有匹配的应用配置文件时使用的媒体、音量、截图、锁定和桌面操作。"
 
 #: settings-qt/bridge/backend.py:450 settings-qt/bridge/backend.py:452
 msgid "Medium"
@@ -2829,7 +2833,7 @@ msgstr "中"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Meeting"
-msgstr ""
+msgstr "会议"
 
 #: settings-qt/bridge/backend.py:1728
 msgid "Meetings"
@@ -2845,11 +2849,11 @@ msgstr "菜单打开"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Mic"
-msgstr ""
+msgstr "麦克风"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Mic Mute"
-msgstr ""
+msgstr "麦克风静音"
 
 #: settings-qt/bridge/keypad.py:125
 msgid "Mic mute"
@@ -2860,10 +2864,11 @@ msgid ""
 "Mic, camera, raise hand, chat and people in a Google Meet tab (select "
 "manually)."
 msgstr ""
+"Google Meet 标签页中的麦克风、摄像头、举手、聊天和参会者（需手动选择）。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Microsoft Teams"
-msgstr ""
+msgstr "Microsoft Teams"
 
 #: settings-qt/bridge/backend.py:132
 msgid "Middle Click"
@@ -2875,7 +2880,7 @@ msgstr "中键点击"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Mirror"
-msgstr ""
+msgstr "镜像"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:77
 #: settings-qt/qml/pages/ButtonsPage.qml:89
@@ -2926,7 +2931,7 @@ msgstr "鼠标返回"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Move"
-msgstr ""
+msgstr "移动"
 
 #: settings-qt/qml/Main.qml:114
 msgid "Move between and use controls"
@@ -2973,7 +2978,7 @@ msgstr "音乐"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Music and video players"
-msgstr ""
+msgstr "音乐和视频播放器"
 
 #: settings-qt/bridge/backend.py:157 settings-qt/assets/keypad/profiles.json
 msgid "Mute"
@@ -2981,12 +2986,12 @@ msgstr "静音"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Mute, camera, share and raise hand in Zoom meetings."
-msgstr ""
+msgstr "Zoom 会议中的静音、摄像头、共享屏幕和举手。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "Mute, share, raise hand, answer and leave in Teams (teams-for-linux or PWA)."
-msgstr ""
+msgstr "Teams（teams-for-linux 或 PWA）中的静音、共享屏幕、举手、接听和离开。"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:860
 #: settings-qt/qml/pages/EasySwitchPage.qml:186
@@ -3003,23 +3008,26 @@ msgstr "自然滚动"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Navigate"
-msgstr ""
+msgstr "导航"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "Navigation, new folder, rename, search, hidden files and tabs for GNOME "
 "Files, Nemo and Thunar."
 msgstr ""
+"适用于 GNOME Files、Nemo 和 Thunar 的导航、新建文件夹、重命名、搜索、隐藏文件"
+"和标签页。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "Navigation, new folder, rename, split view, terminal and path copy for KDE "
 "Dolphin."
 msgstr ""
+"适用于 KDE Dolphin 的导航、新建文件夹、重命名、分屏视图、终端和复制路径。"
 
 #: settings-qt/qml/pages/KeypadPage.qml:280
 msgid "Needs %1"
-msgstr ""
+msgstr "需要 %1"
 
 #: settings-qt/qml/pages/HapticsPage.qml:122
 msgid "Needs a mouse with a haptic motor"
@@ -3035,23 +3043,23 @@ msgstr "Neon Sci-Fi (3D)"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "New Folder"
-msgstr ""
+msgstr "新建文件夹"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "New Layer"
-msgstr ""
+msgstr "新建图层"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "New Split"
-msgstr ""
+msgstr "新建分屏"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "New Tab"
-msgstr ""
+msgstr "新建标签页"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "New Window"
-msgstr ""
+msgstr "新建窗口"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:247
 #: settings-qt/qml/pages/ButtonsPage.qml:909
@@ -3072,11 +3080,11 @@ msgstr "下一首"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Next Chat"
-msgstr ""
+msgstr "下一个聊天"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Next Cmd"
-msgstr ""
+msgstr "下一条命令"
 
 #: settings-qt/bridge/backend.py:165
 msgid "Next Computer"
@@ -3084,11 +3092,11 @@ msgstr "下一台电脑"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Next Edit"
-msgstr ""
+msgstr "下一编辑点"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Next Error"
-msgstr ""
+msgstr "下一个错误"
 
 #: settings-qt/bridge/backend.py:145 settings-qt/assets/keypad/profiles.json
 msgid "Next Tab"
@@ -3193,7 +3201,7 @@ msgstr "暂无插件"
 
 #: settings-qt/bridge/backend.py:1816
 msgid "No portable.json in this pack"
-msgstr ""
+msgstr "此配置包中没有 portable.json"
 
 #: settings-qt/qml/pages/HapticsPage.qml:306
 msgid "No pulses while gaming mode is on"
@@ -3224,7 +3232,7 @@ msgstr ""
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Nodes"
-msgstr ""
+msgstr "节点"
 
 #: settings-qt/qml/pages/DevicesPage.qml:652
 msgid ""
@@ -3315,15 +3323,15 @@ msgstr "当前：自由旋转"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "OBS"
-msgstr ""
+msgstr "OBS"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "OBS Studio"
-msgstr ""
+msgstr "OBS Studio"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "ONLYOFFICE"
-msgstr ""
+msgstr "ONLYOFFICE"
 
 #: settings-qt/qml/pages/AppsPage.qml:212
 #: settings-qt/qml/pages/DashboardPage.qml:420
@@ -3348,7 +3356,7 @@ msgstr "关闭：指针严格按鼠标移动距离移动"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Office"
-msgstr ""
+msgstr "办公"
 
 #: settings-qt/qml/pages/AppsPage.qml:212
 #: settings-qt/qml/pages/DashboardPage.qml:420
@@ -3431,7 +3439,7 @@ msgstr "仅 KDE Plasma 支持模糊环后方的背景"
 
 #: settings-qt/qml/pages/KeypadPage.qml:291
 msgid "Only apps on this computer"
-msgstr ""
+msgstr "仅本机上的应用"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:390
 msgid "Only this mouse. Buttons you leave alone follow all apps."
@@ -3539,7 +3547,7 @@ msgstr "单独设置拇指滚轮"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Overview"
-msgstr ""
+msgstr "概览"
 
 #: settings-qt/qml/pages/AppsPage.qml:51
 msgid "Own ring"
@@ -3550,10 +3558,11 @@ msgid ""
 "Pack imported: {n} pages. Keys without a Linux action keep their picture for "
 "you to assign."
 msgstr ""
+"配置包已导入：{n} 个页面。没有 Linux 操作的按键会保留图片，供您自行分配。"
 
 #: settings-qt/bridge/backend.py:1841
 msgid "Page"
-msgstr ""
+msgstr "页面"
 
 #: settings-qt/qml/pages/KeypadPage.qml:215
 msgid "Page %1 name"
@@ -3587,15 +3596,15 @@ msgstr "页面"
 msgid ""
 "Pages that come up by themselves while an app is in front. Your most used "
 "apps first."
-msgstr ""
+msgstr "应用位于前台时自动显示的页面。最常用的应用排在最前。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Paint"
-msgstr ""
+msgstr "绘画"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Paintbrush"
-msgstr ""
+msgstr "画笔工具"
 
 #: settings-qt/qml/pages/EasySwitchPage.qml:36
 #: settings-qt/qml/pages/EasySwitchPage.qml:40
@@ -3612,7 +3621,7 @@ msgstr "通过 USB 接收器配对"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Palette"
-msgstr ""
+msgstr "命令面板"
 
 #: settings-qt/bridge/backend.py:143 settings-qt/assets/keypad/profiles.json
 msgid "Paste"
@@ -3620,11 +3629,11 @@ msgstr "粘贴"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Paste Spec"
-msgstr ""
+msgstr "选择性粘贴"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Paste Text"
-msgstr ""
+msgstr "粘贴纯文本"
 
 #: settings-qt/bridge/backend.py:314
 msgid "Paste as plain text"
@@ -3632,13 +3641,13 @@ msgstr "粘贴为纯文本"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:183
 msgid "Paste with"
-msgstr ""
+msgstr "粘贴方式"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:191
 msgid ""
 "Pasted through the clipboard, so every keyboard layout gets the exact "
 "characters."
-msgstr ""
+msgstr "通过剪贴板粘贴，因此任何键盘布局都能得到完全一致的字符。"
 
 #: settings-qt/qml/pages/HapticsPage.qml:80
 msgid "Pattern for %1"
@@ -3655,7 +3664,7 @@ msgstr "暂停 %1 ms"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Pause Rec"
-msgstr ""
+msgstr "暂停录制"
 
 #: settings-qt/bridge/backend.py:361
 msgid "Pearl Blossom (3D)"
@@ -3663,15 +3672,15 @@ msgstr "Pearl Blossom (3D)"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Pen"
-msgstr ""
+msgstr "钢笔"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "People"
-msgstr ""
+msgstr "参会者"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Persp/Orth"
-msgstr ""
+msgstr "透视/正交"
 
 #: settings-qt/bridge/backend.py:353
 msgid "Phosphor"
@@ -3695,7 +3704,7 @@ msgstr "在“按键”选项卡的范围选择器中选择此应用"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Picker"
-msgstr ""
+msgstr "取色器"
 
 #: settings-qt/qml/pages/SettingsPage.qml:392
 msgid ""
@@ -3708,7 +3717,7 @@ msgstr "选择最接近桌面强调色的主题"
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:83
 msgid "Picture"
-msgstr ""
+msgstr "图片"
 
 #: settings-qt/bridge/backend.py:3095
 msgid "Pin saved: {slot} = {x}, {y}"
@@ -3716,7 +3725,7 @@ msgstr "标记已保存：{slot} = {x}, {y}"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Places"
-msgstr ""
+msgstr "位置面板"
 
 #: settings-qt/bridge/keypad.py:138
 msgid "Play"
@@ -3730,11 +3739,11 @@ msgstr "播放 %1"
 msgid ""
 "Play, cut at playhead, undo, timeline zoom and edit-point navigation for "
 "Kdenlive."
-msgstr ""
+msgstr "适用于 Kdenlive 的播放、在播放头处切割、撤销、时间线缩放和编辑点导航。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Play, split, undo, timeline zoom and edit navigation for Shotcut."
-msgstr ""
+msgstr "适用于 Shotcut 的播放、分割、撤销、时间线缩放和编辑点导航。"
 
 #: settings-qt/bridge/backend.py:154 settings-qt/assets/keypad/profiles.json
 msgid "Play/Pause"
@@ -3816,7 +3825,7 @@ msgstr "预设名称"
 #: settings-qt/qml/components/CustomActionEditor.qml:176
 #: settings-qt/qml/components/CustomActionEditor.qml:178
 msgid "Press Enter after"
-msgstr ""
+msgstr "粘贴后按 Enter"
 
 #: settings-qt/qml/pages/HapticsPage.qml:226
 #: settings-qt/qml/pages/HapticsPage.qml:236 settings-qt/bridge/backend.py:690
@@ -3847,23 +3856,23 @@ msgstr "输入快捷键"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Prev Chat"
-msgstr ""
+msgstr "上一个聊天"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Prev Cmd"
-msgstr ""
+msgstr "上一条命令"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Prev Edit"
-msgstr ""
+msgstr "上一编辑点"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Prev Error"
-msgstr ""
+msgstr "上一个错误"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Prev Tab"
-msgstr ""
+msgstr "上一个标签页"
 
 #: settings-qt/qml/pages/HapticsPage.qml:296 settings-qt/bridge/backend.py:692
 msgid "Prevent duplicate pulses"
@@ -3871,7 +3880,7 @@ msgstr "防止重复振动"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Preview"
-msgstr ""
+msgstr "打印预览"
 
 #: settings-qt/qml/components/RingPreview.qml:52
 msgid "Preview of the radial menu"
@@ -3891,15 +3900,15 @@ msgstr "按键面板上一页"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Print"
-msgstr ""
+msgstr "打印"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Problems"
-msgstr ""
+msgstr "问题"
 
 #: settings-qt/bridge/backend.py:1924
 msgid "Profile added: {name}"
-msgstr ""
+msgstr "已添加配置文件：{name}"
 
 #: settings-qt/qml/pages/AppsPage.qml:41
 msgid "Profile for %1 removed"
@@ -3916,7 +3925,7 @@ msgstr "配置文件保存失败：{error}"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Properties"
-msgstr ""
+msgstr "属性"
 
 #: settings-qt/qml/pages/GamingPage.qml:343 settings-qt/bridge/backend.py:726
 msgid "Pulse on preset change"
@@ -3936,11 +3945,11 @@ msgstr ""
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Quick Fix"
-msgstr ""
+msgstr "快速修复"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Quick Open"
-msgstr ""
+msgstr "快速打开"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:822 settings-qt/bridge/backend.py:659
 msgid "Quick links"
@@ -3951,10 +3960,11 @@ msgid ""
 "Quick switcher, unread navigation, upload, emoji, mute and deafen for "
 "Discord."
 msgstr ""
+"适用于 Discord 的快速切换器、未读消息导航、上传、表情、静音和关闭声音。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Quick switcher, unreads, upload and huddle controls for Slack."
-msgstr ""
+msgstr "适用于 Slack 的快速切换器、未读消息、上传和抱团控制。"
 
 #: settings-qt/qml/pages/HapticsPage.qml:29
 msgid "Quiet"
@@ -4022,7 +4032,7 @@ msgstr "就绪：%1"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Recent"
-msgstr ""
+msgstr "最近文件"
 
 #: settings-qt/qml/pages/AppsPage.qml:368 settings-qt/bridge/backend.py:703
 msgid "Recently used"
@@ -4054,7 +4064,7 @@ msgstr "录制按键"
 msgid ""
 "Record, pause, stream, replay, virtual camera and scene switching through "
 "obs-cmd."
-msgstr ""
+msgstr "通过 obs-cmd 进行录制、暂停、推流、回放、虚拟摄像头和场景切换。"
 
 #: settings-qt/qml/pages/MacrosPage.qml:270
 msgid "Recorded %n step"
@@ -4089,11 +4099,11 @@ msgstr "降低透明度"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Refresh"
-msgstr ""
+msgstr "刷新"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Reload"
-msgstr ""
+msgstr "重新加载"
 
 #: settings-qt/qml/pages/GamingPage.qml:61
 #: settings-qt/qml/pages/GamingPage.qml:278
@@ -4103,7 +4113,7 @@ msgstr "移除 %1"
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:86
 msgid "Remove picture"
-msgstr ""
+msgstr "移除图片"
 
 #: settings-qt/qml/pages/AppsPage.qml:305
 msgid "Remove profile"
@@ -4124,7 +4134,7 @@ msgstr "重命名"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Render"
-msgstr ""
+msgstr "渲染"
 
 #: settings-qt/bridge/backend.py:148
 msgid "Reopen Closed Tab"
@@ -4132,7 +4142,7 @@ msgstr "重新打开关闭的标签页"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Reopen Tab"
-msgstr ""
+msgstr "恢复标签页"
 
 #: settings-qt/qml/pages/SettingsPage.qml:444
 msgid "Repair"
@@ -4153,7 +4163,7 @@ msgstr "替换：%1"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Replay"
-msgstr ""
+msgstr "回放"
 
 #: settings-qt/qml/pages/SettingsPage.qml:567
 msgid "Report a bug"
@@ -4173,7 +4183,7 @@ msgstr "重置"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Reset Rot"
-msgstr ""
+msgstr "重置旋转"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:363
 msgid "Reset all buttons to their defaults"
@@ -4296,27 +4306,27 @@ msgstr "向前滚动时向左而非向右滚动"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Room search, unread navigation, upload and call mic/camera for Element."
-msgstr ""
+msgstr "适用于 Element 的房间搜索、未读消息导航、上传以及通话麦克风/摄像头。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Rooms"
-msgstr ""
+msgstr "房间"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Rotate"
-msgstr ""
+msgstr "旋转"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Rotate L"
-msgstr ""
+msgstr "向左旋转"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Rotate R"
-msgstr ""
+msgstr "向右旋转"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Run"
-msgstr ""
+msgstr "运行"
 
 #: settings-qt/qml/pages/MacrosPage.qml:427
 msgid "Run (Ctrl+R)"
@@ -4360,7 +4370,7 @@ msgstr "与所有应用相同"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Sampler"
-msgstr ""
+msgstr "取样器"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:241
 #: settings-qt/qml/components/MacroEditor.qml:434
@@ -4392,19 +4402,19 @@ msgstr "已保存。鼠标唤醒或返回后会接收设置。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Scale"
-msgstr ""
+msgstr "缩放"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Scene 1"
-msgstr ""
+msgstr "场景 1"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Scene 2"
-msgstr ""
+msgstr "场景 2"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Scene 3"
-msgstr ""
+msgstr "场景 3"
 
 #: settings-qt/qml/pages/FlowPage.qml:327
 #: settings-qt/qml/pages/FlowPage.qml:332 settings-qt/bridge/backend.py:732
@@ -4464,7 +4474,7 @@ msgstr "在支持的应用中细致滚动，而非整行滚动"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Search"
-msgstr ""
+msgstr "搜索"
 
 #: settings-qt/qml/components/ActionPicker.qml:97
 msgid "Search actions"
@@ -4494,19 +4504,19 @@ msgstr "替换前查看备份内容。当前文件会保留，可通过撤销恢
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Select"
-msgstr ""
+msgstr "选择"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Select All"
-msgstr ""
+msgstr "全选"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Selector"
-msgstr ""
+msgstr "选择工具"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:177
 msgid "Sends it right away, like a chat message or a command"
-msgstr ""
+msgstr "像聊天消息或命令一样立即发送"
 
 #: settings-qt/qml/pages/DevicesPage.qml:631
 msgid "Sense Panel"
@@ -4562,7 +4572,7 @@ msgstr "更改会保存，并在鼠标返回时应用。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Shading"
-msgstr ""
+msgstr "着色"
 
 #: settings-qt/bridge/keypad.py:150 settings-qt/assets/keypad/profiles.json
 msgid "Share"
@@ -4583,7 +4593,7 @@ msgstr "清脆点击"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Shell"
-msgstr ""
+msgstr "Shell"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:103
 #: settings-qt/qml/components/KeyRecorder.qml:46
@@ -4593,7 +4603,7 @@ msgstr "快捷键"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Shotcut"
-msgstr ""
+msgstr "Shotcut"
 
 #: settings-qt/qml/pages/HapticsPage.qml:274
 #: settings-qt/qml/pages/KeypadPage.qml:220
@@ -4602,7 +4612,7 @@ msgstr "显示"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Show Desk"
-msgstr ""
+msgstr "显示桌面"
 
 #: settings-qt/bridge/backend.py:125
 msgid "Show Desktop"
@@ -4610,7 +4620,7 @@ msgstr "显示桌面"
 
 #: settings-qt/qml/pages/KeypadPage.qml:291
 msgid "Show all profiles"
-msgstr ""
+msgstr "显示所有配置文件"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:358
 msgid "Show as a list"
@@ -4637,7 +4647,7 @@ msgstr "显示径向菜单"
 
 #: settings-qt/qml/pages/KeypadPage.qml:233
 msgid "Show this page for all apps"
-msgstr ""
+msgstr "在所有应用中显示此页面"
 
 #: settings-qt/qml/pages/SettingsPage.qml:455 settings-qt/bridge/backend.py:763
 msgid "Show tray icon"
@@ -4645,7 +4655,7 @@ msgstr "显示托盘图标"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Shuffle"
-msgstr ""
+msgstr "随机播放"
 
 #: settings-qt/bridge/backend.py:2959
 msgid "Side button"
@@ -4653,7 +4663,7 @@ msgstr "侧键"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Sidebar"
-msgstr ""
+msgstr "侧边栏"
 
 #: settings-qt/qml/pages/SettingsPage.qml:236 settings-qt/bridge/backend.py:754
 msgid "Simplified wheel"
@@ -4665,7 +4675,7 @@ msgstr "屏幕上操作环的大小、图标和行为"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Slack"
-msgstr ""
+msgstr "Slack"
 
 #: settings-qt/qml/pages/AppsPage.qml:267
 #: settings-qt/qml/pages/ButtonsPage.qml:669
@@ -4748,7 +4758,7 @@ msgstr "声音控制；请按您使用的应用设置摄像头、共享屏幕和
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Speaker"
-msgstr ""
+msgstr "扬声器"
 
 #: settings-qt/qml/components/KeyRecorder.qml:121
 msgid "Special key"
@@ -4760,7 +4770,7 @@ msgstr "速度"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Spelling"
-msgstr ""
+msgstr "拼写检查"
 
 #: settings-qt/qml/pages/ScrollPage.qml:47
 msgid "Spins freely, no clicks"
@@ -4768,15 +4778,15 @@ msgstr "自由旋转，无段落感"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Split"
-msgstr ""
+msgstr "拆分"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Spotify"
-msgstr ""
+msgstr "Spotify"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Spotify transport, seek, like and volume, targeted at Spotify only."
-msgstr ""
+msgstr "仅针对 Spotify 的播放控制、跳转、喜欢和音量。"
 
 #: settings-qt/bridge/backend.py:403
 msgid "Square"
@@ -4859,7 +4869,7 @@ msgstr "停止"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Stream"
-msgstr ""
+msgstr "推流"
 
 #: settings-qt/qml/pages/HapticsPage.qml:140
 #: settings-qt/qml/pages/HapticsPage.qml:146 settings-qt/bridge/backend.py:676
@@ -4877,7 +4887,7 @@ msgstr "风格"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Styles"
-msgstr ""
+msgstr "样式"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:832
 msgid "Submenu slice"
@@ -4901,7 +4911,7 @@ msgstr "支持 JuhRadial MX"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Swap"
-msgstr ""
+msgstr "交换颜色"
 
 #: settings-qt/qml/pages/ScrollPage.qml:451
 msgid "Swaps up and down for Volume and Zoom"
@@ -4917,7 +4927,7 @@ msgstr "切换"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Switch App"
-msgstr ""
+msgstr "切换应用"
 
 #: settings-qt/bridge/backend.py:137
 msgid "Switch Ratchet / Free-spin"
@@ -4948,11 +4958,11 @@ msgstr "切换到电脑 3"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Switcher"
-msgstr ""
+msgstr "快速切换"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Sys Mic"
-msgstr ""
+msgstr "系统麦克风"
 
 #: settings-qt/bridge/backend.py:117 settings-qt/assets/keypad/profiles.json
 msgid "System"
@@ -4976,7 +4986,7 @@ msgstr "上"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Tabs"
-msgstr ""
+msgstr "标签页"
 
 #: settings-qt/bridge/backend.py:117
 msgid "Tabs and pages"
@@ -4985,12 +4995,12 @@ msgstr "标签页与页面"
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "Tabs, clipboard, find and zoom for tabbed terminals, plus shell editing keys."
-msgstr ""
+msgstr "适用于带标签页终端的标签页、剪贴板、查找和缩放，以及 Shell 编辑按键。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "Tabs, navigation and address bar for Firefox and Chromium-based browsers."
-msgstr ""
+msgstr "适用于 Firefox 和基于 Chromium 的浏览器的标签页、导航和地址栏。"
 
 #: settings-qt/bridge/backend.py:128
 msgid "Task Switcher"
@@ -4998,7 +5008,7 @@ msgstr "任务切换器"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Telegram"
-msgstr ""
+msgstr "Telegram"
 
 #: settings-qt/bridge/backend.py:1747
 msgid "Template added. Keys for missing apps stay unassigned."
@@ -5011,7 +5021,7 @@ msgstr "模板"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Term Panel"
-msgstr ""
+msgstr "终端面板"
 
 #: settings-qt/bridge/keypad.py:130 settings-qt/bridge/keypad.py:146
 #: settings-qt/assets/keypad/profiles.json
@@ -5034,7 +5044,7 @@ msgstr "仅共享文本，且仅与已批准的电脑共享"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:168
 msgid "Text to paste"
-msgstr ""
+msgstr "要粘贴的文本"
 
 #: settings-qt/qml/components/MacroEditor.qml:280
 #: settings-qt/qml/components/MacroEditor.qml:281
@@ -5043,7 +5053,7 @@ msgstr "要输入的文本"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:169
 msgid "Text, a prompt or a /command"
-msgstr ""
+msgstr "文本、提示词或 /命令"
 
 #: settings-qt/bridge/backend.py:4992
 msgid "That custom action cannot run: check the shortcut, link or command."
@@ -5131,11 +5141,11 @@ msgstr "按键面板配置未保存"
 
 #: settings-qt/qml/pages/KeypadPage.qml:198
 msgid "The keypad keeps it after it wakes"
-msgstr ""
+msgstr "按键面板唤醒后仍会保留此设置"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:198
 msgid "The keys stay down as long as you hold the button (push to talk)"
-msgstr ""
+msgstr "按住按钮期间按键保持按下（按键通话）"
 
 #: settings-qt/bridge/backend.py:5514
 msgid "The login entry is missing."
@@ -5216,11 +5226,11 @@ msgstr "另一台电脑的通道"
 
 #: settings-qt/bridge/backend.py:1810
 msgid "The pack contains an unsafe path"
-msgstr ""
+msgstr "配置包包含不安全的路径"
 
 #: settings-qt/bridge/backend.py:1847
 msgid "The pack has no pages to add"
-msgstr ""
+msgstr "配置包中没有可添加的页面"
 
 #: settings-qt/bridge/backend.py:428
 msgid "The pointer crosses onto another display"
@@ -5435,29 +5445,29 @@ msgstr "时序"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Tools"
-msgstr ""
+msgstr "工具"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Top"
-msgstr ""
+msgstr "顶视图"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Top Chat"
-msgstr ""
+msgstr "首个聊天"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Transform"
-msgstr ""
+msgstr "变换"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "Transform, edit mode, add, search and numpad viewpoints for Blender's "
 "default keymap."
-msgstr ""
+msgstr "适用于 Blender 默认键位映射的变换、编辑模式、添加、搜索和小键盘视角。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Transport, seek and volume for any MPRIS media player."
-msgstr ""
+msgstr "适用于任何 MPRIS 媒体播放器的播放控制、跳转和音量。"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:324
 msgid "Troubleshoot"
@@ -5568,7 +5578,7 @@ msgstr "解除绑定"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Underline"
-msgstr ""
+msgstr "下划线"
 
 #: settings-qt/qml/Main.qml:22 settings-qt/bridge/backend.py:144
 #: settings-qt/assets/keypad/profiles.json
@@ -5581,7 +5591,7 @@ msgstr "撤销失败：{error}"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Ungroup"
-msgstr ""
+msgstr "取消组合"
 
 #: settings-qt/qml/pages/DashboardPage.qml:58
 #: settings-qt/qml/pages/DevicesPage.qml:23
@@ -5603,15 +5613,15 @@ msgstr "未命名电脑"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Unread Dn"
-msgstr ""
+msgstr "下一条未读"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Unread Up"
-msgstr ""
+msgstr "上一条未读"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Unreads"
-msgstr ""
+msgstr "所有未读"
 
 #: settings-qt/qml/pages/MacrosPage.qml:398
 msgid "Untitled macro"
@@ -5619,7 +5629,7 @@ msgstr "未命名宏"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Up"
-msgstr ""
+msgstr "上一级"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:824
 msgid ""
@@ -5631,7 +5641,7 @@ msgstr ""
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Update"
-msgstr ""
+msgstr "更新"
 
 #: settings-qt/qml/pages/DevicesPage.qml:63
 msgid "Updated %n minute ago"
@@ -5644,7 +5654,7 @@ msgstr "刚刚更新"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Upload"
-msgstr ""
+msgstr "上传"
 
 #: settings-qt/qml/pages/DevicesPage.qml:752
 msgid "Use generic mode"
@@ -5671,7 +5681,7 @@ msgstr "将此鼠标作为标准鼠标使用，隐藏 Easy-Switch、触觉、游
 
 #: settings-qt/qml/pages/KeypadPage.qml:279
 msgid "Used %1 min"
-msgstr ""
+msgstr "已使用 %1 分钟"
 
 #: settings-qt/qml/pages/ScrollPage.qml:461
 msgid "Used by Volume and Zoom"
@@ -5691,7 +5701,7 @@ msgstr "常用"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "VS Code"
-msgstr ""
+msgstr "VS Code"
 
 #: settings-qt/bridge/backend.py:5199
 msgid "Version {version} is available."
@@ -5703,11 +5713,11 @@ msgstr "版本、链接和致谢"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "View"
-msgstr ""
+msgstr "视图"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Views"
-msgstr ""
+msgstr "视角"
 
 #: settings-qt/bridge/backend.py:124
 msgid "Virtual Desktops"
@@ -5715,15 +5725,15 @@ msgstr "虚拟桌面"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "VirtualCam"
-msgstr ""
+msgstr "虚拟摄像头"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Vol Down"
-msgstr ""
+msgstr "减小音量"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Vol Up"
-msgstr ""
+msgstr "增大音量"
 
 #: settings-qt/bridge/keypad.py:140 settings-qt/bridge/keypad.py:152
 msgid "Vol down"
@@ -5772,7 +5782,7 @@ msgstr "波浪"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Web browser"
-msgstr ""
+msgstr "网页浏览器"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:95
 msgid "What %1 does when you press it"
@@ -5894,7 +5904,7 @@ msgstr "多屏幕时，选择边缘通往另一台电脑的屏幕"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "X-Ray"
-msgstr ""
+msgstr "X 射线"
 
 #: settings-qt/bridge/backend.py:5201
 msgid "You have the latest version."
@@ -5974,15 +5984,15 @@ msgstr "缩放"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Zoom 100%"
-msgstr ""
+msgstr "100% 缩放"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Zoom 1:1"
-msgstr ""
+msgstr "1:1 缩放"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Zoom Fit"
-msgstr ""
+msgstr "适应窗口"
 
 #: settings-qt/bridge/backend.py:152 settings-qt/assets/keypad/profiles.json
 msgid "Zoom In"
@@ -5994,19 +6004,19 @@ msgstr "缩小"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Zoom Reset"
-msgstr ""
+msgstr "重置缩放"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Zoom, brush size, colour picking, undo and export for GIMP 3."
-msgstr ""
+msgstr "适用于 GIMP 3 的缩放、画笔大小、取色、撤销和导出。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Zoom, brush size, sampler, eraser, canvas rotation and undo for Krita."
-msgstr ""
+msgstr "适用于 Krita 的缩放、画笔大小、取样器、橡皮擦、画布旋转和撤销。"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Zoom, dropper, layers, export, tools and grouping for Inkscape 1.x."
-msgstr ""
+msgstr "适用于 Inkscape 1.x 的缩放、吸管、图层、导出、工具和组合。"
 
 #: settings-qt/qml/pages/FlowPage.qml:37
 msgid "a computer"
@@ -6062,12 +6072,12 @@ msgstr "按住 %1 ms"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "kitty"
-msgstr ""
+msgstr "kitty"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
 "kitty's own tab, window, search and font-size keys, plus shell editing keys."
-msgstr ""
+msgstr "kitty 自带的标签页、窗口、搜索和字号按键，以及 Shell 编辑按键。"
 
 #: settings-qt/qml/pages/DashboardPage.qml:287
 msgid "last reading"

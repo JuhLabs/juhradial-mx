@@ -322,3 +322,22 @@ def test_pack_import_keeps_pictures_and_maps_only_sure_actions(backend, tmp_path
     assert k[2]["action"] == "none" and k[2]["label"] == "Mission"
     assert k[3]["custom"] == {"kind": "text", "value": "/context", "enter": True, "paste_with": "ctrl+shift+v"}
     assert not backend.importKeypadPack(str(tmp_path / "missing"))
+
+
+def test_shipped_app_profiles_are_complete(backend):
+    # Every catalogue key must survive validation and draw a bundled glyph (#34).
+    root = Path(__file__).resolve().parents[1] / "settings-qt" / "assets"
+    catalogue = json.loads((root / "keypad" / "profiles.json").read_text(encoding="utf-8"))["profiles"]
+    icons = {p.stem for d in ("mono", "nav") for p in (root / "icons" / d).glob("*.svg")}
+    backend.listApplications = lambda: []
+    assert len(catalogue) >= 20
+    for prof in catalogue:
+        assert len(prof["pages"]) in (1, 2) and len({p["id"] for p in catalogue}) == len(catalogue)
+        before = len(backend.keypadPages)
+        assert backend.applyKeypadProfile(prof["id"]), prof["id"]
+        for src, page in zip(prof["pages"], backend.keypadPages[before:]):
+            assert len(src["keys"]) == 9
+            for raw, key in zip(src["keys"], page["keys"]):
+                assert raw["icon"] in icons, (prof["id"], raw["icon"])
+                assert len(raw["label"]) <= 10, raw["label"]
+                assert raw.get("action", "none") == "none" or key["action"] != "none", (prof["id"], raw["label"])

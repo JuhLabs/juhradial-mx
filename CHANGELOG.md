@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Classic Light wheel skin** - The white Classic ring from 0.4.4 is back as Classic Light, next to Classic in Themes and Buttons.
 - **Monochrome 2 icon style** - A filled single-colour icon set, offered as Mono 2 next to Mono, Line and Classic in Settings and Themes, and the default for configs that never picked a style. The ring and this window both use it; glyphs it does not cover come from the line family.
 - **Settings in 18 languages** - The Qt settings app ships complete translations for Arabic, Chinese (Simplified), Dutch, French, German, Hindi, Italian, Japanese, Korean, Norwegian Bokmål, Polish, Portuguese (Brazil), Russian, Spanish, Swedish, Thai, Turkish and Ukrainian. Settings → Language picks one, or the desktop locale by default.
+- **MX Keypad app profiles** - Pages can belong to apps and come up by themselves while that app is in front, like Options+ app profiles (the page buttons stay within the app's pages; apps without pages get the general ones). 27 ready profiles with each app's real default shortcuts (web browsers, VS Code, JetBrains IDEs, terminals, media players and Spotify, Zoom, Teams, Google Meet, OBS, GIMP, Krita, Inkscape, Blender, LibreOffice, ONLYOFFICE, Dolphin and GTK file managers, Discord, Slack, Telegram, Element, Kdenlive, Shotcut and a General profile). Settings suggests them for the apps on this computer, the ones you use most first (time in front is counted locally in `app_usage.json` and never leaves the machine).
+- **More MX Keypad key options** - A key's image can be a glyph, any installed app's icon or your own picture; keys without an image show their label large. New custom action "Text" pastes a text or prompt through the clipboard (exact characters on every keyboard layout, optional Enter), and "Hold while pressed" keeps a shortcut down for as long as the key or mouse button is held (push to talk). Key brightness, and "Import pack" for keypad packs (portable.json with ready key images): pictures and labels come along, actions where Linux has a sure match.
+- **Wheel skins with the Classic shape** - Every wheel skin is now drawn with exactly the Classic ring's slices, hover fill, icon discs and centre, in the menu and in every Settings preview. All skins were redrawn as materials without the dark outer ring (new Chrome and Violet), plus three new skins: Brass, Aurora and Carbon.
 
 ### Changed
 
@@ -63,6 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Blurred disc beside the ring on scaled displays** - With fractional scaling (Qt at 1.25 under XWayland), the background blur was placed in the wrong pixels and a blurred disc stuck out up-left of the ring.
+- **MX Keypad right page button** - Only the left page button was taken over from the device; both are now.
 - **Apps started from a button or keypad key run on their own** - Commands, apps and links started by the background service used to run inside its hardened service: capped at 100 MB and half a CPU core, without `sudo` (no new privileges) and closed whenever the service restarted. They now start as their own user service, like apps from the desktop menu, with a direct start as the fallback where `systemd-run` is missing.
 - **Gaming mode on KDE Plasma** - With gaming mode on, the ring button's gaming job (precision DPI, next preset) and the hidden radial menu now also apply on KDE, where the menu opens through KWin.
 - **Easy-Switch OS logos on dark rings** - The Apple, iOS and unknown-OS glyphs were drawn black and disappeared on dark rings; they now take the ring's icon colour. The Linux penguin is a new flat Tux face that fills its circle.
