@@ -1968,6 +1968,10 @@ async fn run_custom_action(
             },
             Err(e) => Err(e.to_string()),
         },
+        "page" => {
+            juhradiald::keypad::request_page(value);
+            Ok(())
+        }
         "plugin" => juhradiald::plugins::run(&juhradiald::plugins::plugins_dir(), value)
             .await
             .map_err(|e| e.to_string()),

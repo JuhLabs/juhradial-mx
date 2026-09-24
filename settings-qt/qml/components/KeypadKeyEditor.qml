@@ -151,6 +151,7 @@ Column {
     }
     CustomActionEditor {
         id: customEditor
+        keypadPages: (Backend.keypadRevision, Backend.keypadPages.map(function (p) { return p.name }))
         readAction: function(scope, slot) { return ed.draft.custom || {} }
         writeAction: function(scope, slot, action) {
             ed.update("custom", action)

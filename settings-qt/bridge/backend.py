@@ -174,7 +174,7 @@ HIDDEN_BUTTON_ACTIONS = {"scroll_left_right"}
 DIRECTIONAL_EXCLUDED = {"radial_menu", "dpi_shift", "custom"}
 
 # Custom button actions (buttons.custom.<slot>, daemon CustomAction).
-CUSTOM_KINDS = ("shortcut", "command", "url", "macro", "plugin", "text")
+CUSTOM_KINDS = ("shortcut", "command", "url", "macro", "plugin", "text", "page")
 SHORTCUT_RE = re.compile(r"^[A-Za-z0-9_]+(\+[A-Za-z0-9_]+)*$")
 # Macro trigger values that belong to a named button slot.
 MACRO_TRIGGER_SLOTS = {"mouse:8": "back", "mouse:9": "forward", "mouse:2": "middle"}

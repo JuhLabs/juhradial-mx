@@ -213,8 +213,8 @@
 
             package = lib.mkOption {
               type = lib.types.package;
-              default = self.packages.${pkgs.system}.default;
-              defaultText = lib.literalExpression "juhradial-mx.packages.\${pkgs.system}.default";
+              default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+              defaultText = lib.literalExpression "juhradial-mx.packages.\${pkgs.stdenv.hostPlatform.system}.default";
               description = "The JuhRadial MX package to use.";
             };
           };

@@ -12,7 +12,8 @@ B.Popup {
     property string buttonName: ""
     signal saved
 
-    property string kind: "shortcut"   // shortcut | app | command | url | macro | plugin | text
+    property string kind: "shortcut"   // shortcut | app | command | url | macro | plugin | text | page
+    property var keypadPages: []        // page names: offers the keypad "Page" kind
     property bool hold: false           // shortcut: keys stay down while the button is held
     property bool pressEnter: false     // text: press Enter after pasting
     property string pasteWith: "auto"   // text: "auto" (by app), "" (Ctrl+V) or "ctrl+shift+v"
@@ -61,8 +62,10 @@ B.Popup {
         var action = {
             kind: kind === "app" ? "command" : kind,
             value: value.trim(),
-            label: (kind === "app" || kind === "macro" || kind === "plugin") ? label : "",
-            icon: kind === "app" ? icon : ""
+            label: (kind === "app" || kind === "macro" || kind === "plugin" || kind === "page") ? label : "",
+            icon: kind === "app" ? icon
+                  : kind === "page" ? (value === "next" ? "go-next-symbolic" : value === "previous" ? "go-previous-symbolic" : "view-paged-symbolic")
+                  : ""
         }
         if (kind === "text") {
             action.value = value   // pasted as typed, spaces included
@@ -103,7 +106,7 @@ B.Popup {
             model: [{ id: "shortcut", name: qsTr("Shortcut") }, { id: "app", name: qsTr("App") },
                     { id: "command", name: qsTr("Command") }, { id: "url", name: qsTr("Link") },
                     { id: "macro", name: qsTr("Macro") }, { id: "plugin", name: qsTr("Plugin") },
-                    { id: "text", name: qsTr("Text") }]
+                    { id: "text", name: qsTr("Text") }].concat(ed.keypadPages.length ? [{ id: "page", name: qsTr("Page") }] : [])
             currentId: ed.kind
             onActivated: (id) => {
                 if (id === ed.kind) return
@@ -191,6 +194,15 @@ B.Popup {
             visible: ed.kind === "text"
             text: qsTr("Pasted through the clipboard, so every keyboard layout gets the exact characters. Automatic uses Ctrl+Shift+V in terminals and Ctrl+V everywhere else.")
             color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+        }
+        ComboBox {
+            visible: ed.kind === "page"
+            width: parent.width
+            accessibleName: qsTr("Keypad page")
+            model: [{ id: "next", name: qsTr("Next page") }, { id: "previous", name: qsTr("Previous page") }]
+                   .concat(ed.keypadPages.map(function (n) { return { id: n, name: n } }))
+            currentId: ed.kind === "page" ? ed.value : ""
+            onActivated2: (id) => { ed.value = id; ed.label = id === "next" ? qsTr("Next") : id === "previous" ? qsTr("Back") : id }
         }
         SettingRow {
             visible: ed.kind === "shortcut"

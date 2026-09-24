@@ -39,6 +39,25 @@ pub fn set_page(config: &SharedConfig, page: u8) -> Result<(), String> {
 
 pub fn refresh() { REVISION.fetch_add(1, Ordering::Relaxed); }
 
+/// A "page" key action waiting for the keypad worker.
+static REQUESTED_PAGE: Mutex<Option<String>> = Mutex::new(None);
+
+/// Show a page by name, or "next" / "previous" within the pages shown now.
+pub fn request_page(target: &str) {
+    if let Ok(mut t) = REQUESTED_PAGE.lock() { *t = Some(target.trim().to_string()); }
+}
+
+/// The page a "page" action lands on.
+fn page_for_request(config: &KeypadConfig, app: &str, target: &str) -> Option<u8> {
+    let current = config.page_index();
+    match target.to_ascii_lowercase().as_str() {
+        "next" => turn_page(&visible_pages(config, app), current, PageButton::Right),
+        "previous" => turn_page(&visible_pages(config, app), current, PageButton::Left),
+        _ => config.pages.iter().take(usize::from(u8::MAX))
+            .position(|p| p.name.trim().eq_ignore_ascii_case(target)).map(|i| i as u8),
+    }
+}
+
 /// Follow window focus: pages with `apps` show while one of them is in front.
 pub fn set_focused_app(class: &str) {
     if let Ok(mut app) = FOCUSED_APP.lock() { *app = class.to_ascii_lowercase(); }
@@ -58,6 +77,19 @@ pub fn visible_pages(config: &KeypadConfig, app: &str) -> Vec<u8> {
     let general: Vec<u8> = indexed().filter(|(_, p)| p.apps.is_empty()).map(|(i, _)| i).collect();
     if !general.is_empty() { return general; }
     indexed().map(|(i, _)| i).collect()
+}
+
+/// Holding the left page key this long peeks at the general pages while an
+/// app's own pages are up (Options+ has the same gesture).
+const PEEK_AFTER: Duration = Duration::from_millis(450);
+
+/// The left page key is down: when, the page before, and whether it peeks.
+struct Peek { since: Instant, from: u8, active: bool }
+
+/// The first general page (no apps), when the app's own pages hide it.
+fn peek_target(config: &KeypadConfig, visible: &[u8]) -> Option<u8> {
+    let general = config.pages.iter().take(usize::from(u8::MAX)).position(|p| p.apps.is_empty())? as u8;
+    (!visible.contains(&general)).then_some(general)
 }
 
 /// The page a page button turns to, within the pages shown for the app.
@@ -221,6 +253,7 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
     let mut revision = u64::MAX;
     let mut app = None;
     let mut animations: Vec<Option<Animation>> = Vec::new();
+    let mut peek: Option<Peek> = None;
     let result = (|| {
         while !tx.is_closed() && !stop.load(Ordering::Relaxed) {
             let mut cfg = config.read().map(|c| c.keypad.clone()).unwrap_or_default();
@@ -237,6 +270,11 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
                 }
                 app = Some(focused);
             }
+            let requested = REQUESTED_PAGE.lock().ok().and_then(|mut t| t.take());
+            if let Some(page) = requested.and_then(|t| page_for_request(&cfg, app.as_deref().unwrap_or(""), &t)) {
+                let _ = set_page(config, page);
+                cfg.active_page = page;
+            }
             let next_revision = REVISION.load(Ordering::Relaxed);
             if shown.as_ref().map(|s: &KeypadConfig| s.brightness) != Some(cfg.brightness) {
                 if let Some(percent) = cfg.brightness.filter(|p| (1..=100).contains(p)) {
@@ -250,7 +288,19 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
                 shown = Some(cfg.clone());
                 revision = next_revision;
             }
-            let report = keypad.read_report(next_wait(&animations, Instant::now()))?;
+            if let Some(held) = peek.as_mut().filter(|p| !p.active && p.since.elapsed() >= PEEK_AFTER) {
+                let visible = visible_pages(&cfg, app.as_deref().unwrap_or(""));
+                if let Some(general) = peek_target(&cfg, &visible) {
+                    let _ = set_page(config, general);
+                }
+                held.active = true;
+                continue;
+            }
+            let mut wait = next_wait(&animations, Instant::now());
+            if let Some(held) = peek.as_ref().filter(|p| !p.active) {
+                wait = wait.min(PEEK_AFTER.saturating_sub(held.since.elapsed()));
+            }
+            let report = keypad.read_report(wait)?;
             play_due(keypad, &mut animations)?;
             let Some(data) = report else { continue };
             match mx_keypad::parse_input(&data) {
@@ -259,8 +309,24 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
                     let visible = visible_pages(&cfg, app.as_deref().unwrap_or(""));
                     for button in &next {
                         if !pages.contains(button) {
+                            // Left key while an app's pages hide the general
+                            // ones: a tap turns on release, a hold peeks.
+                            if *button == PageButton::Left && peek_target(&cfg, &visible).is_some() {
+                                peek = Some(Peek { since: Instant::now(), from: cfg.page_index(), active: false });
+                                continue;
+                            }
                             if let Some(next_page) = turn_page(&visible, cfg.page_index(), *button) {
                                 let _ = set_page(config, next_page);
+                            }
+                        }
+                    }
+                    if pages.contains(&PageButton::Left) && !next.contains(&PageButton::Left) {
+                        if let Some(held) = peek.take() {
+                            let back = if held.active { Some(held.from) } else {
+                                turn_page(&visible, cfg.page_index(), PageButton::Left)
+                            };
+                            if let Some(page) = back {
+                                let _ = set_page(config, page);
                             }
                         }
                     }
@@ -332,6 +398,29 @@ mod tests {
         assert!(set_page(&c, 1).is_err());
         c.write().unwrap().keypad.active_page = 200;
         assert_eq!(status(&c).2, 0);
+    }
+
+    #[test]
+    fn peeking_needs_general_pages_hidden_by_the_app() {
+        let mut c = KeypadConfig::default();
+        c.pages = vec![page("Home", &[]), page("Code", &["code"])];
+        let in_code = visible_pages(&c, "code");
+        assert_eq!(peek_target(&c, &in_code), Some(0));
+        assert_eq!(peek_target(&c, &visible_pages(&c, "")), None);
+        c.pages = vec![page("Code", &["code"])];
+        assert_eq!(peek_target(&c, &visible_pages(&c, "code")), None);
+    }
+
+    #[test]
+    fn page_keys_go_by_name_or_step_within_the_shown_pages() {
+        let mut c = KeypadConfig::default();
+        c.pages = vec![page("Home", &[]), page("Code", &["code"]), page("Media", &[]), page("Code 2", &["code"])];
+        assert_eq!(page_for_request(&c, "", "media"), Some(2));
+        assert_eq!(page_for_request(&c, "", "Nope"), None);
+        assert_eq!(page_for_request(&c, "", "next"), Some(2));
+        c.active_page = 1;
+        assert_eq!(page_for_request(&c, "code", "next"), Some(3));
+        assert_eq!(page_for_request(&c, "code", "previous"), Some(3));
     }
 
     #[test]
