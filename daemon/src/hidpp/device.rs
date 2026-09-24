@@ -182,6 +182,48 @@ impl DpiCaps {
     }
 }
 
+/// The Haptic Sense Panel's press force (0x19C0 button 0): raw sensor units,
+/// higher = firmer. `changeable` is capability bit 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForceSense {
+    pub changeable: bool,
+    pub min: u16,
+    pub max: u16,
+    pub default: u16,
+    pub current: u16,
+}
+
+impl ForceSense {
+    /// From the getButtonInfo payload (caps, default, max, min) and the
+    /// getButtonConfig payload (current), all big-endian u16.
+    pub fn parse(info: &[u8], current: &[u8]) -> Option<Self> {
+        let word = |b: &[u8], i: usize| Some(u16::from_be_bytes([*b.get(i)?, *b.get(i + 1)?]));
+        let (min, max) = (word(info, 6)?, word(info, 4)?);
+        if max <= min {
+            return None;
+        }
+        Some(Self {
+            changeable: word(info, 0)? & 0x0001 != 0,
+            default: word(info, 2)?,
+            max,
+            min,
+            current: word(current, 0)?,
+        })
+    }
+
+    /// The raw value `pct` percent of the way from min to max.
+    pub fn at_percent(&self, pct: u8) -> u16 {
+        let span = u32::from(self.max - self.min);
+        (u32::from(self.min) + span * u32::from(pct.min(100)) / 100) as u16
+    }
+
+    /// Where `raw` sits in the range, in percent.
+    pub fn percent_of(&self, raw: u16) -> u8 {
+        let span = u32::from(self.max - self.min);
+        ((u32::from(raw.clamp(self.min, self.max) - self.min) * 100 + span / 2) / span) as u8
+    }
+}
+
 /// Receiver error "connection request failed": the device is paired but not
 /// linked right now (radio parked after idling, or switched to another host).
 pub const RECEIVER_ERR_CONNECT_FAIL: u8 = 0x04;
@@ -1785,6 +1827,44 @@ impl HidppDevice {
     // =========================================================================
     // Haptic Methods
     // =========================================================================
+
+    /// The motor as the mouse has it (0x19B0 getConfig): enabled, and the
+    /// strength in percent.
+    pub fn get_haptic_level(&mut self) -> Option<(bool, u8)> {
+        let idx = self.mx4_haptic_feature_index?;
+        let r = self.hidpp_request(idx, 0x01, &[0x00, 0x00, 0x00])?;
+        (r.len() >= 6).then(|| (r[4] & 0x01 != 0, r[5]))
+    }
+
+    /// Motor strength in percent (0x19B0 setConfig `[enabled, pct, 0]`,
+    /// hardware-verified). The play command has no amplitude byte, so this
+    /// device-wide value is the only strength there is.
+    pub fn set_haptic_level(&mut self, pct: u8) -> Result<(), HapticError> {
+        let idx = self.mx4_haptic_feature_index.ok_or(HapticError::NotSupported)?;
+        self.hidpp_request(idx, 0x02, &[0x01, pct.clamp(1, 100), 0x00])
+            .map(|_| ())
+            .ok_or(HapticError::CommunicationError)
+    }
+
+    /// The Haptic Sense Panel press force (0x19C0 button 0).
+    pub fn force_sense(&mut self) -> Option<ForceSense> {
+        let idx = *self.feature_table.get(&features::FORCE_SENSING_BUTTON)?;
+        let info = self.hidpp_request(idx, 0x01, &[0x00, 0x00, 0x00])?;
+        let current = self.hidpp_request(idx, 0x02, &[0x00, 0x00, 0x00])?;
+        ForceSense::parse(info.get(4..)?, current.get(4..)?)
+    }
+
+    /// Set the Haptic Sense Panel press force (raw, within the reported range).
+    pub fn set_force_sense(&mut self, raw: u16) -> Result<(), HapticError> {
+        let idx = *self
+            .feature_table
+            .get(&features::FORCE_SENSING_BUTTON)
+            .ok_or(HapticError::NotSupported)?;
+        let [hi, lo] = raw.to_be_bytes();
+        self.hidpp_request(idx, 0x03, &[0x00, hi, lo])
+            .map(|_| ())
+            .ok_or(HapticError::CommunicationError)
+    }
 
     /// Send an MX Master 4 haptic pattern
     ///

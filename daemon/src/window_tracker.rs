@@ -92,6 +92,14 @@ pub struct WindowTracker {
     de: &'static str,
 }
 
+/// Set once the tracker is watching focus (read over D-Bus by Settings).
+static TRACKING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether a window tracker is following focus in this session.
+pub fn is_tracking() -> bool {
+    TRACKING.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 impl WindowTracker {
     /// Create a tracker bound to the detected desktop environment.
     pub fn new() -> Self {
@@ -126,6 +134,7 @@ impl WindowTracker {
                 .await
                 .unwrap_or(false);
                 if installed {
+                    TRACKING.store(true, std::sync::atomic::Ordering::Relaxed);
                     tracing::info!("KWin active-window script installed (per-app hardware profiles)");
                 } else {
                     tracing::warn!(
@@ -134,9 +143,11 @@ impl WindowTracker {
                 }
             }
             "hyprland" => {
+                TRACKING.store(true, std::sync::atomic::Ordering::Relaxed);
                 let _ = tokio::task::spawn_blocking(move || hyprland_loop(tx)).await;
             }
             _ => {
+                TRACKING.store(true, std::sync::atomic::Ordering::Relaxed);
                 x11_watch_loop(tx).await;
             }
         }

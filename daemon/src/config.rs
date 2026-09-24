@@ -48,6 +48,30 @@ pub struct HapticEventConfig {
     /// Pattern when the cursor moves to a different physical monitor (default: subtle_collision)
     #[serde(default = "default_monitor_switch")]
     pub monitor_switch: String,
+
+    /// Pattern when a directional gesture drag crosses its threshold
+    #[serde(default = "default_gesture_tick")]
+    pub gesture_tick: String,
+
+    /// Pattern when a DPI button changes the DPI
+    #[serde(default = "default_dpi_change")]
+    pub dpi_change: String,
+
+    /// Pattern when a macro starts playing
+    #[serde(default = "default_macro_start")]
+    pub macro_start: String,
+
+    /// Pattern when a macro finishes playing
+    #[serde(default = "default_macro_finish")]
+    pub macro_finish: String,
+
+    /// Pattern when the battery drops to the low mark
+    #[serde(default = "default_low_battery")]
+    pub low_battery: String,
+
+    /// Pattern when the mouse comes back to this computer
+    #[serde(default = "default_host_arrive")]
+    pub host_arrive: String,
 }
 
 fn default_menu_appear() -> String { "damp_state_change".to_string() }
@@ -56,6 +80,12 @@ fn default_confirm() -> String { "sharp_state_change".to_string() }
 fn default_invalid() -> String { "angry_alert".to_string() }
 fn default_window_switch() -> String { "subtle_collision".to_string() }
 fn default_monitor_switch() -> String { "subtle_collision".to_string() }
+fn default_gesture_tick() -> String { "sharp_collision".to_string() }
+fn default_dpi_change() -> String { "sharp_state_change".to_string() }
+fn default_macro_start() -> String { "damp_collision".to_string() }
+fn default_macro_finish() -> String { "completed".to_string() }
+fn default_low_battery() -> String { "angry_alert".to_string() }
+fn default_host_arrive() -> String { "happy_alert".to_string() }
 
 impl Default for HapticEventConfig {
     fn default() -> Self {
@@ -66,6 +96,12 @@ impl Default for HapticEventConfig {
             invalid: default_invalid(),
             window_switch: default_window_switch(),
             monitor_switch: default_monitor_switch(),
+            gesture_tick: default_gesture_tick(),
+            dpi_change: default_dpi_change(),
+            macro_start: default_macro_start(),
+            macro_finish: default_macro_finish(),
+            low_battery: default_low_battery(),
+            host_arrive: default_host_arrive(),
         }
     }
 }
@@ -128,6 +164,30 @@ pub struct HapticConfig {
     /// monitor, independent of the radial menu
     #[serde(default = "default_true")]
     pub monitor_switch_enabled: bool,
+
+    /// Per-event on/off by `HapticEvent::config_key` (absent = the event's
+    /// default: macro start/finish off, everything else on). Window and
+    /// monitor switch keep their own `*_enabled` keys.
+    #[serde(default)]
+    pub per_event_enabled: std::collections::HashMap<String, bool>,
+
+    /// MX Master 4 motor strength in percent (0x19B0 setConfig), written to
+    /// the mouse when it differs. Absent = leave the mouse as it is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub level: Option<u8>,
+
+    /// Haptic Sense Panel press force, in percent of the range the mouse
+    /// reports (0x19C0; 0 = lightest, 100 = firmest). Absent = leave it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub panel_force: Option<u8>,
+
+    /// No pulses while gaming mode is on.
+    #[serde(default = "default_true")]
+    pub mute_in_games: bool,
+
+    /// No pulses while one of these apps (window class, any case) is in front.
+    #[serde(default)]
+    pub muted_apps: Vec<String>,
 }
 
 fn default_true() -> bool { true }
@@ -149,6 +209,11 @@ impl Default for HapticConfig {
             reentry_debounce_ms: 50,
             window_switch_enabled: true,
             monitor_switch_enabled: true,
+            per_event_enabled: std::collections::HashMap::new(),
+            level: None,
+            panel_force: None,
+            mute_in_games: true,
+            muted_apps: Vec::new(),
         }
     }
 }
@@ -157,7 +222,27 @@ impl HapticConfig {
     /// Validate all values
     pub fn validate(&mut self) {
         self.intensity = self.intensity.clamp(0, 100);
+        self.level = self.level.map(|l| l.clamp(1, 100));
+        self.panel_force = self.panel_force.map(|f| f.min(100));
         self.per_event.validate();
+    }
+
+    /// Whether the event with this `config_key` pulses at all.
+    pub fn event_enabled(&self, key: &str) -> bool {
+        match key {
+            "window_switch" => self.window_switch_enabled,
+            "monitor_switch" => self.monitor_switch_enabled,
+            _ => self
+                .per_event_enabled
+                .get(key)
+                .copied()
+                .unwrap_or(!matches!(key, "macro_start" | "macro_finish")),
+        }
+    }
+
+    /// Whether pulses stay quiet while `app` (a window class) is in front.
+    pub fn app_muted(&self, app: &str) -> bool {
+        self.muted_apps.iter().any(|a| a.eq_ignore_ascii_case(app))
     }
 
     /// Check if haptics are effectively disabled
@@ -1664,5 +1749,26 @@ mod tests {
         let out = serde_json::to_string(&config).unwrap();
         let reparsed: Config = serde_json::from_str(&out).unwrap();
         assert_eq!(reparsed.keyboard.remap.get(&58), Some(&29));
+    }
+
+    #[test]
+    fn haptics_keys_written_by_settings_load() {
+        let json = r#"{"haptics": {"level": 50, "panel_force": 66, "mute_in_games": false,
+            "muted_apps": ["Steam"], "per_event_enabled": {"slice_change": false, "macro_start": true},
+            "per_event": {"dpi_change": "knock"}, "window_switch_enabled": false}}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        let h = &config.haptics;
+        assert_eq!((h.level, h.panel_force, h.mute_in_games), (Some(50), Some(66), false));
+        assert!(h.app_muted("steam"));
+        assert!(!h.event_enabled("slice_change"));
+        assert!(h.event_enabled("macro_start"));
+        assert!(!h.event_enabled("macro_finish"));
+        assert!(!h.event_enabled("window_switch"));
+        assert!(h.event_enabled("dpi_change"));
+        assert_eq!(h.per_event.dpi_change, "knock");
+        assert_eq!(h.per_event.host_arrive, "happy_alert");
+        // absent keys leave the mouse alone
+        let config: Config = serde_json::from_str("{}").unwrap();
+        assert_eq!((config.haptics.level, config.haptics.panel_force), (None, None));
     }
 }

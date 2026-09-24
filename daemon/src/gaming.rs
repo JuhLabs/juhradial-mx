@@ -56,6 +56,10 @@ impl GamingMode {
             tracing::debug!("Gaming mode already enabled");
             return;
         }
+        // Haptics stay quiet in games unless haptics.mute_in_games is off.
+        if let Ok(mut m) = self.haptic_manager.lock() {
+            m.set_gaming_active(true);
+        }
 
         tracing::info!("Enabling gaming mode");
 
@@ -82,6 +86,9 @@ impl GamingMode {
         if !self.enabled {
             tracing::debug!("Gaming mode already disabled");
             return;
+        }
+        if let Ok(mut m) = self.haptic_manager.lock() {
+            m.set_gaming_active(false);
         }
 
         tracing::info!("Disabling gaming mode");

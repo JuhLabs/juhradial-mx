@@ -386,11 +386,77 @@ SLICE_COLOR_ORDER = ["green", "yellow", "peach", "red", "pink", "mauve",
                      "blue", "sapphire", "teal"]
 
 # 16 MX Master 4 haptic waveforms (id == display via title-case).
+# (id, name, description, rhythm). The rhythm sketches the pulse for the
+# picker glyph: one strength (0..1) per beat, 0 = a pause.
 HAPTIC_PATTERNS = [
-    "sharp_state_change", "damp_state_change", "sharp_collision", "damp_collision",
-    "subtle_collision", "whisper_collision", "happy_alert", "angry_alert",
-    "completed", "square", "wave", "firework", "mad", "knock", "jingle", "ringing",
+    ("sharp_state_change", "Sharp click", "One crisp click", [1.0]),
+    ("damp_state_change", "Soft click", "One soft, rounded click", [0.6]),
+    ("sharp_collision", "Sharp bump", "A firm knock", [0.9, 0.3]),
+    ("damp_collision", "Soft bump", "A gentle knock", [0.55, 0.2]),
+    ("subtle_collision", "Subtle", "A light tap", [0.4]),
+    ("whisper_collision", "Whisper", "Barely there", [0.2]),
+    ("happy_alert", "Happy", "Two rising taps", [0.4, 0.8]),
+    ("angry_alert", "Alert", "Three hard taps", [0.9, 0.9, 0.9]),
+    ("completed", "Complete", "A tap, then a longer one", [0.5, 0.0, 0.9]),
+    ("square", "Square", "An even buzz", [0.7, 0.7, 0.7, 0.7]),
+    ("wave", "Wave", "Swells and fades", [0.3, 0.7, 1.0, 0.7, 0.3]),
+    ("firework", "Firework", "A quick burst", [1.0, 0.6, 0.8, 0.4, 0.6]),
+    ("mad", "Strong alert", "A long, rough buzz", [1.0, 0.9, 1.0, 0.9, 1.0, 0.9]),
+    ("knock", "Knock", "Two knocks", [0.8, 0.0, 0.8]),
+    ("jingle", "Jingle", "A little tune", [0.5, 0.8, 0.5, 0.9]),
+    ("ringing", "Ringing", "A phone-like ring", [0.7, 0.7, 0.7, 0.0, 0.7, 0.7, 0.7]),
 ]
+
+# Every haptic event Settings lists: (config key, name, description, group,
+# default pattern). Defaults mirror daemon config.rs (tests pin them).
+HAPTIC_EVENTS = [
+    ("menu_appear", "Menu opens", "The radial menu appears", "menu", "damp_state_change"),
+    ("slice_change", "Slice change", "The pointer moves onto another slice", "menu", "subtle_collision"),
+    ("confirm", "Action runs", "You let go on a slice and its action runs", "menu", "sharp_state_change"),
+    ("invalid", "Empty slice", "You let go on a slice with nothing on it", "menu", "angry_alert"),
+    ("gesture_tick", "Gesture threshold", "A drag with the gesture button turns into a direction",
+     "mouse", "sharp_collision"),
+    ("dpi_change", "DPI change", "A DPI button changes the pointer speed", "mouse", "sharp_state_change"),
+    ("host_arrive", "Mouse returns", "The mouse comes back from another computer", "mouse", "happy_alert"),
+    ("low_battery", "Low battery", "The battery drops to 15 %", "mouse", "angry_alert"),
+    ("macro_start", "Macro starts", "A macro begins to play", "mouse", "damp_collision"),
+    ("macro_finish", "Macro finishes", "A macro is done", "mouse", "completed"),
+    ("window_switch", "App switch", "Alt+Tab, the taskbar, or clicking into another window",
+     "desktop", "subtle_collision"),
+    ("monitor_switch", "Monitor switch", "The pointer crosses onto another display", "desktop",
+     "subtle_collision"),
+]
+HAPTIC_EVENTS_OFF = {"macro_start", "macro_finish"}  # off until switched on
+# Style presets: a pattern per event. Balanced is the defaults.
+HAPTIC_STYLES = {
+    "quiet": {"menu_appear": "whisper_collision", "slice_change": "whisper_collision",
+              "confirm": "subtle_collision", "invalid": "damp_collision",
+              "gesture_tick": "whisper_collision", "dpi_change": "subtle_collision",
+              "host_arrive": "subtle_collision", "low_battery": "damp_collision",
+              "macro_start": "whisper_collision", "macro_finish": "subtle_collision",
+              "window_switch": "whisper_collision", "monitor_switch": "whisper_collision"},
+    "balanced": {k: d for (k, _n, _d, _g, d) in HAPTIC_EVENTS},
+    "expressive": {"menu_appear": "sharp_state_change", "slice_change": "sharp_collision",
+                   "confirm": "completed", "invalid": "angry_alert",
+                   "gesture_tick": "sharp_collision", "dpi_change": "knock",
+                   "host_arrive": "happy_alert", "low_battery": "mad",
+                   "macro_start": "damp_collision", "macro_finish": "completed",
+                   "window_switch": "damp_collision", "monitor_switch": "damp_collision"},
+}
+# Motor strength (0x19B0, device-wide) and Sense Panel force (0x19C0, % of
+# the mouse's range), as Logitech Options+ names the steps.
+HAPTIC_LEVELS = [("subtle", "Subtle", 25), ("low", "Low", 50), ("medium", "Medium", 75),
+                 ("high", "High", 100)]
+PANEL_FORCES = [("light", "Light", 0), ("medium", "Medium", 33), ("hard", "Hard", 66),
+                ("firm", "Firm", 100)]
+# Slice tick rate: the least time between two slice pulses (slice_debounce_ms).
+SLICE_TICK_RATES = [("every", "Every slice", 0), ("balanced", "Balanced", 20), ("calm", "Calm", 80)]
+TEST_REASONS = {
+    "off": "Haptic feedback is off",
+    "no_motor": "This mouse has no haptic motor",
+    "unreachable": "The mouse is asleep or on another computer",
+    "busy": "The mouse was busy. Try again",
+}
 
 THUMBWHEEL_MODES = [("off", "Horizontal scroll (default)"), ("volume", "Volume"),
                     ("scroll", "Scroll"), ("zoom", "Zoom")]
@@ -600,12 +666,25 @@ SEARCH_INDEX = [
     ("scroll", "Invert direction", "Thumb wheel", "invert direction reverse scroll rotation thumb wheel"),
     ("scroll", "Speed", "Thumb wheel", "thumb wheel speed repeats rotation tick velocity"),
     # Haptics
-    ("haptics", "Intensity", "Haptic feedback", "intensity strength vibration motor haptic"),
-    ("haptics", "Menu opens", "Feedback patterns", "haptic pattern menu appear open vibrate"),
-    ("haptics", "Slice change", "Feedback patterns", "haptic pattern slice change rotate select"),
-    ("haptics", "Confirm", "Feedback patterns", "haptic pattern confirm accept action success"),
-    ("haptics", "Invalid", "Feedback patterns", "haptic pattern invalid error action"),
-    ("haptics", "Default pattern", "Default pattern", "default haptic pattern fallback vibration"),
+    ("haptics", "Strength", "Haptic feedback", "intensity strength vibration motor haptic level subtle low medium high"),
+    ("haptics", "Style", "Haptic feedback", "haptic style preset quiet balanced expressive default pattern"),
+    ("haptics", "Menu opens", "Events", "haptic pattern menu appear open vibrate"),
+    ("haptics", "Slice change", "Events", "haptic pattern slice change rotate select"),
+    ("haptics", "Action runs", "Events", "haptic pattern confirm accept action success"),
+    ("haptics", "Empty slice", "Events", "haptic pattern invalid empty error action"),
+    ("haptics", "Gesture threshold", "Events", "haptic gesture directional drag tick threshold"),
+    ("haptics", "DPI change", "Events", "haptic dpi change button speed"),
+    ("haptics", "Mouse returns", "Events", "haptic easy-switch host return arrive computer"),
+    ("haptics", "Low battery", "Events", "haptic low battery charge warning"),
+    ("haptics", "Macro starts", "Events", "haptic macro start play"),
+    ("haptics", "Macro finishes", "Events", "haptic macro finish done complete"),
+    ("haptics", "App switch", "Events", "haptic app window switch focus alt tab"),
+    ("haptics", "Monitor switch", "Events", "haptic monitor display screen switch cross"),
+    ("haptics", "Press force", "Haptic Sense Panel", "sense panel force pressure press sensitivity light firm"),
+    ("haptics", "Slice tick rate", "Advanced", "haptic slice tick rate debounce sweep"),
+    ("haptics", "Prevent duplicate pulses", "Advanced", "haptic duplicate reentry debounce wobble"),
+    ("haptics", "Quiet in games", "Advanced", "haptic mute quiet games gaming"),
+    ("haptics", "Quiet in these apps", "Advanced", "haptic mute quiet apps per-app"),
     # Macros
     ("macros", "Record a macro", "Record", "record macro capture keystrokes new keyboard sequence"),
     ("macros", "Your macros", "Library", "macro list library run edit rename duplicate delete export import"),
@@ -1219,6 +1298,8 @@ class Backend(QObject):
     primedChanged = pyqtSignal()
     hwErrorsChanged = pyqtSignal()
     desktopPointerChanged = pyqtSignal()
+    hapticDeviceChanged = pyqtSignal()
+    hapticTested = pyqtSignal(str, bool, str)   # pattern, played, reason
 
     PRIME_TIMEOUT_MS = 3000
 
@@ -1288,6 +1369,10 @@ class Backend(QObject):
         # Desktop pointer state read back (1 on, 0 off, -1 unknown).
         self._desk = {"accel": -1, "natural": -1, "speed": -1}
         self._procs = set()
+        # What the mouse reports about its motor and Sense Panel (async).
+        self._hap_dev = {"levelSupported": False, "levelPct": 0, "forceSupported": False,
+                         "tracking": True}
+        self._last_preview = 0.0
         self._host_names = []
         self._ss_supported = False
         self._tw_supported = False
@@ -2678,7 +2763,214 @@ class Backend(QObject):
     # ---- haptics ----
     @pyqtSlot(str)
     def testHaptic(self, pattern):
+        """Play a waveform; say why when the mouse stays silent."""
+        def done(r):
+            if r is None:  # no service, or it failed
+                played, reason = False, "service"
+            else:  # (played, reason); an older daemon answers nothing
+                played = bool(r[0]) if r else True
+                reason = str(r[1]) if len(r) > 1 else ""
+            self.hapticTested.emit(pattern, played, reason)
+            if not played:
+                text = TEST_REASONS.get(reason) or _("The JuhRadial service is not running")
+                self.notify(_(text), "info")
+        self.daemon.call_then("TriggerHapticPattern", done, pattern)
+
+    @pyqtSlot(str)
+    def previewHaptic(self, pattern):
+        """Hover preview in the pattern picker: at most one pulse per 250 ms."""
+        now = time.monotonic()
+        if now - self._last_preview < 0.25:
+            return
+        self._last_preview = now
         self.daemon.call_async("TriggerHapticPattern", pattern)
+
+    @pyqtSlot(result="QVariant")
+    def hapticEvents(self):
+        """Every event with its pattern, switch and whether it can fire here."""
+        tracking = self._hap_dev.get("tracking", True)
+        out = []
+        for (key, name, desc, group, default) in HAPTIC_EVENTS:
+            if key in ("window_switch", "monitor_switch"):
+                on = bool(self.get(f"haptics.{key}_enabled", True))
+            else:
+                on = bool(self.get(f"haptics.per_event_enabled.{key}", key not in HAPTIC_EVENTS_OFF))
+            available, reason = True, ""
+            if key == "window_switch" and not tracking:
+                available, reason = False, _("Your desktop does not tell JuhRadial which window is in front")
+            out.append({"key": key, "name": _(name), "desc": _(desc), "group": group,
+                        "pattern": str(self.get(f"haptics.per_event.{key}", default)),
+                        "enabled": on, "available": available, "reason": reason})
+        return out
+
+    @pyqtSlot(str, str)
+    def setHapticEventPattern(self, key, pattern):
+        self.set(f"haptics.per_event.{key}", pattern)
+
+    @pyqtSlot(str, bool)
+    def setHapticEventEnabled(self, key, on):
+        if key in ("window_switch", "monitor_switch"):
+            self.set(f"haptics.{key}_enabled", bool(on))
+        else:
+            self.set(f"haptics.per_event_enabled.{key}", bool(on))
+
+    @pyqtProperty(str, notify=configChanged)
+    def hapticStyle(self):
+        """quiet | balanced | expressive, or custom when the patterns match none."""
+        cur = {k: str(self.get(f"haptics.per_event.{k}", d)) for (k, _n, _d, _g, d) in HAPTIC_EVENTS}
+        for name, patterns in HAPTIC_STYLES.items():
+            if cur == patterns:
+                return name
+        return "custom"
+
+    @pyqtSlot(result="QVariant")
+    def hapticPatternSnapshot(self):
+        return {k: str(self.get(f"haptics.per_event.{k}", d)) for (k, _n, _d, _g, d) in HAPTIC_EVENTS}
+
+    @pyqtSlot("QVariant")
+    def setHapticPatterns(self, patterns):
+        """Write every event's pattern in one save (styles, restore, undo)."""
+        for k, v in dict(patterns or {}).items():
+            if any(k == e[0] for e in HAPTIC_EVENTS):
+                self._set_path(["haptics", "per_event", k], str(v))
+        self._save()
+        self.reloadConfig()
+        self.configChanged.emit()
+
+    @pyqtSlot(str)
+    def applyHapticStyle(self, name):
+        if name in HAPTIC_STYLES:
+            self.setHapticPatterns(HAPTIC_STYLES[name])
+
+    @pyqtProperty("QVariantMap", notify=hapticDeviceChanged)
+    def hapticDevice(self):
+        """What the mouse reports: levelSupported, levelPct, forceSupported,
+        forceMin/Max/Default/Current, tracking (the focused-window tracker)."""
+        return dict(self._hap_dev)
+
+    @pyqtSlot()
+    def readHapticDevice(self):
+        def level(r):
+            if r and len(r) >= 3:
+                self._hap_dev.update(levelSupported=bool(r[0]), levelPct=_to_int(r[2]))
+            self.hapticDeviceChanged.emit()
+
+        def force(r):
+            if r and len(r) >= 5:
+                self._hap_dev.update(forceSupported=bool(r[0]), forceMin=_to_int(r[1]),
+                                     forceMax=_to_int(r[2]), forceDefault=_to_int(r[3]),
+                                     forceCurrent=_to_int(r[4]))
+            self.hapticDeviceChanged.emit()
+
+        def tracking(r):
+            if r:
+                self._hap_dev["tracking"] = bool(r[0])
+            self.hapticDeviceChanged.emit()
+        self.daemon.call_then("GetHapticLevel", level)
+        self.daemon.call_then("GetForceSense", force)
+        self.daemon.call_then("WindowTrackingActive", tracking)
+
+    @pyqtSlot(result="QVariant")
+    def hapticLevels(self):
+        return [{"id": i, "name": _(n), "pct": p} for (i, n, p) in HAPTIC_LEVELS]
+
+    @pyqtProperty(str, notify=hapticDeviceChanged)
+    def hapticLevel(self):
+        """The strength step to show: the saved one, else the mouse's own."""
+        pct = self.get("haptics.level", None)
+        pct = _to_int(pct) if pct is not None else self._hap_dev.get("levelPct", 0)
+        if not pct:
+            return ""
+        return min(HAPTIC_LEVELS, key=lambda lv: abs(lv[2] - pct))[0]
+
+    @pyqtSlot(str)
+    def setHapticLevel(self, level_id):
+        pct = dict((i, p) for (i, _n, p) in HAPTIC_LEVELS).get(level_id)
+        if pct is None:
+            return
+        self.set("haptics.level", pct)
+        self._hap_dev["levelPct"] = pct
+        self.hapticDeviceChanged.emit()
+
+    @pyqtSlot(result="QVariant")
+    def panelForces(self):
+        return [{"id": i, "name": _(n), "pct": p} for (i, n, p) in PANEL_FORCES]
+
+    def _force_pct(self, raw):
+        lo, hi = self._hap_dev.get("forceMin", 0), self._hap_dev.get("forceMax", 0)
+        return round((raw - lo) * 100 / (hi - lo)) if hi > lo else 0
+
+    @pyqtProperty(str, notify=hapticDeviceChanged)
+    def panelForce(self):
+        """The Sense Panel force step to show: saved, else the mouse's own."""
+        pct = self.get("haptics.panel_force", None)
+        if pct is None:
+            if not self._hap_dev.get("forceSupported"):
+                return ""
+            pct = self._force_pct(self._hap_dev.get("forceCurrent", 0))
+        return min(PANEL_FORCES, key=lambda f: abs(f[2] - _to_int(pct)))[0]
+
+    @pyqtProperty(int, notify=hapticDeviceChanged)
+    def panelForceDefaultPct(self):
+        """Where Logitech's default force sits on the Light..Firm scale."""
+        return self._force_pct(self._hap_dev.get("forceDefault", 0)) if self._hap_dev.get("forceSupported") else -1
+
+    @pyqtSlot(str)
+    def setPanelForce(self, force_id):
+        pct = dict((i, p) for (i, _n, p) in PANEL_FORCES).get(force_id)
+        if pct is None:
+            return
+        self.set("haptics.panel_force", pct)
+        lo, hi = self._hap_dev.get("forceMin", 0), self._hap_dev.get("forceMax", 0)
+        if hi > lo:
+            self._hap_dev["forceCurrent"] = lo + (hi - lo) * pct // 100
+        self.hapticDeviceChanged.emit()
+
+    @pyqtSlot(result="QVariant")
+    def sliceTickRates(self):
+        return [{"id": i, "name": _(n), "ms": ms} for (i, n, ms) in SLICE_TICK_RATES]
+
+    @pyqtProperty(str, notify=configChanged)
+    def sliceTickRate(self):
+        ms = _to_int(self.get("haptics.slice_debounce_ms", 20), 20)
+        return min(SLICE_TICK_RATES, key=lambda r: abs(r[2] - ms))[0]
+
+    @pyqtSlot(str)
+    def setSliceTickRate(self, rate_id):
+        ms = dict((i, m) for (i, _n, m) in SLICE_TICK_RATES).get(rate_id)
+        if ms is not None:
+            self.set("haptics.slice_debounce_ms", ms)
+
+    @pyqtSlot(result="QVariant")
+    def hapticMutedApps(self):
+        return [str(a) for a in (self.get("haptics.muted_apps") or [])]
+
+    @pyqtSlot(str)
+    def addHapticMutedApp(self, cls):
+        cls = (cls or "").strip().lower()
+        apps = self.hapticMutedApps()
+        if cls and cls not in apps:
+            self.set("haptics.muted_apps", apps + [cls])
+
+    @pyqtSlot(str)
+    def removeHapticMutedApp(self, cls):
+        self.set("haptics.muted_apps", [a for a in self.hapticMutedApps() if a != cls])
+
+    @pyqtSlot(str, result=str)
+    def appClassFor(self, desktop_id):
+        """The window class an installed app's windows carry: its
+        StartupWMClass, else the desktop id's last part (org.gnome.Nautilus
+        -> nautilus), lowercase like the focus tracker reports it."""
+        try:
+            from gi.repository import Gio
+            app = Gio.DesktopAppInfo.new(desktop_id) if desktop_id else None
+            wm = app.get_startup_wm_class() if app else None
+        except Exception:
+            wm = None
+        if wm:
+            return wm.lower()
+        base = re.sub(r"\.desktop$", "", desktop_id or "")
+        return base.rsplit(".", 1)[-1].lower()
 
     # ---- easy-switch ----
     @pyqtSlot(int)
@@ -3923,7 +4215,7 @@ class Backend(QObject):
 
     @pyqtSlot(result="QVariant")
     def hapticPatterns(self):
-        return [{"id": p, "name": p.replace("_", " ").title()} for p in HAPTIC_PATTERNS]
+        return [{"id": i, "name": _(n), "desc": _(d), "beats": b} for (i, n, d, b) in HAPTIC_PATTERNS]
 
     @pyqtSlot(result="QVariant")
     def ringPalettes(self):

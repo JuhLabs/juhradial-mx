@@ -216,9 +216,55 @@ pub enum HapticEvent {
     WindowSwitch,
     /// The cursor moved to a different physical monitor
     MonitorSwitch,
+    /// A directional gesture drag crossed its threshold
+    GestureTick,
+    /// A DPI button changed the DPI
+    DpiChange,
+    /// A macro started playing
+    MacroStart,
+    /// A macro finished playing
+    MacroFinish,
+    /// The mouse battery dropped to the low mark
+    LowBattery,
+    /// The mouse came back to this computer (Easy-Switch, wake)
+    HostArrive,
 }
 
 impl HapticEvent {
+    /// Every event, in the order Settings lists them.
+    pub const ALL: [HapticEvent; 12] = [
+        HapticEvent::MenuAppear,
+        HapticEvent::SliceChange,
+        HapticEvent::SelectionConfirm,
+        HapticEvent::InvalidAction,
+        HapticEvent::WindowSwitch,
+        HapticEvent::MonitorSwitch,
+        HapticEvent::GestureTick,
+        HapticEvent::DpiChange,
+        HapticEvent::MacroStart,
+        HapticEvent::MacroFinish,
+        HapticEvent::LowBattery,
+        HapticEvent::HostArrive,
+    ];
+
+    /// The event's key in `haptics.per_event` and `haptics.per_event_enabled`.
+    pub fn config_key(&self) -> &'static str {
+        match self {
+            HapticEvent::MenuAppear => "menu_appear",
+            HapticEvent::SliceChange => "slice_change",
+            HapticEvent::SelectionConfirm => "confirm",
+            HapticEvent::InvalidAction => "invalid",
+            HapticEvent::WindowSwitch => "window_switch",
+            HapticEvent::MonitorSwitch => "monitor_switch",
+            HapticEvent::GestureTick => "gesture_tick",
+            HapticEvent::DpiChange => "dpi_change",
+            HapticEvent::MacroStart => "macro_start",
+            HapticEvent::MacroFinish => "macro_finish",
+            HapticEvent::LowBattery => "low_battery",
+            HapticEvent::HostArrive => "host_arrive",
+        }
+    }
+
     /// Get the base UX profile for this event
     pub fn base_profile(&self) -> HapticPulse {
         match self {
@@ -226,8 +272,13 @@ impl HapticEvent {
             HapticEvent::SliceChange => haptic_profiles::SLICE_CHANGE,
             HapticEvent::SelectionConfirm => haptic_profiles::CONFIRM,
             HapticEvent::InvalidAction => haptic_profiles::INVALID,
-            HapticEvent::WindowSwitch => haptic_profiles::SLICE_CHANGE,
-            HapticEvent::MonitorSwitch => haptic_profiles::SLICE_CHANGE,
+            HapticEvent::WindowSwitch
+            | HapticEvent::MonitorSwitch
+            | HapticEvent::GestureTick
+            | HapticEvent::DpiChange
+            | HapticEvent::HostArrive => haptic_profiles::SLICE_CHANGE,
+            HapticEvent::MacroStart | HapticEvent::MacroFinish => haptic_profiles::CONFIRM,
+            HapticEvent::LowBattery => haptic_profiles::INVALID,
         }
     }
 
@@ -238,8 +289,8 @@ impl HapticEvent {
             HapticEvent::SliceChange => HapticPattern::Single,
             HapticEvent::SelectionConfirm => HapticPattern::Double,
             HapticEvent::InvalidAction => HapticPattern::Triple,
-            HapticEvent::WindowSwitch => HapticPattern::Single,
-            HapticEvent::MonitorSwitch => HapticPattern::Single,
+            HapticEvent::LowBattery => HapticPattern::Triple,
+            _ => HapticPattern::Single,
         }
     }
 
@@ -272,6 +323,12 @@ impl HapticEvent {
             HapticEvent::WindowSwitch => Mx4HapticPattern::SubtleCollision,
             // Monitor switch: same lightweight tick as slice hover
             HapticEvent::MonitorSwitch => Mx4HapticPattern::SubtleCollision,
+            HapticEvent::GestureTick => Mx4HapticPattern::SharpCollision,
+            HapticEvent::DpiChange => Mx4HapticPattern::SharpStateChange,
+            HapticEvent::MacroStart => Mx4HapticPattern::DampCollision,
+            HapticEvent::MacroFinish => Mx4HapticPattern::Completed,
+            HapticEvent::LowBattery => Mx4HapticPattern::AngryAlert,
+            HapticEvent::HostArrive => Mx4HapticPattern::HappyAlert,
         }
     }
 }
@@ -285,6 +342,7 @@ impl fmt::Display for HapticEvent {
             HapticEvent::InvalidAction => write!(f, "invalid_action"),
             HapticEvent::WindowSwitch => write!(f, "window_switch"),
             HapticEvent::MonitorSwitch => write!(f, "monitor_switch"),
+            other => write!(f, "{}", other.config_key()),
         }
     }
 }
@@ -304,6 +362,14 @@ pub struct PerEventPattern {
     pub window_switch: Mx4HapticPattern,
     /// Pattern for a physical-monitor switch
     pub monitor_switch: Mx4HapticPattern,
+    /// Patterns for the events added in 0.4.5 (gesture tick, DPI change,
+    /// macro start/finish, low battery, mouse arrived)
+    pub gesture_tick: Mx4HapticPattern,
+    pub dpi_change: Mx4HapticPattern,
+    pub macro_start: Mx4HapticPattern,
+    pub macro_finish: Mx4HapticPattern,
+    pub low_battery: Mx4HapticPattern,
+    pub host_arrive: Mx4HapticPattern,
 }
 
 impl Default for PerEventPattern {
@@ -315,6 +381,12 @@ impl Default for PerEventPattern {
             invalid: Mx4HapticPattern::AngryAlert,
             window_switch: Mx4HapticPattern::SubtleCollision,
             monitor_switch: Mx4HapticPattern::SubtleCollision,
+            gesture_tick: HapticEvent::GestureTick.mx4_pattern(),
+            dpi_change: HapticEvent::DpiChange.mx4_pattern(),
+            macro_start: HapticEvent::MacroStart.mx4_pattern(),
+            macro_finish: HapticEvent::MacroFinish.mx4_pattern(),
+            low_battery: HapticEvent::LowBattery.mx4_pattern(),
+            host_arrive: HapticEvent::HostArrive.mx4_pattern(),
         }
     }
 }
@@ -329,6 +401,12 @@ impl PerEventPattern {
             HapticEvent::InvalidAction => self.invalid,
             HapticEvent::WindowSwitch => self.window_switch,
             HapticEvent::MonitorSwitch => self.monitor_switch,
+            HapticEvent::GestureTick => self.gesture_tick,
+            HapticEvent::DpiChange => self.dpi_change,
+            HapticEvent::MacroStart => self.macro_start,
+            HapticEvent::MacroFinish => self.macro_finish,
+            HapticEvent::LowBattery => self.low_battery,
+            HapticEvent::HostArrive => self.host_arrive,
         }
     }
 }

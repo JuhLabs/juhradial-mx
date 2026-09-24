@@ -728,6 +728,18 @@ pub fn set_device_manager(manager: crate::hidpp::SharedHapticManager) {
     let _ = DEVICE.set(manager);
 }
 
+/// Pulse the mouse for a daemon event (DPI change, macro start/finish,
+/// gesture tick, ...). Off the caller's thread: the HID++ write waits on the
+/// device lock, and callers include the cursor-motion loop.
+pub fn pulse(event: crate::hidpp::HapticEvent) {
+    let Some(manager) = DEVICE.get().cloned() else { return };
+    std::thread::spawn(move || {
+        if let Ok(mut m) = manager.lock() {
+            let _ = m.emit(event);
+        }
+    });
+}
+
 /// Flip the wheel between ratchet and free-spin, keeping the SmartShift
 /// threshold (what the wheel-mode button under the wheel does).
 async fn toggle_wheel_mode() -> Result<(), ActionError> {

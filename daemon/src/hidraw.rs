@@ -629,6 +629,12 @@ impl HidrawHandler {
             self.directional_press = true;
             self.active_button_action = None;
             if let Some(tracker) = &self.gesture_tracker {
+                let threshold = self
+                    .shared_config
+                    .as_ref()
+                    .and_then(|c| c.read().ok().map(|c| c.buttons.gesture_directions.threshold_px))
+                    .unwrap_or(0);
+                tracker.set_threshold(threshold);
                 tracker.start();
             }
             tracing::debug!(cid, "Gesture button pressed (directional)");

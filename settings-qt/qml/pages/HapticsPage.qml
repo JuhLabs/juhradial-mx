@@ -1,17 +1,100 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
 import "../components"
 
-// MX Master 4 vibration motor: master switch + intensity, per-event patterns,
-// and a default pattern. Logitech-only hardware; renders for generic mice too.
+// Haptics: the MX Master 4 motor. The strength the mouse plays at and a
+// style for every event; one Events card (radial menu, mouse, desktop), each
+// event with its own switch and a pattern you can feel by resting on it; the
+// Haptic Sense Panel's press force; and, folded away, the tick rate, the
+// duplicate guard and quiet in games or chosen apps.
 Item {
-    id: root
+    id: page
     anchors.fill: parent
 
-    // Mirrors haptics.enabled; dims the dependent controls when off.
-    property bool masterOn: Backend.get("haptics.enabled", true)
+    property int bump: 0
+    property bool advancedOpen: false
+    Connections {
+        target: Backend
+        function onConfigChanged() { page.bump++ }
+        function onHapticDeviceChanged() { page.bump++ }
+    }
+    Component.onCompleted: Backend.readHapticDevice()
 
-    readonly property string _accent: Theme.accent.toString().slice(1)
+    function cfg(path, def) { page.bump; return Backend.get(path, def) }
+    readonly property bool masterOn: cfg("haptics.enabled", true)
+    readonly property bool hasMotor: !Backend.primed || Backend.hapticsSupported
+    readonly property var dev: Backend.hapticDevice
+    readonly property var events: (page.bump, Backend.hapticEvents())
+    readonly property var styles: [{ id: "quiet", name: qsTr("Quiet") }, { id: "balanced", name: qsTr("Balanced") },
+                                   { id: "expressive", name: qsTr("Expressive") }]
+
+    function setStyle(id) {
+        var before = Backend.hapticPatternSnapshot()
+        Backend.applyHapticStyle(id)
+        Window.window.undoToast(qsTr("Haptic style changed"), function () { Backend.setHapticPatterns(before) })
+    }
+    function restorePatterns() {
+        var before = Backend.hapticPatternSnapshot()
+        Backend.applyHapticStyle("balanced")
+        Window.window.undoToast(qsTr("Default patterns restored"), function () { Backend.setHapticPatterns(before) })
+    }
+
+    component Divider: Rectangle { width: parent ? parent.width : 400; height: 1; color: Theme.border }
+
+    // One event: its switch, its pattern (felt on hover in the list) and Play.
+    component EventRow: SettingRow {
+        id: er
+        required property var modelData
+        property bool playing: false
+        Connections {
+            target: Backend
+            function onHapticTested(pattern, played, reason) {
+                if (er.playing && played && pattern === picker.currentId) picker.flash()
+                er.playing = false
+            }
+        }
+        label: modelData.name
+        desc: modelData.available ? modelData.desc : modelData.reason
+        opacity: page.masterOn && modelData.available ? 1.0 : 0.5
+        Row {
+            spacing: Theme.gapS
+            Toggle {
+                anchors.verticalCenter: parent.verticalCenter
+                enabled: er.modelData.available
+                checked: er.modelData.enabled
+                accessibleName: er.modelData.name
+                onToggled: (v) => Backend.setHapticEventEnabled(er.modelData.key, v)
+            }
+            IconButton {
+                anchors.verticalCenter: parent.verticalCenter
+                icon: "media-playback-start-symbolic"; tint: Theme.accent
+                enabled: page.masterOn && er.modelData.available
+                tip: qsTr("Play %1").arg(picker.displayText)
+                onClicked: { er.playing = true; Backend.testHaptic(picker.currentId) }
+            }
+            HapticPatternPicker {
+                id: picker
+                anchors.verticalCenter: parent.verticalCenter
+                enabled: er.modelData.available
+                accessibleName: qsTr("Pattern for %1").arg(er.modelData.name)
+                currentId: er.modelData.pattern
+                onPicked: (id) => Backend.setHapticEventPattern(er.modelData.key, id)
+            }
+        }
+    }
+    component EventGroup: Column {
+        id: eg
+        property string group: ""
+        property string title: ""
+        width: parent ? parent.width : 400
+        spacing: Theme.gapS
+        SectionHeader { text: eg.title; topPadding: Theme.gapS }
+        Repeater {
+            model: page.events.filter(function (e) { return e.group === eg.group })
+            EventRow { width: eg.width }
+        }
+    }
 
     Flickable {
         anchors.fill: parent
@@ -24,7 +107,7 @@ Item {
             width: parent.width
             spacing: Theme.gap
 
-            // ---- Master switch + intensity ----
+            // ---- The motor ----
             GlassCard {
                 Layout.fillWidth: true
                 Layout.preferredHeight: masterCol.implicitHeight + Theme.padCard * 2
@@ -34,239 +117,234 @@ Item {
                     spacing: Theme.gapS
                     CardHeader {
                         width: parent.width
-                        title: "Haptic feedback"
-                        subtitle: "Vibration on menu open, slice change and confirm"
-                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/haptics"
+                        title: qsTr("Haptic feedback")
+                        subtitle: page.hasMotor ? qsTr("Pulses from the motor in your MX Master 4")
+                                                : qsTr("Needs a mouse with a haptic motor")
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/haptics"
                         Toggle {
-                            checked: Backend.get("haptics.enabled", true)
-                            onToggled: (v) => { Backend.set("haptics.enabled", v); root.masterOn = v }
+                            visible: page.hasMotor
+                            checked: page.masterOn
+                            accessibleName: qsTr("Haptic feedback")
+                            onToggled: (v) => Backend.set("haptics.enabled", v)
                         }
                     }
-                    Badge {
-                        visible: Backend.isGeneric
-                        text: "Haptics needs a Logitech device"
+                    Divider {}
+                    EmptyState {
+                        visible: !page.hasMotor
+                        width: parent.width
+                        title: qsTr("This mouse has no haptic motor")
+                        body: qsTr("Haptic feedback needs an MX Master 4. Everything else in JuhRadial works as usual.")
                     }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
                     SettingRow {
-                        label: "Intensity"
-                        desc: "Strength of the vibration motor"
-                        opacity: root.masterOn ? 1.0 : 0.5
-                        enabled: root.masterOn
-                        Slider {
-                            width: 240; from: 0; to: 100; showValue: true; suffix: "%"
-                            value: Backend.get("haptics.intensity", 70)
-                            onCommitted: (v) => Backend.set("haptics.intensity", Math.round(v))
+                        visible: page.hasMotor && page.dev.levelSupported === true
+                        label: qsTr("Strength")
+                        desc: qsTr("How strong every pulse is. The mouse keeps it, also on other computers")
+                        opacity: page.masterOn ? 1.0 : 0.5
+                        SegmentedControl {
+                            width: 320
+                            enabled: page.masterOn
+                            accessibleName: qsTr("Strength")
+                            model: Backend.hapticLevels()
+                            currentId: (page.bump, Backend.hapticLevel)
+                            onActivated: (id) => Backend.setHapticLevel(id)
+                        }
+                    }
+                    Divider { visible: page.hasMotor && page.dev.levelSupported === true }
+                    SettingRow {
+                        visible: page.hasMotor
+                        label: qsTr("Style")
+                        desc: Backend.hapticStyle === "custom" ? qsTr("Your own mix of patterns. Pick a style to start over")
+                                                               : qsTr("One feel for every event, from barely there to lively")
+                        opacity: page.masterOn ? 1.0 : 0.5
+                        Row {
+                            spacing: Theme.gapS
+                            Badge {
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: Backend.hapticStyle === "custom"
+                                text: qsTr("Custom")
+                            }
+                            SegmentedControl {
+                                width: 320
+                                enabled: page.masterOn
+                                accessibleName: qsTr("Style")
+                                model: page.styles
+                                currentId: Backend.hapticStyle
+                                onActivated: (id) => page.setStyle(id)
+                            }
                         }
                     }
                 }
             }
 
-            // ---- Per-event patterns ----
+            // ---- Events ----
             GlassCard {
                 Layout.fillWidth: true
                 Layout.preferredHeight: eventsCol.implicitHeight + Theme.padCard * 2
-                opacity: root.masterOn ? 1.0 : 0.5
-                enabled: root.masterOn
+                visible: page.hasMotor
                 Column {
                     id: eventsCol
                     anchors.fill: parent; anchors.margins: Theme.padCard
                     spacing: Theme.gapS
                     CardHeader {
                         width: parent.width
-                        title: "Feedback patterns"
-                        subtitle: "A distinct vibration for each menu event"
-                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/view-list-symbolic"
+                        title: qsTr("Events")
+                        subtitle: qsTr("What pulses, and how each one feels. Rest on a pattern in the list to feel it")
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/view-list-symbolic"
+                        PrimaryButton { text: qsTr("Restore defaults"); ghost: true; onClicked: page.restorePatterns() }
                     }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    SettingRow {
-                        label: "Menu opens"
-                        Row {
-                            spacing: Theme.gapS
-                            IconButton {
-                                anchors.verticalCenter: parent.verticalCenter
-                                icon: "media-playback-start-symbolic"; tint: Theme.accent
-                                onClicked: Backend.testHaptic(cbMenu.currentId)
-                            }
-                            ComboBox {
-                                id: cbMenu; width: 180
-                                model: Backend.hapticPatterns()
-                                currentId: Backend.get("haptics.per_event.menu_appear", "damp_state_change")
-                                onActivated2: (id) => Backend.set("haptics.per_event.menu_appear", id)
-                            }
-                        }
+                    Divider {}
+                    Text {
+                        visible: !page.masterOn
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: qsTr("Haptic feedback is off, so none of these pulse.")
+                        color: Theme.textMuted
+                        font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
                     }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    SettingRow {
-                        label: "Slice change"
-                        Row {
-                            spacing: Theme.gapS
-                            IconButton {
-                                anchors.verticalCenter: parent.verticalCenter
-                                icon: "media-playback-start-symbolic"; tint: Theme.accent
-                                onClicked: Backend.testHaptic(cbSlice.currentId)
-                            }
-                            ComboBox {
-                                id: cbSlice; width: 180
-                                model: Backend.hapticPatterns()
-                                currentId: Backend.get("haptics.per_event.slice_change", "subtle_collision")
-                                onActivated2: (id) => Backend.set("haptics.per_event.slice_change", id)
-                            }
-                        }
-                    }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    SettingRow {
-                        label: "Confirm"
-                        Row {
-                            spacing: Theme.gapS
-                            IconButton {
-                                anchors.verticalCenter: parent.verticalCenter
-                                icon: "media-playback-start-symbolic"; tint: Theme.accent
-                                onClicked: Backend.testHaptic(cbConfirm.currentId)
-                            }
-                            ComboBox {
-                                id: cbConfirm; width: 180
-                                model: Backend.hapticPatterns()
-                                currentId: Backend.get("haptics.per_event.confirm", "sharp_state_change")
-                                onActivated2: (id) => Backend.set("haptics.per_event.confirm", id)
-                            }
-                        }
-                    }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    SettingRow {
-                        label: "Invalid"
-                        Row {
-                            spacing: Theme.gapS
-                            IconButton {
-                                anchors.verticalCenter: parent.verticalCenter
-                                icon: "media-playback-start-symbolic"; tint: Theme.accent
-                                onClicked: Backend.testHaptic(cbInvalid.currentId)
-                            }
-                            ComboBox {
-                                id: cbInvalid; width: 180
-                                model: Backend.hapticPatterns()
-                                currentId: Backend.get("haptics.per_event.invalid", "angry_alert")
-                                onActivated2: (id) => Backend.set("haptics.per_event.invalid", id)
-                            }
-                        }
-                    }
+                    EventGroup { group: "menu"; title: qsTr("Radial menu") }
+                    EventGroup { group: "mouse"; title: qsTr("Mouse") }
+                    EventGroup { group: "desktop"; title: qsTr("Desktop") }
                 }
             }
 
-            // ---- Desktop events (independent of the menu's own haptics) ----
+            // ---- Haptic Sense Panel ----
             GlassCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: desktopCol.implicitHeight + Theme.padCard * 2
+                Layout.preferredHeight: panelCol.implicitHeight + Theme.padCard * 2
+                visible: page.dev.forceSupported === true
                 Column {
-                    id: desktopCol
+                    id: panelCol
                     anchors.fill: parent; anchors.margins: Theme.padCard
                     spacing: Theme.gapS
                     CardHeader {
                         width: parent.width
-                        title: "Desktop events"
-                        subtitle: "A pulse when the focused app or the monitor under the cursor changes"
-                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/user-desktop-symbolic"
+                        title: qsTr("Haptic Sense Panel")
+                        subtitle: qsTr("The pressure panel under your thumb")
+                        mousePart: "thumb"
                     }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
+                    Divider {}
                     SettingRow {
-                        label: "App switch"
-                        desc: "Alt+Tab, the taskbar, or clicking into another window"
-                        Row {
-                            spacing: Theme.gapS
-                            Toggle {
-                                id: tgWin
-                                anchors.verticalCenter: parent.verticalCenter
-                                checked: Backend.get("haptics.window_switch_enabled", true)
-                                onToggled: (v) => Backend.set("haptics.window_switch_enabled", v)
-                            }
-                            IconButton {
-                                anchors.verticalCenter: parent.verticalCenter
-                                icon: "media-playback-start-symbolic"; tint: Theme.accent
-                                enabled: tgWin.checked
-                                onClicked: Backend.testHaptic(cbWin.currentId)
-                            }
-                            ComboBox {
-                                id: cbWin; width: 180
-                                enabled: tgWin.checked
-                                model: Backend.hapticPatterns()
-                                currentId: Backend.get("haptics.per_event.window_switch", "subtle_collision")
-                                onActivated2: (id) => Backend.set("haptics.per_event.window_switch", id)
-                            }
+                        label: qsTr("Press force")
+                        desc: {
+                            var d = Backend.panelForceDefaultPct
+                            if (d < 0) return qsTr("How hard you press the panel to click it")
+                            return d < 17 ? qsTr("How hard you press the panel to click it. Logitech's default is Light")
+                                 : d < 50 ? qsTr("How hard you press the panel to click it. Logitech's default sits between Medium and Hard")
+                                          : qsTr("How hard you press the panel to click it. Logitech's default is Hard")
+                        }
+                        SegmentedControl {
+                            width: 320
+                            accessibleName: qsTr("Press force")
+                            model: Backend.panelForces()
+                            currentId: (page.bump, Backend.panelForce)
+                            onActivated: (id) => Backend.setPanelForce(id)
                         }
                     }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    SettingRow {
-                        label: "Monitor switch"
-                        desc: "The cursor crosses onto another display"
-                        Row {
-                            spacing: Theme.gapS
-                            Toggle {
-                                id: tgMon
-                                anchors.verticalCenter: parent.verticalCenter
-                                checked: Backend.get("haptics.monitor_switch_enabled", true)
-                                onToggled: (v) => Backend.set("haptics.monitor_switch_enabled", v)
-                            }
-                            IconButton {
-                                anchors.verticalCenter: parent.verticalCenter
-                                icon: "media-playback-start-symbolic"; tint: Theme.accent
-                                enabled: tgMon.checked
-                                onClicked: Backend.testHaptic(cbMon.currentId)
-                            }
-                            ComboBox {
-                                id: cbMon; width: 180
-                                enabled: tgMon.checked
-                                model: Backend.hapticPatterns()
-                                currentId: Backend.get("haptics.per_event.monitor_switch", "subtle_collision")
-                                onActivated2: (id) => Backend.set("haptics.per_event.monitor_switch", id)
-                            }
+                    Text {
+                        readonly property var forces: Backend.panelForces()
+                        visible: {
+                            page.bump
+                            var cur = Backend.panelForce, d = Backend.panelForceDefaultPct
+                            for (var i = 0; i < forces.length; i++)
+                                if (forces[i].id === cur) return d >= 0 && forces[i].pct < d
+                            return false
                         }
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: qsTr("A lighter press than Logitech's default can click by accident while you hold the mouse.")
+                        color: Theme.textMuted
+                        font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
                     }
                 }
             }
 
-            // ---- Default pattern ----
+            // ---- Advanced ----
             GlassCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: defaultCol.implicitHeight + Theme.padCard * 2
-                opacity: root.masterOn ? 1.0 : 0.5
-                enabled: root.masterOn
+                Layout.preferredHeight: advCol.implicitHeight + Theme.padCard * 2
+                visible: page.hasMotor
                 Column {
-                    id: defaultCol
+                    id: advCol
                     anchors.fill: parent; anchors.margins: Theme.padCard
                     spacing: Theme.gapS
                     CardHeader {
                         width: parent.width
-                        title: "Default pattern"
-                        subtitle: "Used for any event without its own pattern"
-                        icon: "image://icon/" + root._accent + "/" + Theme.iconStyle + "/starred-symbolic"
-                    }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    SettingRow {
-                        label: "Default pattern"
-                        ComboBox {
-                            id: cbDefault; width: 180
-                            model: Backend.hapticPatterns()
-                            currentId: Backend.get("haptics.default_pattern", "subtle_collision")
-                            onActivated2: (id) => Backend.set("haptics.default_pattern", id)
+                        title: qsTr("Advanced")
+                        subtitle: qsTr("Tick rate, duplicate pulses, and quiet in games or chosen apps")
+                        icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/preferences-system-symbolic"
+                        PrimaryButton {
+                            text: page.advancedOpen ? qsTr("Hide") : qsTr("Show"); ghost: true
+                            onClicked: page.advancedOpen = !page.advancedOpen
                         }
                     }
-                    Rectangle { width: parent.width; height: 1; color: Theme.border }
-                    Row {
+                    Column {
+                        width: parent.width
                         spacing: Theme.gapS
-                        PrimaryButton {
-                            text: "Test"
-                            onClicked: Backend.testHaptic(cbDefault.currentId)
+                        visible: page.advancedOpen
+                        Divider {}
+                        SettingRow {
+                            label: qsTr("Slice tick rate")
+                            desc: qsTr("The shortest time between two slice pulses when you sweep across the ring")
+                            SegmentedControl {
+                                width: 320
+                                accessibleName: qsTr("Slice tick rate")
+                                model: Backend.sliceTickRates()
+                                currentId: Backend.sliceTickRate
+                                onActivated: (id) => Backend.setSliceTickRate(id)
+                            }
                         }
-                        PrimaryButton {
-                            text: "Apply to all events"
-                            ghost: true
-                            onClicked: {
-                                var id = cbDefault.currentId
-                                Backend.set("haptics.per_event.menu_appear", id)
-                                Backend.set("haptics.per_event.slice_change", id)
-                                Backend.set("haptics.per_event.confirm", id)
-                                Backend.set("haptics.per_event.invalid", id)
-                                cbMenu.currentId = id; cbSlice.currentId = id
-                                cbConfirm.currentId = id; cbInvalid.currentId = id
+                        Divider {}
+                        SettingRow {
+                            label: qsTr("Prevent duplicate pulses")
+                            desc: qsTr("No second pulse when the pointer wobbles back onto the same slice")
+                            Toggle {
+                                checked: page.cfg("haptics.reentry_debounce_ms", 50) > 0
+                                onToggled: (v) => Backend.set("haptics.reentry_debounce_ms", v ? 50 : 0)
+                            }
+                        }
+                        Divider {}
+                        SettingRow {
+                            label: qsTr("Quiet in games")
+                            desc: qsTr("No pulses while gaming mode is on")
+                            Toggle {
+                                checked: page.cfg("haptics.mute_in_games", true)
+                                onToggled: (v) => Backend.set("haptics.mute_in_games", v)
+                            }
+                        }
+                        Divider {}
+                        SettingRow {
+                            label: qsTr("Quiet in these apps")
+                            desc: qsTr("No pulses while one of these apps is in front")
+                            PrimaryButton {
+                                text: qsTr("Add app"); ghost: true
+                                onClicked: mutePicker.open()
+                            }
+                        }
+                        Flow {
+                            width: parent.width
+                            spacing: 6
+                            Repeater {
+                                model: (page.bump, Backend.hapticMutedApps())
+                                Rectangle {
+                                    id: chip
+                                    required property string modelData
+                                    width: chipTxt.implicitWidth + 44; height: 30; radius: 8
+                                    color: "#12FFFFFF"; border.color: Theme.border; border.width: 1
+                                    Text {
+                                        id: chipTxt
+                                        anchors.left: parent.left; anchors.leftMargin: 12
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: chip.modelData
+                                        color: Theme.textBody
+                                        font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall
+                                    }
+                                    IconButton {
+                                        anchors.right: parent.right; anchors.rightMargin: 2
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        diameter: 26
+                                        icon: "window-close-symbolic"
+                                        tip: qsTr("Remove %1").arg(chip.modelData)
+                                        onClicked: Backend.removeHapticMutedApp(chip.modelData)
+                                    }
+                                }
                             }
                         }
                     }
@@ -274,5 +352,11 @@ Item {
             }
             Item { Layout.fillHeight: true; Layout.fillWidth: true; Layout.preferredHeight: 4 }
         }
+    }
+
+    AppPicker {
+        id: mutePicker
+        title: qsTr("Quiet while this app is in front")
+        onPicked: (app) => Backend.addHapticMutedApp(Backend.appClassFor(app.id))
     }
 }

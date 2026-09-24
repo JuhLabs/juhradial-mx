@@ -17,7 +17,7 @@
 //!
 //! SPDX-License-Identifier: GPL-3.0
 
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
 use std::sync::Arc;
 
 /// Outcome of a gesture-button press.
@@ -64,6 +64,10 @@ pub struct GestureTracker {
     active: AtomicBool,
     dx: AtomicI32,
     dy: AtomicI32,
+    /// Drag distance that makes the press a direction (0 = no tick).
+    threshold_px: AtomicU32,
+    /// The drag crossed the threshold during this press.
+    crossed: AtomicBool,
 }
 
 /// Handle shared by the press owner and the evdev motion loop.
@@ -79,7 +83,20 @@ impl GestureTracker {
     pub fn start(&self) {
         self.dx.store(0, Ordering::Relaxed);
         self.dy.store(0, Ordering::Relaxed);
+        self.crossed.store(false, Ordering::Relaxed);
         self.active.store(true, Ordering::Release);
+    }
+
+    /// The drag distance that turns a press into a direction. Crossing it
+    /// plays one haptic tick per press, so the hand feels the moment the
+    /// release stops being a click. 0 = no tick.
+    pub fn set_threshold(&self, px: u32) {
+        self.threshold_px.store(px, Ordering::Relaxed);
+    }
+
+    /// Whether the drag has crossed the threshold during this press.
+    pub fn crossed(&self) -> bool {
+        self.crossed.load(Ordering::Relaxed)
     }
 
     /// Whether a directional press is in flight.
@@ -98,6 +115,14 @@ impl GestureTracker {
         }
         if dy != 0 {
             self.dy.fetch_add(dy, Ordering::Relaxed);
+        }
+        let t = u64::from(self.threshold_px.load(Ordering::Relaxed));
+        if t > 0 && !self.crossed.load(Ordering::Relaxed) {
+            let x = u64::from(self.dx.load(Ordering::Relaxed).unsigned_abs());
+            let y = u64::from(self.dy.load(Ordering::Relaxed).unsigned_abs());
+            if x * x + y * y >= t * t && !self.crossed.swap(true, Ordering::Relaxed) {
+                crate::actions::pulse(crate::hidpp::HapticEvent::GestureTick);
+            }
         }
     }
 
@@ -168,5 +193,21 @@ mod tests {
         tracker.accumulate(50, 50);
         tracker.start();
         assert_eq!(tracker.finish(), (0, 0));
+    }
+
+    #[test]
+    fn crossing_the_threshold_is_noticed_once_per_press() {
+        let tracker = GestureTracker::new_shared();
+        tracker.set_threshold(40);
+        tracker.start();
+        tracker.accumulate(20, 20);
+        assert!(!tracker.crossed());
+        tracker.accumulate(10, 10);
+        assert!(tracker.crossed());
+        tracker.accumulate(-60, 0); // back under: stays crossed
+        assert!(tracker.crossed());
+        tracker.finish();
+        tracker.start();
+        assert!(!tracker.crossed());
     }
 }

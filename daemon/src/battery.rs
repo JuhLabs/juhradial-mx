@@ -44,6 +44,19 @@ pub fn new_shared_state() -> SharedBatteryState {
     Arc::new(RwLock::new(BatteryState::default()))
 }
 
+/// Low-battery pulse latch: fire once when a discharging mouse reaches 15 %,
+/// again only after it was charged or passed 20 %. Returns (fire, latched).
+/// 0 % means "not read yet" and never fires.
+pub fn low_battery_step(latched: bool, percentage: u8, charging: bool) -> (bool, bool) {
+    if charging || percentage > 20 {
+        return (false, false);
+    }
+    if percentage == 0 || latched || percentage > 15 {
+        return (false, latched);
+    }
+    (true, true)
+}
+
 /// HID++ Battery query handler
 pub struct BatteryHandler {
     /// Path to the hidraw device
@@ -621,5 +634,15 @@ mod tests {
         assert_eq!(state.percentage, 0);
         assert!(!state.charging);
         assert!(!state.available);
+    }
+
+    #[test]
+    fn low_battery_pulse_fires_once_per_discharge() {
+        assert_eq!(low_battery_step(false, 40, false), (false, false));
+        assert_eq!(low_battery_step(false, 15, false), (true, true));
+        assert_eq!(low_battery_step(true, 12, false), (false, true));
+        assert_eq!(low_battery_step(true, 18, false), (false, true)); // hysteresis
+        assert_eq!(low_battery_step(true, 12, true), (false, false)); // charging resets
+        assert_eq!(low_battery_step(false, 0, false), (false, false)); // not read yet
     }
 }

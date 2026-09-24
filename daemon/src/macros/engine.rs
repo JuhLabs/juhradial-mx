@@ -241,7 +241,9 @@ impl MacroEngine {
 
         // Spawn playback thread
         self.thread_handle = Some(thread::spawn(move || {
+            crate::actions::pulse(crate::hidpp::HapticEvent::MacroStart);
             run_playback(config, stop);
+            crate::actions::pulse(crate::hidpp::HapticEvent::MacroFinish);
         }));
     }
 

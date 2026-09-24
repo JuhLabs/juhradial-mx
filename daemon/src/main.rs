@@ -922,9 +922,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Window-switch haptic fires on every app-class change,
                 // regardless of whether a hardware profile matches below.
+                // An app on the haptics mute list goes quiet first, so
+                // switching into it does not pulse either.
+                let app_muted = hw_config
+                    .read()
+                    .map(|c| c.haptics.app_muted(&class))
+                    .unwrap_or(false);
                 let mgr_ws = hw_manager.clone();
                 let _ = tokio::task::spawn_blocking(move || {
                     if let Ok(mut m) = mgr_ws.lock() {
+                        m.set_app_muted(app_muted);
                         if m.is_window_switch_enabled() {
                             let _ = m.emit(HapticEvent::WindowSwitch);
                         }
@@ -1088,9 +1095,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let conn = dbus_connection.clone();
         let mut rx = juhradiald::link_state::subscribe();
         tokio::spawn(async move {
+            let mut last = rx.borrow().0;
             while rx.changed().await.is_ok() {
                 let (state, transport) = *rx.borrow_and_update();
                 info!(state = state.as_str(), transport = transport.as_str(), "Mouse link changed");
+                // Back from another computer (not a wake): the hand feels
+                // which computer the mouse landed on.
+                if last == juhradiald::link_state::LinkState::Away
+                    && state == juhradiald::link_state::LinkState::Connected
+                {
+                    juhradiald::actions::pulse(HapticEvent::HostArrive);
+                }
+                last = state;
                 if let Err(e) = conn
                     .emit_signal(
                         None::<&str>,
@@ -1102,6 +1118,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .await
                 {
                     warn!(error = %e, "Failed to emit DeviceConnectionChanged");
+                }
+            }
+        });
+    }
+    // Low-battery pulse (the overlay shows the notice; the hand feels it).
+    {
+        let battery = battery_state_for_events.clone();
+        tokio::spawn(async move {
+            let mut latched = false;
+            loop {
+                sleep(Duration::from_secs(60)).await;
+                let (pct, charging) = {
+                    let b = battery.read().await;
+                    (b.percentage, b.charging)
+                };
+                let (fire, next) = juhradiald::battery::low_battery_step(latched, pct, charging);
+                latched = next;
+                if fire {
+                    juhradiald::actions::pulse(HapticEvent::LowBattery);
                 }
             }
         });
@@ -1604,6 +1639,7 @@ impl ActionContext {
         match juhradiald::actions::write_dpi(dpi).await {
             Ok(()) => {
                 info!(%action, from = current, to = dpi, "DPI changed by a button");
+                juhradiald::actions::pulse(HapticEvent::DpiChange);
                 juhradiald::replay::set_session_dpi(Some(dpi));
                 let _ = self
                     .connection

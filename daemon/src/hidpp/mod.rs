@@ -36,7 +36,7 @@ pub use constants::{
     LOGITECH_VENDOR_ID,
 };
 pub use error::HapticError;
-pub use manager::{ConnectionState, HapticManager};
+pub use manager::{ConnectionState, HapticManager, TestOutcome};
 pub use messages::{ConnectionType, HidppLongMessage, HidppShortMessage};
 pub use patterns::{
     haptic_profiles, HapticEvent, HapticPattern, HapticPulse, Mx4HapticPattern, PerEventPattern,

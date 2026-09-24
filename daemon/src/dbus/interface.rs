@@ -221,10 +221,13 @@ impl JuhRadialService {
             "invalid" => HapticEvent::InvalidAction,
             "window_switch" => HapticEvent::WindowSwitch,
             "monitor_switch" => HapticEvent::MonitorSwitch,
-            _ => {
-                tracing::warn!(event, "Unknown haptic event type");
-                return Ok(());
-            }
+            other => match HapticEvent::ALL.iter().find(|e| e.config_key() == other) {
+                Some(e) => *e,
+                None => {
+                    tracing::warn!(event, "Unknown haptic event type");
+                    return Ok(());
+                }
+            },
         };
 
         // try_lock, not lock: this runs on the single zbus executor thread
@@ -254,20 +257,50 @@ impl JuhRadialService {
     /// Unlike TriggerHaptic (which takes a UX event and plays its configured
     /// pattern), this plays the exact named MX4 waveform so the haptics page
     /// can audition a selected preset.
-    async fn trigger_haptic_pattern(&self, name: &str) -> fdo::Result<()> {
+    /// Play one waveform (Settings' Test and hover preview). Answers
+    /// (played, reason): reason is "off" (haptics off), "no_motor",
+    /// "unreachable" (asleep, away) or "busy".
+    async fn trigger_haptic_pattern(&self, name: &str) -> fdo::Result<(bool, String)> {
         tracing::info!(name, "TriggerHapticPattern D-Bus method called");
         let pattern = Mx4HapticPattern::from_name(name);
         // try_lock for the same reason as trigger_haptic: never stall the
         // zbus executor thread behind a busy haptic manager.
         match self.haptic_manager.try_lock() {
             Ok(mut manager) => {
-                if let Err(e) = manager.pulse_pattern(pattern) {
-                    tracing::warn!(error = %e, "Haptic test pattern failed");
-                }
+                let outcome = manager.pulse_pattern(pattern);
+                Ok((outcome == crate::hidpp::TestOutcome::Played, outcome.as_str().to_string()))
             }
-            Err(e) => tracing::debug!(error = %e, "Haptic manager busy, dropping test pattern"),
+            Err(e) => {
+                tracing::debug!(error = %e, "Haptic manager busy, dropping test pattern");
+                Ok((false, "busy".to_string()))
+            }
         }
-        Ok(())
+    }
+
+    /// The motor strength as the mouse has it: (supported, enabled, percent).
+    async fn get_haptic_level(&self) -> fdo::Result<(bool, bool, u8)> {
+        match self.haptic_manager.lock() {
+            Ok(mut m) => Ok(m.haptic_level().map_or((false, false, 0), |(on, pct)| (true, on, pct))),
+            Err(_) => Ok((false, false, 0)),
+        }
+    }
+
+    /// The Haptic Sense Panel press force: (supported, min, max, default,
+    /// current), raw units, higher = firmer.
+    async fn get_force_sense(&self) -> fdo::Result<(bool, u16, u16, u16, u16)> {
+        match self.haptic_manager.lock() {
+            Ok(mut m) => Ok(m
+                .force_sense()
+                .filter(|f| f.changeable)
+                .map_or((false, 0, 0, 0, 0), |f| (true, f.min, f.max, f.default, f.current))),
+            Err(_) => Ok((false, 0, 0, 0, 0)),
+        }
+    }
+
+    /// Whether the focused-window tracker runs (per-app profiles, the App
+    /// switch pulse); false on a desktop it cannot follow.
+    async fn window_tracking_active(&self) -> fdo::Result<bool> {
+        Ok(crate::window_tracker::is_tracking())
     }
 
     /// Set the active profile

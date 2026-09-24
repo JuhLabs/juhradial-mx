@@ -48,6 +48,10 @@ pub mod features {
     /// MX Master 4 haptic motor (RUNTIME-ONLY - does NOT persist)
     /// Uses waveform IDs (0x00-0x1B) for predefined haptic patterns.
     pub const MX_MASTER_4_HAPTIC: u16 = 0x19B0;
+    /// Force Sensing Button (MX Master 4 Haptic Sense Panel press force):
+    /// [0] count, [1] info(idx) caps/default/max/min, [2] current(idx),
+    /// [3] set(idx, value). Written only when the user picks a force.
+    pub const FORCE_SENSING_BUTTON: u16 = 0x19C0;
     /// Alternative haptic feature used by mx4notifications project
     /// Some MX Master 4 devices may report this instead of 0x19B0
     pub const MX4_HAPTIC_ALT: u16 = 0x0B4E;
