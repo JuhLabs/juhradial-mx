@@ -653,6 +653,39 @@ impl JuhRadialService {
         }
     }
 
+    /// Bolt and Unifying receivers with their paired devices:
+    /// [(hidraw path, "bolt" | "unifying", [(slot, kind, wpid, name, role)])],
+    /// role "mouse" / "keyboard" for the devices JuhRadial drives, else "".
+    async fn list_receivers(&self) -> fdo::Result<Vec<(String, String, Vec<(u8, u8, u16, String, String)>)>> {
+        let mouse = self
+            .haptic_manager
+            .lock()
+            .ok()
+            .and_then(|m| Some((m.device_path()?, m.device_index()?)));
+        let rows = tokio::task::spawn_blocking(move || {
+            let keyboard = crate::keyboard::manager().lock().ok().and_then(|mut k| k.receiver_slot());
+            crate::hidpp::device::HidppDevice::list_receivers()
+                .into_iter()
+                .map(|(path, bolt, devices)| {
+                    let slots = devices
+                        .into_iter()
+                        .map(|d| {
+                            let here = |who: &Option<(std::path::PathBuf, u8)>| {
+                                who.as_ref().is_some_and(|(p, i)| p == &path && *i == d.slot)
+                            };
+                            let role = if here(&mouse) { "mouse" } else if here(&keyboard) { "keyboard" } else { "" };
+                            (d.slot, d.kind, d.wpid, d.name, role.to_string())
+                        })
+                        .collect();
+                    (path.display().to_string(), if bolt { "bolt" } else { "unifying" }.to_string(), slots)
+                })
+                .collect::<Vec<_>>()
+        })
+        .await
+        .unwrap_or_default();
+        Ok(rows)
+    }
+
     /// Scroll force (0x2111 tunable torque): (supported, current %, default %).
     async fn get_scroll_force(&self) -> fdo::Result<(bool, u8, u8)> {
         Ok(self.haptic_manager.lock().map(|mut m| m.get_scroll_force()).unwrap_or((false, 0, 0)))

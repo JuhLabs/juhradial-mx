@@ -216,3 +216,17 @@ def test_try_now_holds_the_app_for_a_minute_and_stops(backend):
     backend.tryAppProfile("code")
     backend.daemon.answer(None)  # service down: nothing is being tried
     assert backend.trialApp == ""
+
+
+def test_receivers_list_their_slots_and_mark_ours(backend):
+    assert backend.receivers is None
+    backend.refreshReceivers()
+    assert backend.daemon.pending[0][0] == "ListReceivers"
+    backend.daemon.answer([[("/dev/hidraw3", "bolt", [(2, 2, 0xB042, "MX Master 4", "mouse")]),
+                            ("/dev/hidraw8", "bolt", [(1, 1, 0xB378, "MX KEYS S", "keyboard"), (3, 7, 5, "", "")])]])
+    first, second = backend.receivers
+    assert first["devices"] == [{"slot": 2, "kind": "mouse", "wpid": "B042", "name": "MX Master 4", "role": "mouse"}]
+    assert second["devices"][0]["role"] == "keyboard" and second["devices"][1]["kind"] == "device"
+    backend.refreshReceivers()
+    backend.daemon.answer(None)  # an older daemon: nothing to list
+    assert backend.receivers == []

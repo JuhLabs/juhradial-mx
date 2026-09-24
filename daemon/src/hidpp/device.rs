@@ -166,6 +166,44 @@ pub fn parse_pairing_kind(bolt: bool, reply: &[u8]) -> Option<u8> {
     (reply.len() > at && reply[2] == 0x83 && reply[3] == 0xB5).then(|| reply[at] & 0x0F)
 }
 
+/// One paired device in a receiver's pairing table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PairedDevice {
+    pub slot: u8,
+    /// HID++ 1.0 device kind: 1 keyboard, 2 mouse, 3 numpad, ...
+    pub kind: u8,
+    pub wpid: u16,
+    pub name: String,
+}
+
+/// A slot's pairing information (long register 0xB5): (kind, wireless PID).
+/// Bolt: sub 0x50+slot, kind in byte 5, WPID little-endian in bytes 6..7.
+/// Unifying: sub 0x20+slot-1, WPID in bytes 7..8, kind in byte 11 (Solaar
+/// `device_pairing_information`).
+pub fn parse_pairing_info(bolt: bool, reply: &[u8]) -> Option<(u8, u16)> {
+    let kind = parse_pairing_kind(bolt, reply)?;
+    let wpid = if bolt {
+        u16::from_le_bytes([*reply.get(6)?, *reply.get(7)?])
+    } else {
+        u16::from_be_bytes([*reply.get(7)?, *reply.get(8)?])
+    };
+    Some((kind, wpid))
+}
+
+/// A slot's code name (long register 0xB5). Bolt: sub 0x60+slot, length in
+/// byte 6, name from byte 7; Unifying: sub 0x40+slot-1, length in byte 5,
+/// name from byte 6 (Solaar `device_codename`).
+pub fn parse_codename(bolt: bool, reply: &[u8]) -> Option<String> {
+    if reply.len() < 7 || reply[2] != 0x83 || reply[3] != 0xB5 {
+        return None;
+    }
+    let (len_at, from) = if bolt { (6, 7) } else { (5, 6) };
+    let len = usize::from(*reply.get(len_at)?).min(14);
+    let bytes = reply.get(from..from + len)?;
+    let name: String = bytes.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
+    (!name.trim().is_empty()).then(|| name.trim().to_string())
+}
+
 /// 0x1982 BACKLIGHT2 state, from getBacklightConfig (fn 0) and, when the
 /// feature version has it, getBacklightInfo (fn 2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -914,6 +952,76 @@ impl HidppDevice {
             }
         }
         None
+    }
+
+    /// Every Bolt and Unifying receiver with its paired devices, read
+    /// passively from the pairing registers (answers for sleeping devices,
+    /// sends no connection notices). A receiver that does not answer
+    /// register reads is listed without devices.
+    pub fn list_receivers() -> Vec<(PathBuf, bool, Vec<PairedDevice>)> {
+        Self::find_all_devices()
+            .into_iter()
+            .filter_map(|(path, ct)| {
+                let bolt = match ct {
+                    ConnectionType::Bolt => true,
+                    ConnectionType::Unifying => false,
+                    _ => return None,
+                };
+                let devices = Self::pairing_table(&path, bolt).unwrap_or_default();
+                Some((path, bolt, devices))
+            })
+            .collect()
+    }
+
+    /// One long-register 0xB5 read: the reply for `sub`, `Some(None)` for an
+    /// empty slot (error 0x8F), `None` when the receiver does not answer.
+    fn read_receiver_info(device: &mut std::fs::File, sub: u8, param: u8) -> Option<Option<Vec<u8>>> {
+        let fd = device.as_raw_fd();
+        device.write_all(&[0x10, 0xFF, 0x83, 0xB5, sub, param, 0x00]).ok()?;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(300);
+        let mut buf = [0u8; 32];
+        while wait_readable(fd, deadline) {
+            let n = match device.read(&mut buf) {
+                Ok(n) => n,
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+                Err(_) => return None,
+            };
+            let reply = &buf[..n];
+            if n < 5 || reply[1] != 0xFF {
+                continue;
+            }
+            if reply[2] == 0x8F && reply[3] == 0x83 && reply[4] == 0xB5 {
+                return Some(None);
+            }
+            if reply[2] == 0x83 && reply[3] == 0xB5 && reply[4] == sub {
+                return Some(Some(reply.to_vec()));
+            }
+        }
+        None
+    }
+
+    fn pairing_table(device_path: &std::path::Path, bolt: bool) -> Option<Vec<PairedDevice>> {
+        let mut device = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(device_path)
+            .ok()?;
+        let mut out = Vec::new();
+        for slot in 1..=6u8 {
+            let info_sub = if bolt { 0x50 + slot } else { 0x20 + slot - 1 };
+            let Some(info) = Self::read_receiver_info(&mut device, info_sub, 0x00)? else { continue };
+            let Some((kind, wpid)) = parse_pairing_info(bolt, &info) else { continue };
+            // Bolt answers the name read only with part 1 asked for (verified
+            // on hardware: "MX Master 4", "MX KEYS S"); Unifying takes none.
+            let (name_sub, part) = if bolt { (0x60 + slot, 0x01) } else { (0x40 + slot - 1, 0x00) };
+            let name = Self::read_receiver_info(&mut device, name_sub, part)
+                .flatten()
+                .and_then(|r| parse_codename(bolt, &r))
+                .unwrap_or_default();
+            out.push(PairedDevice { slot, kind, wpid, name });
+        }
+        Some(out)
     }
 
     pub fn find_paired_keyboard() -> Option<(PathBuf, u8)> {
@@ -3019,6 +3127,15 @@ mod button_divert_tests {
         let unifying = [0x11, 0xFF, 0x83, 0xB5, 0x20, 0x07, 0x08, 0x40, 0x82, 0x04, 0x00, 0x01, 0x07];
         assert_eq!(parse_pairing_kind(false, &unifying), Some(1));
         assert_eq!(parse_pairing_kind(true, &[0x10, 0xFF, 0x8F, 0x83, 0xB5, 0x08, 0x00]), None);
+        // Captured on the owner's receivers: MX Keys S is WPID B378, the
+        // mouse slot B042 (MX Master 4 family).
+        assert_eq!(parse_pairing_info(true, &kb), Some((1, 0xB378)));
+        assert_eq!(parse_pairing_info(true, &mouse), Some((2, 0xB042)));
+        assert_eq!(parse_pairing_info(false, &unifying), Some((1, 0x4082)));
+        // Captured: `11 ff 83 b5 61 01 09 4d 58 20 4b 45 59 53 20 53 00..`.
+        let name = [0x11, 0xFF, 0x83, 0xB5, 0x61, 0x01, 0x09, b'M', b'X', b' ', b'K', b'E', b'Y', b'S', b' ', b'S', 0, 0, 0, 0];
+        assert_eq!(parse_codename(true, &name).as_deref(), Some("MX KEYS S"));
+        assert_eq!(parse_codename(true, &name[..6]), None);
     }
 
     #[test]

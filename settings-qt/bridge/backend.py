@@ -2458,6 +2458,29 @@ class Backend(QObject):
         self._active_profile = app
         self.liveChanged.emit()
 
+    # ---- USB receivers (Devices tab) ----
+    receiversChanged = pyqtSignal()
+    RECEIVER_KINDS = {1: "keyboard", 2: "mouse", 3: "numpad", 4: "presenter", 8: "trackball", 9: "touchpad"}
+
+    @pyqtProperty("QVariant", notify=receiversChanged)
+    def receivers(self):
+        """[{kind, devices: [{slot, kind, wpid, name, role}]}] from ListReceivers
+        (None until the first read answers)."""
+        return getattr(self, "_receivers", None)
+
+    @pyqtSlot()
+    def refreshReceivers(self):
+        def done(r):
+            rows = []
+            for path, kind, slots in (r[0] if r else []) or []:
+                devices = [{"slot": _to_int(s[0]), "kind": self.RECEIVER_KINDS.get(_to_int(s[1]), "device"),
+                            "wpid": f"{_to_int(s[2]):04X}", "name": str(s[3]), "role": str(s[4])}
+                           for s in slots]
+                rows.append({"path": str(path), "kind": str(kind), "devices": devices})
+            self._receivers = rows
+            self.receiversChanged.emit()
+        self.daemon.call_then("ListReceivers", done)
+
     # ---- App profiles "Try now" ----
     TRIAL_SECONDS = 60
 

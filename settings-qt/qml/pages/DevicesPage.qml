@@ -567,6 +567,72 @@ Item {
                 }
             }
 
+            // ---- USB receivers ----
+            GlassCard {
+                Layout.fillWidth: true
+                Layout.preferredHeight: rxCol.implicitHeight + Theme.padCard * 2
+                visible: page.service && !Backend.isGeneric
+                Component.onCompleted: Backend.refreshReceivers()
+                Column {
+                    id: rxCol
+                    anchors.fill: parent; anchors.margins: Theme.padCard
+                    spacing: Theme.gapS
+                    CardHeader {
+                        width: parent.width
+                        title: qsTr("Receivers")
+                        subtitle: qsTr("What each Logitech USB receiver has paired, read from the receiver itself")
+                        icon: page._ic + "network-wireless-symbolic"
+                        PrimaryButton { text: qsTr("Check again"); ghost: true; onClicked: Backend.refreshReceivers() }
+                    }
+                    Text {
+                        visible: Backend.receivers !== null && Backend.receivers.length === 0
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: qsTr("No Bolt or Unifying receiver is plugged in. Devices on Bluetooth pair through your desktop's Bluetooth settings.")
+                        color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                    }
+                    Repeater {
+                        model: Backend.receivers || []
+                        Column {
+                            id: rx
+                            required property var modelData
+                            required property int index
+                            width: rxCol.width; spacing: 2
+                            Divider {}
+                            Text {
+                                topPadding: Theme.gapS
+                                text: (rx.modelData.kind === "bolt" ? qsTr("Logi Bolt receiver %1") : qsTr("Unifying receiver %1")).arg(rx.index + 1)
+                                color: Theme.textPrimary
+                                font.family: Theme.fontUI; font.pixelSize: Theme.fsBody; font.weight: Font.DemiBold
+                            }
+                            Text {
+                                visible: rx.modelData.devices.length === 0
+                                text: qsTr("Nothing paired, or the receiver did not answer")
+                                color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                            }
+                            Repeater {
+                                model: rx.modelData.devices
+                                InfoRow {
+                                    required property var modelData
+                                    mono: false
+                                    label: qsTr("Slot %1").arg(modelData.slot)
+                                    value: (modelData.name || modelData.kind) + "  " + modelData.wpid
+                                    Badge {
+                                        visible: modelData.role !== ""
+                                        text: modelData.role === "mouse" ? qsTr("This mouse") : qsTr("This keyboard")
+                                        accent: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        width: parent.width; wrapMode: Text.WordWrap
+                        text: qsTr("Pairing and unpairing stay with Logi Options+ or Solaar: JuhRadial only reads the receivers.")
+                        color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                    }
+                }
+            }
+
             // ---- about this mouse ----
             GlassCard {
                 Layout.fillWidth: true
