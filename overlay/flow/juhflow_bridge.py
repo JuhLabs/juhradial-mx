@@ -34,6 +34,7 @@ from .crypto import (
     parse_encrypted_packet,
 )
 from .keys import generate_identity
+from .trust import DENIED, TRUSTED, TrustStore, fingerprint
 
 logger = logging.getLogger("juhradial.flow.bridge")
 
@@ -92,12 +93,15 @@ class JuhFlowBridge:
 
     def __init__(self, on_edge_hit=None, on_clipboard=None,
                  on_device_switch=None, on_config=None,
-                 tcp_port=None, discovery_port=None):
+                 tcp_port=None, discovery_port=None, trust=None, on_pending=None):
         # Callbacks
         self.on_edge_hit = on_edge_hit
         self.on_clipboard = on_clipboard
         self.on_device_switch = on_device_switch
         self.on_config = on_config
+        # A computer shares nothing until the user approves its key.
+        self.trust = trust or TrustStore()
+        self.on_pending = on_pending
 
         # Ports (overridable for testing)
         self._tcp_port = tcp_port or JUHFLOW_TCP_PORT
@@ -219,7 +223,7 @@ class JuhFlowBridge:
         self._broadcast(msg)
 
     def get_peers(self):
-        """Return list of connected peers."""
+        """Return list of connected peers (approved or waiting for approval)."""
         with self._peers_lock:
             return [
                 {
@@ -228,16 +232,32 @@ class JuhFlowBridge:
                     "platform": p.platform,
                     "ip": p.ip,
                     "connected_at": p.connected_at,
+                    "fingerprint": p.fingerprint,
+                    "state": self.trust.state(p.fingerprint),
                 }
                 for pid, p in self._peers.items()
             ]
 
+    def _trusted(self, peer):
+        return self.trust.state(peer.fingerprint) == TRUSTED
+
     def _broadcast(self, msg):
-        """Send message to all connected peers."""
+        """Send message to every approved peer (clipboard, cursor, switches).
+        Heartbeats also reach computers awaiting approval: they carry nothing
+        and keep the link up while the user decides."""
+        heartbeat = msg.get("type") == MSG_HEARTBEAT
         with self._peers_lock:
             peers = list(self._peers.values())
         for peer in peers:
-            peer.send(msg)
+            if heartbeat or self._trusted(peer):
+                peer.send(msg)
+
+    def _drop_denied(self):
+        """Disconnect peers the user denied since they connected."""
+        with self._peers_lock:
+            denied = [p for p in self._peers.values() if self.trust.state(p.fingerprint) == DENIED]
+        for peer in denied:
+            peer.close()
 
     def _accept_loop(self):
         """Accept incoming TCP connections."""
@@ -279,6 +299,12 @@ class JuhFlowBridge:
             peer_pubkey = bytes.fromhex(handshake["public_key"])
             peer_hostname = handshake.get("hostname", addr[0])
             peer_platform = handshake.get("platform", "unknown")
+            peer_fp = fingerprint(peer_pubkey)
+            state = self.trust.state(peer_fp)
+            if state == DENIED:
+                logger.info("Refused denied Flow peer %s (%s)", peer_hostname, peer_fp)
+                conn.close()
+                return
 
             # Step 2: Send our handshake back
             our_handshake = {
@@ -306,6 +332,7 @@ class JuhFlowBridge:
                 aes_key=aes_key,
                 node_id=self._node_id,
                 on_message=self._on_peer_message,
+                fingerprint=peer_fp,
             )
 
             with self._peers_lock:
@@ -314,8 +341,10 @@ class JuhFlowBridge:
                     old.close()
                 self._peers[peer_id] = peer
 
-            logger.info("JuhFlow peer connected: %s (%s, %s)",
-                        peer_hostname, peer_platform, addr[0])
+            logger.info("JuhFlow peer connected: %s (%s, %s, %s)",
+                        peer_hostname, peer_platform, addr[0], state)
+            if state != TRUSTED and self.on_pending:
+                self.on_pending(peer_hostname, peer_fp)
 
             # Message loop (encrypted from here on).
             # Use long timeout - user may be on Mac for minutes.
@@ -335,7 +364,11 @@ class JuhFlowBridge:
             logger.info("Bridge connection from %s closed", addr[0])
 
     def _on_peer_message(self, peer_id, msg):
-        """Dispatch received messages to callbacks."""
+        """Dispatch received messages to callbacks (approved peers only)."""
+        with self._peers_lock:
+            peer = self._peers.get(peer_id)
+        if peer is None or not self._trusted(peer):
+            return
         msg_type = msg.get("type", "")
 
         if msg_type == MSG_EDGE_HIT and self.on_edge_hit:
@@ -400,6 +433,8 @@ class JuhFlowBridge:
                         "platform": "unknown",
                         "ip": "",
                         "connected_at": 0,
+                        # paired through Logi Options+ (its own pairing code)
+                        "state": TRUSTED,
                     })
 
         return peers
@@ -434,6 +469,7 @@ class JuhFlowBridge:
             os.path.expanduser("~"), ".config", "juhradial", "flow_status.json"
         )
         while self.running:
+            self._drop_denied()
             try:
                 self._heartbeat_once(status_path)
             except OSError as e:
@@ -448,7 +484,7 @@ class PeerConnection:
     """Encrypted connection to a JuhFlow peer."""
 
     def __init__(self, conn, peer_id, hostname, platform, ip,
-                 aes_key, node_id, on_message=None):
+                 aes_key, node_id, on_message=None, fingerprint=""):
         self.conn = conn
         self.peer_id = peer_id
         self.hostname = hostname
@@ -457,6 +493,7 @@ class PeerConnection:
         self.aes_key = aes_key
         self.node_id = node_id
         self.on_message = on_message
+        self.fingerprint = fingerprint
         self.connected_at = time.time()
         self._closed = False
 
@@ -505,8 +542,13 @@ class PeerConnection:
                 break
 
     def close(self):
-        """Close the connection."""
+        """Close the connection. shutdown() first: close() alone does not wake
+        the handler thread blocked in recv(), so the peer would linger."""
         self._closed = True
+        try:
+            self.conn.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass  # not connected any more
         try:
             self.conn.close()
         except OSError:

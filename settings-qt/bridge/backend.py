@@ -719,11 +719,16 @@ SEARCH_INDEX = [
     ("gaming", "Pulse on preset change", "In games", "haptic pulse dpi preset stage"),
     ("gaming", "Game macros", "In games", "macros games"),
     # Flow
-    ("flow", "Switch edge", "Behaviour", "switch edge direction screen handoff cursor"),
-    ("flow", "Move cursor to edge to switch", "Behaviour", "cursor edge trigger switch handoff pointer"),
-    ("flow", "Share clipboard", "Behaviour", "clipboard share copy paste sync computer"),
-    ("flow", "Edge sensitivity", "Behaviour", "edge sensitivity threshold force pressure"),
-    ("flow", "Monitor", "Behaviour", "monitor display screen handoff selection"),
+    ("flow", "Flow", "", "flow cross computer cursor mac companion juhflow kvm"),
+    ("flow", "Computers", "Flow", "flow computers approve pair trust connected mac forget"),
+    ("flow", "Where is the other computer", "Flow", "arrange side edge direction left right top bottom screen"),
+    ("flow", "Screen", "Flow", "monitor display screen handoff edge"),
+    ("flow", "This computer's channel", "Flow", "easy-switch channel host mouse follows cursor"),
+    ("flow", "Move the cursor across the edge", "Behaviour", "cursor edge trigger switch handoff pointer"),
+    ("flow", "How firmly to push", "Behaviour", "edge sensitivity dwell threshold push"),
+    ("flow", "Share clipboard", "Behaviour", "clipboard share copy paste sync text"),
+    ("flow", "Show the edge glow", "Behaviour", "indicator glow edge hide"),
+    ("flow", "Use the whole edge", "Behaviour", "extend edge zone full length"),
     # Themes
     ("themes", "Colour theme", "Colour theme", "theme color colour accent wallpaper appearance"),
     ("themes", "Match the desktop accent", "Colour theme", "automatic desktop accent kde gnome follow"),
@@ -4753,6 +4758,135 @@ class Backend(QObject):
         finally:
             reply.deleteLater()
             self.updateChanged.emit()
+
+    # ---- Flow ----
+    # The Flow server lives in the overlay process, which follows config.json
+    # live (juhradial-overlay.py follow_flow_setting). It publishes connected
+    # computers in flow_status.json; which ones may use Flow is the trust file
+    # the bridge re-reads (overlay/flow/trust.py, same format).
+    FLOW_TCP_PORT = 59872
+    FLOW_UDP_PORT = 59873
+
+    @staticmethod
+    def _flow_trust_path():
+        return CONFIG_DIR / "flow_trusted.json"
+
+    def _flow_trust(self):
+        try:
+            data = json.loads(self._flow_trust_path().read_text())
+        except (OSError, ValueError):
+            data = {}
+        return {"trusted": dict(data.get("trusted") or {}), "denied": dict(data.get("denied") or {})}
+
+    def _set_flow_trust(self, fp, state, hostname="", platform=""):
+        data = self._flow_trust()
+        for key in ("trusted", "denied"):
+            data[key].pop(fp, None)
+        if state in ("trusted", "denied"):
+            data[state][fp] = {"hostname": hostname, "platform": platform, "at": int(time.time())}
+        path = self._flow_trust_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=2))
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+
+    @classmethod
+    def _flow_listening(cls, proc="/proc/net"):
+        """True while something listens on the Flow bridge port (the overlay's
+        Flow server is up)."""
+        port = "%04X" % cls.FLOW_TCP_PORT
+        for name in ("tcp", "tcp6"):
+            try:
+                lines = pathlib.Path(proc, name).read_text().splitlines()[1:]
+            except OSError:
+                continue
+            for line in lines:
+                cols = line.split()
+                if len(cols) > 3 and cols[1].endswith(":" + port) and cols[3] == "0A":
+                    return True
+        return False
+
+    @pyqtSlot(result="QVariant")
+    def flowStatus(self):
+        """{running, peers: [{hostname, platform, ip, fingerprint, state}],
+        trusted: [{fingerprint, hostname, platform, connected}], clipboardTool}."""
+        peers = []
+        try:
+            status = json.loads((CONFIG_DIR / "flow_status.json").read_text())
+            if time.time() - float(status.get("updated_at", 0)) < 15:
+                peers = [dict(p) for p in status.get("peers") or [] if isinstance(p, dict)]
+        except (OSError, ValueError, TypeError):
+            pass
+        for p in peers:
+            p.setdefault("state", "trusted")
+            p.setdefault("fingerprint", "")
+        online = {p["fingerprint"] for p in peers}
+        trust = self._flow_trust()
+        trusted = [{"fingerprint": fp, "hostname": str(v.get("hostname") or ""),
+                    "platform": str(v.get("platform") or ""), "connected": fp in online}
+                   for fp, v in sorted(trust["trusted"].items(), key=lambda kv: str(kv[1].get("hostname")))]
+        wayland = os.environ.get("XDG_SESSION_TYPE", "") == "wayland"
+        tool = shutil.which("wl-copy") if wayland else None
+        tool = tool or shutil.which("xclip")
+        return {"running": self._flow_listening(), "peers": peers, "trusted": trusted,
+                "clipboardTool": os.path.basename(tool) if tool else "",
+                "clipboardHint": "wl-clipboard" if wayland else "xclip"}
+
+    @pyqtSlot(str, str, str)
+    def approveFlowPeer(self, fp, hostname, platform):
+        self._set_flow_trust(fp, "trusted", hostname, platform)
+        self.notify(_("{name} can now use Flow with this computer").format(name=hostname or fp), "success")
+
+    @pyqtSlot(str, str, str)
+    def denyFlowPeer(self, fp, hostname, platform):
+        self._set_flow_trust(fp, "denied", hostname, platform)
+        self.notify(_("{name} was turned away").format(name=hostname or fp), "info")
+
+    @pyqtSlot(str)
+    def forgetFlowPeer(self, fp):
+        self._set_flow_trust(fp, "")
+        self.notify(_("Forgotten. It has to be approved again to use Flow"), "info")
+
+    @pyqtSlot(result="QVariant")
+    def flowScreens(self):
+        """The Flow edge monitor choices: Automatic, then each screen by its
+        connector name (what the runtime matches on)."""
+        from PyQt6.QtGui import QGuiApplication
+        out = [{"id": "", "name": _("Automatic")}]
+        for scr in QGuiApplication.screens():
+            g = scr.geometry()
+            out.append({"id": scr.name(), "name": f"{scr.name()} ({g.width()} x {g.height()})"})
+        return out
+
+    @pyqtSlot()
+    def openJuhFlow(self):
+        """The JuhFlow companion app (Mac) in the repository."""
+        QDesktopServicesOpen(REPO_URL + "/tree/master/juhflow")
+
+    @pyqtSlot(result="QVariant")
+    def flowFirewall(self):
+        """Whether a firewall may block Flow, with the command that opens it."""
+        def active(unit):
+            try:
+                return subprocess.run(["systemctl", "is-active", "--quiet", unit],
+                                      timeout=3).returncode == 0
+            except (OSError, subprocess.SubprocessError):
+                return False
+        tcp, udp = self.FLOW_TCP_PORT, self.FLOW_UDP_PORT
+        if active("firewalld"):
+            try:
+                open_ = all(subprocess.run(["firewall-cmd", f"--query-port={port}"],
+                                           capture_output=True, text=True, timeout=4).stdout.strip() == "yes"
+                            for port in (f"{tcp}/tcp", f"{udp}/udp"))
+            except (OSError, subprocess.SubprocessError):
+                open_ = False
+            return {"firewall": "firewalld", "open": open_,
+                    "command": f"sudo firewall-cmd --permanent --add-port={tcp}/tcp --add-port={udp}/udp && sudo firewall-cmd --reload"}
+        if active("ufw"):
+            return {"firewall": "ufw", "open": None,
+                    "command": f"sudo ufw allow {tcp}/tcp && sudo ufw allow {udp}/udp"}
+        return {"firewall": "", "open": True, "command": ""}
 
     # ---- troubleshooting ----
     @pyqtSlot(result="QVariant")

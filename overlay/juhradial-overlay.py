@@ -1494,7 +1494,8 @@ def tray_icon_wanted():
 
 
 def follow_tray_setting(app, tray):
-    """Show or hide the tray icon live when Settings flips the toggle.
+    """Show or hide the tray icon (and start or stop Flow) live when
+    Settings changes them.
 
     Settings saves config.json atomically (temp file + rename), which drops a
     file watch, so watch the directory and re-read after a short debounce.
@@ -1505,8 +1506,28 @@ def follow_tray_setting(app, tray):
     debounce.setSingleShot(True)
     debounce.setInterval(250)
     debounce.timeout.connect(lambda: tray.setVisible(tray_icon_wanted()))
+    debounce.timeout.connect(follow_flow_setting)
     watcher.directoryChanged.connect(lambda _path: debounce.start())
     return watcher
+
+
+def follow_flow_setting():
+    """Start, stop or retune Flow when Settings saves config.json: the Flow
+    server and its edge indicator live in this process. The flow package is
+    imported only once Flow is on (it needs python-cryptography)."""
+    import json
+    try:
+        cfg = json.loads((Path.home() / ".config" / "juhradial" / "config.json").read_text())
+        wanted = bool((cfg.get("flow") or {}).get("enabled", False))
+    except (OSError, ValueError, AttributeError):
+        return
+    if not wanted and "flow" not in sys.modules:
+        return
+    try:
+        from flow import apply_config
+        apply_config()
+    except Exception as e:
+        _log(f"[Flow] Applying the settings failed: {e}")
 
 
 def create_tray_icon(app, radial_menu):

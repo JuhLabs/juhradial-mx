@@ -27,9 +27,7 @@ QML = REPO / "settings-qt" / "qml"
 sys.path.insert(0, os.fspath(REPO / "settings-qt"))
 
 # Pages whose tab pass has not converted them yet (remove as they land).
-ALLOWLIST = {
-    "pages/FlowPage.qml",
-}
+ALLOWLIST = set()
 
 PROPS = r"(?:text|title|subtitle|label|desc|body|placeholder|placeholderText|tip|error|ToolTip\.text|Accessible\.name|Accessible\.description)"
 LITERAL = re.compile(r'^\s*(?:property\s+string\s+)?' + PROPS + r'\s*:\s*(.*)$')

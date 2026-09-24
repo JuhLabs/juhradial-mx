@@ -189,8 +189,8 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
                     # (device is on Mac's receiver) and causes a reconnect loop.
                     if _juhflow_bridge:
                         cfg = _handoff_manager.get_flow_config()
-                        local_host = cfg.get("local_host_index", 0)
-                        local_channel = int(local_host) + 1  # 0-based -> 1-based
+                        local_host = cfg.get("local_host_index")  # null = not set
+                        local_channel = int(local_host or 0) + 1  # 0-based -> 1-based
                         _juhflow_bridge.send_device_switch(
                             "mx_master", local_channel,
                         )
@@ -228,6 +228,7 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
             _juhflow_bridge = JuhFlowBridge(
                 on_edge_hit=_on_bridge_edge_hit,
                 on_clipboard=_on_bridge_clipboard,
+                on_pending=_notify_pending_peer,
             )
             _juhflow_bridge.start()
 
@@ -258,6 +259,58 @@ def start_flow_server(on_host_change: Callable[[int], None] = None) -> FlowServe
         logger.warning("Flow indicator setup failed: %s", e)
 
     return _flow_server
+
+
+_pending_notified = set()
+
+
+def _notify_pending_peer(hostname, fp):
+    """A computer asked to use Flow and is not approved yet: say where to
+    approve it, once per key per session."""
+    if fp in _pending_notified:
+        return
+    _pending_notified.add(fp)
+    try:
+        import subprocess
+        subprocess.Popen(
+            ["notify-send", "-a", "JuhRadial MX", "-i", "network-workgroup-symbolic",
+             "Flow: new computer",
+             f"{hostname} wants to use Flow with this computer. Approve it in "
+             f"JuhRadial MX Settings > Flow (code {fp})."],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+
+def _read_flow_config():
+    try:
+        import json
+        from pathlib import Path
+        cfg_path = Path.home() / ".config" / "juhradial" / "config.json"
+        return json.loads(cfg_path.read_text()).get("flow", {}) or {}
+    except Exception:
+        return {}
+
+
+def apply_config():
+    """Follow config.json live (Settings saved it): start or stop Flow, then
+    apply the options the running parts only read at start. Runs on the
+    overlay's Qt main thread (the indicator is a QWidget)."""
+    flow = _read_flow_config()
+    if not flow.get("enabled", False):
+        if _flow_server is not None:
+            stop_flow_server()
+            if _flow_server is not None:
+                # The edge callback was still running: try again shortly.
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(500, apply_config)
+        return
+    if _flow_server is None:
+        start_flow_server()
+        return
+    if _edge_detector is not None:
+        _edge_detector.set_enabled(flow.get("edge_trigger", True))
+    update_indicator_direction(flow.get("direction", "right"))
 
 
 def update_indicator_direction(direction=None):
