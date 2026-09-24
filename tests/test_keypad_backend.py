@@ -324,7 +324,7 @@ def test_pack_import_keeps_pictures_and_maps_only_sure_actions(backend, tmp_path
     assert k[0]["custom"]["value"] == "code" and k[0]["plate"].endswith("artsy/l-code.jpg")
     assert k[1]["custom"] == {"kind": "shortcut", "value": "Escape"}
     assert k[2]["action"] == "none" and k[2]["label"] == "Mission"
-    assert k[3]["custom"] == {"kind": "text", "value": "/context", "enter": True, "paste_with": "ctrl+shift+v"}
+    assert k[3]["custom"] == {"kind": "text", "value": "/context", "paste_with": "ctrl+shift+v"}, "a pack never presses Enter"
     assert not backend.importKeypadPack(str(tmp_path / "missing"))
 
 

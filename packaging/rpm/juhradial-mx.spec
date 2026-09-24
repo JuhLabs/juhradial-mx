@@ -144,7 +144,16 @@ install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdi
 %{_udevrulesdir}/60-ydotool-uinput.rules
 %changelog
 * Thu Sep 24 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.1-1
-- Release 0.4.5-beta.1 (see CHANGELOG.md)
+- Beta of 0.4.5: new Qt/QML settings app, twelve themes, 18 languages
+- MX Keypad support: key art on the LCD keys, pages, app profiles, packs
+- Deeper MX Master 4 haptics, directional gestures, custom actions,
+  per-app buttons and app profiles with their own ring
+- Macros record and play back on Wayland; gaming mode; export and
+  import of the whole setup; Easy-Switch moves the keyboard along
+- Devices tab with battery, keyboard backlight, receivers and firmware
+- User-mode install for Bazzite and Fedora Atomic (install.sh --user)
+- Native radial menu on niri, NixOS module, GNOME 51 cursor helper
+- Fixes for scaled displays, menu latency and Easy-Switch reconnects
 
 * Sat Aug 15 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.3-1
 - Editable quick links in the radial submenu (#105)

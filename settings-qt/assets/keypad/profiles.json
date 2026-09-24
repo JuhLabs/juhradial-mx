@@ -1401,7 +1401,7 @@
   {
    "id": "google-meet",
    "name": "Google Meet",
-   "description": "Mic, camera, raise hand, chat and people in a Google Meet tab (select manually).",
+   "description": "Mic, camera, raise hand, chat and people in a Google Meet tab. Meet runs in a browser tab, so this page does not come up by itself: you pick it by hand.",
    "icon": "video-camera",
    "apps": [],
    "desktop_ids": [],
@@ -1500,7 +1500,7 @@
     "https://support.google.com/a/users/answer/9896256?hl=en&co=GENIE.Platform%3DDesktop",
     "https://pipewire.pages.freedesktop.org/wireplumber/man/wpctl.html"
    ],
-   "notes": "Meet runs in a browser tab, which reports the browser's class, so this profile has no apps and is meant to be picked by hand (or bound to a Meet PWA's crx_<id> class). Keys: mic ctrl+d, camera ctrl+e, raise hand ctrl+alt+h, chat ctrl+alt+c, people ctrl+alt+p, captions c. Leave has no documented shortcut. Outside a Meet tab ctrl+d bookmarks the page; Captions types 'c' while the chat box has focus."
+   "notes": "Meet runs in a browser tab, which reports the browser's class, so this profile has no apps and is picked by hand. Keys: mic ctrl+d, camera ctrl+e, raise hand ctrl+alt+h, chat ctrl+alt+c, people ctrl+alt+p, captions c. Leave has no documented shortcut. Outside a Meet tab ctrl+d bookmarks the page; Captions types 'c' while the chat box has focus."
   },
   {
    "id": "obs",

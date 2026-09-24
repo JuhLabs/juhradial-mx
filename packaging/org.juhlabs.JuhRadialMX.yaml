@@ -73,15 +73,21 @@ modules:
   - name: juhradial-mx
     buildsystem: simple
     build-commands:
-      # Install Python overlay
+      # Install Python overlay (all modules, flow package, locales)
       - mkdir -p /app/share/juhradial
-      - install -Dm755 overlay/juhradial-overlay.py /app/share/juhradial/
-      - install -Dm755 overlay/settings_dashboard.py /app/share/juhradial/
+      - install -Dm644 overlay/*.py /app/share/juhradial/
+      - cp -r overlay/flow overlay/locales /app/share/juhradial/
 
       # Install assets
       - mkdir -p /app/share/juhradial/assets
       - cp -r assets/* /app/share/juhradial/assets/
       - install -Dm644 assets/juhradial-mx.svg /app/share/icons/hicolor/scalable/apps/org.juhlabs.JuhRadialMX.svg
+
+      # The overlay draws slice glyphs from settings-qt/assets and resolves
+      # wheel skins under /app/share/juhradial/assets/wheels
+      - mkdir -p /app/share/juhradial/settings-qt
+      - cp -r settings-qt/assets /app/share/juhradial/settings-qt/
+      - cp -r settings-qt/assets/wheels /app/share/juhradial/assets/
 
       # Create launcher script
       - |

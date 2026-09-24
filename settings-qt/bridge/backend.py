@@ -2010,6 +2010,7 @@ class Backend(QObject):
             builtin = {p["id"] for p in self._keypad_catalogue()}
             pages = self.keypadPages
             first = len(pages)
+            no_enter = False
             for page in page_list:
                 if not isinstance(page, dict):
                     continue
@@ -2021,7 +2022,12 @@ class Backend(QObject):
                         img = pack / chosen / (pathlib.Path(str(raw.get("id", ""))).name + ".jpg")
                         inside = img.resolve().is_relative_to(pack.resolve())
                         img = str(img) if chosen and inside and img.is_file() else ""
-                        keys[slot] = self._own_pack_key(raw, img, apps, pack) or self._pack_key(raw, img, apps)
+                        key = self._own_pack_key(raw, img, apps, pack) or self._pack_key(raw, img, apps)
+                        # Nor may it paste a line plus Enter into a terminal:
+                        # its text keys come without Enter (second states too).
+                        for part in [key, *key.get("states", [])]:
+                            no_enter = part["custom"].pop("enter", False) or no_enter
+                        keys[slot] = key
                 from bridge.keypad import empty_key
                 profiles = page.get("mac_profiles")
                 profiles = profiles if isinstance(profiles, dict) else {}
@@ -2052,8 +2058,10 @@ class Backend(QObject):
         finally:
             if work is not None:
                 shutil.rmtree(work, ignore_errors=True)
-        self.notify(_("Pack imported: {n} pages. Keys without a Linux action keep their picture for you to assign.")
-                    .format(n=len(pages) - first), "success")
+        message = _("Pack imported: {n} pages. Keys without a Linux action keep their picture for you to assign.")
+        if no_enter:
+            message += " " + _("Text keys come with Press Enter after turned off, so a pack cannot run a line in a terminal.")
+        self.notify(message.format(n=len(pages) - first), "success")
         return True
 
     # ---- MX Keypad app profiles (built-in catalogue, ranked by use) ----

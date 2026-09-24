@@ -182,11 +182,11 @@ msgstr ", öppen"
 msgid ", this computer"
 msgstr ", den här datorn"
 
-#: settings-qt/bridge/backend.py:3575
+#: settings-qt/bridge/backend.py:3594
 msgid "1 hour"
 msgstr "1 timme"
 
-#: settings-qt/bridge/backend.py:3574
+#: settings-qt/bridge/backend.py:3593
 msgid "1 minute"
 msgstr "1 minut"
 
@@ -198,11 +198,11 @@ msgstr ""
 "1. Parkoppla musen med varje dator på varsin Easy-Switch-kanal och ange "
 "sedan båda kanalerna ovan."
 
-#: settings-qt/bridge/backend.py:3575
+#: settings-qt/bridge/backend.py:3594
 msgid "10 minutes"
 msgstr "10 minuter"
 
-#: settings-qt/bridge/backend.py:3573
+#: settings-qt/bridge/backend.py:3592
 msgid "10 seconds"
 msgstr "10 sekunder"
 
@@ -210,11 +210,11 @@ msgstr "10 sekunder"
 msgid "1st Unread"
 msgstr "1:a oläst"
 
-#: settings-qt/bridge/backend.py:3576
+#: settings-qt/bridge/backend.py:3595
 msgid "2 hours"
 msgstr "2 timmar"
 
-#: settings-qt/bridge/backend.py:3574
+#: settings-qt/bridge/backend.py:3593
 msgid "2 minutes"
 msgstr "2 minuter"
 
@@ -229,11 +229,11 @@ msgstr ""
 "3. Installera och öppna JuhFlow på din Mac. Den hittar den här datorn "
 "automatiskt."
 
-#: settings-qt/bridge/backend.py:3575
+#: settings-qt/bridge/backend.py:3594
 msgid "30 minutes"
 msgstr "30 minuter"
 
-#: settings-qt/bridge/backend.py:3573
+#: settings-qt/bridge/backend.py:3592
 msgid "30 seconds"
 msgstr "30 sekunder"
 
@@ -244,11 +244,11 @@ msgid ""
 msgstr ""
 "4. Godkänn din Mac under Datorer när den frågar. Inget delas innan dess."
 
-#: settings-qt/bridge/backend.py:3574
+#: settings-qt/bridge/backend.py:3593
 msgid "5 minutes"
 msgstr "5 minuter"
 
-#: settings-qt/bridge/backend.py:3573
+#: settings-qt/bridge/backend.py:3592
 msgid "5 seconds"
 msgstr "5 sekunder"
 
@@ -327,7 +327,7 @@ msgstr "Ett makro är klart"
 msgid "A macro is running. Esc stops it."
 msgstr "Ett makro körs. Esc stoppar det."
 
-#: settings-qt/bridge/backend.py:4611
+#: settings-qt/bridge/backend.py:4630
 msgid "A number of times"
 msgstr "Ett antal gånger"
 
@@ -366,12 +366,12 @@ msgstr "Ett svagt ljus på kanten som leder till den andra datorn"
 msgid "A tap, then a longer one"
 msgstr "Ett slag, sedan ett längre"
 
-#: settings-qt/qml/pages/SettingsPage.qml:646 settings-qt/bridge/backend.py:787
+#: settings-qt/qml/pages/SettingsPage.qml:646 settings-qt/bridge/backend.py:798
 msgid "About"
 msgstr "Om"
 
-#: settings-qt/qml/pages/DevicesPage.qml:647 settings-qt/bridge/backend.py:734
-#: settings-qt/bridge/backend.py:735
+#: settings-qt/qml/pages/DevicesPage.qml:647 settings-qt/bridge/backend.py:745
+#: settings-qt/bridge/backend.py:746
 msgid "About this mouse"
 msgstr "Om den här musen"
 
@@ -380,11 +380,11 @@ msgid "Above"
 msgstr "Ovanför"
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:67
-#: settings-qt/qml/pages/ScrollPage.qml:466 settings-qt/bridge/backend.py:691
+#: settings-qt/qml/pages/ScrollPage.qml:466 settings-qt/bridge/backend.py:702
 msgid "Action"
 msgstr "Åtgärd"
 
-#: settings-qt/bridge/backend.py:417 settings-qt/bridge/backend.py:699
+#: settings-qt/bridge/backend.py:417 settings-qt/bridge/backend.py:710
 msgid "Action runs"
 msgstr "Åtgärden körs"
 
@@ -394,8 +394,8 @@ msgstr "Åtgärder"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:579
 #: settings-qt/qml/pages/DashboardPage.qml:461
-#: settings-qt/bridge/backend.py:123 settings-qt/bridge/backend.py:674
-#: settings-qt/bridge/backend.py:675 settings-qt/bridge/backend.py:676
+#: settings-qt/bridge/backend.py:123 settings-qt/bridge/backend.py:685
+#: settings-qt/bridge/backend.py:686 settings-qt/bridge/backend.py:687
 msgid "Actions Ring"
 msgstr "Åtgärdsring"
 
@@ -448,7 +448,7 @@ msgstr ""
 "Lägg till applikationer på fliken Applikationsprofiler för att ge dem egna "
 "knappar."
 
-#: settings-qt/qml/pages/AppsPage.qml:354 settings-qt/bridge/backend.py:721
+#: settings-qt/qml/pages/AppsPage.qml:354 settings-qt/bridge/backend.py:732
 msgid "Add by window class"
 msgstr "Lägg till efter fönsterklass"
 
@@ -477,7 +477,7 @@ msgstr "Lägg till mall"
 msgid "Added"
 msgstr "Tillagd"
 
-#: settings-qt/bridge/backend.py:3832
+#: settings-qt/bridge/backend.py:3851
 msgid "Added profile: {app}"
 msgstr "Profil tillagd: {app}"
 
@@ -490,10 +490,10 @@ msgid "Adjust markers"
 msgstr "Justera markörer"
 
 #: settings-qt/qml/pages/DevicesPage.qml:784
-#: settings-qt/qml/pages/HapticsPage.qml:271 settings-qt/bridge/backend.py:710
-#: settings-qt/bridge/backend.py:711 settings-qt/bridge/backend.py:712
-#: settings-qt/bridge/backend.py:713 settings-qt/bridge/backend.py:736
-#: settings-qt/bridge/backend.py:737
+#: settings-qt/qml/pages/HapticsPage.qml:271 settings-qt/bridge/backend.py:721
+#: settings-qt/bridge/backend.py:722 settings-qt/bridge/backend.py:723
+#: settings-qt/bridge/backend.py:724 settings-qt/bridge/backend.py:747
+#: settings-qt/bridge/backend.py:748
 msgid "Advanced"
 msgstr "Avancerat"
 
@@ -521,8 +521,8 @@ msgstr "Varning"
 msgid "Align"
 msgstr "Justera"
 
-#: settings-qt/qml/pages/KeypadPage.qml:358 settings-qt/bridge/backend.py:2180
-#: settings-qt/bridge/backend.py:5341
+#: settings-qt/qml/pages/KeypadPage.qml:358 settings-qt/bridge/backend.py:2199
+#: settings-qt/bridge/backend.py:5360
 msgid "All apps"
 msgstr "Alla applikationer"
 
@@ -530,7 +530,7 @@ msgstr "Alla applikationer"
 msgid "All files (*)"
 msgstr "Alla filer (*)"
 
-#: settings-qt/bridge/backend.py:5223
+#: settings-qt/bridge/backend.py:5242
 msgid "Already matches your desktop"
 msgstr "Matchar redan ditt skrivbord"
 
@@ -573,13 +573,13 @@ msgstr "Applikationsikon"
 
 #: settings-qt/qml/Main.qml:61 settings-qt/qml/pages/AppsPage.qml:340
 #: settings-qt/qml/pages/KeypadPage.qml:410
-#: settings-qt/qml/pages/ScrollPage.qml:192 settings-qt/bridge/backend.py:651
-#: settings-qt/bridge/backend.py:720 settings-qt/bridge/backend.py:721
-#: settings-qt/bridge/backend.py:722 settings-qt/bridge/backend.py:781
+#: settings-qt/qml/pages/ScrollPage.qml:192 settings-qt/bridge/backend.py:662
+#: settings-qt/bridge/backend.py:731 settings-qt/bridge/backend.py:732
+#: settings-qt/bridge/backend.py:733 settings-qt/bridge/backend.py:792
 msgid "App profiles"
 msgstr "Applikationsprofiler"
 
-#: settings-qt/bridge/backend.py:426 settings-qt/bridge/backend.py:707
+#: settings-qt/bridge/backend.py:426 settings-qt/bridge/backend.py:718
 msgid "App switch"
 msgstr "Applikationsbyte"
 
@@ -587,7 +587,7 @@ msgstr "Applikationsbyte"
 msgid "App: %1"
 msgstr "Applikation: %1"
 
-#: settings-qt/bridge/backend.py:5235
+#: settings-qt/bridge/backend.py:5254
 msgid "Applied desktop defaults to {count} actions"
 msgstr "Skrivbordets standardval tillämpade på {count} åtgärder"
 
@@ -595,7 +595,7 @@ msgstr "Skrivbordets standardval tillämpade på {count} åtgärder"
 msgid "Apply"
 msgstr "Tillämpa"
 
-#: settings-qt/bridge/backend.py:780
+#: settings-qt/bridge/backend.py:791
 msgid "Apply desktop defaults"
 msgstr "Tillämpa skrivbordets standardval"
 
@@ -611,7 +611,7 @@ msgstr "Godkänn"
 msgid "Approved, not connected right now"
 msgstr "Godkänd, inte ansluten just nu"
 
-#: settings-qt/bridge/backend.py:1856
+#: settings-qt/bridge/backend.py:1867
 msgid "Apps and daily essentials"
 msgstr "Applikationer och vardagens viktigaste"
 
@@ -666,13 +666,13 @@ msgid "Assess"
 msgstr "Bedöm"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:187
-#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5859
+#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5877
 msgid "Automatic"
 msgstr "Automatisk"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:797
 #: settings-qt/qml/pages/ButtonsPage.qml:803
-#: settings-qt/qml/pages/SettingsPage.qml:94 settings-qt/bridge/backend.py:768
+#: settings-qt/qml/pages/SettingsPage.qml:94 settings-qt/bridge/backend.py:779
 msgid "Automatic size"
 msgstr "Automatisk storlek"
 
@@ -688,7 +688,7 @@ msgstr "Automatisk: anpassas till varje skärm"
 msgid "Automatic: the light sensor sets the brightness"
 msgstr "Automatisk: ljussensorn styr ljusstyrkan"
 
-#: settings-qt/bridge/backend.py:5013 settings-qt/bridge/backend.py:6043
+#: settings-qt/bridge/backend.py:5032 settings-qt/bridge/backend.py:6061
 msgid "Autostart: {error}"
 msgstr "Autostart: {error}"
 
@@ -700,7 +700,7 @@ msgstr "Vaken"
 #: settings-qt/qml/pages/ButtonsPage.qml:78
 #: settings-qt/qml/pages/ButtonsPage.qml:95
 #: settings-qt/qml/pages/ButtonsPage.qml:102 settings-qt/bridge/backend.py:133
-#: settings-qt/bridge/backend.py:670 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/backend.py:681 settings-qt/assets/keypad/profiles.json
 msgid "Back"
 msgstr "Bakåt"
 
@@ -708,7 +708,7 @@ msgstr "Bakåt"
 msgid "Back 10s"
 msgstr "Bakåt 10s"
 
-#: settings-qt/bridge/backend.py:3444 settings-qt/bridge/backend.py:4618
+#: settings-qt/bridge/backend.py:3463 settings-qt/bridge/backend.py:4637
 msgid "Back button"
 msgstr "Bakåtknapp"
 
@@ -721,7 +721,7 @@ msgid "Background service"
 msgstr "Bakgrundstjänst"
 
 #: settings-qt/qml/pages/DevicesPage.qml:450
-#: settings-qt/qml/pages/DevicesPage.qml:457 settings-qt/bridge/backend.py:731
+#: settings-qt/qml/pages/DevicesPage.qml:457 settings-qt/bridge/backend.py:742
 msgid "Backlight"
 msgstr "Bakgrundsbelysning"
 
@@ -737,12 +737,12 @@ msgstr "Bakgrundsbelysningen lyser i"
 msgid "Backlight stays on while charging for"
 msgstr "Bakgrundsbelysningen lyser under laddning i"
 
-#: settings-qt/qml/pages/SettingsPage.qml:501 settings-qt/bridge/backend.py:784
-#: settings-qt/bridge/backend.py:785 settings-qt/assets/keypad/art/art.json
+#: settings-qt/qml/pages/SettingsPage.qml:501 settings-qt/bridge/backend.py:795
+#: settings-qt/bridge/backend.py:796 settings-qt/assets/keypad/art/art.json
 msgid "Backup"
 msgstr "Säkerhetskopia"
 
-#: settings-qt/bridge/backend.py:5119
+#: settings-qt/bridge/backend.py:5138
 msgid "Backup saved as {name}"
 msgstr "Säkerhetskopia sparad som {name}"
 
@@ -755,7 +755,7 @@ msgid "Barely there"
 msgstr "Knappt märkbar"
 
 #: settings-qt/qml/components/BatteryRing.qml:22
-#: settings-qt/qml/pages/DevicesPage.qml:39 settings-qt/bridge/backend.py:662
+#: settings-qt/qml/pages/DevicesPage.qml:39 settings-qt/bridge/backend.py:673
 msgid "Battery"
 msgstr "Batteri"
 
@@ -771,7 +771,7 @@ msgstr "Batterivarning för tangentbordet"
 msgid "Battery alert for the mouse"
 msgstr "Batterivarning för musen"
 
-#: settings-qt/qml/pages/DevicesPage.qml:529 settings-qt/bridge/backend.py:733
+#: settings-qt/qml/pages/DevicesPage.qml:529 settings-qt/bridge/backend.py:744
 msgid "Battery alerts"
 msgstr "Batterivarningar"
 
@@ -780,10 +780,10 @@ msgid "Battery, backlight and moving with the mouse between computers"
 msgstr ""
 "Batteri, bakgrundsbelysning och byte mellan datorer tillsammans med musen"
 
-#: settings-qt/qml/pages/FlowPage.qml:392 settings-qt/bridge/backend.py:753
-#: settings-qt/bridge/backend.py:754 settings-qt/bridge/backend.py:755
-#: settings-qt/bridge/backend.py:756 settings-qt/bridge/backend.py:757
-#: settings-qt/bridge/backend.py:758
+#: settings-qt/qml/pages/FlowPage.qml:392 settings-qt/bridge/backend.py:764
+#: settings-qt/bridge/backend.py:765 settings-qt/bridge/backend.py:766
+#: settings-qt/bridge/backend.py:767 settings-qt/bridge/backend.py:768
+#: settings-qt/bridge/backend.py:769
 msgid "Behaviour"
 msgstr "Beteende"
 
@@ -820,7 +820,7 @@ msgstr ""
 msgid "Bind the macro to a button first."
 msgstr "Bind makrot till en knapp först."
 
-#: settings-qt/qml/pages/MacrosPage.qml:432 settings-qt/bridge/backend.py:717
+#: settings-qt/qml/pages/MacrosPage.qml:432 settings-qt/bridge/backend.py:728
 msgid "Bind to a button"
 msgstr "Bind till en knapp"
 
@@ -895,17 +895,17 @@ msgstr "Knapp"
 msgid "Button map"
 msgstr "Knappkarta"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:340 settings-qt/bridge/backend.py:665
-#: settings-qt/bridge/backend.py:666 settings-qt/bridge/backend.py:667
-#: settings-qt/bridge/backend.py:668 settings-qt/bridge/backend.py:669
-#: settings-qt/bridge/backend.py:670 settings-qt/bridge/backend.py:671
-#: settings-qt/bridge/backend.py:672 settings-qt/bridge/backend.py:673
+#: settings-qt/qml/pages/ButtonsPage.qml:340 settings-qt/bridge/backend.py:676
+#: settings-qt/bridge/backend.py:677 settings-qt/bridge/backend.py:678
+#: settings-qt/bridge/backend.py:679 settings-qt/bridge/backend.py:680
+#: settings-qt/bridge/backend.py:681 settings-qt/bridge/backend.py:682
+#: settings-qt/bridge/backend.py:683 settings-qt/bridge/backend.py:684
 msgid "Button mapping"
 msgstr "Knapptilldelning"
 
 #: settings-qt/qml/Main.qml:57 settings-qt/qml/pages/AppsPage.qml:292
 #: settings-qt/qml/pages/AppsPage.qml:295
-#: settings-qt/qml/pages/DevicesPage.qml:335 settings-qt/bridge/backend.py:650
+#: settings-qt/qml/pages/DevicesPage.qml:335 settings-qt/bridge/backend.py:661
 msgid "Buttons"
 msgstr "Knappar"
 
@@ -986,7 +986,7 @@ msgstr "Catppuccin Latte"
 msgid "Catppuccin Mocha"
 msgstr "Catppuccin Mocha"
 
-#: settings-qt/qml/pages/SettingsPage.qml:117 settings-qt/bridge/backend.py:770
+#: settings-qt/qml/pages/SettingsPage.qml:117 settings-qt/bridge/backend.py:781
 msgid "Center zone"
 msgstr "Mittzon"
 
@@ -1056,7 +1056,7 @@ msgstr ""
 msgid "Check again"
 msgstr "Kontrollera igen"
 
-#: settings-qt/qml/pages/SettingsPage.qml:465 settings-qt/bridge/backend.py:776
+#: settings-qt/qml/pages/SettingsPage.qml:465 settings-qt/bridge/backend.py:787
 msgid "Check for updates"
 msgstr "Sök efter uppdateringar"
 
@@ -1064,7 +1064,7 @@ msgstr "Sök efter uppdateringar"
 msgid "Check now"
 msgstr "Kontrollera nu"
 
-#: settings-qt/bridge/backend.py:1721
+#: settings-qt/bridge/backend.py:1732
 msgid "Check the custom action before saving this key"
 msgstr "Kontrollera den anpassade åtgärden innan du sparar den här tangenten"
 
@@ -1076,7 +1076,7 @@ msgstr "Kontrollera brandväggen"
 msgid "Checked each time the keyboard wakes up"
 msgstr "Kontrolleras varje gång tangentbordet vaknar"
 
-#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:5710
+#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:5728
 msgid "Checking…"
 msgstr "Kontrollerar…"
 
@@ -1180,7 +1180,7 @@ msgstr ""
 "Klicka på en markör för att omtilldela en knapp, eller tryck på den på musen "
 "för att hitta den"
 
-#: settings-qt/qml/pages/SettingsPage.qml:256 settings-qt/bridge/backend.py:775
+#: settings-qt/qml/pages/SettingsPage.qml:256 settings-qt/bridge/backend.py:786
 msgid "Click outside to close"
 msgstr "Klicka utanför för att stänga"
 
@@ -1253,8 +1253,8 @@ msgstr ""
 msgid "Colour"
 msgstr "Färg"
 
-#: settings-qt/qml/pages/ThemesPage.qml:118 settings-qt/bridge/backend.py:760
-#: settings-qt/bridge/backend.py:761
+#: settings-qt/qml/pages/ThemesPage.qml:118 settings-qt/bridge/backend.py:771
+#: settings-qt/bridge/backend.py:772
 msgid "Colour theme"
 msgstr "Färgtema"
 
@@ -1312,13 +1312,13 @@ msgid "Computer %1 of %2"
 msgstr "Dator %1 av %2"
 
 #: settings-qt/qml/pages/EasySwitchPage.qml:66
-#: settings-qt/qml/pages/FlowPage.qml:247 settings-qt/bridge/backend.py:724
-#: settings-qt/bridge/backend.py:725 settings-qt/bridge/backend.py:726
-#: settings-qt/bridge/backend.py:727 settings-qt/bridge/backend.py:749
+#: settings-qt/qml/pages/FlowPage.qml:247 settings-qt/bridge/backend.py:735
+#: settings-qt/bridge/backend.py:736 settings-qt/bridge/backend.py:737
+#: settings-qt/bridge/backend.py:738 settings-qt/bridge/backend.py:760
 msgid "Computers"
 msgstr "Datorer"
 
-#: settings-qt/bridge/backend.py:1523
+#: settings-qt/bridge/backend.py:1534
 msgid "Config was corrupt; using defaults (backup: config.json.bad)"
 msgstr ""
 "Konfigurationen var skadad; använder standardvärden (säkerhetskopia: "
@@ -1335,7 +1335,7 @@ msgstr "Anslut din MX Keypad för att använda de här tangenterna."
 msgid "Connected"
 msgstr "Ansluten"
 
-#: settings-qt/qml/pages/DevicesPage.qml:240 settings-qt/bridge/backend.py:729
+#: settings-qt/qml/pages/DevicesPage.qml:240 settings-qt/bridge/backend.py:740
 msgid "Connected devices"
 msgstr "Anslutna enheter"
 
@@ -1373,11 +1373,11 @@ msgstr "Kontext"
 msgid "Control panel"
 msgstr "Kontrollpanel"
 
-#: settings-qt/bridge/backend.py:4778
+#: settings-qt/bridge/backend.py:4797
 msgid "Copied"
 msgstr "Kopierat"
 
-#: settings-qt/bridge/backend.py:3919
+#: settings-qt/bridge/backend.py:3938
 msgid "Copied to {app}"
 msgstr "Kopierat till {app}"
 
@@ -1419,36 +1419,36 @@ msgstr "Kopiera enhets-ID"
 msgid "Copy to another app"
 msgstr "Kopiera till en annan applikation"
 
-#: settings-qt/bridge/backend.py:4693
+#: settings-qt/bridge/backend.py:4712
 msgid "Could not back up the settings, nothing was reset: {error}"
 msgstr ""
 "Kunde inte säkerhetskopiera inställningarna, inget återställdes: {error}"
 
-#: settings-qt/bridge/backend.py:1771
+#: settings-qt/bridge/backend.py:1782
 msgid "Could not copy the picture: {error}"
 msgstr "Kunde inte kopiera bilden: {error}"
 
-#: settings-qt/bridge/backend.py:2036 settings-qt/bridge/backend.py:2039
+#: settings-qt/bridge/backend.py:2053 settings-qt/bridge/backend.py:2056
 msgid "Could not import the pack: {error}"
 msgstr "Kunde inte importera paketet: {error}"
 
-#: settings-qt/bridge/backend.py:5597
+#: settings-qt/bridge/backend.py:5616
 msgid "Could not open the plugins folder: {error}"
 msgstr "Kunde inte öppna tilläggsmappen: {error}"
 
-#: settings-qt/bridge/backend.py:5712
+#: settings-qt/bridge/backend.py:5730
 msgid "Could not reach GitHub. Trying again tomorrow."
 msgstr "Kunde inte nå GitHub. Försöker igen i morgon."
 
-#: settings-qt/bridge/backend.py:5992
+#: settings-qt/bridge/backend.py:6010
 msgid "Could not restart the service: {error}"
 msgstr "Kunde inte starta om tjänsten: {error}"
 
-#: settings-qt/bridge/backend.py:5673
+#: settings-qt/bridge/backend.py:5692
 msgid "Could not restart: {error}"
 msgstr "Kunde inte starta om: {error}"
 
-#: settings-qt/bridge/backend.py:1852
+#: settings-qt/bridge/backend.py:1863
 msgid "Could not restore the keypad page"
 msgstr "Kunde inte återställa Keypad-sidan"
 
@@ -1456,27 +1456,27 @@ msgstr "Kunde inte återställa Keypad-sidan"
 msgid "Could not save a keypad plate"
 msgstr "Kunde inte spara en Keypad-tangentbild"
 
-#: settings-qt/bridge/backend.py:1658
+#: settings-qt/bridge/backend.py:1669
 msgid "Could not save keypad: {error}"
 msgstr "Kunde inte spara Keypad: {error}"
 
-#: settings-qt/bridge/backend.py:2263
+#: settings-qt/bridge/backend.py:2282
 msgid "Could not save the pack: {error}"
 msgstr "Kunde inte spara paketet: {error}"
 
-#: settings-qt/bridge/backend.py:6010
+#: settings-qt/bridge/backend.py:6028
 msgid "Could not start the radial menu: {error}"
 msgstr "Kunde inte starta radialmenyn: {error}"
 
-#: settings-qt/bridge/backend.py:1610
+#: settings-qt/bridge/backend.py:1621
 msgid "Could not switch the keypad page"
 msgstr "Kunde inte växla Keypad-sida"
 
-#: settings-qt/bridge/backend.py:2630
+#: settings-qt/bridge/backend.py:2649
 msgid "Could not try the profile. Is the JuhRadial service running?"
 msgstr "Kunde inte prova profilen. Körs JuhRadial-tjänsten?"
 
-#: settings-qt/bridge/backend.py:5981
+#: settings-qt/bridge/backend.py:5999
 msgid "Could not write the log: {error}"
 msgstr "Kunde inte skriva loggen: {error}"
 
@@ -1525,7 +1525,7 @@ msgid "Custom Action…"
 msgstr "Anpassad åtgärd…"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:92
-#: settings-qt/qml/pages/DashboardPage.qml:46 settings-qt/bridge/backend.py:672
+#: settings-qt/qml/pages/DashboardPage.qml:46 settings-qt/bridge/backend.py:683
 msgid "Custom action"
 msgstr "Anpassad åtgärd"
 
@@ -1569,7 +1569,7 @@ msgstr "DPI ner"
 msgid "DPI Up"
 msgstr "DPI upp"
 
-#: settings-qt/bridge/backend.py:421 settings-qt/bridge/backend.py:702
+#: settings-qt/bridge/backend.py:421 settings-qt/bridge/backend.py:713
 msgid "DPI change"
 msgstr "DPI-ändring"
 
@@ -1597,7 +1597,7 @@ msgstr "Daemon frånkopplad"
 msgid "Dark Ember (3D)"
 msgstr "Dark Ember (3D)"
 
-#: settings-qt/qml/Main.qml:56 settings-qt/bridge/backend.py:650
+#: settings-qt/qml/Main.qml:56 settings-qt/bridge/backend.py:661
 msgid "Dashboard"
 msgstr "Översikt"
 
@@ -1662,7 +1662,7 @@ msgstr "Skrivbord till vänster"
 msgid "Desktop Right"
 msgstr "Skrivbord till höger"
 
-#: settings-qt/qml/pages/SettingsPage.qml:393 settings-qt/bridge/backend.py:779
+#: settings-qt/qml/pages/SettingsPage.qml:393 settings-qt/bridge/backend.py:790
 msgid "Desktop environment"
 msgstr "Skrivbordsmiljö"
 
@@ -1678,7 +1678,7 @@ msgstr "Utvecklare"
 msgid "Dev tools"
 msgstr "Devtools"
 
-#: settings-qt/bridge/backend.py:1858
+#: settings-qt/bridge/backend.py:1869
 msgid "Developer"
 msgstr "Utvecklare"
 
@@ -1686,12 +1686,12 @@ msgstr "Utvecklare"
 msgid "Device mode"
 msgstr "Enhetsläge"
 
-#: settings-qt/bridge/backend.py:663
+#: settings-qt/bridge/backend.py:674
 msgid "Device status"
 msgstr "Enhetsstatus"
 
 #: settings-qt/qml/Main.qml:63 settings-qt/qml/pages/EasySwitchPage.qml:201
-#: settings-qt/bridge/backend.py:652
+#: settings-qt/bridge/backend.py:663
 msgid "Devices"
 msgstr "Enheter"
 
@@ -1703,7 +1703,7 @@ msgstr ""
 "Enheter, batteri och tangentbord läses via bakgrundstjänsten. Starta den så "
 "fylls sidan i automatiskt."
 
-#: settings-qt/bridge/backend.py:5947
+#: settings-qt/bridge/backend.py:5965
 msgid "Diagnostics copied. Paste them into your bug report."
 msgstr "Diagnostik kopierad. Klistra in den i din felrapport."
 
@@ -1720,8 +1720,8 @@ msgid "Direction"
 msgstr "Riktning"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:962
-#: settings-qt/qml/pages/ButtonsPage.qml:967 settings-qt/bridge/backend.py:678
-#: settings-qt/bridge/backend.py:679
+#: settings-qt/qml/pages/ButtonsPage.qml:967 settings-qt/bridge/backend.py:689
+#: settings-qt/bridge/backend.py:690
 msgid "Directional gestures"
 msgstr "Riktningsgester"
 
@@ -1777,7 +1777,7 @@ msgstr "Hämta %1"
 msgid "Dracula"
 msgstr "Dracula"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1047 settings-qt/bridge/backend.py:679
+#: settings-qt/qml/pages/ButtonsPage.qml:1047 settings-qt/bridge/backend.py:690
 msgid "Drag distance"
 msgstr "Dragavstånd"
 
@@ -1842,12 +1842,12 @@ msgstr "Varje tryck går till nästa DPI-förinställning"
 #: settings-qt/qml/pages/DashboardPage.qml:494
 #: settings-qt/qml/pages/DashboardPage.qml:534
 #: settings-qt/qml/pages/DevicesPage.qml:698 settings-qt/bridge/backend.py:118
-#: settings-qt/bridge/backend.py:652 settings-qt/bridge/backend.py:727
+#: settings-qt/bridge/backend.py:663 settings-qt/bridge/backend.py:738
 msgid "Easy-Switch"
 msgstr "Easy-Switch"
 
 #: settings-qt/qml/pages/EasySwitchPage.qml:214
-#: settings-qt/bridge/backend.py:724
+#: settings-qt/bridge/backend.py:735
 msgid "Easy-Switch in the radial menu"
 msgstr "Easy-Switch i radialmenyn"
 
@@ -1888,7 +1888,7 @@ msgid "Editing"
 msgstr "Redigerar"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:375
-#: settings-qt/qml/pages/ButtonsPage.qml:380 settings-qt/bridge/backend.py:673
+#: settings-qt/qml/pages/ButtonsPage.qml:380 settings-qt/bridge/backend.py:684
 msgid "Editing for"
 msgstr "Redigerar för"
 
@@ -1896,7 +1896,7 @@ msgstr "Redigerar för"
 msgid "Editor"
 msgstr "Editor"
 
-#: settings-qt/bridge/backend.py:1858
+#: settings-qt/bridge/backend.py:1869
 msgid "Editor, terminal and editing shortcuts"
 msgstr "Editor, terminal och genvägar för redigering"
 
@@ -1929,7 +1929,7 @@ msgstr "Element"
 msgid "Emoji"
 msgstr "Emoji"
 
-#: settings-qt/bridge/backend.py:418 settings-qt/bridge/backend.py:700
+#: settings-qt/bridge/backend.py:418 settings-qt/bridge/backend.py:711
 msgid "Empty slice"
 msgstr "Tomt segment"
 
@@ -1955,13 +1955,13 @@ msgstr "Suddgummi"
 msgid "Esc"
 msgstr "Esc"
 
-#: settings-qt/qml/pages/HapticsPage.qml:191 settings-qt/bridge/backend.py:697
-#: settings-qt/bridge/backend.py:698 settings-qt/bridge/backend.py:699
-#: settings-qt/bridge/backend.py:700 settings-qt/bridge/backend.py:701
-#: settings-qt/bridge/backend.py:702 settings-qt/bridge/backend.py:703
-#: settings-qt/bridge/backend.py:704 settings-qt/bridge/backend.py:705
-#: settings-qt/bridge/backend.py:706 settings-qt/bridge/backend.py:707
-#: settings-qt/bridge/backend.py:708
+#: settings-qt/qml/pages/HapticsPage.qml:191 settings-qt/bridge/backend.py:708
+#: settings-qt/bridge/backend.py:709 settings-qt/bridge/backend.py:710
+#: settings-qt/bridge/backend.py:711 settings-qt/bridge/backend.py:712
+#: settings-qt/bridge/backend.py:713 settings-qt/bridge/backend.py:714
+#: settings-qt/bridge/backend.py:715 settings-qt/bridge/backend.py:716
+#: settings-qt/bridge/backend.py:717 settings-qt/bridge/backend.py:718
+#: settings-qt/bridge/backend.py:719
 msgid "Events"
 msgstr "Händelser"
 
@@ -1969,7 +1969,7 @@ msgstr "Händelser"
 msgid "Every slice"
 msgstr "Varje segment"
 
-#: settings-qt/bridge/backend.py:1856
+#: settings-qt/bridge/backend.py:1867
 msgid "Everyday"
 msgstr "Vardag"
 
@@ -1989,11 +1989,11 @@ msgstr "Export som"
 msgid "Export JuhRadial MX settings"
 msgstr "Exportera JuhRadial MX-inställningar"
 
-#: settings-qt/bridge/backend.py:4647 settings-qt/bridge/backend.py:5121
+#: settings-qt/bridge/backend.py:4666 settings-qt/bridge/backend.py:5140
 msgid "Export failed: {error}"
 msgstr "Export misslyckades: {error}"
 
-#: settings-qt/qml/pages/SettingsPage.qml:506 settings-qt/bridge/backend.py:784
+#: settings-qt/qml/pages/SettingsPage.qml:506 settings-qt/bridge/backend.py:795
 msgid "Export settings"
 msgstr "Exportera inställningar"
 
@@ -2010,7 +2010,7 @@ msgstr "Uttrycksfull"
 msgid "Extra actions for the ring, from plugin folders"
 msgstr "Extra åtgärder för ringen från tilläggsmappar"
 
-#: settings-qt/bridge/backend.py:3442 settings-qt/bridge/backend.py:4621
+#: settings-qt/bridge/backend.py:3461 settings-qt/bridge/backend.py:4640
 msgid "Extra side button"
 msgstr "Extra sidoknapp"
 
@@ -2121,10 +2121,10 @@ msgstr "Fast mellanrum"
 
 #: settings-qt/qml/Main.qml:65 settings-qt/qml/pages/DashboardPage.qml:438
 #: settings-qt/qml/pages/FlowPage.qml:195
-#: settings-qt/qml/pages/FlowPage.qml:207 settings-qt/bridge/backend.py:653
-#: settings-qt/bridge/backend.py:748 settings-qt/bridge/backend.py:749
-#: settings-qt/bridge/backend.py:750 settings-qt/bridge/backend.py:751
-#: settings-qt/bridge/backend.py:752
+#: settings-qt/qml/pages/FlowPage.qml:207 settings-qt/bridge/backend.py:664
+#: settings-qt/bridge/backend.py:759 settings-qt/bridge/backend.py:760
+#: settings-qt/bridge/backend.py:761 settings-qt/bridge/backend.py:762
+#: settings-qt/bridge/backend.py:763
 msgid "Flow"
 msgstr "Flow"
 
@@ -2202,7 +2202,7 @@ msgid "For when detection picks the wrong mouse"
 msgstr "När fel mus identifieras"
 
 #: settings-qt/qml/Main.qml:409 settings-qt/qml/pages/DevicesPage.qml:790
-#: settings-qt/qml/pages/DevicesPage.qml:793 settings-qt/bridge/backend.py:736
+#: settings-qt/qml/pages/DevicesPage.qml:793 settings-qt/bridge/backend.py:747
 msgid "Force generic mode"
 msgstr "Tvinga generiskt läge"
 
@@ -2210,7 +2210,7 @@ msgstr "Tvinga generiskt läge"
 msgid "Forget"
 msgstr "Glöm"
 
-#: settings-qt/bridge/backend.py:5852
+#: settings-qt/bridge/backend.py:5870
 msgid "Forgotten. It has to be approved again to use Flow"
 msgstr "Glömd. Måste godkännas igen för att använda Flow"
 
@@ -2241,11 +2241,11 @@ msgstr ""
 #: settings-qt/qml/pages/ButtonsPage.qml:79
 #: settings-qt/qml/pages/ButtonsPage.qml:94
 #: settings-qt/qml/pages/ButtonsPage.qml:101 settings-qt/bridge/backend.py:134
-#: settings-qt/bridge/backend.py:669 settings-qt/assets/keypad/profiles.json
+#: settings-qt/bridge/backend.py:680 settings-qt/assets/keypad/profiles.json
 msgid "Forward"
 msgstr "Framåt"
 
-#: settings-qt/bridge/backend.py:3443 settings-qt/bridge/backend.py:4619
+#: settings-qt/bridge/backend.py:3462 settings-qt/bridge/backend.py:4638
 msgid "Forward button"
 msgstr "Framåtknapp"
 
@@ -2299,7 +2299,7 @@ msgstr "GIMP"
 msgid "GNOME on Wayland has no scroll speed setting"
 msgstr "GNOME på Wayland saknar inställning för rullningshastighet"
 
-#: settings-qt/qml/pages/GamingPage.qml:353 settings-qt/bridge/backend.py:746
+#: settings-qt/qml/pages/GamingPage.qml:353 settings-qt/bridge/backend.py:757
 msgid "Game macros"
 msgstr "Spelmakron"
 
@@ -2312,7 +2312,7 @@ msgstr ""
 "eller Heroic"
 
 #: settings-qt/qml/Main.qml:64 settings-qt/qml/pages/ScrollPage.qml:186
-#: settings-qt/bridge/backend.py:652
+#: settings-qt/bridge/backend.py:663
 msgid "Gaming"
 msgstr "Spel"
 
@@ -2322,7 +2322,7 @@ msgstr "Spelläge på/av"
 
 #: settings-qt/qml/pages/DashboardPage.qml:433
 #: settings-qt/qml/pages/GamingPage.qml:89
-#: settings-qt/qml/pages/GamingPage.qml:94 settings-qt/bridge/backend.py:739
+#: settings-qt/qml/pages/GamingPage.qml:94 settings-qt/bridge/backend.py:750
 msgid "Gaming mode"
 msgstr "Spelläge"
 
@@ -2330,7 +2330,7 @@ msgstr "Spelläge"
 msgid "Gaming mode is on and sets its own DPI until you turn it off."
 msgstr "Spelläget är på och använder egen DPI tills du stänger av det."
 
-#: settings-qt/bridge/backend.py:4244
+#: settings-qt/bridge/backend.py:4263
 msgid "Gaming mode needs the JuhRadial service"
 msgstr "Spelläget kräver JuhRadial-tjänsten"
 
@@ -2372,11 +2372,11 @@ msgstr "Generiskt musläge är på, så Logitech-funktioner är dolda."
 msgid "Gesture"
 msgstr "Gest"
 
-#: settings-qt/qml/pages/DevicesPage.qml:698 settings-qt/bridge/backend.py:665
+#: settings-qt/qml/pages/DevicesPage.qml:698 settings-qt/bridge/backend.py:676
 msgid "Gesture button"
 msgstr "Gestknapp"
 
-#: settings-qt/bridge/backend.py:419 settings-qt/bridge/backend.py:701
+#: settings-qt/bridge/backend.py:419 settings-qt/bridge/backend.py:712
 msgid "Gesture threshold"
 msgstr "Gesttröskel"
 
@@ -2405,7 +2405,7 @@ msgstr "GitHub Light"
 msgid "Give a ring slice the submenu action to add links here."
 msgstr "Ge ett ringsegment undermenyåtgärden för att lägga till länkar här."
 
-#: settings-qt/bridge/backend.py:3688
+#: settings-qt/bridge/backend.py:3707
 msgid "Give a slice a submenu first"
 msgstr "Ge ett segment en undermeny först"
 
@@ -2504,13 +2504,13 @@ msgstr "Överlämna"
 msgid "Happy"
 msgstr "Glad"
 
-#: settings-qt/qml/pages/HapticsPage.qml:221 settings-qt/bridge/backend.py:709
+#: settings-qt/qml/pages/HapticsPage.qml:221 settings-qt/bridge/backend.py:720
 msgid "Haptic Sense Panel"
 msgstr "Haptic Sense Panel"
 
 #: settings-qt/qml/pages/HapticsPage.qml:121
-#: settings-qt/qml/pages/HapticsPage.qml:128 settings-qt/bridge/backend.py:695
-#: settings-qt/bridge/backend.py:696
+#: settings-qt/qml/pages/HapticsPage.qml:128 settings-qt/bridge/backend.py:706
+#: settings-qt/bridge/backend.py:707
 msgid "Haptic feedback"
 msgstr "Haptisk återkoppling"
 
@@ -2536,7 +2536,7 @@ msgstr "Haptisk stil ändrad"
 
 #: settings-qt/qml/Main.qml:59 settings-qt/qml/pages/DashboardPage.qml:420
 #: settings-qt/qml/pages/DevicesPage.qml:339
-#: settings-qt/qml/pages/DevicesPage.qml:697 settings-qt/bridge/backend.py:651
+#: settings-qt/qml/pages/DevicesPage.qml:697 settings-qt/bridge/backend.py:662
 msgid "Haptics"
 msgstr "Haptik"
 
@@ -2574,7 +2574,7 @@ msgid "History"
 msgstr "Historik"
 
 #: settings-qt/qml/pages/FlowPage.qml:458
-#: settings-qt/qml/pages/FlowPage.qml:462 settings-qt/bridge/backend.py:758
+#: settings-qt/qml/pages/FlowPage.qml:462 settings-qt/bridge/backend.py:769
 msgid "Hold Ctrl to cross"
 msgstr "Håll Ctrl för att gå över"
 
@@ -2629,7 +2629,7 @@ msgid "How firmly the wheel clicks from notch to notch in ratchet mode"
 msgstr "Hur bestämt hjulet klickar från steg till steg i stegvis läge"
 
 #: settings-qt/qml/pages/FlowPage.qml:408
-#: settings-qt/qml/pages/FlowPage.qml:415 settings-qt/bridge/backend.py:754
+#: settings-qt/qml/pages/FlowPage.qml:415 settings-qt/bridge/backend.py:765
 msgid "How firmly to push"
 msgstr "Hur bestämt du behöver trycka"
 
@@ -2704,14 +2704,14 @@ msgstr "Ikon i radialmenyn"
 msgid "Icon in radial menu for %1"
 msgstr "Ikon i radialmenyn för %1"
 
-#: settings-qt/qml/pages/SettingsPage.qml:131 settings-qt/bridge/backend.py:771
+#: settings-qt/qml/pages/SettingsPage.qml:131 settings-qt/bridge/backend.py:782
 msgid "Icon size"
 msgstr "Ikonstorlek"
 
 #: settings-qt/qml/pages/SettingsPage.qml:157
 #: settings-qt/qml/pages/ThemesPage.qml:360
-#: settings-qt/qml/pages/ThemesPage.qml:371 settings-qt/bridge/backend.py:763
-#: settings-qt/bridge/backend.py:772
+#: settings-qt/qml/pages/ThemesPage.qml:371 settings-qt/bridge/backend.py:774
+#: settings-qt/bridge/backend.py:783
 msgid "Icon style"
 msgstr "Ikonstil"
 
@@ -2719,7 +2719,7 @@ msgstr "Ikonstil"
 msgid "Identify screens"
 msgstr "Identifiera skärmar"
 
-#: settings-qt/bridge/backend.py:2590
+#: settings-qt/bridge/backend.py:2609
 msgid ""
 "Identify screens needs X11 windows, which the ring does not use on this "
 "desktop."
@@ -2747,7 +2747,7 @@ msgstr "Importera JuhRadial MX-inställningar"
 msgid "Import a keypad pack"
 msgstr "Importera ett Keypad-paket"
 
-#: settings-qt/bridge/backend.py:5169
+#: settings-qt/bridge/backend.py:5188
 msgid "Import failed: {error}"
 msgstr "Import misslyckades: {error}"
 
@@ -2755,7 +2755,7 @@ msgstr "Import misslyckades: {error}"
 msgid "Import pack"
 msgstr "Importera paket"
 
-#: settings-qt/qml/pages/SettingsPage.qml:514 settings-qt/bridge/backend.py:785
+#: settings-qt/qml/pages/SettingsPage.qml:514 settings-qt/bridge/backend.py:796
 msgid "Import settings"
 msgstr "Importera inställningar"
 
@@ -2763,7 +2763,7 @@ msgstr "Importera inställningar"
 msgid "Import this backup?"
 msgstr "Importera den här säkerhetskopian?"
 
-#: settings-qt/bridge/backend.py:4662
+#: settings-qt/bridge/backend.py:4681
 msgid "Imported macro"
 msgstr "Importerat makro"
 
@@ -2776,9 +2776,9 @@ msgstr "Importer"
 msgid "Import…"
 msgstr "Importera…"
 
-#: settings-qt/qml/pages/GamingPage.qml:297 settings-qt/bridge/backend.py:742
-#: settings-qt/bridge/backend.py:743 settings-qt/bridge/backend.py:744
-#: settings-qt/bridge/backend.py:745 settings-qt/bridge/backend.py:746
+#: settings-qt/qml/pages/GamingPage.qml:297 settings-qt/bridge/backend.py:753
+#: settings-qt/bridge/backend.py:754 settings-qt/bridge/backend.py:755
+#: settings-qt/bridge/backend.py:756 settings-qt/bridge/backend.py:757
 msgid "In games"
 msgstr "I spel"
 
@@ -2807,7 +2807,7 @@ msgstr "Gränssnittsspråk och skrivbordsintegration"
 msgid "Interview"
 msgstr "Intervju"
 
-#: settings-qt/qml/pages/ScrollPage.qml:478 settings-qt/bridge/backend.py:692
+#: settings-qt/qml/pages/ScrollPage.qml:478 settings-qt/bridge/backend.py:703
 msgid "Invert direction"
 msgstr "Invertera riktning"
 
@@ -2896,7 +2896,7 @@ msgstr "Tangentfärg"
 msgid "Key label"
 msgstr "Tangentetikett"
 
-#: settings-qt/qml/pages/KeypadPage.qml:120 settings-qt/bridge/backend.py:658
+#: settings-qt/qml/pages/KeypadPage.qml:120 settings-qt/bridge/backend.py:669
 msgid "Key plates"
 msgstr "Tangentbilder"
 
@@ -2905,8 +2905,8 @@ msgid "Key saved"
 msgstr "Tangent sparad"
 
 #: settings-qt/qml/pages/DevicesPage.qml:431
-#: settings-qt/qml/pages/DevicesPage.qml:557 settings-qt/bridge/backend.py:730
-#: settings-qt/bridge/backend.py:731 settings-qt/bridge/backend.py:732
+#: settings-qt/qml/pages/DevicesPage.qml:557 settings-qt/bridge/backend.py:741
+#: settings-qt/bridge/backend.py:742 settings-qt/bridge/backend.py:743
 msgid "Keyboard"
 msgstr "Tangentbord"
 
@@ -2914,7 +2914,7 @@ msgstr "Tangentbord"
 msgid "Keyboard %1%"
 msgstr "Tangentbord %1%"
 
-#: settings-qt/bridge/backend.py:2853
+#: settings-qt/bridge/backend.py:2872
 msgid "Keyboard battery low"
 msgstr "Låg batterinivå i tangentbordet"
 
@@ -2938,11 +2938,11 @@ msgstr "Keypad-paket (*.zip)"
 msgid "Keypad page"
 msgstr "Keypad-sida"
 
-#: settings-qt/bridge/backend.py:1672
+#: settings-qt/bridge/backend.py:1683
 msgid "Keypad saved; reconnect the device to refresh its keys"
 msgstr "Keypad sparad; anslut enheten igen för att uppdatera tangenterna"
 
-#: settings-qt/bridge/backend.py:1667
+#: settings-qt/bridge/backend.py:1678
 msgid "Keypad saved; the service could not reload it"
 msgstr "Keypad sparad; tjänsten kunde inte läsa in den igen"
 
@@ -2967,12 +2967,12 @@ msgstr "Krita"
 msgid "Label"
 msgstr "Etikett"
 
-#: settings-qt/qml/pages/SettingsPage.qml:367 settings-qt/bridge/backend.py:778
+#: settings-qt/qml/pages/SettingsPage.qml:367 settings-qt/bridge/backend.py:789
 msgid "Language"
 msgstr "Språk"
 
-#: settings-qt/qml/pages/SettingsPage.qml:362 settings-qt/bridge/backend.py:778
-#: settings-qt/bridge/backend.py:779 settings-qt/bridge/backend.py:780
+#: settings-qt/qml/pages/SettingsPage.qml:362 settings-qt/bridge/backend.py:789
+#: settings-qt/bridge/backend.py:790 settings-qt/bridge/backend.py:791
 msgid "Language & desktop"
 msgstr "Språk och skrivbord"
 
@@ -3005,7 +3005,7 @@ msgstr "Vänsterklick"
 msgid "Left is a firm push, right a light touch"
 msgstr "Vänster är ett fast tryck, höger en lätt beröring"
 
-#: settings-qt/bridge/backend.py:3816
+#: settings-qt/bridge/backend.py:3835
 msgid "Letters, digits, dots, dashes and underscores only"
 msgstr "Endast bokstäver, siffror, punkter, bindestreck och understreck"
 
@@ -3013,8 +3013,8 @@ msgstr "Endast bokstäver, siffror, punkter, bindestreck och understreck"
 msgid "Level %1 of %2. 0 turns the backlight off"
 msgstr "Nivå %1 av %2. 0 släcker bakgrundsbelysningen"
 
-#: settings-qt/bridge/backend.py:716 settings-qt/bridge/backend.py:717
-#: settings-qt/bridge/backend.py:718
+#: settings-qt/bridge/backend.py:727 settings-qt/bridge/backend.py:728
+#: settings-qt/bridge/backend.py:729
 msgid "Library"
 msgstr "Bibliotek"
 
@@ -3109,7 +3109,7 @@ msgstr "Lås tester"
 msgid "Logi Bolt receiver %1"
 msgstr "Logi Bolt-mottagare %1"
 
-#: settings-qt/bridge/backend.py:6041
+#: settings-qt/bridge/backend.py:6059
 msgid "Login entry repaired"
 msgstr "Autostartpost reparerad"
 
@@ -3133,13 +3133,13 @@ msgstr "Slinga"
 msgid "Low"
 msgstr "Låg"
 
-#: settings-qt/bridge/backend.py:423 settings-qt/bridge/backend.py:704
+#: settings-qt/bridge/backend.py:423 settings-qt/bridge/backend.py:715
 msgid "Low battery"
 msgstr "Låg batterinivå"
 
 #: settings-qt/qml/Main.qml:68 settings-qt/qml/pages/KeypadPage.qml:75
-#: settings-qt/bridge/backend.py:649 settings-qt/bridge/backend.py:658
-#: settings-qt/bridge/backend.py:659 settings-qt/bridge/backend.py:660
+#: settings-qt/bridge/backend.py:660 settings-qt/bridge/backend.py:669
+#: settings-qt/bridge/backend.py:670 settings-qt/bridge/backend.py:671
 msgid "MX Keypad"
 msgstr "MX Keypad"
 
@@ -3153,7 +3153,7 @@ msgid "MX Keys S"
 msgstr "MX Keys S"
 
 #: settings-qt/qml/pages/DevicesPage.qml:438
-#: settings-qt/qml/pages/DevicesPage.qml:441 settings-qt/bridge/backend.py:730
+#: settings-qt/qml/pages/DevicesPage.qml:441 settings-qt/bridge/backend.py:741
 msgid "MX Keys S support"
 msgstr "Stöd för MX Keys S"
 
@@ -3163,7 +3163,7 @@ msgstr "Mac"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:108
 #: settings-qt/qml/components/CustomActionEditor.qml:220
-#: settings-qt/bridge/backend.py:4603
+#: settings-qt/bridge/backend.py:4622
 msgid "Macro"
 msgstr "Makro"
 
@@ -3171,7 +3171,7 @@ msgstr "Makro"
 msgid "Macro deleted"
 msgstr "Makro borttaget"
 
-#: settings-qt/bridge/backend.py:4649
+#: settings-qt/bridge/backend.py:4668
 msgid "Macro exported"
 msgstr "Makro exporterat"
 
@@ -3180,7 +3180,7 @@ msgstr "Makro exporterat"
 msgid "Macro files (*.json)"
 msgstr "Makrofiler (*.json)"
 
-#: settings-qt/bridge/backend.py:425 settings-qt/bridge/backend.py:706
+#: settings-qt/bridge/backend.py:425 settings-qt/bridge/backend.py:717
 msgid "Macro finishes"
 msgstr "Makro avslutas"
 
@@ -3191,7 +3191,7 @@ msgstr "Makro avslutas"
 msgid "Macro name"
 msgstr "Makronamn"
 
-#: settings-qt/bridge/backend.py:424 settings-qt/bridge/backend.py:705
+#: settings-qt/bridge/backend.py:424 settings-qt/bridge/backend.py:716
 msgid "Macro starts"
 msgstr "Makro startar"
 
@@ -3203,12 +3203,12 @@ msgstr "Makrot ”%1” körs aldrig"
 msgid "Macro: %1"
 msgstr "Makro: %1"
 
-#: settings-qt/bridge/backend.py:4630
+#: settings-qt/bridge/backend.py:4649
 msgid "Macro: {name}"
 msgstr "Makro: {name}"
 
 #: settings-qt/qml/Main.qml:60 settings-qt/qml/pages/GamingPage.qml:355
-#: settings-qt/bridge/backend.py:651
+#: settings-qt/bridge/backend.py:662
 msgid "Macros"
 msgstr "Makron"
 
@@ -3252,11 +3252,11 @@ msgstr "Manuell: ljusstyrkan nedan förblir som du ställer in den"
 msgid "Mark Read"
 msgstr "Märk läst"
 
-#: settings-qt/qml/pages/ThemesPage.qml:132 settings-qt/bridge/backend.py:761
+#: settings-qt/qml/pages/ThemesPage.qml:132 settings-qt/bridge/backend.py:772
 msgid "Match the desktop accent"
 msgstr "Matcha skrivbordets accentfärg"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:985 settings-qt/bridge/backend.py:1857
+#: settings-qt/qml/pages/ButtonsPage.qml:985 settings-qt/bridge/backend.py:1868
 #: settings-qt/bridge/backend.py:117 settings-qt/assets/keypad/profiles.json
 msgid "Media"
 msgstr "Media"
@@ -3277,15 +3277,15 @@ msgstr "Medel"
 msgid "Meeting"
 msgstr "Möte"
 
-#: settings-qt/bridge/backend.py:1859
+#: settings-qt/bridge/backend.py:1870
 msgid "Meetings"
 msgstr "Möten"
 
-#: settings-qt/qml/pages/SettingsPage.qml:246 settings-qt/bridge/backend.py:773
+#: settings-qt/qml/pages/SettingsPage.qml:246 settings-qt/bridge/backend.py:784
 msgid "Menu background blur"
 msgstr "Oskarp menybakgrund"
 
-#: settings-qt/bridge/backend.py:415 settings-qt/bridge/backend.py:697
+#: settings-qt/bridge/backend.py:415 settings-qt/bridge/backend.py:708
 msgid "Menu opens"
 msgstr "Menyn öppnas"
 
@@ -3303,11 +3303,9 @@ msgstr "Tysta mik"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
-"Mic, camera, raise hand, chat and people in a Google Meet tab (select "
-"manually)."
-msgstr ""
-"Mikrofon, kamera, räck upp handen, chatt och deltagare i en Google Meet-flik "
-"(välj manuellt)."
+"Mic, camera, raise hand, chat and people in a Google Meet tab. Meet runs in "
+"a browser tab, so this page does not come up by itself: you pick it by hand."
+msgstr "Mikrofon, kamera, räck upp handen, chatt och deltagare i en Google Meet-flik. Meet körs i en webbläsarflik, så den här sidan kommer inte upp av sig själv: du väljer den för hand."
 
 #: settings-qt/assets/keypad/profiles.json
 msgid "Microsoft Teams"
@@ -3317,7 +3315,7 @@ msgstr "Microsoft Teams"
 msgid "Middle Click"
 msgstr "Mittenklick"
 
-#: settings-qt/bridge/backend.py:3445
+#: settings-qt/bridge/backend.py:3464
 msgid "Middle click"
 msgstr "Mittenklick"
 
@@ -3336,7 +3334,7 @@ msgstr "Läge"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:77
 #: settings-qt/qml/pages/ButtonsPage.qml:89
-#: settings-qt/qml/pages/ButtonsPage.qml:100 settings-qt/bridge/backend.py:668
+#: settings-qt/qml/pages/ButtonsPage.qml:100 settings-qt/bridge/backend.py:679
 msgid "Mode shift"
 msgstr "Lägesväxling"
 
@@ -3346,7 +3344,7 @@ msgstr "Lägesväxling"
 msgid "Model"
 msgstr "Modell"
 
-#: settings-qt/bridge/backend.py:428 settings-qt/bridge/backend.py:708
+#: settings-qt/bridge/backend.py:428 settings-qt/bridge/backend.py:719
 msgid "Monitor switch"
 msgstr "Skärmbyte"
 
@@ -3371,11 +3369,11 @@ msgid "Mouse"
 msgstr "Mus"
 
 #: settings-qt/qml/pages/EasySwitchPage.qml:193
-#: settings-qt/bridge/backend.py:726
+#: settings-qt/bridge/backend.py:737
 msgid "Mouse and keyboard move together"
 msgstr "Mus och tangentbord byter tillsammans"
 
-#: settings-qt/bridge/backend.py:2844
+#: settings-qt/bridge/backend.py:2863
 msgid "Mouse battery low"
 msgstr "Låg batterinivå i musen"
 
@@ -3383,7 +3381,7 @@ msgstr "Låg batterinivå i musen"
 msgid "Mouse button"
 msgstr "Musknapp"
 
-#: settings-qt/bridge/backend.py:422 settings-qt/bridge/backend.py:703
+#: settings-qt/bridge/backend.py:422 settings-qt/bridge/backend.py:714
 msgid "Mouse returns"
 msgstr "Musen kommer tillbaka"
 
@@ -3408,7 +3406,7 @@ msgid "Move page up"
 msgstr "Flytta sidan uppåt"
 
 #: settings-qt/qml/pages/FlowPage.qml:397
-#: settings-qt/qml/pages/FlowPage.qml:401 settings-qt/bridge/backend.py:753
+#: settings-qt/qml/pages/FlowPage.qml:401 settings-qt/bridge/backend.py:764
 msgid "Move the cursor across the edge"
 msgstr "Flytta pekaren över kanten"
 
@@ -3457,7 +3455,7 @@ msgstr "Namn"
 msgid "Name this macro"
 msgstr "Ge makrot ett namn"
 
-#: settings-qt/qml/pages/ScrollPage.qml:352 settings-qt/bridge/backend.py:688
+#: settings-qt/qml/pages/ScrollPage.qml:352 settings-qt/bridge/backend.py:699
 msgid "Natural scrolling"
 msgstr "Naturlig rullning"
 
@@ -3534,12 +3532,12 @@ msgstr "Ny chatt"
 msgid "New link"
 msgstr "Ny länk"
 
-#: settings-qt/bridge/backend.py:4438
+#: settings-qt/bridge/backend.py:4457
 msgid "New macro"
 msgstr "Nytt makro"
 
 #: settings-qt/qml/pages/KeypadPage.qml:271
-#: settings-qt/qml/pages/KeypadPage.qml:320 settings-qt/bridge/backend.py:1738
+#: settings-qt/qml/pages/KeypadPage.qml:320 settings-qt/bridge/backend.py:1749
 msgid "New page"
 msgstr "Ny sida"
 
@@ -3620,7 +3618,7 @@ msgstr "Ingen applikation vald"
 msgid "No applications found"
 msgstr "Inga applikationer hittades"
 
-#: settings-qt/bridge/backend.py:4617
+#: settings-qt/bridge/backend.py:4636
 msgid "No button"
 msgstr "Ingen knapp"
 
@@ -3637,7 +3635,7 @@ msgid "No firewall service is running here, so Flow is not blocked by one."
 msgstr ""
 "Ingen brandväggstjänst körs här, så Flow blockeras inte av någon sådan."
 
-#: settings-qt/bridge/backend.py:4388
+#: settings-qt/bridge/backend.py:4407
 msgid "No keyboard to record from. Your user needs to read /dev/input "
 msgstr ""
 "Inget tangentbord att spela in från. Din användare behöver läsåtkomst till /"
@@ -3689,7 +3687,7 @@ msgstr "Inga tillägg installerade"
 msgid "No plugins yet"
 msgstr "Inga tillägg ännu"
 
-#: settings-qt/bridge/backend.py:1980
+#: settings-qt/bridge/backend.py:1991
 msgid "No portable.json in this pack"
 msgstr "Ingen portable.json i det här paketet"
 
@@ -3743,7 +3741,7 @@ msgstr "Nord"
 msgid "Normal push"
 msgstr "Normalt tryck"
 
-#: settings-qt/bridge/backend.py:5717
+#: settings-qt/bridge/backend.py:5735
 msgid "Not checked yet."
 msgstr "Inte kontrollerat ännu."
 
@@ -3809,7 +3807,7 @@ msgstr "Inget parkopplat, eller så svarade inte mottagaren"
 msgid "Nothing shows up? A firewall may block Flow."
 msgstr "Inget dyker upp? En brandvägg kan blockera Flow."
 
-#: settings-qt/bridge/backend.py:4428
+#: settings-qt/bridge/backend.py:4447
 msgid "Nothing was recorded. Press some keys while it records."
 msgstr "Inget spelades in. Tryck på några tangenter under inspelningen."
 
@@ -3866,7 +3864,7 @@ msgstr "Kontor"
 msgid "On"
 msgstr "På"
 
-#: settings-qt/bridge/backend.py:4613
+#: settings-qt/bridge/backend.py:4632
 msgid "On / off"
 msgstr "På / av"
 
@@ -3887,15 +3885,18 @@ msgstr "På automatiskt"
 msgid "On in this app"
 msgstr "På i den här applikationen"
 
-#: settings-qt/bridge/backend.py:4002
+#: settings-qt/bridge/backend.py:4021
 msgid ""
 "On this desktop a crossing is noticed only while the pointer is over an "
 "XWayland window."
-msgstr "På det här skrivbordet upptäcks ett skärmbyte bara när pekaren är över ett XWayland-fönster."
+msgstr ""
+"På det här skrivbordet upptäcks ett skärmbyte bara när pekaren är över ett "
+"XWayland-fönster."
 
-#: settings-qt/bridge/backend.py:4000
+#: settings-qt/bridge/backend.py:4019
 msgid "On this desktop only apps that run through XWayland are seen."
-msgstr "På det här skrivbordet upptäcks bara applikationer som körs via XWayland."
+msgstr ""
+"På det här skrivbordet upptäcks bara applikationer som körs via XWayland."
 
 #: settings-qt/qml/pages/SettingsPage.qml:84
 msgid "On this screen: %1 px across"
@@ -3913,7 +3914,7 @@ msgstr ""
 msgid "On: faster movements carry the pointer further"
 msgstr "På: snabbare rörelser flyttar pekaren längre"
 
-#: settings-qt/bridge/backend.py:4610
+#: settings-qt/bridge/backend.py:4629
 msgid "Once"
 msgstr "En gång"
 
@@ -4034,7 +4035,7 @@ msgstr "Övrigt"
 msgid "Other computer"
 msgstr "Annan dator"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1069 settings-qt/bridge/backend.py:680
+#: settings-qt/qml/pages/ButtonsPage.qml:1069 settings-qt/bridge/backend.py:691
 msgid "Other controls"
 msgstr "Andra kontroller"
 
@@ -4075,7 +4076,7 @@ msgstr "Översikt"
 msgid "Own ring"
 msgstr "Egen ring"
 
-#: settings-qt/bridge/backend.py:2044
+#: settings-qt/bridge/backend.py:2061
 msgid ""
 "Pack imported: {n} pages. Keys without a Linux action keep their picture for "
 "you to assign."
@@ -4083,12 +4084,12 @@ msgstr ""
 "Paket importerat: {n} sidor. Tangenter utan Linux-åtgärd behåller sin bild "
 "så att du kan tilldela dem själv."
 
-#: settings-qt/bridge/backend.py:2265
+#: settings-qt/bridge/backend.py:2284
 msgid "Pack saved: {path}"
 msgstr "Paket sparat: {path}"
 
 #: settings-qt/qml/components/CustomActionEditor.qml:109
-#: settings-qt/bridge/backend.py:2023
+#: settings-qt/bridge/backend.py:2040
 msgid "Page"
 msgstr "Sida"
 
@@ -4112,7 +4113,7 @@ msgstr "Sida upp"
 msgid "Page deleted"
 msgstr "Sida borttagen"
 
-#: settings-qt/qml/pages/KeypadPage.qml:261 settings-qt/bridge/backend.py:659
+#: settings-qt/qml/pages/KeypadPage.qml:261 settings-qt/bridge/backend.py:670
 msgid "Pages"
 msgstr "Sidor"
 
@@ -4272,7 +4273,7 @@ msgstr "Väljer temat närmast skrivbordets accentfärg"
 msgid "Picture"
 msgstr "Bild"
 
-#: settings-qt/bridge/backend.py:3590
+#: settings-qt/bridge/backend.py:3609
 msgid "Pin saved: {slot} = {x}, {y}"
 msgstr "Markör sparad: {slot} = {x}, {y}"
 
@@ -4315,15 +4316,15 @@ msgstr ""
 msgid "Play/Pause"
 msgstr "Spela/Paus"
 
-#: settings-qt/bridge/backend.py:1857
+#: settings-qt/bridge/backend.py:1868
 msgid "Playback, volume and microphone"
 msgstr "Uppspelning, volym och mikrofon"
 
-#: settings-qt/bridge/backend.py:4611
+#: settings-qt/bridge/backend.py:4630
 msgid "Plays the steps again and again, as often as you set."
 msgstr "Spelar stegen om och om igen så många gånger du anger."
 
-#: settings-qt/bridge/backend.py:4610
+#: settings-qt/bridge/backend.py:4629
 msgid "Plays the steps one time."
 msgstr "Spelar stegen en gång."
 
@@ -4335,21 +4336,21 @@ msgstr "Tillägg"
 msgid "Plugin action"
 msgstr "Tilläggsåtgärd"
 
-#: settings-qt/qml/pages/SettingsPage.qml:593 settings-qt/bridge/backend.py:786
+#: settings-qt/qml/pages/SettingsPage.qml:593 settings-qt/bridge/backend.py:797
 msgid "Plugins"
 msgstr "Tillägg"
 
 #: settings-qt/qml/Main.qml:58 settings-qt/qml/pages/DevicesPage.qml:336
-#: settings-qt/bridge/backend.py:650
+#: settings-qt/bridge/backend.py:661
 msgid "Point & Scroll"
 msgstr "Pekare och rullning"
 
-#: settings-qt/qml/pages/ScrollPage.qml:177 settings-qt/bridge/backend.py:682
-#: settings-qt/bridge/backend.py:683 settings-qt/bridge/backend.py:684
+#: settings-qt/qml/pages/ScrollPage.qml:177 settings-qt/bridge/backend.py:693
+#: settings-qt/bridge/backend.py:694 settings-qt/bridge/backend.py:695
 msgid "Pointer"
 msgstr "Pekare"
 
-#: settings-qt/qml/pages/ScrollPage.qml:236 settings-qt/bridge/backend.py:684
+#: settings-qt/qml/pages/ScrollPage.qml:236 settings-qt/bridge/backend.py:695
 msgid "Pointer acceleration"
 msgstr "Pekaracceleration"
 
@@ -4363,12 +4364,12 @@ msgstr "Pekhastighet"
 
 #: settings-qt/qml/pages/AppsPage.qml:159
 #: settings-qt/qml/pages/ScrollPage.qml:196
-#: settings-qt/qml/pages/ScrollPage.qml:207 settings-qt/bridge/backend.py:682
+#: settings-qt/qml/pages/ScrollPage.qml:207 settings-qt/bridge/backend.py:693
 msgid "Pointer speed (DPI)"
 msgstr "Pekhastighet (DPI)"
 
 #: settings-qt/qml/pages/GamingPage.qml:322
-#: settings-qt/qml/pages/ScrollPage.qml:222 settings-qt/bridge/backend.py:683
+#: settings-qt/qml/pages/ScrollPage.qml:222 settings-qt/bridge/backend.py:694
 msgid "Precision DPI"
 msgstr "Precisions-DPI"
 
@@ -4380,7 +4381,7 @@ msgstr "Precisions-DPI medan du håller"
 msgid "Preset %1"
 msgstr "Förinställning %1"
 
-#: settings-qt/bridge/backend.py:4303
+#: settings-qt/bridge/backend.py:4322
 msgid "Preset %d"
 msgstr "Förinställning %d"
 
@@ -4394,7 +4395,7 @@ msgid "Press Enter after"
 msgstr "Tryck Enter efteråt"
 
 #: settings-qt/qml/pages/HapticsPage.qml:227
-#: settings-qt/qml/pages/HapticsPage.qml:237 settings-qt/bridge/backend.py:709
+#: settings-qt/qml/pages/HapticsPage.qml:237 settings-qt/bridge/backend.py:720
 msgid "Press force"
 msgstr "Tryckkraft"
 
@@ -4450,7 +4451,7 @@ msgstr "Förra fel"
 msgid "Prev Tab"
 msgstr "Förra flik"
 
-#: settings-qt/qml/pages/HapticsPage.qml:297 settings-qt/bridge/backend.py:711
+#: settings-qt/qml/pages/HapticsPage.qml:297 settings-qt/bridge/backend.py:722
 msgid "Prevent duplicate pulses"
 msgstr "Förhindra dubbla pulser"
 
@@ -4486,7 +4487,7 @@ msgstr "Skriv ut"
 msgid "Problems"
 msgstr "Problem"
 
-#: settings-qt/bridge/backend.py:2136
+#: settings-qt/bridge/backend.py:2155
 msgid "Profile added: {name}"
 msgstr "Profil tillagd: {name}"
 
@@ -4499,7 +4500,7 @@ msgstr "Profil för %1 borttagen"
 msgid "Profile: %1"
 msgstr "Profil: %1"
 
-#: settings-qt/bridge/backend.py:3717
+#: settings-qt/bridge/backend.py:3736
 msgid "Profiles save failed: {error}"
 msgstr "Kunde inte spara profiler: {error}"
 
@@ -4516,7 +4517,7 @@ msgstr "Egenskaper"
 msgid "Prove it"
 msgstr "Bevisa"
 
-#: settings-qt/qml/pages/GamingPage.qml:343 settings-qt/bridge/backend.py:745
+#: settings-qt/qml/pages/GamingPage.qml:343 settings-qt/bridge/backend.py:756
 msgid "Pulse on preset change"
 msgstr "Puls vid byte av förinställning"
 
@@ -4548,7 +4549,7 @@ msgstr "Snabböppna"
 msgid "Quick chat"
 msgstr "Snabbchatt"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:822 settings-qt/bridge/backend.py:677
+#: settings-qt/qml/pages/ButtonsPage.qml:822 settings-qt/bridge/backend.py:688
 msgid "Quick links"
 msgstr "Snabblänkar"
 
@@ -4568,11 +4569,11 @@ msgstr "Snabbväxlare, olästa, uppladdning och huddle-kontroller för Slack."
 msgid "Quiet"
 msgstr "Tyst"
 
-#: settings-qt/qml/pages/HapticsPage.qml:306 settings-qt/bridge/backend.py:712
+#: settings-qt/qml/pages/HapticsPage.qml:306 settings-qt/bridge/backend.py:723
 msgid "Quiet in games"
 msgstr "Tyst i spel"
 
-#: settings-qt/qml/pages/HapticsPage.qml:315 settings-qt/bridge/backend.py:713
+#: settings-qt/qml/pages/HapticsPage.qml:315 settings-qt/bridge/backend.py:724
 msgid "Quiet in these apps"
 msgstr "Tyst i dessa applikationer"
 
@@ -4583,16 +4584,16 @@ msgstr "Tyst när den här applikationen är i förgrunden"
 #: settings-qt/qml/pages/AppsPage.qml:242
 #: settings-qt/qml/pages/HapticsPage.qml:204
 #: settings-qt/qml/pages/SettingsPage.qml:59
-#: settings-qt/qml/pages/SettingsPage.qml:554 settings-qt/bridge/backend.py:768
-#: settings-qt/bridge/backend.py:769 settings-qt/bridge/backend.py:770
-#: settings-qt/bridge/backend.py:771 settings-qt/bridge/backend.py:772
-#: settings-qt/bridge/backend.py:773 settings-qt/bridge/backend.py:774
-#: settings-qt/bridge/backend.py:775
+#: settings-qt/qml/pages/SettingsPage.qml:554 settings-qt/bridge/backend.py:779
+#: settings-qt/bridge/backend.py:780 settings-qt/bridge/backend.py:781
+#: settings-qt/bridge/backend.py:782 settings-qt/bridge/backend.py:783
+#: settings-qt/bridge/backend.py:784 settings-qt/bridge/backend.py:785
+#: settings-qt/bridge/backend.py:786
 msgid "Radial menu"
 msgstr "Radialmeny"
 
 #: settings-qt/qml/pages/DevicesPage.qml:827
-#: settings-qt/qml/pages/DevicesPage.qml:861 settings-qt/bridge/backend.py:737
+#: settings-qt/qml/pages/DevicesPage.qml:861 settings-qt/bridge/backend.py:748
 msgid "Radial menu button"
 msgstr "Radialmenyknapp"
 
@@ -4600,8 +4601,8 @@ msgstr "Radialmenyknapp"
 msgid "Radial menu for %1"
 msgstr "Radialmeny för %1"
 
-#: settings-qt/qml/pages/ThemesPage.qml:237 settings-qt/bridge/backend.py:762
-#: settings-qt/bridge/backend.py:763
+#: settings-qt/qml/pages/ThemesPage.qml:237 settings-qt/bridge/backend.py:773
+#: settings-qt/bridge/backend.py:774
 msgid "Radial menu look"
 msgstr "Radialmenyns utseende"
 
@@ -4640,12 +4641,12 @@ msgstr "Mottagare"
 msgid "Recent"
 msgstr "Senaste"
 
-#: settings-qt/qml/pages/AppsPage.qml:375 settings-qt/bridge/backend.py:722
+#: settings-qt/qml/pages/AppsPage.qml:375 settings-qt/bridge/backend.py:733
 msgid "Recently used"
 msgstr "Nyligen använda"
 
 #: settings-qt/qml/pages/MacrosPage.qml:204
-#: settings-qt/qml/pages/MacrosPage.qml:357 settings-qt/bridge/backend.py:715
+#: settings-qt/qml/pages/MacrosPage.qml:357 settings-qt/bridge/backend.py:726
 #: settings-qt/assets/keypad/profiles.json
 msgid "Record"
 msgstr "Spela in"
@@ -4654,7 +4655,7 @@ msgstr "Spela in"
 msgid "Record a key sequence once, or start from a template."
 msgstr "Spela in en tangentsekvens en gång eller börja med en mall."
 
-#: settings-qt/qml/pages/MacrosPage.qml:199 settings-qt/bridge/backend.py:715
+#: settings-qt/qml/pages/MacrosPage.qml:199 settings-qt/bridge/backend.py:726
 msgid "Record a macro"
 msgstr "Spela in ett makro"
 
@@ -4704,11 +4705,11 @@ msgstr "Röd"
 msgid "Redo"
 msgstr "Gör om"
 
-#: settings-qt/qml/pages/SettingsPage.qml:340 settings-qt/bridge/backend.py:767
+#: settings-qt/qml/pages/SettingsPage.qml:340 settings-qt/bridge/backend.py:778
 msgid "Reduce motion"
 msgstr "Minska rörelse"
 
-#: settings-qt/qml/pages/SettingsPage.qml:332 settings-qt/bridge/backend.py:766
+#: settings-qt/qml/pages/SettingsPage.qml:332 settings-qt/bridge/backend.py:777
 msgid "Reduce transparency"
 msgstr "Minska genomskinlighet"
 
@@ -4772,7 +4773,7 @@ msgstr "Reparera"
 msgid "Repeat"
 msgstr "Upprepa"
 
-#: settings-qt/bridge/backend.py:4612
+#: settings-qt/bridge/backend.py:4631
 msgid "Repeats while you hold the bound button."
 msgstr "Upprepas medan du håller den bundna knappen."
 
@@ -4838,11 +4839,11 @@ msgstr "Starta om"
 msgid "Restart now"
 msgstr "Starta om nu"
 
-#: settings-qt/bridge/backend.py:5990
+#: settings-qt/bridge/backend.py:6008
 msgid "Restarting the background service…"
 msgstr "Startar om bakgrundstjänsten…"
 
-#: settings-qt/bridge/backend.py:6008
+#: settings-qt/bridge/backend.py:6026
 msgid "Restarting the radial menu…"
 msgstr "Startar om radialmenyn…"
 
@@ -4851,7 +4852,7 @@ msgid "Restore"
 msgstr "Återställ"
 
 #: settings-qt/qml/pages/HapticsPage.qml:194
-#: settings-qt/qml/pages/SettingsPage.qml:706 settings-qt/bridge/backend.py:787
+#: settings-qt/qml/pages/SettingsPage.qml:706 settings-qt/bridge/backend.py:798
 msgid "Restore defaults"
 msgstr "Återställ standard"
 
@@ -4897,7 +4898,7 @@ msgid "Right Click"
 msgstr "Högerklick"
 
 #: settings-qt/qml/pages/GamingPage.qml:312
-#: settings-qt/qml/pages/GamingPage.qml:321 settings-qt/bridge/backend.py:743
+#: settings-qt/qml/pages/GamingPage.qml:321 settings-qt/bridge/backend.py:754
 msgid "Ring button"
 msgstr "Ringknapp"
 
@@ -4919,8 +4920,8 @@ msgstr "Ring synlig"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:789
 #: settings-qt/qml/pages/SettingsPage.qml:104
-#: settings-qt/qml/pages/ThemesPage.qml:366 settings-qt/bridge/backend.py:676
-#: settings-qt/bridge/backend.py:769
+#: settings-qt/qml/pages/ThemesPage.qml:366 settings-qt/bridge/backend.py:687
+#: settings-qt/bridge/backend.py:780
 msgid "Ring size"
 msgstr "Ringstorlek"
 
@@ -5020,7 +5021,7 @@ msgstr "Färgprov"
 msgid "Save"
 msgstr "Spara"
 
-#: settings-qt/bridge/backend.py:2328
+#: settings-qt/bridge/backend.py:2347
 msgid "Save failed: {error}"
 msgstr "Kunde inte spara: {error}"
 
@@ -5041,11 +5042,11 @@ msgstr "Spara de här sidorna som ett paket att dela"
 msgid "Saved"
 msgstr "Sparat"
 
-#: settings-qt/bridge/backend.py:2947 settings-qt/bridge/backend.py:2983
+#: settings-qt/bridge/backend.py:2966 settings-qt/bridge/backend.py:3002
 msgid "Saved. JuhRadial applies it when its service starts."
 msgstr "Sparat. JuhRadial tillämpar det när tjänsten startar."
 
-#: settings-qt/bridge/backend.py:2949 settings-qt/bridge/backend.py:2985
+#: settings-qt/bridge/backend.py:2968 settings-qt/bridge/backend.py:3004
 msgid "Saved. The mouse gets it when it wakes up or comes back."
 msgstr "Sparat. Musen får det när den vaknar eller kommer tillbaka."
 
@@ -5070,7 +5071,7 @@ msgid "Scout"
 msgstr "Spanare"
 
 #: settings-qt/qml/pages/FlowPage.qml:339
-#: settings-qt/qml/pages/FlowPage.qml:344 settings-qt/bridge/backend.py:751
+#: settings-qt/qml/pages/FlowPage.qml:344 settings-qt/bridge/backend.py:762
 msgid "Screen"
 msgstr "Skärm"
 
@@ -5100,21 +5101,21 @@ msgid "Scroll Right"
 msgstr "Rulla åt höger"
 
 #: settings-qt/qml/pages/ScrollPage.qml:325
-#: settings-qt/qml/pages/ScrollPage.qml:333 settings-qt/bridge/backend.py:687
+#: settings-qt/qml/pages/ScrollPage.qml:333 settings-qt/bridge/backend.py:698
 msgid "Scroll force"
 msgstr "Rullkraft"
 
 #: settings-qt/qml/pages/ScrollPage.qml:384
-#: settings-qt/qml/pages/ScrollPage.qml:395 settings-qt/bridge/backend.py:690
+#: settings-qt/qml/pages/ScrollPage.qml:395 settings-qt/bridge/backend.py:701
 msgid "Scroll speed"
 msgstr "Rullningshastighet"
 
 #: settings-qt/qml/pages/AppsPage.qml:173
 #: settings-qt/qml/pages/GamingPage.qml:330
-#: settings-qt/qml/pages/ScrollPage.qml:260 settings-qt/bridge/backend.py:685
-#: settings-qt/bridge/backend.py:686 settings-qt/bridge/backend.py:687
-#: settings-qt/bridge/backend.py:688 settings-qt/bridge/backend.py:689
-#: settings-qt/bridge/backend.py:690 settings-qt/bridge/backend.py:744
+#: settings-qt/qml/pages/ScrollPage.qml:260 settings-qt/bridge/backend.py:696
+#: settings-qt/bridge/backend.py:697 settings-qt/bridge/backend.py:698
+#: settings-qt/bridge/backend.py:699 settings-qt/bridge/backend.py:700
+#: settings-qt/bridge/backend.py:701 settings-qt/bridge/backend.py:755
 msgid "Scroll wheel"
 msgstr "Rullhjul"
 
@@ -5242,7 +5243,7 @@ msgstr ""
 "senare"
 
 #: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:112
-#: settings-qt/bridge/keypad.py:282 settings-qt/bridge/backend.py:653
+#: settings-qt/bridge/keypad.py:282 settings-qt/bridge/backend.py:664
 msgid "Settings"
 msgstr "Inställningar"
 
@@ -5250,11 +5251,11 @@ msgstr "Inställningar"
 msgid "Settings imported"
 msgstr "Inställningar importerade"
 
-#: settings-qt/bridge/backend.py:5179
+#: settings-qt/bridge/backend.py:5198
 msgid "Settings imported. The previous files are kept as .bak"
 msgstr "Inställningar importerade. Tidigare filer behålls som .bak"
 
-#: settings-qt/qml/pages/DevicesPage.qml:716 settings-qt/bridge/backend.py:735
+#: settings-qt/qml/pages/DevicesPage.qml:716 settings-qt/bridge/backend.py:746
 msgid "Settings only for this mouse"
 msgstr "Inställningar endast för den här musen"
 
@@ -5279,7 +5280,7 @@ msgid "Share"
 msgstr "Dela skärm"
 
 #: settings-qt/qml/pages/FlowPage.qml:423
-#: settings-qt/qml/pages/FlowPage.qml:429 settings-qt/bridge/backend.py:755
+#: settings-qt/qml/pages/FlowPage.qml:429 settings-qt/bridge/backend.py:766
 msgid "Share clipboard"
 msgstr "Dela urklipp"
 
@@ -5341,7 +5342,7 @@ msgid "Show on screen"
 msgstr "Visa på skärmen"
 
 #: settings-qt/qml/pages/FlowPage.qml:436
-#: settings-qt/qml/pages/FlowPage.qml:440 settings-qt/bridge/backend.py:756
+#: settings-qt/qml/pages/FlowPage.qml:440 settings-qt/bridge/backend.py:767
 msgid "Show the edge glow"
 msgstr "Visa kantljuset"
 
@@ -5349,7 +5350,7 @@ msgstr "Visa kantljuset"
 msgid "Show the mouse"
 msgstr "Visa musen"
 
-#: settings-qt/qml/pages/GamingPage.qml:303 settings-qt/bridge/backend.py:742
+#: settings-qt/qml/pages/GamingPage.qml:303 settings-qt/bridge/backend.py:753
 msgid "Show the radial menu"
 msgstr "Visa radialmenyn"
 
@@ -5357,11 +5358,11 @@ msgstr "Visa radialmenyn"
 msgid "Show this page for all apps"
 msgstr "Visa den här sidan för alla applikationer"
 
-#: settings-qt/qml/pages/SettingsPage.qml:457 settings-qt/bridge/backend.py:783
+#: settings-qt/qml/pages/SettingsPage.qml:457 settings-qt/bridge/backend.py:794
 msgid "Show tray icon"
 msgstr "Visa ikon i systemfältet"
 
-#: settings-qt/bridge/backend.py:2180
+#: settings-qt/bridge/backend.py:2199
 msgid "Shown while no app below is in front"
 msgstr "Visas när ingen applikation nedan är i förgrunden"
 
@@ -5369,7 +5370,7 @@ msgstr "Visas när ingen applikation nedan är i förgrunden"
 msgid "Shuffle"
 msgstr "Blanda"
 
-#: settings-qt/bridge/backend.py:3441
+#: settings-qt/bridge/backend.py:3460
 msgid "Side button"
 msgstr "Sidoknapp"
 
@@ -5386,7 +5387,7 @@ msgid "Simplified"
 msgstr "Förenklat"
 
 #: settings-qt/qml/Main.qml:385 settings-qt/qml/pages/SettingsPage.qml:238
-#: settings-qt/bridge/backend.py:774
+#: settings-qt/bridge/backend.py:785
 msgid "Simplified wheel"
 msgstr "Förenklat hjul"
 
@@ -5429,16 +5430,16 @@ msgstr "Segment %1: %2"
 msgid "Slice 6 (%1) becomes a submenu of your computers"
 msgstr "Segment 6 (%1) blir en undermeny med dina datorer"
 
-#: settings-qt/bridge/backend.py:416 settings-qt/bridge/backend.py:698
+#: settings-qt/bridge/backend.py:416 settings-qt/bridge/backend.py:709
 msgid "Slice change"
 msgstr "Segmentbyte"
 
 #: settings-qt/qml/pages/HapticsPage.qml:285
-#: settings-qt/qml/pages/HapticsPage.qml:289 settings-qt/bridge/backend.py:710
+#: settings-qt/qml/pages/HapticsPage.qml:289 settings-qt/bridge/backend.py:721
 msgid "Slice tick rate"
 msgstr "Pulsintervall för segment"
 
-#: settings-qt/bridge/backend.py:3605
+#: settings-qt/bridge/backend.py:3624
 msgid "Slice {n}"
 msgstr "Segment {n}"
 
@@ -5460,7 +5461,7 @@ msgstr "SmartShift i den här applikationen"
 
 #: settings-qt/qml/pages/AppsPage.qml:193
 #: settings-qt/qml/pages/ScrollPage.qml:290
-#: settings-qt/qml/pages/ScrollPage.qml:306 settings-qt/bridge/backend.py:686
+#: settings-qt/qml/pages/ScrollPage.qml:306 settings-qt/bridge/backend.py:697
 msgid "SmartShift threshold"
 msgstr "SmartShift-tröskel"
 
@@ -5473,7 +5474,7 @@ msgid "Smooth"
 msgstr "Mjuk"
 
 #: settings-qt/qml/pages/AppsPage.qml:204
-#: settings-qt/qml/pages/ScrollPage.qml:371 settings-qt/bridge/backend.py:689
+#: settings-qt/qml/pages/ScrollPage.qml:371 settings-qt/bridge/backend.py:700
 msgid "Smooth scrolling"
 msgstr "Mjuk rullning"
 
@@ -5500,7 +5501,7 @@ msgstr ""
 "Ogenomskinliga kort i stället för frostat glas. Lättare att läsa och mindre "
 "belastning på grafikkortet."
 
-#: settings-qt/bridge/backend.py:1859
+#: settings-qt/bridge/backend.py:1870
 msgid "Sound controls; choose your app's camera, share and leave shortcuts"
 msgstr ""
 "Ljudkontroller; välj applikationens genvägar för kamera, skärmdelning och "
@@ -5514,7 +5515,7 @@ msgstr "Högtalare"
 msgid "Special key"
 msgstr "Specialtangent"
 
-#: settings-qt/qml/pages/ScrollPage.qml:489 settings-qt/bridge/backend.py:693
+#: settings-qt/qml/pages/ScrollPage.qml:489 settings-qt/bridge/backend.py:704
 msgid "Speed"
 msgstr "Hastighet"
 
@@ -5547,7 +5548,7 @@ msgstr "Fyrkant"
 msgid "Start"
 msgstr "Starta"
 
-#: settings-qt/qml/pages/SettingsPage.qml:438 settings-qt/bridge/backend.py:782
+#: settings-qt/qml/pages/SettingsPage.qml:438 settings-qt/bridge/backend.py:793
 msgid "Start at login"
 msgstr "Starta vid inloggning"
 
@@ -5555,7 +5556,7 @@ msgstr "Starta vid inloggning"
 msgid "Start from"
 msgstr "Börja från"
 
-#: settings-qt/bridge/backend.py:718
+#: settings-qt/bridge/backend.py:729
 msgid "Start from a template"
 msgstr "Börja med en mall"
 
@@ -5567,7 +5568,7 @@ msgstr "Starta den"
 msgid "Start service"
 msgstr "Starta tjänst"
 
-#: settings-qt/bridge/backend.py:4385
+#: settings-qt/bridge/backend.py:4404
 msgid "Start the JuhRadial MX service to record a macro."
 msgstr "Starta JuhRadial MX-tjänsten för att spela in ett makro."
 
@@ -5583,12 +5584,12 @@ msgstr "Starta tjänsten"
 msgid "Starting…"
 msgstr "Startar…"
 
-#: settings-qt/bridge/backend.py:6035
+#: settings-qt/bridge/backend.py:6053
 msgid "Starts at login with {path}"
 msgstr "Startar vid inloggning med {path}"
 
-#: settings-qt/qml/pages/SettingsPage.qml:433 settings-qt/bridge/backend.py:776
-#: settings-qt/bridge/backend.py:782 settings-qt/bridge/backend.py:783
+#: settings-qt/qml/pages/SettingsPage.qml:433 settings-qt/bridge/backend.py:787
+#: settings-qt/bridge/backend.py:793 settings-qt/bridge/backend.py:794
 msgid "Startup"
 msgstr "Uppstart"
 
@@ -5604,7 +5605,7 @@ msgstr "Status"
 msgid "Status not available yet"
 msgstr "Status är inte tillgänglig ännu"
 
-#: settings-qt/qml/pages/DevicesPage.qml:482 settings-qt/bridge/backend.py:732
+#: settings-qt/qml/pages/DevicesPage.qml:482 settings-qt/bridge/backend.py:743
 msgid "Stay on for"
 msgstr "Håll på i"
 
@@ -5636,7 +5637,7 @@ msgid "Stream"
 msgstr "Streama"
 
 #: settings-qt/qml/pages/HapticsPage.qml:141
-#: settings-qt/qml/pages/HapticsPage.qml:147 settings-qt/bridge/backend.py:695
+#: settings-qt/qml/pages/HapticsPage.qml:147 settings-qt/bridge/backend.py:706
 msgid "Strength"
 msgstr "Styrka"
 
@@ -5645,7 +5646,7 @@ msgid "Strong alert"
 msgstr "Stark varning"
 
 #: settings-qt/qml/pages/HapticsPage.qml:156
-#: settings-qt/qml/pages/HapticsPage.qml:170 settings-qt/bridge/backend.py:696
+#: settings-qt/qml/pages/HapticsPage.qml:170 settings-qt/bridge/backend.py:707
 msgid "Style"
 msgstr "Stil"
 
@@ -5661,7 +5662,7 @@ msgstr "Undermenysegment"
 msgid "Subtle"
 msgstr "Subtil"
 
-#: settings-qt/qml/pages/AppsPage.qml:393 settings-qt/bridge/backend.py:781
+#: settings-qt/qml/pages/AppsPage.qml:393 settings-qt/bridge/backend.py:792
 msgid "Suggest profiles for new apps"
 msgstr "Föreslå profiler för nya applikationer"
 
@@ -5739,11 +5740,11 @@ msgstr "Sys-mik"
 msgid "System"
 msgstr "System"
 
-#: settings-qt/bridge/backend.py:6054
+#: settings-qt/bridge/backend.py:6072
 msgid "System default"
 msgstr "Systemstandard"
 
-#: settings-qt/bridge/backend.py:5953
+#: settings-qt/bridge/backend.py:5971
 msgid "System information copied"
 msgstr "Systeminformation kopierad"
 
@@ -5802,12 +5803,12 @@ msgstr "Telegram"
 msgid "Temp chat"
 msgstr "Temp-chatt"
 
-#: settings-qt/bridge/backend.py:1878
+#: settings-qt/bridge/backend.py:1889
 msgid "Template added. Keys for missing apps stay unassigned."
 msgstr "Mall tillagd. Tangenter för saknade applikationer förblir otilldelade."
 
 #: settings-qt/qml/pages/KeypadPage.qml:455
-#: settings-qt/qml/pages/MacrosPage.qml:327 settings-qt/bridge/backend.py:660
+#: settings-qt/qml/pages/MacrosPage.qml:327 settings-qt/bridge/backend.py:671
 msgid "Templates"
 msgstr "Mallar"
 
@@ -5840,6 +5841,12 @@ msgstr "Tester"
 msgid "Text"
 msgstr "Text"
 
+#: settings-qt/bridge/backend.py:2063
+msgid ""
+"Text keys come with Press Enter after turned off, so a pack cannot run a "
+"line in a terminal."
+msgstr "Texttangenter kommer med ”Tryck Enter efteråt” avstängt, så att ett paket inte kan köra en rad i en terminal."
+
 #: settings-qt/qml/pages/FlowPage.qml:426
 msgid "Text only, and only with computers you approved"
 msgstr "Endast text och endast med datorer du godkänt"
@@ -5857,13 +5864,13 @@ msgstr "Text att skriva"
 msgid "Text, a prompt or a /command"
 msgstr "Text, en prompt eller ett /kommando"
 
-#: settings-qt/bridge/backend.py:5507
+#: settings-qt/bridge/backend.py:5526
 msgid "That custom action cannot run: check the shortcut, link or command."
 msgstr ""
 "Den anpassade åtgärden kan inte köras: kontrollera genvägen, länken eller "
 "kommandot."
 
-#: settings-qt/bridge/backend.py:4660
+#: settings-qt/bridge/backend.py:4679
 msgid "That file is not a JuhRadial MX macro."
 msgstr "Filen är inte ett JuhRadial MX-makro."
 
@@ -5879,7 +5886,7 @@ msgstr ""
 "JuhRadial MX-tjänsten körs inte. Ändringar sparas och tillämpas när den "
 "startar."
 
-#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3973
+#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3992
 msgid "The JuhRadial service is not running"
 msgstr "JuhRadial-tjänsten körs inte"
 
@@ -5910,7 +5917,7 @@ msgstr ""
 msgid "The background service is not running"
 msgstr "Bakgrundstjänsten körs inte"
 
-#: settings-qt/bridge/backend.py:2678
+#: settings-qt/bridge/backend.py:2697
 msgid "The background service is not running."
 msgstr "Bakgrundstjänsten körs inte."
 
@@ -5918,7 +5925,7 @@ msgstr "Bakgrundstjänsten körs inte."
 msgid "The battery drops to the alert level set on Devices"
 msgstr "Batteriet sjunker till varningsnivån som ställts in under Enheter"
 
-#: settings-qt/bridge/backend.py:4613
+#: settings-qt/bridge/backend.py:4632
 msgid "The bound button starts it, the next press stops it."
 msgstr "Den bundna knappen startar det, nästa tryck stoppar det."
 
@@ -5942,11 +5949,11 @@ msgstr ""
 "Första gången du använder en applikation utan profil föreslår Inställningar "
 "en. Du får frågan en gång per applikation"
 
-#: settings-qt/bridge/backend.py:2853
+#: settings-qt/bridge/backend.py:2872
 msgid "The keyboard"
 msgstr "Tangentbordet"
 
-#: settings-qt/bridge/backend.py:3548
+#: settings-qt/bridge/backend.py:3567
 msgid "The keyboard did not answer. Press a key to wake it, then try again."
 msgstr ""
 "Tangentbordet svarade inte. Tryck på en tangent för att väcka det och försök "
@@ -5960,7 +5967,7 @@ msgstr ""
 "Tangentbordet vilar. Tryck på en tangent och sedan Kontrollera igen ovan för "
 "att läsa av bakgrundsbelysningen."
 
-#: settings-qt/bridge/backend.py:1656
+#: settings-qt/bridge/backend.py:1667
 msgid "The keypad configuration was not saved"
 msgstr "Keypad-konfigurationen sparades inte"
 
@@ -5976,11 +5983,11 @@ msgstr "Tangenterna släcks och gör ingenting förrän du låser upp"
 msgid "The keys stay down as long as you hold the button (push to talk)"
 msgstr "Tangenterna hålls nere så länge du håller knappen (tryck för att tala)"
 
-#: settings-qt/bridge/backend.py:6029
+#: settings-qt/bridge/backend.py:6047
 msgid "The login entry is missing."
 msgstr "Autostartposten saknas."
 
-#: settings-qt/bridge/backend.py:6034
+#: settings-qt/bridge/backend.py:6052
 msgid "The login entry points at a program that is gone."
 msgstr "Autostartposten pekar på ett program som inte finns längre."
 
@@ -5992,7 +5999,7 @@ msgstr ""
 "Ringens utseende. Oberoende av applikationens tema: dina åtta åtgärder "
 "flyttas aldrig."
 
-#: settings-qt/bridge/backend.py:4363
+#: settings-qt/bridge/backend.py:4382
 msgid "The macro could not be saved. Is the JuhRadial MX service running?"
 msgstr "Makrot kunde inte sparas. Körs JuhRadial MX-tjänsten?"
 
@@ -6000,11 +6007,11 @@ msgstr "Makrot kunde inte sparas. Körs JuhRadial MX-tjänsten?"
 msgid "The mouse comes back from another computer"
 msgstr "Musen kommer tillbaka från en annan dator"
 
-#: settings-qt/bridge/backend.py:2952 settings-qt/bridge/backend.py:2990
+#: settings-qt/bridge/backend.py:2971 settings-qt/bridge/backend.py:3009
 msgid "The mouse did not accept this change."
 msgstr "Musen accepterade inte ändringen."
 
-#: settings-qt/bridge/backend.py:4190
+#: settings-qt/bridge/backend.py:4209
 msgid "The mouse did not switch. Is it awake, and is that computer paired?"
 msgstr "Musen växlade inte. Är den vaken och är datorn parkopplad?"
 
@@ -6063,11 +6070,11 @@ msgstr "Det nya språket används efter omstart."
 msgid "The other computer's channel"
 msgstr "Den andra datorns kanal"
 
-#: settings-qt/bridge/backend.py:1974
+#: settings-qt/bridge/backend.py:1985
 msgid "The pack contains an unsafe path"
 msgstr "Paketet innehåller en osäker sökväg"
 
-#: settings-qt/bridge/backend.py:1984 settings-qt/bridge/backend.py:2034
+#: settings-qt/bridge/backend.py:1995 settings-qt/bridge/backend.py:2051
 msgid "The pack has no pages to add"
 msgstr "Paketet har inga sidor att lägga till"
 
@@ -6087,17 +6094,17 @@ msgstr "Tryckpanelen under tummen"
 msgid "The radial menu appears"
 msgstr "Radialmenyn visas"
 
-#: settings-qt/bridge/backend.py:2680
+#: settings-qt/bridge/backend.py:2699
 msgid "The radial menu is not running."
 msgstr "Radialmenyn körs inte."
 
-#: settings-qt/bridge/backend.py:2582
+#: settings-qt/bridge/backend.py:2601
 msgid ""
 "The ring is not running, or Flow is off. Start JuhRadial MX and turn Flow on."
 msgstr ""
 "Ringen körs inte, eller så är Flow av. Starta JuhRadial MX och slå på Flow."
 
-#: settings-qt/bridge/backend.py:2589
+#: settings-qt/bridge/backend.py:2608
 msgid "The ring is not running. Start JuhRadial MX to identify screens."
 msgstr "Ringen körs inte. Starta JuhRadial MX för att identifiera skärmar."
 
@@ -6113,14 +6120,14 @@ msgstr "Ringen öppnas fortfarande i spel"
 msgid "The same ring as everywhere"
 msgstr "Samma ring som överallt annars"
 
-#: settings-qt/bridge/backend.py:2686
+#: settings-qt/bridge/backend.py:2705
 msgid ""
 "The service cannot reach the mouse. Check that your user is in the input "
 "group."
 msgstr ""
 "Tjänsten når inte musen. Kontrollera att din användare finns i gruppen input."
 
-#: settings-qt/bridge/backend.py:2683
+#: settings-qt/bridge/backend.py:2702
 msgid "The service is {daemon} and this app is {app}: reinstall so they match."
 msgstr ""
 "Tjänsten är {daemon} och applikationen är {app}: installera om så att de "
@@ -6151,7 +6158,7 @@ msgstr ""
 "Ytan på den klassiska ringen och dess menyer. Ljusa ringar passar ljusa "
 "skrivbord."
 
-#: settings-qt/qml/pages/SettingsPage.qml:281 settings-qt/bridge/backend.py:765
+#: settings-qt/qml/pages/SettingsPage.qml:281 settings-qt/bridge/backend.py:776
 msgid "Theme"
 msgstr "Tema"
 
@@ -6159,11 +6166,11 @@ msgstr "Tema"
 msgid "Theme: %1"
 msgstr "Tema: %1"
 
-#: settings-qt/qml/Main.qml:66 settings-qt/bridge/backend.py:653
+#: settings-qt/qml/Main.qml:66 settings-qt/bridge/backend.py:664
 msgid "Themes"
 msgstr "Teman"
 
-#: settings-qt/bridge/backend.py:3818
+#: settings-qt/bridge/backend.py:3837
 msgid "There is already a profile for {app}"
 msgstr "Det finns redan en profil för {app}"
 
@@ -6196,17 +6203,17 @@ msgid "This computer"
 msgstr "Den här datorn"
 
 #: settings-qt/qml/pages/FlowPage.qml:352
-#: settings-qt/qml/pages/FlowPage.qml:358 settings-qt/bridge/backend.py:752
+#: settings-qt/qml/pages/FlowPage.qml:358 settings-qt/bridge/backend.py:763
 msgid "This computer's channel"
 msgstr "Den här datorns kanal"
 
 #: settings-qt/qml/pages/EasySwitchPage.qml:181
 #: settings-qt/qml/pages/EasySwitchPage.qml:185
-#: settings-qt/bridge/backend.py:725
+#: settings-qt/bridge/backend.py:736
 msgid "This computer's name"
 msgstr "Den här datorns namn"
 
-#: settings-qt/bridge/backend.py:5147
+#: settings-qt/bridge/backend.py:5166
 msgid "This is not a JuhRadial MX backup."
 msgstr "Det här är inte en JuhRadial MX-säkerhetskopia."
 
@@ -6222,7 +6229,7 @@ msgstr "Den här listan"
 msgid "This mouse"
 msgstr "Den här musen"
 
-#: settings-qt/bridge/backend.py:4772
+#: settings-qt/bridge/backend.py:4791
 msgid "This mouse follows your global settings again"
 msgstr "Den här musen följer dina globala inställningar igen"
 
@@ -6253,7 +6260,7 @@ msgstr "Den här musen använder generiskt läge, som saknar datorplatser."
 msgid "This mouse loses its own settings and uses your global ones."
 msgstr "Musen förlorar sina egna inställningar och använder dina globala."
 
-#: settings-qt/bridge/backend.py:5343
+#: settings-qt/bridge/backend.py:5362
 msgid "This mouse only"
 msgstr "Endast den här musen"
 
@@ -6269,7 +6276,7 @@ msgstr "Tre hårda slag"
 msgid "Three things worth trying first. This card goes away when you are done."
 msgstr "Tre saker att prova först. Kortet försvinner när du är klar."
 
-#: settings-qt/bridge/backend.py:666
+#: settings-qt/bridge/backend.py:677
 msgid "Thumb button"
 msgstr "Tumknapp"
 
@@ -6278,9 +6285,9 @@ msgstr "Tumknapp"
 #: settings-qt/qml/pages/ButtonsPage.qml:93
 #: settings-qt/qml/pages/ButtonsPage.qml:103
 #: settings-qt/qml/pages/DevicesPage.qml:696
-#: settings-qt/qml/pages/ScrollPage.qml:459 settings-qt/bridge/backend.py:671
-#: settings-qt/bridge/backend.py:691 settings-qt/bridge/backend.py:692
-#: settings-qt/bridge/backend.py:693
+#: settings-qt/qml/pages/ScrollPage.qml:459 settings-qt/bridge/backend.py:682
+#: settings-qt/bridge/backend.py:702 settings-qt/bridge/backend.py:703
+#: settings-qt/bridge/backend.py:704
 msgid "Thumb wheel"
 msgstr "Tumhjul"
 
@@ -6351,7 +6358,7 @@ msgstr "Uppspelningskontroll, spolning och volym för alla MPRIS-mediaspelare."
 msgid "Troubleshoot"
 msgstr "Felsök"
 
-#: settings-qt/qml/pages/SettingsPage.qml:534 settings-qt/bridge/backend.py:777
+#: settings-qt/qml/pages/SettingsPage.qml:534 settings-qt/bridge/backend.py:788
 msgid "Troubleshooting"
 msgstr "Felsökning"
 
@@ -6384,7 +6391,7 @@ msgstr "Prova att rulla här"
 msgid "Try the thumb wheel here"
 msgstr "Prova tumhjulet här"
 
-#: settings-qt/bridge/backend.py:2639
+#: settings-qt/bridge/backend.py:2658
 msgid "Trying this profile for a minute: use the mouse and the ring now."
 msgstr "Provar den här profilen i en minut: använd musen och ringen nu."
 
@@ -6408,8 +6415,8 @@ msgstr "Aktivera"
 msgid "Turn on MX Keys S support first"
 msgstr "Aktivera stöd för MX Keys S först"
 
-#: settings-qt/qml/pages/GamingPage.qml:137 settings-qt/bridge/backend.py:740
-#: settings-qt/bridge/backend.py:741
+#: settings-qt/qml/pages/GamingPage.qml:137 settings-qt/bridge/backend.py:751
+#: settings-qt/bridge/backend.py:752
 msgid "Turn on automatically"
 msgstr "Aktivera automatiskt"
 
@@ -6478,7 +6485,7 @@ msgstr "Understryk"
 msgid "Undo"
 msgstr "Ångra"
 
-#: settings-qt/bridge/backend.py:4710
+#: settings-qt/bridge/backend.py:4729
 msgid "Undo failed: {error}"
 msgstr "Kunde inte ångra: {error}"
 
@@ -6572,7 +6579,7 @@ msgid "Use the desktop's setting"
 msgstr "Använd skrivbordets inställning"
 
 #: settings-qt/qml/pages/FlowPage.qml:447
-#: settings-qt/qml/pages/FlowPage.qml:451 settings-qt/bridge/backend.py:757
+#: settings-qt/qml/pages/FlowPage.qml:451 settings-qt/bridge/backend.py:768
 msgid "Use the whole edge"
 msgstr "Använd hela kanten"
 
@@ -6607,7 +6614,7 @@ msgstr "Vanlig"
 msgid "VS Code"
 msgstr "VS Code"
 
-#: settings-qt/bridge/backend.py:5714
+#: settings-qt/bridge/backend.py:5732
 msgid "Version {version} is available."
 msgstr "Version {version} är tillgänglig."
 
@@ -6681,7 +6688,7 @@ msgid "Wants to use Flow with this computer%1. Code %2"
 msgstr "Vill använda Flow med den här datorn%1. Kod %2"
 
 #: settings-qt/qml/pages/DevicesPage.qml:535
-#: settings-qt/qml/pages/DevicesPage.qml:539 settings-qt/bridge/backend.py:733
+#: settings-qt/qml/pages/DevicesPage.qml:539 settings-qt/bridge/backend.py:744
 msgid "Warn me at"
 msgstr "Varna mig vid"
 
@@ -6728,14 +6735,14 @@ msgstr "Nyheter"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:76
 #: settings-qt/qml/pages/ButtonsPage.qml:88
-#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:4620
-#: settings-qt/bridge/backend.py:667
+#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:4639
+#: settings-qt/bridge/backend.py:678
 msgid "Wheel click"
 msgstr "Hjulklick"
 
 #: settings-qt/qml/pages/DashboardPage.qml:416
 #: settings-qt/qml/pages/ScrollPage.qml:268
-#: settings-qt/qml/pages/ScrollPage.qml:279 settings-qt/bridge/backend.py:685
+#: settings-qt/qml/pages/ScrollPage.qml:279 settings-qt/bridge/backend.py:696
 msgid "Wheel mode"
 msgstr "Hjulläge"
 
@@ -6744,7 +6751,7 @@ msgid "Wheel mode for %1"
 msgstr "Hjulläge för %1"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:775
-#: settings-qt/qml/pages/ThemesPage.qml:263 settings-qt/bridge/backend.py:675
+#: settings-qt/qml/pages/ThemesPage.qml:263 settings-qt/bridge/backend.py:686
 msgid "Wheel skin"
 msgstr "Hjulutseende"
 
@@ -6752,7 +6759,7 @@ msgstr "Hjulutseende"
 msgid "Wheel skin changed"
 msgstr "Hjulutseende ändrat"
 
-#: settings-qt/qml/pages/GamingPage.qml:143 settings-qt/bridge/backend.py:740
+#: settings-qt/qml/pages/GamingPage.qml:143 settings-qt/bridge/backend.py:751
 msgid "When Feral GameMode runs a game"
 msgstr "När Feral GameMode kör ett spel"
 
@@ -6782,11 +6789,11 @@ msgstr ""
 "namn), och tangentbordets Easy-Switch-tangenter tar med sig musen. Ett "
 "sovande tangentbord följer med nästa gång du rör det"
 
-#: settings-qt/qml/pages/GamingPage.qml:155 settings-qt/bridge/backend.py:741
+#: settings-qt/qml/pages/GamingPage.qml:155 settings-qt/bridge/backend.py:752
 msgid "When these apps are in front"
 msgstr "När dessa applikationer är i förgrunden"
 
-#: settings-qt/qml/pages/FlowPage.qml:292 settings-qt/bridge/backend.py:750
+#: settings-qt/qml/pages/FlowPage.qml:292 settings-qt/bridge/backend.py:761
 msgid "Where is the other computer"
 msgstr "Var finns den andra datorn"
 
@@ -6806,7 +6813,7 @@ msgstr ""
 msgid "While a button set to Precision DPI is held"
 msgstr "Medan en knapp inställd på Precisions-DPI hålls nere"
 
-#: settings-qt/bridge/backend.py:4612
+#: settings-qt/bridge/backend.py:4631
 msgid "While held"
 msgstr "Medan knappen hålls"
 
@@ -6822,8 +6829,8 @@ msgstr "Så länge den här listan är tom visar undermenyn AI-assistenterna: %1
 msgid "Whisper"
 msgstr "Viskning"
 
-#: settings-qt/qml/pages/SettingsPage.qml:276 settings-qt/bridge/backend.py:765
-#: settings-qt/bridge/backend.py:766 settings-qt/bridge/backend.py:767
+#: settings-qt/qml/pages/SettingsPage.qml:276 settings-qt/bridge/backend.py:776
+#: settings-qt/bridge/backend.py:777 settings-qt/bridge/backend.py:778
 msgid "Window"
 msgstr "Fönster"
 
@@ -6859,7 +6866,7 @@ msgstr "Röntgen"
 msgid "Yes"
 msgstr "Ja"
 
-#: settings-qt/bridge/backend.py:5716
+#: settings-qt/bridge/backend.py:5734
 msgid "You have the latest version."
 msgstr "Du har den senaste versionen."
 
@@ -6883,7 +6890,7 @@ msgstr "Skrivbordet begär mindre animering, så detta är redan på."
 msgid "Your desktop does not report an accent colour"
 msgstr "Skrivbordet rapporterar ingen accentfärg"
 
-#: settings-qt/bridge/backend.py:3998
+#: settings-qt/bridge/backend.py:4017
 msgid "Your desktop does not tell JuhRadial which window is in front"
 msgstr ""
 "Skrivbordet talar inte om för JuhRadial vilket fönster som är i förgrunden"
@@ -6915,7 +6922,7 @@ msgstr ""
 "Skrivbordet vänder också rullningen, så inställningarna tar ut varandra och "
 "hjulet rullar som vanligt."
 
-#: settings-qt/qml/pages/MacrosPage.qml:320 settings-qt/bridge/backend.py:716
+#: settings-qt/qml/pages/MacrosPage.qml:320 settings-qt/bridge/backend.py:727
 msgid "Your macros"
 msgstr "Dina makron"
 
@@ -6993,7 +7000,7 @@ msgstr "applikationsprofiler"
 msgid "back"
 msgstr "bakåt"
 
-#: settings-qt/bridge/backend.py:5192
+#: settings-qt/bridge/backend.py:5211
 msgid "built-in emoji picker"
 msgstr "inbyggd emojiväljare"
 
@@ -7029,7 +7036,7 @@ msgstr "haptik"
 msgid "held %1 ms"
 msgstr "hållen i %1 ms"
 
-#: settings-qt/bridge/backend.py:2036
+#: settings-qt/bridge/backend.py:2053
 msgid "it is password protected"
 msgstr "det är lösenordsskyddat"
 
@@ -7110,35 +7117,35 @@ msgstr "medan knappen hålls"
 msgid "window class"
 msgstr "fönsterklass"
 
-#: settings-qt/bridge/backend.py:2861
+#: settings-qt/bridge/backend.py:2880
 msgid "{device} is at {percent}%. Time to recharge."
 msgstr "{device} är på {percent}%. Dags att ladda."
 
-#: settings-qt/bridge/backend.py:5842
+#: settings-qt/bridge/backend.py:5860
 msgid "{name} can now use Flow with this computer"
 msgstr "{name} kan nu använda Flow med den här datorn"
 
-#: settings-qt/bridge/backend.py:4603
+#: settings-qt/bridge/backend.py:4622
 msgid "{name} copy"
 msgstr "Kopia av {name}"
 
-#: settings-qt/bridge/backend.py:4539
+#: settings-qt/bridge/backend.py:4558
 msgid "{name} is no longer bound to that button"
 msgstr "{name} är inte längre bundet till den knappen"
 
-#: settings-qt/bridge/backend.py:5847
+#: settings-qt/bridge/backend.py:5865
 msgid "{name} was turned away"
 msgstr "{name} avvisades"
 
-#: settings-qt/bridge/backend.py:3579
+#: settings-qt/bridge/backend.py:3598
 msgid "{n} minutes"
 msgstr "{n} minuter"
 
-#: settings-qt/bridge/backend.py:3578
+#: settings-qt/bridge/backend.py:3597
 msgid "{n} seconds"
 msgstr "{n} sekunder"
 
-#: settings-qt/bridge/backend.py:4778
+#: settings-qt/bridge/backend.py:4797
 msgid "{what} copied"
 msgstr "{what} kopierat"
 
@@ -7155,6 +7162,13 @@ msgstr ""
 #: settings-qt/qml/pages/ScrollPage.qml:401
 msgid "≈ %1 lines"
 msgstr "≈ %1 rader"
+
+#~ msgid ""
+#~ "Mic, camera, raise hand, chat and people in a Google Meet tab (select "
+#~ "manually)."
+#~ msgstr ""
+#~ "Mikrofon, kamera, räck upp handen, chatt och deltagare i en Google Meet-"
+#~ "flik (välj manuellt)."
 
 #~ msgid "Alt+Tab, the taskbar, or clicking into another window"
 #~ msgstr "Alt+Tab, aktivitetsfältet eller ett klick i ett annat fönster"

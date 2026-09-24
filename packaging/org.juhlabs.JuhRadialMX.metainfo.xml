@@ -95,7 +95,15 @@
   <releases>
     <release version="0.4.5~beta.1" date="2026-09-24" type="development">
       <description>
-        <p>Release 0.4.5-beta.1. See CHANGELOG.md for details.</p>
+        <p>First beta of 0.4.5: a new settings app, MX Keypad support and deeper MX Master 4 haptics</p>
+        <ul>
+          <li>New Qt/QML settings app with twelve themes, artistic wheel skins and 18 languages</li>
+          <li>MX Keypad support: key art on the LCD keys, pages, per-app profiles and shareable packs</li>
+          <li>Deeper MX Master 4 haptics, directional gestures, custom actions and per-app buttons</li>
+          <li>Macros that record and play back on Wayland, gaming mode, and export and import of your setup</li>
+          <li>Easy-Switch moves your keyboard along; Devices shows battery, keyboard backlight and receivers</li>
+          <li>User-mode install for Bazzite and Fedora Atomic, a native menu on niri, a NixOS module and GNOME 51 support</li>
+        </ul>
       </description>
     </release>
     <release version="0.4.1" date="2026-07-21">

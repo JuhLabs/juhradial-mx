@@ -379,3 +379,27 @@ def test_a_pack_key_id_cannot_reach_a_file_outside_the_pack(backend, tmp_path, o
         zf.writestr("keys-118/artsy/k1.jpg", b"")
     assert backend.importKeypadPack(str(pack))
     assert "private" not in str(backend.keypadPages[-1]["keys"][0].get("plate", ""))
+
+
+def test_imported_text_keys_never_press_enter(backend, tmp_path):
+    # A shared pack must not paste a line plus Enter into a terminal (the same
+    # reasoning as its shell commands): imported text keys come in with Enter
+    # off, second states too. Built-in profiles keep theirs; the toast says so.
+    assert backend.applyKeypadProfile("claude-code")
+    source = next(i for i, p in enumerate(backend.keypadPages) if p.get("profile") == "claude-code")
+    assert any(k["custom"].get("enter") for k in backend.keypadPages[source]["keys"])
+    text = lambda value: {"action": "custom", "label": value, "icon": "",
+                          "custom": {"kind": "text", "value": value, "enter": True}}
+    assert backend.saveKeypadKey(source, 9, {**text("go"), "states": [text("stop")]})
+    pack = tmp_path / "cc.zip"
+    assert backend.exportKeypadPack(str(pack), [source])
+    toasts = []
+    backend.toastRequested.connect(lambda message, kind: toasts.append(message))
+    first = len(backend.keypadPages)
+    assert backend.importKeypadPack(str(pack))
+    keys = backend.keypadPages[first]["keys"]
+    assert [k["custom"]["value"] for k in keys if k["custom"].get("kind") == "text"], "text keys still come along"
+    assert not any(k["custom"].get("enter") for k in keys + [s for k in keys for s in k.get("states", [])])
+    assert keys[8]["states"][0]["custom"] == {"kind": "text", "value": "stop"}
+    assert any(k["custom"].get("enter") for k in backend.keypadPages[source]["keys"]), "built-in page untouched"
+    assert "Press Enter after" in toasts[-1]
