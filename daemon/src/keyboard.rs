@@ -171,6 +171,26 @@ impl KeyboardManager {
     /// Query battery as `(percent, charging)`. Returns `None` when no keyboard
     /// is present or the query fails. Drops the connection on IO error so the
     /// next call reconnects.
+    /// The keyboard's Easy-Switch slots (HOSTS_INFO), for matching the
+    /// mouse's slots by computer name.
+    pub fn hosts_table(&mut self) -> Vec<crate::hidpp::device::HostSlot> {
+        if !self.ensure_connected() {
+            return Vec::new();
+        }
+        self.device.as_mut().map(|d| d.hosts_table()).unwrap_or_default()
+    }
+
+    /// Send the keyboard to another computer (CHANGE_HOST).
+    pub fn set_current_host(&mut self, slot: u8) -> Result<(), String> {
+        if !self.ensure_connected() {
+            return Err("keyboard not connected".to_string());
+        }
+        self.device
+            .as_mut()
+            .ok_or_else(|| "keyboard not connected".to_string())?
+            .set_current_host(slot)
+    }
+
     pub fn query_battery(&mut self) -> Option<(u8, bool)> {
         if let Some(until) = self.asleep_until {
             if std::time::Instant::now() < until {
@@ -494,6 +514,22 @@ async fn announce_keyboard_battery(connection: &zbus::Connection) {
         return;
     };
     tracing::info!(percent, charging, "Keyboard awake; battery read");
+    // Mouse and keyboard move together: learn the keyboard's slots while it
+    // is here, and deliver a switch that waited for it to wake.
+    let together = crate::replay::load_raw_config()
+        .pointer("/keyboard/mx_keys/move_together")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if together {
+        let _ = tokio::task::spawn_blocking(|| {
+            let slots = manager().lock().map(|mut m| m.hosts_table()).unwrap_or_default();
+            crate::easy_switch::remember_keyboard(slots);
+            if let Some(slot) = crate::easy_switch::take_pending() {
+                crate::easy_switch::move_keyboard(slot);
+            }
+        })
+        .await;
+    }
     if let Err(e) = connection
         .emit_signal(
             None::<&str>,

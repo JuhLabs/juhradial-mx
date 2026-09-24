@@ -695,9 +695,10 @@ SEARCH_INDEX = [
     ("apps", "Add by window class", "App profiles", "add app profile window class per-app override"),
     ("apps", "Recently used", "App profiles", "recent apps add profile one click"),
     # Easy-Switch
-    ("easyswitch", "Easy-Switch shortcuts in radial menu", "Easy-Switch", "easy-switch radial menu slices host-switch"),
-    ("easyswitch", "Operating system", "Paired computers", "easy-switch host os operating system computer"),
-    ("easyswitch", "Switch host", "Paired computers", "switch host computer change device channel"),
+    ("easyswitch", "Easy-Switch in the radial menu", "Computers", "easy-switch radial menu slices host-switch submenu"),
+    ("easyswitch", "This computer's name", "Computers", "easy-switch host name alias this computer"),
+    ("easyswitch", "Move the keyboard too", "Computers", "easy-switch keyboard follows mouse mx keys together"),
+    ("easyswitch", "Computers", "Easy-Switch", "switch host computer change device channel os icon paired"),
     # Devices
     ("devices", "Paired devices", "", "devices paired connected list hardware mouse"),
     ("devices", "Force generic mode", "Device mode", "generic mode standard hid override detection logitech"),
@@ -1396,6 +1397,7 @@ class Backend(QObject):
                          "tracking": True}
         self._last_preview = 0.0
         self._host_names = []
+        self._host_slots = []
         self._ss_supported = False
         self._tw_supported = False
         self._dpi_supported = False
@@ -3125,9 +3127,47 @@ class Backend(QObject):
     # ---- easy-switch ----
     @pyqtSlot(int)
     def switchHost(self, host):
-        self.daemon.call_async("SetHost", _u8(host))
-        self._cur_host = host
-        self.liveChanged.emit()
+        """Send the mouse to another computer. The row moves only when the
+        daemon says the mouse went; a refusal says why."""
+        before = self._cur_host
+
+        def done(r):
+            if r and bool(r[0]):
+                self._cur_host = host
+            else:
+                self._cur_host = before
+                self.notify(_("The mouse did not switch. Is it awake, and is that computer paired?"), "info")
+            self.liveChanged.emit()
+        self.daemon.call_then("SetHost", done, _u8(host))
+
+    hostSlotsChanged = pyqtSignal()
+
+    @pyqtProperty("QVariant", notify=hostSlotsChanged)
+    def hostSlots(self):
+        """[{index, paired, bus ("receiver" | "bluetooth" | ""), name}] for
+        each Easy-Switch slot; [] until read (readHostSlots)."""
+        return list(self._host_slots)
+
+    @pyqtSlot()
+    def readHostSlots(self):
+        buses = {1: "receiver", 2: "bluetooth", 3: "bluetooth", 4: "bluetooth"}
+
+        def done(r):
+            rows = r[0] if r and isinstance(r[0], list) else []
+            self._host_slots = [{"index": i, "paired": _to_int(row[0]) == 1,
+                                 "bus": buses.get(_to_int(row[1]), ""), "name": str(row[2])}
+                                for i, row in enumerate(rows) if isinstance(row, (list, tuple)) and len(row) >= 3]
+            self.hostSlotsChanged.emit()
+        self.daemon.call_then("GetHostSlots", done)
+
+    @pyqtProperty(str, notify=configChanged)
+    def localHostAlias(self):
+        """What this computer is called in Settings, the tray and the ring."""
+        return str(self.get("radial_menu.easy_switch_local_alias", "") or "")
+
+    @pyqtSlot(str)
+    def setLocalHostAlias(self, name):
+        self.setLocal("radial_menu.easy_switch_local_alias", name.strip()[:24])
 
     @pyqtSlot(int, str)
     def setHostOs(self, slot, os_key):

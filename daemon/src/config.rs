@@ -712,6 +712,10 @@ pub struct MxKeysConfig {
     /// SET is UNVERIFIED on hardware (see `hidpp::device::HidppDevice::set_backlight`).
     #[serde(default)]
     pub enabled: bool,
+    /// Move the keyboard to the same computer when the mouse switches
+    /// (matched by host name). Off by default.
+    #[serde(default)]
+    pub move_together: bool,
 }
 
 /// Generic keyboard remap + MX Keys S support. BETA, opt-in.

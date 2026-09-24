@@ -751,13 +751,28 @@ impl JuhRadialService {
         }
     }
 
+    /// Every Easy-Switch slot: (status 1 = paired, bus type, computer name).
+    async fn get_host_slots(&self) -> fdo::Result<Vec<(u8, u8, String)>> {
+        let (slots, current) = match self.haptic_manager.lock() {
+            Ok(mut m) => (m.host_slots(), m.get_easy_switch_info().map(|(_, c)| c)),
+            Err(_) => (Vec::new(), None),
+        };
+        crate::easy_switch::remember_mouse(slots.clone(), current);
+        Ok(slots.into_iter().map(|s| (s.status, s.bus, s.name)).collect())
+    }
+
     async fn set_host(&self, host_index: u8) -> fdo::Result<bool> {
+        let together = self.config.read().map(|c| c.keyboard.mx_keys.move_together).unwrap_or(false);
+        let keyboard_to = if together { crate::easy_switch::mouse_sent(host_index) } else { None };
         match self.haptic_manager.lock() {
             Ok(mut manager) => {
                 match manager.set_current_host(host_index) {
                     Ok(()) => {
                         tracing::info!(host_index, "Switched to Easy-Switch host");
                         crate::link_state::report(crate::link_state::LinkState::Away, None);
+                        if let Some(slot) = keyboard_to {
+                            crate::easy_switch::move_keyboard(slot);
+                        }
                         Ok(true)
                     }
                     Err(e) => {

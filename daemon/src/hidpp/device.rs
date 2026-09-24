@@ -111,6 +111,10 @@ pub struct HidppDevice {
     /// cleared by the next matched reply. 0x04 means the paired device's
     /// radio is parked (idle or on another host): see `link_parked()`.
     last_receiver_error: Option<u8>,
+    /// HID++ 2.0 error code (`0xFF` reply) answering our last request,
+    /// cleared by the next request (set_current_host tells failure from the
+    /// silent success of a switch with it).
+    last_hidpp_error: Option<u8>,
     /// Unit id from DEVICE_INFORMATION (0x0003): unique per physical device,
     /// the key for per-device config overrides (`devices.0xXXXXXXXX`).
     unit_id: Option<u32>,
@@ -127,6 +131,35 @@ fn parse_unit_id(resp: &[u8]) -> Option<u32> {
     }
     let id = u32::from_be_bytes([resp[5], resp[6], resp[7], resp[8]]);
     (id != 0).then_some(id)
+}
+
+/// One Easy-Switch slot from HOSTS_INFO (0x1815 getHostInfo): whether a
+/// computer is paired there, how (bus type), and its name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostSlot {
+    /// 0x1815 status byte: 1 = a computer is paired in this slot.
+    pub status: u8,
+    /// 0x1815 bus type: 1 = USB receiver (Unifying/Bolt), 2 = Bluetooth...
+    pub bus: u8,
+    pub name: String,
+}
+
+impl HostSlot {
+    pub fn paired(&self) -> bool {
+        self.status == 1
+    }
+}
+
+/// 0x1815 fn0 getFeatureInfo payload: (capabilities, host count, current
+/// host). The count is byte 2: byte 1 is the descriptor capability mask,
+/// which older code read as the count (its "e.g. 8" slots).
+pub fn parse_hosts_info(payload: &[u8]) -> Option<(u8, u8, u8)> {
+    Some((*payload.first()?, *payload.get(2)?, *payload.get(3)?))
+}
+
+/// 0x1815 fn1 getHostInfo payload: (status, bus type, name length).
+pub fn parse_host_descriptor(payload: &[u8]) -> Option<(u8, u8, usize)> {
+    Some((*payload.get(1)?, *payload.get(2)?, *payload.get(4)? as usize))
 }
 
 /// What getSensorDpiList (0x2201 fn 1) reports for sensor 0: the settable
@@ -547,6 +580,7 @@ impl HidppDevice {
                     thumbwheel_feature_index: None,
                     controls: Vec::new(),
                     last_receiver_error: None,
+                    last_hidpp_error: None,
                     unit_id: None,
                     gesture_button_seen: false,
                     device_path: device_path.clone(),
@@ -788,6 +822,7 @@ impl HidppDevice {
                     thumbwheel_feature_index: None,
                     controls: Vec::new(),
                     last_receiver_error: None,
+                    last_hidpp_error: None,
                     unit_id: None,
                     gesture_button_seen: false,
                     device_path: device_path.clone(),
@@ -957,6 +992,7 @@ impl HidppDevice {
                                 "HID++ error response: {:02X?}",
                                 &response[..len]
                             );
+                            self.last_hidpp_error = Some(error_code);
                             return None;
                         }
                         // HID++ 1.0 receiver error (0x8F): the paired device
@@ -2528,97 +2564,49 @@ impl HidppDevice {
     /// This is a READ-ONLY operation that retrieves the friendly names of
     /// paired hosts. It does NOT write to device memory.
     pub fn get_host_names(&mut self) -> Vec<String> {
-        // Query HOSTS_INFO feature (0x1815) directly using IRoot
-        // This bypasses the blocklist check since we only READ, never WRITE
-        let hosts_info_index = match self.get_feature_index(features::HOSTS_INFO) {
-            Some(idx) => idx,
-            None => {
-                tracing::debug!("HOSTS_INFO feature (0x1815) not supported on this device");
-                return Vec::new();
-            }
-        };
+        self.hosts_table().into_iter().map(|h| h.name).collect()
+    }
 
-        tracing::debug!(index = hosts_info_index, "Found HOSTS_INFO feature");
-
-        // Function 0x00: getHostInfo - get number of hosts and capabilities
-        let resp = match self.hidpp_request(hosts_info_index, 0x00, &[]) {
-            Some(r) => r,
-            None => {
-                tracing::debug!("Failed to get host info");
-                return Vec::new();
-            }
-        };
-
-        if resp.len() < 6 {
+    /// Every Easy-Switch slot from HOSTS_INFO (0x1815): paired or empty, the
+    /// bus, the name. Read-only. Empty when the device lacks the feature.
+    pub fn hosts_table(&mut self) -> Vec<HostSlot> {
+        let Some(idx) = self.get_feature_index(features::HOSTS_INFO) else {
+            tracing::debug!("HOSTS_INFO feature (0x1815) not supported on this device");
             return Vec::new();
-        }
-
-        // Response: [4]=capability_flags, [5]=numHosts, [6]=currentHost
-        let num_hosts = resp[5];
-        let _current_host = resp[6];
-        tracing::debug!(num_hosts, "Got host count from device");
-
-        let mut host_names = Vec::new();
-
-        // Get name for each host slot.
-        // Device may report max capacity (e.g. 8) but only 3 slots are real.
-        // Break on first failed slot to avoid noisy HID++ error log spam.
-        for host_idx in 0..num_hosts {
-            // Function 0x01: getHostDescriptor - get status and name length
-            let resp = match self.hidpp_request(hosts_info_index, 0x01, &[host_idx, 0, 0]) {
-                Some(r) => r,
-                None => {
-                    // Non-existent slot - no more valid hosts
-                    break;
-                }
+        };
+        let Some((caps, num_hosts, _current)) = self
+            .hidpp_request(idx, 0x00, &[])
+            .and_then(|r| parse_hosts_info(r.get(4..)?))
+        else {
+            return Vec::new();
+        };
+        let can_name = caps & 0x01 != 0;
+        let mut slots = Vec::new();
+        for host in 0..num_hosts.min(6) {
+            let Some((status, bus, name_len)) = self
+                .hidpp_request(idx, 0x01, &[host, 0, 0])
+                .and_then(|r| parse_host_descriptor(r.get(4..)?))
+            else {
+                slots.push(HostSlot { status: 0, bus: 0, name: String::new() });
+                continue;
             };
-
-            if resp.len() < 9 {
-                host_names.push(String::new());
-                continue;
-            }
-
-            // Response: [4]=host, [5]=busType, [6]=flags, [7]=status, [8]=nameLen, [9]=maxNameLen
-            let name_len = resp[8] as usize;
-            if name_len == 0 {
-                host_names.push(String::new());
-                continue;
-            }
-
-            // Function 0x03: getHostFriendlyName - get actual name (chunked, 14 bytes per call)
-            let mut name_bytes = Vec::new();
-            let mut offset = 0u8;
-
-            while (offset as usize) < name_len {
-                let resp = match self.hidpp_request(hosts_info_index, 0x03, &[host_idx, offset, 0]) {
-                    Some(r) => r,
+            let mut name = Vec::new();
+            let mut offset = 0usize;
+            while can_name && status == 1 && offset < name_len.min(64) {
+                // fn3 getHostFriendlyName(host, offset): [host, offset, 14 bytes]
+                let Some(r) = self.hidpp_request(idx, 0x03, &[host, offset as u8, 0]) else { break };
+                let take = 14.min(name_len - offset);
+                match r.get(6..6 + take) {
+                    Some(chunk) => name.extend_from_slice(chunk),
                     None => break,
-                };
-
-                if resp.len() < 6 {
-                    break;
                 }
-
-                // Response: [4]=host, [5]=offset, [6..20]=name (up to 14 bytes)
-                let chunk_start = 6;
-                let chunk_len = std::cmp::min(14, name_len - offset as usize);
-                if resp.len() >= chunk_start + chunk_len {
-                    name_bytes.extend_from_slice(&resp[chunk_start..chunk_start + chunk_len]);
-                }
-
                 offset += 14;
             }
-
-            // Convert to string, trimming null bytes
-            let name = String::from_utf8_lossy(&name_bytes)
-                .trim_end_matches('\0')
-                .to_string();
-
-            tracing::debug!(host = host_idx, name = %name, "Got host name");
-            host_names.push(name);
+            let name = String::from_utf8_lossy(&name).trim_end_matches('\0').to_string();
+            tracing::debug!(host, status, bus, name = %name, "Host slot");
+            slots.push(HostSlot { status, bus, name });
         }
-
-        host_names
+        slots
     }
 
     /// Get Easy-Switch info: (num_hosts, current_host)
@@ -2640,34 +2628,32 @@ impl HidppDevice {
         Some((num_hosts, current_host))
     }
 
-    /// Switch to a different paired host (Easy-Switch)
+    /// Switch to a different paired host (Easy-Switch). On success the
+    /// device answers nothing (it is already leaving); a HID++ error or a
+    /// receiver error (asleep, away) means it stayed, and says so.
     pub fn set_current_host(&mut self, host_index: u8) -> Result<(), String> {
-        // Query CHANGE_HOST feature (0x1814)
-        let change_host_index = self.get_feature_index(features::CHANGE_HOST)
+        let change_host_index = self
+            .get_feature_index(features::CHANGE_HOST)
             .ok_or_else(|| "CHANGE_HOST feature (0x1814) not supported".to_string())?;
-
-        // Validate host_index (typically 0, 1, or 2)
-        if host_index > 2 {
-            return Err(format!("Invalid host_index: {}. Must be 0, 1, or 2", host_index));
+        let (num_hosts, current) = self.get_easy_switch_info().unwrap_or((3, 0xFF));
+        if host_index >= num_hosts.max(1) {
+            return Err(format!("There is no computer slot {}", host_index + 1));
         }
-
+        if host_index == current {
+            return Ok(());
+        }
         tracing::info!(host_index, "Switching to Easy-Switch host slot");
-
-        // Function 0x01: setCurrentHost with param = host_index
-        let resp = self.hidpp_request(change_host_index, 0x01, &[host_index]);
-
-        match resp {
-            Some(_) => {
-                tracing::info!(host_index, "Successfully sent host switch command");
-                Ok(())
-            }
-            None => {
-                // Note: The device may disconnect before sending a response
-                // when switching hosts, so a missing response might still mean success
-                tracing::warn!(host_index, "No response from host switch command (device may have disconnected)");
-                Ok(())
-            }
+        self.last_hidpp_error = None;
+        self.last_receiver_error = None;
+        // fn1 setCurrentHost(host): one attempt, the silence is the success.
+        let _ = self.hidpp_request_with_timeout(change_host_index, 0x01, &[host_index], 1);
+        if let Some(code) = self.last_hidpp_error {
+            return Err(format!("The device refused the switch (HID++ error 0x{code:02X})"));
         }
+        if self.last_receiver_error.is_some() {
+            return Err("The device is asleep or away".to_string());
+        }
+        Ok(())
     }
 }
 

@@ -728,6 +728,11 @@ pub fn set_device_manager(manager: crate::hidpp::SharedHapticManager) {
     let _ = DEVICE.set(manager);
 }
 
+/// The shared HID++ manager, once main registered it.
+pub fn device_manager() -> Option<crate::hidpp::SharedHapticManager> {
+    DEVICE.get().cloned()
+}
+
 /// Pulse the mouse for a daemon event (DPI change, macro start/finish,
 /// gesture tick, ...). Off the caller's thread: the HID++ write waits on the
 /// device lock, and callers include the cursor-motion loop.

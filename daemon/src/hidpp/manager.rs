@@ -1109,6 +1109,14 @@ impl HapticManager {
         }
     }
 
+    /// Every Easy-Switch slot (paired or empty, bus, name).
+    pub fn host_slots(&mut self) -> Vec<super::device::HostSlot> {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_mut().map(|d| d.hosts_table()).unwrap_or_default()
+    }
+
     /// Get Easy-Switch info: (num_hosts, current_host)
     pub fn get_easy_switch_info(&mut self) -> Option<(u8, u8)> {
         if self.device.is_none() {

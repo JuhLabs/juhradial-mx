@@ -1850,6 +1850,24 @@ async fn replay_pointer_state(
     if tried > 0 || failed > 0 {
         info!(tried, failed, "Replayed pointer and scroll state");
     }
+    // Mouse and keyboard move together needs the mouse's slots cached while
+    // it is here (a device that has left cannot be read).
+    if juhradiald::replay::load_raw_config()
+        .pointer("/keyboard/mx_keys/move_together")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
+        if let Some(m) = juhradiald::actions::device_manager() {
+            let _ = tokio::task::spawn_blocking(move || {
+                if let Ok(mut m) = m.lock() {
+                    let slots = m.host_slots();
+                    let current = m.get_easy_switch_info().map(|(_, c)| c);
+                    juhradiald::easy_switch::remember_mouse(slots, current);
+                }
+            })
+            .await;
+        }
+    }
     failed == 0
 }
 
@@ -2521,8 +2539,16 @@ async fn emit_hardware_notification(
                 .emit_signal(None::<&str>, DBUS_PATH, iface, "RatchetChanged", &(ratchet,))
                 .await?;
         }
-        HN::HostChanged { host } => {
-            info!(host, "Easy-Switch host changed (notification)");
+        HN::HostChanged { host, next } => {
+            info!(host, ?next, "Easy-Switch host changed (notification)");
+            // The mouse's own Easy-Switch button: take the keyboard along.
+            let together = juhradiald::replay::load_raw_config()
+                .pointer("/keyboard/mx_keys/move_together")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if let Some(slot) = next.filter(|_| together).and_then(|to| juhradiald::easy_switch::mouse_left(host, to)) {
+                juhradiald::easy_switch::move_keyboard(slot);
+            }
             // Volatile button diverts + thumb-wheel reporting are lost when the
             // mouse returns from another Easy-Switch host. Wake run_hidraw_loop
             // (the same path device hotplug uses) so it re-applies them.

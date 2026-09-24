@@ -816,3 +816,14 @@ fn every_event_has_a_config_key_and_pattern() {
     }
     assert_eq!(defaults.get(&HapticEvent::HostArrive), Mx4HapticPattern::HappyAlert);
 }
+
+#[test]
+fn hosts_info_reads_the_count_from_byte_two() {
+    // MX Keys S capture: caps 0x13, descriptor caps 0x04, 3 hosts, current 0
+    assert_eq!(device::parse_hosts_info(&[0x13, 0x04, 0x03, 0x00]), Some((0x13, 3, 0)));
+    // Bolt + BLE mouse: descriptor caps 0x08 is not 8 slots
+    assert_eq!(device::parse_hosts_info(&[0x01, 0x08, 0x03, 0x01]).map(|t| t.1), Some(3));
+    // getHostInfo(slot): [slot, status, bus, pages, nameLen, maxNameLen]
+    assert_eq!(device::parse_host_descriptor(&[0x01, 0x01, 0x02, 0x01, 0x0B, 0x18]), Some((1, 2, 11)));
+    assert_eq!(device::parse_hosts_info(&[0x01]), None);
+}
