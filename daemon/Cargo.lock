@@ -738,7 +738,7 @@ dependencies = [
 
 [[package]]
 name = "juhradiald"
-version = "0.4.5"
+version = "0.4.5-beta.1"
 dependencies = [
  "clap",
  "criterion",

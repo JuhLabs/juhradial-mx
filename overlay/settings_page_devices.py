@@ -378,7 +378,7 @@ class DevicesPage(Gtk.ScrolledWindow):
             bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         except Exception:
             return
-        # Empty sender so a daemon restart does not silence us (see CLAUDE.md).
+        # Empty sender so a daemon restart does not silence us.
         for signal, handler in (
             ("BatteryChanged", self._on_battery_signal),
             ("RatchetChanged", self._on_ratchet_signal),

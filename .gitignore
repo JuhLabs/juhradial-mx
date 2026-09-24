@@ -31,7 +31,6 @@ _bmad-output/
 bmad-custom-src/
 
 # Internal docs kept private (not shipped publicly)
-CLAUDE.md
 DESIGN.md
 PRODUCT.md
 ASSET_PROMPTS.md

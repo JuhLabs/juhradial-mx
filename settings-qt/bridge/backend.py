@@ -602,6 +602,17 @@ def version_tuple(v):
     return tuple(int(x) for x in parts[:3])
 
 
+def is_newer_version(latest, current):
+    """True when release `latest` supersedes `current`. A pre-release
+    ('0.4.5-beta.1') sorts below its final release ('0.4.5'), as in SemVer."""
+    lt, ct = version_tuple(latest), version_tuple(current)
+    if not lt:
+        return False
+    if lt != ct:
+        return lt > ct
+    return "-" in str(current).strip() and "-" not in str(latest).strip()
+
+
 def resolve_auto_fit(radial):
     """Same rule as overlay_actions.resolve_auto_fit: unset = on unless the
     user already chose a ring or icon size."""
@@ -5692,8 +5703,7 @@ class Backend(QObject):
 
     @pyqtProperty(bool, notify=updateChanged)
     def updateAvailable(self):
-        latest = version_tuple(self._update.get("latest"))
-        return bool(latest) and latest > version_tuple(self.appVersion)
+        return is_newer_version(self._update.get("latest"), self.appVersion)
 
     @pyqtProperty(str, notify=updateChanged)
     def latestVersion(self):

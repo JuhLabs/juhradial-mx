@@ -1008,7 +1008,7 @@ None,      Down, Button5, {lines}
             if not getattr(self, "_ratchet_sub_id", None):
                 # Follow the hardware wheel-mode button: re-read device state on
                 # RatchetChanged. Empty sender so a daemon restart does not
-                # silence us (see CLAUDE.md).
+                # silence us.
                 self._ratchet_sub_id = bus.signal_subscribe(
                     None, "org.kde.juhradialmx.Daemon", "RatchetChanged",
                     "/org/kde/juhradialmx/Daemon", None, Gio.DBusSignalFlags.NONE,

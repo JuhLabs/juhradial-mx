@@ -37,7 +37,7 @@
           # Rust daemon - handles evdev input and D-Bus signaling
           juhradiald = pkgs.rustPlatform.buildRustPackage {
             pname = "juhradiald";
-            version = "0.4.5";
+            version = "0.4.5-beta.1";
 
             # Include crates/mx-keypad beside daemon for the path dependency.
             src = ./.;
@@ -62,7 +62,7 @@
 
           default = pkgs.stdenv.mkDerivation {
             pname = "juhradial-mx";
-            version = "0.4.5";
+            version = "0.4.5-beta.1";
             src = ./.;
 
             nativeBuildInputs = with pkgs; [

@@ -2,13 +2,13 @@
 # Build: rpmbuild -ba juhradial-mx.spec
 
 Name:           juhradial-mx
-Version:        0.4.5
+Version:        0.4.5~beta.1
 Release:        1%{?dist}
 Summary:        Beautiful radial menu for Logitech MX Master mice on Linux
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/JuhLabs/juhradial-mx
-Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
+Source0:        %{url}/archive/v%{version_no_tilde}/%{name}-%{version_no_tilde}.tar.gz
 
 BuildRequires:  rust
 BuildRequires:  cargo
@@ -47,7 +47,7 @@ Features:
 - Native KDE Plasma and Wayland integration
 
 %prep
-%autosetup -n %{name}-%{version}
+%autosetup -n %{name}-%{version_no_tilde}
 
 %build
 # The source archive must include the sibling MX Keypad crate.
@@ -143,8 +143,8 @@ install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdi
 %{_udevrulesdir}/99-juhradialmx.rules
 %{_udevrulesdir}/60-ydotool-uinput.rules
 %changelog
-* Wed Sep 23 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5-1
-- Release 0.4.5 (see CHANGELOG.md)
+* Thu Sep 24 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.1-1
+- Release 0.4.5-beta.1 (see CHANGELOG.md)
 
 * Sat Aug 15 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.3-1
 - Editable quick links in the radial submenu (#105)

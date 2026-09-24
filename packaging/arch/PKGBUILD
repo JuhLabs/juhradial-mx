@@ -2,7 +2,9 @@
 # Arch Linux PKGBUILD for JuhRadial MX
 
 pkgname=juhradial-mx
-pkgver=0.4.5
+pkgver=0.4.5beta1
+# Tag and archive form of pkgver (pkgver cannot hold a hyphen): 0.4.5beta1 -> 0.4.5-beta.1
+_srcver="${pkgver/beta/-beta.}"
 pkgrel=1
 pkgdesc="Beautiful radial menu for Logitech MX Master mice on Linux"
 arch=('x86_64')
@@ -32,11 +34,11 @@ optdepends=(
 )
 provides=("$pkgname")
 conflicts=("$pkgname-git")
-source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$_srcver.tar.gz")
 sha256sums=('SKIP')
 
 build() {
-    cd "$pkgname-$pkgver"
+    cd "$pkgname-$_srcver"
 
     # Keep crates/ beside daemon/ for the mx-keypad path dependency.
     test -f crates/mx-keypad/Cargo.toml
@@ -55,12 +57,12 @@ build() {
 }
 
 check() {
-    cd "$pkgname-$pkgver"
+    cd "$pkgname-$_srcver"
     cargo test --locked --manifest-path crates/mx-keypad/Cargo.toml
 }
 
 package() {
-    cd "$pkgname-$pkgver"
+    cd "$pkgname-$_srcver"
 
     # Install daemon binary
     install -Dm755 daemon/target/release/juhradiald "$pkgdir/usr/bin/juhradiald"

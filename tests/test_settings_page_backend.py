@@ -139,6 +139,19 @@ def test_update_version_compare(backend):
     assert not backend.updateAvailable
 
 
+def test_update_compare_prerelease():
+    """A beta user is offered the final release; a beta never outranks the
+    stable release it precedes or a newer one (SemVer precedence)."""
+    assert bk.is_newer_version("v0.4.5", "0.4.5-beta.1")
+    assert bk.is_newer_version("v0.4.6", "0.4.5-beta.1")
+    assert not bk.is_newer_version("v0.4.4", "0.4.5-beta.1")
+    assert not bk.is_newer_version("v0.4.5-beta.1", "0.4.5")
+    assert not bk.is_newer_version("v0.4.5-beta.1", "0.4.6")
+    assert not bk.is_newer_version("v0.4.5", "0.4.5")
+    assert bk.is_newer_version("v0.4.5-beta.1", "0.4.4")
+    assert not bk.is_newer_version("junk", "0.4.5-beta.1")
+
+
 def test_update_check_respects_the_setting(backend):
     backend.setLocal("app.check_updates", False)
     backend.checkForUpdates(False)

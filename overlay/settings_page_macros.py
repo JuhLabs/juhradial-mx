@@ -1035,7 +1035,7 @@ class MacrosPage(Gtk.ScrolledWindow):
             bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         except Exception:
             return
-        # Empty sender so a daemon restart does not silence us (see CLAUDE.md).
+        # Empty sender so a daemon restart does not silence us.
         self._sub_ids.append(bus.signal_subscribe(
             None, "org.kde.juhradialmx.Daemon", "MacroPlaybackStarted",
             "/org/kde/juhradialmx/Daemon", None, Gio.DBusSignalFlags.NONE,
