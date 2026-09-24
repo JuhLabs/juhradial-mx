@@ -309,6 +309,28 @@ def submenu_from_config(items):
         submenu.append((label, "url", url, _link_icon_for_url(url)))
     return submenu or None
 
+# Easy-Switch submenu labels: the mouse's own names for its computers, and this
+# computer's local alias (Settings > Easy-Switch) for its slot. The tray learns
+# them from the daemon and calls set_host_labels().
+HOST_LABELS = {}
+
+
+def easy_switch_label(i):
+    return HOST_LABELS.get(i) or f"Host {i+1}"
+
+
+def set_host_labels(names, current, alias=""):
+    """Name the Easy-Switch submenu items after the computers (live)."""
+    HOST_LABELS.clear()
+    for i, name in enumerate(names or []):
+        if name:
+            HOST_LABELS[i] = name
+    if alias and 0 <= current < 3:
+        HOST_LABELS[current] = alias
+    for i, item in enumerate(EASY_SWITCH_SUBMENU):
+        EASY_SWITCH_SUBMENU[i] = (easy_switch_label(i),) + tuple(item[1:])
+
+
 # Easy-Switch submenu - built dynamically in load_actions_from_config()
 EASY_SWITCH_SUBMENU = [
     ("Host 1", "easy_switch", "0", "os_unknown"),
@@ -588,7 +610,7 @@ def load_actions_from_config():
             )
             global EASY_SWITCH_SUBMENU
             EASY_SWITCH_SUBMENU = [
-                (f"Host {i+1}", "easy_switch", str(i), f"os_{os_types[i] if i < len(os_types) else 'unknown'}")
+                (easy_switch_label(i), "easy_switch", str(i), f"os_{os_types[i] if i < len(os_types) else 'unknown'}")
                 for i in range(3)
             ]
 

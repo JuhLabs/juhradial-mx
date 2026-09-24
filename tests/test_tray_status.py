@@ -54,7 +54,7 @@ def status():
     notes = []
     st = ot.TrayStatus(tray, _base_icon(), bus=False,
                        notify=lambda d, p, kind="mouse": notes.append((d, p) if kind == "mouse" else (kind, p)),
-                       alerts=lambda: (15, True, True))
+                       alerts=lambda: (15, True, True), alias=lambda: "")
     return st, tray, notes
 
 
@@ -165,6 +165,28 @@ def test_only_charging_reads_as_charging(status):
     assert not st.charging
     st.set_battery(42, "charging")
     assert tray.tooltip == "JuhRadial MX\nMX Master 4: 42%, charging"
+
+
+def test_local_alias_names_this_computer_in_tooltip_and_ring(status):
+    st, tray, _ = status
+    seen = []
+    st.on_hosts = lambda names, home, alias: seen.append((list(names), home, alias))
+    st.alias = lambda: "Desk"
+    st.set_device("MX Master 4")
+    st._set_easy_switch([3, 0])
+    st._set_host_names([["LINUX-PC", "MacBook Pro", ""]])
+    assert tray.tooltip.endswith("Host 1 of 3: Desk")
+    assert seen[-1] == (["LINUX-PC", "MacBook Pro", ""], 0, "Desk")
+    st.set_host(1)  # the mouse went to the Mac: the alias stays on slot 1
+    assert tray.tooltip.endswith("Host 2 of 3: MacBook Pro")
+    assert seen[-1][1] == 0
+
+
+def test_ring_labels_follow_the_computers():
+    import overlay_actions as oa
+    oa.set_host_labels(["LINUX-PC", "MacBook Pro", ""], 0, "Desk")
+    assert [oa.easy_switch_label(i) for i in range(3)] == ["Desk", "MacBook Pro", "Host 3"]
+    oa.set_host_labels([], -1)
 
 
 def test_byte_arguments_arrive_as_bytes_or_int(status):

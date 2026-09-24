@@ -31,6 +31,7 @@
           pythonEnv = pkgs.python3.withPackages (ps: with ps; [
             pyqt6
             pygobject3
+            pycairo
           ]);
 
           # Rust daemon - handles evdev input and D-Bus signaling
@@ -73,6 +74,7 @@
               qt6.qtbase
               qt6.qtsvg
               qt6.qtdeclarative
+              qt6.qtwayland
             ]);
 
             dontBuild = true;
@@ -96,7 +98,7 @@
               cp -r overlay/locales $out/share/juhradial/
 
               # Qt/QML settings app (tools/ excluded; GTK dashboard stays as fallback)
-              mkdir -p $out/share/juhradial/settings-qt
+              mkdir -p $out/share/juhradial/settings-qt $out/share/juhradial/assets
               cp settings-qt/main.py $out/share/juhradial/settings-qt/
               cp -r settings-qt/bridge settings-qt/qml settings-qt/assets $out/share/juhradial/settings-qt/
               find $out/share/juhradial/settings-qt -type d -name __pycache__ -exec rm -rf {} +
@@ -169,10 +171,11 @@
             # Wrap launcher scripts with GTK/Qt environment variables
             postFixup = let
               typelibPath = pkgs.lib.makeSearchPath "lib/girepository-1.0" gtkRuntimeLibs;
-              qtPluginPath = pkgs.lib.makeSearchPath "lib/qt-6/plugins" [ pkgs.qt6.qtbase pkgs.qt6.qtsvg ];
+              qtPluginPath = pkgs.lib.makeSearchPath "lib/qt-6/plugins" [ pkgs.qt6.qtbase pkgs.qt6.qtsvg pkgs.qt6.qtwayland ];
               qmlImportPath = pkgs.lib.makeSearchPath "lib/qt-6/qml" [ pkgs.qt6.qtdeclarative ];
             in ''
               wrapProgram $out/bin/juhradial-mx \
+                --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [ pkgs.gtk4-layer-shell ]}" \
                 --set GI_TYPELIB_PATH "${typelibPath}" \
                 --set QT_PLUGIN_PATH "${qtPluginPath}" \
                 --prefix PYTHONPATH : "$out/share/juhradial"
@@ -220,14 +223,54 @@
             # Install the package system-wide
             environment.systemPackages = [ cfg.package ];
 
-            # udev rules for non-root Logitech device access
-            services.udev.extraRules =
-              builtins.readFile (cfg.package + "/etc/udev/rules.d/99-juhradialmx.rules");
+            # Register the packaged user unit and enable it declaratively.
+            # Ordering lives in the unit; never pull in graphical-session.target.
+            systemd.packages = [ cfg.package ];
+            systemd.user.services.juhradialmx-daemon.wantedBy = [
+              "graphical-session.target" "default.target"
+            ];
+
+            boot.kernelModules = [ "uinput" ];
+            # Package registration avoids reading a built derivation at evaluation.
+            services.udev.packages = [ cfg.package ];
+            services.udev.extraRules = ''
+              KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
+            '';
 
             # Ensure 'input' group exists for device permissions
             users.groups.input = { };
           };
         };
+
+      checks = forAllSystems (system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          package = self.packages.${system}.default;
+          host = nixpkgs.lib.nixosSystem {
+            inherit system;
+            modules = [ self.nixosModules.default {
+              services.juhradial-mx.enable = true;
+              system.stateVersion = "24.11";
+            } ];
+          };
+          cfg = host.config;
+        in {
+          inherit package;
+          nixos-module =
+            assert builtins.elem package cfg.systemd.packages;
+            assert builtins.elem package cfg.services.udev.packages;
+            assert builtins.elem "uinput" cfg.boot.kernelModules;
+            assert cfg.users.groups ? input;
+            assert builtins.elem "graphical-session.target"
+              cfg.systemd.user.services.juhradialmx-daemon.wantedBy;
+            pkgs.runCommand "juhradial-nixos-module" { } ''
+              test -x ${package}/bin/juhradiald
+              test -f ${package}/lib/systemd/user/juhradialmx-daemon.service
+              grep -q 'SUBSYSTEM=="hidraw".*GROUP="input"' ${package}/etc/udev/rules.d/99-juhradialmx.rules
+              grep -q 'KERNEL=="uinput".*GROUP="input".*MODE="0660"' ${pkgs.writeText "juhradial-extra-rules" cfg.services.udev.extraRules}
+              touch $out
+            '';
+        });
 
       # Development shell for contributors
       devShells = forAllSystems (system:
@@ -237,9 +280,9 @@
             buildInputs = with pkgs; [
               rustc cargo pkg-config
               dbus systemd
-              (python3.withPackages (ps: with ps; [ pyqt6 pygobject3 ]))
+              (python3.withPackages (ps: with ps; [ pyqt6 pygobject3 pycairo ]))
               gtk4 libadwaita gtk4-layer-shell graphene harfbuzz
-              qt6.qtbase qt6.qtsvg qt6.qtdeclarative
+              qt6.qtbase qt6.qtsvg qt6.qtdeclarative qt6.qtwayland
               gobject-introspection
             ];
           };

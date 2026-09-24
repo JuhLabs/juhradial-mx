@@ -52,7 +52,16 @@ def _int(v):
     return int(v)
 
 
-def tooltip(device, percent, charging, host, num_hosts, host_names, profile):
+def local_alias(path=CONFIG_PATH):
+    """This computer's own name for its Easy-Switch slot (Settings), or ""."""
+    try:
+        cfg = json.loads(Path(path).read_text())
+        return str((cfg.get("radial_menu") or {}).get("easy_switch_local_alias") or "")
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def tooltip(device, percent, charging, host, num_hosts, host_names, profile, alias=""):
     """The tray tooltip lines: app, device with battery, host, profile."""
     lines = [APP_NAME]
     if device:
@@ -63,7 +72,7 @@ def tooltip(device, percent, charging, host, num_hosts, host_names, profile):
         lines.append(f"{device}: {battery}")
     if num_hosts:
         line = f"Host {host + 1} of {num_hosts}"
-        name = host_names[host] if 0 <= host < len(host_names) else ""
+        name = alias or (host_names[host] if 0 <= host < len(host_names) else "")
         if name:
             line += f": {name}"
         lines.append(line)
@@ -145,19 +154,24 @@ class TrayStatus(QObject):
     """Keeps a QSystemTrayIcon's tooltip and badge in step with the daemon."""
 
     def __init__(self, tray, base_icon, bus=None, notify=notify_low_battery, parent=None,
-                 on_profile=None, alerts=battery_alerts):
+                 on_profile=None, alerts=battery_alerts, on_hosts=None, alias=local_alias):
         super().__init__(parent)
         self.on_profile = on_profile
         self.tray = tray
         self.base_icon = base_icon
         self.notify = notify
         self.alerts = alerts
+        self.on_hosts = on_hosts
+        self.alias = alias
         self.device = ""
         self.percent = None
         self.charging = False
         self.host = 0
         self.num_hosts = 0
         self.host_names = []
+        # The slot the mouse answered from at prime time: this computer. A
+        # later HostChanged moves self.host, never this.
+        self.home_host = -1
         self.profile = ""
         self.gaming = False
         self.gaming_action = None
@@ -240,7 +254,10 @@ class TrayStatus(QObject):
 
     def refresh(self):
         self.tray.setToolTip(tooltip(self.device, self.percent, self.charging, self.host,
-                                     self.num_hosts, self.host_names, self.profile))
+                                     self.num_hosts, self.host_names, self.profile,
+                                     self.alias() if self.host == self.home_host else ""))
+        if self.on_hosts is not None:
+            self.on_hosts(self.host_names, self.home_host, self.alias())
         self.tray.setIcon(render_icon(self.base_icon, badge_letter(self.profile), self.low))
 
     # ---- daemon signals (the full QDBusMessage is delivered) ----
@@ -302,6 +319,7 @@ class TrayStatus(QObject):
 
     def _set_easy_switch(self, a):
         self.num_hosts, self.host = _int(a[0]), _int(a[1])
+        self.home_host = self.host
         self.refresh()
 
     def _set_host_names(self, a):

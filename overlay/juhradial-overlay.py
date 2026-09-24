@@ -60,11 +60,17 @@ def _wait_for_x11(timeout=12.0):
     return False
 
 
-_wait_for_x11()
+from overlay_layer_shell import start_niri_layer_shell
+
+_LAYER_SHELL = start_niri_layer_shell()
+if _LAYER_SHELL is None:
+    _wait_for_x11()
 # "xcb;wayland": Qt treats this as an ordered fallback list. If XWayland
 # still is not up (or is missing entirely), the overlay comes up on the
 # native wayland platform - positioning degrades but nothing crashes.
 os.environ["QT_QPA_PLATFORM"] = "xcb;wayland"
+if _LAYER_SHELL is not None:
+    os.environ["QT_QPA_PLATFORM"] = "wayland;offscreen"
 
 import math
 import shlex
@@ -1599,7 +1605,8 @@ def create_tray_icon(app, radial_menu):
     tray.setVisible(tray_icon_wanted())
     # Tooltip (device, battery, host, profile) and icon badge follow the daemon.
     tray.status = TrayStatus(tray, icon, parent=tray,
-                             on_profile=lambda app: setattr(overlay_actions, "ACTIVE_APP", app))
+                             on_profile=lambda app: setattr(overlay_actions, "ACTIVE_APP", app),
+                             on_hosts=overlay_actions.set_host_labels)
     tray.status.bind_gaming_action(gaming_action)
 
     return tray
@@ -1640,7 +1647,12 @@ if __name__ == "__main__":
     overlay_actions.load_radial_image()
     app.processEvents()
 
-    w = RadialMenu()
+    if _LAYER_SHELL is not None:
+        from overlay_niri import create_niri_menu
+        w = create_niri_menu(RadialMenu, _LAYER_SHELL)
+        app.aboutToQuit.connect(_LAYER_SHELL.close)
+    else:
+        w = RadialMenu()
     app.processEvents()
     app.tray = create_tray_icon(app, w)
     app.tray_watch = follow_tray_setting(app, app.tray)
