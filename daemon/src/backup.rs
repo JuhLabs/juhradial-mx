@@ -28,7 +28,9 @@ pub const FORMAT: u32 = 1;
 const APP: &str = "juhradial-mx";
 
 /// Top-level files that are exported and imported.
-const FILES: [&str; 2] = ["config.json", "profiles.json"];
+/// ui_state.json holds the Settings look (theme, icon style), so a restore
+/// comes back in the same colours.
+const FILES: [&str; 3] = ["config.json", "profiles.json", "ui_state.json"];
 
 /// Directories whose regular files are exported and imported, one level deep.
 const DIRS: [&str; 3] = ["macros", "icons", "themes"];
@@ -413,6 +415,7 @@ mod tests {
             vec![
                 "config.json",
                 "profiles.json",
+                "ui_state.json",
                 "macros/abc-123.json",
                 "icons/firefox.png",
                 "themes/mine.json"
@@ -424,7 +427,7 @@ mod tests {
             .collect();
         assert!(entries.contains(&MANIFEST.to_string()));
         assert!(!entries.iter().any(|n| n.contains("flow_keys")));
-        assert!(!entries.iter().any(|n| n.contains("ui_state")));
+        assert!(entries.iter().any(|n| n == "ui_state.json"), "the look travels with a backup");
         assert!(!entries.iter().any(|n| n.ends_with(".bak") || n.ends_with(".tmp")));
         let manifest = read_manifest(&mut archive).unwrap();
         assert_eq!(manifest.app, APP);
@@ -456,7 +459,7 @@ mod tests {
         write(dst.path(), "macros/keep-me.json", r#"{"id": "keep-me"}"#);
 
         let report = import(dst.path(), out.path()).unwrap();
-        assert_eq!(report.files.len(), 5);
+        assert_eq!(report.files.len(), 6);
         assert_eq!(report.backed_up, vec!["config.json.bak", "profiles.json.bak"]);
         assert_eq!(report.version, env!("CARGO_PKG_VERSION"));
 
@@ -534,7 +537,6 @@ mod tests {
             "/etc/passwd",
             "macros/../../evil.json",
             "flow_keys/private.key",
-            "ui_state.json",
             "macros/nested/deep.json",
             "macros/notjson.txt",
             "icons/.hidden.png",

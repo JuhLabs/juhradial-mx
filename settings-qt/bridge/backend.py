@@ -344,6 +344,37 @@ RADIAL_ACTIONS = [
     ("none", "Do Nothing", "action-unavailable-symbolic", "none", "", "gray"),
 ]
 
+# Ring surface palettes (config "theme", overlay/themes.py THEMES keys):
+# (key, name, light, base, border, 3D image, icon). base, border and icon are
+# the colours the overlay paints the classic ring and its glyphs with (THEMES
+# colors "base"/"surface2"/"subtext1");
+# a 3D palette draws its own bitmap instead while the skin is Classic.
+RING_PALETTES = [
+    ("phosphor", "Phosphor", False, "#0c1019", "#1e2733", "", "#a4b1c0"),
+    ("juhradial-mx", "JuhRadial MX", False, "#121418", "#2e3440", "", "#c8d0dc"),
+    ("catppuccin-mocha", "Catppuccin Mocha", False, "#1e1e2e", "#585b70", "", "#bac2de"),
+    ("nord", "Nord", False, "#434c5e", "#6e7a8a", "", "#e5e9f0"),
+    ("dracula", "Dracula", False, "#343746", "#5a5e78", "", "#e2e2d8"),
+    ("catppuccin-latte", "Catppuccin Latte", True, "#eff1f5", "#acb0be", "", "#5c5f77"),
+    ("github-light", "GitHub Light", True, "#ffffff", "#d8dee4", "", "#57606a"),
+    ("solarized-light", "Solarized Light", True, "#fdf6e3", "#d2cdb9", "", "#586e75"),
+    ("3d-blossom", "Pearl Blossom (3D)", True, "#1c1418", "#443440", "radialwheel2.png", "#dcc0d0"),
+    ("3d-neon", "Neon Sci-Fi (3D)", False, "#0e1220", "#242e4a", "radialwheel3.png", "#b0c8e8"),
+    ("3d-pastel", "Dark Ember (3D)", False, "#1a1814", "#3a3428", "radialwheel4.png", "#d0c8b0"),
+    ("3d-crystal", "Golden Classic (3D)", False, "#181614", "#38322a", "radialwheel5.png", "#d0c8a8"),
+]
+# Where the overlay looks for the 3D images: the checkout / /usr/share/juhradial
+# (settings-qt's parent), then the /opt app dir.
+RADIAL_WHEEL_DIRS = [pathlib.Path(__file__).resolve().parents[2] / "assets" / "radial-wheels",
+                     pathlib.Path("/opt/juhradial-mx/assets/radial-wheels")]
+
+
+def _radial_wheel_uri(name):
+    for d in RADIAL_WHEEL_DIRS if name else ():
+        if (d / name).exists():
+            return (d / name).as_uri()
+    return ""
+
 # Catppuccin-Mocha slice colours (name -> hex), used by the radial editor swatches.
 SLICE_COLORS = {
     "green": "#A6E3A1", "yellow": "#F9E2AF", "red": "#F38BA8", "mauve": "#CBA6F7",
@@ -495,7 +526,10 @@ SEARCH_INDEX = [
     ("flow", "Edge sensitivity", "Behaviour", "edge sensitivity threshold force pressure"),
     ("flow", "Monitor", "Behaviour", "monitor display screen handoff selection"),
     # Themes
-    ("themes", "Color theme", "Color theme", "theme color accent wallpaper appearance"),
+    ("themes", "Colour theme", "Colour theme", "theme color colour accent wallpaper appearance"),
+    ("themes", "Match the desktop accent", "Colour theme", "automatic desktop accent kde gnome follow"),
+    ("themes", "Radial menu look", "Radial menu look", "wheel skin ring colours colors palette light preview show on screen"),
+    ("themes", "Icon style", "Radial menu look", "icons mono line classic monochrome"),
     # Settings
     ("settings", "Theme", "Window", "theme color accent appearance style"),
     ("settings", "Reduce transparency", "Window", "transparency glass solid cards contrast gpu"),
@@ -3462,6 +3496,12 @@ class Backend(QObject):
     @pyqtSlot(result="QVariant")
     def hapticPatterns(self):
         return [{"id": p, "name": p.replace("_", " ").title()} for p in HAPTIC_PATTERNS]
+
+    @pyqtSlot(result="QVariant")
+    def ringPalettes(self):
+        return [{"id": k, "name": _(n), "light": light, "base": base, "border": border,
+                 "image": _radial_wheel_uri(img), "icon": icon}
+                for (k, n, light, base, border, img, icon) in RING_PALETTES]
 
     @pyqtSlot(result="QVariant")
     def sliceColors(self):

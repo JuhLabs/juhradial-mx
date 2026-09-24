@@ -15,7 +15,8 @@ Item {
 
     property int bump: 0
     property var actMap: ({})
-    property string wheelKey: Backend.get("radial.wheel", "none")
+    // "" (fresh install) and "none" both mean the Classic ring.
+    property string wheelKey: Backend.get("radial.wheel", "") || "none"
     readonly property bool mono: Theme.iconStyle === "mono"
     readonly property bool primed: Backend.primed || !Backend.daemonAvailable
     readonly property string link: Backend.linkState
@@ -74,7 +75,7 @@ Item {
 
     Connections {
         target: Backend
-        function onLiveChanged() { page.wheelKey = Backend.get("radial.wheel", "none") }
+        function onLiveChanged() { page.wheelKey = Backend.get("radial.wheel", "") || "none" }
         function onConfigChanged() { page.bump++ }
         function onAvailabilityChanged() { page.refreshHealth() }
         function onPrimedChanged() { page.refreshHealth() }

@@ -361,3 +361,64 @@ def test_legacy_app_profile_thresholds_clamp_into_range(backend, tmp_path, monke
         "b": {"smartshift": {"enabled": True, "threshold": 50}}}}))
     assert _app_profile(backend, "a")["smartshiftThreshold"] == 100
     assert _app_profile(backend, "b")["smartshiftThreshold"] == 100
+
+
+def test_ring_palettes_are_the_overlay_themes():
+    """Themes > Ring colours offers exactly the overlay's palettes (the
+    GTK Theme dropdown, missing from Qt until 0.4.5)."""
+    import re
+    keys = re.findall(r'^    "([a-z0-9-]+)": \{', (REPO_ROOT / "overlay" / "themes.py").read_text(), re.M)
+    assert [p[0] for p in bk.RING_PALETTES] == keys
+
+
+def test_ring_palette_swatches_match_the_overlay_paint():
+    """The preview paints each palette with the colours and 3D image the
+    overlay uses, so a swatch never lies about the real ring."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("overlay_themes", REPO_ROOT / "overlay" / "themes.py")
+    themes = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(themes)
+    for (k, _n, _light, base, border, img, icon) in bk.RING_PALETTES:
+        t = themes.THEMES[k]
+        c = t["colors"]
+        assert (base, border, icon) == (c["base"], c["surface2"], c["subtext1"]), k
+        assert img == (t.get("radial_image") or ""), k
+        if img:
+            assert bk._radial_wheel_uri(img).startswith("file://"), k
+
+
+def test_nearest_theme_follows_the_desktop_accent():
+    from bridge import theme as th
+    azure = [i for i, t in enumerate(th.THEMES) if t[1] == "azure"][0]
+    assert th.nearest_theme(th.THEMES[azure][2], 5) == azure
+    assert th.nearest_theme("", 5) == 5
+    assert th.GNOME_ACCENTS["blue"].startswith("#")
+
+
+def test_ring_preview_follows_config_and_hover(backend, monkeypatch):
+    """The Themes/Settings ring preview re-reads the skin and ring colours
+    after a save (Backend.get has no notify signal) and shows a hovered skin
+    or palette in place of the saved one."""
+    from PyQt6.QtCore import QUrl
+    from PyQt6.QtQml import QQmlComponent, QQmlEngine
+    from bridge.theme import Theme
+    backend.daemon.call_async = lambda *a, **k: None
+    engine = QQmlEngine()
+    theme = Theme()
+    ctx = engine.rootContext()
+    ctx.setContextProperty("Theme", theme)
+    ctx.setContextProperty("Backend", backend)
+    ctx.setContextProperty("Slices", backend.slices)
+    comp = QQmlComponent(engine, QUrl.fromLocalFile(
+        str(REPO_ROOT / "settings-qt" / "qml" / "components" / "RingPreview.qml")))
+    rp = comp.create()
+    assert rp is not None, comp.errorString()
+    assert rp.property("wheelKey") == "none"
+    backend.set("radial.wheel", "chrome")
+    backend.set("theme", "github-light")
+    assert rp.property("wheelKey") == "chrome"
+    assert rp.property("palette")["id"] == "github-light"
+    rp.setProperty("skin", "none")
+    rp.setProperty("paletteKey", "3d-neon")
+    assert rp.property("wheelKey") == "none"
+    assert rp.property("paletteImage").endswith("radialwheel3.png")

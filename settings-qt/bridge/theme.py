@@ -114,6 +114,44 @@ def battery_severity(percent, charging):
     return "normal"
 
 
+# GNOME 47+ named accents (libadwaita values).
+GNOME_ACCENTS = {"blue": "#3584e4", "teal": "#2190a4", "green": "#3a944a", "yellow": "#c88800",
+                 "orange": "#ed5b00", "red": "#e62d42", "pink": "#d56199", "purple": "#9141ac",
+                 "slate": "#6f8396"}
+
+
+def _run(cmd):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def desktop_accent():
+    """The desktop's accent colour as #rrggbb (KDE AccentColor, GNOME
+    accent-color), or "" when there is none to read."""
+    for tool in ("kreadconfig6", "kreadconfig5"):
+        v = _run([tool, "--file", "kdeglobals", "--group", "General", "--key", "AccentColor"])
+        parts = [x.strip() for x in v.split(",")]
+        if len(parts) >= 3 and all(x.isdigit() for x in parts[:3]):
+            return "#%02x%02x%02x" % tuple(min(255, int(x)) for x in parts[:3])
+    name = _run(["gsettings", "get", "org.gnome.desktop.interface", "accent-color"]).strip("'")
+    return GNOME_ACCENTS.get(name, "")
+
+
+def nearest_theme(accent, fallback=0):
+    """Index of the theme whose accent is closest to `accent` (#rrggbb)."""
+    if not (isinstance(accent, str) and len(accent) == 7 and accent.startswith("#")):
+        return fallback
+
+    def rgb(h):
+        return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+    want = rgb(accent)
+    return min(range(len(THEMES)),
+               key=lambda i: sum((a - b) ** 2 for a, b in zip(rgb(THEMES[i][2]), want)))
+
+
 class Theme(QObject):
     changed = pyqtSignal()
     _desktopMotion = pyqtSignal(bool)
@@ -125,6 +163,11 @@ class Theme(QObject):
     def __init__(self, probe_desktop=True):
         super().__init__()
         self._i = self._load_index()
+        # "Automatic": follow the desktop accent with the nearest theme.
+        self._auto = self._load_flag("settings_theme_auto", False)
+        self._desktop_accent = None
+        if self._auto:
+            self._i = nearest_theme(desktop_accent(), self._i)
         self._reduce = self._load_flag("reduce_transparency", False)
         self._icon_style = self._load_icon_style()
         self._motion_setting = self._load_config_flag("app", "reduce_motion")
@@ -265,10 +308,36 @@ class Theme(QObject):
 
     @pyqtSlot(int)
     def setIndex(self, i):
+        """Pick a theme (a manual pick turns Automatic off)."""
+        if self._auto:
+            self._auto = False
+            self._save_state("settings_theme_auto", False)
+            self.changed.emit()
         if 0 <= i < len(THEMES) and i != self._i:
             self._i = i
             self._save_index()
             self.changed.emit()
+
+    @pyqtProperty(bool, notify=changed)
+    def auto(self):
+        return self._auto
+
+    @pyqtProperty(str, constant=True)
+    def desktopAccent(self):
+        # read once: bindings ask often and each read runs a tool
+        if self._desktop_accent is None:
+            self._desktop_accent = desktop_accent()
+        return self._desktop_accent
+
+    @pyqtSlot(bool)
+    def setAuto(self, on):
+        self._auto = bool(on)
+        self._save_state("settings_theme_auto", self._auto)
+        i = nearest_theme(desktop_accent(), self._i) if self._auto else self._i
+        if i != self._i:
+            self._i = i
+            self._save_index()
+        self.changed.emit()
 
     @pyqtSlot(result="QVariantList")
     def themeList(self):
