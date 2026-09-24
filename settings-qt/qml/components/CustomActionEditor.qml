@@ -18,6 +18,9 @@ B.Popup {
     property string icon: ""
     property var _macros: []
     property var _plugins: []
+    // Optional adapters let keypad keys reuse the same editor and pickers.
+    property var readAction: null
+    property var writeAction: null
 
     modal: true; dim: true; focus: true
     width: 500
@@ -28,7 +31,7 @@ B.Popup {
 
     function openFor(scope, slot, name) {
         ed.scope = scope; ed.slot = slot; ed.buttonName = name
-        var c = Backend.customAction(scope, slot)
+        var c = readAction ? readAction(scope, slot) : Backend.customAction(scope, slot)
         ed.value = c.value || ""; ed.label = c.label || ""; ed.icon = c.icon || ""
         // An application is a command with the app's name and icon.
         ed.kind = (c.kind === "command" && ed.icon !== "") ? "app" : (c.kind || "shortcut")
@@ -51,12 +54,13 @@ B.Popup {
     readonly property bool _ready: value.trim() !== "" && _error === ""
 
     function _save() {
-        var ok = Backend.setCustomAction(scope, slot, {
+        var action = {
             kind: kind === "app" ? "command" : kind,
             value: value.trim(),
             label: (kind === "app" || kind === "macro" || kind === "plugin") ? label : "",
             icon: kind === "app" ? icon : ""
-        })
+        }
+        var ok = writeAction ? writeAction(scope, slot, action) : Backend.setCustomAction(scope, slot, action)
         if (ok) { saved(); close() }
     }
 

@@ -1,0 +1,10 @@
+[package]
+name = "mx-keypad"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Julian Hermstad"]
+description = "Owner-maintained, independent Logitech MX Keypad protocol and Linux hidraw transport"
+
+[dependencies]
+libc = "0.2"

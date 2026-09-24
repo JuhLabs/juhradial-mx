@@ -15,6 +15,10 @@
 # for Logitech mice without sudo.
 
 # Logitech HID devices - general rule for input subsystem
+# MX Keypad: USB parents expose attributes; Bluetooth uhid parents do not.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c354", GROUP="input", MODE="0660"
+SUBSYSTEM=="hidraw", KERNELS=="0005:046D:C354.*", GROUP="input", MODE="0660"
+
 # Vendor ID 046d = Logitech
 SUBSYSTEM=="input", ATTRS{idVendor}=="046d", MODE="0660", GROUP="input"
 

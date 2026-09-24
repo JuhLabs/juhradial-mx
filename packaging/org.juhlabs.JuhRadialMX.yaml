@@ -58,9 +58,10 @@ modules:
       env:
         CARGO_HOME: /run/build/juhradiald/cargo
     build-commands:
-      - cargo --offline fetch --manifest-path Cargo.toml --verbose
-      - cargo --offline build --release --verbose
-      - install -Dm755 target/release/juhradiald /app/bin/juhradiald
+      - cargo --offline fetch --locked --manifest-path daemon/Cargo.toml --verbose
+      - cargo --offline build --locked --manifest-path daemon/Cargo.toml --release --verbose
+      - cargo --offline test --locked --manifest-path crates/mx-keypad/Cargo.toml
+      - install -Dm755 daemon/target/release/juhradiald /app/bin/juhradiald
     sources:
       - type: git
         url: https://github.com/JuhLabs/juhradial-mx.git

@@ -86,7 +86,11 @@ jobs:
         working-directory: daemon
         run: cargo test --release --locked
 
-      - name: Assemble tarball
+      - name: Test MX Keypad protocol
+        # Tests use the standalone manifest, as an unpacked source tree does.
+        run: cargo test --locked --manifest-path crates/mx-keypad/Cargo.toml
+
+      - name: Assemble source and binary tarball
         run: |
           set -euo pipefail
           version="${{ steps.meta.outputs.version }}"
@@ -95,6 +99,7 @@ jobs:
           mkdir -p "$stage"
           # Source snapshot (what install.sh needs) plus the prebuilt daemon.
           git archive HEAD | tar -x -C "$stage"
+          test -f "$stage/crates/mx-keypad/Cargo.toml"
           install -Dm755 daemon/target/release/juhradiald "$stage/daemon/target/release/juhradiald"
           rm -rf "$stage/.github" "$stage/settings-qt/.venv"
           echo "$version" > "$stage/VERSION"

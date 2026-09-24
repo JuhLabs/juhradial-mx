@@ -11,6 +11,26 @@ use super::service::JuhRadialService;
 
 #[interface(name = "org.kde.juhradialmx.Daemon")]
 impl JuhRadialService {
+    // ---- MX Keypad ----
+    fn get_keypad_status(&self) -> (bool, String, u8, u8) {
+        crate::keypad::status(&self.config)
+    }
+
+    fn set_keypad_page(&self, page: u8) -> fdo::Result<()> {
+        crate::keypad::set_page(&self.config, page).map_err(fdo::Error::InvalidArgs)
+    }
+
+    fn refresh_keypad_plates(&self) {
+        crate::keypad::refresh();
+    }
+
+    #[zbus(signal)]
+    async fn keypad_key_pressed(emitter: &SignalEmitter<'_>, page: u8, key: u8) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    async fn keypad_status_changed(emitter: &SignalEmitter<'_>, connected: bool) -> zbus::Result<()>;
+    // ---- End MX Keypad ----
+
     // =========================================================================
     // MENU METHODS
     // =========================================================================
@@ -352,6 +372,7 @@ impl JuhRadialService {
                     Ok(mut config) => {
                         extra_cids.extend(config.extra_control_cids());
                         *config = new_config;
+                        crate::keypad::refresh();
                         tracing::info!(
                             haptics_enabled = config.haptics.enabled,
                             default_pattern = %config.haptics.default_pattern,

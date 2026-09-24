@@ -498,6 +498,48 @@ impl Default for ButtonsConfig {
     }
 }
 
+// ---- MX Keypad ----
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct KeypadConfig {
+    pub enabled: bool,
+    pub active_page: u8,
+    pub pages: Vec<KeypadPage>,
+}
+
+impl Default for KeypadConfig {
+    fn default() -> Self {
+        Self { enabled: true, active_page: 0, pages: Vec::new() }
+    }
+}
+
+impl KeypadConfig {
+    pub fn page_count(&self) -> u8 { self.pages.len().min(u8::MAX as usize) as u8 }
+    pub fn page_index(&self) -> u8 { self.active_page.min(self.page_count().saturating_sub(1)) }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KeypadPage {
+    pub name: String,
+    pub keys: [KeypadKey; 9],
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct KeypadKey {
+    pub action: ButtonAction,
+    pub label: String,
+    pub icon: String,
+    pub custom: CustomAction,
+}
+
+impl Default for KeypadKey {
+    fn default() -> Self {
+        Self { action: ButtonAction::None, label: String::new(), icon: String::new(), custom: CustomAction::default() }
+    }
+}
+// ---- End MX Keypad ----
+
 /// Parse a `buttons.controls` key: "0x00D7", "00D7"-style hex, or decimal.
 pub fn parse_control_cid(key: &str) -> Option<u16> {
     let key = key.trim();
@@ -779,6 +821,10 @@ impl Default for BatteryAlertConfig {
 /// Main configuration structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    // ---- MX Keypad ----
+    #[serde(default)]
+    pub keypad: KeypadConfig,
+
     /// Haptic feedback settings
     #[serde(default)]
     pub haptics: HapticConfig,
@@ -862,6 +908,7 @@ fn default_theme() -> String {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            keypad: KeypadConfig::default(),
             haptics: HapticConfig::default(),
             theme: default_theme(),
             blur_enabled: true,

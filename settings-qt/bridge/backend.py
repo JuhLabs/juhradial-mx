@@ -628,6 +628,7 @@ def detect_desktop_key(env=None):
 # keywords). Tab labels are resolved from TAB_LABELS.
 # ---------------------------------------------------------------------------
 TAB_LABELS = {
+    "keypad": "MX Keypad",
     "dashboard": "Dashboard", "buttons": "Buttons", "scroll": "Point & Scroll",
     "haptics": "Haptics", "macros": "Macros", "apps": "App profiles",
     "easyswitch": "Easy-Switch", "devices": "Devices", "gaming": "Gaming",
@@ -635,6 +636,10 @@ TAB_LABELS = {
 }
 
 SEARCH_INDEX = [
+    # MX Keypad
+    ("keypad", "Key plates", "MX Keypad", "keypad lcd keys icon label shortcut app"),
+    ("keypad", "Pages", "MX Keypad", "keypad page add rename reorder delete"),
+    ("keypad", "Templates", "MX Keypad", "keypad everyday media developer meetings profiles"),
     # Dashboard
     ("dashboard", "Battery", "", "battery charge level power percent remaining"),
     ("dashboard", "Device status", "", "connected daemon status overview offline"),
@@ -1464,6 +1469,7 @@ class Backend(QObject):
         self.daemon.buttonPressed.connect(
             lambda cid: self.buttonPressed.emit(self.SLOT_CIDS.get(cid, "0x%04X" % cid)))
         self.daemon.availabilityChanged.connect(self._on_daemon_availability)
+        self._init_keypad()
 
         # prime device state shortly after start (daemon may be warming up)
         QTimer.singleShot(150, self._prime)
@@ -1473,6 +1479,235 @@ class Backend(QObject):
             # deferred so the QML shell exists before the toast fires
             QTimer.singleShot(800, lambda: self.toast.emit(
                 _("Config was corrupt; using defaults (backup: config.json.bad)")))
+
+    # ---- MX Keypad ----
+    keypadChanged = pyqtSignal()
+    keypadKeyPressed = pyqtSignal(int, int)
+
+    def _init_keypad(self):
+        self._keypad_status = {"connected": False, "name": "", "active_page": 0, "page_count": 0}
+        self._keypad_revision = 0
+        self._keypad_edit_serial = 0
+        self._keypad_query_pending = False
+        if _HAVE_DBUS:
+            self.daemon._bus.connect("", OBJ_PATH, IFACE, "KeypadKeyPressed", self._keypad_pressed)
+            self.daemon._bus.connect("", OBJ_PATH, IFACE, "KeypadStatusChanged", self._keypad_connection)
+        self.configChanged.connect(self.keypadChanged.emit)
+        self.daemon.availabilityChanged.connect(self.refreshKeypadStatus)
+        self._keypad_timer = QTimer(self)
+        self._keypad_timer.setInterval(2500)
+        self._keypad_timer.timeout.connect(self.refreshKeypadStatus)
+        self._keypad_timer.start()
+        QTimer.singleShot(0, self.refreshKeypadStatus)
+
+    @pyqtProperty("QVariant", notify=keypadChanged)
+    def keypadStatus(self):
+        return dict(self._keypad_status)
+
+    @pyqtProperty("QVariant", notify=keypadChanged)
+    def keypadPages(self):
+        return copy.deepcopy(self.get("keypad.pages", []))
+
+    @pyqtProperty(bool, notify=keypadChanged)
+    def keypadVisible(self):
+        return self._keypad_status["connected"] or bool(self.get("keypad.pages", []))
+
+    @pyqtProperty(int, notify=keypadChanged)
+    def keypadRevision(self):
+        return self._keypad_revision
+
+    @pyqtSlot()
+    def refreshKeypadStatus(self):
+        if self._keypad_query_pending:
+            return
+        self._keypad_query_pending = True
+        serial = self._keypad_edit_serial
+        def done(args):
+            self._keypad_query_pending = False
+            if serial != self._keypad_edit_serial:
+                return
+            status = {"connected": False, "name": "", "active_page": int(self.get("keypad.active_page", 0)),
+                      "page_count": len(self.keypadPages)}
+            if args and len(args) >= 4:
+                status.update(connected=bool(args[0]), name=str(args[1]),
+                              active_page=_to_int(args[2]), page_count=_to_int(args[3]))
+                page = status["active_page"]
+                if (status["page_count"] == len(self.keypadPages) and 0 <= page < len(self.keypadPages)
+                        and page != self.get("keypad.active_page", 0)):
+                    self.setLocal("keypad.active_page", page)
+            if status != self._keypad_status:
+                self._keypad_status = status
+                self.keypadChanged.emit()
+        self.daemon.call_then("GetKeypadStatus", done)
+
+    @pyqtSlot(QDBusMessage)
+    def _keypad_pressed(self, message):
+        args = message.arguments()
+        if len(args) >= 2:
+            self.keypadKeyPressed.emit(_to_int(args[0]), _to_int(args[1]))
+            self.refreshKeypadStatus()
+
+    @pyqtSlot(QDBusMessage)
+    def _keypad_connection(self, message):
+        args = message.arguments()
+        if args:
+            self._keypad_status["connected"] = bool(args[0])
+            self.keypadChanged.emit()
+        self.refreshKeypadStatus()
+
+    @pyqtSlot(int)
+    def setKeypadPage(self, page):
+        if not 0 <= page < len(self.keypadPages):
+            return
+        self._keypad_edit_serial += 1
+        self.setLocal("keypad.active_page", page)
+        self._keypad_status["active_page"] = page
+        self.keypadChanged.emit()
+        def done(args):
+            if args is None and self.daemon.available:
+                self.notify(_("Could not switch the keypad page"), "danger")
+            self.refreshKeypadStatus()
+        self.daemon.call_then("SetKeypadPage", done, _u8(page))
+
+    @pyqtSlot(int, int, result=str)
+    def keypadPlate(self, page, key):
+        path = CONFIG_DIR / "keypad" / "plates" / f"p{page}-k{key}.jpg"
+        return path.as_uri() + f"?v={self._keypad_revision}" if path.is_file() else ""
+
+    @pyqtSlot(int, int, result="QVariant")
+    def keypadKey(self, page, key):
+        pages = self.keypadPages
+        if 0 <= page < len(pages) and 1 <= key <= 9:
+            return pages[page]["keys"][key - 1]
+        from bridge.keypad import empty_key
+        return empty_key()
+
+    def _save_keypad(self, pages, active=None):
+        from bridge.keypad import render_plate
+        if len(pages) > 255 or any(len(p.get("keys", [])) != 9 for p in pages):
+            return False
+        active = int(self.get("keypad.active_page", 0)) if active is None else active
+        active = max(0, min(active, len(pages) - 1))
+        dest = CONFIG_DIR / "keypad" / "plates"
+        try:
+            dest.mkdir(parents=True, exist_ok=True)
+            # Complete every render before replacing the plates currently in use.
+            with tempfile.TemporaryDirectory(dir=dest) as staging:
+                for p, page in enumerate(pages):
+                    for k, key in enumerate(page["keys"], 1):
+                        render_plate(key, pathlib.Path(staging) / f"p{p}-k{k}.jpg", self.cacheAppIcon)
+                for plate in pathlib.Path(staging).glob("*.jpg"):
+                    os.replace(plate, dest / plate.name)
+            section = {"enabled": bool(self.get("keypad.enabled", True)), "active_page": active, "pages": pages}
+            self.setLocal("keypad", section)
+            if json.loads(CONFIG.read_text()).get("keypad") != section:
+                raise OSError(_("The keypad configuration was not saved"))
+        except (OSError, ValueError) as error:
+            self.notify(_("Could not save keypad: {error}").format(error=error), "danger")
+            return False
+        self._keypad_revision += 1
+        self._keypad_edit_serial += 1
+        self._keypad_status.update(active_page=active, page_count=len(pages))
+        self.keypadChanged.emit()
+        def reloaded(args):
+            if args is None:
+                if self.daemon.available:
+                    self.notify(_("Keypad saved; the service could not reload it"), "danger")
+                return
+            self.daemon.call_then("RefreshKeypadPlates", refreshed)
+        def refreshed(args):
+            if args is None:
+                self.notify(_("Keypad saved; reconnect the device to refresh its keys"), "info")
+            self.refreshKeypadStatus()
+        self.daemon.call_then("ReloadConfig", reloaded)
+        return True
+
+    @pyqtSlot(int, int, "QVariant", result=bool)
+    def saveKeypadKey(self, page, key, obj):
+        if hasattr(obj, "toVariant"):
+            obj = obj.toVariant()
+        pages = self.keypadPages
+        if not (0 <= page < len(pages) and 1 <= key <= 9 and isinstance(obj, dict)):
+            return False
+        action = obj.get("action", "none")
+        if action not in {a[0] for a in BUTTON_ACTIONS} - HIDDEN_BUTTON_ACTIONS:
+            return False
+        custom = self._clean_custom(obj.get("custom")) if action == "custom" else {}
+        if custom is None:
+            self.notify(_("Check the custom action before saving this key"), "danger")
+            return False
+        pages[page]["keys"][key - 1] = {"action": action, "label": str(obj.get("label", ""))[:40],
+                                        "icon": str(obj.get("icon", "")), "custom": custom}
+        return self._save_keypad(pages)
+
+    @pyqtSlot(str, result=bool)
+    def addKeypadPage(self, name):
+        from bridge.keypad import empty_key
+        pages = self.keypadPages
+        pages.append({"name": name.strip()[:60] or _("New page"), "keys": [empty_key() for _ in range(9)]})
+        return self._save_keypad(pages, len(pages) - 1)
+
+    @pyqtSlot(int, str)
+    def renameKeypadPage(self, page, name):
+        pages = self.keypadPages
+        if 0 <= page < len(pages) and name.strip():
+            pages[page]["name"] = name.strip()[:60]
+            self._save_keypad(pages)
+
+    @pyqtSlot(int, int)
+    def moveKeypadPage(self, source, target):
+        pages = self.keypadPages
+        if not (0 <= source < len(pages) and 0 <= target < len(pages)):
+            return
+        order = list(range(len(pages)))
+        order.insert(target, order.pop(source))
+        active = int(self.get("keypad.active_page", 0))
+        self._save_keypad([pages[i] for i in order], order.index(active) if active in order else 0)
+
+    @pyqtSlot(int, result=str)
+    def deleteKeypadPage(self, page):
+        pages = self.keypadPages
+        if not 0 <= page < len(pages):
+            return ""
+        active = int(self.get("keypad.active_page", 0))
+        snapshot = json.dumps({"pages": pages, "active_page": active})
+        del pages[page]
+        return snapshot if self._save_keypad(pages, active - (page < active)) else ""
+
+    @pyqtSlot(str)
+    def restoreKeypadPages(self, snapshot):
+        try:
+            saved = json.loads(snapshot)
+            self._save_keypad(saved["pages"], saved["active_page"])
+        except (ValueError, KeyError, TypeError):
+            self.notify(_("Could not restore the keypad page"), "danger")
+
+    @pyqtSlot(result="QVariant")
+    def keypadTemplates(self):
+        return [{"id": "everyday", "name": _("Everyday"), "description": _("Apps and daily essentials")},
+                {"id": "media", "name": _("Media"), "description": _("Playback, volume and microphone")},
+                {"id": "developer", "name": _("Developer"), "description": _("Editor, terminal and editing shortcuts")},
+                {"id": "meetings", "name": _("Meetings"), "description": _("Sound controls; choose your app's camera, share and leave shortcuts") }]
+
+    @pyqtSlot(str, result=bool)
+    def applyKeypadTemplate(self, template):
+        from bridge.keypad import template_keys
+        keys = template_keys(template, self.listApplications(), BUTTON_ACTIONS)
+        if keys is None:
+            return False
+        name = next(t["name"] for t in self.keypadTemplates() if t["id"] == template)
+        pages = self.keypadPages
+        pages.append({"name": name, "keys": keys})
+        if not self._save_keypad(pages, len(pages) - 1):
+            return False
+        self.notify(_("Template added. Keys for missing apps stay unassigned."), "info")
+        return True
+
+    @pyqtSlot(result="QVariant")
+    def keypadGlyphs(self):
+        return [{"id": row[2], "name": _(row[1]), "icon": row[2]}
+                for row in BUTTON_ACTIONS if row[0] not in HIDDEN_BUTTON_ACTIONS]
+    # ---- End MX Keypad ----
 
     def _on_daemon_availability(self):
         self._prime()

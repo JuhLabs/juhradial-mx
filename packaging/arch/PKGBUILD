@@ -38,6 +38,8 @@ sha256sums=('SKIP')
 build() {
     cd "$pkgname-$pkgver"
 
+    # Keep crates/ beside daemon/ for the mx-keypad path dependency.
+    test -f crates/mx-keypad/Cargo.toml
     # Build Rust daemon
     cd daemon
     cargo build --release --locked
@@ -50,6 +52,11 @@ build() {
         npm run build 2>/dev/null || true
         cd ..
     fi
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    cargo test --locked --manifest-path crates/mx-keypad/Cargo.toml
 }
 
 package() {

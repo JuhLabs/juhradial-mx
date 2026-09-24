@@ -65,6 +65,7 @@ ApplicationWindow {
         ListElement { label: qsTr("Flow"); page: "FlowPage"; key: "flow"; logitechOnly: true }
         ListElement { label: qsTr("Themes"); page: "ThemesPage"; key: "themes"; logitechOnly: false }
         ListElement { label: qsTr("Settings"); page: "SettingsPage"; key: "settings"; logitechOnly: false }
+        ListElement { label: qsTr("MX Keypad"); page: "KeypadPage"; key: "keypad"; logitechOnly: false }
     }
 
     // ---- keyboard: Ctrl+K search, Ctrl+1..9 tabs ----
@@ -79,7 +80,7 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+8"; onActivated: nav.current = 7 }
     Shortcut { sequence: "Ctrl+9"; onActivated: nav.current = 8 }
     Shortcut { sequence: "Ctrl+0"; onActivated: nav.current = 9 }
-    Shortcut { sequence: "Ctrl+,"; onActivated: nav.current = navModel.count - 1 }
+    Shortcut { sequence: "Ctrl+,"; onActivated: Backend.goTo("settings") }
     Shortcut { sequences: ["Ctrl+Tab", "Ctrl+PgDown"]; onActivated: nav.current = (nav.current + 1) % navModel.count }
     Shortcut { sequences: ["Ctrl+Shift+Tab", "Ctrl+PgUp"]; onActivated: nav.current = (nav.current + navModel.count - 1) % navModel.count }
     Shortcut { sequences: ["Ctrl+W", "Ctrl+Q"]; onActivated: Backend.quitApp() }
@@ -231,7 +232,7 @@ ApplicationWindow {
                         label: model.label
                         icon: model.key
                         active: nav.current === index
-                        visible: !(model.logitechOnly && Backend.isGeneric)
+                        visible: !(model.logitechOnly && Backend.isGeneric) && (model.key !== "keypad" || Backend.keypadVisible)
                         onClicked: nav.current = index
                     }
                 }

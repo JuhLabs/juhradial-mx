@@ -20,6 +20,7 @@ pub mod gesture;
 pub mod hidpp;
 pub mod hidraw;
 pub mod keyboard;
+pub mod keypad;
 pub mod link_state;
 pub mod macros;
 pub mod performance_monitor;

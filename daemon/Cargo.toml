@@ -8,6 +8,9 @@ authors = ["Julian Hermstad"]
 repository = "https://github.com/juhhally/juhradial-mx"
 
 [dependencies]
+# Independent MX Keypad protocol (also included in source tarballs).
+mx-keypad = { path = "../crates/mx-keypad" }
+
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"

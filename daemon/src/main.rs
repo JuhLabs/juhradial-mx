@@ -734,6 +734,53 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     log_startup_phase(&startup_started_at, "dbus");
 
+    // ---- MX Keypad ----
+    // The guard stops the HID worker on daemon shutdown. Both HID and action
+    // execution have their own blocking workers, independent of mouse input.
+    let (_keypad_worker, mut keypad_events) = juhradiald::keypad::start(shared_config.clone());
+    {
+        let mut actions = ActionContext {
+            connection: dbus_connection.clone(), config: shared_config.clone(),
+            macro_engine: macro_engine_for_events.clone(), gaming_mode: gaming_mode.clone(), shift_restore: None,
+        };
+        tokio::task::spawn_blocking(move || {
+            let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() else { return };
+            rt.block_on(async move {
+                use juhradiald::config::ButtonAction;
+                use juhradiald::keypad::Event;
+                while let Some(event) = keypad_events.recv().await {
+                    match event {
+                        Event::Connection(connected) => {
+                            let _ = actions.connection.emit_signal(None::<&str>, DBUS_PATH,
+                                "org.kde.juhradialmx.Daemon", "KeypadStatusChanged", &(connected,)).await;
+                        }
+                        Event::Pressed(page, key) => {
+                            let _ = actions.connection.emit_signal(None::<&str>, DBUS_PATH,
+                                "org.kde.juhradialmx.Daemon", "KeypadKeyPressed", &(page, key)).await;
+                        }
+                        Event::Action { binding, pressed } => {
+                            if binding.action == ButtonAction::Custom {
+                                if pressed { run_custom_action(&binding.custom, &actions.macro_engine).await; }
+                            } else if binding.action == ButtonAction::RadialMenu {
+                                let signal = if pressed { "MenuRequested" } else { "HideMenu" };
+                                if pressed {
+                                    let _ = actions.connection.emit_signal(None::<&str>, DBUS_PATH,
+                                        "org.kde.juhradialmx.Daemon", signal, &(0i32, 0i32)).await;
+                                } else {
+                                    let _ = actions.connection.emit_signal(None::<&str>, DBUS_PATH,
+                                        "org.kde.juhradialmx.Daemon", signal, &()).await;
+                                }
+                            } else {
+                                actions.run(binding.action, pressed, None).await;
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+    // ---- End MX Keypad ----
+
     // Detect KWin by D-Bus name ownership (not XDG_CURRENT_DESKTOP, which is
     // empty when systemd starts the daemon at cold boot, issue #32). The watcher
     // seeds the flag and follows KWin restarts on the same session connection.

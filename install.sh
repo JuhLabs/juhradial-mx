@@ -581,6 +581,7 @@ install_from_local_tree() {
     tar -C "$src" \
         --exclude=./.git \
         --exclude=./daemon/target \
+        --exclude=./crates/mx-keypad/target \
         --exclude=./settings-qt/.venv \
         --exclude=__pycache__ \
         -cf - . | tar -C "$INSTALL_DIR" -xf -
@@ -693,8 +694,10 @@ build_project() {
 
     ensure_rust_toolchain
     log_info "Compiling Rust daemon..."
+    # Source builds need the sibling protocol crate, including from local trees.
+    [ -f crates/mx-keypad/Cargo.toml ] || { log_error "Source tree is missing crates/mx-keypad"; return 1; }
     cd daemon
-    cargo build --release
+    cargo build --release --locked
     cd ..
 
     log_success "Build complete"

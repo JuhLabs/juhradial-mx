@@ -261,6 +261,8 @@ impl HidrawHandler {
             // Check uevent for vendor/product ID
             let uevent_path = path.join("device/uevent");
             if let Ok(uevent) = std::fs::read_to_string(&uevent_path) {
+                // MX Keypad has its own worker and must not receive mouse writes.
+                if mx_keypad::matches_device(&uevent) { continue; }
                 // Check for Logitech vendor ID (046D)
                 if !uevent.contains("046D") && !uevent.contains("046d") {
                     continue;

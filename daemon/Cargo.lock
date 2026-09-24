@@ -745,6 +745,7 @@ dependencies = [
  "dirs",
  "evdev",
  "libc",
+ "mx-keypad",
  "notify",
  "serde",
  "serde_json",
@@ -845,6 +846,13 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "mx-keypad"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

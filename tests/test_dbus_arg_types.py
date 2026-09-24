@@ -49,7 +49,7 @@ def daemon_methods():
     """{PascalCaseName: [rust types of the D-Bus arguments, in order]}."""
     text = INTERFACE.read_text(encoding="utf-8")
     methods = {}
-    for match in re.finditer(r"async fn (\w+)\(", text):
+    for match in re.finditer(r"(?:async )?fn (\w+)\(", text):
         start = i = match.end()
         depth = 1
         while depth:
@@ -74,6 +74,7 @@ def test_the_interface_parser_sees_the_known_signatures():
     assert methods["SetKeyboardBacklight"] == ["u8"]
     assert methods["NotifySliceHover"] == ["u8"]
     assert methods["TriggerHapticPattern"] == ["&str"]
+    assert methods["SetKeypadPage"] == ["u8"]
 
 
 def test_every_bridge_call_types_its_numeric_arguments():

@@ -50,6 +50,9 @@ jobs:
         working-directory: daemon
         run: cargo test --verbose
 
+      - name: Test MX Keypad protocol
+        run: cargo test --locked --manifest-path crates/mx-keypad/Cargo.toml
+
       - name: Validate structure
         run: |
           echo "Validating project structure..."

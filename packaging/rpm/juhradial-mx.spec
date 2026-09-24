@@ -50,9 +50,11 @@ Features:
 %autosetup -n %{name}-%{version}
 
 %build
+# The source archive must include the sibling MX Keypad crate.
+test -f crates/mx-keypad/Cargo.toml
 # Build Rust daemon
 cd daemon
-cargo build --release
+cargo build --release --locked
 cd ..
 
 # Build KWin script (optional)
@@ -62,6 +64,9 @@ if [ -d kwin-script ]; then
     npm run build 2>/dev/null || true
     cd ..
 fi
+
+%check
+cargo test --locked --manifest-path crates/mx-keypad/Cargo.toml
 
 %install
 # Install daemon binary

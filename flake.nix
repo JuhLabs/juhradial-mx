@@ -38,6 +38,7 @@
             pname = "juhradiald";
             version = "0.4.5";
 
+            # Include crates/mx-keypad beside daemon for the path dependency.
             src = ./.;
             cargoRoot = "daemon";
             buildAndTestSubdir = "daemon";

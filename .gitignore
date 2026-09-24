@@ -1,5 +1,6 @@
 # Rust build artifacts
 daemon/target/
+crates/mx-keypad/target/
 
 # Python
 __pycache__/
