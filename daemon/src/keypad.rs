@@ -13,6 +13,8 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 static CONNECTED: AtomicBool = AtomicBool::new(false);
 static NAME: Mutex<String> = Mutex::new(String::new());
 static REVISION: AtomicU64 = AtomicU64::new(0);
+/// Lowercased class of the focused window (the daemon's focus tracker).
+static FOCUSED_APP: Mutex<String> = Mutex::new(String::new());
 const BLACK: &[u8] = include_bytes!("../../crates/mx-keypad/tests/fixtures/black.jpg");
 
 pub enum Event {
@@ -36,6 +38,37 @@ pub fn set_page(config: &SharedConfig, page: u8) -> Result<(), String> {
 }
 
 pub fn refresh() { REVISION.fetch_add(1, Ordering::Relaxed); }
+
+/// Follow window focus: pages with `apps` show while one of them is in front.
+pub fn set_focused_app(class: &str) {
+    if let Ok(mut app) = FOCUSED_APP.lock() { *app = class.to_ascii_lowercase(); }
+}
+
+fn focused_app() -> String {
+    FOCUSED_APP.lock().map(|a| a.clone()).unwrap_or_default()
+}
+
+/// Pages shown for `app`: its own pages, else the general ones (no apps),
+/// else every page, so the keypad is never blank.
+pub fn visible_pages(config: &KeypadConfig, app: &str) -> Vec<u8> {
+    let indexed = || config.pages.iter().enumerate().take(usize::from(u8::MAX)).map(|(i, p)| (i as u8, p));
+    let own: Vec<u8> = indexed().filter(|(_, p)| !app.is_empty() && p.apps.iter().any(|a| a.eq_ignore_ascii_case(app))).map(|(i, _)| i).collect();
+    if !own.is_empty() { return own; }
+    let general: Vec<u8> = indexed().filter(|(_, p)| p.apps.is_empty()).map(|(i, _)| i).collect();
+    if !general.is_empty() { return general; }
+    indexed().map(|(i, _)| i).collect()
+}
+
+/// The page a page button turns to, within the pages shown for the app.
+fn turn_page(visible: &[u8], current: u8, button: PageButton) -> Option<u8> {
+    if visible.is_empty() { return None; }
+    let at = visible.iter().position(|&p| p == current).unwrap_or(0);
+    let n = visible.len();
+    Some(match button {
+        PageButton::Left => visible[(at + n - 1) % n],
+        PageButton::Right => visible[(at + 1) % n],
+    })
+}
 
 pub struct Worker(Arc<AtomicBool>);
 
@@ -131,10 +164,23 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
     let mut pages = Vec::new();
     let mut shown = None;
     let mut revision = u64::MAX;
+    let mut app = None;
     let result = (|| {
         while !tx.is_closed() && !stop.load(Ordering::Relaxed) {
-            let cfg = config.read().map(|c| c.keypad.clone()).unwrap_or_default();
+            let mut cfg = config.read().map(|c| c.keypad.clone()).unwrap_or_default();
             if !cfg.enabled { break; }
+            // A focus change brings up the new app's own pages (or leaves them).
+            let focused = focused_app();
+            if app.as_ref() != Some(&focused) {
+                let visible = visible_pages(&cfg, &focused);
+                if !visible.contains(&cfg.page_index()) {
+                    if let Some(&first) = visible.first() {
+                        let _ = set_page(config, first);
+                        cfg.active_page = first;
+                    }
+                }
+                app = Some(focused);
+            }
             let next_revision = REVISION.load(Ordering::Relaxed);
             if shown.as_ref() != Some(&cfg) || revision != next_revision {
                 push_plates(keypad, &dir, cfg.page_index(), !cfg.pages.is_empty())?;
@@ -145,15 +191,12 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
             match mx_keypad::parse_input(&data) {
                 Some(Input::Keys(keys)) => held.update(keys, &cfg, tx),
                 Some(Input::Pages(next)) => {
+                    let visible = visible_pages(&cfg, app.as_deref().unwrap_or(""));
                     for button in &next {
-                        if !pages.contains(button) && cfg.page_count() > 0 {
-                            let count = u16::from(cfg.page_count());
-                            let page = u16::from(cfg.page_index());
-                            let next_page = match button {
-                                PageButton::Left => (page + count - 1) % count,
-                                PageButton::Right => (page + 1) % count,
-                            };
-                            let _ = set_page(config, next_page as u8);
+                        if !pages.contains(button) {
+                            if let Some(next_page) = turn_page(&visible, cfg.page_index(), *button) {
+                                let _ = set_page(config, next_page);
+                            }
                         }
                     }
                     pages = next;
@@ -178,7 +221,7 @@ mod tests {
         let mut held = HeldKeys::default();
         let mut keys = std::array::from_fn(|_| KeypadKey::default());
         keys[0].action = ButtonAction::DpiShift;
-        let c = KeypadConfig { pages: vec![KeypadPage { name: "Work".into(), keys }], ..Default::default() };
+        let c = KeypadConfig { pages: vec![KeypadPage { name: "Work".into(), keys, apps: Vec::new() }], ..Default::default() };
         let Some(Input::Keys(pressed)) = mx_keypad::parse_input(&[0x13, 0xff, 2, 0, 0, 1, 1, 0]) else { panic!() };
         held.update(pressed, &c, &tx);
         held.update(pressed, &KeypadConfig::default(), &tx);
@@ -191,13 +234,35 @@ mod tests {
         assert_eq!(binding.action, ButtonAction::DpiShift);
     }
 
+    fn page(name: &str, apps: &[&str]) -> KeypadPage {
+        KeypadPage { name: name.into(), keys: std::array::from_fn(|_| KeypadKey::default()),
+                     apps: apps.iter().map(|a| a.to_string()).collect() }
+    }
+
+    #[test]
+    fn app_pages_replace_the_general_ones_while_the_app_is_in_front() {
+        let c = KeypadConfig {
+            pages: vec![page("Home", &[]), page("Code", &["code"]), page("Code 2", &["code"]),
+                        page("Web", &["firefox", "google-chrome"]), page("Tools", &[])],
+            ..Default::default()
+        };
+        assert_eq!(visible_pages(&c, "code"), [1, 2]);
+        assert_eq!(visible_pages(&c, "Google-Chrome"), [3]);
+        assert_eq!(visible_pages(&c, "konsole"), [0, 4]);
+        assert_eq!(visible_pages(&c, ""), [0, 4]);
+        let only_apps = KeypadConfig { pages: vec![page("Code", &["code"])], ..Default::default() };
+        assert_eq!(visible_pages(&only_apps, "konsole"), [0], "never a blank keypad");
+        assert_eq!(turn_page(&[1, 2], 2, PageButton::Right), Some(1));
+        assert_eq!(turn_page(&[1, 2], 1, PageButton::Left), Some(2));
+        assert_eq!(turn_page(&[0, 4], 3, PageButton::Right), Some(4));
+        assert_eq!(turn_page(&[], 0, PageButton::Right), None);
+    }
+
     #[test]
     fn page_selection_is_bounded() {
         let c = crate::config::new_shared_config();
         assert!(set_page(&c, 0).is_err());
-        c.write().unwrap().keypad.pages = vec![KeypadPage {
-            name: "Page".into(), keys: std::array::from_fn(|_| KeypadKey::default()),
-        }];
+        c.write().unwrap().keypad.pages = vec![page("Page", &[])];
         assert!(set_page(&c, 0).is_ok());
         assert!(set_page(&c, 1).is_err());
         c.write().unwrap().keypad.active_page = 200;

@@ -22,6 +22,11 @@ def render_plate(key, destination, app_icon):
     painter = QPainter(image)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+    plate = key.get("plate", "")
+    if plate and _draw_ready_plate(painter, plate):
+        painter.end()
+        _save_plate(image, destination)
+        return
     icon = key.get("icon", "")
     if icon.startswith("desktop:"):
         icon = app_icon(icon[8:]) or "application-x-executable-symbolic"
@@ -60,6 +65,23 @@ def render_plate(key, destination, app_icon):
     label = QFontMetrics(font).elidedText(key.get("label", "").upper(), Qt.TextElideMode.ElideRight, 216)
     painter.drawText(QRect(10, 183, 216, 46), Qt.AlignmentFlag.AlignCenter, label)
     painter.end()
+    _save_plate(image, destination)
+
+
+def _draw_ready_plate(painter, path):
+    """A ready key image (an imported pack's plate, the user's own picture):
+    cover-fit and centre-cropped to the key, label and all. False when it does
+    not load, so the key falls back to its glyph and label."""
+    picture = QImage(str(path))
+    if picture.isNull():
+        return False
+    scaled = picture.scaled(QSize(236, 236), Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                            Qt.TransformationMode.SmoothTransformation)
+    painter.drawImage(0, 0, scaled, (scaled.width() - 236) // 2, (scaled.height() - 236) // 2, 236, 236)
+    return True
+
+
+def _save_plate(image, destination):
     image = image.scaled(QSize(118, 118), Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.SmoothTransformation)
     if not image.save(str(destination), "JPEG", 90):
         raise OSError(_("Could not save a keypad plate"))

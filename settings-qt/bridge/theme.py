@@ -57,7 +57,8 @@ THEMES = [
 WHEELS = [
     ("Azure", "azure"), ("Obsidian", "obsidian"), ("Chrome", "chrome"),
     ("Glass", "glass"), ("Emerald", "emerald"), ("Violet", "violet"),
-    ("Ember", "ember"), ("Crimson", "crimson"),
+    ("Ember", "ember"), ("Crimson", "crimson"), ("Brass", "brass"),
+    ("Aurora", "aurora"), ("Carbon", "carbon"),
 ]
 
 

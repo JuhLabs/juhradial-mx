@@ -55,14 +55,15 @@ Item {
         anchors.centerIn: parent
         width: rp.ringR * 2 * 310 / 300; height: width
         visible: source !== ""
-        source: rp.wheelKey !== "none" ? Theme.wheelImage(rp.wheelKey) : rp.paletteImage
+        source: rp.paletteImage
         sourceSize.width: 512; sourceSize.height: 512
         fillMode: Image.PreserveAspectFit; smooth: true
     }
     ClassicWheel {
         anchors.centerIn: parent
-        visible: rp.wheelKey === "none" && rp.paletteImage === ""
+        visible: rp.paletteImage === ""
         size: rp.ringR * 2
+        material: rp.wheelKey !== "none" ? Theme.wheelImage(rp.wheelKey) : ""
         fill: rp.palette ? rp.palette.base : "#1B1F28"
         hi: rp.palette ? Qt.lighter(rp.palette.base, rp.palette.light ? 0.93 : 1.5) : "#2A303C"
         stroke: rp.palette ? rp.palette.border : "#38FFFFFF"

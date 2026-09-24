@@ -223,3 +223,42 @@ def test_deleting_a_page_updates_the_visible_key_editor(backend):
     backend.deleteKeypadPage(0)
     assert editor.property("draft")["label"] == "PASTE"
     page.deleteLater()
+
+
+def test_page_saves_keep_other_keypad_settings(backend):
+    backend.setLocal("keypad", {"enabled": True, "active_page": 0, "pages": [], "brightness": 40})
+    assert backend.addKeypadPage("Work")
+    assert backend.get("keypad.brightness") == 40
+
+
+def test_pages_can_belong_to_apps(backend):
+    assert backend.addKeypadPage("Code")
+    backend.setKeypadPageApps(0, ["Code", " code ", ""])
+    assert backend.keypadPages[0]["apps"] == ["code"]
+    backend.setKeypadPageApps(0, [])
+    assert "apps" not in backend.keypadPages[0]
+
+
+def test_text_and_held_shortcut_custom_actions(backend):
+    clean = bk.Backend._clean_custom
+    assert clean({"kind": "text", "value": "  /compact\\n", "enter": True, "paste_with": "ctrl+shift+v"}) == {
+        "kind": "text", "value": "  /compact\\n", "enter": True, "paste_with": "ctrl+shift+v"}
+    assert clean({"kind": "text", "value": "hi", "paste_with": "rm -rf"}) == {"kind": "text", "value": "hi"}
+    assert clean({"kind": "shortcut", "value": "space", "hold": True}) == {"kind": "shortcut", "value": "space", "hold": True}
+    assert clean({"kind": "command", "value": "true", "hold": True}) == {"kind": "command", "value": "true"}
+
+
+def test_a_ready_plate_image_fills_the_key(backend, tmp_path):
+    from PyQt6.QtGui import QColor
+    from bridge.keypad import render_plate
+    red = QImage(300, 200, QImage.Format.Format_RGB32)
+    red.fill(QColor("#ff0000"))
+    src = tmp_path / "red.png"
+    red.save(str(src))
+    out = tmp_path / "plate.jpg"
+    render_plate({"plate": str(src), "icon": "folder-symbolic", "label": "IGNORED"}, out, lambda _: "")
+    image = QImage(str(out))
+    assert image.width() == 118 and image.pixelColor(59, 110).red() > 200 and image.pixelColor(5, 5).red() > 200
+    assert backend.addKeypadPage("P")
+    assert backend.saveKeypadKey(0, 1, {"action": "none", "label": "", "icon": "", "plate": str(src)})
+    assert backend.keypadPages[0]["keys"][0]["plate"] == str(src)

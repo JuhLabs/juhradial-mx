@@ -163,7 +163,8 @@ def load_radial_image():
     of the colour theme) takes precedence; otherwise the colour theme's own 3D
     image, if any. Either way the user's ring geometry is layered on top.
     """
-    global RADIAL_IMAGE, RADIAL_PARAMS
+    global RADIAL_IMAGE, RADIAL_PARAMS, WHEEL_MATERIAL
+    WHEEL_MATERIAL = None
     user_geometry = load_ring_geometry()
     outer_radius = user_geometry.get("outer_radius")
     inner_radius = user_geometry.get("inner_radius")
@@ -184,12 +185,13 @@ def load_radial_image():
             pixmap = QPixmap(path)
             if pixmap.isNull():
                 continue
-            # Wheel skins share the classic geometry (icons at the standard
-            # angles, transparent centre), so default params plus the user's
-            # ring size place everything correctly.
+            # A wheel skin is only a material disc (radius 495 of 1024): the
+            # Classic ring's own wedges, hover fill, icons and centre are
+            # painted over it, so every skin has Classic's exact geometry.
             RADIAL_PARAMS = apply_ring_geometry(None, outer_radius, inner_radius, icon_scale)
             target = (RADIAL_PARAMS or {}).get("image_size", MENU_RADIUS * 2 + 10)
-            RADIAL_IMAGE = pixmap.scaled(
+            RADIAL_IMAGE = None
+            WHEEL_MATERIAL = pixmap.scaled(
                 target,
                 target,
                 Qt.AspectRatioMode.KeepAspectRatio,
@@ -935,6 +937,8 @@ COLORS = load_theme()
 # 3D radial image (loaded after QApplication creation)
 RADIAL_IMAGE = None
 RADIAL_PARAMS = None
+# Wheel skin material drawn as the Classic ring's disc (None = palette colour)
+WHEEL_MATERIAL = None
 
 # Load actions at startup
 ACTIONS = load_actions_from_config()

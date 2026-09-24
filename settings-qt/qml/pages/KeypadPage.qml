@@ -209,6 +209,17 @@ Item {
                                 ghost: index !== page.currentPage
                                 onClicked: Backend.setKeypadPage(index)
                             }
+                            // Which apps bring this page up (none = the general pages).
+                            PrimaryButton {
+                                ghost: true
+                                text: (modelData.apps || []).length ? qsTr("For %1").arg(modelData.apps.join(", ")) : qsTr("All apps")
+                                onClicked: { pageAppPicker.pageIndex = index; pageAppPicker.open() }
+                            }
+                            IconButton {
+                                visible: (modelData.apps || []).length > 0
+                                icon: "edit-clear-symbolic"; tip: qsTr("Show this page for all apps")
+                                onClicked: Backend.setKeypadPageApps(index, [])
+                            }
                             IconButton {
                                 icon: "go-previous-symbolic"; rotation: 90
                                 tip: qsTr("Move page up"); enabled: index > 0
@@ -256,6 +267,17 @@ Item {
                 }
             }
             Item { Layout.preferredHeight: Theme.gap; Layout.fillWidth: true }
+        }
+    }
+
+    AppPicker {
+        id: pageAppPicker
+        property int pageIndex: -1
+        onPicked: (app) => {
+            var apps = ((page.pages[pageIndex] || {}).apps || []).slice()
+            var cls = Backend.appClassFor(app.id)
+            if (cls && apps.indexOf(cls) < 0) apps.push(cls)
+            Backend.setKeypadPageApps(pageIndex, apps)
         }
     }
 }

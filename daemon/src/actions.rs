@@ -977,6 +977,73 @@ pub async fn write_dpi(dpi: u16) -> Result<(), ActionError> {
     .map_err(|e| ActionError::ExecutionFailed(e.to_string()))?
 }
 
+/// Press (`down`) or release the keys of a shortcut: hold-while-pressed
+/// custom actions (push-to-talk). Modifiers go down first and come up last.
+pub fn shortcut_edge(keys: &str, down: bool) -> Result<(), ActionError> {
+    let codes = ActionExecutor::shortcut_to_evdev_codes(keys);
+    let (program, args) = match (is_wayland_session(), codes) {
+        (true, Some(codes)) => ("ydotool", ydotool_edge_args(&codes, down)),
+        _ => ("xdotool", vec![if down { "keydown" } else { "keyup" }.to_string(), keys.to_string()]),
+    };
+    let mut cmd = Command::new(program);
+    cmd.args(&args);
+    apply_session_env(&mut cmd);
+    let child = cmd
+        .spawn()
+        .map_err(|e| ActionError::ExecutionFailed(format!("{program} failed: {e}")))?;
+    reap_in_background(child, keys, program);
+    Ok(())
+}
+
+fn ydotool_edge_args(codes: &[u16], down: bool) -> Vec<String> {
+    let mut args = vec!["key".to_string()];
+    if down {
+        args.extend(codes.iter().map(|c| format!("{c}:1")));
+    } else {
+        args.extend(codes.iter().rev().map(|c| format!("{c}:0")));
+    }
+    args
+}
+
+/// Paste `text` into the focused window through the clipboard, then press
+/// Enter when asked. Layout-safe: typing through uinput maps characters through
+/// the keyboard layout and mangles / " @ on many layouts.
+pub async fn paste_text(text: &str, paste_with: &str, enter: bool) -> Result<(), ActionError> {
+    use std::io::Write;
+    let (program, args): (&str, &[&str]) = if is_wayland_session() {
+        ("wl-copy", &[])
+    } else {
+        ("xclip", &["-selection", "clipboard"])
+    };
+    let mut cmd = Command::new(program);
+    cmd.args(args).stdin(std::process::Stdio::piped());
+    apply_session_env(&mut cmd);
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| ActionError::ExecutionFailed(format!("{program} failed: {e}")))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(text.as_bytes())
+            .map_err(|e| ActionError::ExecutionFailed(format!("{program} failed: {e}")))?;
+    }
+    // Both tools fork a selection owner and exit once the clipboard is set.
+    let copied = tokio::task::spawn_blocking(move || child.wait())
+        .await
+        .map_err(|e| ActionError::ExecutionFailed(e.to_string()))?
+        .map_err(|e| ActionError::ExecutionFailed(e.to_string()))?;
+    if !copied.success() {
+        return Err(ActionError::ExecutionFailed(format!("{program} could not set the clipboard")));
+    }
+    let chord = if paste_with.trim().is_empty() { "ctrl+v" } else { paste_with.trim() };
+    ActionExecutor::execute_shortcut(chord, 1).await?;
+    if enter {
+        // Let the target take the paste before the Enter arrives.
+        tokio::time::sleep(Duration::from_millis(120)).await;
+        ActionExecutor::execute_shortcut("Return", 1).await?;
+    }
+    Ok(())
+}
+
 /// Open a web or mail link in the user's browser (custom button action).
 /// Only http, https and mailto: the value comes from config.json.
 pub fn open_url(url: &str) -> Result<(), ActionError> {
@@ -1655,6 +1722,14 @@ mod tests {
         let result = ActionExecutor::execute(&action).await;
         assert!(result.is_ok());
     }
+    #[test]
+    fn held_shortcuts_press_in_order_and_release_in_reverse() {
+        let codes = ActionExecutor::shortcut_to_evdev_codes("ctrl+shift+v").unwrap();
+        assert_eq!(ydotool_edge_args(&codes, true), ["key", "29:1", "42:1", "47:1"]);
+        assert_eq!(ydotool_edge_args(&codes, false), ["key", "47:0", "42:0", "29:0"]);
+        assert_eq!(ActionExecutor::shortcut_to_evdev_codes("Return").unwrap(), [28]);
+    }
+
     #[test]
     fn user_programs_run_as_their_own_user_service() {
         let args = transient_service_args(

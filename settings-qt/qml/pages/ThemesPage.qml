@@ -289,13 +289,9 @@ Item {
                                                 Item {
                                                     anchors.horizontalCenter: parent.horizontalCenter
                                                     width: 88; height: 88
-                                                    Image {
-                                                        anchors.fill: parent; visible: modelData.image !== ""
-                                                        source: modelData.image; sourceSize.width: 176; sourceSize.height: 176
-                                                        smooth: true; asynchronous: true
-                                                    }
                                                     ClassicWheel {
-                                                        anchors.centerIn: parent; visible: modelData.image === ""; size: 88
+                                                        anchors.centerIn: parent; size: 88
+                                                        material: modelData.image
                                                         fill: modelData.light ? "#FFFFFF" : "#1B1F28"
                                                         hi: modelData.light ? "#EEF1F4" : "#2A303C"
                                                         stroke: modelData.light ? "#D8DEE4" : "#38FFFFFF"

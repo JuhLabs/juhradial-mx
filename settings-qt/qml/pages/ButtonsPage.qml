@@ -609,18 +609,10 @@ Item {
                                 var a = Math.atan2(dy, dx) * 180 / Math.PI + 90
                                 return Math.round((((a % 360) + 360) % 360) / 45) % 8
                             }
-                            Image {
-                                anchors.centerIn: parent
-                                width: parent.width; height: parent.height
-                                visible: page.wheelKey !== "none"
-                                source: page.wheelKey !== "none" ? Theme.wheelImage(page.wheelKey) : ""
-                                sourceSize.width: 512; sourceSize.height: 512
-                                smooth: true; fillMode: Image.PreserveAspectFit
-                            }
                             ClassicWheel {
                                 anchors.centerIn: parent
-                                visible: page.wheelKey === "none"
                                 size: parent.width
+                                material: page.wheelKey !== "none" ? Theme.wheelImage(page.wheelKey) : ""
                             }
                             // lit slice: an accent arc rides the ring behind the hovered (or drop) slice
                             Shape {

@@ -757,7 +757,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let mut actions = ActionContext {
             connection: dbus_connection.clone(), config: shared_config.clone(),
-            macro_engine: macro_engine_for_events.clone(), gaming_mode: gaming_mode.clone(), shift_restore: None,
+            macro_engine: macro_engine_for_events.clone(), gaming_mode: gaming_mode.clone(), shift_restore: None, held_custom: None,
         };
         let kwin = kwin_availability.clone();
         let kwin_scripting = kwin_scripting.clone();
@@ -778,7 +778,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         Event::Action { binding, pressed } => {
                             if binding.action == ButtonAction::Custom {
-                                if pressed { run_custom_action(&binding.custom, &actions.macro_engine).await; }
+                                run_custom_action(&binding.custom, &actions.macro_engine, pressed).await;
                             } else if binding.action == ButtonAction::RadialMenu {
                                 let suppressed = actions.gaming_mode.read().is_ok_and(|g| g.should_suppress_overlay());
                                 match keypad_ring_route(pressed, suppressed, kwin.is_owned()) {
@@ -971,6 +971,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     continue;
                 }
                 current_class = class.clone();
+                juhradiald::keypad::set_focused_app(&class);
 
                 // First focus of an application in this run: Settings decides
                 // whether to offer a profile for it (suppress list, existing
@@ -1321,6 +1322,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             macro_engine: macro_engine_for_events,
             gaming_mode: gaming_for_events,
             shift_restore: None,
+            held_custom: None,
         };
         process_gesture_events(
             &mut event_rx,
@@ -1667,6 +1669,9 @@ struct ActionContext {
     gaming_mode: juhradiald::gaming::SharedGamingMode,
     /// DPI to put back when the held DPI-shift button is released.
     shift_restore: Option<u16>,
+    /// A hold-while-pressed custom action whose keys are down (release
+    /// events carry no source button, so the press remembers it).
+    held_custom: Option<juhradiald::config::CustomAction>,
 }
 
 /// What an MX Keypad key bound to the Actions Ring does on one edge. Like the
@@ -1704,6 +1709,11 @@ impl ActionContext {
         match (action, pressed) {
             (A::DpiShift, true) => self.dpi_shift(true).await,
             (A::DpiShift, false) => self.dpi_shift(false).await,
+            (A::Custom, false) => {
+                if let Some(held) = self.held_custom.take() {
+                    run_custom_action(&held, &self.macro_engine, false).await;
+                }
+            }
             (_, false) => debug!(%action, "Button action released (no-op)"),
             (A::Custom, true) => self.custom(source).await,
             (A::DpiCycle | A::DpiUp | A::DpiDown, true) => self.dpi_step(action).await,
@@ -1720,7 +1730,7 @@ impl ActionContext {
         }
     }
 
-    async fn custom(&self, source: Option<u16>) {
+    async fn custom(&mut self, source: Option<u16>) {
         let slot = source.map(juhradiald::config::Config::slot_for_cid);
         let custom = slot
             .as_deref()
@@ -1728,7 +1738,10 @@ impl ActionContext {
         match custom {
             Some(custom) => {
                 info!(slot = ?slot, kind = %custom.kind, "Custom button action");
-                run_custom_action(&custom, &self.macro_engine).await;
+                run_custom_action(&custom, &self.macro_engine, true).await;
+                if custom.hold {
+                    self.held_custom = Some(custom);
+                }
             }
             None => warn!(slot = ?slot, "Button set to custom but no custom action is saved for it"),
         }
@@ -1873,17 +1886,36 @@ fn emit_button_pressed(connection: &zbus::Connection, cid: u16) {
 
 /// Run a button's custom action (Settings > Buttons > Custom): a recorded
 /// shortcut, a command, a URL, a saved macro or a plugin action.
+/// Run a custom action for one edge of its button or key: hold-while-pressed
+/// shortcuts go down on press and up on release, everything else runs once on
+/// press.
 async fn run_custom_action(
     custom: &juhradiald::config::CustomAction,
     macro_engine: &Arc<Mutex<juhradiald::macros::MacroEngine>>,
+    pressed: bool,
 ) {
     use juhradiald::actions::{Action, ActionExecutor, ActionType};
     let value = custom.value.trim();
     if value.is_empty() {
-        warn!(kind = %custom.kind, "Custom button action has no value");
+        if pressed {
+            warn!(kind = %custom.kind, "Custom button action has no value");
+        }
+        return;
+    }
+    if custom.kind == "shortcut" && custom.hold {
+        if let Err(e) = juhradiald::actions::shortcut_edge(value, pressed) {
+            error!(error = %e, "Held shortcut failed");
+        }
+        return;
+    }
+    if !pressed {
         return;
     }
     let result = match custom.kind.as_str() {
+        // Not trimmed: leading/trailing spaces are part of the text.
+        "text" => juhradiald::actions::paste_text(&custom.value, &custom.paste_with, custom.enter)
+            .await
+            .map_err(|e| e.to_string()),
         "shortcut" => ActionExecutor::execute(&Action {
             action_type: ActionType::Shortcut(value.to_string()),
             label: None,

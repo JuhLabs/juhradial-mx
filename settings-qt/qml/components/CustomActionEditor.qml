@@ -12,7 +12,10 @@ B.Popup {
     property string buttonName: ""
     signal saved
 
-    property string kind: "shortcut"   // shortcut | app | command | url | macro | plugin
+    property string kind: "shortcut"   // shortcut | app | command | url | macro | plugin | text
+    property bool hold: false           // shortcut: keys stay down while the button is held
+    property bool pressEnter: false     // text: press Enter after pasting
+    property string pasteWith: ""       // text: "" (Ctrl+V) or "ctrl+shift+v" (terminals)
     property string value: ""
     property string label: ""
     property string icon: ""
@@ -33,6 +36,7 @@ B.Popup {
         ed.scope = scope; ed.slot = slot; ed.buttonName = name
         var c = readAction ? readAction(scope, slot) : Backend.customAction(scope, slot)
         ed.value = c.value || ""; ed.label = c.label || ""; ed.icon = c.icon || ""
+        ed.hold = !!c.hold; ed.pressEnter = !!c.enter; ed.pasteWith = c.paste_with || ""
         // An application is a command with the app's name and icon.
         ed.kind = (c.kind === "command" && ed.icon !== "") ? "app" : (c.kind || "shortcut")
         ed._loadLists()
@@ -60,6 +64,12 @@ B.Popup {
             label: (kind === "app" || kind === "macro" || kind === "plugin") ? label : "",
             icon: kind === "app" ? icon : ""
         }
+        if (kind === "text") {
+            action.value = value   // pasted as typed, spaces included
+            action.enter = pressEnter
+            if (pasteWith !== "") action.paste_with = pasteWith
+        }
+        if (kind === "shortcut" && hold) action.hold = true
         var ok = writeAction ? writeAction(scope, slot, action) : Backend.setCustomAction(scope, slot, action)
         if (ok) { saved(); close() }
     }
@@ -92,7 +102,8 @@ B.Popup {
             accessibleName: qsTr("Kind of action")
             model: [{ id: "shortcut", name: qsTr("Shortcut") }, { id: "app", name: qsTr("App") },
                     { id: "command", name: qsTr("Command") }, { id: "url", name: qsTr("Link") },
-                    { id: "macro", name: qsTr("Macro") }, { id: "plugin", name: qsTr("Plugin") }]
+                    { id: "macro", name: qsTr("Macro") }, { id: "plugin", name: qsTr("Plugin") },
+                    { id: "text", name: qsTr("Text") }]
             currentId: ed.kind
             onActivated: (id) => {
                 if (id === ed.kind) return
@@ -148,6 +159,44 @@ B.Popup {
             text: (ed.kind === "command" || ed.kind === "url") ? ed.value : ""
             error: ed._error
             onTextEdited: ed.value = text
+        }
+
+        // ---- text ----
+        InputField {
+            visible: ed.kind === "text"
+            width: parent.width
+            accessibleName: qsTr("Text to paste")
+            placeholder: qsTr("Text, a prompt or a /command")
+            text: ed.kind === "text" ? ed.value : ""
+            onTextEdited: ed.value = text
+        }
+        SettingRow {
+            visible: ed.kind === "text"
+            width: parent.width
+            label: qsTr("Press Enter after")
+            desc: qsTr("Sends it right away, like a chat message or a command")
+            Toggle { checked: ed.pressEnter; accessibleName: qsTr("Press Enter after"); onToggled: (v) => ed.pressEnter = v }
+        }
+        SegmentedControl {
+            visible: ed.kind === "text"
+            width: parent.width
+            accessibleName: qsTr("Paste with")
+            model: [{ id: "", name: qsTr("Ctrl+V (apps)") }, { id: "ctrl+shift+v", name: qsTr("Ctrl+Shift+V (terminals)") }]
+            currentId: ed.pasteWith
+            onActivated: (id) => ed.pasteWith = id
+        }
+        Text {
+            width: parent.width; wrapMode: Text.WordWrap
+            visible: ed.kind === "text"
+            text: qsTr("Pasted through the clipboard, so every keyboard layout gets the exact characters.")
+            color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+        }
+        SettingRow {
+            visible: ed.kind === "shortcut"
+            width: parent.width
+            label: qsTr("Hold while pressed")
+            desc: qsTr("The keys stay down as long as you hold the button (push to talk)")
+            Toggle { checked: ed.hold; accessibleName: qsTr("Hold while pressed"); onToggled: (v) => ed.hold = v }
         }
 
         // ---- macro / plugin ----

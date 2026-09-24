@@ -469,19 +469,10 @@ Item {
                             width: parent.width
                             height: parent.height - 56
                             readonly property real rr: Math.min(width, height) * 0.36
-                            Image {
-                                anchors.centerIn: parent
-                                width: Math.min(parent.width, parent.height)
-                                height: width
-                                visible: page.wheelKey !== "none"
-                                source: page.wheelKey !== "none" ? Theme.wheelImage(page.wheelKey) : ""
-                                sourceSize.width: 512; sourceSize.height: 512
-                                fillMode: Image.PreserveAspectFit; smooth: true
-                            }
                             ClassicWheel {
                                 anchors.centerIn: parent
-                                visible: page.wheelKey === "none"
                                 size: Math.min(parent.width, parent.height)
+                                material: page.wheelKey !== "none" ? Theme.wheelImage(page.wheelKey) : ""
                             }
                             Repeater {
                                 model: Slices

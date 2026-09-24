@@ -66,15 +66,9 @@ Flickable {
                     Item {
                         width: 72; height: 72
                         anchors.horizontalCenter: parent.horizontalCenter
-                        Image {
-                            anchors.fill: parent
-                            visible: modelData.image !== ""
-                            source: modelData.image
-                            sourceSize.width: 144; sourceSize.height: 144
-                            smooth: true
-                        }
                         ClassicWheel {
-                            anchors.fill: parent; visible: modelData.image === ""; size: 72
+                            anchors.fill: parent; size: 72
+                            material: modelData.image
                             fill: modelData.light ? "#FFFFFF" : "#1B1F28"
                             hi: modelData.light ? "#EEF1F4" : "#2A303C"
                             stroke: modelData.light ? "#D8DEE4" : "#38FFFFFF"

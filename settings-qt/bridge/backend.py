@@ -174,7 +174,7 @@ HIDDEN_BUTTON_ACTIONS = {"scroll_left_right"}
 DIRECTIONAL_EXCLUDED = {"radial_menu", "dpi_shift", "custom"}
 
 # Custom button actions (buttons.custom.<slot>, daemon CustomAction).
-CUSTOM_KINDS = ("shortcut", "command", "url", "macro", "plugin")
+CUSTOM_KINDS = ("shortcut", "command", "url", "macro", "plugin", "text")
 SHORTCUT_RE = re.compile(r"^[A-Za-z0-9_]+(\+[A-Za-z0-9_]+)*$")
 # Macro trigger values that belong to a named button slot.
 MACRO_TRIGGER_SLOTS = {"mouse:8": "back", "mouse:9": "forward", "mouse:2": "middle"}
@@ -1598,7 +1598,9 @@ class Backend(QObject):
                         render_plate(key, pathlib.Path(staging) / f"p{p}-k{k}.jpg", self.cacheAppIcon)
                 for plate in pathlib.Path(staging).glob("*.jpg"):
                     os.replace(plate, dest / plate.name)
-            section = {"enabled": bool(self.get("keypad.enabled", True)), "active_page": active, "pages": pages}
+            # Merge: other keypad settings (brightness, ...) survive a page save.
+            section = dict(self.get("keypad", {}) or {})
+            section.update(enabled=bool(self.get("keypad.enabled", True)), active_page=active, pages=pages)
             self.setLocal("keypad", section)
             if json.loads(CONFIG.read_text()).get("keypad") != section:
                 raise OSError(_("The keypad configuration was not saved"))
@@ -1638,6 +1640,9 @@ class Backend(QObject):
             return False
         pages[page]["keys"][key - 1] = {"action": action, "label": str(obj.get("label", ""))[:40],
                                         "icon": str(obj.get("icon", "")), "custom": custom}
+        plate = str(obj.get("plate", "") or "")
+        if plate and pathlib.Path(plate).is_absolute() and pathlib.Path(plate).is_file():
+            pages[page]["keys"][key - 1]["plate"] = plate
         return self._save_keypad(pages)
 
     @pyqtSlot(str, result=bool)
@@ -1646,6 +1651,39 @@ class Backend(QObject):
         pages = self.keypadPages
         pages.append({"name": name.strip()[:60] or _("New page"), "keys": [empty_key() for _ in range(9)]})
         return self._save_keypad(pages, len(pages) - 1)
+
+    @pyqtSlot(str, result=str)
+    def importKeypadImage(self, url):
+        """Copy a picture the user chose into the config (keypad/images) so the
+        key keeps it when the original moves; returns the copy's path or ""."""
+        import hashlib
+        src = pathlib.Path(QUrl(url).toLocalFile() if url.startswith("file:") else url)
+        if src.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".svg") or not src.is_file():
+            return ""
+        try:
+            data = src.read_bytes()
+            dest = CONFIG_DIR / "keypad" / "images" / (hashlib.sha1(data).hexdigest()[:16] + src.suffix.lower())
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(data)
+        except OSError as error:
+            self.notify(_("Could not copy the picture: {error}").format(error=error), "danger")
+            return ""
+        return str(dest)
+
+    @pyqtSlot(int, "QVariant")
+    def setKeypadPageApps(self, page, apps):
+        """Show a page only while one of these apps is in front ([] = General)."""
+        if hasattr(apps, "toVariant"):
+            apps = apps.toVariant()
+        pages = self.keypadPages
+        if not 0 <= page < len(pages):
+            return
+        clean = sorted({str(a).strip().lower() for a in (apps or []) if str(a).strip()})
+        if clean:
+            pages[page]["apps"] = clean
+        else:
+            pages[page].pop("apps", None)
+        self._save_keypad(pages)
 
     @pyqtSlot(int, str)
     def renameKeypadPage(self, page, name):
@@ -4741,10 +4779,18 @@ class Backend(QObject):
             scheme = next((p for p in ("https://", "http://", "mailto:") if low.startswith(p)), None)
             if scheme is None or len(value) == len(scheme):
                 return None
-        out = {"kind": kind, "value": value}
+        # A text keeps its own spacing and line breaks (it is pasted as is).
+        out = {"kind": kind, "value": str(obj.get("value", "")) if kind == "text" else value}
         for extra in ("label", "icon"):
             if isinstance(obj.get(extra), str) and obj[extra]:
                 out[extra] = obj[extra]
+        if kind == "shortcut" and obj.get("hold"):
+            out["hold"] = True
+        if kind == "text":
+            if obj.get("enter"):
+                out["enter"] = True
+            if obj.get("paste_with") in ("ctrl+v", "ctrl+shift+v"):
+                out["paste_with"] = obj["paste_with"]
         return out
 
     def _custom_map(self, scope):

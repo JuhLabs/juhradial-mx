@@ -4,7 +4,7 @@ JuhRadial MX - Overlay Painting Mixin
 All drawing/rendering methods for the radial menu, extracted as a mixin
 class to keep the main overlay file focused on logic.
 
-IMPORTANT: Mutable globals (COLORS, ACTIONS, RADIAL_IMAGE, RADIAL_PARAMS,
+IMPORTANT: Mutable globals (COLORS, ACTIONS, RADIAL_IMAGE, RADIAL_PARAMS, WHEEL_MATERIAL,
 AI_ICONS) are accessed via the overlay_actions module attribute
 (e.g. overlay_actions.COLORS) so that reassignment in on_show is visible.
 
@@ -150,11 +150,16 @@ class RadialMenuPaintingMixin:
                 p.setPen(Qt.PenStyle.NoPen)
                 p.drawEllipse(QPointF(cx + 4, cy + 6), outer_disc_r, outer_disc_r)
 
-                # Main background
-                base_color = QColor(overlay_actions.COLORS["base"])
-                base_color.setAlpha(235)
-                p.setBrush(QBrush(base_color))
-                p.drawEllipse(QPointF(cx, cy), outer_disc_r, outer_disc_r)
+                # Main background: the wheel skin's material, or the palette base
+                material = overlay_actions.WHEEL_MATERIAL
+                if material is not None:
+                    p.drawPixmap(int(cx - material.width() / 2),
+                                 int(cy - material.height() / 2), material)
+                else:
+                    base_color = QColor(overlay_actions.COLORS["base"])
+                    base_color.setAlpha(235)
+                    p.setBrush(QBrush(base_color))
+                    p.drawEllipse(QPointF(cx, cy), outer_disc_r, outer_disc_r)
 
                 # Border
                 border_color = QColor(overlay_actions.COLORS["surface2"])

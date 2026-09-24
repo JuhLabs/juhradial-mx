@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Dialogs
 
 Column {
     id: ed
@@ -58,19 +59,37 @@ Column {
         text: ed.draft.label || ""
         onTextEdited: ed.update("label", text)
     }
-    Row {
+    Text {
+        text: qsTr("Image")
+        color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+    }
+    Flow {
+        width: parent.width
         spacing: Theme.gapS
+        Image {
+            visible: (ed.draft.plate || "") !== ""
+            width: 40; height: 40
+            source: (ed.draft.plate || "") !== "" ? "file://" + ed.draft.plate : ""
+            sourceSize.width: 80; sourceSize.height: 80
+            fillMode: Image.PreserveAspectCrop; smooth: true
+        }
         ActionIcon {
-            anchors.verticalCenter: parent.verticalCenter
+            visible: (ed.draft.plate || "") === "" && !(ed.draft.icon || "").startsWith("desktop:")
             iconName: ed.draft.icon || "input-keyboard-symbolic"
             tint: Theme.accent; px: 32
-            visible: !(ed.draft.icon || "").startsWith("desktop:")
         }
-        PrimaryButton { text: qsTr("Choose glyph"); ghost: true; onClicked: glyphPicker.open() }
+        PrimaryButton { text: qsTr("Glyph"); ghost: true; onClicked: glyphPicker.open() }
+        PrimaryButton { text: qsTr("App icon"); ghost: true; onClicked: iconAppPicker.open() }
+        PrimaryButton { text: qsTr("Picture"); ghost: true; onClicked: pictureDialog.open() }
+        PrimaryButton {
+            visible: (ed.draft.plate || "") !== ""
+            text: qsTr("Remove picture"); ghost: true
+            onClicked: ed.update("plate", "")
+        }
     }
     Text {
         width: parent.width; wrapMode: Text.WordWrap
-        text: qsTr("App actions use the app's icon. Long labels are shortened on the key.")
+        text: qsTr("A picture fills the whole key, label included. Otherwise the glyph or app icon sits above the label; long labels are shortened.")
         color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
     }
     PrimaryButton {
@@ -98,7 +117,23 @@ Column {
         title: qsTr("Choose a glyph")
         actions: Backend.keypadGlyphs()
         currentId: ed.draft.icon
-        onPicked: (id) => ed.update("icon", id)
+        onPicked: (id) => { ed.update("icon", id); ed.update("plate", "") }
+    }
+    AppPicker {
+        id: iconAppPicker
+        onPicked: (app) => {
+            ed.update("icon", Backend.cacheAppIcon(app.id) || "application-x-executable-symbolic")
+            ed.update("plate", "")
+        }
+    }
+    FileDialog {
+        id: pictureDialog
+        title: qsTr("Choose a picture for this key")
+        nameFilters: [qsTr("Images (*.png *.jpg *.jpeg *.webp *.bmp *.svg)")]
+        onAccepted: {
+            var path = Backend.importKeypadImage(selectedFile.toString())
+            if (path !== "") ed.update("plate", path)
+        }
     }
     CustomActionEditor {
         id: customEditor

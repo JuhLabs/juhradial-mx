@@ -54,9 +54,13 @@ fn input_sets_diff_and_page_reports() {
 
 #[test]
 fn allowed_control_vectors_and_brightness_builder() {
-    let mut init = [0; 20];
-    init[..7].copy_from_slice(&[0x11, 0xff, 0x0b, 0x3b, 1, 0xa1, 3]);
-    assert_eq!(init_report(), init);
+    // Both page buttons are diverted (left 0x01a1, right 0x01a2), as in the
+    // reference driver's two active init writes.
+    let mut left = [0; 20];
+    left[..7].copy_from_slice(&[0x11, 0xff, 0x0b, 0x3b, 1, 0xa1, 3]);
+    let mut right = left;
+    right[5] = 0xa2;
+    assert_eq!(init_reports(), [left, right]);
     let mut reset = [0; 32];
     reset[..2].copy_from_slice(&[3, 2]);
     assert_eq!(reset_to_logo_report(), reset);

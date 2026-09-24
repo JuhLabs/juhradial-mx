@@ -472,13 +472,23 @@ pub struct ButtonsConfig {
 /// A button's custom action (Settings > Buttons > Custom).
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CustomAction {
-    /// shortcut | command | url | macro | plugin
+    /// shortcut | command | url | macro | plugin | text
     #[serde(default)]
     pub kind: String,
-    /// The shortcut ("ctrl+shift+t"), command line, URL, macro id or plugin
-    /// reference ("folder/action").
+    /// The shortcut ("ctrl+shift+t"), command line, URL, macro id, plugin
+    /// reference ("folder/action") or the text to paste.
     #[serde(default)]
     pub value: String,
+    /// `text`: press Enter after pasting.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub enter: bool,
+    /// `shortcut`: keep the keys down while the button is held (push-to-talk)
+    /// instead of tapping them on press.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hold: bool,
+    /// `text`: the paste chord ("" = ctrl+v; terminals use ctrl+shift+v).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub paste_with: String,
 }
 
 impl Default for ButtonsConfig {
@@ -522,6 +532,10 @@ impl KeypadConfig {
 pub struct KeypadPage {
     pub name: String,
     pub keys: [KeypadKey; 9],
+    /// App classes (lowercased WM class) this page belongs to; empty = the
+    /// general pages shown for every app without pages of its own.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub apps: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -1771,7 +1785,7 @@ mod tests {
         use crate::hidraw::button_cid;
         use std::collections::HashMap;
         let mut config = Config::default();
-        config.buttons.custom.insert("back".into(), CustomAction { kind: "url".into(), value: "https://a".into() });
+        config.buttons.custom.insert("back".into(), CustomAction { kind: "url".into(), value: "https://a".into(), ..Default::default() });
         assert!(config.remapped_button_cids().is_empty());
 
         let buttons = HashMap::from([
@@ -1779,7 +1793,7 @@ mod tests {
             ("0x00D7".to_string(), ButtonAction::TabClose),
             ("middle".to_string(), ButtonAction::MiddleClick),
         ]);
-        let custom = HashMap::from([("back".to_string(), CustomAction { kind: "shortcut".into(), value: "F13".into() })]);
+        let custom = HashMap::from([("back".to_string(), CustomAction { kind: "shortcut".into(), value: "F13".into(), ..Default::default() })]);
         config.set_app_overrides(Some("firefox".into()), buttons, custom);
         assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Custom);
         assert_eq!(config.action_for_cid(0x00D7), ButtonAction::TabClose);

@@ -66,10 +66,13 @@ pub fn image_packets(x: u16, y: u16, w: u16, h: u16, jpeg: &[u8]) -> io::Result<
     Ok(packets)
 }
 
-pub fn init_report() -> [u8; 20] {
-    let mut report = [0; 20];
-    report[..7].copy_from_slice(&[0x11, 0xff, 0x0b, 0x3b, 1, 0xa1, 3]);
-    report
+/// Divert both page buttons (CIDs 0x01a1 left, 0x01a2 right) to this host.
+pub fn init_reports() -> [[u8; 20]; 2] {
+    let mut reports = [[0; 20]; 2];
+    for (report, cid) in reports.iter_mut().zip([0xa1, 0xa2]) {
+        report[..7].copy_from_slice(&[0x11, 0xff, 0x0b, 0x3b, 1, cid, 3]);
+    }
+    reports
 }
 
 pub fn reset_to_logo_report() -> [u8; 32] {
@@ -243,7 +246,10 @@ impl Keypad {
         Ok(())
     }
 
-    pub fn init(&mut self) -> io::Result<()> { self.write_report(&init_report()) }
+    pub fn init(&mut self) -> io::Result<()> {
+        for report in init_reports() { self.write_report(&report)?; }
+        Ok(())
+    }
 
     pub fn write_image(&mut self, window: KeyWindow, jpeg: &[u8]) -> io::Result<()> {
         for packet in image_packets(window.x, window.y, window.w, window.h, jpeg)? {
