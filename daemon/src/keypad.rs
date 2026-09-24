@@ -182,6 +182,13 @@ fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Ev
                 app = Some(focused);
             }
             let next_revision = REVISION.load(Ordering::Relaxed);
+            if shown.as_ref().map(|s: &KeypadConfig| s.brightness) != Some(cfg.brightness) {
+                if let Some(percent) = cfg.brightness.filter(|p| (1..=100).contains(p)) {
+                    if let Err(error) = keypad.set_brightness(percent) {
+                        tracing::debug!(%error, "MX Keypad brightness not applied");
+                    }
+                }
+            }
             if shown.as_ref() != Some(&cfg) || revision != next_revision {
                 push_plates(keypad, &dir, cfg.page_index(), !cfg.pages.is_empty())?;
                 shown = Some(cfg.clone());

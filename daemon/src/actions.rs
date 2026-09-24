@@ -205,6 +205,9 @@ impl ActionExecutor {
                 "minus" => 12,
                 "kp_add" => 78,
                 "kp_subtract" => 74,
+                "kp_0" => 82, "kp_1" => 79, "kp_2" => 80, "kp_3" => 81, "kp_4" => 75,
+                "kp_5" => 76, "kp_6" => 77, "kp_7" => 71, "kp_8" => 72, "kp_9" => 73,
+                "kp_decimal" => 83, "kp_multiply" => 55, "kp_divide" => 98, "kp_enter" => 96,
                 "left" => 105, "right" => 106, "up" => 103, "down" => 108,
                 "home" => 102, "end" => 107, "tab" => 15, "escape" | "esc" => 1,
                 "space" => 57, "return" | "enter" => 28, "delete" => 111,
@@ -1728,6 +1731,9 @@ mod tests {
         assert_eq!(ydotool_edge_args(&codes, true), ["key", "29:1", "42:1", "47:1"]);
         assert_eq!(ydotool_edge_args(&codes, false), ["key", "47:0", "42:0", "29:0"]);
         assert_eq!(ActionExecutor::shortcut_to_evdev_codes("Return").unwrap(), [28]);
+        // Blender's numpad views reach native Wayland windows through uinput too.
+        assert_eq!(ActionExecutor::shortcut_to_evdev_codes("ctrl+KP_7").unwrap(), [29, 71]);
+        assert_eq!(ActionExecutor::shortcut_to_evdev_codes("KP_Decimal").unwrap(), [83]);
     }
 
     #[test]

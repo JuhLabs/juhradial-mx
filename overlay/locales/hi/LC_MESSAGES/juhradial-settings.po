@@ -34,7 +34,7 @@ msgid "%1 click"
 msgstr "%1 क्लिक"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:182
-#: settings-qt/qml/pages/DashboardPage.qml:585
+#: settings-qt/qml/pages/DashboardPage.qml:576
 msgid "%1 does"
 msgstr "%1 की क्रिया"
 
@@ -128,7 +128,7 @@ msgid_plural "%n buttons do something else in this app"
 msgstr[0] "इस ऐप में %n बटन की क्रिया अलग है"
 msgstr[1] "इस ऐप में %n बटन की क्रियाएँ अलग हैं"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1055
+#: settings-qt/qml/pages/ButtonsPage.qml:1047
 msgid "%n found"
 msgstr "%n मिले"
 
@@ -180,11 +180,11 @@ msgstr ", खोलें"
 msgid ", this computer"
 msgstr ", यह कंप्यूटर"
 
-#: settings-qt/bridge/backend.py:2865
+#: settings-qt/bridge/backend.py:3080
 msgid "1 hour"
 msgstr "1 घंटा"
 
-#: settings-qt/bridge/backend.py:2864
+#: settings-qt/bridge/backend.py:3079
 msgid "1 minute"
 msgstr "1 मिनट"
 
@@ -195,19 +195,23 @@ msgid ""
 msgstr ""
 "1. हर कंप्यूटर को अलग Easy-Switch चैनल पर माउस से पेयर करें, फिर ऊपर दोनों चैनल सेट करें।"
 
-#: settings-qt/bridge/backend.py:2865
+#: settings-qt/bridge/backend.py:3080
 msgid "10 minutes"
 msgstr "10 मिनट"
 
-#: settings-qt/bridge/backend.py:2863
+#: settings-qt/bridge/backend.py:3078
 msgid "10 seconds"
 msgstr "10 सेकंड"
 
-#: settings-qt/bridge/backend.py:2866
+#: settings-qt/assets/keypad/profiles.json
+msgid "1st Unread"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3081
 msgid "2 hours"
 msgstr "2 घंटे"
 
-#: settings-qt/bridge/backend.py:2864
+#: settings-qt/bridge/backend.py:3079
 msgid "2 minutes"
 msgstr "2 मिनट"
 
@@ -220,11 +224,11 @@ msgid ""
 "3. Install and open JuhFlow on the Mac. It finds this computer by itself."
 msgstr "3. Mac पर JuhFlow इंस्टॉल करके खोलें। यह इस कंप्यूटर को अपने आप ढूँढ लेगा।"
 
-#: settings-qt/bridge/backend.py:2865
+#: settings-qt/bridge/backend.py:3080
 msgid "30 minutes"
 msgstr "30 मिनट"
 
-#: settings-qt/bridge/backend.py:2863
+#: settings-qt/bridge/backend.py:3078
 msgid "30 seconds"
 msgstr "30 सेकंड"
 
@@ -234,11 +238,11 @@ msgid ""
 "that."
 msgstr "4. अनुरोध आने पर कंप्यूटर अनुभाग में Mac को मंज़ूरी दें। उससे पहले कुछ साझा नहीं होगा।"
 
-#: settings-qt/bridge/backend.py:2864
+#: settings-qt/bridge/backend.py:3079
 msgid "5 minutes"
 msgstr "5 मिनट"
 
-#: settings-qt/bridge/backend.py:2863
+#: settings-qt/bridge/backend.py:3078
 msgid "5 seconds"
 msgstr "5 सेकंड"
 
@@ -286,11 +290,11 @@ msgid ""
 msgstr ""
 "Logitech के डिफ़ॉल्ट से हल्का दबाव रखने पर माउस पकड़ते समय अनजाने में क्लिक हो सकता है।"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:877
+#: settings-qt/qml/pages/ButtonsPage.qml:869
 msgid "A link starts with https://"
 msgstr "लिंक https:// से शुरू होता है"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:51
+#: settings-qt/qml/components/CustomActionEditor.qml:55
 msgid "A link starts with https://, http:// or mailto:"
 msgstr "लिंक https://, http:// या mailto: से शुरू होता है"
 
@@ -314,13 +318,19 @@ msgstr "मैक्रो पूरा होता है"
 msgid "A macro is running. Esc stops it."
 msgstr "मैक्रो चल रहा है। Esc से रोकें।"
 
-#: settings-qt/bridge/backend.py:3882
+#: settings-qt/bridge/backend.py:4097
 msgid "A number of times"
 msgstr "तय संख्या में"
 
 #: settings-qt/bridge/backend.py:409
 msgid "A phone-like ring"
 msgstr "फ़ोन जैसी घंटी"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:92
+msgid ""
+"A picture fills the whole key, label included. Otherwise the glyph or app "
+"icon sits above the label; long labels are shortened."
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:608
 msgid ""
@@ -355,7 +365,7 @@ msgstr "इस माउस के बारे में"
 msgid "Above"
 msgstr "ऊपर की ओर"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:26
+#: settings-qt/qml/components/KeypadKeyEditor.qml:27
 #: settings-qt/qml/pages/ScrollPage.qml:437 settings-qt/bridge/backend.py:672
 msgid "Action"
 msgstr "क्रिया"
@@ -363,6 +373,10 @@ msgstr "क्रिया"
 #: settings-qt/bridge/backend.py:417 settings-qt/bridge/backend.py:680
 msgid "Action runs"
 msgstr "क्रिया चलती है"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Actions"
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:579
 #: settings-qt/qml/pages/DashboardPage.qml:461
@@ -381,7 +395,7 @@ msgstr "क्रिया रिंग और डेस्कटॉप"
 msgid "Actions ring"
 msgstr "क्रिया रिंग"
 
-#: settings-qt/qml/pages/KeypadPage.qml:208
+#: settings-qt/qml/pages/KeypadPage.qml:220
 msgid "Active"
 msgstr "सक्रिय"
 
@@ -391,14 +405,15 @@ msgstr "अभी सक्रिय"
 
 #: settings-qt/qml/components/MacroEditor.qml:322
 #: settings-qt/qml/pages/AppsPage.qml:360
+#: settings-qt/assets/keypad/profiles.json
 msgid "Add"
 msgstr "जोड़ें"
 
-#: settings-qt/qml/pages/KeypadPage.qml:94
+#: settings-qt/qml/pages/KeypadPage.qml:95
 msgid "Add a page or choose a template to get started"
 msgstr "शुरू करने के लिए पेज जोड़ें या टेम्पलेट चुनें"
 
-#: settings-qt/qml/pages/KeypadPage.qml:242
+#: settings-qt/qml/pages/KeypadPage.qml:306
 msgid "Add a ready page. Missing apps leave keys for you to assign."
 msgstr "तैयार पेज जोड़ें। जो ऐप इंस्टॉल नहीं हैं, उनकी कुंजियाँ आप खुद असाइन कर सकते हैं।"
 
@@ -419,11 +434,11 @@ msgstr "अलग बटन सेट करने के लिए ऐप प�
 msgid "Add by window class"
 msgstr "विंडो क्लास से जोड़ें"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:915
+#: settings-qt/qml/pages/ButtonsPage.qml:907
 msgid "Add link"
 msgstr "लिंक जोड़ें"
 
-#: settings-qt/qml/pages/KeypadPage.qml:190
+#: settings-qt/qml/pages/KeypadPage.qml:191
 msgid "Add page"
 msgstr "पेज जोड़ें"
 
@@ -431,13 +446,25 @@ msgstr "पेज जोड़ें"
 msgid "Add preset"
 msgstr "प्रीसेट जोड़ें"
 
-#: settings-qt/qml/pages/KeypadPage.qml:251
+#: settings-qt/qml/pages/KeypadPage.qml:282
+msgid "Add profile"
+msgstr ""
+
+#: settings-qt/qml/pages/KeypadPage.qml:319
 msgid "Add template"
 msgstr "टेम्पलेट जोड़ें"
 
-#: settings-qt/bridge/backend.py:3115
+#: settings-qt/qml/pages/KeypadPage.qml:282
+msgid "Added"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3330
 msgid "Added profile: {app}"
 msgstr "प्रोफ़ाइल जोड़ी गई: {app}"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Address"
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:351
 msgid "Adjust markers"
@@ -461,11 +488,19 @@ msgstr "हल्का दबाने पर मेनू खुला रह�
 msgid "After your hands leave the keys"
 msgstr "कुंजियों से हाथ हटाने के बाद"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Alacritty and foot"
+msgstr ""
+
 #: settings-qt/bridge/backend.py:401
 msgid "Alert"
 msgstr "अलर्ट"
 
-#: settings-qt/bridge/backend.py:4612
+#: settings-qt/assets/keypad/profiles.json
+msgid "Align"
+msgstr ""
+
+#: settings-qt/qml/pages/KeypadPage.qml:228 settings-qt/bridge/backend.py:4827
 msgid "All apps"
 msgstr "सभी ऐप"
 
@@ -473,7 +508,7 @@ msgstr "सभी ऐप"
 msgid "All files (*)"
 msgstr "सभी फ़ाइलें (*)"
 
-#: settings-qt/bridge/backend.py:4494
+#: settings-qt/bridge/backend.py:4709
 msgid "Already matches your desktop"
 msgstr "पहले से आपके डेस्कटॉप से मेल खाता है"
 
@@ -501,16 +536,21 @@ msgstr "ऐप का थंब व्हील, ऐप प्रोफ़ाइ
 msgid "An even buzz"
 msgstr "एक समान भनभनाहट"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:93
+#: settings-qt/assets/keypad/profiles.json
+msgid "Answer"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:103
 #: settings-qt/qml/pages/SettingsPage.qml:653
 msgid "App"
 msgstr "ऐप"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:73
-msgid "App actions use the app's icon. Long labels are shortened on the key."
-msgstr "ऐप क्रियाएँ ऐप का आइकन इस्तेमाल करती हैं। लंबे लेबल कुंजी पर छोटे कर दिए जाते हैं।"
+#: settings-qt/qml/components/KeypadKeyEditor.qml:82
+msgid "App icon"
+msgstr ""
 
 #: settings-qt/qml/Main.qml:61 settings-qt/qml/pages/AppsPage.qml:333
+#: settings-qt/qml/pages/KeypadPage.qml:269
 #: settings-qt/qml/pages/ScrollPage.qml:191 settings-qt/bridge/backend.py:633
 #: settings-qt/bridge/backend.py:701 settings-qt/bridge/backend.py:702
 #: settings-qt/bridge/backend.py:703 settings-qt/bridge/backend.py:761
@@ -521,11 +561,11 @@ msgstr "ऐप प्रोफ़ाइल"
 msgid "App switch"
 msgstr "ऐप बदलना"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:889
+#: settings-qt/qml/pages/ButtonsPage.qml:881
 msgid "App: %1"
 msgstr "ऐप: %1"
 
-#: settings-qt/bridge/backend.py:4506
+#: settings-qt/bridge/backend.py:4721
 msgid "Applied desktop defaults to {count} actions"
 msgstr "{count} क्रियाओं पर डेस्कटॉप डिफ़ॉल्ट लागू किए गए"
 
@@ -549,13 +589,17 @@ msgstr "मंज़ूरी दें"
 msgid "Approved, not connected right now"
 msgstr "मंज़ूर है, अभी कनेक्ट नहीं है"
 
-#: settings-qt/bridge/backend.py:1687
+#: settings-qt/bridge/backend.py:1725
 msgid "Apps and daily essentials"
 msgstr "ऐप और रोज़ की ज़रूरी चीज़ें"
 
 #: settings-qt/qml/pages/AppsPage.qml:369
 msgid "Apps you used since JuhRadial started, one click to add"
 msgstr "JuhRadial शुरू होने के बाद इस्तेमाल किए गए ऐप, एक क्लिक से जोड़ें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Archive"
+msgstr ""
 
 #: settings-qt/qml/pages/GamingPage.qml:335
 msgid "As is"
@@ -582,12 +626,12 @@ msgstr "सुप्त है। जगाने के लिए हिला�
 msgid "Asleep. Press any key to wake it"
 msgstr "सुप्त है। जगाने के लिए कोई कुंजी दबाएँ"
 
-#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5121
+#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5344
 msgid "Automatic"
 msgstr "स्वचालित"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:805
-#: settings-qt/qml/pages/ButtonsPage.qml:811
+#: settings-qt/qml/pages/ButtonsPage.qml:797
+#: settings-qt/qml/pages/ButtonsPage.qml:803
 #: settings-qt/qml/pages/SettingsPage.qml:92 settings-qt/bridge/backend.py:748
 msgid "Automatic size"
 msgstr "स्वचालित आकार"
@@ -596,7 +640,7 @@ msgstr "स्वचालित आकार"
 msgid "Automatic: %1"
 msgstr "स्वचालित: %1"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:799
+#: settings-qt/qml/pages/ButtonsPage.qml:791
 msgid "Automatic: fits each screen"
 msgstr "स्वचालित: हर स्क्रीन के अनुसार"
 
@@ -604,7 +648,7 @@ msgstr "स्वचालित: हर स्क्रीन के अनु�
 msgid "Automatic: the light sensor sets the brightness"
 msgstr "स्वचालित: प्रकाश सेंसर चमक तय करता है"
 
-#: settings-qt/bridge/backend.py:4284 settings-qt/bridge/backend.py:5305
+#: settings-qt/bridge/backend.py:4499 settings-qt/bridge/backend.py:5528
 msgid "Autostart: {error}"
 msgstr "स्वचालित आरंभ: {error}"
 
@@ -615,11 +659,15 @@ msgstr "जागा हुआ"
 #: settings-qt/qml/pages/ButtonsPage.qml:78
 #: settings-qt/qml/pages/ButtonsPage.qml:95
 #: settings-qt/qml/pages/ButtonsPage.qml:102 settings-qt/bridge/backend.py:133
-#: settings-qt/bridge/backend.py:652
+#: settings-qt/bridge/backend.py:652 settings-qt/assets/keypad/profiles.json
 msgid "Back"
 msgstr "पीछे"
 
-#: settings-qt/bridge/backend.py:2747 settings-qt/bridge/backend.py:3889
+#: settings-qt/assets/keypad/profiles.json
+msgid "Back 10s"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2962 settings-qt/bridge/backend.py:4104
 msgid "Back button"
 msgstr "पीछे बटन"
 
@@ -653,7 +701,7 @@ msgstr "चार्ज करते समय बैकलाइट चाल�
 msgid "Backup"
 msgstr "बैकअप"
 
-#: settings-qt/bridge/backend.py:4390
+#: settings-qt/bridge/backend.py:4605
 msgid "Backup saved as {name}"
 msgstr "बैकअप {name} के रूप में सहेजा गया"
 
@@ -741,29 +789,54 @@ msgstr "बटन से बाइंड करें…"
 msgid "Bind “%1” to a button"
 msgstr "“%1” को बटन से बाइंड करें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Blender"
+msgstr ""
+
 #: settings-qt/qml/pages/DashboardPage.qml:59
 #: settings-qt/qml/pages/DevicesPage.qml:24
 msgid "Bluetooth"
 msgstr "Bluetooth"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Bold"
+msgstr ""
 
 #: settings-qt/qml/pages/DashboardPage.qml:58
 #: settings-qt/qml/pages/DevicesPage.qml:23
 msgid "Bolt receiver"
 msgstr "Bolt रिसीवर"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Bookmark"
+msgstr ""
+
 #: settings-qt/qml/pages/DevicesPage.qml:466
 msgid "Brightness"
 msgstr "चमक"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:966 settings-qt/bridge/keypad.py:96
+#: settings-qt/qml/pages/ButtonsPage.qml:958 settings-qt/bridge/keypad.py:129
+#: settings-qt/assets/keypad/profiles.json
 msgid "Browser"
 msgstr "ब्राउज़र"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Brush"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Brush +"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Brush -"
+msgstr ""
 
 #: settings-qt/qml/components/MacroBindDialog.qml:122
 msgid "Button"
 msgstr "बटन"
 
-#: settings-qt/qml/pages/DashboardPage.qml:564
+#: settings-qt/qml/pages/DashboardPage.qml:555
 msgid "Button map"
 msgstr "बटन मानचित्र"
 
@@ -789,7 +862,7 @@ msgstr "बटन डिफ़ॉल्ट पर लौट गए"
 msgid "Buttons follow all apps again"
 msgstr "बटन फिर से सभी ऐप की सेटिंग्स का पालन करते हैं"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1053
+#: settings-qt/qml/pages/ButtonsPage.qml:1045
 msgid ""
 "Buttons this mouse reports that have no marker above. Assign an action to "
 "divert one; Disabled leaves it native."
@@ -814,7 +887,7 @@ msgstr ""
 "JuhLabs द्वारा निर्मित, @gcarmin, @frizikk और @iceteaSA के कोड योगदान तथा समस्या "
 "बताने वाले सभी लोगों की मदद से सुधारा गया।"
 
-#: settings-qt/bridge/backend.py:160
+#: settings-qt/bridge/backend.py:160 settings-qt/assets/keypad/profiles.json
 msgid "Calculator"
 msgstr "कैलकुलेटर"
 
@@ -822,11 +895,11 @@ msgstr "कैलकुलेटर"
 msgid "Calm"
 msgstr "धीमा"
 
-#: settings-qt/bridge/keypad.py:116
+#: settings-qt/bridge/keypad.py:149 settings-qt/assets/keypad/profiles.json
 msgid "Camera"
 msgstr "कैमरा"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:191
+#: settings-qt/qml/components/CustomActionEditor.qml:240
 #: settings-qt/qml/components/MacroBindDialog.qml:157
 #: settings-qt/qml/pages/DevicesPage.qml:697
 #: settings-qt/qml/pages/DevicesPage.qml:750
@@ -840,6 +913,14 @@ msgstr "रद्द करें"
 #: settings-qt/qml/pages/SettingsPage.qml:764
 msgid "Cannot import this file"
 msgstr "यह फ़ाइल आयात नहीं हो सकती"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Canvas"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Captions"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:358
 msgid "Catppuccin Latte"
@@ -883,6 +964,16 @@ msgstr "जल्द चार्ज करें"
 msgid "Charging"
 msgstr "चार्ज हो रहा है"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Chat"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Chat and folder navigation, search, saved messages and archive for Telegram "
+"Desktop."
+msgstr ""
+
 #: settings-qt/qml/pages/DevicesPage.qml:199
 #: settings-qt/qml/pages/DevicesPage.qml:402
 #: settings-qt/qml/pages/FlowPage.qml:252
@@ -898,7 +989,7 @@ msgstr "अपडेट जाँचें"
 msgid "Check now"
 msgstr "अभी जाँचें"
 
-#: settings-qt/bridge/backend.py:1637
+#: settings-qt/bridge/backend.py:1639
 msgid "Check the custom action before saving this key"
 msgstr "इस कुंजी को सहेजने से पहले कस्टम क्रिया जाँचें"
 
@@ -910,33 +1001,37 @@ msgstr "फ़ायरवॉल जाँचें"
 msgid "Checked each time the keyboard wakes up"
 msgstr "कीबोर्ड के जागने पर हर बार जाँचा जाता है"
 
-#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:4972
+#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:5195
 msgid "Checking…"
 msgstr "जाँच हो रही है…"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:98
+#: settings-qt/qml/components/KeypadKeyEditor.qml:117
 msgid "Choose a glyph"
 msgstr "चिह्न चुनें"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:158
+#: settings-qt/qml/components/CustomActionEditor.qml:207
 msgid "Choose a macro"
 msgstr "मैक्रो चुनें"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:171
+#: settings-qt/qml/components/KeypadKeyEditor.qml:131
+msgid "Choose a picture for this key"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:220
 msgid "Choose a plugin action"
 msgstr "प्लगइन क्रिया चुनें"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:42
+#: settings-qt/qml/components/KeypadKeyEditor.qml:43
 msgid "Choose a shortcut, app, command or macro"
 msgstr "शॉर्टकट, ऐप, कमांड या मैक्रो चुनें"
 
 #: settings-qt/qml/components/ActionPicker.qml:12
-#: settings-qt/qml/components/KeypadKeyEditor.qml:34
+#: settings-qt/qml/components/KeypadKeyEditor.qml:35
 #: settings-qt/qml/components/SliceEditor.qml:199
 msgid "Choose an action"
 msgstr "क्रिया चुनें"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:23
+#: settings-qt/qml/components/KeypadKeyEditor.qml:24
 msgid "Choose an action, then make its plate easy to read"
 msgstr "क्रिया चुनें, फिर उसकी प्लेट को पढ़ने में आसान बनाएँ"
 
@@ -945,18 +1040,22 @@ msgstr "क्रिया चुनें, फिर उसकी प्ले�
 msgid "Choose an app"
 msgstr "ऐप चुनें"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:69
-msgid "Choose glyph"
-msgstr "चिह्न चुनें"
-
-#: settings-qt/qml/components/CustomActionEditor.qml:136
+#: settings-qt/qml/components/CustomActionEditor.qml:147
 msgid "Choose…"
 msgstr "चुनें…"
 
 #: settings-qt/qml/pages/SettingsPage.qml:164
-#: settings-qt/qml/pages/ThemesPage.qml:377
+#: settings-qt/qml/pages/ThemesPage.qml:373
 msgid "Classic"
 msgstr "क्लासिक"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Clear"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Clear Line"
+msgstr ""
 
 #: settings-qt/qml/components/MacroEditor.qml:328
 msgid "Click"
@@ -966,7 +1065,7 @@ msgstr "क्लिक"
 msgid "Click %1"
 msgstr "%1 क्लिक करें"
 
-#: settings-qt/qml/pages/DashboardPage.qml:565
+#: settings-qt/qml/pages/DashboardPage.qml:556
 msgid "Click a button to change it"
 msgstr "बदलने के लिए बटन पर क्लिक करें"
 
@@ -996,11 +1095,15 @@ msgstr "हमेशा हर नॉच पर रुककर घूमता 
 msgid "Clicks until you flick it, then spins freely"
 msgstr "तेज़ घुमाने तक रैचेट, फिर फ़्री-स्पिन"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Clipboard, zoom and shell keys for terminals without tabs."
+msgstr ""
+
 #: settings-qt/qml/components/MacroEditor.qml:133
 msgid "Close"
 msgstr "बंद करें"
 
-#: settings-qt/bridge/backend.py:147
+#: settings-qt/bridge/backend.py:147 settings-qt/assets/keypad/profiles.json
 msgid "Close Tab"
 msgstr "टैब बंद करें"
 
@@ -1012,6 +1115,10 @@ msgstr "विंडो बंद करें"
 msgid "Close the window"
 msgstr "विंडो बंद करें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Code"
+msgstr ""
+
 #: settings-qt/qml/components/SliceEditor.qml:168
 msgid "Colour"
 msgstr "रंग"
@@ -1021,16 +1128,30 @@ msgstr "रंग"
 msgid "Colour theme"
 msgstr "रंग थीम"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:94
-#: settings-qt/qml/components/CustomActionEditor.qml:146
+#: settings-qt/qml/components/CustomActionEditor.qml:104
+#: settings-qt/qml/components/CustomActionEditor.qml:157
 #: settings-qt/qml/components/SliceEditor.qml:131
 #: settings-qt/qml/pages/FlowPage.qml:513
 msgid "Command"
 msgstr "कमांड"
 
-#: settings-qt/bridge/keypad.py:112
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Command palette, terminal, editing and debugging for VS Code, VSCodium and "
+"Code - OSS."
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:145
 msgid "Commands"
 msgstr "कमांड"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Comment"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Commit"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:402
 msgid "Complete"
@@ -1060,14 +1181,14 @@ msgstr "कंप्यूटर"
 msgid "Config was corrupt; using defaults (backup: config.json.bad)"
 msgstr "कॉन्फ़िगरेशन खराब था; डिफ़ॉल्ट इस्तेमाल हो रहे हैं (बैकअप: config.json.bad)"
 
-#: settings-qt/qml/pages/KeypadPage.qml:81
+#: settings-qt/qml/pages/KeypadPage.qml:82
 msgid "Connect your MX Keypad to use these keys."
 msgstr "इन कुंजियों का इस्तेमाल करने के लिए अपना MX Keypad कनेक्ट करें।"
 
 #: settings-qt/qml/pages/DashboardPage.qml:61
 #: settings-qt/qml/pages/DevicesPage.qml:28
 #: settings-qt/qml/pages/FlowPage.qml:83
-#: settings-qt/qml/pages/KeypadPage.qml:60
+#: settings-qt/qml/pages/KeypadPage.qml:61
 msgid "Connected"
 msgstr "कनेक्ट किया गया"
 
@@ -1092,11 +1213,15 @@ msgstr "कनेक्ट है%1"
 msgid "Connection"
 msgstr "कनेक्शन"
 
-#: settings-qt/bridge/backend.py:4049
+#: settings-qt/assets/keypad/profiles.json
+msgid "Contacts"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4264
 msgid "Copied"
 msgstr "कॉपी किया गया"
 
-#: settings-qt/bridge/backend.py:3202
+#: settings-qt/bridge/backend.py:3417
 msgid "Copied to {app}"
 msgstr "{app} में कॉपी किया गया"
 
@@ -1104,9 +1229,13 @@ msgstr "{app} में कॉपी किया गया"
 msgid "Copies the current line below itself"
 msgstr "मौजूदा पंक्ति को उसके नीचे कॉपी करता है"
 
-#: settings-qt/bridge/backend.py:143
+#: settings-qt/bridge/backend.py:143 settings-qt/assets/keypad/profiles.json
 msgid "Copy"
 msgstr "कॉपी करें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Copy Path"
+msgstr ""
 
 #: settings-qt/qml/pages/DashboardPage.qml:345
 #: settings-qt/qml/pages/DevicesPage.qml:584
@@ -1134,39 +1263,47 @@ msgstr "यूनिट ID कॉपी करें"
 msgid "Copy to another app"
 msgstr "दूसरे ऐप में कॉपी करें"
 
-#: settings-qt/bridge/backend.py:3964
+#: settings-qt/bridge/backend.py:4179
 msgid "Could not back up the settings, nothing was reset: {error}"
 msgstr "सेटिंग्स का बैकअप नहीं बन सका, कुछ रीसेट नहीं किया गया: {error}"
 
-#: settings-qt/bridge/backend.py:4859
+#: settings-qt/bridge/backend.py:1669
+msgid "Could not copy the picture: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1849
+msgid "Could not import the pack: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5082
 msgid "Could not open the plugins folder: {error}"
 msgstr "प्लगइन फ़ोल्डर नहीं खुल सका: {error}"
 
-#: settings-qt/bridge/backend.py:4974
+#: settings-qt/bridge/backend.py:5197
 msgid "Could not reach GitHub. Trying again tomorrow."
 msgstr "GitHub से संपर्क नहीं हो सका। कल फिर कोशिश होगी।"
 
-#: settings-qt/bridge/backend.py:5254
+#: settings-qt/bridge/backend.py:5477
 msgid "Could not restart the service: {error}"
 msgstr "सेवा पुनः आरंभ नहीं हो सकी: {error}"
 
-#: settings-qt/bridge/backend.py:4935
+#: settings-qt/bridge/backend.py:5158
 msgid "Could not restart: {error}"
 msgstr "पुनः आरंभ नहीं हो सका: {error}"
 
-#: settings-qt/bridge/backend.py:1683
+#: settings-qt/bridge/backend.py:1721
 msgid "Could not restore the keypad page"
 msgstr "कीपैड पेज पुनर्स्थापित नहीं हो सका"
 
-#: settings-qt/bridge/keypad.py:65
+#: settings-qt/bridge/keypad.py:98
 msgid "Could not save a keypad plate"
 msgstr "कीपैड प्लेट सहेजी नहीं जा सकी"
 
-#: settings-qt/bridge/backend.py:1606
+#: settings-qt/bridge/backend.py:1608
 msgid "Could not save keypad: {error}"
 msgstr "कीपैड सहेजा नहीं जा सका: {error}"
 
-#: settings-qt/bridge/backend.py:5272
+#: settings-qt/bridge/backend.py:5495
 msgid "Could not start the radial menu: {error}"
 msgstr "रेडियल मेनू शुरू नहीं हो सका: {error}"
 
@@ -1174,13 +1311,17 @@ msgstr "रेडियल मेनू शुरू नहीं हो सक�
 msgid "Could not switch the keypad page"
 msgstr "कीपैड पेज बदला नहीं जा सका"
 
-#: settings-qt/bridge/backend.py:5243
+#: settings-qt/bridge/backend.py:5466
 msgid "Could not write the log: {error}"
 msgstr "लॉग नहीं लिखा जा सका: {error}"
 
 #: settings-qt/qml/Main.qml:50
 msgid "Create profile"
 msgstr "प्रोफ़ाइल बनाएँ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Crop"
+msgstr ""
 
 #: settings-qt/qml/pages/FlowPage.qml:436
 msgid "Cross anywhere along the edge, not only where the glow is"
@@ -1189,6 +1330,14 @@ msgstr "केवल रोशनी वाली जगह से नहीं,
 #: settings-qt/bridge/backend.py:314
 msgid "Ctrl + Shift + V, understood by most apps"
 msgstr "Ctrl + Shift + V, ज़्यादातर ऐप इसे समझते हैं"
+
+#: settings-qt/qml/components/CustomActionEditor.qml:184
+msgid "Ctrl+Shift+V (terminals)"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:184
+msgid "Ctrl+V (apps)"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:280
 msgid "Currently %1"
@@ -1202,7 +1351,7 @@ msgstr "कस्टम"
 msgid "Custom Action…"
 msgstr "कस्टम क्रिया…"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:79
+#: settings-qt/qml/components/CustomActionEditor.qml:89
 #: settings-qt/qml/pages/DashboardPage.qml:46 settings-qt/bridge/backend.py:654
 msgid "Custom action"
 msgstr "कस्टम क्रिया"
@@ -1210,6 +1359,18 @@ msgstr "कस्टम क्रिया"
 #: settings-qt/qml/pages/ButtonsPage.qml:111
 msgid "Custom action (not set)"
 msgstr "कस्टम क्रिया (सेट नहीं है)"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Cut"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Cut All"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Cut Clip"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:139
 msgid "Cycle DPI Presets"
@@ -1222,6 +1383,10 @@ msgstr "DPI प्रीसेट चक्र"
 #: settings-qt/qml/pages/DevicesPage.qml:629
 msgid "DPI"
 msgstr "DPI"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "DPI Cycle"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:141
 msgid "DPI Down"
@@ -1267,6 +1432,14 @@ msgstr "डैशबोर्ड"
 msgid "Dead zone in the middle where nothing is selected"
 msgstr "बीच का निष्क्रिय क्षेत्र जहाँ कुछ नहीं चुना जाता"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Deafen"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Debug"
+msgstr ""
+
 #: settings-qt/qml/pages/HapticsPage.qml:40
 msgid "Default patterns restored"
 msgstr "डिफ़ॉल्ट पैटर्न पुनर्स्थापित किए गए"
@@ -1279,13 +1452,25 @@ msgstr "डिफ़ॉल्ट आकार"
 msgid "Default: %1"
 msgstr "डिफ़ॉल्ट: %1"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Definition"
+msgstr ""
+
 #: settings-qt/qml/pages/MacrosPage.qml:105
 msgid "Delete"
 msgstr "हटाएं"
 
-#: settings-qt/qml/pages/KeypadPage.qml:223
+#: settings-qt/qml/pages/KeypadPage.qml:247
 msgid "Delete page"
 msgstr "पेज हटाएं"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Desk Left"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Desk Right"
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:205
 msgid "Desktop"
@@ -1303,15 +1488,19 @@ msgstr "दायाँ डेस्कटॉप"
 msgid "Desktop environment"
 msgstr "डेस्कटॉप वातावरण"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:965
+#: settings-qt/qml/pages/ButtonsPage.qml:957
 msgid "Desktops"
 msgstr "डेस्कटॉप"
 
-#: settings-qt/bridge/keypad.py:111
+#: settings-qt/assets/keypad/profiles.json
+msgid "Dev Tools"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:144
 msgid "Dev tools"
 msgstr "डेव टूल्स"
 
-#: settings-qt/bridge/backend.py:1689
+#: settings-qt/bridge/backend.py:1727
 msgid "Developer"
 msgstr "डेवलपर"
 
@@ -1336,7 +1525,7 @@ msgstr ""
 "उपकरण, बैटरी और कीबोर्ड की जानकारी पृष्ठभूमि सेवा से पढ़ी जाती है। इसे शुरू करने पर यह पेज "
 "अपने आप भर जाएगा।"
 
-#: settings-qt/bridge/backend.py:5209
+#: settings-qt/bridge/backend.py:5432
 msgid "Diagnostics copied. Paste them into your bug report."
 msgstr "निदान जानकारी कॉपी की गई। इसे समस्या रिपोर्ट में पेस्ट करें।"
 
@@ -1344,8 +1533,8 @@ msgstr "निदान जानकारी कॉपी की गई। इ�
 msgid "Direction"
 msgstr "दिशा"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:945
-#: settings-qt/qml/pages/ButtonsPage.qml:950 settings-qt/bridge/backend.py:660
+#: settings-qt/qml/pages/ButtonsPage.qml:937
+#: settings-qt/qml/pages/ButtonsPage.qml:942 settings-qt/bridge/backend.py:660
 #: settings-qt/bridge/backend.py:661
 msgid "Directional gestures"
 msgstr "दिशा वाले जेस्चर"
@@ -1359,6 +1548,10 @@ msgstr "अक्षम"
 msgid "Discard"
 msgstr "छोड़ दें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Discord"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:678
 msgid "Documentation"
 msgstr "दस्तावेज़"
@@ -1370,6 +1563,10 @@ msgstr "कुछ नहीं करता"
 #: settings-qt/qml/pages/GamingPage.qml:317
 msgid "Does nothing while the ring is hidden"
 msgstr "रिंग छिपी होने पर कुछ नहीं करता"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Dolphin"
+msgstr ""
 
 #: settings-qt/qml/components/SliceEditor.qml:193
 #: settings-qt/qml/pages/DashboardPage.qml:366
@@ -1393,11 +1590,11 @@ msgstr "%1 डाउनलोड करें"
 msgid "Dracula"
 msgstr "Dracula"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1030 settings-qt/bridge/backend.py:661
+#: settings-qt/qml/pages/ButtonsPage.qml:1022 settings-qt/bridge/backend.py:661
 msgid "Drag distance"
 msgstr "खींचने की दूरी"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:982
+#: settings-qt/qml/pages/ButtonsPage.qml:974
 msgid "Drag down"
 msgstr "नीचे खींचें"
 
@@ -1405,20 +1602,29 @@ msgstr "नीचे खींचें"
 msgid "Drag each marker onto its button. Positions are saved as you go."
 msgstr "हर मार्कर को उसके बटन पर खींचें। स्थान साथ-साथ सहेजे जाते हैं।"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:981
+#: settings-qt/qml/pages/ButtonsPage.qml:973
 msgid "Drag left"
 msgstr "बाएँ खींचें"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:981
+#: settings-qt/qml/pages/ButtonsPage.qml:973
 msgid "Drag right"
 msgstr "दाएँ खींचें"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:980
+#: settings-qt/qml/pages/ButtonsPage.qml:972
 msgid "Drag up"
 msgstr "ऊपर खींचें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Draw"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Dropper"
+msgstr ""
+
 #: settings-qt/qml/components/MacroEditor.qml:424
 #: settings-qt/qml/pages/MacrosPage.qml:103
+#: settings-qt/assets/keypad/profiles.json
 msgid "Duplicate"
 msgstr "प्रतिलिपि"
 
@@ -1437,8 +1643,8 @@ msgid "Each press steps to the next DPI preset"
 msgstr "हर बार दबाने पर अगला DPI प्रीसेट चुना जाता है"
 
 #: settings-qt/qml/Main.qml:62 settings-qt/qml/pages/DashboardPage.qml:428
-#: settings-qt/qml/pages/DashboardPage.qml:503
-#: settings-qt/qml/pages/DashboardPage.qml:543
+#: settings-qt/qml/pages/DashboardPage.qml:494
+#: settings-qt/qml/pages/DashboardPage.qml:534
 #: settings-qt/qml/pages/DevicesPage.qml:632 settings-qt/bridge/backend.py:118
 #: settings-qt/bridge/backend.py:634 settings-qt/bridge/backend.py:708
 msgid "Easy-Switch"
@@ -1457,19 +1663,27 @@ msgstr "Easy-Switch के लिए Logitech माउस चाहिए"
 msgid "Easy-Switch, %1 of %2"
 msgstr "Easy-Switch, %1 / %2"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Edit"
+msgstr ""
+
 #: settings-qt/qml/pages/MacrosPage.qml:437
 msgid "Edit (Enter)"
 msgstr "संपादित करें (Enter)"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Edit Mode"
+msgstr ""
 
 #: settings-qt/qml/components/SliceEditor.qml:53
 msgid "Edit action %1"
 msgstr "क्रिया %1 संपादित करें"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:47
+#: settings-qt/qml/components/KeypadKeyEditor.qml:48
 msgid "Edit custom action"
 msgstr "कस्टम क्रिया संपादित करें"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:967 settings-qt/bridge/backend.py:116
+#: settings-qt/qml/pages/ButtonsPage.qml:959 settings-qt/bridge/backend.py:116
 msgid "Editing"
 msgstr "संपादन जारी"
 
@@ -1478,11 +1692,11 @@ msgstr "संपादन जारी"
 msgid "Editing for"
 msgstr "इसके लिए संपादन"
 
-#: settings-qt/bridge/keypad.py:110
+#: settings-qt/bridge/keypad.py:143
 msgid "Editor"
 msgstr "संपादक"
 
-#: settings-qt/bridge/backend.py:1689
+#: settings-qt/bridge/backend.py:1727
 msgid "Editor, terminal and editing shortcuts"
 msgstr "संपादक, टर्मिनल और संपादन शॉर्टकट"
 
@@ -1493,6 +1707,14 @@ msgid ""
 msgstr ""
 "अंगूठे के नीचे आठ क्रियाएँ। संपादन के लिए स्लाइस पर क्लिक करें, स्थान बदलने के लिए उसे दूसरी "
 "स्लाइस पर खींचें।"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Element"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Emoji"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:418 settings-qt/bridge/backend.py:681
 msgid "Empty slice"
@@ -1511,6 +1733,10 @@ msgstr "End"
 msgid "Enter edits, F2 renames, Ctrl+R runs, Delete deletes"
 msgstr "Enter से संपादन, F2 से नाम बदलें, Ctrl+R से चलाएँ, Delete से हटाएँ"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Eraser"
+msgstr ""
+
 #: settings-qt/qml/pages/HapticsPage.qml:190 settings-qt/bridge/backend.py:678
 #: settings-qt/bridge/backend.py:679 settings-qt/bridge/backend.py:680
 #: settings-qt/bridge/backend.py:681 settings-qt/bridge/backend.py:682
@@ -1525,15 +1751,23 @@ msgstr "इवेंट"
 msgid "Every slice"
 msgstr "हर स्लाइस"
 
-#: settings-qt/bridge/backend.py:1687
+#: settings-qt/bridge/backend.py:1725
 msgid "Everyday"
 msgstr "रोज़मर्रा"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Export"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Export As"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:721
 msgid "Export JuhRadial MX settings"
 msgstr "JuhRadial MX सेटिंग्स निर्यात करें"
 
-#: settings-qt/bridge/backend.py:3918 settings-qt/bridge/backend.py:4392
+#: settings-qt/bridge/backend.py:4133 settings-qt/bridge/backend.py:4607
 msgid "Export failed: {error}"
 msgstr "निर्यात विफल: {error}"
 
@@ -1554,7 +1788,7 @@ msgstr "जीवंत"
 msgid "Extra actions for the ring, from plugin folders"
 msgstr "प्लगइन फ़ोल्डर से रिंग के लिए अतिरिक्त क्रियाएँ"
 
-#: settings-qt/bridge/backend.py:2745 settings-qt/bridge/backend.py:3892
+#: settings-qt/bridge/backend.py:2960 settings-qt/bridge/backend.py:4107
 msgid "Extra side button"
 msgstr "अतिरिक्त साइड बटन"
 
@@ -1566,14 +1800,48 @@ msgstr "विशेषताएँ"
 msgid "Feral GameMode is not installed"
 msgstr "Feral GameMode इंस्टॉल नहीं है"
 
-#: settings-qt/bridge/keypad.py:99
+#: settings-qt/bridge/keypad.py:132 settings-qt/assets/keypad/profiles.json
 msgid "Files"
 msgstr "फ़ाइलें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Files, Nemo and Thunar"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Fill"
+msgstr ""
 
 #: settings-qt/qml/pages/AppsPage.qml:399
 #: settings-qt/qml/pages/AppsPage.qml:400
 msgid "Filter profiles"
 msgstr "प्रोफ़ाइल फ़िल्टर करें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Find"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Find Class"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Find File"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Find Text"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Find action, run, debug, navigation, refactoring and VCS for IntelliJ-based "
+"IDEs."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Find/Repl"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:405
 msgid "Firework"
@@ -1595,11 +1863,19 @@ msgstr "फ़र्मवेयर"
 msgid "First time in %1. Give it its own profile?"
 msgstr "%1 का पहली बार इस्तेमाल कर रहे हैं। इसकी अलग प्रोफ़ाइल बनाएँ?"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Fit"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Fit Page"
+msgstr ""
+
 #: settings-qt/qml/pages/DashboardPage.qml:341
 msgid "Fix"
 msgstr "सुधारें"
 
-#: settings-qt/qml/pages/ThemesPage.qml:311
+#: settings-qt/qml/pages/ThemesPage.qml:307
 msgid "Fixed colours"
 msgstr "स्थिर रंग"
 
@@ -1631,6 +1907,14 @@ msgid ""
 msgstr ""
 "Flow के लिए Easy-Switch वाला Logitech माउस चाहिए। यह माउस सामान्य मोड में चलता है।"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Folder Dn"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Folder Up"
+msgstr ""
+
 #: settings-qt/qml/pages/ButtonsPage.qml:472
 msgid "Follow all apps"
 msgstr "सभी ऐप का पालन करें"
@@ -1641,6 +1925,10 @@ msgstr "सभी ऐप का पालन करें"
 #: settings-qt/qml/pages/AppsPage.qml:224
 msgid "Follows Point & Scroll"
 msgstr "पॉइंटर और स्क्रॉल का पालन करता है"
+
+#: settings-qt/qml/pages/KeypadPage.qml:228
+msgid "For %1"
+msgstr ""
 
 #: settings-qt/qml/pages/AppsPage.qml:348
 msgid "For apps without a menu entry, for example steam_app_730"
@@ -1667,18 +1955,34 @@ msgstr "सामान्य मोड लागू करें"
 msgid "Forget"
 msgstr "भूलें"
 
-#: settings-qt/bridge/backend.py:5114
+#: settings-qt/bridge/backend.py:5337
 msgid "Forgotten. It has to be approved again to use Flow"
 msgstr "भुला दिया गया। Flow इस्तेमाल करने के लिए फिर मंज़ूरी चाहिए"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Format"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Formatting, save, find and replace, comments and print for ONLYOFFICE "
+"Desktop Editors."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Formatting, save, find and replace, comments and print preview for Writer, "
+"Calc and Impress."
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:79
 #: settings-qt/qml/pages/ButtonsPage.qml:94
 #: settings-qt/qml/pages/ButtonsPage.qml:101 settings-qt/bridge/backend.py:134
-#: settings-qt/bridge/backend.py:651
+#: settings-qt/bridge/backend.py:651 settings-qt/assets/keypad/profiles.json
 msgid "Forward"
 msgstr "आगे"
 
-#: settings-qt/bridge/backend.py:2746 settings-qt/bridge/backend.py:3890
+#: settings-qt/bridge/backend.py:2961 settings-qt/bridge/backend.py:4105
 msgid "Forward button"
 msgstr "आगे बटन"
 
@@ -1686,10 +1990,22 @@ msgstr "आगे बटन"
 msgid "Found. Turn on its support to see its battery and backlight"
 msgstr "मिल गया। बैटरी और बैकलाइट देखने के लिए इसका समर्थन चालू करें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Frame All"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Frame Sel"
+msgstr ""
+
 #: settings-qt/qml/pages/DashboardPage.qml:413
 #: settings-qt/qml/pages/GamingPage.qml:336
 msgid "Free-spin"
 msgstr "फ़्री-स्पिन"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Front"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:245
 msgid "Frost what is behind the ring"
@@ -1698,6 +2014,18 @@ msgstr "रिंग के पीछे धुँधला प्रभाव"
 #: settings-qt/qml/pages/DevicesPage.qml:36
 msgid "Full"
 msgstr "पूरी"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Fullscreen"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Fwd 10s"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "GIMP"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:521
 msgid "GNOME on Wayland has no scroll speed setting"
@@ -1734,7 +2062,7 @@ msgstr "गेमिंग मोड"
 msgid "Gaming mode is on and sets its own DPI until you turn it off."
 msgstr "गेमिंग मोड चालू है और बंद करने तक अपना DPI सेट करता है।"
 
-#: settings-qt/bridge/backend.py:3520
+#: settings-qt/bridge/backend.py:3735
 msgid "Gaming mode needs the JuhRadial service"
 msgstr "गेमिंग मोड के लिए JuhRadial सेवा चाहिए"
 
@@ -1745,6 +2073,10 @@ msgstr "इस ऐप के सामने होने पर गेमिं
 #: settings-qt/qml/components/MacroEditor.qml:356
 msgid "Gap between steps"
 msgstr "चरणों के बीच अंतराल"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "General"
+msgstr ""
 
 #: settings-qt/qml/pages/DevicesPage.qml:216
 msgid "Generic mouse mode is on, so Logitech features are hidden."
@@ -1772,6 +2104,10 @@ msgstr "JuhFlow प्राप्त करें"
 msgid "Getting started"
 msgstr "शुरुआत करें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Git"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:679
 msgid "GitHub"
 msgstr "GitHub"
@@ -1780,11 +2116,11 @@ msgstr "GitHub"
 msgid "GitHub Light"
 msgstr "GitHub Light"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:833
+#: settings-qt/qml/pages/ButtonsPage.qml:825
 msgid "Give a ring slice the submenu action to add links here."
 msgstr "यहाँ लिंक जोड़ने के लिए रिंग की किसी स्लाइस को सबमेनू क्रिया दें।"
 
-#: settings-qt/bridge/backend.py:2971
+#: settings-qt/bridge/backend.py:3186
 msgid "Give a slice a submenu first"
 msgstr "पहले किसी स्लाइस को सबमेनू दें"
 
@@ -1798,6 +2134,22 @@ msgstr "ऐप को अपना DPI, व्हील, बटन या रे
 msgid "Give it a name"
 msgstr "नाम दें"
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:81
+msgid "Glyph"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Go Back"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Go to Decl"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Go to Line"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:111
 msgid "Go to tab 1 to 10"
 msgstr "टैब 1 से 10 पर जाएँ"
@@ -1805,6 +2157,18 @@ msgstr "टैब 1 से 10 पर जाएँ"
 #: settings-qt/bridge/backend.py:364
 msgid "Golden Classic (3D)"
 msgstr "Golden Classic (3D)"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Google Meet"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Group"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Hand"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:400
 msgid "Happy"
@@ -1854,10 +2218,18 @@ msgstr "कड़ा"
 msgid "Hi-res scroll"
 msgstr "उच्च-रिज़ॉल्यूशन स्क्रॉल"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Hidden"
+msgstr ""
+
 #: settings-qt/qml/pages/DevicesPage.qml:658
 #: settings-qt/qml/pages/HapticsPage.qml:274
 msgid "Hide"
 msgstr "छिपाएँ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Hide Docks"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:237
 msgid "Hide the ring and show only the action icons"
@@ -1866,6 +2238,10 @@ msgstr "रिंग छिपाकर केवल क्रिया आइ�
 #: settings-qt/bridge/backend.py:451
 msgid "High"
 msgstr "उच्च"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "History"
+msgstr ""
 
 #: settings-qt/qml/pages/GamingPage.qml:315
 msgid "Hold for the precision DPI, let go to go back"
@@ -1876,7 +2252,7 @@ msgid ""
 "Hold it for 3 seconds to pair a new computer in that slot (its light blinks)."
 msgstr "उस स्लॉट में नया कंप्यूटर पेयर करने के लिए इसे 3 सेकंड दबाएँ (बत्ती झपकेगी)।"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:946
+#: settings-qt/qml/pages/ButtonsPage.qml:938
 msgid ""
 "Hold the gesture button and drag to run a different action per direction. A "
 "press without dragging keeps the gesture button's own action."
@@ -1888,6 +2264,11 @@ msgstr ""
 msgid ""
 "Hold the wheel in one mode while playing; your usual mode comes back after"
 msgstr "खेलते समय व्हील को एक मोड में रखें; बाद में सामान्य मोड लौट आएगा"
+
+#: settings-qt/qml/components/CustomActionEditor.qml:197
+#: settings-qt/qml/components/CustomActionEditor.qml:199
+msgid "Hold while pressed"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:151
 msgid "Home"
@@ -1954,6 +2335,18 @@ msgstr "इस सेटिंग्स विंडो का रूप"
 msgid "How to write one"
 msgstr "इसे कैसे लिखें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Huddle"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Huddle Mic"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "IDE"
+msgstr ""
+
 #: settings-qt/qml/pages/EasySwitchPage.qml:126
 msgid "Icon in radial menu"
 msgstr "रेडियल मेनू में आइकन"
@@ -1967,11 +2360,19 @@ msgid "Icon size"
 msgstr "आइकन का आकार"
 
 #: settings-qt/qml/pages/SettingsPage.qml:155
-#: settings-qt/qml/pages/ThemesPage.qml:364
-#: settings-qt/qml/pages/ThemesPage.qml:375 settings-qt/bridge/backend.py:743
+#: settings-qt/qml/pages/ThemesPage.qml:360
+#: settings-qt/qml/pages/ThemesPage.qml:371 settings-qt/bridge/backend.py:743
 #: settings-qt/bridge/backend.py:752
 msgid "Icon style"
 msgstr "आइकन शैली"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:63
+msgid "Image"
+msgstr ""
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:132
+msgid "Images (*.png *.jpg *.jpeg *.webp *.bmp *.svg)"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:795
 msgid "Import"
@@ -1981,9 +2382,17 @@ msgstr "आयात करें"
 msgid "Import JuhRadial MX settings"
 msgstr "JuhRadial MX सेटिंग्स आयात करें"
 
-#: settings-qt/bridge/backend.py:4440
+#: settings-qt/qml/pages/KeypadPage.qml:342
+msgid "Import a keypad pack"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4655
 msgid "Import failed: {error}"
 msgstr "आयात विफल: {error}"
+
+#: settings-qt/qml/pages/KeypadPage.qml:308
+msgid "Import pack"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:512 settings-qt/bridge/backend.py:765
 msgid "Import settings"
@@ -1993,9 +2402,13 @@ msgstr "सेटिंग्स आयात करें"
 msgid "Import this backup?"
 msgstr "यह बैकअप आयात करें?"
 
-#: settings-qt/bridge/backend.py:3933
+#: settings-qt/bridge/backend.py:4148
 msgid "Imported macro"
 msgstr "आयातित मैक्रो"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Imports"
+msgstr ""
 
 #: settings-qt/qml/pages/MacrosPage.qml:330
 #: settings-qt/qml/pages/SettingsPage.qml:515
@@ -2007,6 +2420,10 @@ msgstr "आयात करें…"
 #: settings-qt/bridge/backend.py:726 settings-qt/bridge/backend.py:727
 msgid "In games"
 msgstr "गेम में"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Inkscape"
+msgstr ""
 
 #: settings-qt/qml/pages/FlowPage.qml:413
 msgid "Install %1 first: without it nothing is copied across"
@@ -2028,9 +2445,17 @@ msgstr "इंटरफ़ेस भाषा और डेस्कटॉप �
 msgid "Invert direction"
 msgstr "दिशा उलटें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Italic"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:247
 msgid "Its own"
 msgstr "अलग"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "JetBrains IDEs"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:408
 msgid "Jingle"
@@ -2053,6 +2478,10 @@ msgstr "JuhRadial MX %1 आ गया है।"
 msgid "JuhRadial service"
 msgstr "JuhRadial सेवा"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Kdenlive"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:499
 msgid "Keep a copy of your setup or move it to another machine"
 msgstr "अपनी सेटिंग्स की प्रति रखें या दूसरे कंप्यूटर पर ले जाएँ"
@@ -2061,7 +2490,7 @@ msgstr "अपनी सेटिंग्स की प्रति रखे�
 msgid "Keep editing"
 msgstr "संपादन जारी रखें"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:57
+#: settings-qt/qml/components/KeypadKeyEditor.qml:58
 msgid "Keep it short"
 msgstr "छोटा रखें"
 
@@ -2073,25 +2502,29 @@ msgstr "मैक्रो रखें"
 msgid "Keep remap"
 msgstr "बटन असाइनमेंट रखें"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:22
-#: settings-qt/qml/components/KeypadKeyEditor.qml:48
-#: settings-qt/qml/components/KeypadKeyEditor.qml:92
+#: settings-qt/qml/components/KeypadKeyEditor.qml:23
+#: settings-qt/qml/components/KeypadKeyEditor.qml:49
+#: settings-qt/qml/components/KeypadKeyEditor.qml:111
 msgid "Key %1"
 msgstr "कुंजी %1"
 
-#: settings-qt/qml/pages/KeypadPage.qml:127
+#: settings-qt/qml/pages/KeypadPage.qml:128
 msgid "Key %1: %2"
 msgstr "कुंजी %1: %2"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:56
+#: settings-qt/qml/pages/KeypadPage.qml:197
+msgid "Key brightness"
+msgstr ""
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:57
 msgid "Key label"
 msgstr "कुंजी लेबल"
 
-#: settings-qt/qml/pages/KeypadPage.qml:93 settings-qt/bridge/backend.py:640
+#: settings-qt/qml/pages/KeypadPage.qml:94 settings-qt/bridge/backend.py:640
 msgid "Key plates"
 msgstr "कुंजी प्लेटें"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:80
+#: settings-qt/qml/components/KeypadKeyEditor.qml:99
 msgid "Key saved"
 msgstr "कुंजी सहेजी गई"
 
@@ -2105,7 +2538,7 @@ msgstr "कीबोर्ड"
 msgid "Keyboard %1%"
 msgstr "कीबोर्ड %1%"
 
-#: settings-qt/bridge/backend.py:2195
+#: settings-qt/bridge/backend.py:2410
 msgid "Keyboard battery low"
 msgstr "कीबोर्ड की बैटरी कम है"
 
@@ -2113,11 +2546,15 @@ msgstr "कीबोर्ड की बैटरी कम है"
 msgid "Keyboard shortcuts"
 msgstr "कीबोर्ड शॉर्टकट"
 
-#: settings-qt/bridge/backend.py:1620
+#: settings-qt/qml/pages/KeypadPage.qml:343
+msgid "Keypad pack (*.zip portable.json)"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1622
 msgid "Keypad saved; reconnect the device to refresh its keys"
 msgstr "कीपैड सहेजा गया; कुंजियाँ ताज़ा करने के लिए उपकरण फिर से कनेक्ट करें"
 
-#: settings-qt/bridge/backend.py:1615
+#: settings-qt/bridge/backend.py:1617
 msgid "Keypad saved; the service could not reload it"
 msgstr "कीपैड सहेजा गया; सेवा इसे फिर से लोड नहीं कर सकी"
 
@@ -2125,7 +2562,7 @@ msgstr "कीपैड सहेजा गया; सेवा इसे फि
 msgid "Keys"
 msgstr "कुंजियाँ"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:92
+#: settings-qt/qml/components/CustomActionEditor.qml:102
 msgid "Kind of action"
 msgstr "क्रिया प्रकार"
 
@@ -2133,7 +2570,11 @@ msgstr "क्रिया प्रकार"
 msgid "Knock"
 msgstr "दस्तक"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:51
+#: settings-qt/assets/keypad/profiles.json
+msgid "Krita"
+msgstr ""
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:52
 #: settings-qt/qml/components/SliceEditor.qml:110
 msgid "Label"
 msgstr "लेबल"
@@ -2156,7 +2597,11 @@ msgstr "पिछली रीडिंग"
 msgid "Launch behaviour, tray and updates"
 msgstr "शुरुआती व्यवहार, ट्रे और अपडेट"
 
-#: settings-qt/bridge/keypad.py:118
+#: settings-qt/assets/keypad/profiles.json
+msgid "Layers"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:151 settings-qt/assets/keypad/profiles.json
 msgid "Leave"
 msgstr "छोड़ें"
 
@@ -2172,7 +2617,7 @@ msgstr "बायाँ क्लिक"
 msgid "Left is a firm push, right a light touch"
 msgstr "बाएँ ज़ोर से दबाना है, दाएँ हल्का छूना है"
 
-#: settings-qt/bridge/backend.py:3099
+#: settings-qt/bridge/backend.py:3314
 msgid "Letters, digits, dots, dashes and underscores only"
 msgstr "केवल अक्षर, अंक, बिंदु, हाइफ़न और अंडरस्कोर"
 
@@ -2184,6 +2629,10 @@ msgstr "स्तर %1 / %2। 0 पर बैकलाइट बंद हो�
 #: settings-qt/bridge/backend.py:699
 msgid "Library"
 msgstr "लाइब्रेरी"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "LibreOffice"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:681
 msgid "License"
@@ -2197,14 +2646,26 @@ msgstr "हल्का"
 msgid "Light touch"
 msgstr "हल्का स्पर्श"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Like"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:163
-#: settings-qt/qml/pages/ThemesPage.qml:377
+#: settings-qt/qml/pages/ThemesPage.qml:373
 msgid "Line"
 msgstr "रेखा"
 
 #: settings-qt/qml/pages/ScrollPage.qml:401
 msgid "Line %1"
 msgstr "पंक्ति %1"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Line End"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Line Start"
+msgstr ""
 
 #: settings-qt/qml/pages/AppsPage.qml:49
 msgid "Line by line"
@@ -2214,10 +2675,10 @@ msgstr "पंक्ति दर पंक्ति"
 msgid "Lines per wheel notch, set in your desktop"
 msgstr "प्रति व्हील नॉच पंक्तियाँ, डेस्कटॉप में सेट करें"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:94
-#: settings-qt/qml/components/CustomActionEditor.qml:146
+#: settings-qt/qml/components/CustomActionEditor.qml:104
+#: settings-qt/qml/components/CustomActionEditor.qml:157
 #: settings-qt/qml/components/SliceEditor.qml:131
-#: settings-qt/qml/pages/ButtonsPage.qml:875
+#: settings-qt/qml/pages/ButtonsPage.qml:867
 msgid "Link"
 msgstr "लिंक"
 
@@ -2233,7 +2694,11 @@ msgstr "आपके दूसरे कंप्यूटर की प्र�
 msgid "Lit at level %1 of %2 right now. Moving the slider switches to Manual"
 msgstr "अभी स्तर %1 / %2 पर रोशनी है। स्लाइडर हिलाने पर मैन्युअल मोड होगा"
 
-#: settings-qt/bridge/keypad.py:101
+#: settings-qt/assets/keypad/profiles.json
+msgid "Location"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:134 settings-qt/assets/keypad/profiles.json
 msgid "Lock"
 msgstr "लॉक"
 
@@ -2241,7 +2706,7 @@ msgstr "लॉक"
 msgid "Lock Screen"
 msgstr "स्क्रीन लॉक करें"
 
-#: settings-qt/bridge/backend.py:5303
+#: settings-qt/bridge/backend.py:5526
 msgid "Login entry repaired"
 msgstr "लॉगिन प्रविष्टि ठीक की गई"
 
@@ -2265,13 +2730,13 @@ msgstr "कम"
 msgid "Low battery"
 msgstr "बैटरी कम"
 
-#: settings-qt/qml/Main.qml:68 settings-qt/qml/pages/KeypadPage.qml:48
+#: settings-qt/qml/Main.qml:68 settings-qt/qml/pages/KeypadPage.qml:49
 #: settings-qt/bridge/backend.py:631 settings-qt/bridge/backend.py:640
 #: settings-qt/bridge/backend.py:641 settings-qt/bridge/backend.py:642
 msgid "MX Keypad"
 msgstr "MX Keypad"
 
-#: settings-qt/qml/pages/KeypadPage.qml:73
+#: settings-qt/qml/pages/KeypadPage.qml:74
 msgid "MX Keypad with nine display keys and two page buttons"
 msgstr "नौ डिस्प्ले कुंजियों और दो पेज बटन वाला MX Keypad"
 
@@ -2289,9 +2754,9 @@ msgstr "MX Keys S समर्थन"
 msgid "Mac"
 msgstr "Mac"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:95
-#: settings-qt/qml/components/CustomActionEditor.qml:157
-#: settings-qt/bridge/backend.py:3874
+#: settings-qt/qml/components/CustomActionEditor.qml:105
+#: settings-qt/qml/components/CustomActionEditor.qml:206
+#: settings-qt/bridge/backend.py:4089
 msgid "Macro"
 msgstr "मैक्रो"
 
@@ -2299,7 +2764,7 @@ msgstr "मैक्रो"
 msgid "Macro deleted"
 msgstr "मैक्रो हटाया गया"
 
-#: settings-qt/bridge/backend.py:3920
+#: settings-qt/bridge/backend.py:4135
 msgid "Macro exported"
 msgstr "मैक्रो निर्यात किया गया"
 
@@ -2331,7 +2796,7 @@ msgstr "मैक्रो “%1” नहीं चलता"
 msgid "Macro: %1"
 msgstr "मैक्रो: %1"
 
-#: settings-qt/bridge/backend.py:3901
+#: settings-qt/bridge/backend.py:4116
 msgid "Macro: {name}"
 msgstr "मैक्रो: {name}"
 
@@ -2348,7 +2813,7 @@ msgstr "बनाया गया %1"
 msgid "MagSpeed modes, direction and speed"
 msgstr "MagSpeed मोड, दिशा और गति"
 
-#: settings-qt/bridge/keypad.py:100
+#: settings-qt/bridge/keypad.py:133
 msgid "Mail"
 msgstr "मेल"
 
@@ -2360,7 +2825,7 @@ msgstr "इसके लिए प्रोफ़ाइल बनाएँ"
 msgid "Make every button follow all apps"
 msgstr "हर बटन को सभी ऐप की सेटिंग्स पर लौटाएँ"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:900
+#: settings-qt/qml/pages/ButtonsPage.qml:892
 msgid "Make it a link again"
 msgstr "इसे फिर लिंक बनाएँ"
 
@@ -2372,20 +2837,34 @@ msgstr "मैन्युअल"
 msgid "Manual: the brightness below stays as you set it"
 msgstr "मैन्युअल: नीचे की चमक आपके सेट किए अनुसार रहती है"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Mark Read"
+msgstr ""
+
 #: settings-qt/qml/pages/ThemesPage.qml:132 settings-qt/bridge/backend.py:741
 msgid "Match the desktop accent"
 msgstr "डेस्कटॉप के एक्सेंट रंग से मिलाएँ"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:968 settings-qt/bridge/backend.py:1688
-#: settings-qt/bridge/backend.py:117
+#: settings-qt/qml/pages/ButtonsPage.qml:960 settings-qt/bridge/backend.py:1726
+#: settings-qt/bridge/backend.py:117 settings-qt/assets/keypad/profiles.json
 msgid "Media"
 msgstr "मीडिया"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Media, volume, screenshot, lock and desktop actions when no app profile "
+"matches."
+msgstr ""
 
 #: settings-qt/bridge/backend.py:450 settings-qt/bridge/backend.py:452
 msgid "Medium"
 msgstr "मध्यम"
 
-#: settings-qt/bridge/backend.py:1690
+#: settings-qt/assets/keypad/profiles.json
+msgid "Meeting"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1728
 msgid "Meetings"
 msgstr "मीटिंग"
 
@@ -2397,17 +2876,39 @@ msgstr "मेनू की पृष्ठभूमि धुँधली क�
 msgid "Menu opens"
 msgstr "मेनू खुलता है"
 
-#: settings-qt/bridge/keypad.py:92
+#: settings-qt/assets/keypad/profiles.json
+msgid "Mic"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Mic Mute"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:125
 msgid "Mic mute"
 msgstr "माइक म्यूट"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Mic, camera, raise hand, chat and people in a Google Meet tab (select "
+"manually)."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Microsoft Teams"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:132
 msgid "Middle Click"
 msgstr "मध्य क्लिक"
 
-#: settings-qt/bridge/backend.py:2748
+#: settings-qt/bridge/backend.py:2963
 msgid "Middle click"
 msgstr "मध्य क्लिक"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Mirror"
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:77
 #: settings-qt/qml/pages/ButtonsPage.qml:89
@@ -2416,6 +2917,7 @@ msgid "Mode shift"
 msgstr "मोड बदलें"
 
 #: settings-qt/qml/pages/DevicesPage.qml:588
+#: settings-qt/assets/keypad/profiles.json
 msgid "Model"
 msgstr "मॉडल"
 
@@ -2424,16 +2926,16 @@ msgid "Monitor switch"
 msgstr "मॉनिटर बदलना"
 
 #: settings-qt/qml/pages/SettingsPage.qml:161
-#: settings-qt/qml/pages/ThemesPage.qml:376
+#: settings-qt/qml/pages/ThemesPage.qml:372
 msgid "Mono"
 msgstr "एकरंगी"
 
 #: settings-qt/qml/pages/SettingsPage.qml:162
-#: settings-qt/qml/pages/ThemesPage.qml:376
+#: settings-qt/qml/pages/ThemesPage.qml:372
 msgid "Mono 2"
 msgstr "एकरंगी 2"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:810
+#: settings-qt/qml/pages/ButtonsPage.qml:802
 #: settings-qt/qml/pages/MacrosPage.qml:443
 msgid "More"
 msgstr "और"
@@ -2443,7 +2945,7 @@ msgstr "और"
 msgid "Mouse"
 msgstr "माउस"
 
-#: settings-qt/bridge/backend.py:2186
+#: settings-qt/bridge/backend.py:2401
 msgid "Mouse battery low"
 msgstr "माउस की बैटरी कम है"
 
@@ -2455,6 +2957,10 @@ msgstr "माउस बटन"
 msgid "Mouse returns"
 msgstr "माउस लौटता है"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Move"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:114
 msgid "Move between and use controls"
 msgstr "नियंत्रणों के बीच जाएँ और इस्तेमाल करें"
@@ -2463,11 +2969,11 @@ msgstr "नियंत्रणों के बीच जाएँ और इ�
 msgid "Move down"
 msgstr "नीचे ले जाएँ"
 
-#: settings-qt/qml/pages/KeypadPage.qml:219
+#: settings-qt/qml/pages/KeypadPage.qml:243
 msgid "Move page down"
 msgstr "पेज नीचे ले जाएँ"
 
-#: settings-qt/qml/pages/KeypadPage.qml:214
+#: settings-qt/qml/pages/KeypadPage.qml:238
 msgid "Move page up"
 msgstr "पेज ऊपर ले जाएँ"
 
@@ -2490,19 +2996,32 @@ msgstr "कीबोर्ड भी साथ ले जाएँ"
 msgid "Move up"
 msgstr "ऊपर ले जाएँ"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1031
+#: settings-qt/qml/pages/ButtonsPage.qml:1023
 msgid "Movement below this many pixels counts as a press"
 msgstr "इससे कम पिक्सेल की गति को केवल दबाना माना जाता है"
 
-#: settings-qt/bridge/keypad.py:108
+#: settings-qt/bridge/keypad.py:141
 msgid "Music"
 msgstr "संगीत"
 
-#: settings-qt/bridge/backend.py:157
+#: settings-qt/assets/keypad/profiles.json
+msgid "Music and video players"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:157 settings-qt/assets/keypad/profiles.json
 msgid "Mute"
 msgstr "म्यूट"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:868
+#: settings-qt/assets/keypad/profiles.json
+msgid "Mute, camera, share and raise hand in Zoom meetings."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Mute, share, raise hand, answer and leave in Teams (teams-for-linux or PWA)."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:860
 #: settings-qt/qml/pages/EasySwitchPage.qml:186
 msgid "Name"
 msgstr "नाम"
@@ -2514,6 +3033,26 @@ msgstr "इस मैक्रो का नाम दें"
 #: settings-qt/qml/pages/ScrollPage.qml:323 settings-qt/bridge/backend.py:669
 msgid "Natural scrolling"
 msgstr "प्राकृतिक स्क्रॉलिंग"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Navigate"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Navigation, new folder, rename, search, hidden files and tabs for GNOME "
+"Files, Nemo and Thunar."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Navigation, new folder, rename, split view, terminal and path copy for KDE "
+"Dolphin."
+msgstr ""
+
+#: settings-qt/qml/pages/KeypadPage.qml:280
+msgid "Needs %1"
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:122
 msgid "Needs a mouse with a haptic motor"
@@ -2527,32 +3066,68 @@ msgstr "gsettings चाहिए"
 msgid "Neon Sci-Fi (3D)"
 msgstr "Neon Sci-Fi (3D)"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "New Folder"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "New Layer"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "New Split"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "New Tab"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "New Window"
+msgstr ""
+
 #: settings-qt/qml/pages/ButtonsPage.qml:247
-#: settings-qt/qml/pages/ButtonsPage.qml:917
+#: settings-qt/qml/pages/ButtonsPage.qml:909
 msgid "New link"
 msgstr "नया लिंक"
 
-#: settings-qt/bridge/backend.py:3712
+#: settings-qt/bridge/backend.py:3927
 msgid "New macro"
 msgstr "नया मैक्रो"
 
-#: settings-qt/qml/pages/KeypadPage.qml:191 settings-qt/bridge/backend.py:1647
+#: settings-qt/qml/pages/KeypadPage.qml:192 settings-qt/bridge/backend.py:1652
 msgid "New page"
 msgstr "नया पेज"
 
-#: settings-qt/bridge/keypad.py:106
+#: settings-qt/bridge/keypad.py:139 settings-qt/assets/keypad/profiles.json
 msgid "Next"
 msgstr "अगला"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Next Chat"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Next Cmd"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:165
 msgid "Next Computer"
 msgstr "अगला कंप्यूटर"
 
-#: settings-qt/bridge/backend.py:145
+#: settings-qt/assets/keypad/profiles.json
+msgid "Next Edit"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Next Error"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:145 settings-qt/assets/keypad/profiles.json
 msgid "Next Tab"
 msgstr "अगला टैब"
 
-#: settings-qt/qml/pages/KeypadPage.qml:165
+#: settings-qt/qml/pages/KeypadPage.qml:166
 msgid "Next keypad page"
 msgstr "अगला कीपैड पेज"
 
@@ -2564,7 +3139,7 @@ msgstr "अगला प्रीसेट"
 msgid "Next tab (Shift for previous)"
 msgstr "अगला टैब (पिछले के लिए Shift)"
 
-#: settings-qt/qml/pages/KeypadPage.qml:54
+#: settings-qt/qml/pages/KeypadPage.qml:55
 msgid "Nine keys, your everyday actions"
 msgstr "नौ कुंजियाँ, आपकी रोज़ की क्रियाएँ"
 
@@ -2580,7 +3155,7 @@ msgstr ""
 msgid "No app profiles yet"
 msgstr "अभी कोई ऐप प्रोफ़ाइल नहीं"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:128
+#: settings-qt/qml/components/CustomActionEditor.qml:139
 msgid "No application chosen"
 msgstr "कोई अनुप्रयोग नहीं चुना गया"
 
@@ -2588,7 +3163,7 @@ msgstr "कोई अनुप्रयोग नहीं चुना गय�
 msgid "No applications found"
 msgstr "कोई अनुप्रयोग नहीं मिला"
 
-#: settings-qt/bridge/backend.py:3888
+#: settings-qt/bridge/backend.py:4103
 msgid "No button"
 msgstr "कोई बटन नहीं"
 
@@ -2604,7 +3179,7 @@ msgstr "इस विंडो में फ़ेड, स्लाइड या
 msgid "No firewall service is running here, so Flow is not blocked by one."
 msgstr "यहाँ कोई फ़ायरवॉल सेवा नहीं चल रही, इसलिए फ़ायरवॉल Flow को नहीं रोक रहा।"
 
-#: settings-qt/bridge/backend.py:3662
+#: settings-qt/bridge/backend.py:3877
 msgid "No keyboard to record from. Your user needs to read /dev/input "
 msgstr ""
 "रिकॉर्ड करने के लिए कीबोर्ड नहीं है। आपके उपयोगकर्ता को /dev/input पढ़ने की अनुमति "
@@ -2639,17 +3214,21 @@ msgstr ""
 "अभी दूसरा कंप्यूटर नहीं है। अपने Mac पर JuhFlow खोलें (नीचे Mac सेट करें देखें)। यह इस कंप्यूटर "
 "को ढूँढकर कनेक्शन का अनुरोध करेगा।"
 
-#: settings-qt/qml/pages/KeypadPage.qml:64
+#: settings-qt/qml/pages/KeypadPage.qml:65
 msgid "No pages yet"
 msgstr "अभी कोई पेज नहीं"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:171
+#: settings-qt/qml/components/CustomActionEditor.qml:220
 msgid "No plugins installed"
 msgstr "कोई प्लगइन इंस्टॉल नहीं है"
 
 #: settings-qt/qml/pages/SettingsPage.qml:607
 msgid "No plugins yet"
 msgstr "अभी कोई प्लगइन नहीं"
+
+#: settings-qt/bridge/backend.py:1816
+msgid "No portable.json in this pack"
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:306
 msgid "No pulses while gaming mode is on"
@@ -2659,7 +3238,7 @@ msgstr "गेमिंग मोड चालू होने पर कंप�
 msgid "No pulses while one of these apps is in front"
 msgstr "इनमें से कोई ऐप सामने होने पर कंपन नहीं"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:158
+#: settings-qt/qml/components/CustomActionEditor.qml:207
 msgid "No saved macros yet"
 msgstr "अभी कोई सहेजा हुआ मैक्रो नहीं"
 
@@ -2679,6 +3258,10 @@ msgstr ""
 "कोई टेलीमेट्री नहीं। JuhRadial MX आपकी कोई जानकारी नहीं भेजता; नेटवर्क का एकमात्र "
 "अनुरोध वैकल्पिक दैनिक अपडेट जाँच है।"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Nodes"
+msgstr ""
+
 #: settings-qt/qml/pages/DevicesPage.qml:652
 msgid ""
 "None. Pick This mouse only on the Buttons tab to give this mouse its own "
@@ -2693,12 +3276,12 @@ msgstr "Nord"
 msgid "Normal push"
 msgstr "सामान्य दबाव"
 
-#: settings-qt/bridge/backend.py:4979
+#: settings-qt/bridge/backend.py:5202
 msgid "Not checked yet."
 msgstr "अभी जाँच नहीं हुई।"
 
 #: settings-qt/qml/pages/FlowPage.qml:83
-#: settings-qt/qml/pages/KeypadPage.qml:60
+#: settings-qt/qml/pages/KeypadPage.qml:61
 msgid "Not connected"
 msgstr "कनेक्ट नहीं है"
 
@@ -2742,7 +3325,7 @@ msgstr "सेट नहीं है: माउस कर्सर के स�
 msgid "Not set: the mouse stays here when the cursor leaves"
 msgstr "सेट नहीं है: कर्सर जाने पर माउस यहीं रहता है"
 
-#: settings-qt/bridge/keypad.py:103
+#: settings-qt/bridge/keypad.py:136
 msgid "Notes"
 msgstr "नोट्स"
 
@@ -2754,7 +3337,7 @@ msgstr "अभी कोई अलग सेटिंग नहीं: चुन
 msgid "Nothing shows up? A firewall may block Flow."
 msgstr "कुछ नहीं दिख रहा? फ़ायरवॉल Flow को रोक सकता है।"
 
-#: settings-qt/bridge/backend.py:3702
+#: settings-qt/bridge/backend.py:3917
 msgid "Nothing was recorded. Press some keys while it records."
 msgstr "कुछ रिकॉर्ड नहीं हुआ। रिकॉर्डिंग के दौरान कुंजियाँ दबाएँ।"
 
@@ -2765,6 +3348,18 @@ msgstr "अभी: रैचेट"
 #: settings-qt/qml/pages/ScrollPage.qml:274
 msgid "Now: spinning"
 msgstr "अभी: फ़्री-स्पिन"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "OBS"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "OBS Studio"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "ONLYOFFICE"
+msgstr ""
 
 #: settings-qt/qml/pages/AppsPage.qml:212
 #: settings-qt/qml/pages/DashboardPage.qml:420
@@ -2787,6 +3382,10 @@ msgstr "बंद: Flow क्लिपबोर्ड साझा करता
 msgid "Off: the pointer moves exactly as far as the mouse"
 msgstr "बंद: पॉइंटर माउस की गति के ठीक अनुपात में चलता है"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Office"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:212
 #: settings-qt/qml/pages/DashboardPage.qml:420
 #: settings-qt/qml/pages/DashboardPage.qml:433
@@ -2795,7 +3394,7 @@ msgstr "बंद: पॉइंटर माउस की गति के ठ�
 msgid "On"
 msgstr "चालू"
 
-#: settings-qt/bridge/backend.py:3884
+#: settings-qt/bridge/backend.py:4099
 msgid "On / off"
 msgstr "चालू / बंद"
 
@@ -2830,7 +3429,7 @@ msgstr "गेम चलने पर चालू, समाप्त होन
 msgid "On: faster movements carry the pointer further"
 msgstr "चालू: तेज़ हिलाने पर पॉइंटर अधिक दूर जाता है"
 
-#: settings-qt/bridge/backend.py:3881
+#: settings-qt/bridge/backend.py:4096
 msgid "Once"
 msgstr "एक बार"
 
@@ -2866,6 +3465,10 @@ msgstr ""
 msgid "Only KDE Plasma can frost the background behind the ring"
 msgstr "केवल KDE Plasma रिंग के पीछे धुँधला प्रभाव दे सकता है"
 
+#: settings-qt/qml/pages/KeypadPage.qml:291
+msgid "Only apps on this computer"
+msgstr ""
+
 #: settings-qt/qml/pages/ButtonsPage.qml:390
 msgid "Only this mouse. Buttons you leave alone follow all apps."
 msgstr "केवल यह माउस। जिन बटनों को नहीं बदलेंगे वे सभी ऐप की सेटिंग्स का पालन करेंगे।"
@@ -2876,7 +3479,7 @@ msgstr ""
 "केवल %1 पर फ़ोकस होने तक। जिन बटनों को नहीं बदलेंगे वे सभी ऐप की सेटिंग्स का पालन करेंगे।"
 
 #: settings-qt/qml/pages/DashboardPage.qml:465
-#: settings-qt/qml/pages/DashboardPage.qml:567
+#: settings-qt/qml/pages/DashboardPage.qml:558
 msgid "Open Buttons"
 msgstr "बटन खोलें"
 
@@ -2884,7 +3487,7 @@ msgstr "बटन खोलें"
 msgid "Open an application from the submenu"
 msgstr "सबमेनू से अनुप्रयोग खोलें"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:895
+#: settings-qt/qml/pages/ButtonsPage.qml:887
 msgid "Open an application instead"
 msgstr "इसके बजाय अनुप्रयोग खोलें"
 
@@ -2938,7 +3541,7 @@ msgstr "अन्य"
 msgid "Other computer"
 msgstr "दूसरा कंप्यूटर"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1052 settings-qt/bridge/backend.py:662
+#: settings-qt/qml/pages/ButtonsPage.qml:1044 settings-qt/bridge/backend.py:662
 msgid "Other controls"
 msgstr "अन्य नियंत्रण"
 
@@ -2971,15 +3574,29 @@ msgstr "स्क्रॉल व्हील अलग सेट करें"
 msgid "Override the thumb wheel"
 msgstr "थंब व्हील अलग सेट करें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Overview"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:51
 msgid "Own ring"
 msgstr "अपनी रिंग"
 
-#: settings-qt/qml/pages/KeypadPage.qml:203
+#: settings-qt/bridge/backend.py:1854
+msgid ""
+"Pack imported: {n} pages. Keys without a Linux action keep their picture for "
+"you to assign."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1841
+msgid "Page"
+msgstr ""
+
+#: settings-qt/qml/pages/KeypadPage.qml:215
 msgid "Page %1 name"
 msgstr "पेज %1 का नाम"
 
-#: settings-qt/qml/pages/KeypadPage.qml:64
+#: settings-qt/qml/pages/KeypadPage.qml:65
 msgid "Page %1 of %2"
 msgstr "पेज %1 / %2"
 
@@ -2991,17 +3608,31 @@ msgstr "Page Down"
 msgid "Page Up"
 msgstr "Page Up"
 
-#: settings-qt/qml/pages/KeypadPage.qml:188
+#: settings-qt/qml/pages/KeypadPage.qml:189
 msgid "Page buttons wrap from the last page to the first"
 msgstr "पेज बटन आखिरी पेज के बाद फिर पहले पेज पर लौट आते हैं"
 
-#: settings-qt/qml/pages/KeypadPage.qml:226
+#: settings-qt/qml/pages/KeypadPage.qml:250
 msgid "Page deleted"
 msgstr "पेज हटाया गया"
 
-#: settings-qt/qml/pages/KeypadPage.qml:187 settings-qt/bridge/backend.py:641
+#: settings-qt/qml/pages/KeypadPage.qml:188 settings-qt/bridge/backend.py:641
 msgid "Pages"
 msgstr "पेज"
+
+#: settings-qt/qml/pages/KeypadPage.qml:270
+msgid ""
+"Pages that come up by themselves while an app is in front. Your most used "
+"apps first."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Paint"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Paintbrush"
+msgstr ""
 
 #: settings-qt/qml/pages/EasySwitchPage.qml:36
 #: settings-qt/qml/pages/EasySwitchPage.qml:40
@@ -3016,13 +3647,35 @@ msgstr "Bluetooth से पेयर है"
 msgid "Paired with a USB receiver"
 msgstr "USB रिसीवर से पेयर है"
 
-#: settings-qt/bridge/backend.py:143
+#: settings-qt/assets/keypad/profiles.json
+msgid "Palette"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:143 settings-qt/assets/keypad/profiles.json
 msgid "Paste"
 msgstr "पेस्ट करें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Paste Spec"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Paste Text"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:314
 msgid "Paste as plain text"
 msgstr "सादे टेक्स्ट के रूप में पेस्ट करें"
+
+#: settings-qt/qml/components/CustomActionEditor.qml:183
+msgid "Paste with"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:191
+msgid ""
+"Pasted through the clipboard, so every keyboard layout gets the exact "
+"characters."
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:80
 msgid "Pattern for %1"
@@ -3037,9 +3690,25 @@ msgstr "विराम"
 msgid "Pause %1 ms"
 msgstr "%1 ms का विराम"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Pause Rec"
+msgstr ""
+
 #: settings-qt/bridge/backend.py:361
 msgid "Pearl Blossom (3D)"
 msgstr "Pearl Blossom (3D)"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Pen"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "People"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Persp/Orth"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:353
 msgid "Phosphor"
@@ -3061,6 +3730,10 @@ msgstr "अनुप्रयोग चुनें"
 msgid "Pick this app in the scope switcher on the Buttons tab"
 msgstr "बटन टैब के दायरा चयनकर्ता में यह ऐप चुनें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Picker"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:392
 msgid ""
 "Picks the screenshot tool, file manager and note app for the default slices"
@@ -3070,11 +3743,19 @@ msgstr "डिफ़ॉल्ट स्लाइस के लिए स्क�
 msgid "Picks the theme closest to your desktop's accent colour"
 msgstr "डेस्कटॉप के एक्सेंट रंग से सबसे मिलती थीम चुनता है"
 
-#: settings-qt/bridge/backend.py:2880
+#: settings-qt/qml/components/KeypadKeyEditor.qml:83
+msgid "Picture"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3095
 msgid "Pin saved: {slot} = {x}, {y}"
 msgstr "पिन सहेजा गया: {slot} = {x}, {y}"
 
-#: settings-qt/bridge/keypad.py:105
+#: settings-qt/assets/keypad/profiles.json
+msgid "Places"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:138
 msgid "Play"
 msgstr "चलाएँ"
 
@@ -3082,27 +3763,37 @@ msgstr "चलाएँ"
 msgid "Play %1"
 msgstr "%1 चलाएँ"
 
-#: settings-qt/bridge/backend.py:154
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Play, cut at playhead, undo, timeline zoom and edit-point navigation for "
+"Kdenlive."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Play, split, undo, timeline zoom and edit navigation for Shotcut."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:154 settings-qt/assets/keypad/profiles.json
 msgid "Play/Pause"
 msgstr "चलाएँ/रोकें"
 
-#: settings-qt/bridge/backend.py:1688
+#: settings-qt/bridge/backend.py:1726
 msgid "Playback, volume and microphone"
 msgstr "प्लेबैक, आवाज़ और माइक्रोफ़ोन"
 
-#: settings-qt/bridge/backend.py:3882
+#: settings-qt/bridge/backend.py:4097
 msgid "Plays the steps again and again, as often as you set."
 msgstr "तय की गई बारंबारता के अनुसार चरण बार-बार चलाता है।"
 
-#: settings-qt/bridge/backend.py:3881
+#: settings-qt/bridge/backend.py:4096
 msgid "Plays the steps one time."
 msgstr "चरण एक बार चलाता है।"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:95
+#: settings-qt/qml/components/CustomActionEditor.qml:105
 msgid "Plugin"
 msgstr "प्लगइन"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:170
+#: settings-qt/qml/components/CustomActionEditor.qml:219
 msgid "Plugin action"
 msgstr "प्लगइन क्रिया"
 
@@ -3151,13 +3842,18 @@ msgstr "दबाए रखने पर सटीक DPI"
 msgid "Preset %1"
 msgstr "प्रीसेट %1"
 
-#: settings-qt/bridge/backend.py:3578
+#: settings-qt/bridge/backend.py:3793
 msgid "Preset %d"
 msgstr "प्रीसेट %d"
 
 #: settings-qt/qml/pages/GamingPage.qml:251
 msgid "Preset name"
 msgstr "प्रीसेट का नाम"
+
+#: settings-qt/qml/components/CustomActionEditor.qml:176
+#: settings-qt/qml/components/CustomActionEditor.qml:178
+msgid "Press Enter after"
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:226
 #: settings-qt/qml/pages/HapticsPage.qml:236 settings-qt/bridge/backend.py:690
@@ -3178,7 +3874,7 @@ msgstr "अगले कंप्यूटर पर जाने के लि�
 msgid "Press the keys now, Esc to stop"
 msgstr "अब कुंजियाँ दबाएँ, रोकने के लिए Esc"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1013
+#: settings-qt/qml/pages/ButtonsPage.qml:1005
 msgid "Press without dragging"
 msgstr "बिना खींचे दबाएँ"
 
@@ -3186,15 +3882,39 @@ msgstr "बिना खींचे दबाएँ"
 msgid "Presses a shortcut"
 msgstr "शॉर्टकट दबाता है"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Prev Chat"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Prev Cmd"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Prev Edit"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Prev Error"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Prev Tab"
+msgstr ""
+
 #: settings-qt/qml/pages/HapticsPage.qml:296 settings-qt/bridge/backend.py:692
 msgid "Prevent duplicate pulses"
 msgstr "दोहरा कंपन रोकें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Preview"
+msgstr ""
 
 #: settings-qt/qml/components/RingPreview.qml:52
 msgid "Preview of the radial menu"
 msgstr "रेडियल मेनू का पूर्वावलोकन"
 
-#: settings-qt/bridge/keypad.py:105
+#: settings-qt/bridge/keypad.py:138 settings-qt/assets/keypad/profiles.json
 msgid "Previous"
 msgstr "पिछला"
 
@@ -3202,9 +3922,21 @@ msgstr "पिछला"
 msgid "Previous Tab"
 msgstr "पिछला टैब"
 
-#: settings-qt/qml/pages/KeypadPage.qml:160
+#: settings-qt/qml/pages/KeypadPage.qml:161
 msgid "Previous keypad page"
 msgstr "पिछला कीपैड पेज"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Print"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Problems"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1924
+msgid "Profile added: {name}"
+msgstr ""
 
 #: settings-qt/qml/pages/AppsPage.qml:41
 msgid "Profile for %1 removed"
@@ -3215,9 +3947,13 @@ msgstr "%1 की प्रोफ़ाइल हटाई गई"
 msgid "Profile: %1"
 msgstr "प्रोफ़ाइल: %1"
 
-#: settings-qt/bridge/backend.py:3000
+#: settings-qt/bridge/backend.py:3215
 msgid "Profiles save failed: {error}"
 msgstr "प्रोफ़ाइल सहेजना विफल: {error}"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Properties"
+msgstr ""
 
 #: settings-qt/qml/pages/GamingPage.qml:343 settings-qt/bridge/backend.py:726
 msgid "Pulse on preset change"
@@ -3235,9 +3971,27 @@ msgstr ""
 "कर्सर को इस स्क्रीन के किनारे के पार ले जाएँ और वह Mac पर दिखेगा। माउस और कॉपी की गई "
 "सामग्री भी साथ जाएँगे।"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:830 settings-qt/bridge/backend.py:659
+#: settings-qt/assets/keypad/profiles.json
+msgid "Quick Fix"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Quick Open"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:822 settings-qt/bridge/backend.py:659
 msgid "Quick links"
 msgstr "त्वरित लिंक"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Quick switcher, unread navigation, upload, emoji, mute and deafen for "
+"Discord."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Quick switcher, unreads, upload and huddle controls for Slack."
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:29
 msgid "Quiet"
@@ -3303,12 +4057,17 @@ msgstr "उपकरण पढ़े जा रहे हैं…"
 msgid "Ready: %1"
 msgstr "तैयार: %1"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Recent"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:368 settings-qt/bridge/backend.py:703
 msgid "Recently used"
 msgstr "हाल ही में उपयोग किए गए"
 
 #: settings-qt/qml/pages/MacrosPage.qml:204
 #: settings-qt/qml/pages/MacrosPage.qml:357 settings-qt/bridge/backend.py:696
+#: settings-qt/assets/keypad/profiles.json
 msgid "Record"
 msgstr "रिकॉर्ड"
 
@@ -3327,6 +4086,12 @@ msgstr "फिर रिकॉर्ड करें"
 #: settings-qt/qml/components/MacroEditor.qml:86
 msgid "Record the keys"
 msgstr "कुंजियाँ रिकॉर्ड करें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Record, pause, stream, replay, virtual camera and scene switching through "
+"obs-cmd."
+msgstr ""
 
 #: settings-qt/qml/pages/MacrosPage.qml:270
 msgid "Recorded %n step"
@@ -3350,7 +4115,7 @@ msgstr ""
 "दबाई गई कुंजियाँ और क्लिक किए गए माउस बटन रिकॉर्ड करता है। पॉइंटर की गति रिकॉर्ड नहीं "
 "होती; स्क्रॉल और विराम संपादक में जोड़ें।"
 
-#: settings-qt/bridge/backend.py:144
+#: settings-qt/bridge/backend.py:144 settings-qt/assets/keypad/profiles.json
 msgid "Redo"
 msgstr "फिर से करें"
 
@@ -3362,17 +4127,29 @@ msgstr "गति प्रभाव कम करें"
 msgid "Reduce transparency"
 msgstr "पारदर्शिता कम करें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Refresh"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Reload"
+msgstr ""
+
 #: settings-qt/qml/pages/GamingPage.qml:61
 #: settings-qt/qml/pages/GamingPage.qml:278
 #: settings-qt/qml/pages/HapticsPage.qml:344
 msgid "Remove %1"
 msgstr "%1 हटाएँ"
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:86
+msgid "Remove picture"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:305
 msgid "Remove profile"
 msgstr "प्रोफ़ाइल हटाएँ"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:900
+#: settings-qt/qml/pages/ButtonsPage.qml:892
 msgid "Remove this link"
 msgstr "यह लिंक हटाएँ"
 
@@ -3381,12 +4158,21 @@ msgid "Remove this step"
 msgstr "यह चरण हटाएँ"
 
 #: settings-qt/qml/pages/MacrosPage.qml:101
+#: settings-qt/assets/keypad/profiles.json
 msgid "Rename"
 msgstr "नाम बदलें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Render"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:148
 msgid "Reopen Closed Tab"
 msgstr "बंद टैब फिर खोलें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Reopen Tab"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:444
 msgid "Repair"
@@ -3397,7 +4183,7 @@ msgstr "ठीक करें"
 msgid "Repeat"
 msgstr "दोहराएँ"
 
-#: settings-qt/bridge/backend.py:3883
+#: settings-qt/bridge/backend.py:4098
 msgid "Repeats while you hold the bound button."
 msgstr "बाइंड किया गया बटन दबाए रखने तक दोहराता है।"
 
@@ -3405,11 +4191,15 @@ msgstr "बाइंड किया गया बटन दबाए रखन�
 msgid "Replaces: %1"
 msgstr "इसकी जगह लेता है: %1"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Replay"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:567
 msgid "Report a bug"
 msgstr "समस्या बताएँ"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1067
+#: settings-qt/qml/pages/ButtonsPage.qml:1059
 msgid "Reports raw movement"
 msgstr "बिना बदलाव की गति बताता है"
 
@@ -3420,6 +4210,10 @@ msgstr "बिना बदलाव की गति बताता है"
 #: settings-qt/qml/pages/ScrollPage.qml:433
 msgid "Reset"
 msgstr "रीसेट"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Reset Rot"
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:363
 msgid "Reset all buttons to their defaults"
@@ -3450,11 +4244,11 @@ msgstr "पुनः आरंभ करें"
 msgid "Restart now"
 msgstr "अभी पुनः आरंभ करें"
 
-#: settings-qt/bridge/backend.py:5252
+#: settings-qt/bridge/backend.py:5475
 msgid "Restarting the background service…"
 msgstr "पृष्ठभूमि सेवा पुनः आरंभ हो रही है…"
 
-#: settings-qt/bridge/backend.py:5270
+#: settings-qt/bridge/backend.py:5493
 msgid "Restarting the radial menu…"
 msgstr "रेडियल मेनू पुनः आरंभ हो रहा है…"
 
@@ -3488,6 +4282,7 @@ msgid "Review"
 msgstr "समीक्षा करें"
 
 #: settings-qt/qml/pages/FlowPage.qml:136
+#: settings-qt/assets/keypad/profiles.json
 msgid "Right"
 msgstr "दाएँ"
 
@@ -3500,7 +4295,7 @@ msgstr "दायाँ क्लिक"
 msgid "Ring button"
 msgstr "रिंग बटन"
 
-#: settings-qt/qml/pages/ThemesPage.qml:320
+#: settings-qt/qml/pages/ThemesPage.qml:316
 msgid "Ring colours"
 msgstr "रिंग के रंग"
 
@@ -3516,14 +4311,14 @@ msgstr "रिंग छिपी है"
 msgid "Ring shown"
 msgstr "रिंग दिखाई गई"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:797
+#: settings-qt/qml/pages/ButtonsPage.qml:789
 #: settings-qt/qml/pages/SettingsPage.qml:102
-#: settings-qt/qml/pages/ThemesPage.qml:370 settings-qt/bridge/backend.py:658
+#: settings-qt/qml/pages/ThemesPage.qml:366 settings-qt/bridge/backend.py:658
 #: settings-qt/bridge/backend.py:749
 msgid "Ring size"
 msgstr "रिंग का आकार"
 
-#: settings-qt/qml/pages/ThemesPage.qml:365
+#: settings-qt/qml/pages/ThemesPage.qml:361
 msgid "Ring size, icon size and the centre zone are in Settings"
 msgstr "रिंग का आकार, आइकन का आकार और केंद्रीय क्षेत्र सेटिंग्स में हैं"
 
@@ -3540,6 +4335,30 @@ msgstr "बजना"
 #: settings-qt/qml/pages/ScrollPage.qml:450
 msgid "Rolling forward scrolls left instead of right"
 msgstr "आगे घुमाने पर दाएँ के बजाय बाएँ स्क्रॉल होता है"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Room search, unread navigation, upload and call mic/camera for Element."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Rooms"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Rotate"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Rotate L"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Rotate R"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Run"
+msgstr ""
 
 #: settings-qt/qml/pages/MacrosPage.qml:427
 msgid "Run (Ctrl+R)"
@@ -3569,7 +4388,7 @@ msgstr "मैक्रो चलाता है"
 msgid "Runs a plugin action"
 msgstr "प्लगइन क्रिया चलाता है"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:184
+#: settings-qt/qml/components/CustomActionEditor.qml:233
 msgid "Runs through the shell, like a terminal would."
 msgstr "टर्मिनल की तरह शेल के ज़रिए चलता है।"
 
@@ -3581,38 +4400,60 @@ msgstr "समान"
 msgid "Same as all apps"
 msgstr "सभी ऐप जैसा"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:192
+#: settings-qt/assets/keypad/profiles.json
+msgid "Sampler"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:241
 #: settings-qt/qml/components/MacroEditor.qml:434
 #: settings-qt/qml/pages/MacrosPage.qml:304
+#: settings-qt/assets/keypad/profiles.json
 msgid "Save"
 msgstr "सहेजें"
 
-#: settings-qt/bridge/backend.py:1772
+#: settings-qt/bridge/backend.py:1987
 msgid "Save failed: {error}"
 msgstr "सहेजना विफल: {error}"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:77
+#: settings-qt/qml/components/KeypadKeyEditor.qml:96
 msgid "Save key"
 msgstr "कुंजी सहेजें"
 
 #: settings-qt/qml/pages/DashboardPage.qml:91
+#: settings-qt/assets/keypad/profiles.json
 msgid "Saved"
 msgstr "सहेजा गया"
 
-#: settings-qt/bridge/backend.py:2289
+#: settings-qt/bridge/backend.py:2504
 msgid "Saved. JuhRadial applies it when its service starts."
 msgstr "सहेजा गया। JuhRadial सेवा शुरू होने पर लागू करेगा।"
 
-#: settings-qt/bridge/backend.py:2291
+#: settings-qt/bridge/backend.py:2506
 msgid "Saved. The mouse gets it when it wakes up or comes back."
 msgstr "सहेजा गया। माउस के जागने या लौटने पर भेजा जाएगा।"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Scale"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Scene 1"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Scene 2"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Scene 3"
+msgstr ""
 
 #: settings-qt/qml/pages/FlowPage.qml:327
 #: settings-qt/qml/pages/FlowPage.qml:332 settings-qt/bridge/backend.py:732
 msgid "Screen"
 msgstr "स्क्रीन"
 
-#: settings-qt/bridge/backend.py:158
+#: settings-qt/bridge/backend.py:158 settings-qt/assets/keypad/profiles.json
 msgid "Screenshot"
 msgstr "स्क्रीनशॉट"
 
@@ -3663,6 +4504,10 @@ msgstr "स्क्रॉल व्हील सेटिंग्स रीस
 msgid "Scrolls in fine steps instead of whole lines, in apps that support it"
 msgstr "समर्थित ऐप में पूरी पंक्तियों के बजाय छोटे चरणों में स्क्रॉल करता है"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Search"
+msgstr ""
+
 #: settings-qt/qml/components/ActionPicker.qml:97
 msgid "Search actions"
 msgstr "क्रियाएँ खोजें"
@@ -3690,6 +4535,22 @@ msgid ""
 msgstr ""
 "कुछ बदलने से पहले बैकअप की सामग्री देखें। मौजूदा फ़ाइलें बचाई जाती हैं और पूर्ववत से लौट आती हैं"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Select"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Select All"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Selector"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:177
+msgid "Sends it right away, like a chat message or a command"
+msgstr ""
+
 #: settings-qt/qml/pages/DevicesPage.qml:631
 msgid "Sense Panel"
 msgstr "सेंस पैनल"
@@ -3714,7 +4575,7 @@ msgid ""
 msgstr "कीबोर्ड की चमक कुंजियों से सेट करें; बाद में प्रकाश सेंसर फिर नियंत्रण ले लेता है"
 
 #: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:112
-#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/backend.py:635
+#: settings-qt/bridge/keypad.py:135 settings-qt/bridge/backend.py:635
 msgid "Settings"
 msgstr "सेटिंग्स"
 
@@ -3722,7 +4583,7 @@ msgstr "सेटिंग्स"
 msgid "Settings imported"
 msgstr "सेटिंग्स आयात की गईं"
 
-#: settings-qt/bridge/backend.py:4450
+#: settings-qt/bridge/backend.py:4665
 msgid "Settings imported. The previous files are kept as .bak"
 msgstr "सेटिंग्स आयात की गईं। पिछली फ़ाइलें .bak के रूप में रखी गई हैं"
 
@@ -3742,7 +4603,11 @@ msgstr "किसी ऐप के सामने होने पर बदल
 msgid "Settings you change are saved and applied when the mouse is back."
 msgstr "बदली गई सेटिंग्स सहेजी जाती हैं और माउस लौटने पर लागू होती हैं।"
 
-#: settings-qt/bridge/keypad.py:117
+#: settings-qt/assets/keypad/profiles.json
+msgid "Shading"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:150 settings-qt/assets/keypad/profiles.json
 msgid "Share"
 msgstr "साझा करें"
 
@@ -3759,20 +4624,36 @@ msgstr "तीव्र टक्कर"
 msgid "Sharp click"
 msgstr "तीव्र क्लिक"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:93
+#: settings-qt/assets/keypad/profiles.json
+msgid "Shell"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:103
 #: settings-qt/qml/components/KeyRecorder.qml:46
 #: settings-qt/qml/components/SliceEditor.qml:157
 msgid "Shortcut"
 msgstr "शॉर्टकट"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Shotcut"
+msgstr ""
+
 #: settings-qt/qml/pages/HapticsPage.qml:274
-#: settings-qt/qml/pages/KeypadPage.qml:208
+#: settings-qt/qml/pages/KeypadPage.qml:220
 msgid "Show"
 msgstr "दिखाएँ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Show Desk"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:125
 msgid "Show Desktop"
 msgstr "डेस्कटॉप दिखाएँ"
+
+#: settings-qt/qml/pages/KeypadPage.qml:291
+msgid "Show all profiles"
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:358
 msgid "Show as a list"
@@ -3797,13 +4678,25 @@ msgstr "माउस दिखाएँ"
 msgid "Show the radial menu"
 msgstr "रेडियल मेनू दिखाएँ"
 
+#: settings-qt/qml/pages/KeypadPage.qml:233
+msgid "Show this page for all apps"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:455 settings-qt/bridge/backend.py:763
 msgid "Show tray icon"
 msgstr "ट्रे आइकन दिखाएँ"
 
-#: settings-qt/bridge/backend.py:2744
+#: settings-qt/assets/keypad/profiles.json
+msgid "Shuffle"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2959
 msgid "Side button"
 msgstr "साइड बटन"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Sidebar"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:236 settings-qt/bridge/backend.py:754
 msgid "Simplified wheel"
@@ -3813,9 +4706,13 @@ msgstr "सरल व्हील"
 msgid "Size, icons and behaviour of the on-screen ring"
 msgstr "स्क्रीन पर रिंग का आकार, आइकन और व्यवहार"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Slack"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:267
-#: settings-qt/qml/pages/ButtonsPage.qml:677
-#: settings-qt/qml/pages/DashboardPage.qml:503
+#: settings-qt/qml/pages/ButtonsPage.qml:669
+#: settings-qt/qml/pages/DashboardPage.qml:494
 msgid "Slice %1: %2"
 msgstr "स्लाइस %1: %2"
 
@@ -3832,7 +4729,7 @@ msgstr "स्लाइस बदलना"
 msgid "Slice tick rate"
 msgstr "स्लाइस कंपन दर"
 
-#: settings-qt/bridge/backend.py:2895
+#: settings-qt/bridge/backend.py:3110
 msgid "Slice {n}"
 msgstr "स्लाइस {n}"
 
@@ -3840,6 +4737,7 @@ msgstr "स्लाइस {n}"
 #: settings-qt/qml/pages/DashboardPage.qml:70
 #: settings-qt/qml/pages/DashboardPage.qml:412
 #: settings-qt/qml/pages/DevicesPage.qml:629
+#: settings-qt/assets/keypad/profiles.json
 msgid "SmartShift"
 msgstr "SmartShift"
 
@@ -3887,9 +4785,13 @@ msgid ""
 "Solid cards instead of frosted glass. Easier to read, lighter on the GPU."
 msgstr "धुँधले काँच के बजाय अपारदर्शी कार्ड। पढ़ने में आसान, GPU पर कम भार।"
 
-#: settings-qt/bridge/backend.py:1690
+#: settings-qt/bridge/backend.py:1728
 msgid "Sound controls; choose your app's camera, share and leave shortcuts"
 msgstr "ध्वनि नियंत्रण; अपने ऐप के कैमरा, स्क्रीन साझा करने और मीटिंग छोड़ने के शॉर्टकट चुनें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Speaker"
+msgstr ""
 
 #: settings-qt/qml/components/KeyRecorder.qml:121
 msgid "Special key"
@@ -3899,9 +4801,25 @@ msgstr "विशेष कुंजी"
 msgid "Speed"
 msgstr "गति"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Spelling"
+msgstr ""
+
 #: settings-qt/qml/pages/ScrollPage.qml:47
 msgid "Spins freely, no clicks"
 msgstr "बिना रुकावट फ़्री-स्पिन"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Split"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Spotify"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Spotify transport, seek, like and volume, targeted at Spotify only."
+msgstr ""
 
 #: settings-qt/bridge/backend.py:403
 msgid "Square"
@@ -3916,7 +4834,7 @@ msgstr "शुरू करें"
 msgid "Start at login"
 msgstr "लॉगिन पर आरंभ करें"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:962
+#: settings-qt/qml/pages/ButtonsPage.qml:954
 msgid "Start from"
 msgstr "यहाँ से शुरू करें"
 
@@ -3932,7 +4850,7 @@ msgstr "इसे शुरू करें"
 msgid "Start service"
 msgstr "सेवा शुरू करें"
 
-#: settings-qt/bridge/backend.py:3659
+#: settings-qt/bridge/backend.py:3874
 msgid "Start the JuhRadial MX service to record a macro."
 msgstr "मैक्रो रिकॉर्ड करने के लिए JuhRadial MX सेवा शुरू करें।"
 
@@ -3948,7 +4866,7 @@ msgstr "सेवा शुरू करें"
 msgid "Starting…"
 msgstr "शुरू हो रहा है…"
 
-#: settings-qt/bridge/backend.py:5297
+#: settings-qt/bridge/backend.py:5520
 msgid "Starts at login with {path}"
 msgstr "लॉगिन पर {path} से शुरू होता है"
 
@@ -3982,6 +4900,10 @@ msgstr "प्रति नॉच चरण"
 msgid "Stop"
 msgstr "रोकें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Stream"
+msgstr ""
+
 #: settings-qt/qml/pages/HapticsPage.qml:140
 #: settings-qt/qml/pages/HapticsPage.qml:146 settings-qt/bridge/backend.py:676
 msgid "Strength"
@@ -3996,7 +4918,11 @@ msgstr "प्रबल अलर्ट"
 msgid "Style"
 msgstr "शैली"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:840
+#: settings-qt/assets/keypad/profiles.json
+msgid "Styles"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:832
 msgid "Submenu slice"
 msgstr "सबमेनू स्लाइस"
 
@@ -4016,6 +4942,10 @@ msgstr "सहायता"
 msgid "Support JuhRadial MX"
 msgstr "JuhRadial MX को सहयोग दें"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Swap"
+msgstr ""
+
 #: settings-qt/qml/pages/ScrollPage.qml:451
 msgid "Swaps up and down for Volume and Zoom"
 msgstr "आवाज़ और ज़ूम के लिए ऊपर-नीचे बदलता है"
@@ -4027,6 +4957,10 @@ msgstr "उठता है, फिर धीमा पड़ता है"
 #: settings-qt/qml/pages/EasySwitchPage.qml:139
 msgid "Switch"
 msgstr "स्विच करें"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Switch App"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:137
 msgid "Switch Ratchet / Free-spin"
@@ -4056,15 +4990,23 @@ msgstr "कंप्यूटर 2 पर स्विच करें"
 msgid "Switch to Computer 3"
 msgstr "कंप्यूटर 3 पर स्विच करें"
 
-#: settings-qt/bridge/backend.py:117
+#: settings-qt/assets/keypad/profiles.json
+msgid "Switcher"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Sys Mic"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:117 settings-qt/assets/keypad/profiles.json
 msgid "System"
 msgstr "सिस्टम"
 
-#: settings-qt/bridge/backend.py:5316
+#: settings-qt/bridge/backend.py:5539
 msgid "System default"
 msgstr "सिस्टम डिफ़ॉल्ट"
 
-#: settings-qt/bridge/backend.py:5215
+#: settings-qt/bridge/backend.py:5438
 msgid "System information copied"
 msgstr "सिस्टम जानकारी कॉपी की गई"
 
@@ -4076,24 +5018,47 @@ msgstr "अंगूठे की ओर"
 msgid "TOP"
 msgstr "ऊपर"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Tabs"
+msgstr ""
+
 #: settings-qt/bridge/backend.py:117
 msgid "Tabs and pages"
 msgstr "टैब और पेज"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Tabs, clipboard, find and zoom for tabbed terminals, plus shell editing keys."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Tabs, navigation and address bar for Firefox and Chromium-based browsers."
+msgstr ""
 
 #: settings-qt/bridge/backend.py:128
 msgid "Task Switcher"
 msgstr "टास्क स्विचर"
 
-#: settings-qt/bridge/backend.py:1709
+#: settings-qt/assets/keypad/profiles.json
+msgid "Telegram"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1747
 msgid "Template added. Keys for missing apps stay unassigned."
 msgstr "टेम्पलेट जोड़ा गया। जो ऐप इंस्टॉल नहीं हैं, उनकी कुंजियाँ असाइन नहीं होतीं।"
 
-#: settings-qt/qml/pages/KeypadPage.qml:241
+#: settings-qt/qml/pages/KeypadPage.qml:305
 #: settings-qt/qml/pages/MacrosPage.qml:327 settings-qt/bridge/backend.py:642
 msgid "Templates"
 msgstr "टेम्पलेट"
 
-#: settings-qt/bridge/keypad.py:97 settings-qt/bridge/keypad.py:113
+#: settings-qt/assets/keypad/profiles.json
+msgid "Term Panel"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:130 settings-qt/bridge/keypad.py:146
+#: settings-qt/assets/keypad/profiles.json
 msgid "Terminal"
 msgstr "टर्मिनल"
 
@@ -4101,7 +5066,9 @@ msgstr "टर्मिनल"
 msgid "Test"
 msgstr "परीक्षण"
 
+#: settings-qt/qml/components/CustomActionEditor.qml:106
 #: settings-qt/qml/components/MacroEditor.qml:326
+#: settings-qt/assets/keypad/profiles.json
 msgid "Text"
 msgstr "पाठ"
 
@@ -4109,16 +5076,24 @@ msgstr "पाठ"
 msgid "Text only, and only with computers you approved"
 msgstr "केवल टेक्स्ट, और केवल मंज़ूर किए गए कंप्यूटरों के साथ"
 
+#: settings-qt/qml/components/CustomActionEditor.qml:168
+msgid "Text to paste"
+msgstr ""
+
 #: settings-qt/qml/components/MacroEditor.qml:280
 #: settings-qt/qml/components/MacroEditor.qml:281
 msgid "Text to type"
 msgstr "टाइप करने के लिए टेक्स्ट"
 
-#: settings-qt/bridge/backend.py:4769
+#: settings-qt/qml/components/CustomActionEditor.qml:169
+msgid "Text, a prompt or a /command"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4992
 msgid "That custom action cannot run: check the shortcut, link or command."
 msgstr "यह कस्टम क्रिया नहीं चल सकती: शॉर्टकट, लिंक या कमांड जाँचें।"
 
-#: settings-qt/bridge/backend.py:3931
+#: settings-qt/bridge/backend.py:4146
 msgid "That file is not a JuhRadial MX macro."
 msgstr "यह फ़ाइल JuhRadial MX मैक्रो नहीं है।"
 
@@ -4132,7 +5107,7 @@ msgid ""
 "starts."
 msgstr "JuhRadial MX सेवा नहीं चल रही। बदलाव सहेजे जाते हैं और सेवा शुरू होने पर लागू होंगे।"
 
-#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3254
+#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3469
 msgid "The JuhRadial service is not running"
 msgstr "JuhRadial सेवा नहीं चल रही"
 
@@ -4160,7 +5135,7 @@ msgstr ""
 msgid "The background service is not running"
 msgstr "पृष्ठभूमि सेवा नहीं चल रही"
 
-#: settings-qt/bridge/backend.py:2021
+#: settings-qt/bridge/backend.py:2236
 msgid "The background service is not running."
 msgstr "पृष्ठभूमि सेवा नहीं चल रही।"
 
@@ -4168,7 +5143,7 @@ msgstr "पृष्ठभूमि सेवा नहीं चल रही�
 msgid "The battery drops to the alert level set on Devices"
 msgstr "बैटरी, उपकरण टैब में सेट अलर्ट स्तर तक गिर जाती है"
 
-#: settings-qt/bridge/backend.py:3884
+#: settings-qt/bridge/backend.py:4099
 msgid "The bound button starts it, the next press stops it."
 msgstr "बाइंड किया गया बटन इसे शुरू करता है, अगली बार दबाने पर रोकता है।"
 
@@ -4184,11 +5159,11 @@ msgstr ""
 "बिना प्रोफ़ाइल वाले ऐप के पहले इस्तेमाल पर सेटिंग्स एक प्रोफ़ाइल सुझाती है। हर ऐप के लिए "
 "केवल एक बार पूछा जाता है"
 
-#: settings-qt/bridge/backend.py:2195
+#: settings-qt/bridge/backend.py:2410
 msgid "The keyboard"
 msgstr "कीबोर्ड"
 
-#: settings-qt/bridge/backend.py:2838
+#: settings-qt/bridge/backend.py:3053
 msgid "The keyboard did not answer. Press a key to wake it, then try again."
 msgstr "कीबोर्ड ने जवाब नहीं दिया। कुंजी दबाकर जगाएँ, फिर कोशिश करें।"
 
@@ -4198,25 +5173,33 @@ msgid ""
 "backlight."
 msgstr "कीबोर्ड सुप्त है। कोई कुंजी दबाएँ, फिर बैकलाइट पढ़ने के लिए ऊपर फिर जाँचें दबाएँ।"
 
-#: settings-qt/bridge/backend.py:1604
+#: settings-qt/bridge/backend.py:1606
 msgid "The keypad configuration was not saved"
 msgstr "कीपैड कॉन्फ़िगरेशन सहेजा नहीं गया"
 
-#: settings-qt/bridge/backend.py:5291
+#: settings-qt/qml/pages/KeypadPage.qml:198
+msgid "The keypad keeps it after it wakes"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:198
+msgid "The keys stay down as long as you hold the button (push to talk)"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5514
 msgid "The login entry is missing."
 msgstr "लॉगिन प्रविष्टि नहीं है।"
 
-#: settings-qt/bridge/backend.py:5296
+#: settings-qt/bridge/backend.py:5519
 msgid "The login entry points at a program that is gone."
 msgstr "लॉगिन प्रविष्टि ऐसे प्रोग्राम की ओर इशारा करती है जो अब मौजूद नहीं है।"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:786
+#: settings-qt/qml/pages/ButtonsPage.qml:778
 msgid ""
 "The look of the ring. Separate from the app theme: your eight actions never "
 "move."
 msgstr "रिंग का रूप, ऐप थीम से अलग। आपकी आठ क्रियाओं की जगह नहीं बदलती।"
 
-#: settings-qt/bridge/backend.py:3638
+#: settings-qt/bridge/backend.py:3853
 msgid "The macro could not be saved. Is the JuhRadial MX service running?"
 msgstr "मैक्रो नहीं सहेजा जा सका। क्या JuhRadial MX सेवा चल रही है?"
 
@@ -4224,11 +5207,11 @@ msgstr "मैक्रो नहीं सहेजा जा सका। क�
 msgid "The mouse comes back from another computer"
 msgstr "माउस दूसरे कंप्यूटर से लौट आता है"
 
-#: settings-qt/bridge/backend.py:2294
+#: settings-qt/bridge/backend.py:2509
 msgid "The mouse did not accept this change."
 msgstr "माउस ने यह बदलाव स्वीकार नहीं किया।"
 
-#: settings-qt/bridge/backend.py:3466
+#: settings-qt/bridge/backend.py:3681
 msgid "The mouse did not switch. Is it awake, and is that computer paired?"
 msgstr "माउस स्विच नहीं हुआ। क्या वह जागा हुआ है और उस कंप्यूटर से पेयर है?"
 
@@ -4285,6 +5268,14 @@ msgstr "नई भाषा पुनः आरंभ करने के बा
 msgid "The other computer's channel"
 msgstr "दूसरे कंप्यूटर का चैनल"
 
+#: settings-qt/bridge/backend.py:1810
+msgid "The pack contains an unsafe path"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1847
+msgid "The pack has no pages to add"
+msgstr ""
+
 #: settings-qt/bridge/backend.py:428
 msgid "The pointer crosses onto another display"
 msgstr "पॉइंटर दूसरे डिस्प्ले पर जाता है"
@@ -4301,7 +5292,7 @@ msgstr "अंगूठे के नीचे दबाव पैनल"
 msgid "The radial menu appears"
 msgstr "रेडियल मेनू दिखाई देता है"
 
-#: settings-qt/bridge/backend.py:2023
+#: settings-qt/bridge/backend.py:2238
 msgid "The radial menu is not running."
 msgstr "रेडियल मेनू नहीं चल रहा।"
 
@@ -4317,13 +5308,13 @@ msgstr "गेम में भी रिंग खुलती है"
 msgid "The same ring as everywhere"
 msgstr "हर जगह जैसी ही रिंग"
 
-#: settings-qt/bridge/backend.py:2029
+#: settings-qt/bridge/backend.py:2244
 msgid ""
 "The service cannot reach the mouse. Check that your user is in the input "
 "group."
 msgstr "सेवा माउस तक नहीं पहुँच सकती। जाँचें कि आपका उपयोगकर्ता input समूह में है।"
 
-#: settings-qt/bridge/backend.py:2026
+#: settings-qt/bridge/backend.py:2241
 msgid "The service is {daemon} and this app is {app}: reinstall so they match."
 msgstr "सेवा {daemon} है और यह ऐप {app} है: संस्करण मिलाने के लिए फिर इंस्टॉल करें।"
 
@@ -4344,7 +5335,7 @@ msgstr "स्लाइस पहले से %1 से मेल खाते 
 msgid "The stops are where a button set to DPI cycle goes next."
 msgstr "स्तर वे मान हैं जहाँ DPI चक्र वाला बटन अगली बार जाता है।"
 
-#: settings-qt/qml/pages/ThemesPage.qml:323
+#: settings-qt/qml/pages/ThemesPage.qml:319
 msgid ""
 "The surface of the Classic ring and its menus. Light rings suit light "
 "desktops."
@@ -4362,7 +5353,7 @@ msgstr "थीम: %1"
 msgid "Themes"
 msgstr "थीम"
 
-#: settings-qt/bridge/backend.py:3101
+#: settings-qt/bridge/backend.py:3316
 msgid "There is already a profile for {app}"
 msgstr "{app} की प्रोफ़ाइल पहले से है"
 
@@ -4401,7 +5392,7 @@ msgstr "इस कंप्यूटर का चैनल"
 msgid "This computer's name"
 msgstr "इस कंप्यूटर का नाम"
 
-#: settings-qt/bridge/backend.py:4418
+#: settings-qt/bridge/backend.py:4633
 msgid "This is not a JuhRadial MX backup."
 msgstr "यह JuhRadial MX बैकअप नहीं है।"
 
@@ -4409,7 +5400,7 @@ msgstr "यह JuhRadial MX बैकअप नहीं है।"
 msgid "This list"
 msgstr "यह सूची"
 
-#: settings-qt/bridge/backend.py:4043
+#: settings-qt/bridge/backend.py:4258
 msgid "This mouse follows your global settings again"
 msgstr "यह माउस फिर सामान्य सेटिंग्स का पालन करता है"
 
@@ -4438,7 +5429,7 @@ msgstr "यह माउस सामान्य मोड में है, �
 msgid "This mouse loses its own settings and uses your global ones."
 msgstr "इस माउस की अलग सेटिंग्स हट जाएँगी और सामान्य सेटिंग्स इस्तेमाल होंगी।"
 
-#: settings-qt/bridge/backend.py:4614
+#: settings-qt/bridge/backend.py:4829
 msgid "This mouse only"
 msgstr "केवल यह माउस"
 
@@ -4497,6 +5488,32 @@ msgstr "बार"
 #: settings-qt/qml/components/MacroEditor.qml:348
 msgid "Timing"
 msgstr "समय"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Tools"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Top"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Top Chat"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Transform"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Transform, edit mode, add, search and numpad viewpoints for Blender's "
+"default keymap."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Transport, seek and volume for any MPRIS media player."
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:324
 msgid "Troubleshoot"
@@ -4597,7 +5614,7 @@ msgstr "USB"
 msgid "USB cable"
 msgstr "USB केबल"
 
-#: settings-qt/qml/pages/KeypadPage.qml:127
+#: settings-qt/qml/pages/KeypadPage.qml:128
 msgid "Unassigned"
 msgstr "असाइन नहीं"
 
@@ -4605,13 +5622,22 @@ msgstr "असाइन नहीं"
 msgid "Unbind"
 msgstr "बाइंडिंग हटाएँ"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Underline"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:22 settings-qt/bridge/backend.py:144
+#: settings-qt/assets/keypad/profiles.json
 msgid "Undo"
 msgstr "पूर्ववत करें"
 
-#: settings-qt/bridge/backend.py:3981
+#: settings-qt/bridge/backend.py:4196
 msgid "Undo failed: {error}"
 msgstr "पूर्ववत करना विफल: {error}"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Ungroup"
+msgstr ""
 
 #: settings-qt/qml/pages/DashboardPage.qml:58
 #: settings-qt/qml/pages/DevicesPage.qml:23
@@ -4631,17 +5657,37 @@ msgstr "अज्ञात"
 msgid "Unnamed computer"
 msgstr "बिना नाम का कंप्यूटर"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Unread Dn"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Unread Up"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Unreads"
+msgstr ""
+
 #: settings-qt/qml/pages/MacrosPage.qml:398
 msgid "Untitled macro"
 msgstr "शीर्षकहीन मैक्रो"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:832
+#: settings-qt/assets/keypad/profiles.json
+msgid "Up"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:824
 msgid ""
 "Up to four links or applications under a submenu slice. Brand sites keep "
 "their logo, other links show a globe."
 msgstr ""
 "सबमेनू स्लाइस में अधिकतम चार लिंक या अनुप्रयोग। ब्रांड की साइटें अपना लोगो रखती हैं, अन्य "
 "लिंक पर ग्लोब दिखता है।"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Update"
+msgstr ""
 
 #: settings-qt/qml/pages/DevicesPage.qml:63
 msgid "Updated %n minute ago"
@@ -4652,6 +5698,10 @@ msgstr[1] "%n मिनट पहले अपडेट हुआ"
 #: settings-qt/qml/pages/DevicesPage.qml:62
 msgid "Updated just now"
 msgstr "अभी अपडेट हुआ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Upload"
+msgstr ""
 
 #: settings-qt/qml/pages/DevicesPage.qml:752
 msgid "Use generic mode"
@@ -4678,6 +5728,10 @@ msgstr ""
 "इस माउस को साधारण माउस की तरह इस्तेमाल करें। Easy-Switch, हैप्टिक्स, गेमिंग और Flow "
 "छिप जाएँगे"
 
+#: settings-qt/qml/pages/KeypadPage.qml:279
+msgid "Used %1 min"
+msgstr ""
+
 #: settings-qt/qml/pages/ScrollPage.qml:461
 msgid "Used by Volume and Zoom"
 msgstr "आवाज़ और ज़ूम के लिए इस्तेमाल होता है"
@@ -4686,7 +5740,7 @@ msgstr "आवाज़ और ज़ूम के लिए इस्तेम�
 msgid "Used in SmartShift mode only"
 msgstr "केवल SmartShift मोड में इस्तेमाल होता है"
 
-#: settings-qt/qml/pages/ThemesPage.qml:311
+#: settings-qt/qml/pages/ThemesPage.qml:307
 msgid "Uses your accent"
 msgstr "आपका एक्सेंट रंग इस्तेमाल करता है"
 
@@ -4694,7 +5748,11 @@ msgstr "आपका एक्सेंट रंग इस्तेमाल �
 msgid "Usual"
 msgstr "सामान्य"
 
-#: settings-qt/bridge/backend.py:4976
+#: settings-qt/assets/keypad/profiles.json
+msgid "VS Code"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5199
 msgid "Version {version} is available."
 msgstr "संस्करण {version} उपलब्ध है।"
 
@@ -4702,15 +5760,35 @@ msgstr "संस्करण {version} उपलब्ध है।"
 msgid "Versions, links and credits"
 msgstr "संस्करण, लिंक और योगदानकर्ता"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "View"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Views"
+msgstr ""
+
 #: settings-qt/bridge/backend.py:124
 msgid "Virtual Desktops"
 msgstr "वर्चुअल डेस्कटॉप"
 
-#: settings-qt/bridge/keypad.py:107 settings-qt/bridge/keypad.py:119
+#: settings-qt/assets/keypad/profiles.json
+msgid "VirtualCam"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Vol Down"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Vol Up"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:140 settings-qt/bridge/keypad.py:152
 msgid "Vol down"
 msgstr "आवाज़ घटाएँ"
 
-#: settings-qt/bridge/keypad.py:107 settings-qt/bridge/keypad.py:119
+#: settings-qt/bridge/keypad.py:140 settings-qt/bridge/keypad.py:152
 msgid "Vol up"
 msgstr "आवाज़ बढ़ाएँ"
 
@@ -4751,7 +5829,11 @@ msgstr "इस स्तर पर चेतावनी दें"
 msgid "Wave"
 msgstr "तरंग"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:85
+#: settings-qt/assets/keypad/profiles.json
+msgid "Web browser"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:95
 msgid "What %1 does when you press it"
 msgstr "%1 दबाने पर क्या होता है"
 
@@ -4774,7 +5856,7 @@ msgstr "नया क्या है"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:76
 #: settings-qt/qml/pages/ButtonsPage.qml:88
-#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:3891
+#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:4106
 #: settings-qt/bridge/backend.py:649
 msgid "Wheel click"
 msgstr "व्हील क्लिक"
@@ -4789,7 +5871,7 @@ msgstr "व्हील मोड"
 msgid "Wheel mode for %1"
 msgstr "%1 के लिए व्हील मोड"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:783
+#: settings-qt/qml/pages/ButtonsPage.qml:775
 #: settings-qt/qml/pages/ThemesPage.qml:263 settings-qt/bridge/backend.py:657
 msgid "Wheel skin"
 msgstr "व्हील स्किन"
@@ -4840,7 +5922,7 @@ msgstr "इस माउस का कौन-सा बटन रेडियल
 msgid "While a button set to Precision DPI is held"
 msgstr "सटीक DPI वाला बटन दबाए रखने तक"
 
-#: settings-qt/bridge/backend.py:3883
+#: settings-qt/bridge/backend.py:4098
 msgid "While held"
 msgstr "दबाए रखने तक"
 
@@ -4869,7 +5951,11 @@ msgstr "Windows"
 msgid "With several screens, the one whose edge leads to the other computer"
 msgstr "कई स्क्रीन हों तो वह स्क्रीन जिसका किनारा दूसरे कंप्यूटर की ओर जाता है"
 
-#: settings-qt/bridge/backend.py:4978
+#: settings-qt/assets/keypad/profiles.json
+msgid "X-Ray"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5201
 msgid "You have the latest version."
 msgstr "आपके पास नवीनतम संस्करण है।"
 
@@ -4893,7 +5979,7 @@ msgstr "डेस्कटॉप ने कम ऐनिमेशन का अ�
 msgid "Your desktop does not report an accent colour"
 msgstr "आपका डेस्कटॉप एक्सेंट रंग नहीं बताता"
 
-#: settings-qt/bridge/backend.py:3279
+#: settings-qt/bridge/backend.py:3494
 msgid "Your desktop does not tell JuhRadial which window is in front"
 msgstr "आपका डेस्कटॉप JuhRadial को नहीं बताता कि कौन-सी विंडो सामने है"
 
@@ -4930,7 +6016,7 @@ msgstr "आपके मैक्रो"
 msgid "Your own mix of patterns. Pick a style to start over"
 msgstr "आपका अपना पैटर्न मिश्रण। फिर से शुरू करने के लिए शैली चुनें"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:800
+#: settings-qt/qml/pages/ButtonsPage.qml:792
 msgid "Your own size, set in Settings"
 msgstr "सेटिंग्स में तय किया आपका आकार"
 
@@ -4943,23 +6029,51 @@ msgstr "नीचे आपके अपने आकार, हर मॉनि
 msgid "Zip archive (*.zip)"
 msgstr "Zip संग्रह (*.zip)"
 
-#: settings-qt/bridge/backend.py:464
+#: settings-qt/bridge/backend.py:464 settings-qt/assets/keypad/profiles.json
 msgid "Zoom"
 msgstr "ज़ूम"
 
-#: settings-qt/bridge/backend.py:152
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom 100%"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom 1:1"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom Fit"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:152 settings-qt/assets/keypad/profiles.json
 msgid "Zoom In"
 msgstr "ज़ूम इन"
 
-#: settings-qt/bridge/backend.py:153
+#: settings-qt/bridge/backend.py:153 settings-qt/assets/keypad/profiles.json
 msgid "Zoom Out"
 msgstr "ज़ूम आउट"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom Reset"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom, brush size, colour picking, undo and export for GIMP 3."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom, brush size, sampler, eraser, canvas rotation and undo for Krita."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom, dropper, layers, export, tools and grouping for Inkscape 1.x."
+msgstr ""
 
 #: settings-qt/qml/pages/FlowPage.qml:37
 msgid "a computer"
 msgstr "एक कंप्यूटर"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:770
+#: settings-qt/qml/pages/ButtonsPage.qml:762
 msgid "actions"
 msgstr "क्रियाएँ"
 
@@ -4971,7 +6085,7 @@ msgstr "ऐप प्रोफ़ाइल"
 msgid "back"
 msgstr "पीछे"
 
-#: settings-qt/bridge/backend.py:4463
+#: settings-qt/bridge/backend.py:4678
 msgid "built-in emoji picker"
 msgstr "अंतर्निहित इमोजी चयनकर्ता"
 
@@ -4979,7 +6093,7 @@ msgstr "अंतर्निहित इमोजी चयनकर्ता"
 msgid "classic"
 msgstr "क्लासिक"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:770
+#: settings-qt/qml/pages/ButtonsPage.qml:762
 msgid "click to edit"
 msgstr "संपादन के लिए क्लिक करें"
 
@@ -4991,7 +6105,7 @@ msgstr "नीचे"
 msgid "empty"
 msgstr "खाली"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:147
+#: settings-qt/qml/components/CustomActionEditor.qml:158
 msgid "for example: konsole -e htop"
 msgstr "उदाहरण: konsole -e htop"
 
@@ -5006,6 +6120,15 @@ msgstr "हैप्टिक्स"
 #: settings-qt/qml/components/MacroEditor.qml:250
 msgid "held %1 ms"
 msgstr "%1 ms दबाया गया"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "kitty"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"kitty's own tab, window, search and font-size keys, plus shell editing keys."
+msgstr ""
 
 #: settings-qt/qml/pages/DashboardPage.qml:287
 msgid "last reading"
@@ -5053,7 +6176,7 @@ msgstr "दाएँ"
 msgid "settings"
 msgstr "सेटिंग्स"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:760
+#: settings-qt/qml/pages/ButtonsPage.qml:752
 msgid "swap"
 msgstr "अदला-बदली"
 
@@ -5073,35 +6196,35 @@ msgstr "दबाए रखने तक"
 msgid "window class"
 msgstr "विंडो क्लास"
 
-#: settings-qt/bridge/backend.py:2203
+#: settings-qt/bridge/backend.py:2418
 msgid "{device} is at {percent}%. Time to recharge."
 msgstr "{device} की बैटरी {percent}% है। चार्ज करने का समय है।"
 
-#: settings-qt/bridge/backend.py:5104
+#: settings-qt/bridge/backend.py:5327
 msgid "{name} can now use Flow with this computer"
 msgstr "{name} अब इस कंप्यूटर के साथ Flow इस्तेमाल कर सकता है"
 
-#: settings-qt/bridge/backend.py:3874
+#: settings-qt/bridge/backend.py:4089
 msgid "{name} copy"
 msgstr "{name} की प्रति"
 
-#: settings-qt/bridge/backend.py:3812
+#: settings-qt/bridge/backend.py:4027
 msgid "{name} is no longer bound to that button"
 msgstr "{name} अब उस बटन से बाइंड नहीं है"
 
-#: settings-qt/bridge/backend.py:5109
+#: settings-qt/bridge/backend.py:5332
 msgid "{name} was turned away"
 msgstr "{name} को अस्वीकार किया गया"
 
-#: settings-qt/bridge/backend.py:2869
+#: settings-qt/bridge/backend.py:3084
 msgid "{n} minutes"
 msgstr "{n} मिनट"
 
-#: settings-qt/bridge/backend.py:2868
+#: settings-qt/bridge/backend.py:3083
 msgid "{n} seconds"
 msgstr "{n} सेकंड"
 
-#: settings-qt/bridge/backend.py:4049
+#: settings-qt/bridge/backend.py:4264
 msgid "{what} copied"
 msgstr "{what} कॉपी किया गया"
 

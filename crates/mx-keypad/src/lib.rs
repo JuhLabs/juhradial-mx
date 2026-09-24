@@ -251,6 +251,11 @@ impl Keypad {
         Ok(())
     }
 
+    /// Panel brightness, 1..=100 (0 would reset the device, so it is refused).
+    pub fn set_brightness(&mut self, percent: u8) -> io::Result<()> {
+        self.write_report(&brightness_report(percent)?)
+    }
+
     pub fn write_image(&mut self, window: KeyWindow, jpeg: &[u8]) -> io::Result<()> {
         for packet in image_packets(window.x, window.y, window.w, window.h, jpeg)? {
             self.write_report(&packet)?;

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import "../components"
 
@@ -191,6 +192,17 @@ Item {
                             onClicked: Backend.addKeypadPage(qsTr("New page"))
                         }
                     }
+                    SettingRow {
+                        width: parent.width
+                        label: qsTr("Key brightness")
+                        desc: qsTr("The keypad keeps it after it wakes")
+                        Slider {
+                            width: 190; showValue: true; suffix: " %"; stepSize: 5
+                            from: 5; to: 100
+                            value: Backend.get("keypad.brightness", 100) || 100
+                            onCommitted: (v) => Backend.set("keypad.brightness", Math.round(v))
+                        }
+                    }
                     Divider {}
                     Repeater {
                         model: page.pages
@@ -212,7 +224,8 @@ Item {
                             // Which apps bring this page up (none = the general pages).
                             PrimaryButton {
                                 ghost: true
-                                text: (modelData.apps || []).length ? qsTr("For %1").arg(modelData.apps.join(", ")) : qsTr("All apps")
+                                readonly property var apps: modelData.apps || []
+                                text: apps.length ? qsTr("For %1").arg(apps.length > 1 ? apps[0] + " +" + (apps.length - 1) : apps[0]) : qsTr("All apps")
                                 onClicked: { pageAppPicker.pageIndex = index; pageAppPicker.open() }
                             }
                             IconButton {
@@ -243,6 +256,46 @@ Item {
             }
 
             GlassCard {
+                id: profileCard
+                Layout.fillWidth: true
+                Layout.preferredHeight: profileColumn.implicitHeight + Theme.padCard * 2
+                property bool showAll: false
+                // Re-read after every keypad save (added marks) and on open.
+                readonly property var profiles: (Backend.keypadRevision, Backend.keypadProfiles())
+                Column {
+                    id: profileColumn
+                    anchors.fill: parent; anchors.margins: Theme.padCard; spacing: Theme.gapS
+                    CardHeader {
+                        width: parent.width; title: qsTr("App profiles")
+                        subtitle: qsTr("Pages that come up by themselves while an app is in front. Your most used apps first.")
+                    }
+                    Divider {}
+                    Repeater {
+                        model: profileCard.profiles.filter(function (p) { return profileCard.showAll || p.installed })
+                        SettingRow {
+                            required property var modelData
+                            label: modelData.name
+                            desc: modelData.description
+                                  + (modelData.minutes > 0 ? "  " + qsTr("Used %1 min").arg(modelData.minutes) : "")
+                                  + (modelData.requires.length ? "  " + qsTr("Needs %1").arg(modelData.requires.join(", ")) : "")
+                            PrimaryButton {
+                                text: modelData.added ? qsTr("Added") : qsTr("Add profile")
+                                ghost: true
+                                enabled: !modelData.added && page.pages.length < 254
+                                onClicked: { Backend.applyKeypadProfile(modelData.id); editor.load() }
+                            }
+                        }
+                    }
+                    PrimaryButton {
+                        visible: profileCard.profiles.some(function (p) { return !p.installed })
+                        text: profileCard.showAll ? qsTr("Only apps on this computer") : qsTr("Show all profiles")
+                        ghost: true
+                        onClicked: profileCard.showAll = !profileCard.showAll
+                    }
+                }
+            }
+
+            GlassCard {
                 Layout.fillWidth: true
                 Layout.preferredHeight: templateColumn.implicitHeight + Theme.padCard * 2
                 Column {
@@ -251,6 +304,10 @@ Item {
                     CardHeader {
                         width: parent.width; title: qsTr("Templates")
                         subtitle: qsTr("Add a ready page. Missing apps leave keys for you to assign.")
+                        PrimaryButton {
+                            text: qsTr("Import pack"); ghost: true; enabled: page.pages.length < 255
+                            onClicked: packDialog.open()
+                        }
                     }
                     Divider {}
                     Repeater {
@@ -279,5 +336,11 @@ Item {
             if (cls && apps.indexOf(cls) < 0) apps.push(cls)
             Backend.setKeypadPageApps(pageIndex, apps)
         }
+    }
+    FileDialog {
+        id: packDialog
+        title: qsTr("Import a keypad pack")
+        nameFilters: [qsTr("Keypad pack (*.zip portable.json)")]
+        onAccepted: { if (Backend.importKeypadPack(selectedFile.toString())) editor.load() }
     }
 }

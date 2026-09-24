@@ -515,11 +515,14 @@ pub struct KeypadConfig {
     pub enabled: bool,
     pub active_page: u8,
     pub pages: Vec<KeypadPage>,
+    /// Panel brightness 1..=100; None leaves the device's own level.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brightness: Option<u8>,
 }
 
 impl Default for KeypadConfig {
     fn default() -> Self {
-        Self { enabled: true, active_page: 0, pages: Vec::new() }
+        Self { enabled: true, active_page: 0, pages: Vec::new(), brightness: None }
     }
 }
 

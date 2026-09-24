@@ -34,7 +34,7 @@ msgid "%1 click"
 msgstr "คลิก %1"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:182
-#: settings-qt/qml/pages/DashboardPage.qml:585
+#: settings-qt/qml/pages/DashboardPage.qml:576
 msgid "%1 does"
 msgstr "การทำงานของ %1"
 
@@ -121,7 +121,7 @@ msgid "%n button do something else in this app"
 msgid_plural "%n buttons do something else in this app"
 msgstr[0] "ปุ่ม %n ปุ่มทำงานต่างออกไปในแอปนี้"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1055
+#: settings-qt/qml/pages/ButtonsPage.qml:1047
 msgid "%n found"
 msgstr "พบ %n รายการ"
 
@@ -167,11 +167,11 @@ msgstr ", เปิด"
 msgid ", this computer"
 msgstr ", คอมพิวเตอร์เครื่องนี้"
 
-#: settings-qt/bridge/backend.py:2865
+#: settings-qt/bridge/backend.py:3080
 msgid "1 hour"
 msgstr "1 ชั่วโมง"
 
-#: settings-qt/bridge/backend.py:2864
+#: settings-qt/bridge/backend.py:3079
 msgid "1 minute"
 msgstr "1 นาที"
 
@@ -182,19 +182,23 @@ msgid ""
 msgstr ""
 "1. จับคู่เมาส์กับคอมพิวเตอร์แต่ละเครื่องโดยใช้ช่อง Easy-Switch แยกกัน แล้วตั้งค่าทั้งสองช่องด้านบน"
 
-#: settings-qt/bridge/backend.py:2865
+#: settings-qt/bridge/backend.py:3080
 msgid "10 minutes"
 msgstr "10 นาที"
 
-#: settings-qt/bridge/backend.py:2863
+#: settings-qt/bridge/backend.py:3078
 msgid "10 seconds"
 msgstr "10 วินาที"
 
-#: settings-qt/bridge/backend.py:2866
+#: settings-qt/assets/keypad/profiles.json
+msgid "1st Unread"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3081
 msgid "2 hours"
 msgstr "2 ชั่วโมง"
 
-#: settings-qt/bridge/backend.py:2864
+#: settings-qt/bridge/backend.py:3079
 msgid "2 minutes"
 msgstr "2 นาที"
 
@@ -207,11 +211,11 @@ msgid ""
 "3. Install and open JuhFlow on the Mac. It finds this computer by itself."
 msgstr "3. ติดตั้งและเปิด JuhFlow บน Mac แอปจะค้นพบคอมพิวเตอร์เครื่องนี้เอง"
 
-#: settings-qt/bridge/backend.py:2865
+#: settings-qt/bridge/backend.py:3080
 msgid "30 minutes"
 msgstr "30 นาที"
 
-#: settings-qt/bridge/backend.py:2863
+#: settings-qt/bridge/backend.py:3078
 msgid "30 seconds"
 msgstr "30 วินาที"
 
@@ -221,11 +225,11 @@ msgid ""
 "that."
 msgstr "4. อนุมัติ Mac ในส่วนคอมพิวเตอร์เมื่อมีคำขอ ก่อนอนุมัติจะยังไม่แชร์สิ่งใด"
 
-#: settings-qt/bridge/backend.py:2864
+#: settings-qt/bridge/backend.py:3079
 msgid "5 minutes"
 msgstr "5 นาที"
 
-#: settings-qt/bridge/backend.py:2863
+#: settings-qt/bridge/backend.py:3078
 msgid "5 seconds"
 msgstr "5 วินาที"
 
@@ -270,11 +274,11 @@ msgid ""
 "the mouse."
 msgstr "แรงกดที่เบากว่าค่าเริ่มต้นของ Logitech อาจทำให้คลิกโดยไม่ตั้งใจขณะจับเมาส์"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:877
+#: settings-qt/qml/pages/ButtonsPage.qml:869
 msgid "A link starts with https://"
 msgstr "ลิงก์ขึ้นต้นด้วย https://"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:51
+#: settings-qt/qml/components/CustomActionEditor.qml:55
 msgid "A link starts with https://, http:// or mailto:"
 msgstr "ลิงก์ขึ้นต้นด้วย https://, http:// หรือ mailto:"
 
@@ -298,13 +302,19 @@ msgstr "มาโครทำงานเสร็จ"
 msgid "A macro is running. Esc stops it."
 msgstr "มาโครกำลังทำงาน กด Esc เพื่อหยุด"
 
-#: settings-qt/bridge/backend.py:3882
+#: settings-qt/bridge/backend.py:4097
 msgid "A number of times"
 msgstr "ตามจำนวนครั้ง"
 
 #: settings-qt/bridge/backend.py:409
 msgid "A phone-like ring"
 msgstr "สั่นเหมือนโทรศัพท์เข้า"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:92
+msgid ""
+"A picture fills the whole key, label included. Otherwise the glyph or app "
+"icon sits above the label; long labels are shortened."
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:608
 msgid ""
@@ -339,7 +349,7 @@ msgstr "เกี่ยวกับเมาส์นี้"
 msgid "Above"
 msgstr "ด้านบน"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:26
+#: settings-qt/qml/components/KeypadKeyEditor.qml:27
 #: settings-qt/qml/pages/ScrollPage.qml:437 settings-qt/bridge/backend.py:672
 msgid "Action"
 msgstr "คำสั่ง"
@@ -347,6 +357,10 @@ msgstr "คำสั่ง"
 #: settings-qt/bridge/backend.py:417 settings-qt/bridge/backend.py:680
 msgid "Action runs"
 msgstr "คำสั่งทำงาน"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Actions"
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:579
 #: settings-qt/qml/pages/DashboardPage.qml:461
@@ -365,7 +379,7 @@ msgstr "วงแหวนคำสั่งและเดสก์ท็อป
 msgid "Actions ring"
 msgstr "วงแหวนคำสั่ง"
 
-#: settings-qt/qml/pages/KeypadPage.qml:208
+#: settings-qt/qml/pages/KeypadPage.qml:220
 msgid "Active"
 msgstr "ใช้งานอยู่"
 
@@ -375,14 +389,15 @@ msgstr "ใช้งานอยู่ตอนนี้"
 
 #: settings-qt/qml/components/MacroEditor.qml:322
 #: settings-qt/qml/pages/AppsPage.qml:360
+#: settings-qt/assets/keypad/profiles.json
 msgid "Add"
 msgstr "เพิ่ม"
 
-#: settings-qt/qml/pages/KeypadPage.qml:94
+#: settings-qt/qml/pages/KeypadPage.qml:95
 msgid "Add a page or choose a template to get started"
 msgstr "เพิ่มหน้าหรือเลือกแม่แบบเพื่อเริ่มต้น"
 
-#: settings-qt/qml/pages/KeypadPage.qml:242
+#: settings-qt/qml/pages/KeypadPage.qml:306
 msgid "Add a ready page. Missing apps leave keys for you to assign."
 msgstr "เพิ่มหน้าสำเร็จรูป ปุ่มของแอปที่ไม่ได้ติดตั้งจะเว้นว่างไว้ให้คุณกำหนดเอง"
 
@@ -403,11 +418,11 @@ msgstr "เพิ่มแอปในแท็บโปรไฟล์แอป
 msgid "Add by window class"
 msgstr "เพิ่มด้วยคลาสหน้าต่าง"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:915
+#: settings-qt/qml/pages/ButtonsPage.qml:907
 msgid "Add link"
 msgstr "เพิ่มลิงก์"
 
-#: settings-qt/qml/pages/KeypadPage.qml:190
+#: settings-qt/qml/pages/KeypadPage.qml:191
 msgid "Add page"
 msgstr "เพิ่มหน้า"
 
@@ -415,13 +430,25 @@ msgstr "เพิ่มหน้า"
 msgid "Add preset"
 msgstr "เพิ่มค่าล่วงหน้า"
 
-#: settings-qt/qml/pages/KeypadPage.qml:251
+#: settings-qt/qml/pages/KeypadPage.qml:282
+msgid "Add profile"
+msgstr ""
+
+#: settings-qt/qml/pages/KeypadPage.qml:319
 msgid "Add template"
 msgstr "เพิ่มแม่แบบ"
 
-#: settings-qt/bridge/backend.py:3115
+#: settings-qt/qml/pages/KeypadPage.qml:282
+msgid "Added"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3330
 msgid "Added profile: {app}"
 msgstr "เพิ่มโปรไฟล์แล้ว: {app}"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Address"
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:351
 msgid "Adjust markers"
@@ -445,11 +472,19 @@ msgstr "แตะสั้นๆ แล้วเมนูจะเปิดค�
 msgid "After your hands leave the keys"
 msgstr "หลังยกมือออกจากแป้น"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Alacritty and foot"
+msgstr ""
+
 #: settings-qt/bridge/backend.py:401
 msgid "Alert"
 msgstr "เตือน"
 
-#: settings-qt/bridge/backend.py:4612
+#: settings-qt/assets/keypad/profiles.json
+msgid "Align"
+msgstr ""
+
+#: settings-qt/qml/pages/KeypadPage.qml:228 settings-qt/bridge/backend.py:4827
 msgid "All apps"
 msgstr "ทุกแอป"
 
@@ -457,7 +492,7 @@ msgstr "ทุกแอป"
 msgid "All files (*)"
 msgstr "ทุกไฟล์ (*)"
 
-#: settings-qt/bridge/backend.py:4494
+#: settings-qt/bridge/backend.py:4709
 msgid "Already matches your desktop"
 msgstr "ตรงกับเดสก์ท็อปของคุณแล้ว"
 
@@ -483,16 +518,21 @@ msgstr "ตั้งค่าล้อหัวแม่มือของแอ
 msgid "An even buzz"
 msgstr "สั่นสม่ำเสมอ"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:93
+#: settings-qt/assets/keypad/profiles.json
+msgid "Answer"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:103
 #: settings-qt/qml/pages/SettingsPage.qml:653
 msgid "App"
 msgstr "แอป"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:73
-msgid "App actions use the app's icon. Long labels are shortened on the key."
-msgstr "คำสั่งของแอปใช้ไอคอนของแอป ป้ายชื่อที่ยาวจะถูกย่อบนปุ่ม"
+#: settings-qt/qml/components/KeypadKeyEditor.qml:82
+msgid "App icon"
+msgstr ""
 
 #: settings-qt/qml/Main.qml:61 settings-qt/qml/pages/AppsPage.qml:333
+#: settings-qt/qml/pages/KeypadPage.qml:269
 #: settings-qt/qml/pages/ScrollPage.qml:191 settings-qt/bridge/backend.py:633
 #: settings-qt/bridge/backend.py:701 settings-qt/bridge/backend.py:702
 #: settings-qt/bridge/backend.py:703 settings-qt/bridge/backend.py:761
@@ -503,11 +543,11 @@ msgstr "โปรไฟล์แอป"
 msgid "App switch"
 msgstr "สลับแอป"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:889
+#: settings-qt/qml/pages/ButtonsPage.qml:881
 msgid "App: %1"
 msgstr "แอป: %1"
 
-#: settings-qt/bridge/backend.py:4506
+#: settings-qt/bridge/backend.py:4721
 msgid "Applied desktop defaults to {count} actions"
 msgstr "ใช้ค่าเริ่มต้นเดสก์ท็อปกับ {count} คำสั่งแล้ว"
 
@@ -531,13 +571,17 @@ msgstr "อนุมัติ"
 msgid "Approved, not connected right now"
 msgstr "อนุมัติแล้ว ยังไม่เชื่อมต่อในขณะนี้"
 
-#: settings-qt/bridge/backend.py:1687
+#: settings-qt/bridge/backend.py:1725
 msgid "Apps and daily essentials"
 msgstr "แอปและสิ่งจำเป็นประจำวัน"
 
 #: settings-qt/qml/pages/AppsPage.qml:369
 msgid "Apps you used since JuhRadial started, one click to add"
 msgstr "แอปที่ใช้ตั้งแต่เริ่ม JuhRadial คลิกครั้งเดียวเพื่อเพิ่ม"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Archive"
+msgstr ""
 
 #: settings-qt/qml/pages/GamingPage.qml:335
 msgid "As is"
@@ -564,12 +608,12 @@ msgstr "พักอยู่ ขยับเพื่อปลุก"
 msgid "Asleep. Press any key to wake it"
 msgstr "พักอยู่ กดปุ่มใดก็ได้เพื่อปลุก"
 
-#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5121
+#: settings-qt/qml/pages/DevicesPage.qml:458 settings-qt/bridge/backend.py:5344
 msgid "Automatic"
 msgstr "อัตโนมัติ"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:805
-#: settings-qt/qml/pages/ButtonsPage.qml:811
+#: settings-qt/qml/pages/ButtonsPage.qml:797
+#: settings-qt/qml/pages/ButtonsPage.qml:803
 #: settings-qt/qml/pages/SettingsPage.qml:92 settings-qt/bridge/backend.py:748
 msgid "Automatic size"
 msgstr "ขนาดอัตโนมัติ"
@@ -578,7 +622,7 @@ msgstr "ขนาดอัตโนมัติ"
 msgid "Automatic: %1"
 msgstr "อัตโนมัติ: %1"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:799
+#: settings-qt/qml/pages/ButtonsPage.qml:791
 msgid "Automatic: fits each screen"
 msgstr "อัตโนมัติ: ปรับให้พอดีแต่ละหน้าจอ"
 
@@ -586,7 +630,7 @@ msgstr "อัตโนมัติ: ปรับให้พอดีแต่�
 msgid "Automatic: the light sensor sets the brightness"
 msgstr "อัตโนมัติ: เซ็นเซอร์แสงกำหนดความสว่าง"
 
-#: settings-qt/bridge/backend.py:4284 settings-qt/bridge/backend.py:5305
+#: settings-qt/bridge/backend.py:4499 settings-qt/bridge/backend.py:5528
 msgid "Autostart: {error}"
 msgstr "เริ่มอัตโนมัติ: {error}"
 
@@ -597,11 +641,15 @@ msgstr "ตื่นอยู่"
 #: settings-qt/qml/pages/ButtonsPage.qml:78
 #: settings-qt/qml/pages/ButtonsPage.qml:95
 #: settings-qt/qml/pages/ButtonsPage.qml:102 settings-qt/bridge/backend.py:133
-#: settings-qt/bridge/backend.py:652
+#: settings-qt/bridge/backend.py:652 settings-qt/assets/keypad/profiles.json
 msgid "Back"
 msgstr "ย้อนกลับ"
 
-#: settings-qt/bridge/backend.py:2747 settings-qt/bridge/backend.py:3889
+#: settings-qt/assets/keypad/profiles.json
+msgid "Back 10s"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2962 settings-qt/bridge/backend.py:4104
 msgid "Back button"
 msgstr "ปุ่มย้อนกลับ"
 
@@ -635,7 +683,7 @@ msgstr "ระยะเวลาที่ไฟพื้นหลังเปิ
 msgid "Backup"
 msgstr "สำรองข้อมูล"
 
-#: settings-qt/bridge/backend.py:4390
+#: settings-qt/bridge/backend.py:4605
 msgid "Backup saved as {name}"
 msgstr "บันทึกข้อมูลสำรองเป็น {name} แล้ว"
 
@@ -722,29 +770,54 @@ msgstr "ผูกกับปุ่ม…"
 msgid "Bind “%1” to a button"
 msgstr "ผูก “%1” กับปุ่ม"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Blender"
+msgstr ""
+
 #: settings-qt/qml/pages/DashboardPage.qml:59
 #: settings-qt/qml/pages/DevicesPage.qml:24
 msgid "Bluetooth"
 msgstr "Bluetooth"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Bold"
+msgstr ""
 
 #: settings-qt/qml/pages/DashboardPage.qml:58
 #: settings-qt/qml/pages/DevicesPage.qml:23
 msgid "Bolt receiver"
 msgstr "ตัวรับ Bolt"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Bookmark"
+msgstr ""
+
 #: settings-qt/qml/pages/DevicesPage.qml:466
 msgid "Brightness"
 msgstr "ความสว่าง"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:966 settings-qt/bridge/keypad.py:96
+#: settings-qt/qml/pages/ButtonsPage.qml:958 settings-qt/bridge/keypad.py:129
+#: settings-qt/assets/keypad/profiles.json
 msgid "Browser"
 msgstr "เบราว์เซอร์"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Brush"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Brush +"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Brush -"
+msgstr ""
 
 #: settings-qt/qml/components/MacroBindDialog.qml:122
 msgid "Button"
 msgstr "ปุ่ม"
 
-#: settings-qt/qml/pages/DashboardPage.qml:564
+#: settings-qt/qml/pages/DashboardPage.qml:555
 msgid "Button map"
 msgstr "แผนผังปุ่ม"
 
@@ -770,7 +843,7 @@ msgstr "คืนปุ่มเป็นค่าเริ่มต้นแล
 msgid "Buttons follow all apps again"
 msgstr "ปุ่มกลับไปใช้ค่าของทุกแอปแล้ว"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1053
+#: settings-qt/qml/pages/ButtonsPage.qml:1045
 msgid ""
 "Buttons this mouse reports that have no marker above. Assign an action to "
 "divert one; Disabled leaves it native."
@@ -794,7 +867,7 @@ msgstr ""
 "โดย JuhLabs พร้อมโค้ดจาก @gcarmin, @frizikk และ @iceteaSA "
 "รวมถึงการแก้ไขจากข้อเสนอของทุกคนที่รายงานปัญหา"
 
-#: settings-qt/bridge/backend.py:160
+#: settings-qt/bridge/backend.py:160 settings-qt/assets/keypad/profiles.json
 msgid "Calculator"
 msgstr "เครื่องคิดเลข"
 
@@ -802,11 +875,11 @@ msgstr "เครื่องคิดเลข"
 msgid "Calm"
 msgstr "สงบ"
 
-#: settings-qt/bridge/keypad.py:116
+#: settings-qt/bridge/keypad.py:149 settings-qt/assets/keypad/profiles.json
 msgid "Camera"
 msgstr "กล้อง"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:191
+#: settings-qt/qml/components/CustomActionEditor.qml:240
 #: settings-qt/qml/components/MacroBindDialog.qml:157
 #: settings-qt/qml/pages/DevicesPage.qml:697
 #: settings-qt/qml/pages/DevicesPage.qml:750
@@ -820,6 +893,14 @@ msgstr "ยกเลิก"
 #: settings-qt/qml/pages/SettingsPage.qml:764
 msgid "Cannot import this file"
 msgstr "นำเข้าไฟล์นี้ไม่ได้"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Canvas"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Captions"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:358
 msgid "Catppuccin Latte"
@@ -863,6 +944,16 @@ msgstr "ควรชาร์จเร็วๆ นี้"
 msgid "Charging"
 msgstr "กำลังชาร์จ"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Chat"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Chat and folder navigation, search, saved messages and archive for Telegram "
+"Desktop."
+msgstr ""
+
 #: settings-qt/qml/pages/DevicesPage.qml:199
 #: settings-qt/qml/pages/DevicesPage.qml:402
 #: settings-qt/qml/pages/FlowPage.qml:252
@@ -878,7 +969,7 @@ msgstr "ตรวจสอบอัปเดต"
 msgid "Check now"
 msgstr "ตรวจสอบตอนนี้"
 
-#: settings-qt/bridge/backend.py:1637
+#: settings-qt/bridge/backend.py:1639
 msgid "Check the custom action before saving this key"
 msgstr "ตรวจสอบคำสั่งกำหนดเองก่อนบันทึกปุ่มนี้"
 
@@ -890,33 +981,37 @@ msgstr "ตรวจสอบไฟร์วอลล์"
 msgid "Checked each time the keyboard wakes up"
 msgstr "ตรวจสอบทุกครั้งที่คีย์บอร์ดตื่น"
 
-#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:4972
+#: settings-qt/qml/pages/DevicesPage.qml:355 settings-qt/bridge/backend.py:5195
 msgid "Checking…"
 msgstr "กำลังตรวจสอบ…"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:98
+#: settings-qt/qml/components/KeypadKeyEditor.qml:117
 msgid "Choose a glyph"
 msgstr "เลือกสัญลักษณ์"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:158
+#: settings-qt/qml/components/CustomActionEditor.qml:207
 msgid "Choose a macro"
 msgstr "เลือกมาโคร"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:171
+#: settings-qt/qml/components/KeypadKeyEditor.qml:131
+msgid "Choose a picture for this key"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:220
 msgid "Choose a plugin action"
 msgstr "เลือกคำสั่งปลั๊กอิน"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:42
+#: settings-qt/qml/components/KeypadKeyEditor.qml:43
 msgid "Choose a shortcut, app, command or macro"
 msgstr "เลือกคีย์ลัด แอป คำสั่ง หรือมาโคร"
 
 #: settings-qt/qml/components/ActionPicker.qml:12
-#: settings-qt/qml/components/KeypadKeyEditor.qml:34
+#: settings-qt/qml/components/KeypadKeyEditor.qml:35
 #: settings-qt/qml/components/SliceEditor.qml:199
 msgid "Choose an action"
 msgstr "เลือกคำสั่ง"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:23
+#: settings-qt/qml/components/KeypadKeyEditor.qml:24
 msgid "Choose an action, then make its plate easy to read"
 msgstr "เลือกคำสั่ง แล้วทำให้หน้าปุ่มอ่านง่าย"
 
@@ -925,18 +1020,22 @@ msgstr "เลือกคำสั่ง แล้วทำให้หน้�
 msgid "Choose an app"
 msgstr "เลือกแอป"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:69
-msgid "Choose glyph"
-msgstr "เลือกสัญลักษณ์"
-
-#: settings-qt/qml/components/CustomActionEditor.qml:136
+#: settings-qt/qml/components/CustomActionEditor.qml:147
 msgid "Choose…"
 msgstr "เลือก…"
 
 #: settings-qt/qml/pages/SettingsPage.qml:164
-#: settings-qt/qml/pages/ThemesPage.qml:377
+#: settings-qt/qml/pages/ThemesPage.qml:373
 msgid "Classic"
 msgstr "คลาสสิก"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Clear"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Clear Line"
+msgstr ""
 
 #: settings-qt/qml/components/MacroEditor.qml:328
 msgid "Click"
@@ -946,7 +1045,7 @@ msgstr "คลิก"
 msgid "Click %1"
 msgstr "คลิก %1"
 
-#: settings-qt/qml/pages/DashboardPage.qml:565
+#: settings-qt/qml/pages/DashboardPage.qml:556
 msgid "Click a button to change it"
 msgstr "คลิกปุ่มเพื่อเปลี่ยน"
 
@@ -975,11 +1074,15 @@ msgstr "หมุนเป็นขั้นทุกครั้งเสมอ
 msgid "Clicks until you flick it, then spins freely"
 msgstr "หมุนเป็นขั้นจนกว่าจะปัดเร็ว แล้วจึงหมุนอิสระ"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Clipboard, zoom and shell keys for terminals without tabs."
+msgstr ""
+
 #: settings-qt/qml/components/MacroEditor.qml:133
 msgid "Close"
 msgstr "ปิด"
 
-#: settings-qt/bridge/backend.py:147
+#: settings-qt/bridge/backend.py:147 settings-qt/assets/keypad/profiles.json
 msgid "Close Tab"
 msgstr "ปิดแท็บ"
 
@@ -991,6 +1094,10 @@ msgstr "ปิดหน้าต่าง"
 msgid "Close the window"
 msgstr "ปิดหน้าต่าง"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Code"
+msgstr ""
+
 #: settings-qt/qml/components/SliceEditor.qml:168
 msgid "Colour"
 msgstr "สี"
@@ -1000,16 +1107,30 @@ msgstr "สี"
 msgid "Colour theme"
 msgstr "ธีมสี"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:94
-#: settings-qt/qml/components/CustomActionEditor.qml:146
+#: settings-qt/qml/components/CustomActionEditor.qml:104
+#: settings-qt/qml/components/CustomActionEditor.qml:157
 #: settings-qt/qml/components/SliceEditor.qml:131
 #: settings-qt/qml/pages/FlowPage.qml:513
 msgid "Command"
 msgstr "คำสั่ง"
 
-#: settings-qt/bridge/keypad.py:112
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Command palette, terminal, editing and debugging for VS Code, VSCodium and "
+"Code - OSS."
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:145
 msgid "Commands"
 msgstr "คำสั่ง"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Comment"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Commit"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:402
 msgid "Complete"
@@ -1039,14 +1160,14 @@ msgstr "คอมพิวเตอร์"
 msgid "Config was corrupt; using defaults (backup: config.json.bad)"
 msgstr "การตั้งค่าเสียหาย กำลังใช้ค่าเริ่มต้น (สำรอง: config.json.bad)"
 
-#: settings-qt/qml/pages/KeypadPage.qml:81
+#: settings-qt/qml/pages/KeypadPage.qml:82
 msgid "Connect your MX Keypad to use these keys."
 msgstr "เชื่อมต่อ MX Keypad เพื่อใช้ปุ่มเหล่านี้"
 
 #: settings-qt/qml/pages/DashboardPage.qml:61
 #: settings-qt/qml/pages/DevicesPage.qml:28
 #: settings-qt/qml/pages/FlowPage.qml:83
-#: settings-qt/qml/pages/KeypadPage.qml:60
+#: settings-qt/qml/pages/KeypadPage.qml:61
 msgid "Connected"
 msgstr "เชื่อมต่อแล้ว"
 
@@ -1071,11 +1192,15 @@ msgstr "เชื่อมต่อแล้ว%1"
 msgid "Connection"
 msgstr "การเชื่อมต่อ"
 
-#: settings-qt/bridge/backend.py:4049
+#: settings-qt/assets/keypad/profiles.json
+msgid "Contacts"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4264
 msgid "Copied"
 msgstr "คัดลอกแล้ว"
 
-#: settings-qt/bridge/backend.py:3202
+#: settings-qt/bridge/backend.py:3417
 msgid "Copied to {app}"
 msgstr "คัดลอกไปยัง {app} แล้ว"
 
@@ -1083,9 +1208,13 @@ msgstr "คัดลอกไปยัง {app} แล้ว"
 msgid "Copies the current line below itself"
 msgstr "คัดลอกบรรทัดปัจจุบันไว้ด้านล่าง"
 
-#: settings-qt/bridge/backend.py:143
+#: settings-qt/bridge/backend.py:143 settings-qt/assets/keypad/profiles.json
 msgid "Copy"
 msgstr "คัดลอก"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Copy Path"
+msgstr ""
 
 #: settings-qt/qml/pages/DashboardPage.qml:345
 #: settings-qt/qml/pages/DevicesPage.qml:584
@@ -1113,39 +1242,47 @@ msgstr "คัดลอก ID อุปกรณ์"
 msgid "Copy to another app"
 msgstr "คัดลอกไปยังแอปอื่น"
 
-#: settings-qt/bridge/backend.py:3964
+#: settings-qt/bridge/backend.py:4179
 msgid "Could not back up the settings, nothing was reset: {error}"
 msgstr "สำรองการตั้งค่าไม่ได้ จึงยังไม่รีเซ็ตสิ่งใด: {error}"
 
-#: settings-qt/bridge/backend.py:4859
+#: settings-qt/bridge/backend.py:1669
+msgid "Could not copy the picture: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1849
+msgid "Could not import the pack: {error}"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5082
 msgid "Could not open the plugins folder: {error}"
 msgstr "เปิดโฟลเดอร์ปลั๊กอินไม่ได้: {error}"
 
-#: settings-qt/bridge/backend.py:4974
+#: settings-qt/bridge/backend.py:5197
 msgid "Could not reach GitHub. Trying again tomorrow."
 msgstr "ติดต่อ GitHub ไม่ได้ จะลองอีกครั้งพรุ่งนี้"
 
-#: settings-qt/bridge/backend.py:5254
+#: settings-qt/bridge/backend.py:5477
 msgid "Could not restart the service: {error}"
 msgstr "รีสตาร์ทบริการไม่ได้: {error}"
 
-#: settings-qt/bridge/backend.py:4935
+#: settings-qt/bridge/backend.py:5158
 msgid "Could not restart: {error}"
 msgstr "รีสตาร์ทไม่ได้: {error}"
 
-#: settings-qt/bridge/backend.py:1683
+#: settings-qt/bridge/backend.py:1721
 msgid "Could not restore the keypad page"
 msgstr "คืนค่าหน้าคีย์แพดไม่ได้"
 
-#: settings-qt/bridge/keypad.py:65
+#: settings-qt/bridge/keypad.py:98
 msgid "Could not save a keypad plate"
 msgstr "บันทึกหน้าปุ่มของคีย์แพดไม่ได้"
 
-#: settings-qt/bridge/backend.py:1606
+#: settings-qt/bridge/backend.py:1608
 msgid "Could not save keypad: {error}"
 msgstr "บันทึกคีย์แพดไม่ได้: {error}"
 
-#: settings-qt/bridge/backend.py:5272
+#: settings-qt/bridge/backend.py:5495
 msgid "Could not start the radial menu: {error}"
 msgstr "เริ่มเมนูวงกลมไม่ได้: {error}"
 
@@ -1153,13 +1290,17 @@ msgstr "เริ่มเมนูวงกลมไม่ได้: {error}"
 msgid "Could not switch the keypad page"
 msgstr "สลับหน้าคีย์แพดไม่ได้"
 
-#: settings-qt/bridge/backend.py:5243
+#: settings-qt/bridge/backend.py:5466
 msgid "Could not write the log: {error}"
 msgstr "เขียนบันทึกเหตุการณ์ไม่ได้: {error}"
 
 #: settings-qt/qml/Main.qml:50
 msgid "Create profile"
 msgstr "สร้างโปรไฟล์"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Crop"
+msgstr ""
 
 #: settings-qt/qml/pages/FlowPage.qml:436
 msgid "Cross anywhere along the edge, not only where the glow is"
@@ -1168,6 +1309,14 @@ msgstr "ข้ามได้ทุกจุดตามขอบ ไม่จ�
 #: settings-qt/bridge/backend.py:314
 msgid "Ctrl + Shift + V, understood by most apps"
 msgstr "Ctrl + Shift + V ใช้ได้กับแอปส่วนใหญ่"
+
+#: settings-qt/qml/components/CustomActionEditor.qml:184
+msgid "Ctrl+Shift+V (terminals)"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:184
+msgid "Ctrl+V (apps)"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:280
 msgid "Currently %1"
@@ -1181,7 +1330,7 @@ msgstr "กำหนดเอง"
 msgid "Custom Action…"
 msgstr "คำสั่งกำหนดเอง…"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:79
+#: settings-qt/qml/components/CustomActionEditor.qml:89
 #: settings-qt/qml/pages/DashboardPage.qml:46 settings-qt/bridge/backend.py:654
 msgid "Custom action"
 msgstr "คำสั่งกำหนดเอง"
@@ -1189,6 +1338,18 @@ msgstr "คำสั่งกำหนดเอง"
 #: settings-qt/qml/pages/ButtonsPage.qml:111
 msgid "Custom action (not set)"
 msgstr "คำสั่งกำหนดเอง (ยังไม่ได้ตั้งค่า)"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Cut"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Cut All"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Cut Clip"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:139
 msgid "Cycle DPI Presets"
@@ -1201,6 +1362,10 @@ msgstr "วนค่า DPI ล่วงหน้า"
 #: settings-qt/qml/pages/DevicesPage.qml:629
 msgid "DPI"
 msgstr "DPI"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "DPI Cycle"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:141
 msgid "DPI Down"
@@ -1246,6 +1411,14 @@ msgstr "แดชบอร์ด"
 msgid "Dead zone in the middle where nothing is selected"
 msgstr "พื้นที่ว่างตรงกลางที่ไม่เลือกสิ่งใด"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Deafen"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Debug"
+msgstr ""
+
 #: settings-qt/qml/pages/HapticsPage.qml:40
 msgid "Default patterns restored"
 msgstr "คืนรูปแบบเริ่มต้นแล้ว"
@@ -1258,13 +1431,25 @@ msgstr "ขนาดเริ่มต้น"
 msgid "Default: %1"
 msgstr "ค่าเริ่มต้น: %1"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Definition"
+msgstr ""
+
 #: settings-qt/qml/pages/MacrosPage.qml:105
 msgid "Delete"
 msgstr "ลบ"
 
-#: settings-qt/qml/pages/KeypadPage.qml:223
+#: settings-qt/qml/pages/KeypadPage.qml:247
 msgid "Delete page"
 msgstr "ลบหน้า"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Desk Left"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Desk Right"
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:205
 msgid "Desktop"
@@ -1282,15 +1467,19 @@ msgstr "เดสก์ท็อปขวา"
 msgid "Desktop environment"
 msgstr "สภาพแวดล้อมเดสก์ท็อป"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:965
+#: settings-qt/qml/pages/ButtonsPage.qml:957
 msgid "Desktops"
 msgstr "เดสก์ท็อป"
 
-#: settings-qt/bridge/keypad.py:111
+#: settings-qt/assets/keypad/profiles.json
+msgid "Dev Tools"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:144
 msgid "Dev tools"
 msgstr "เครื่องมือ Dev"
 
-#: settings-qt/bridge/backend.py:1689
+#: settings-qt/bridge/backend.py:1727
 msgid "Developer"
 msgstr "นักพัฒนา"
 
@@ -1314,7 +1503,7 @@ msgid ""
 msgstr ""
 "อ่านข้อมูลอุปกรณ์ แบตเตอรี่ และคีย์บอร์ดผ่านบริการเบื้องหลัง เมื่อเริ่มบริการ หน้านี้จะเติมข้อมูลเอง"
 
-#: settings-qt/bridge/backend.py:5209
+#: settings-qt/bridge/backend.py:5432
 msgid "Diagnostics copied. Paste them into your bug report."
 msgstr "คัดลอกข้อมูลวินิจฉัยแล้ว วางลงในรายงานปัญหาของคุณ"
 
@@ -1322,8 +1511,8 @@ msgstr "คัดลอกข้อมูลวินิจฉัยแล้ว
 msgid "Direction"
 msgstr "ทิศทาง"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:945
-#: settings-qt/qml/pages/ButtonsPage.qml:950 settings-qt/bridge/backend.py:660
+#: settings-qt/qml/pages/ButtonsPage.qml:937
+#: settings-qt/qml/pages/ButtonsPage.qml:942 settings-qt/bridge/backend.py:660
 #: settings-qt/bridge/backend.py:661
 msgid "Directional gestures"
 msgstr "ท่าทางตามทิศทาง"
@@ -1337,6 +1526,10 @@ msgstr "ปิดใช้งาน"
 msgid "Discard"
 msgstr "ละทิ้ง"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Discord"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:678
 msgid "Documentation"
 msgstr "เอกสาร"
@@ -1348,6 +1541,10 @@ msgstr "ไม่ทำอะไร"
 #: settings-qt/qml/pages/GamingPage.qml:317
 msgid "Does nothing while the ring is hidden"
 msgstr "ไม่ทำอะไรขณะซ่อนวงแหวน"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Dolphin"
+msgstr ""
 
 #: settings-qt/qml/components/SliceEditor.qml:193
 #: settings-qt/qml/pages/DashboardPage.qml:366
@@ -1371,11 +1568,11 @@ msgstr "ดาวน์โหลด %1"
 msgid "Dracula"
 msgstr "Dracula"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1030 settings-qt/bridge/backend.py:661
+#: settings-qt/qml/pages/ButtonsPage.qml:1022 settings-qt/bridge/backend.py:661
 msgid "Drag distance"
 msgstr "ระยะลาก"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:982
+#: settings-qt/qml/pages/ButtonsPage.qml:974
 msgid "Drag down"
 msgstr "ลากลง"
 
@@ -1383,20 +1580,29 @@ msgstr "ลากลง"
 msgid "Drag each marker onto its button. Positions are saved as you go."
 msgstr "ลากเครื่องหมายแต่ละอันไปบนปุ่มของมัน ตำแหน่งจะบันทึกทันที"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:981
+#: settings-qt/qml/pages/ButtonsPage.qml:973
 msgid "Drag left"
 msgstr "ลากซ้าย"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:981
+#: settings-qt/qml/pages/ButtonsPage.qml:973
 msgid "Drag right"
 msgstr "ลากขวา"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:980
+#: settings-qt/qml/pages/ButtonsPage.qml:972
 msgid "Drag up"
 msgstr "ลากขึ้น"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Draw"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Dropper"
+msgstr ""
+
 #: settings-qt/qml/components/MacroEditor.qml:424
 #: settings-qt/qml/pages/MacrosPage.qml:103
+#: settings-qt/assets/keypad/profiles.json
 msgid "Duplicate"
 msgstr "ทำซ้ำ"
 
@@ -1415,8 +1621,8 @@ msgid "Each press steps to the next DPI preset"
 msgstr "กดแต่ละครั้งเพื่อเปลี่ยนไปค่า DPI ล่วงหน้าถัดไป"
 
 #: settings-qt/qml/Main.qml:62 settings-qt/qml/pages/DashboardPage.qml:428
-#: settings-qt/qml/pages/DashboardPage.qml:503
-#: settings-qt/qml/pages/DashboardPage.qml:543
+#: settings-qt/qml/pages/DashboardPage.qml:494
+#: settings-qt/qml/pages/DashboardPage.qml:534
 #: settings-qt/qml/pages/DevicesPage.qml:632 settings-qt/bridge/backend.py:118
 #: settings-qt/bridge/backend.py:634 settings-qt/bridge/backend.py:708
 msgid "Easy-Switch"
@@ -1435,19 +1641,27 @@ msgstr "Easy-Switch ต้องใช้เมาส์ Logitech"
 msgid "Easy-Switch, %1 of %2"
 msgstr "Easy-Switch, %1 จาก %2"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Edit"
+msgstr ""
+
 #: settings-qt/qml/pages/MacrosPage.qml:437
 msgid "Edit (Enter)"
 msgstr "แก้ไข (Enter)"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Edit Mode"
+msgstr ""
 
 #: settings-qt/qml/components/SliceEditor.qml:53
 msgid "Edit action %1"
 msgstr "แก้ไขคำสั่ง %1"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:47
+#: settings-qt/qml/components/KeypadKeyEditor.qml:48
 msgid "Edit custom action"
 msgstr "แก้ไขคำสั่งกำหนดเอง"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:967 settings-qt/bridge/backend.py:116
+#: settings-qt/qml/pages/ButtonsPage.qml:959 settings-qt/bridge/backend.py:116
 msgid "Editing"
 msgstr "กำลังแก้ไข"
 
@@ -1456,11 +1670,11 @@ msgstr "กำลังแก้ไข"
 msgid "Editing for"
 msgstr "แก้ไขสำหรับ"
 
-#: settings-qt/bridge/keypad.py:110
+#: settings-qt/bridge/keypad.py:143
 msgid "Editor"
 msgstr "ตัวแก้ไข"
 
-#: settings-qt/bridge/backend.py:1689
+#: settings-qt/bridge/backend.py:1727
 msgid "Editor, terminal and editing shortcuts"
 msgstr "ตัวแก้ไข เทอร์มินัล และคีย์ลัดการแก้ไข"
 
@@ -1469,6 +1683,14 @@ msgid ""
 "Eight actions under your thumb. Click a slice to edit it, drag it onto "
 "another to swap them."
 msgstr "แปดคำสั่งใต้หัวแม่มือ คลิกชิ้นส่วนเพื่อแก้ไข หรือลากทับอีกชิ้นเพื่อสลับกัน"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Element"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Emoji"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:418 settings-qt/bridge/backend.py:681
 msgid "Empty slice"
@@ -1487,6 +1709,10 @@ msgstr "End"
 msgid "Enter edits, F2 renames, Ctrl+R runs, Delete deletes"
 msgstr "Enter แก้ไข, F2 เปลี่ยนชื่อ, Ctrl+R เรียกใช้, Delete ลบ"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Eraser"
+msgstr ""
+
 #: settings-qt/qml/pages/HapticsPage.qml:190 settings-qt/bridge/backend.py:678
 #: settings-qt/bridge/backend.py:679 settings-qt/bridge/backend.py:680
 #: settings-qt/bridge/backend.py:681 settings-qt/bridge/backend.py:682
@@ -1501,15 +1727,23 @@ msgstr "เหตุการณ์"
 msgid "Every slice"
 msgstr "ทุกชิ้นส่วน"
 
-#: settings-qt/bridge/backend.py:1687
+#: settings-qt/bridge/backend.py:1725
 msgid "Everyday"
 msgstr "ใช้ประจำวัน"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Export"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Export As"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:721
 msgid "Export JuhRadial MX settings"
 msgstr "ส่งออกการตั้งค่า JuhRadial MX"
 
-#: settings-qt/bridge/backend.py:3918 settings-qt/bridge/backend.py:4392
+#: settings-qt/bridge/backend.py:4133 settings-qt/bridge/backend.py:4607
 msgid "Export failed: {error}"
 msgstr "ส่งออกไม่สำเร็จ: {error}"
 
@@ -1530,7 +1764,7 @@ msgstr "มีชีวิตชีวา"
 msgid "Extra actions for the ring, from plugin folders"
 msgstr "คำสั่งเพิ่มเติมสำหรับวงแหวนจากโฟลเดอร์ปลั๊กอิน"
 
-#: settings-qt/bridge/backend.py:2745 settings-qt/bridge/backend.py:3892
+#: settings-qt/bridge/backend.py:2960 settings-qt/bridge/backend.py:4107
 msgid "Extra side button"
 msgstr "ปุ่มด้านข้างเพิ่มเติม"
 
@@ -1542,14 +1776,48 @@ msgstr "คุณสมบัติ"
 msgid "Feral GameMode is not installed"
 msgstr "ยังไม่ได้ติดตั้ง Feral GameMode"
 
-#: settings-qt/bridge/keypad.py:99
+#: settings-qt/bridge/keypad.py:132 settings-qt/assets/keypad/profiles.json
 msgid "Files"
 msgstr "ไฟล์"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Files, Nemo and Thunar"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Fill"
+msgstr ""
 
 #: settings-qt/qml/pages/AppsPage.qml:399
 #: settings-qt/qml/pages/AppsPage.qml:400
 msgid "Filter profiles"
 msgstr "กรองโปรไฟล์"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Find"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Find Class"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Find File"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Find Text"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Find action, run, debug, navigation, refactoring and VCS for IntelliJ-based "
+"IDEs."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Find/Repl"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:405
 msgid "Firework"
@@ -1571,11 +1839,19 @@ msgstr "เฟิร์มแวร์"
 msgid "First time in %1. Give it its own profile?"
 msgstr "ใช้ %1 เป็นครั้งแรก สร้างโปรไฟล์เฉพาะไหม?"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Fit"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Fit Page"
+msgstr ""
+
 #: settings-qt/qml/pages/DashboardPage.qml:341
 msgid "Fix"
 msgstr "แก้ไข"
 
-#: settings-qt/qml/pages/ThemesPage.qml:311
+#: settings-qt/qml/pages/ThemesPage.qml:307
 msgid "Fixed colours"
 msgstr "สีคงที่"
 
@@ -1604,6 +1880,14 @@ msgid ""
 "mode."
 msgstr "Flow ต้องใช้เมาส์ Logitech ที่มี Easy-Switch เมาส์นี้ทำงานในโหมดทั่วไป"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Folder Dn"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Folder Up"
+msgstr ""
+
 #: settings-qt/qml/pages/ButtonsPage.qml:472
 msgid "Follow all apps"
 msgstr "ตามค่าของทุกแอป"
@@ -1614,6 +1898,10 @@ msgstr "ตามค่าของทุกแอป"
 #: settings-qt/qml/pages/AppsPage.qml:224
 msgid "Follows Point & Scroll"
 msgstr "ตามค่าตัวชี้และเลื่อน"
+
+#: settings-qt/qml/pages/KeypadPage.qml:228
+msgid "For %1"
+msgstr ""
 
 #: settings-qt/qml/pages/AppsPage.qml:348
 msgid "For apps without a menu entry, for example steam_app_730"
@@ -1640,18 +1928,34 @@ msgstr "บังคับใช้โหมดทั่วไป"
 msgid "Forget"
 msgstr "ลืม"
 
-#: settings-qt/bridge/backend.py:5114
+#: settings-qt/bridge/backend.py:5337
 msgid "Forgotten. It has to be approved again to use Flow"
 msgstr "ลืมแล้ว ต้องอนุมัติอีกครั้งเพื่อใช้ Flow"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Format"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Formatting, save, find and replace, comments and print for ONLYOFFICE "
+"Desktop Editors."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Formatting, save, find and replace, comments and print preview for Writer, "
+"Calc and Impress."
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:79
 #: settings-qt/qml/pages/ButtonsPage.qml:94
 #: settings-qt/qml/pages/ButtonsPage.qml:101 settings-qt/bridge/backend.py:134
-#: settings-qt/bridge/backend.py:651
+#: settings-qt/bridge/backend.py:651 settings-qt/assets/keypad/profiles.json
 msgid "Forward"
 msgstr "ถัดไป"
 
-#: settings-qt/bridge/backend.py:2746 settings-qt/bridge/backend.py:3890
+#: settings-qt/bridge/backend.py:2961 settings-qt/bridge/backend.py:4105
 msgid "Forward button"
 msgstr "ปุ่มถัดไป"
 
@@ -1659,10 +1963,22 @@ msgstr "ปุ่มถัดไป"
 msgid "Found. Turn on its support to see its battery and backlight"
 msgstr "พบแล้ว เปิดการรองรับเพื่อดูแบตเตอรี่และไฟพื้นหลัง"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Frame All"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Frame Sel"
+msgstr ""
+
 #: settings-qt/qml/pages/DashboardPage.qml:413
 #: settings-qt/qml/pages/GamingPage.qml:336
 msgid "Free-spin"
 msgstr "หมุนอิสระ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Front"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:245
 msgid "Frost what is behind the ring"
@@ -1671,6 +1987,18 @@ msgstr "เบลอสิ่งที่อยู่หลังวงแหว
 #: settings-qt/qml/pages/DevicesPage.qml:36
 msgid "Full"
 msgstr "เต็ม"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Fullscreen"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Fwd 10s"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "GIMP"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:521
 msgid "GNOME on Wayland has no scroll speed setting"
@@ -1705,7 +2033,7 @@ msgstr "โหมดเกม"
 msgid "Gaming mode is on and sets its own DPI until you turn it off."
 msgstr "โหมดเกมเปิดอยู่และใช้ DPI ของตนเองจนกว่าคุณจะปิด"
 
-#: settings-qt/bridge/backend.py:3520
+#: settings-qt/bridge/backend.py:3735
 msgid "Gaming mode needs the JuhRadial service"
 msgstr "โหมดเกมต้องใช้บริการ JuhRadial"
 
@@ -1716,6 +2044,10 @@ msgstr "โหมดเกมเมื่อแอปนี้อยู่ด้
 #: settings-qt/qml/components/MacroEditor.qml:356
 msgid "Gap between steps"
 msgstr "ช่วงห่างระหว่างขั้นตอน"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "General"
+msgstr ""
 
 #: settings-qt/qml/pages/DevicesPage.qml:216
 msgid "Generic mouse mode is on, so Logitech features are hidden."
@@ -1743,6 +2075,10 @@ msgstr "รับ JuhFlow"
 msgid "Getting started"
 msgstr "เริ่มต้นใช้งาน"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Git"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:679
 msgid "GitHub"
 msgstr "GitHub"
@@ -1751,11 +2087,11 @@ msgstr "GitHub"
 msgid "GitHub Light"
 msgstr "GitHub Light"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:833
+#: settings-qt/qml/pages/ButtonsPage.qml:825
 msgid "Give a ring slice the submenu action to add links here."
 msgstr "กำหนดคำสั่งเมนูย่อยให้ชิ้นส่วนวงแหวนเพื่อเพิ่มลิงก์ที่นี่"
 
-#: settings-qt/bridge/backend.py:2971
+#: settings-qt/bridge/backend.py:3186
 msgid "Give a slice a submenu first"
 msgstr "กำหนดเมนูย่อยให้ชิ้นส่วนก่อน"
 
@@ -1769,6 +2105,22 @@ msgstr "กำหนด DPI ล้อ ปุ่ม หรือเมนูว�
 msgid "Give it a name"
 msgstr "ตั้งชื่อ"
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:81
+msgid "Glyph"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Go Back"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Go to Decl"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Go to Line"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:111
 msgid "Go to tab 1 to 10"
 msgstr "ไปแท็บ 1 ถึง 10"
@@ -1776,6 +2128,18 @@ msgstr "ไปแท็บ 1 ถึง 10"
 #: settings-qt/bridge/backend.py:364
 msgid "Golden Classic (3D)"
 msgstr "Golden Classic (3D)"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Google Meet"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Group"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Hand"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:400
 msgid "Happy"
@@ -1823,10 +2187,18 @@ msgstr "หนัก"
 msgid "Hi-res scroll"
 msgstr "การเลื่อนความละเอียดสูง"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Hidden"
+msgstr ""
+
 #: settings-qt/qml/pages/DevicesPage.qml:658
 #: settings-qt/qml/pages/HapticsPage.qml:274
 msgid "Hide"
 msgstr "ซ่อน"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Hide Docks"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:237
 msgid "Hide the ring and show only the action icons"
@@ -1835,6 +2207,10 @@ msgstr "ซ่อนวงแหวนและแสดงเฉพาะไอ
 #: settings-qt/bridge/backend.py:451
 msgid "High"
 msgstr "สูง"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "History"
+msgstr ""
 
 #: settings-qt/qml/pages/GamingPage.qml:315
 msgid "Hold for the precision DPI, let go to go back"
@@ -1845,7 +2221,7 @@ msgid ""
 "Hold it for 3 seconds to pair a new computer in that slot (its light blinks)."
 msgstr "กดค้าง 3 วินาทีเพื่อจับคู่คอมพิวเตอร์ใหม่ในช่องนั้น (ไฟจะกะพริบ)"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:946
+#: settings-qt/qml/pages/ButtonsPage.qml:938
 msgid ""
 "Hold the gesture button and drag to run a different action per direction. A "
 "press without dragging keeps the gesture button's own action."
@@ -1855,6 +2231,11 @@ msgstr "กดปุ่มท่าทางค้างแล้วลากเ
 msgid ""
 "Hold the wheel in one mode while playing; your usual mode comes back after"
 msgstr "คงล้อไว้ในโหมดเดียวระหว่างเล่นเกม แล้วกลับสู่โหมดปกติเมื่อจบ"
+
+#: settings-qt/qml/components/CustomActionEditor.qml:197
+#: settings-qt/qml/components/CustomActionEditor.qml:199
+msgid "Hold while pressed"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:151
 msgid "Home"
@@ -1919,6 +2300,18 @@ msgstr "รูปลักษณ์หน้าต่างการตั้ง
 msgid "How to write one"
 msgstr "วิธีเขียนปลั๊กอิน"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Huddle"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Huddle Mic"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "IDE"
+msgstr ""
+
 #: settings-qt/qml/pages/EasySwitchPage.qml:126
 msgid "Icon in radial menu"
 msgstr "ไอคอนในเมนูวงกลม"
@@ -1932,11 +2325,19 @@ msgid "Icon size"
 msgstr "ขนาดไอคอน"
 
 #: settings-qt/qml/pages/SettingsPage.qml:155
-#: settings-qt/qml/pages/ThemesPage.qml:364
-#: settings-qt/qml/pages/ThemesPage.qml:375 settings-qt/bridge/backend.py:743
+#: settings-qt/qml/pages/ThemesPage.qml:360
+#: settings-qt/qml/pages/ThemesPage.qml:371 settings-qt/bridge/backend.py:743
 #: settings-qt/bridge/backend.py:752
 msgid "Icon style"
 msgstr "สไตล์ไอคอน"
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:63
+msgid "Image"
+msgstr ""
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:132
+msgid "Images (*.png *.jpg *.jpeg *.webp *.bmp *.svg)"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:795
 msgid "Import"
@@ -1946,9 +2347,17 @@ msgstr "นำเข้า"
 msgid "Import JuhRadial MX settings"
 msgstr "นำเข้าการตั้งค่า JuhRadial MX"
 
-#: settings-qt/bridge/backend.py:4440
+#: settings-qt/qml/pages/KeypadPage.qml:342
+msgid "Import a keypad pack"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4655
 msgid "Import failed: {error}"
 msgstr "นำเข้าไม่สำเร็จ: {error}"
+
+#: settings-qt/qml/pages/KeypadPage.qml:308
+msgid "Import pack"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:512 settings-qt/bridge/backend.py:765
 msgid "Import settings"
@@ -1958,9 +2367,13 @@ msgstr "นำเข้าการตั้งค่า"
 msgid "Import this backup?"
 msgstr "นำเข้าข้อมูลสำรองนี้ไหม?"
 
-#: settings-qt/bridge/backend.py:3933
+#: settings-qt/bridge/backend.py:4148
 msgid "Imported macro"
 msgstr "มาโครที่นำเข้า"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Imports"
+msgstr ""
 
 #: settings-qt/qml/pages/MacrosPage.qml:330
 #: settings-qt/qml/pages/SettingsPage.qml:515
@@ -1972,6 +2385,10 @@ msgstr "นำเข้า…"
 #: settings-qt/bridge/backend.py:726 settings-qt/bridge/backend.py:727
 msgid "In games"
 msgstr "ในเกม"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Inkscape"
+msgstr ""
 
 #: settings-qt/qml/pages/FlowPage.qml:413
 msgid "Install %1 first: without it nothing is copied across"
@@ -1993,9 +2410,17 @@ msgstr "ภาษาอินเทอร์เฟซและการเชื
 msgid "Invert direction"
 msgstr "กลับทิศทาง"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Italic"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:247
 msgid "Its own"
 msgstr "เฉพาะตัว"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "JetBrains IDEs"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:408
 msgid "Jingle"
@@ -2018,6 +2443,10 @@ msgstr "JuhRadial MX %1 ออกแล้ว"
 msgid "JuhRadial service"
 msgstr "บริการ JuhRadial"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Kdenlive"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:499
 msgid "Keep a copy of your setup or move it to another machine"
 msgstr "เก็บสำเนาการตั้งค่าหรือย้ายไปอีกเครื่อง"
@@ -2026,7 +2455,7 @@ msgstr "เก็บสำเนาการตั้งค่าหรือย
 msgid "Keep editing"
 msgstr "แก้ไขต่อ"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:57
+#: settings-qt/qml/components/KeypadKeyEditor.qml:58
 msgid "Keep it short"
 msgstr "ใช้ข้อความสั้นๆ"
 
@@ -2038,25 +2467,29 @@ msgstr "เก็บมาโคร"
 msgid "Keep remap"
 msgstr "เก็บการกำหนดปุ่ม"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:22
-#: settings-qt/qml/components/KeypadKeyEditor.qml:48
-#: settings-qt/qml/components/KeypadKeyEditor.qml:92
+#: settings-qt/qml/components/KeypadKeyEditor.qml:23
+#: settings-qt/qml/components/KeypadKeyEditor.qml:49
+#: settings-qt/qml/components/KeypadKeyEditor.qml:111
 msgid "Key %1"
 msgstr "ปุ่ม %1"
 
-#: settings-qt/qml/pages/KeypadPage.qml:127
+#: settings-qt/qml/pages/KeypadPage.qml:128
 msgid "Key %1: %2"
 msgstr "ปุ่ม %1: %2"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:56
+#: settings-qt/qml/pages/KeypadPage.qml:197
+msgid "Key brightness"
+msgstr ""
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:57
 msgid "Key label"
 msgstr "ป้ายชื่อปุ่ม"
 
-#: settings-qt/qml/pages/KeypadPage.qml:93 settings-qt/bridge/backend.py:640
+#: settings-qt/qml/pages/KeypadPage.qml:94 settings-qt/bridge/backend.py:640
 msgid "Key plates"
 msgstr "หน้าปุ่ม"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:80
+#: settings-qt/qml/components/KeypadKeyEditor.qml:99
 msgid "Key saved"
 msgstr "บันทึกปุ่มแล้ว"
 
@@ -2070,7 +2503,7 @@ msgstr "คีย์บอร์ด"
 msgid "Keyboard %1%"
 msgstr "คีย์บอร์ด %1%"
 
-#: settings-qt/bridge/backend.py:2195
+#: settings-qt/bridge/backend.py:2410
 msgid "Keyboard battery low"
 msgstr "แบตเตอรี่คีย์บอร์ดต่ำ"
 
@@ -2078,11 +2511,15 @@ msgstr "แบตเตอรี่คีย์บอร์ดต่ำ"
 msgid "Keyboard shortcuts"
 msgstr "คีย์ลัด"
 
-#: settings-qt/bridge/backend.py:1620
+#: settings-qt/qml/pages/KeypadPage.qml:343
+msgid "Keypad pack (*.zip portable.json)"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1622
 msgid "Keypad saved; reconnect the device to refresh its keys"
 msgstr "บันทึกคีย์แพดแล้ว เชื่อมต่ออุปกรณ์ใหม่เพื่อรีเฟรชปุ่ม"
 
-#: settings-qt/bridge/backend.py:1615
+#: settings-qt/bridge/backend.py:1617
 msgid "Keypad saved; the service could not reload it"
 msgstr "บันทึกคีย์แพดแล้ว แต่บริการโหลดใหม่ไม่ได้"
 
@@ -2090,7 +2527,7 @@ msgstr "บันทึกคีย์แพดแล้ว แต่บริ�
 msgid "Keys"
 msgstr "ปุ่มคีย์"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:92
+#: settings-qt/qml/components/CustomActionEditor.qml:102
 msgid "Kind of action"
 msgstr "ประเภทคำสั่ง"
 
@@ -2098,7 +2535,11 @@ msgstr "ประเภทคำสั่ง"
 msgid "Knock"
 msgstr "เคาะ"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:51
+#: settings-qt/assets/keypad/profiles.json
+msgid "Krita"
+msgstr ""
+
+#: settings-qt/qml/components/KeypadKeyEditor.qml:52
 #: settings-qt/qml/components/SliceEditor.qml:110
 msgid "Label"
 msgstr "ป้ายชื่อ"
@@ -2121,7 +2562,11 @@ msgstr "ค่าที่อ่านล่าสุด"
 msgid "Launch behaviour, tray and updates"
 msgstr "การเริ่มทำงาน ถาดระบบ และอัปเดต"
 
-#: settings-qt/bridge/keypad.py:118
+#: settings-qt/assets/keypad/profiles.json
+msgid "Layers"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:151 settings-qt/assets/keypad/profiles.json
 msgid "Leave"
 msgstr "วางสาย"
 
@@ -2137,7 +2582,7 @@ msgstr "คลิกซ้าย"
 msgid "Left is a firm push, right a light touch"
 msgstr "ซ้ายต้องกดหนัก ขวาแตะเบาๆ"
 
-#: settings-qt/bridge/backend.py:3099
+#: settings-qt/bridge/backend.py:3314
 msgid "Letters, digits, dots, dashes and underscores only"
 msgstr "ใช้เฉพาะตัวอักษร ตัวเลข จุด ขีดกลาง และขีดล่าง"
 
@@ -2149,6 +2594,10 @@ msgstr "ระดับ %1 จาก %2 เลือก 0 เพื่อปิ�
 #: settings-qt/bridge/backend.py:699
 msgid "Library"
 msgstr "คลัง"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "LibreOffice"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:681
 msgid "License"
@@ -2162,14 +2611,26 @@ msgstr "เบา"
 msgid "Light touch"
 msgstr "แตะเบา"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Like"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:163
-#: settings-qt/qml/pages/ThemesPage.qml:377
+#: settings-qt/qml/pages/ThemesPage.qml:373
 msgid "Line"
 msgstr "เส้น"
 
 #: settings-qt/qml/pages/ScrollPage.qml:401
 msgid "Line %1"
 msgstr "บรรทัด %1"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Line End"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Line Start"
+msgstr ""
 
 #: settings-qt/qml/pages/AppsPage.qml:49
 msgid "Line by line"
@@ -2179,10 +2640,10 @@ msgstr "ทีละบรรทัด"
 msgid "Lines per wheel notch, set in your desktop"
 msgstr "จำนวนบรรทัดต่อขั้นล้อ ตั้งค่าในเดสก์ท็อป"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:94
-#: settings-qt/qml/components/CustomActionEditor.qml:146
+#: settings-qt/qml/components/CustomActionEditor.qml:104
+#: settings-qt/qml/components/CustomActionEditor.qml:157
 #: settings-qt/qml/components/SliceEditor.qml:131
-#: settings-qt/qml/pages/ButtonsPage.qml:875
+#: settings-qt/qml/pages/ButtonsPage.qml:867
 msgid "Link"
 msgstr "ลิงก์"
 
@@ -2198,7 +2659,11 @@ msgstr "กำลังรอคอมพิวเตอร์อีกเคร
 msgid "Lit at level %1 of %2 right now. Moving the slider switches to Manual"
 msgstr "ขณะนี้สว่างระดับ %1 จาก %2 ขยับแถบเลื่อนเพื่อเปลี่ยนเป็นกำหนดเอง"
 
-#: settings-qt/bridge/keypad.py:101
+#: settings-qt/assets/keypad/profiles.json
+msgid "Location"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:134 settings-qt/assets/keypad/profiles.json
 msgid "Lock"
 msgstr "ล็อก"
 
@@ -2206,7 +2671,7 @@ msgstr "ล็อก"
 msgid "Lock Screen"
 msgstr "ล็อกหน้าจอ"
 
-#: settings-qt/bridge/backend.py:5303
+#: settings-qt/bridge/backend.py:5526
 msgid "Login entry repaired"
 msgstr "ซ่อมรายการเริ่มเมื่อเข้าสู่ระบบแล้ว"
 
@@ -2230,13 +2695,13 @@ msgstr "ต่ำ"
 msgid "Low battery"
 msgstr "แบตเตอรี่ต่ำ"
 
-#: settings-qt/qml/Main.qml:68 settings-qt/qml/pages/KeypadPage.qml:48
+#: settings-qt/qml/Main.qml:68 settings-qt/qml/pages/KeypadPage.qml:49
 #: settings-qt/bridge/backend.py:631 settings-qt/bridge/backend.py:640
 #: settings-qt/bridge/backend.py:641 settings-qt/bridge/backend.py:642
 msgid "MX Keypad"
 msgstr "MX Keypad"
 
-#: settings-qt/qml/pages/KeypadPage.qml:73
+#: settings-qt/qml/pages/KeypadPage.qml:74
 msgid "MX Keypad with nine display keys and two page buttons"
 msgstr "MX Keypad ที่มีปุ่มจอแสดงผลเก้าปุ่มและปุ่มเปลี่ยนหน้าสองปุ่ม"
 
@@ -2254,9 +2719,9 @@ msgstr "การรองรับ MX Keys S"
 msgid "Mac"
 msgstr "Mac"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:95
-#: settings-qt/qml/components/CustomActionEditor.qml:157
-#: settings-qt/bridge/backend.py:3874
+#: settings-qt/qml/components/CustomActionEditor.qml:105
+#: settings-qt/qml/components/CustomActionEditor.qml:206
+#: settings-qt/bridge/backend.py:4089
 msgid "Macro"
 msgstr "มาโคร"
 
@@ -2264,7 +2729,7 @@ msgstr "มาโคร"
 msgid "Macro deleted"
 msgstr "ลบมาโครแล้ว"
 
-#: settings-qt/bridge/backend.py:3920
+#: settings-qt/bridge/backend.py:4135
 msgid "Macro exported"
 msgstr "ส่งออกมาโครแล้ว"
 
@@ -2296,7 +2761,7 @@ msgstr "มาโคร “%1” ไม่ทำงาน"
 msgid "Macro: %1"
 msgstr "มาโคร: %1"
 
-#: settings-qt/bridge/backend.py:3901
+#: settings-qt/bridge/backend.py:4116
 msgid "Macro: {name}"
 msgstr "มาโคร: {name}"
 
@@ -2313,7 +2778,7 @@ msgstr "สร้างเมื่อ %1"
 msgid "MagSpeed modes, direction and speed"
 msgstr "โหมด MagSpeed ทิศทาง และความเร็ว"
 
-#: settings-qt/bridge/keypad.py:100
+#: settings-qt/bridge/keypad.py:133
 msgid "Mail"
 msgstr "อีเมล"
 
@@ -2325,7 +2790,7 @@ msgstr "สร้างโปรไฟล์สำหรับ"
 msgid "Make every button follow all apps"
 msgstr "ให้ทุกปุ่มตามค่าของทุกแอป"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:900
+#: settings-qt/qml/pages/ButtonsPage.qml:892
 msgid "Make it a link again"
 msgstr "เปลี่ยนกลับเป็นลิงก์"
 
@@ -2337,20 +2802,34 @@ msgstr "กำหนดเอง"
 msgid "Manual: the brightness below stays as you set it"
 msgstr "กำหนดเอง: ความสว่างด้านล่างจะคงตามที่ตั้งไว้"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Mark Read"
+msgstr ""
+
 #: settings-qt/qml/pages/ThemesPage.qml:132 settings-qt/bridge/backend.py:741
 msgid "Match the desktop accent"
 msgstr "ใช้สีเน้นของเดสก์ท็อป"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:968 settings-qt/bridge/backend.py:1688
-#: settings-qt/bridge/backend.py:117
+#: settings-qt/qml/pages/ButtonsPage.qml:960 settings-qt/bridge/backend.py:1726
+#: settings-qt/bridge/backend.py:117 settings-qt/assets/keypad/profiles.json
 msgid "Media"
 msgstr "สื่อ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Media, volume, screenshot, lock and desktop actions when no app profile "
+"matches."
+msgstr ""
 
 #: settings-qt/bridge/backend.py:450 settings-qt/bridge/backend.py:452
 msgid "Medium"
 msgstr "ปานกลาง"
 
-#: settings-qt/bridge/backend.py:1690
+#: settings-qt/assets/keypad/profiles.json
+msgid "Meeting"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1728
 msgid "Meetings"
 msgstr "ประชุม"
 
@@ -2362,17 +2841,39 @@ msgstr "เบลอพื้นหลังเมนู"
 msgid "Menu opens"
 msgstr "เมนูเปิด"
 
-#: settings-qt/bridge/keypad.py:92
+#: settings-qt/assets/keypad/profiles.json
+msgid "Mic"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Mic Mute"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:125
 msgid "Mic mute"
 msgstr "ปิดไมค์"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Mic, camera, raise hand, chat and people in a Google Meet tab (select "
+"manually)."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Microsoft Teams"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:132
 msgid "Middle Click"
 msgstr "คลิกกลาง"
 
-#: settings-qt/bridge/backend.py:2748
+#: settings-qt/bridge/backend.py:2963
 msgid "Middle click"
 msgstr "คลิกกลาง"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Mirror"
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:77
 #: settings-qt/qml/pages/ButtonsPage.qml:89
@@ -2381,6 +2882,7 @@ msgid "Mode shift"
 msgstr "สลับโหมด"
 
 #: settings-qt/qml/pages/DevicesPage.qml:588
+#: settings-qt/assets/keypad/profiles.json
 msgid "Model"
 msgstr "รุ่น"
 
@@ -2389,16 +2891,16 @@ msgid "Monitor switch"
 msgstr "สลับจอ"
 
 #: settings-qt/qml/pages/SettingsPage.qml:161
-#: settings-qt/qml/pages/ThemesPage.qml:376
+#: settings-qt/qml/pages/ThemesPage.qml:372
 msgid "Mono"
 msgstr "สีเดียว"
 
 #: settings-qt/qml/pages/SettingsPage.qml:162
-#: settings-qt/qml/pages/ThemesPage.qml:376
+#: settings-qt/qml/pages/ThemesPage.qml:372
 msgid "Mono 2"
 msgstr "สีเดียว 2"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:810
+#: settings-qt/qml/pages/ButtonsPage.qml:802
 #: settings-qt/qml/pages/MacrosPage.qml:443
 msgid "More"
 msgstr "เพิ่มเติม"
@@ -2408,7 +2910,7 @@ msgstr "เพิ่มเติม"
 msgid "Mouse"
 msgstr "เมาส์"
 
-#: settings-qt/bridge/backend.py:2186
+#: settings-qt/bridge/backend.py:2401
 msgid "Mouse battery low"
 msgstr "แบตเตอรี่เมาส์ต่ำ"
 
@@ -2420,6 +2922,10 @@ msgstr "ปุ่มเมาส์"
 msgid "Mouse returns"
 msgstr "เมาส์กลับมา"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Move"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:114
 msgid "Move between and use controls"
 msgstr "ย้ายระหว่างและใช้งานตัวควบคุม"
@@ -2428,11 +2934,11 @@ msgstr "ย้ายระหว่างและใช้งานตัวค
 msgid "Move down"
 msgstr "ย้ายลง"
 
-#: settings-qt/qml/pages/KeypadPage.qml:219
+#: settings-qt/qml/pages/KeypadPage.qml:243
 msgid "Move page down"
 msgstr "ย้ายหน้าลง"
 
-#: settings-qt/qml/pages/KeypadPage.qml:214
+#: settings-qt/qml/pages/KeypadPage.qml:238
 msgid "Move page up"
 msgstr "ย้ายหน้าขึ้น"
 
@@ -2455,19 +2961,32 @@ msgstr "ย้ายคีย์บอร์ดด้วย"
 msgid "Move up"
 msgstr "ย้ายขึ้น"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1031
+#: settings-qt/qml/pages/ButtonsPage.qml:1023
 msgid "Movement below this many pixels counts as a press"
 msgstr "การเคลื่อนที่น้อยกว่าจำนวนพิกเซลนี้นับเป็นการกด"
 
-#: settings-qt/bridge/keypad.py:108
+#: settings-qt/bridge/keypad.py:141
 msgid "Music"
 msgstr "เพลง"
 
-#: settings-qt/bridge/backend.py:157
+#: settings-qt/assets/keypad/profiles.json
+msgid "Music and video players"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:157 settings-qt/assets/keypad/profiles.json
 msgid "Mute"
 msgstr "ปิดเสียง"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:868
+#: settings-qt/assets/keypad/profiles.json
+msgid "Mute, camera, share and raise hand in Zoom meetings."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Mute, share, raise hand, answer and leave in Teams (teams-for-linux or PWA)."
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:860
 #: settings-qt/qml/pages/EasySwitchPage.qml:186
 msgid "Name"
 msgstr "ชื่อ"
@@ -2479,6 +2998,26 @@ msgstr "ตั้งชื่อมาโครนี้"
 #: settings-qt/qml/pages/ScrollPage.qml:323 settings-qt/bridge/backend.py:669
 msgid "Natural scrolling"
 msgstr "การเลื่อนแบบธรรมชาติ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Navigate"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Navigation, new folder, rename, search, hidden files and tabs for GNOME "
+"Files, Nemo and Thunar."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Navigation, new folder, rename, split view, terminal and path copy for KDE "
+"Dolphin."
+msgstr ""
+
+#: settings-qt/qml/pages/KeypadPage.qml:280
+msgid "Needs %1"
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:122
 msgid "Needs a mouse with a haptic motor"
@@ -2492,32 +3031,68 @@ msgstr "ต้องมี gsettings"
 msgid "Neon Sci-Fi (3D)"
 msgstr "Neon Sci-Fi (3D)"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "New Folder"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "New Layer"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "New Split"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "New Tab"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "New Window"
+msgstr ""
+
 #: settings-qt/qml/pages/ButtonsPage.qml:247
-#: settings-qt/qml/pages/ButtonsPage.qml:917
+#: settings-qt/qml/pages/ButtonsPage.qml:909
 msgid "New link"
 msgstr "ลิงก์ใหม่"
 
-#: settings-qt/bridge/backend.py:3712
+#: settings-qt/bridge/backend.py:3927
 msgid "New macro"
 msgstr "มาโครใหม่"
 
-#: settings-qt/qml/pages/KeypadPage.qml:191 settings-qt/bridge/backend.py:1647
+#: settings-qt/qml/pages/KeypadPage.qml:192 settings-qt/bridge/backend.py:1652
 msgid "New page"
 msgstr "หน้าใหม่"
 
-#: settings-qt/bridge/keypad.py:106
+#: settings-qt/bridge/keypad.py:139 settings-qt/assets/keypad/profiles.json
 msgid "Next"
 msgstr "ถัดไป"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Next Chat"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Next Cmd"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:165
 msgid "Next Computer"
 msgstr "คอมพิวเตอร์ถัดไป"
 
-#: settings-qt/bridge/backend.py:145
+#: settings-qt/assets/keypad/profiles.json
+msgid "Next Edit"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Next Error"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:145 settings-qt/assets/keypad/profiles.json
 msgid "Next Tab"
 msgstr "แท็บถัดไป"
 
-#: settings-qt/qml/pages/KeypadPage.qml:165
+#: settings-qt/qml/pages/KeypadPage.qml:166
 msgid "Next keypad page"
 msgstr "หน้าคีย์แพดถัดไป"
 
@@ -2529,7 +3104,7 @@ msgstr "ค่าล่วงหน้าถัดไป"
 msgid "Next tab (Shift for previous)"
 msgstr "แท็บถัดไป (Shift เพื่อย้อนกลับ)"
 
-#: settings-qt/qml/pages/KeypadPage.qml:54
+#: settings-qt/qml/pages/KeypadPage.qml:55
 msgid "Nine keys, your everyday actions"
 msgstr "เก้าปุ่มสำหรับคำสั่งที่ใช้ทุกวัน"
 
@@ -2545,7 +3120,7 @@ msgstr ""
 msgid "No app profiles yet"
 msgstr "ยังไม่มีโปรไฟล์แอป"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:128
+#: settings-qt/qml/components/CustomActionEditor.qml:139
 msgid "No application chosen"
 msgstr "ไม่ได้เลือกแอปพลิเคชัน"
 
@@ -2553,7 +3128,7 @@ msgstr "ไม่ได้เลือกแอปพลิเคชัน"
 msgid "No applications found"
 msgstr "ไม่พบแอปพลิเคชัน"
 
-#: settings-qt/bridge/backend.py:3888
+#: settings-qt/bridge/backend.py:4103
 msgid "No button"
 msgstr "ไม่มีปุ่ม"
 
@@ -2569,7 +3144,7 @@ msgstr "ไม่ใช้เอฟเฟกต์จาง เลื่อน �
 msgid "No firewall service is running here, so Flow is not blocked by one."
 msgstr "ไม่มีบริการไฟร์วอลล์ทำงานที่นี่ Flow จึงไม่ถูกไฟร์วอลล์บล็อก"
 
-#: settings-qt/bridge/backend.py:3662
+#: settings-qt/bridge/backend.py:3877
 msgid "No keyboard to record from. Your user needs to read /dev/input "
 msgstr "ไม่มีคีย์บอร์ดให้บันทึก ผู้ใช้ของคุณต้องมีสิทธิ์อ่าน /dev/input "
 
@@ -2602,17 +3177,21 @@ msgstr ""
 "ยังไม่มีคอมพิวเตอร์อื่น เปิด JuhFlow บน Mac (ดูตั้งค่า Mac ด้านล่าง) "
 "แอปจะค้นพบเครื่องนี้และขอเชื่อมต่อ"
 
-#: settings-qt/qml/pages/KeypadPage.qml:64
+#: settings-qt/qml/pages/KeypadPage.qml:65
 msgid "No pages yet"
 msgstr "ยังไม่มีหน้า"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:171
+#: settings-qt/qml/components/CustomActionEditor.qml:220
 msgid "No plugins installed"
 msgstr "ยังไม่ได้ติดตั้งปลั๊กอิน"
 
 #: settings-qt/qml/pages/SettingsPage.qml:607
 msgid "No plugins yet"
 msgstr "ยังไม่มีปลั๊กอิน"
+
+#: settings-qt/bridge/backend.py:1816
+msgid "No portable.json in this pack"
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:306
 msgid "No pulses while gaming mode is on"
@@ -2622,7 +3201,7 @@ msgstr "ไม่สั่นขณะเปิดโหมดเกม"
 msgid "No pulses while one of these apps is in front"
 msgstr "ไม่สั่นเมื่อแอปเหล่านี้อยู่ด้านหน้า"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:158
+#: settings-qt/qml/components/CustomActionEditor.qml:207
 msgid "No saved macros yet"
 msgstr "ยังไม่มีมาโครที่บันทึกไว้"
 
@@ -2642,6 +3221,10 @@ msgstr ""
 "ไม่มีการเก็บข้อมูลการใช้งาน JuhRadial MX ไม่ส่งข้อมูลเกี่ยวกับคุณ "
 "คำขอเครือข่ายเพียงอย่างเดียวคือการตรวจอัปเดตรายวันที่เลือกปิดได้"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Nodes"
+msgstr ""
+
 #: settings-qt/qml/pages/DevicesPage.qml:652
 msgid ""
 "None. Pick This mouse only on the Buttons tab to give this mouse its own "
@@ -2656,12 +3239,12 @@ msgstr "Nord"
 msgid "Normal push"
 msgstr "กดปกติ"
 
-#: settings-qt/bridge/backend.py:4979
+#: settings-qt/bridge/backend.py:5202
 msgid "Not checked yet."
 msgstr "ยังไม่ได้ตรวจสอบ"
 
 #: settings-qt/qml/pages/FlowPage.qml:83
-#: settings-qt/qml/pages/KeypadPage.qml:60
+#: settings-qt/qml/pages/KeypadPage.qml:61
 msgid "Not connected"
 msgstr "ไม่ได้เชื่อมต่อ"
 
@@ -2705,7 +3288,7 @@ msgstr "ยังไม่ได้ตั้งค่า: เมาส์จะ�
 msgid "Not set: the mouse stays here when the cursor leaves"
 msgstr "ยังไม่ได้ตั้งค่า: เมาส์จะอยู่ที่นี่เมื่อเคอร์เซอร์ออกไป"
 
-#: settings-qt/bridge/keypad.py:103
+#: settings-qt/bridge/keypad.py:136
 msgid "Notes"
 msgstr "โน้ต"
 
@@ -2717,7 +3300,7 @@ msgstr "ยังไม่มีค่าเฉพาะ เปิดเพื�
 msgid "Nothing shows up? A firewall may block Flow."
 msgstr "ไม่มีอะไรปรากฏ? ไฟร์วอลล์อาจบล็อก Flow"
 
-#: settings-qt/bridge/backend.py:3702
+#: settings-qt/bridge/backend.py:3917
 msgid "Nothing was recorded. Press some keys while it records."
 msgstr "ไม่ได้บันทึกสิ่งใด กดปุ่มระหว่างที่กำลังบันทึก"
 
@@ -2728,6 +3311,18 @@ msgstr "ขณะนี้: หมุนแบบขั้น"
 #: settings-qt/qml/pages/ScrollPage.qml:274
 msgid "Now: spinning"
 msgstr "ขณะนี้: หมุนอิสระ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "OBS"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "OBS Studio"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "ONLYOFFICE"
+msgstr ""
 
 #: settings-qt/qml/pages/AppsPage.qml:212
 #: settings-qt/qml/pages/DashboardPage.qml:420
@@ -2750,6 +3345,10 @@ msgstr "ปิด: Flow ยังแชร์คลิปบอร์ด แต�
 msgid "Off: the pointer moves exactly as far as the mouse"
 msgstr "ปิด: ตัวชี้เคลื่อนตามระยะเมาส์โดยตรง"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Office"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:212
 #: settings-qt/qml/pages/DashboardPage.qml:420
 #: settings-qt/qml/pages/DashboardPage.qml:433
@@ -2758,7 +3357,7 @@ msgstr "ปิด: ตัวชี้เคลื่อนตามระยะ�
 msgid "On"
 msgstr "เปิด"
 
-#: settings-qt/bridge/backend.py:3884
+#: settings-qt/bridge/backend.py:4099
 msgid "On / off"
 msgstr "เปิด / ปิด"
 
@@ -2793,7 +3392,7 @@ msgstr "เปิดขณะเกมทำงาน แล้วปิดเ�
 msgid "On: faster movements carry the pointer further"
 msgstr "เปิด: ขยับเร็วขึ้น ตัวชี้ไปไกลขึ้น"
 
-#: settings-qt/bridge/backend.py:3881
+#: settings-qt/bridge/backend.py:4096
 msgid "Once"
 msgstr "ครั้งเดียว"
 
@@ -2829,6 +3428,10 @@ msgstr ""
 msgid "Only KDE Plasma can frost the background behind the ring"
 msgstr "มีเพียง KDE Plasma ที่เบลอพื้นหลังหลังวงแหวนได้"
 
+#: settings-qt/qml/pages/KeypadPage.qml:291
+msgid "Only apps on this computer"
+msgstr ""
+
 #: settings-qt/qml/pages/ButtonsPage.qml:390
 msgid "Only this mouse. Buttons you leave alone follow all apps."
 msgstr "เฉพาะเมาส์นี้ ปุ่มที่ไม่เปลี่ยนจะตามค่าของทุกแอป"
@@ -2838,7 +3441,7 @@ msgid "Only while %1 has focus. Buttons you leave alone follow all apps."
 msgstr "เฉพาะขณะ %1 มีโฟกัส ปุ่มที่ไม่เปลี่ยนจะตามค่าของทุกแอป"
 
 #: settings-qt/qml/pages/DashboardPage.qml:465
-#: settings-qt/qml/pages/DashboardPage.qml:567
+#: settings-qt/qml/pages/DashboardPage.qml:558
 msgid "Open Buttons"
 msgstr "เปิดปุ่ม"
 
@@ -2846,7 +3449,7 @@ msgstr "เปิดปุ่ม"
 msgid "Open an application from the submenu"
 msgstr "เปิดแอปพลิเคชันจากเมนูย่อย"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:895
+#: settings-qt/qml/pages/ButtonsPage.qml:887
 msgid "Open an application instead"
 msgstr "เปิดแอปพลิเคชันแทน"
 
@@ -2900,7 +3503,7 @@ msgstr "อื่นๆ"
 msgid "Other computer"
 msgstr "คอมพิวเตอร์อีกเครื่อง"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1052 settings-qt/bridge/backend.py:662
+#: settings-qt/qml/pages/ButtonsPage.qml:1044 settings-qt/bridge/backend.py:662
 msgid "Other controls"
 msgstr "ตัวควบคุมอื่น"
 
@@ -2933,15 +3536,29 @@ msgstr "กำหนดล้อเลื่อนเฉพาะ"
 msgid "Override the thumb wheel"
 msgstr "กำหนดล้อหัวแม่มือเฉพาะ"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Overview"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:51
 msgid "Own ring"
 msgstr "วงแหวนเฉพาะตัว"
 
-#: settings-qt/qml/pages/KeypadPage.qml:203
+#: settings-qt/bridge/backend.py:1854
+msgid ""
+"Pack imported: {n} pages. Keys without a Linux action keep their picture for "
+"you to assign."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1841
+msgid "Page"
+msgstr ""
+
+#: settings-qt/qml/pages/KeypadPage.qml:215
 msgid "Page %1 name"
 msgstr "ชื่อหน้า %1"
 
-#: settings-qt/qml/pages/KeypadPage.qml:64
+#: settings-qt/qml/pages/KeypadPage.qml:65
 msgid "Page %1 of %2"
 msgstr "หน้า %1 จาก %2"
 
@@ -2953,17 +3570,31 @@ msgstr "Page Down"
 msgid "Page Up"
 msgstr "Page Up"
 
-#: settings-qt/qml/pages/KeypadPage.qml:188
+#: settings-qt/qml/pages/KeypadPage.qml:189
 msgid "Page buttons wrap from the last page to the first"
 msgstr "ปุ่มเปลี่ยนหน้าจะวนจากหน้าสุดท้ายกลับไปหน้าแรก"
 
-#: settings-qt/qml/pages/KeypadPage.qml:226
+#: settings-qt/qml/pages/KeypadPage.qml:250
 msgid "Page deleted"
 msgstr "ลบหน้าแล้ว"
 
-#: settings-qt/qml/pages/KeypadPage.qml:187 settings-qt/bridge/backend.py:641
+#: settings-qt/qml/pages/KeypadPage.qml:188 settings-qt/bridge/backend.py:641
 msgid "Pages"
 msgstr "หน้า"
+
+#: settings-qt/qml/pages/KeypadPage.qml:270
+msgid ""
+"Pages that come up by themselves while an app is in front. Your most used "
+"apps first."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Paint"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Paintbrush"
+msgstr ""
 
 #: settings-qt/qml/pages/EasySwitchPage.qml:36
 #: settings-qt/qml/pages/EasySwitchPage.qml:40
@@ -2978,13 +3609,35 @@ msgstr "จับคู่ผ่าน Bluetooth"
 msgid "Paired with a USB receiver"
 msgstr "จับคู่กับตัวรับ USB"
 
-#: settings-qt/bridge/backend.py:143
+#: settings-qt/assets/keypad/profiles.json
+msgid "Palette"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:143 settings-qt/assets/keypad/profiles.json
 msgid "Paste"
 msgstr "วาง"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Paste Spec"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Paste Text"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:314
 msgid "Paste as plain text"
 msgstr "วางเป็นข้อความธรรมดา"
+
+#: settings-qt/qml/components/CustomActionEditor.qml:183
+msgid "Paste with"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:191
+msgid ""
+"Pasted through the clipboard, so every keyboard layout gets the exact "
+"characters."
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:80
 msgid "Pattern for %1"
@@ -2999,9 +3652,25 @@ msgstr "พัก"
 msgid "Pause %1 ms"
 msgstr "พัก %1 ms"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Pause Rec"
+msgstr ""
+
 #: settings-qt/bridge/backend.py:361
 msgid "Pearl Blossom (3D)"
 msgstr "Pearl Blossom (3D)"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Pen"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "People"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Persp/Orth"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:353
 msgid "Phosphor"
@@ -3023,6 +3692,10 @@ msgstr "เลือกแอปพลิเคชัน"
 msgid "Pick this app in the scope switcher on the Buttons tab"
 msgstr "เลือกแอปนี้ในตัวเลือกขอบเขตของแท็บปุ่ม"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Picker"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:392
 msgid ""
 "Picks the screenshot tool, file manager and note app for the default slices"
@@ -3032,11 +3705,19 @@ msgstr "เลือกเครื่องมือจับภาพหน้
 msgid "Picks the theme closest to your desktop's accent colour"
 msgstr "เลือกธีมที่ใกล้เคียงสีเน้นเดสก์ท็อปที่สุด"
 
-#: settings-qt/bridge/backend.py:2880
+#: settings-qt/qml/components/KeypadKeyEditor.qml:83
+msgid "Picture"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:3095
 msgid "Pin saved: {slot} = {x}, {y}"
 msgstr "บันทึกตำแหน่งแล้ว: {slot} = {x}, {y}"
 
-#: settings-qt/bridge/keypad.py:105
+#: settings-qt/assets/keypad/profiles.json
+msgid "Places"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:138
 msgid "Play"
 msgstr "เล่น"
 
@@ -3044,27 +3725,37 @@ msgstr "เล่น"
 msgid "Play %1"
 msgstr "เล่น %1"
 
-#: settings-qt/bridge/backend.py:154
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Play, cut at playhead, undo, timeline zoom and edit-point navigation for "
+"Kdenlive."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Play, split, undo, timeline zoom and edit navigation for Shotcut."
+msgstr ""
+
+#: settings-qt/bridge/backend.py:154 settings-qt/assets/keypad/profiles.json
 msgid "Play/Pause"
 msgstr "เล่น/หยุดชั่วคราว"
 
-#: settings-qt/bridge/backend.py:1688
+#: settings-qt/bridge/backend.py:1726
 msgid "Playback, volume and microphone"
 msgstr "การเล่น ระดับเสียง และไมโครโฟน"
 
-#: settings-qt/bridge/backend.py:3882
+#: settings-qt/bridge/backend.py:4097
 msgid "Plays the steps again and again, as often as you set."
 msgstr "เล่นขั้นตอนซ้ำตามจำนวนครั้งที่ตั้งไว้"
 
-#: settings-qt/bridge/backend.py:3881
+#: settings-qt/bridge/backend.py:4096
 msgid "Plays the steps one time."
 msgstr "เล่นขั้นตอนครั้งเดียว"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:95
+#: settings-qt/qml/components/CustomActionEditor.qml:105
 msgid "Plugin"
 msgstr "ปลั๊กอิน"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:170
+#: settings-qt/qml/components/CustomActionEditor.qml:219
 msgid "Plugin action"
 msgstr "คำสั่งปลั๊กอิน"
 
@@ -3113,13 +3804,18 @@ msgstr "DPI แม่นยำขณะกดค้าง"
 msgid "Preset %1"
 msgstr "ค่าล่วงหน้า %1"
 
-#: settings-qt/bridge/backend.py:3578
+#: settings-qt/bridge/backend.py:3793
 msgid "Preset %d"
 msgstr "ค่าล่วงหน้า %d"
 
 #: settings-qt/qml/pages/GamingPage.qml:251
 msgid "Preset name"
 msgstr "ชื่อค่าล่วงหน้า"
+
+#: settings-qt/qml/components/CustomActionEditor.qml:176
+#: settings-qt/qml/components/CustomActionEditor.qml:178
+msgid "Press Enter after"
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:226
 #: settings-qt/qml/pages/HapticsPage.qml:236 settings-qt/bridge/backend.py:690
@@ -3140,7 +3836,7 @@ msgstr "กดปุ่มใต้เมาส์เพื่อไปคอม
 msgid "Press the keys now, Esc to stop"
 msgstr "กดปุ่มตอนนี้ กด Esc เพื่อหยุด"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1013
+#: settings-qt/qml/pages/ButtonsPage.qml:1005
 msgid "Press without dragging"
 msgstr "กดโดยไม่ลาก"
 
@@ -3148,15 +3844,39 @@ msgstr "กดโดยไม่ลาก"
 msgid "Presses a shortcut"
 msgstr "กดคีย์ลัด"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Prev Chat"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Prev Cmd"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Prev Edit"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Prev Error"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Prev Tab"
+msgstr ""
+
 #: settings-qt/qml/pages/HapticsPage.qml:296 settings-qt/bridge/backend.py:692
 msgid "Prevent duplicate pulses"
 msgstr "ป้องกันการสั่นซ้ำ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Preview"
+msgstr ""
 
 #: settings-qt/qml/components/RingPreview.qml:52
 msgid "Preview of the radial menu"
 msgstr "ตัวอย่างเมนูวงกลม"
 
-#: settings-qt/bridge/keypad.py:105
+#: settings-qt/bridge/keypad.py:138 settings-qt/assets/keypad/profiles.json
 msgid "Previous"
 msgstr "ก่อนหน้า"
 
@@ -3164,9 +3884,21 @@ msgstr "ก่อนหน้า"
 msgid "Previous Tab"
 msgstr "แท็บก่อนหน้า"
 
-#: settings-qt/qml/pages/KeypadPage.qml:160
+#: settings-qt/qml/pages/KeypadPage.qml:161
 msgid "Previous keypad page"
 msgstr "หน้าคีย์แพดก่อนหน้า"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Print"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Problems"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1924
+msgid "Profile added: {name}"
+msgstr ""
 
 #: settings-qt/qml/pages/AppsPage.qml:41
 msgid "Profile for %1 removed"
@@ -3177,9 +3909,13 @@ msgstr "ลบโปรไฟล์ของ %1 แล้ว"
 msgid "Profile: %1"
 msgstr "โปรไฟล์: %1"
 
-#: settings-qt/bridge/backend.py:3000
+#: settings-qt/bridge/backend.py:3215
 msgid "Profiles save failed: {error}"
 msgstr "บันทึกโปรไฟล์ไม่สำเร็จ: {error}"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Properties"
+msgstr ""
 
 #: settings-qt/qml/pages/GamingPage.qml:343 settings-qt/bridge/backend.py:726
 msgid "Pulse on preset change"
@@ -3196,9 +3932,27 @@ msgid ""
 msgstr ""
 "เลื่อนเคอร์เซอร์เลยขอบหน้าจอนี้ไป เคอร์เซอร์จะปรากฏบน Mac เมาส์จะสลับตามพร้อมสิ่งที่คุณคัดลอกไว้"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:830 settings-qt/bridge/backend.py:659
+#: settings-qt/assets/keypad/profiles.json
+msgid "Quick Fix"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Quick Open"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:822 settings-qt/bridge/backend.py:659
 msgid "Quick links"
 msgstr "ลิงก์ด่วน"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Quick switcher, unread navigation, upload, emoji, mute and deafen for "
+"Discord."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Quick switcher, unreads, upload and huddle controls for Slack."
+msgstr ""
 
 #: settings-qt/qml/pages/HapticsPage.qml:29
 msgid "Quiet"
@@ -3264,12 +4018,17 @@ msgstr "กำลังอ่านอุปกรณ์…"
 msgid "Ready: %1"
 msgstr "พร้อม: %1"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Recent"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:368 settings-qt/bridge/backend.py:703
 msgid "Recently used"
 msgstr "ใช้ล่าสุด"
 
 #: settings-qt/qml/pages/MacrosPage.qml:204
 #: settings-qt/qml/pages/MacrosPage.qml:357 settings-qt/bridge/backend.py:696
+#: settings-qt/assets/keypad/profiles.json
 msgid "Record"
 msgstr "บันทึก"
 
@@ -3288,6 +4047,12 @@ msgstr "บันทึกอีกครั้ง"
 #: settings-qt/qml/components/MacroEditor.qml:86
 msgid "Record the keys"
 msgstr "บันทึกปุ่มคีย์"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Record, pause, stream, replay, virtual camera and scene switching through "
+"obs-cmd."
+msgstr ""
 
 #: settings-qt/qml/pages/MacrosPage.qml:270
 msgid "Recorded %n step"
@@ -3308,7 +4073,7 @@ msgid ""
 "is not recorded; add scrolling and pauses in the editor."
 msgstr "บันทึกปุ่มคีย์และปุ่มเมาส์ที่กด ไม่บันทึกการเคลื่อนตัวชี้ เพิ่มการเลื่อนและการพักในตัวแก้ไข"
 
-#: settings-qt/bridge/backend.py:144
+#: settings-qt/bridge/backend.py:144 settings-qt/assets/keypad/profiles.json
 msgid "Redo"
 msgstr "ทำซ้ำ"
 
@@ -3320,17 +4085,29 @@ msgstr "ลดการเคลื่อนไหว"
 msgid "Reduce transparency"
 msgstr "ลดความโปร่งใส"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Refresh"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Reload"
+msgstr ""
+
 #: settings-qt/qml/pages/GamingPage.qml:61
 #: settings-qt/qml/pages/GamingPage.qml:278
 #: settings-qt/qml/pages/HapticsPage.qml:344
 msgid "Remove %1"
 msgstr "ลบ %1"
 
+#: settings-qt/qml/components/KeypadKeyEditor.qml:86
+msgid "Remove picture"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:305
 msgid "Remove profile"
 msgstr "ลบโปรไฟล์"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:900
+#: settings-qt/qml/pages/ButtonsPage.qml:892
 msgid "Remove this link"
 msgstr "ลบลิงก์นี้"
 
@@ -3339,12 +4116,21 @@ msgid "Remove this step"
 msgstr "ลบขั้นตอนนี้"
 
 #: settings-qt/qml/pages/MacrosPage.qml:101
+#: settings-qt/assets/keypad/profiles.json
 msgid "Rename"
 msgstr "เปลี่ยนชื่อ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Render"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:148
 msgid "Reopen Closed Tab"
 msgstr "เปิดแท็บที่ปิดไปอีกครั้ง"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Reopen Tab"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:444
 msgid "Repair"
@@ -3355,7 +4141,7 @@ msgstr "ซ่อมแซม"
 msgid "Repeat"
 msgstr "ทำซ้ำ"
 
-#: settings-qt/bridge/backend.py:3883
+#: settings-qt/bridge/backend.py:4098
 msgid "Repeats while you hold the bound button."
 msgstr "ทำซ้ำขณะกดปุ่มที่ผูกไว้ค้าง"
 
@@ -3363,11 +4149,15 @@ msgstr "ทำซ้ำขณะกดปุ่มที่ผูกไว้ค
 msgid "Replaces: %1"
 msgstr "แทนที่: %1"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Replay"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:567
 msgid "Report a bug"
 msgstr "รายงานปัญหา"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1067
+#: settings-qt/qml/pages/ButtonsPage.qml:1059
 msgid "Reports raw movement"
 msgstr "รายงานการเคลื่อนที่ดิบ"
 
@@ -3378,6 +4168,10 @@ msgstr "รายงานการเคลื่อนที่ดิบ"
 #: settings-qt/qml/pages/ScrollPage.qml:433
 msgid "Reset"
 msgstr "รีเซ็ต"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Reset Rot"
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:363
 msgid "Reset all buttons to their defaults"
@@ -3406,11 +4200,11 @@ msgstr "รีสตาร์ท"
 msgid "Restart now"
 msgstr "รีสตาร์ทตอนนี้"
 
-#: settings-qt/bridge/backend.py:5252
+#: settings-qt/bridge/backend.py:5475
 msgid "Restarting the background service…"
 msgstr "กำลังรีสตาร์ทบริการเบื้องหลัง…"
 
-#: settings-qt/bridge/backend.py:5270
+#: settings-qt/bridge/backend.py:5493
 msgid "Restarting the radial menu…"
 msgstr "กำลังรีสตาร์ทเมนูวงกลม…"
 
@@ -3444,6 +4238,7 @@ msgid "Review"
 msgstr "ตรวจทาน"
 
 #: settings-qt/qml/pages/FlowPage.qml:136
+#: settings-qt/assets/keypad/profiles.json
 msgid "Right"
 msgstr "ขวา"
 
@@ -3456,7 +4251,7 @@ msgstr "คลิกขวา"
 msgid "Ring button"
 msgstr "ปุ่มวงแหวน"
 
-#: settings-qt/qml/pages/ThemesPage.qml:320
+#: settings-qt/qml/pages/ThemesPage.qml:316
 msgid "Ring colours"
 msgstr "สีวงแหวน"
 
@@ -3472,14 +4267,14 @@ msgstr "ซ่อนวงแหวนแล้ว"
 msgid "Ring shown"
 msgstr "แสดงวงแหวนแล้ว"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:797
+#: settings-qt/qml/pages/ButtonsPage.qml:789
 #: settings-qt/qml/pages/SettingsPage.qml:102
-#: settings-qt/qml/pages/ThemesPage.qml:370 settings-qt/bridge/backend.py:658
+#: settings-qt/qml/pages/ThemesPage.qml:366 settings-qt/bridge/backend.py:658
 #: settings-qt/bridge/backend.py:749
 msgid "Ring size"
 msgstr "ขนาดวงแหวน"
 
-#: settings-qt/qml/pages/ThemesPage.qml:365
+#: settings-qt/qml/pages/ThemesPage.qml:361
 msgid "Ring size, icon size and the centre zone are in Settings"
 msgstr "ขนาดวงแหวน ขนาดไอคอน และพื้นที่ตรงกลางอยู่ในการตั้งค่า"
 
@@ -3495,6 +4290,30 @@ msgstr "ดังกริ่ง"
 #: settings-qt/qml/pages/ScrollPage.qml:450
 msgid "Rolling forward scrolls left instead of right"
 msgstr "หมุนไปข้างหน้าเพื่อเลื่อนซ้ายแทนขวา"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Room search, unread navigation, upload and call mic/camera for Element."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Rooms"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Rotate"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Rotate L"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Rotate R"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Run"
+msgstr ""
 
 #: settings-qt/qml/pages/MacrosPage.qml:427
 msgid "Run (Ctrl+R)"
@@ -3524,7 +4343,7 @@ msgstr "เรียกใช้มาโคร"
 msgid "Runs a plugin action"
 msgstr "เรียกใช้คำสั่งปลั๊กอิน"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:184
+#: settings-qt/qml/components/CustomActionEditor.qml:233
 msgid "Runs through the shell, like a terminal would."
 msgstr "เรียกผ่านเชลล์เช่นเดียวกับเทอร์มินัล"
 
@@ -3536,38 +4355,60 @@ msgstr "เหมือนกัน"
 msgid "Same as all apps"
 msgstr "เหมือนทุกแอป"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:192
+#: settings-qt/assets/keypad/profiles.json
+msgid "Sampler"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:241
 #: settings-qt/qml/components/MacroEditor.qml:434
 #: settings-qt/qml/pages/MacrosPage.qml:304
+#: settings-qt/assets/keypad/profiles.json
 msgid "Save"
 msgstr "บันทึก"
 
-#: settings-qt/bridge/backend.py:1772
+#: settings-qt/bridge/backend.py:1987
 msgid "Save failed: {error}"
 msgstr "บันทึกไม่สำเร็จ: {error}"
 
-#: settings-qt/qml/components/KeypadKeyEditor.qml:77
+#: settings-qt/qml/components/KeypadKeyEditor.qml:96
 msgid "Save key"
 msgstr "บันทึกปุ่ม"
 
 #: settings-qt/qml/pages/DashboardPage.qml:91
+#: settings-qt/assets/keypad/profiles.json
 msgid "Saved"
 msgstr "บันทึกแล้ว"
 
-#: settings-qt/bridge/backend.py:2289
+#: settings-qt/bridge/backend.py:2504
 msgid "Saved. JuhRadial applies it when its service starts."
 msgstr "บันทึกแล้ว JuhRadial จะใช้เมื่อบริการเริ่มทำงาน"
 
-#: settings-qt/bridge/backend.py:2291
+#: settings-qt/bridge/backend.py:2506
 msgid "Saved. The mouse gets it when it wakes up or comes back."
 msgstr "บันทึกแล้ว เมาส์จะได้รับเมื่อปลุกหรือกลับมา"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Scale"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Scene 1"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Scene 2"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Scene 3"
+msgstr ""
 
 #: settings-qt/qml/pages/FlowPage.qml:327
 #: settings-qt/qml/pages/FlowPage.qml:332 settings-qt/bridge/backend.py:732
 msgid "Screen"
 msgstr "หน้าจอ"
 
-#: settings-qt/bridge/backend.py:158
+#: settings-qt/bridge/backend.py:158 settings-qt/assets/keypad/profiles.json
 msgid "Screenshot"
 msgstr "จับภาพหน้าจอ"
 
@@ -3618,6 +4459,10 @@ msgstr "รีเซ็ตการตั้งค่าล้อเลื่อ
 msgid "Scrolls in fine steps instead of whole lines, in apps that support it"
 msgstr "เลื่อนทีละน้อยแทนทั้งบรรทัดในแอปที่รองรับ"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Search"
+msgstr ""
+
 #: settings-qt/qml/components/ActionPicker.qml:97
 msgid "Search actions"
 msgstr "ค้นหาคำสั่ง"
@@ -3644,6 +4489,22 @@ msgid ""
 "kept, and Undo puts them back"
 msgstr "ดูสิ่งที่อยู่ในข้อมูลสำรองก่อนแทนที่ ไฟล์ปัจจุบันจะเก็บไว้และนำกลับได้ด้วยเลิกทำ"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Select"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Select All"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Selector"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:177
+msgid "Sends it right away, like a chat message or a command"
+msgstr ""
+
 #: settings-qt/qml/pages/DevicesPage.qml:631
 msgid "Sense Panel"
 msgstr "แผงสัมผัส"
@@ -3668,7 +4529,7 @@ msgid ""
 msgstr "ตั้งด้วยปุ่มความสว่างบนคีย์บอร์ด เซ็นเซอร์แสงจะกลับมาควบคุมภายหลัง"
 
 #: settings-qt/qml/Main.qml:67 settings-qt/qml/Main.qml:112
-#: settings-qt/bridge/keypad.py:102 settings-qt/bridge/backend.py:635
+#: settings-qt/bridge/keypad.py:135 settings-qt/bridge/backend.py:635
 msgid "Settings"
 msgstr "การตั้งค่า"
 
@@ -3676,7 +4537,7 @@ msgstr "การตั้งค่า"
 msgid "Settings imported"
 msgstr "นำเข้าการตั้งค่าแล้ว"
 
-#: settings-qt/bridge/backend.py:4450
+#: settings-qt/bridge/backend.py:4665
 msgid "Settings imported. The previous files are kept as .bak"
 msgstr "นำเข้าการตั้งค่าแล้ว เก็บไฟล์เดิมเป็น .bak"
 
@@ -3696,7 +4557,11 @@ msgstr "การตั้งค่าที่เปลี่ยนเมื่
 msgid "Settings you change are saved and applied when the mouse is back."
 msgstr "ค่าที่เปลี่ยนจะบันทึกและใช้เมื่อเมาส์กลับมา"
 
-#: settings-qt/bridge/keypad.py:117
+#: settings-qt/assets/keypad/profiles.json
+msgid "Shading"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:150 settings-qt/assets/keypad/profiles.json
 msgid "Share"
 msgstr "แชร์จอ"
 
@@ -3713,20 +4578,36 @@ msgstr "กระแทกแรง"
 msgid "Sharp click"
 msgstr "คลิกคม"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:93
+#: settings-qt/assets/keypad/profiles.json
+msgid "Shell"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:103
 #: settings-qt/qml/components/KeyRecorder.qml:46
 #: settings-qt/qml/components/SliceEditor.qml:157
 msgid "Shortcut"
 msgstr "คีย์ลัด"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Shotcut"
+msgstr ""
+
 #: settings-qt/qml/pages/HapticsPage.qml:274
-#: settings-qt/qml/pages/KeypadPage.qml:208
+#: settings-qt/qml/pages/KeypadPage.qml:220
 msgid "Show"
 msgstr "แสดง"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Show Desk"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:125
 msgid "Show Desktop"
 msgstr "แสดงเดสก์ท็อป"
+
+#: settings-qt/qml/pages/KeypadPage.qml:291
+msgid "Show all profiles"
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:358
 msgid "Show as a list"
@@ -3751,13 +4632,25 @@ msgstr "แสดงเมาส์"
 msgid "Show the radial menu"
 msgstr "แสดงเมนูวงกลม"
 
+#: settings-qt/qml/pages/KeypadPage.qml:233
+msgid "Show this page for all apps"
+msgstr ""
+
 #: settings-qt/qml/pages/SettingsPage.qml:455 settings-qt/bridge/backend.py:763
 msgid "Show tray icon"
 msgstr "แสดงไอคอนถาดระบบ"
 
-#: settings-qt/bridge/backend.py:2744
+#: settings-qt/assets/keypad/profiles.json
+msgid "Shuffle"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:2959
 msgid "Side button"
 msgstr "ปุ่มด้านข้าง"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Sidebar"
+msgstr ""
 
 #: settings-qt/qml/pages/SettingsPage.qml:236 settings-qt/bridge/backend.py:754
 msgid "Simplified wheel"
@@ -3767,9 +4660,13 @@ msgstr "ล้อแบบเรียบง่าย"
 msgid "Size, icons and behaviour of the on-screen ring"
 msgstr "ขนาด ไอคอน และพฤติกรรมของวงแหวนบนหน้าจอ"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Slack"
+msgstr ""
+
 #: settings-qt/qml/pages/AppsPage.qml:267
-#: settings-qt/qml/pages/ButtonsPage.qml:677
-#: settings-qt/qml/pages/DashboardPage.qml:503
+#: settings-qt/qml/pages/ButtonsPage.qml:669
+#: settings-qt/qml/pages/DashboardPage.qml:494
 msgid "Slice %1: %2"
 msgstr "ชิ้นที่ %1: %2"
 
@@ -3786,7 +4683,7 @@ msgstr "เปลี่ยนชิ้นส่วน"
 msgid "Slice tick rate"
 msgstr "อัตราการสั่นของชิ้นส่วน"
 
-#: settings-qt/bridge/backend.py:2895
+#: settings-qt/bridge/backend.py:3110
 msgid "Slice {n}"
 msgstr "ชิ้นที่ {n}"
 
@@ -3794,6 +4691,7 @@ msgstr "ชิ้นที่ {n}"
 #: settings-qt/qml/pages/DashboardPage.qml:70
 #: settings-qt/qml/pages/DashboardPage.qml:412
 #: settings-qt/qml/pages/DevicesPage.qml:629
+#: settings-qt/assets/keypad/profiles.json
 msgid "SmartShift"
 msgstr "SmartShift"
 
@@ -3841,9 +4739,13 @@ msgid ""
 "Solid cards instead of frosted glass. Easier to read, lighter on the GPU."
 msgstr "ใช้การ์ดทึบแทนกระจกฝ้า อ่านง่ายและลดภาระ GPU"
 
-#: settings-qt/bridge/backend.py:1690
+#: settings-qt/bridge/backend.py:1728
 msgid "Sound controls; choose your app's camera, share and leave shortcuts"
 msgstr "ควบคุมเสียง เลือกคีย์ลัดเปิดกล้อง แชร์จอ และวางสายของแอปคุณ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Speaker"
+msgstr ""
 
 #: settings-qt/qml/components/KeyRecorder.qml:121
 msgid "Special key"
@@ -3853,9 +4755,25 @@ msgstr "ปุ่มพิเศษ"
 msgid "Speed"
 msgstr "ความเร็ว"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Spelling"
+msgstr ""
+
 #: settings-qt/qml/pages/ScrollPage.qml:47
 msgid "Spins freely, no clicks"
 msgstr "หมุนอิสระ ไม่เป็นขั้น"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Split"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Spotify"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Spotify transport, seek, like and volume, targeted at Spotify only."
+msgstr ""
 
 #: settings-qt/bridge/backend.py:403
 msgid "Square"
@@ -3870,7 +4788,7 @@ msgstr "เริ่ม"
 msgid "Start at login"
 msgstr "เริ่มทำงานเมื่อเข้าสู่ระบบ"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:962
+#: settings-qt/qml/pages/ButtonsPage.qml:954
 msgid "Start from"
 msgstr "เริ่มจาก"
 
@@ -3886,7 +4804,7 @@ msgstr "เริ่มใช้งาน"
 msgid "Start service"
 msgstr "เริ่มบริการ"
 
-#: settings-qt/bridge/backend.py:3659
+#: settings-qt/bridge/backend.py:3874
 msgid "Start the JuhRadial MX service to record a macro."
 msgstr "เริ่มบริการ JuhRadial MX เพื่อบันทึกมาโคร"
 
@@ -3902,7 +4820,7 @@ msgstr "เริ่มบริการ"
 msgid "Starting…"
 msgstr "กำลังเริ่ม…"
 
-#: settings-qt/bridge/backend.py:5297
+#: settings-qt/bridge/backend.py:5520
 msgid "Starts at login with {path}"
 msgstr "เริ่มเมื่อเข้าสู่ระบบด้วย {path}"
 
@@ -3936,6 +4854,10 @@ msgstr "จำนวนขั้นตอนต่อขั้นล้อ"
 msgid "Stop"
 msgstr "หยุด"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Stream"
+msgstr ""
+
 #: settings-qt/qml/pages/HapticsPage.qml:140
 #: settings-qt/qml/pages/HapticsPage.qml:146 settings-qt/bridge/backend.py:676
 msgid "Strength"
@@ -3950,7 +4872,11 @@ msgstr "เตือนแรง"
 msgid "Style"
 msgstr "สไตล์"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:840
+#: settings-qt/assets/keypad/profiles.json
+msgid "Styles"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:832
 msgid "Submenu slice"
 msgstr "ชิ้นส่วนเมนูย่อย"
 
@@ -3970,6 +4896,10 @@ msgstr "การสนับสนุน"
 msgid "Support JuhRadial MX"
 msgstr "สนับสนุน JuhRadial MX"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Swap"
+msgstr ""
+
 #: settings-qt/qml/pages/ScrollPage.qml:451
 msgid "Swaps up and down for Volume and Zoom"
 msgstr "สลับขึ้นลงสำหรับระดับเสียงและซูม"
@@ -3981,6 +4911,10 @@ msgstr "ค่อยๆ แรงขึ้นแล้วจางลง"
 #: settings-qt/qml/pages/EasySwitchPage.qml:139
 msgid "Switch"
 msgstr "สลับ"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Switch App"
+msgstr ""
 
 #: settings-qt/bridge/backend.py:137
 msgid "Switch Ratchet / Free-spin"
@@ -4009,15 +4943,23 @@ msgstr "สลับไปคอมพิวเตอร์ 2"
 msgid "Switch to Computer 3"
 msgstr "สลับไปคอมพิวเตอร์ 3"
 
-#: settings-qt/bridge/backend.py:117
+#: settings-qt/assets/keypad/profiles.json
+msgid "Switcher"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Sys Mic"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:117 settings-qt/assets/keypad/profiles.json
 msgid "System"
 msgstr "ระบบ"
 
-#: settings-qt/bridge/backend.py:5316
+#: settings-qt/bridge/backend.py:5539
 msgid "System default"
 msgstr "ค่าเริ่มต้นของระบบ"
 
-#: settings-qt/bridge/backend.py:5215
+#: settings-qt/bridge/backend.py:5438
 msgid "System information copied"
 msgstr "คัดลอกข้อมูลระบบแล้ว"
 
@@ -4029,24 +4971,47 @@ msgstr "ด้านหัวแม่มือ"
 msgid "TOP"
 msgstr "บน"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Tabs"
+msgstr ""
+
 #: settings-qt/bridge/backend.py:117
 msgid "Tabs and pages"
 msgstr "แท็บและหน้า"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Tabs, clipboard, find and zoom for tabbed terminals, plus shell editing keys."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Tabs, navigation and address bar for Firefox and Chromium-based browsers."
+msgstr ""
 
 #: settings-qt/bridge/backend.py:128
 msgid "Task Switcher"
 msgstr "ตัวสลับงาน"
 
-#: settings-qt/bridge/backend.py:1709
+#: settings-qt/assets/keypad/profiles.json
+msgid "Telegram"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1747
 msgid "Template added. Keys for missing apps stay unassigned."
 msgstr "เพิ่มแม่แบบแล้ว ปุ่มของแอปที่ไม่ได้ติดตั้งจะยังไม่ได้กำหนด"
 
-#: settings-qt/qml/pages/KeypadPage.qml:241
+#: settings-qt/qml/pages/KeypadPage.qml:305
 #: settings-qt/qml/pages/MacrosPage.qml:327 settings-qt/bridge/backend.py:642
 msgid "Templates"
 msgstr "แม่แบบ"
 
-#: settings-qt/bridge/keypad.py:97 settings-qt/bridge/keypad.py:113
+#: settings-qt/assets/keypad/profiles.json
+msgid "Term Panel"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:130 settings-qt/bridge/keypad.py:146
+#: settings-qt/assets/keypad/profiles.json
 msgid "Terminal"
 msgstr "เทอร์มินัล"
 
@@ -4054,7 +5019,9 @@ msgstr "เทอร์มินัล"
 msgid "Test"
 msgstr "ทดสอบ"
 
+#: settings-qt/qml/components/CustomActionEditor.qml:106
 #: settings-qt/qml/components/MacroEditor.qml:326
+#: settings-qt/assets/keypad/profiles.json
 msgid "Text"
 msgstr "ข้อความ"
 
@@ -4062,16 +5029,24 @@ msgstr "ข้อความ"
 msgid "Text only, and only with computers you approved"
 msgstr "เฉพาะข้อความ และเฉพาะกับคอมพิวเตอร์ที่คุณอนุมัติ"
 
+#: settings-qt/qml/components/CustomActionEditor.qml:168
+msgid "Text to paste"
+msgstr ""
+
 #: settings-qt/qml/components/MacroEditor.qml:280
 #: settings-qt/qml/components/MacroEditor.qml:281
 msgid "Text to type"
 msgstr "ข้อความที่จะพิมพ์"
 
-#: settings-qt/bridge/backend.py:4769
+#: settings-qt/qml/components/CustomActionEditor.qml:169
+msgid "Text, a prompt or a /command"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:4992
 msgid "That custom action cannot run: check the shortcut, link or command."
 msgstr "คำสั่งกำหนดเองนี้ทำงานไม่ได้ ตรวจสอบคีย์ลัด ลิงก์ หรือคำสั่ง"
 
-#: settings-qt/bridge/backend.py:3931
+#: settings-qt/bridge/backend.py:4146
 msgid "That file is not a JuhRadial MX macro."
 msgstr "ไฟล์นี้ไม่ใช่มาโคร JuhRadial MX"
 
@@ -4085,7 +5060,7 @@ msgid ""
 "starts."
 msgstr "บริการ JuhRadial MX ไม่ได้ทำงาน จะบันทึกการเปลี่ยนแปลงและใช้เมื่อบริการเริ่ม"
 
-#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3254
+#: settings-qt/qml/pages/DevicesPage.qml:194 settings-qt/bridge/backend.py:3469
 msgid "The JuhRadial service is not running"
 msgstr "บริการ JuhRadial ไม่ได้ทำงาน"
 
@@ -4111,7 +5086,7 @@ msgstr "ค่าล่วงหน้าที่เลือกจะใช้
 msgid "The background service is not running"
 msgstr "บริการเบื้องหลังไม่ได้ทำงาน"
 
-#: settings-qt/bridge/backend.py:2021
+#: settings-qt/bridge/backend.py:2236
 msgid "The background service is not running."
 msgstr "บริการเบื้องหลังไม่ได้ทำงาน"
 
@@ -4119,7 +5094,7 @@ msgstr "บริการเบื้องหลังไม่ได้ทำ
 msgid "The battery drops to the alert level set on Devices"
 msgstr "แบตเตอรี่ลดลงถึงระดับแจ้งเตือนที่ตั้งไว้ในแท็บอุปกรณ์"
 
-#: settings-qt/bridge/backend.py:3884
+#: settings-qt/bridge/backend.py:4099
 msgid "The bound button starts it, the next press stops it."
 msgstr "ปุ่มที่ผูกไว้จะเริ่มทำงาน กดอีกครั้งเพื่อหยุด"
 
@@ -4133,11 +5108,11 @@ msgid ""
 "app is asked about once"
 msgstr "เมื่อใช้แอปที่ไม่มีโปรไฟล์ครั้งแรก การตั้งค่าจะเสนอให้สร้าง แต่ละแอปจะถามเพียงครั้งเดียว"
 
-#: settings-qt/bridge/backend.py:2195
+#: settings-qt/bridge/backend.py:2410
 msgid "The keyboard"
 msgstr "คีย์บอร์ด"
 
-#: settings-qt/bridge/backend.py:2838
+#: settings-qt/bridge/backend.py:3053
 msgid "The keyboard did not answer. Press a key to wake it, then try again."
 msgstr "คีย์บอร์ดไม่ตอบสนอง กดปุ่มเพื่อปลุกแล้วลองอีกครั้ง"
 
@@ -4147,25 +5122,33 @@ msgid ""
 "backlight."
 msgstr "คีย์บอร์ดพักอยู่ กดปุ่มใดก็ได้ แล้วกดตรวจสอบอีกครั้งด้านบนเพื่ออ่านไฟพื้นหลัง"
 
-#: settings-qt/bridge/backend.py:1604
+#: settings-qt/bridge/backend.py:1606
 msgid "The keypad configuration was not saved"
 msgstr "ไม่ได้บันทึกการตั้งค่าคีย์แพด"
 
-#: settings-qt/bridge/backend.py:5291
+#: settings-qt/qml/pages/KeypadPage.qml:198
+msgid "The keypad keeps it after it wakes"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:198
+msgid "The keys stay down as long as you hold the button (push to talk)"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5514
 msgid "The login entry is missing."
 msgstr "ไม่มีรายการเริ่มเมื่อเข้าสู่ระบบ"
 
-#: settings-qt/bridge/backend.py:5296
+#: settings-qt/bridge/backend.py:5519
 msgid "The login entry points at a program that is gone."
 msgstr "รายการเริ่มเมื่อเข้าสู่ระบบชี้ไปยังโปรแกรมที่ไม่มีแล้ว"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:786
+#: settings-qt/qml/pages/ButtonsPage.qml:778
 msgid ""
 "The look of the ring. Separate from the app theme: your eight actions never "
 "move."
 msgstr "รูปลักษณ์ของวงแหวน แยกจากธีมแอป คำสั่งทั้งแปดไม่เปลี่ยนตำแหน่ง"
 
-#: settings-qt/bridge/backend.py:3638
+#: settings-qt/bridge/backend.py:3853
 msgid "The macro could not be saved. Is the JuhRadial MX service running?"
 msgstr "บันทึกมาโครไม่ได้ บริการ JuhRadial MX ทำงานอยู่หรือไม่?"
 
@@ -4173,11 +5156,11 @@ msgstr "บันทึกมาโครไม่ได้ บริการ J
 msgid "The mouse comes back from another computer"
 msgstr "เมาส์กลับมาจากคอมพิวเตอร์อื่น"
 
-#: settings-qt/bridge/backend.py:2294
+#: settings-qt/bridge/backend.py:2509
 msgid "The mouse did not accept this change."
 msgstr "เมาส์ไม่ยอมรับการเปลี่ยนแปลงนี้"
 
-#: settings-qt/bridge/backend.py:3466
+#: settings-qt/bridge/backend.py:3681
 msgid "The mouse did not switch. Is it awake, and is that computer paired?"
 msgstr "เมาส์ไม่สลับ ตื่นอยู่และจับคู่กับคอมพิวเตอร์นั้นแล้วหรือไม่?"
 
@@ -4228,6 +5211,14 @@ msgstr "ภาษาใหม่จะใช้หลังรีสตาร์
 msgid "The other computer's channel"
 msgstr "ช่องของคอมพิวเตอร์อีกเครื่อง"
 
+#: settings-qt/bridge/backend.py:1810
+msgid "The pack contains an unsafe path"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:1847
+msgid "The pack has no pages to add"
+msgstr ""
+
 #: settings-qt/bridge/backend.py:428
 msgid "The pointer crosses onto another display"
 msgstr "ตัวชี้ข้ามไปยังจออื่น"
@@ -4244,7 +5235,7 @@ msgstr "แผงรับแรงกดใต้หัวแม่มือ"
 msgid "The radial menu appears"
 msgstr "เมนูวงกลมปรากฏขึ้น"
 
-#: settings-qt/bridge/backend.py:2023
+#: settings-qt/bridge/backend.py:2238
 msgid "The radial menu is not running."
 msgstr "เมนูวงกลมไม่ได้ทำงาน"
 
@@ -4260,13 +5251,13 @@ msgstr "วงแหวนยังเปิดได้ในเกม"
 msgid "The same ring as everywhere"
 msgstr "วงแหวนเดียวกับที่อื่น"
 
-#: settings-qt/bridge/backend.py:2029
+#: settings-qt/bridge/backend.py:2244
 msgid ""
 "The service cannot reach the mouse. Check that your user is in the input "
 "group."
 msgstr "บริการเข้าถึงเมาส์ไม่ได้ ตรวจสอบว่าผู้ใช้ของคุณอยู่ในกลุ่ม input"
 
-#: settings-qt/bridge/backend.py:2026
+#: settings-qt/bridge/backend.py:2241
 msgid "The service is {daemon} and this app is {app}: reinstall so they match."
 msgstr "บริการเป็น {daemon} แต่แอปนี้เป็น {app} ติดตั้งใหม่ให้เวอร์ชันตรงกัน"
 
@@ -4287,7 +5278,7 @@ msgstr "ชิ้นส่วนตรงกับ %1 แล้ว"
 msgid "The stops are where a button set to DPI cycle goes next."
 msgstr "ระดับสลับคือค่าที่ปุ่มวน DPI จะเปลี่ยนไปใช้ถัดไป"
 
-#: settings-qt/qml/pages/ThemesPage.qml:323
+#: settings-qt/qml/pages/ThemesPage.qml:319
 msgid ""
 "The surface of the Classic ring and its menus. Light rings suit light "
 "desktops."
@@ -4305,7 +5296,7 @@ msgstr "ธีม: %1"
 msgid "Themes"
 msgstr "ธีม"
 
-#: settings-qt/bridge/backend.py:3101
+#: settings-qt/bridge/backend.py:3316
 msgid "There is already a profile for {app}"
 msgstr "มีโปรไฟล์สำหรับ {app} แล้ว"
 
@@ -4342,7 +5333,7 @@ msgstr "ช่องของคอมพิวเตอร์เครื่อ
 msgid "This computer's name"
 msgstr "ชื่อคอมพิวเตอร์เครื่องนี้"
 
-#: settings-qt/bridge/backend.py:4418
+#: settings-qt/bridge/backend.py:4633
 msgid "This is not a JuhRadial MX backup."
 msgstr "นี่ไม่ใช่ข้อมูลสำรอง JuhRadial MX"
 
@@ -4350,7 +5341,7 @@ msgstr "นี่ไม่ใช่ข้อมูลสำรอง JuhRadial M
 msgid "This list"
 msgstr "รายการนี้"
 
-#: settings-qt/bridge/backend.py:4043
+#: settings-qt/bridge/backend.py:4258
 msgid "This mouse follows your global settings again"
 msgstr "เมาส์นี้กลับมาใช้ค่ารวมของคุณแล้ว"
 
@@ -4379,7 +5370,7 @@ msgstr "เมาส์นี้ใช้โหมดทั่วไป ซึ�
 msgid "This mouse loses its own settings and uses your global ones."
 msgstr "เมาส์นี้จะลบค่าเฉพาะตัวและใช้ค่ารวมของคุณ"
 
-#: settings-qt/bridge/backend.py:4614
+#: settings-qt/bridge/backend.py:4829
 msgid "This mouse only"
 msgstr "เฉพาะเมาส์นี้"
 
@@ -4438,6 +5429,32 @@ msgstr "ครั้ง"
 #: settings-qt/qml/components/MacroEditor.qml:348
 msgid "Timing"
 msgstr "จังหวะเวลา"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Tools"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Top"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Top Chat"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Transform"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"Transform, edit mode, add, search and numpad viewpoints for Blender's "
+"default keymap."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Transport, seek and volume for any MPRIS media player."
+msgstr ""
 
 #: settings-qt/qml/pages/ButtonsPage.qml:324
 msgid "Troubleshoot"
@@ -4538,7 +5555,7 @@ msgstr "USB"
 msgid "USB cable"
 msgstr "สาย USB"
 
-#: settings-qt/qml/pages/KeypadPage.qml:127
+#: settings-qt/qml/pages/KeypadPage.qml:128
 msgid "Unassigned"
 msgstr "ยังไม่ได้กำหนด"
 
@@ -4546,13 +5563,22 @@ msgstr "ยังไม่ได้กำหนด"
 msgid "Unbind"
 msgstr "ยกเลิกการผูก"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Underline"
+msgstr ""
+
 #: settings-qt/qml/Main.qml:22 settings-qt/bridge/backend.py:144
+#: settings-qt/assets/keypad/profiles.json
 msgid "Undo"
 msgstr "เลิกทำ"
 
-#: settings-qt/bridge/backend.py:3981
+#: settings-qt/bridge/backend.py:4196
 msgid "Undo failed: {error}"
 msgstr "เลิกทำไม่สำเร็จ: {error}"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Ungroup"
+msgstr ""
 
 #: settings-qt/qml/pages/DashboardPage.qml:58
 #: settings-qt/qml/pages/DevicesPage.qml:23
@@ -4572,16 +5598,36 @@ msgstr "ไม่ทราบ"
 msgid "Unnamed computer"
 msgstr "คอมพิวเตอร์ไม่มีชื่อ"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "Unread Dn"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Unread Up"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Unreads"
+msgstr ""
+
 #: settings-qt/qml/pages/MacrosPage.qml:398
 msgid "Untitled macro"
 msgstr "มาโครไม่มีชื่อ"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:832
+#: settings-qt/assets/keypad/profiles.json
+msgid "Up"
+msgstr ""
+
+#: settings-qt/qml/pages/ButtonsPage.qml:824
 msgid ""
 "Up to four links or applications under a submenu slice. Brand sites keep "
 "their logo, other links show a globe."
 msgstr ""
 "เพิ่มลิงก์หรือแอปได้สูงสุดสี่รายการในชิ้นส่วนเมนูย่อย เว็บไซต์แบรนด์คงโลโก้ไว้ ลิงก์อื่นแสดงรูปโลก"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Update"
+msgstr ""
 
 #: settings-qt/qml/pages/DevicesPage.qml:63
 msgid "Updated %n minute ago"
@@ -4591,6 +5637,10 @@ msgstr[0] "อัปเดตเมื่อ %n นาทีที่แล้�
 #: settings-qt/qml/pages/DevicesPage.qml:62
 msgid "Updated just now"
 msgstr "เพิ่งอัปเดต"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Upload"
+msgstr ""
 
 #: settings-qt/qml/pages/DevicesPage.qml:752
 msgid "Use generic mode"
@@ -4615,6 +5665,10 @@ msgid ""
 "are hidden"
 msgstr "ใช้เมาส์นี้เป็นเมาส์มาตรฐาน โดยซ่อน Easy-Switch แรงสะท้อนสัมผัส เกม และ Flow"
 
+#: settings-qt/qml/pages/KeypadPage.qml:279
+msgid "Used %1 min"
+msgstr ""
+
 #: settings-qt/qml/pages/ScrollPage.qml:461
 msgid "Used by Volume and Zoom"
 msgstr "ใช้กับระดับเสียงและซูม"
@@ -4623,7 +5677,7 @@ msgstr "ใช้กับระดับเสียงและซูม"
 msgid "Used in SmartShift mode only"
 msgstr "ใช้ในโหมด SmartShift เท่านั้น"
 
-#: settings-qt/qml/pages/ThemesPage.qml:311
+#: settings-qt/qml/pages/ThemesPage.qml:307
 msgid "Uses your accent"
 msgstr "ใช้สีเน้นของคุณ"
 
@@ -4631,7 +5685,11 @@ msgstr "ใช้สีเน้นของคุณ"
 msgid "Usual"
 msgstr "ปกติ"
 
-#: settings-qt/bridge/backend.py:4976
+#: settings-qt/assets/keypad/profiles.json
+msgid "VS Code"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5199
 msgid "Version {version} is available."
 msgstr "มีเวอร์ชัน {version} พร้อมแล้ว"
 
@@ -4639,15 +5697,35 @@ msgstr "มีเวอร์ชัน {version} พร้อมแล้ว"
 msgid "Versions, links and credits"
 msgstr "เวอร์ชัน ลิงก์ และผู้ร่วมพัฒนา"
 
+#: settings-qt/assets/keypad/profiles.json
+msgid "View"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Views"
+msgstr ""
+
 #: settings-qt/bridge/backend.py:124
 msgid "Virtual Desktops"
 msgstr "เดสก์ท็อปเสมือน"
 
-#: settings-qt/bridge/keypad.py:107 settings-qt/bridge/keypad.py:119
+#: settings-qt/assets/keypad/profiles.json
+msgid "VirtualCam"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Vol Down"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Vol Up"
+msgstr ""
+
+#: settings-qt/bridge/keypad.py:140 settings-qt/bridge/keypad.py:152
 msgid "Vol down"
 msgstr "ลดเสียง"
 
-#: settings-qt/bridge/keypad.py:107 settings-qt/bridge/keypad.py:119
+#: settings-qt/bridge/keypad.py:140 settings-qt/bridge/keypad.py:152
 msgid "Vol up"
 msgstr "เพิ่มเสียง"
 
@@ -4688,7 +5766,11 @@ msgstr "เตือนเมื่อเหลือ"
 msgid "Wave"
 msgstr "คลื่น"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:85
+#: settings-qt/assets/keypad/profiles.json
+msgid "Web browser"
+msgstr ""
+
+#: settings-qt/qml/components/CustomActionEditor.qml:95
 msgid "What %1 does when you press it"
 msgstr "สิ่งที่ %1 ทำเมื่อกด"
 
@@ -4711,7 +5793,7 @@ msgstr "มีอะไรใหม่"
 
 #: settings-qt/qml/pages/ButtonsPage.qml:76
 #: settings-qt/qml/pages/ButtonsPage.qml:88
-#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:3891
+#: settings-qt/qml/pages/ButtonsPage.qml:99 settings-qt/bridge/backend.py:4106
 #: settings-qt/bridge/backend.py:649
 msgid "Wheel click"
 msgstr "คลิกล้อ"
@@ -4726,7 +5808,7 @@ msgstr "โหมดล้อ"
 msgid "Wheel mode for %1"
 msgstr "โหมดล้อสำหรับ %1"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:783
+#: settings-qt/qml/pages/ButtonsPage.qml:775
 #: settings-qt/qml/pages/ThemesPage.qml:263 settings-qt/bridge/backend.py:657
 msgid "Wheel skin"
 msgstr "สกินล้อ"
@@ -4777,7 +5859,7 @@ msgstr "ปุ่มที่เปิดเมนูวงกลมบนเม
 msgid "While a button set to Precision DPI is held"
 msgstr "ขณะกดปุ่มที่ตั้งเป็น DPI แม่นยำค้าง"
 
-#: settings-qt/bridge/backend.py:3883
+#: settings-qt/bridge/backend.py:4098
 msgid "While held"
 msgstr "ขณะกดค้าง"
 
@@ -4806,7 +5888,11 @@ msgstr "Windows"
 msgid "With several screens, the one whose edge leads to the other computer"
 msgstr "หากมีหลายหน้าจอ ให้เลือกจอที่มีขอบติดกับคอมพิวเตอร์อีกเครื่อง"
 
-#: settings-qt/bridge/backend.py:4978
+#: settings-qt/assets/keypad/profiles.json
+msgid "X-Ray"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:5201
 msgid "You have the latest version."
 msgstr "คุณใช้เวอร์ชันล่าสุดแล้ว"
 
@@ -4830,7 +5916,7 @@ msgstr "เดสก์ท็อปขอลดภาพเคลื่อนไ
 msgid "Your desktop does not report an accent colour"
 msgstr "เดสก์ท็อปไม่ได้รายงานสีเน้น"
 
-#: settings-qt/bridge/backend.py:3279
+#: settings-qt/bridge/backend.py:3494
 msgid "Your desktop does not tell JuhRadial which window is in front"
 msgstr "เดสก์ท็อปไม่ได้บอก JuhRadial ว่าหน้าต่างใดอยู่ด้านหน้า"
 
@@ -4865,7 +5951,7 @@ msgstr "มาโครของคุณ"
 msgid "Your own mix of patterns. Pick a style to start over"
 msgstr "รูปแบบผสมที่คุณกำหนดเอง เลือกสไตล์เพื่อเริ่มใหม่"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:800
+#: settings-qt/qml/pages/ButtonsPage.qml:792
 msgid "Your own size, set in Settings"
 msgstr "ขนาดของคุณที่กำหนดในการตั้งค่า"
 
@@ -4878,23 +5964,51 @@ msgstr "ขนาดที่คุณกำหนดด้านล่าง �
 msgid "Zip archive (*.zip)"
 msgstr "ไฟล์บีบอัด Zip (*.zip)"
 
-#: settings-qt/bridge/backend.py:464
+#: settings-qt/bridge/backend.py:464 settings-qt/assets/keypad/profiles.json
 msgid "Zoom"
 msgstr "ซูม"
 
-#: settings-qt/bridge/backend.py:152
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom 100%"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom 1:1"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom Fit"
+msgstr ""
+
+#: settings-qt/bridge/backend.py:152 settings-qt/assets/keypad/profiles.json
 msgid "Zoom In"
 msgstr "ซูมเข้า"
 
-#: settings-qt/bridge/backend.py:153
+#: settings-qt/bridge/backend.py:153 settings-qt/assets/keypad/profiles.json
 msgid "Zoom Out"
 msgstr "ซูมออก"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom Reset"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom, brush size, colour picking, undo and export for GIMP 3."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom, brush size, sampler, eraser, canvas rotation and undo for Krita."
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "Zoom, dropper, layers, export, tools and grouping for Inkscape 1.x."
+msgstr ""
 
 #: settings-qt/qml/pages/FlowPage.qml:37
 msgid "a computer"
 msgstr "คอมพิวเตอร์หนึ่งเครื่อง"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:770
+#: settings-qt/qml/pages/ButtonsPage.qml:762
 msgid "actions"
 msgstr "คำสั่ง"
 
@@ -4906,7 +6020,7 @@ msgstr "โปรไฟล์แอป"
 msgid "back"
 msgstr "ย้อนกลับ"
 
-#: settings-qt/bridge/backend.py:4463
+#: settings-qt/bridge/backend.py:4678
 msgid "built-in emoji picker"
 msgstr "ตัวเลือกอีโมจิในตัว"
 
@@ -4914,7 +6028,7 @@ msgstr "ตัวเลือกอีโมจิในตัว"
 msgid "classic"
 msgstr "คลาสสิก"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:770
+#: settings-qt/qml/pages/ButtonsPage.qml:762
 msgid "click to edit"
 msgstr "คลิกเพื่อแก้ไข"
 
@@ -4926,7 +6040,7 @@ msgstr "ลง"
 msgid "empty"
 msgstr "ว่าง"
 
-#: settings-qt/qml/components/CustomActionEditor.qml:147
+#: settings-qt/qml/components/CustomActionEditor.qml:158
 msgid "for example: konsole -e htop"
 msgstr "เช่น: konsole -e htop"
 
@@ -4941,6 +6055,15 @@ msgstr "แรงสะท้อนสัมผัส"
 #: settings-qt/qml/components/MacroEditor.qml:250
 msgid "held %1 ms"
 msgstr "กดค้าง %1 ms"
+
+#: settings-qt/assets/keypad/profiles.json
+msgid "kitty"
+msgstr ""
+
+#: settings-qt/assets/keypad/profiles.json
+msgid ""
+"kitty's own tab, window, search and font-size keys, plus shell editing keys."
+msgstr ""
 
 #: settings-qt/qml/pages/DashboardPage.qml:287
 msgid "last reading"
@@ -4988,7 +6111,7 @@ msgstr "ขวา"
 msgid "settings"
 msgstr "การตั้งค่า"
 
-#: settings-qt/qml/pages/ButtonsPage.qml:760
+#: settings-qt/qml/pages/ButtonsPage.qml:752
 msgid "swap"
 msgstr "สลับกัน"
 
@@ -5008,35 +6131,35 @@ msgstr "ขณะกดค้าง"
 msgid "window class"
 msgstr "คลาสหน้าต่าง"
 
-#: settings-qt/bridge/backend.py:2203
+#: settings-qt/bridge/backend.py:2418
 msgid "{device} is at {percent}%. Time to recharge."
 msgstr "{device} เหลือ {percent}% ถึงเวลาชาร์จแล้ว"
 
-#: settings-qt/bridge/backend.py:5104
+#: settings-qt/bridge/backend.py:5327
 msgid "{name} can now use Flow with this computer"
 msgstr "{name} ใช้ Flow กับคอมพิวเตอร์เครื่องนี้ได้แล้ว"
 
-#: settings-qt/bridge/backend.py:3874
+#: settings-qt/bridge/backend.py:4089
 msgid "{name} copy"
 msgstr "สำเนา {name}"
 
-#: settings-qt/bridge/backend.py:3812
+#: settings-qt/bridge/backend.py:4027
 msgid "{name} is no longer bound to that button"
 msgstr "{name} ไม่ได้ผูกกับปุ่มนั้นแล้ว"
 
-#: settings-qt/bridge/backend.py:5109
+#: settings-qt/bridge/backend.py:5332
 msgid "{name} was turned away"
 msgstr "ปฏิเสธ {name} แล้ว"
 
-#: settings-qt/bridge/backend.py:2869
+#: settings-qt/bridge/backend.py:3084
 msgid "{n} minutes"
 msgstr "{n} นาที"
 
-#: settings-qt/bridge/backend.py:2868
+#: settings-qt/bridge/backend.py:3083
 msgid "{n} seconds"
 msgstr "{n} วินาที"
 
-#: settings-qt/bridge/backend.py:4049
+#: settings-qt/bridge/backend.py:4264
 msgid "{what} copied"
 msgstr "คัดลอก {what} แล้ว"
 

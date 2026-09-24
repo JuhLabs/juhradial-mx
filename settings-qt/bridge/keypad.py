@@ -62,8 +62,19 @@ def render_plate(key, destination, app_icon):
     font.setStretch(QFont.Stretch.Condensed)
     painter.setFont(font)
     painter.setPen(QColor("#efe6cf"))
-    label = QFontMetrics(font).elidedText(key.get("label", "").upper(), Qt.TextElideMode.ElideRight, 216)
-    painter.drawText(QRect(10, 183, 216, 46), Qt.AlignmentFlag.AlignCenter, label)
+    text = key.get("label", "").upper()
+    if not key.get("icon") and text:
+        # Label only (no glyph): the name is the whole key, as big as it fits.
+        flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
+        for size in range(76, 29, -4):
+            font.setPixelSize(size)
+            if QFontMetrics(font).boundingRect(QRect(12, 12, 212, 212), flags, text).height() <= 212:
+                break
+        painter.setFont(font)
+        painter.drawText(QRect(12, 12, 212, 212), flags, text)
+    else:
+        label = QFontMetrics(font).elidedText(text, Qt.TextElideMode.ElideRight, 216)
+        painter.drawText(QRect(10, 183, 216, 46), Qt.AlignmentFlag.AlignCenter, label)
     painter.end()
     _save_plate(image, destination)
 

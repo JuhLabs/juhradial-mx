@@ -40,7 +40,25 @@ def collect():
                 for msg in pattern.findall(line):
                     found.setdefault(msg, []).append(f"{rel}:{n}")
     collect_tables(found)
+    collect_profiles(found)
     return found
+
+
+def collect_profiles(found):
+    """MX Keypad app profiles (assets/keypad/profiles.json): shown through _()."""
+    path = HERE / "assets" / "keypad" / "profiles.json"
+    if not path.exists():
+        return
+    import json
+    rel = path.relative_to(REPO).as_posix()
+    for prof in json.loads(path.read_text(encoding="utf-8")).get("profiles", []):
+        texts = [prof.get("name"), prof.get("description")]
+        for page in prof.get("pages", []):
+            texts.append(page.get("name"))
+            texts += [key.get("label") for key in page.get("keys", [])]
+        for text in texts:
+            if isinstance(text, str) and text:
+                found.setdefault(_escape(text), []).append(rel)
 
 
 def _escape(text):

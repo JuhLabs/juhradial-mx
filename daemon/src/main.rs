@@ -955,6 +955,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         tokio::spawn(async move {
             let mut current_class = String::new();
+            // Time in front per app: Settings suggests keypad profiles by it.
+            let mut usage = juhradiald::usage::AppUsage::load(
+                juhradiald::config::Config::default_config_dir().map(|d| d.join("app_usage.json")),
+            );
             // Class whose hardware profile is applied right now ("" = none).
             let mut active_profile = String::new();
             // True while the last applied profile overrode the thumb wheel,
@@ -972,6 +976,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 current_class = class.clone();
                 juhradiald::keypad::set_focused_app(&class);
+                usage.focus(&class, std::time::Instant::now());
 
                 // First focus of an application in this run: Settings decides
                 // whether to offer a profile for it (suppress list, existing

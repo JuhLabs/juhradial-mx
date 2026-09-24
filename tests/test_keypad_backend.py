@@ -262,3 +262,63 @@ def test_a_ready_plate_image_fills_the_key(backend, tmp_path):
     assert backend.addKeypadPage("P")
     assert backend.saveKeypadKey(0, 1, {"action": "none", "label": "", "icon": "", "plate": str(src)})
     assert backend.keypadPages[0]["keys"][0]["plate"] == str(src)
+
+
+def test_app_profiles_rank_by_use_and_add_app_pages(backend, monkeypatch, tmp_path):
+    catalogue = [
+        {"id": "general", "name": "General", "apps": [], "pages": [{"name": "General", "keys": [{"label": "Play", "icon": "media-playback-start-symbolic", "action": "play_pause"}]}]},
+        {"id": "browser", "name": "Web browser", "apps": ["firefox", "google-chrome"], "desktop_ids": ["org.mozilla.firefox.desktop"],
+         "pages": [{"name": "Browser", "keys": [{"label": "Back", "icon": "go-previous-symbolic", "action": "back"},
+                                               {"label": "Find", "icon": "edit-find-symbolic", "action": "custom", "custom": {"kind": "shortcut", "value": "ctrl+f"}},
+                                               {"label": "Bad", "icon": "x", "action": "no_such_action"}]}]},
+        {"id": "code", "name": "VS Code", "apps": ["code"], "desktop_ids": ["code.desktop"], "pages": [{"name": "Code", "keys": []}]},
+    ]
+    monkeypatch.setattr(bk.Backend, "_keypad_catalogue", lambda self: catalogue)
+    monkeypatch.setattr(bk.Backend, "_app_usage", staticmethod(lambda: {"code": 7200, "firefox": 60}))
+    backend.listApplications = lambda: [{"id": "org.mozilla.firefox.desktop"}]
+    ranked = [p["id"] for p in backend.keypadProfiles()]
+    assert ranked[0] == "code" and set(ranked) == {"general", "browser", "code"}
+    assert backend.applyKeypadProfile("browser")
+    page = backend.keypadPages[-1]
+    assert page["apps"] == ["firefox", "google-chrome"] and page["name"] == "Browser"
+    assert page["keys"][0]["action"] == "back" and page["keys"][1]["custom"] == {"kind": "shortcut", "value": "ctrl+f"}
+    assert page["keys"][2]["action"] == "none" and len(page["keys"]) == 9
+    assert next(p for p in backend.keypadProfiles() if p["id"] == "browser")["added"]
+    assert backend.applyKeypadProfile("general") and "apps" not in backend.keypadPages[-1]
+    assert not backend.applyKeypadProfile("missing")
+
+
+def test_label_only_key_draws_a_big_centred_label(tmp_path):
+    from bridge.keypad import render_plate
+    plate = tmp_path / "label.jpg"
+    render_plate({"icon": "", "label": "Deploy"}, plate, lambda _: "")
+    image = QImage(str(plate))
+    bright_centre = sum(image.pixelColor(x, y).lightness() > 120 for x in range(10, 108) for y in range(45, 75))
+    assert bright_centre > 80
+
+
+def test_pack_import_keeps_pictures_and_maps_only_sure_actions(backend, tmp_path):
+    pack = tmp_path / "MyPack"
+    (pack / "profiles").mkdir(parents=True)
+    (pack / "icons" / "keys-118" / "artsy").mkdir(parents=True)
+    img = QImage(118, 118, QImage.Format.Format_RGB32)
+    img.fill(0)
+    img.save(str(pack / "icons" / "keys-118" / "artsy" / "l-code.jpg"))
+    (pack / "profiles" / "portable.json").write_text(json.dumps({"pages": [
+        {"title": "HOME", "mac_profiles": {"general": 0}, "keys": [
+            {"slot": 0, "id": "l-code", "label": "VS Code", "action": {"kind": "launch", "name": "Visual Studio Code"}},
+            {"slot": 1, "id": "esc", "label": "Esc", "action": {"kind": "keys", "combo": "escape"}},
+            {"slot": 2, "id": "mission", "label": "Mission", "action": {"kind": "keys", "combo": "primary+tab"}},
+            {"slot": 3, "id": "ctx", "label": "Context", "action": {"kind": "type", "text": "/context", "enter": True,
+                                                                   "target": "claude-code-terminal"}}]},
+        {"title": "CODE", "mac_profiles": {"vscode": 0}, "keys": []}]}))
+    backend.listApplications = lambda: [{"id": "code.desktop", "name": "Visual Studio Code", "command": "code"}]
+    assert backend.importKeypadPack(str(pack))
+    home, code = backend.keypadPages[-2:]
+    assert "apps" not in home and code["apps"] == ["code", "code-oss", "vscodium"]
+    k = home["keys"]
+    assert k[0]["custom"]["value"] == "code" and k[0]["plate"].endswith("artsy/l-code.jpg")
+    assert k[1]["custom"] == {"kind": "shortcut", "value": "Escape"}
+    assert k[2]["action"] == "none" and k[2]["label"] == "Mission"
+    assert k[3]["custom"] == {"kind": "text", "value": "/context", "enter": True, "paste_with": "ctrl+shift+v"}
+    assert not backend.importKeypadPack(str(tmp_path / "missing"))
