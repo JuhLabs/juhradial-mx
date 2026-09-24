@@ -34,6 +34,9 @@ const DEFAULT_SLICE_DEBOUNCE_MS: u64 = 20;
 /// Default re-entry debounce time (milliseconds)
 const DEFAULT_REENTRY_DEBOUNCE_MS: u64 = 50;
 
+/// Default master haptic intensity (0-100), matching `HapticConfig`.
+const DEFAULT_INTENSITY: u8 = 70;
+
 /// HID++ haptic manager
 pub struct HapticManager {
     /// Optional HID++ device connection
@@ -44,6 +47,10 @@ pub struct HapticManager {
     pub(crate) per_event: PerEventPattern,
     /// Whether haptics are enabled
     enabled: bool,
+    /// Master haptic strength, 0-100. On the MX Master 4 (fixed firmware
+    /// waveforms) this is a gate: 0 silences haptics, non-zero plays at native
+    /// amplitude. On legacy force-feedback devices it scales pulse amplitude.
+    intensity: u8,
     /// Whether the window-switch haptic is enabled (independent of `enabled`,
     /// which gates all haptics)
     window_switch_enabled: bool,
@@ -69,6 +76,50 @@ pub struct HapticManager {
     pub(crate) _short_msg_buffer: [u8; 7],
     /// Timestamp of last successful host switch (suppresses reconnection)
     last_host_switch_ms: u64,
+    /// Events switched off in Settings (`HapticEvent::config_key`).
+    events_off: std::collections::HashSet<&'static str>,
+    /// Quiet while gaming mode is on (`haptics.mute_in_games`).
+    mute_in_games: bool,
+    /// Quiet while a muted app is in front (set by the focus loop).
+    app_muted: bool,
+    /// Gaming mode is on (set by GamingMode).
+    gaming_active: bool,
+    /// Motor strength and Sense Panel force Settings asks for (None = leave
+    /// the mouse as it is).
+    level: Option<u8>,
+    panel_force: Option<u8>,
+}
+
+/// Why a Test pulse did not play (TriggerHapticPattern's answer).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TestOutcome {
+    Played,
+    /// Haptic feedback is off in Settings.
+    Off,
+    /// No mouse, or one without a haptic motor.
+    NoMotor,
+    /// The mouse is asleep or on another computer.
+    Unreachable,
+}
+
+impl TestOutcome {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TestOutcome::Played => "",
+            TestOutcome::Off => "off",
+            TestOutcome::NoMotor => "no_motor",
+            TestOutcome::Unreachable => "unreachable",
+        }
+    }
+}
+
+/// Events switched off by a config: the explicit `false`s plus the default-off ones.
+fn events_off(config: &crate::config::HapticConfig) -> std::collections::HashSet<&'static str> {
+    HapticEvent::ALL
+        .iter()
+        .map(|e| e.config_key())
+        .filter(|k| !config.event_enabled(k))
+        .collect()
 }
 
 impl HapticManager {
@@ -79,6 +130,7 @@ impl HapticManager {
             default_pattern: Mx4HapticPattern::SubtleCollision,
             per_event: PerEventPattern::default(),
             enabled,
+            intensity: DEFAULT_INTENSITY,
             window_switch_enabled: true,
             monitor_switch_enabled: true,
             last_pulse_ms: 0,
@@ -91,6 +143,12 @@ impl HapticManager {
             last_slice_index: None,
             _short_msg_buffer: [0u8; 7],
             last_host_switch_ms: 0,
+            events_off: ["macro_start", "macro_finish"].into_iter().collect(),
+            mute_in_games: true,
+            app_muted: false,
+            gaming_active: false,
+            level: None,
+            panel_force: None,
         }
     }
 
@@ -108,8 +166,15 @@ impl HapticManager {
                 invalid: Mx4HapticPattern::from_name(&config.per_event.invalid),
                 window_switch: Mx4HapticPattern::from_name(&config.per_event.window_switch),
                 monitor_switch: Mx4HapticPattern::from_name(&config.per_event.monitor_switch),
+                gesture_tick: Mx4HapticPattern::from_name(&config.per_event.gesture_tick),
+                dpi_change: Mx4HapticPattern::from_name(&config.per_event.dpi_change),
+                macro_start: Mx4HapticPattern::from_name(&config.per_event.macro_start),
+                macro_finish: Mx4HapticPattern::from_name(&config.per_event.macro_finish),
+                low_battery: Mx4HapticPattern::from_name(&config.per_event.low_battery),
+                host_arrive: Mx4HapticPattern::from_name(&config.per_event.host_arrive),
             },
             enabled: config.enabled,
+            intensity: config.intensity.clamp(0, 100),
             window_switch_enabled: config.window_switch_enabled,
             monitor_switch_enabled: config.monitor_switch_enabled,
             last_pulse_ms: 0,
@@ -122,6 +187,12 @@ impl HapticManager {
             last_slice_index: None,
             _short_msg_buffer: [0u8; 7],
             last_host_switch_ms: 0,
+            events_off: events_off(config),
+            mute_in_games: config.mute_in_games,
+            app_muted: false,
+            gaming_active: false,
+            level: config.level,
+            panel_force: config.panel_force,
         }
     }
 
@@ -135,17 +206,30 @@ impl HapticManager {
             invalid: Mx4HapticPattern::from_name(&config.per_event.invalid),
             window_switch: Mx4HapticPattern::from_name(&config.per_event.window_switch),
             monitor_switch: Mx4HapticPattern::from_name(&config.per_event.monitor_switch),
+            gesture_tick: Mx4HapticPattern::from_name(&config.per_event.gesture_tick),
+            dpi_change: Mx4HapticPattern::from_name(&config.per_event.dpi_change),
+            macro_start: Mx4HapticPattern::from_name(&config.per_event.macro_start),
+            macro_finish: Mx4HapticPattern::from_name(&config.per_event.macro_finish),
+            low_battery: Mx4HapticPattern::from_name(&config.per_event.low_battery),
+            host_arrive: Mx4HapticPattern::from_name(&config.per_event.host_arrive),
         };
         self.enabled = config.enabled;
+        self.intensity = config.intensity.clamp(0, 100);
         self.window_switch_enabled = config.window_switch_enabled;
         self.monitor_switch_enabled = config.monitor_switch_enabled;
         self.debounce_ms = config.debounce_ms;
         self.slice_debounce_ms = config.slice_debounce_ms;
         self.reentry_debounce_ms = config.reentry_debounce_ms;
+        self.events_off = events_off(config);
+        self.mute_in_games = config.mute_in_games;
+        self.level = config.level;
+        self.panel_force = config.panel_force;
+        self.apply_device_haptics();
 
         tracing::debug!(
             default_pattern = %self.default_pattern,
             enabled = self.enabled,
+            intensity = self.intensity,
             debounce_ms = self.debounce_ms,
             slice_debounce_ms = self.slice_debounce_ms,
             reentry_debounce_ms = self.reentry_debounce_ms,
@@ -164,6 +248,7 @@ impl HapticManager {
                 let connection = device.connection_type();
                 self.device = Some(device);
                 self.connection_state = ConnectionState::Connected;
+                self.apply_device_haptics();
 
                 if haptic_supported {
                     tracing::info!(
@@ -215,6 +300,25 @@ impl HapticManager {
         match &mut self.device {
             Some(device) => device.set_button_diverts(cids, true),
             None => Ok(Vec::new()),
+        }
+    }
+
+    /// Unit id of the connected device (DEVICE_INFORMATION), if known.
+    pub fn unit_id(&self) -> Option<u32> {
+        self.device.as_ref().and_then(|d| d.unit_id())
+    }
+
+    /// Main firmware versions of the connected device (read once, cached).
+    pub fn firmware(&mut self) -> Vec<String> {
+        self.device.as_mut().map(|d| d.firmware()).unwrap_or_default()
+    }
+
+    /// The device's REPROG_CONTROLS_V4 inventory (a fresh read-only scan);
+    /// empty without a connected device or without the feature.
+    pub fn list_controls(&mut self) -> Vec<crate::hidpp::controls::ControlInfo> {
+        match &mut self.device {
+            Some(device) => device.list_controls(),
+            None => Vec::new(),
         }
     }
 
@@ -317,8 +421,8 @@ impl HapticManager {
 
     /// Send a haptic pulse (runtime only, no memory writes)
     pub fn pulse(&mut self, haptic: HapticPulse) -> Result<(), HapticError> {
-        // Check if haptics are enabled
-        if !self.enabled {
+        // Silenced when disabled or at zero intensity.
+        if self.is_muted() {
             return Ok(());
         }
 
@@ -377,35 +481,101 @@ impl HapticManager {
     /// plays the exact selected waveform so the haptics page can audition one.
     /// MX4-only (named waveforms); respects enabled + debounce. No-op on legacy
     /// or absent devices.
-    pub fn pulse_pattern(&mut self, pattern: Mx4HapticPattern) -> Result<(), HapticError> {
-        if !self.enabled {
-            return Ok(());
+    ///
+    /// A test is deliberate, so it skips the debounce and the game/app mute,
+    /// and says why it stayed silent.
+    pub fn pulse_pattern(&mut self, pattern: Mx4HapticPattern) -> TestOutcome {
+        if !self.enabled || self.intensity == 0 {
+            return TestOutcome::Off;
         }
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
-        if now.saturating_sub(self.last_pulse_ms) < self.debounce_ms {
-            return Ok(());
+        // The device may have been dropped by handle_disconnect(); try to
+        // restore it (no-op while connected or during the reconnect cooldown).
+        if self.device.is_none() {
+            self.reconnect_if_needed();
         }
         let device = match &mut self.device {
             Some(d) if d.mx4_haptic_supported() => d,
-            _ => return Ok(()),
+            _ => return TestOutcome::NoMotor,
         };
+        let parked = device.link_parked();
         match device.send_haptic_pattern(pattern) {
+            Ok(()) if parked => TestOutcome::Unreachable,
             Ok(()) => {
-                self.last_pulse_ms = now;
-                Ok(())
+                self.last_pulse_ms = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as u64;
+                TestOutcome::Played
             }
             Err(HapticError::IoError(_)) => {
                 self.handle_disconnect();
-                Ok(())
+                TestOutcome::Unreachable
             }
             Err(e) => {
                 tracing::debug!(error = %e, "MX4 test pattern failed");
-                Ok(())
+                TestOutcome::Unreachable
             }
         }
+    }
+
+    /// The motor as the mouse has it: (enabled, strength %).
+    pub fn haptic_level(&mut self) -> Option<(bool, u8)> {
+        if self.device.is_none() {
+            self.reconnect_if_needed();
+        }
+        self.device.as_mut().and_then(|d| d.get_haptic_level())
+    }
+
+    /// The Haptic Sense Panel press force as the mouse has it.
+    pub fn force_sense(&mut self) -> Option<super::device::ForceSense> {
+        if self.device.is_none() {
+            self.reconnect_if_needed();
+        }
+        self.device.as_mut().and_then(|d| d.force_sense())
+    }
+
+    /// Put `haptics.level` and `haptics.panel_force` on the mouse where it
+    /// differs. Both may live in the mouse's own memory, so an equal value is
+    /// never rewritten; unset keys leave the mouse alone.
+    pub fn apply_device_haptics(&mut self) {
+        let (level, force) = (self.level, self.panel_force);
+        let Some(device) = self.device.as_mut() else { return };
+        if let Some(pct) = level.filter(|_| device.mx4_haptic_supported()) {
+            if let Some((on, cur)) = device.get_haptic_level() {
+                if !on || cur != pct {
+                    match device.set_haptic_level(pct) {
+                        Ok(()) => tracing::info!(from = cur, to = pct, "Haptic strength set"),
+                        Err(e) => tracing::warn!(error = %e, "Setting the haptic strength failed"),
+                    }
+                }
+            }
+        }
+        if let Some(pct) = force {
+            if let Some(fs) = device.force_sense().filter(|f| f.changeable) {
+                let want = fs.at_percent(pct);
+                if fs.current != want {
+                    match device.set_force_sense(want) {
+                        Ok(()) => tracing::info!(from = fs.current, to = want, "Sense Panel force set"),
+                        Err(e) => tracing::warn!(error = %e, "Setting the Sense Panel force failed"),
+                    }
+                }
+            }
+        }
+    }
+
+    /// Quiet while a muted app is in front (the focus loop sets this).
+    pub fn set_app_muted(&mut self, muted: bool) {
+        self.app_muted = muted;
+    }
+
+    /// Gaming mode on or off (GamingMode sets this).
+    pub fn set_gaming_active(&mut self, on: bool) {
+        self.gaming_active = on;
+    }
+
+    /// Whether this event pulses at all (Settings per-event switches).
+    pub fn event_enabled(&self, event: HapticEvent) -> bool {
+        !self.events_off.contains(event.config_key())
     }
 
     /// Whether the window-switch haptic is enabled (checked separately from
@@ -422,12 +592,19 @@ impl HapticManager {
     }
 
     pub fn emit(&mut self, event: HapticEvent) -> Result<(), HapticError> {
-        tracing::debug!(event = %event, enabled = self.enabled, has_device = self.device.is_some(), "HapticManager.emit() called");
+        tracing::debug!(event = %event, enabled = self.enabled, intensity = self.intensity, has_device = self.device.is_some(), "HapticManager.emit() called");
 
-        // Check if haptics are enabled
-        if !self.enabled {
-            tracing::debug!("Haptic disabled - returning early");
+        // Silenced when disabled, at zero intensity, in a muted app or game,
+        // or when this event is switched off.
+        if self.is_muted() || !self.event_enabled(event) {
+            tracing::debug!(enabled = self.enabled, intensity = self.intensity, "Haptic silenced - returning early");
             return Ok(());
+        }
+
+        // The device may have been dropped by handle_disconnect(); try to
+        // restore it (no-op while connected or during the reconnect cooldown).
+        if self.device.is_none() {
+            self.reconnect_if_needed();
         }
 
         // Check if device is available (legacy haptic OR MX4 haptic)
@@ -483,7 +660,11 @@ impl HapticManager {
         // Fallback to legacy intensity/duration-based pulses (non-MX4 devices)
         let base_profile = event.base_profile();
         let pulse_pattern = event.pattern();
-        let legacy_intensity: u8 = 50;
+        // Legacy force-feedback pulses DO carry an intensity byte, so scale the
+        // base amplitude (50) by the master intensity (0-100). MX4 devices never
+        // reach here - they are handled by the fixed-waveform path above, which
+        // has no amplitude control.
+        let legacy_intensity: u8 = (50u16 * self.intensity as u16 / 100) as u8;
 
         tracing::debug!(
             event = %event,
@@ -525,7 +706,7 @@ impl HapticManager {
 
     /// Emit a haptic event asynchronously (non-blocking)
     pub fn emit_async(&mut self, event: HapticEvent) {
-        if !self.enabled {
+        if self.is_muted() {
             return;
         }
 
@@ -542,7 +723,7 @@ impl HapticManager {
 
     /// Emit a slice change haptic with smart debouncing
     pub fn emit_slice_change(&mut self, slice_index: u8) -> bool {
-        if !self.enabled {
+        if self.is_muted() {
             return false;
         }
 
@@ -635,6 +816,19 @@ impl HapticManager {
         self.enabled
     }
 
+    /// Whether haptic output is currently silenced (disabled or zero intensity).
+    ///
+    /// The MX Master 4 plays fixed firmware waveforms with no per-call amplitude
+    /// byte, so intensity can only gate playback on that hardware: 0 == off, any
+    /// non-zero value plays at native amplitude. Legacy force-feedback devices
+    /// additionally scale the pulse amplitude in `emit()`.
+    fn is_muted(&self) -> bool {
+        !self.enabled
+            || self.intensity == 0
+            || self.app_muted
+            || (self.mute_in_games && self.gaming_active)
+    }
+
     /// Get the default haptic pattern
     pub fn default_pattern(&self) -> Mx4HapticPattern {
         self.default_pattern
@@ -674,12 +868,12 @@ impl HapticManager {
         }
     }
 
-    /// Get list of supported DPI values
-    pub fn get_dpi_list(&mut self) -> Option<Vec<u16>> {
+    /// The sensor's settable DPI range and step
+    pub fn dpi_caps(&mut self) -> Option<super::device::DpiCaps> {
         if self.device.is_none() {
             let _ = self.connect();
         }
-        self.device.as_mut().and_then(|d| d.get_dpi_list())
+        self.device.as_mut().and_then(|d| d.dpi_caps())
     }
 
     // =========================================================================
@@ -719,6 +913,26 @@ impl HapticManager {
                 Err(HapticError::DeviceNotFound)
             }
         }
+    }
+
+    /// Scroll force: (supported, current %, default %).
+    pub fn get_scroll_force(&mut self) -> (bool, u8, u8) {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        let Some(device) = self.device.as_mut() else { return (false, 0, 0) };
+        match device.scroll_force_caps() {
+            Some((default, _)) => (true, device.get_smartshift().map_or(0, |(_, _, t)| t), default),
+            None => (false, 0, 0),
+        }
+    }
+
+    /// Set the scroll force in % (1..100).
+    pub fn set_scroll_force(&mut self, percent: u8) -> Result<(), HapticError> {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_mut().ok_or(HapticError::DeviceNotFound)?.set_scroll_force(percent)
     }
 
     /// Get SmartShift configuration (simplified API for DBus and profiles)
@@ -852,7 +1066,7 @@ impl HapticManager {
             Some(device) => {
                 match device.query_battery() {
                     Ok(v) => Ok(v),
-                    Err(HapticError::IoError(_)) | Err(HapticError::CommunicationError) => {
+                    Err(HapticError::IoError(_)) => {
                         self.handle_disconnect();
                         if let Ok(true) = self.connect() {
                             match self.device.as_mut() {
@@ -863,6 +1077,10 @@ impl HapticManager {
                             Err(HapticError::DeviceNotFound)
                         }
                     }
+                    // CommunicationError is a mere timeout (mouse idle, or away
+                    // on another Easy-Switch host and not answering pings yet):
+                    // the fd is healthy, so keep the device handle instead of a
+                    // multi-second rediscovery that drops a working connection.
                     Err(e) => Err(e),
                 }
             }
@@ -871,6 +1089,29 @@ impl HapticManager {
                 Err(HapticError::DeviceNotFound)
             }
         }
+    }
+
+    /// Link facts of the known mouse (no I/O): transport, receiver slot, and
+    /// whether the receiver last reported its link as parked.
+    pub fn connection_type(&self) -> Option<crate::hidpp::ConnectionType> {
+        self.device.as_ref().map(|d| d.connection_type())
+    }
+
+    pub fn device_index(&self) -> Option<u8> {
+        self.device.as_ref().map(|d| d.device_index())
+    }
+
+    pub fn link_parked(&self) -> bool {
+        self.device.as_ref().is_some_and(|d| d.link_parked())
+    }
+
+    /// Capability flags of the known mouse; empty when none is known yet.
+    /// Never connects (answers from the cached feature table).
+    pub fn capabilities(&self) -> std::collections::HashMap<String, bool> {
+        self.device
+            .as_ref()
+            .map(|d| d.capabilities())
+            .unwrap_or_default()
     }
 
     /// Check if battery feature is supported
@@ -891,6 +1132,14 @@ impl HapticManager {
             Some(device) => device.get_host_names(),
             None => Vec::new(),
         }
+    }
+
+    /// Every Easy-Switch slot (paired or empty, bus, name).
+    pub fn host_slots(&mut self) -> Vec<super::device::HostSlot> {
+        if self.device.is_none() {
+            let _ = self.connect();
+        }
+        self.device.as_mut().map(|d| d.hosts_table()).unwrap_or_default()
     }
 
     /// Get Easy-Switch info: (num_hosts, current_host)

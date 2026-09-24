@@ -342,7 +342,6 @@ def get_ring_geometry() -> dict:
 
 def set_outer_radius(value):
     """Set the ring's outer radius in pixels, or None to reset to the theme default."""
-    from overlay_constants import MENU_RADIUS
 
     if value is not None:
         value = int(max(RING_OUTER_RADIUS_MIN, min(RING_OUTER_RADIUS_MAX, value)))
@@ -416,7 +415,6 @@ def detect_terminal():
 def detect_logitech_mouse():
     """Detect connected Logitech mouse name"""
     import subprocess
-    import shutil
     from pathlib import Path
 
     # Logitech vendor ID

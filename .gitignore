@@ -1,5 +1,6 @@
 # Rust build artifacts
 daemon/target/
+crates/mx-keypad/target/
 
 # Python
 __pycache__/
@@ -30,7 +31,6 @@ _bmad-output/
 bmad-custom-src/
 
 # Internal docs kept private (not shipped publicly)
-CLAUDE.md
 DESIGN.md
 PRODUCT.md
 ASSET_PROMPTS.md
@@ -53,3 +53,10 @@ assets/settings-generated/
 
 # MkDocs build output
 site/
+
+# Qt/QML settings app: local venv only (generated assets are tracked)
+settings-qt/.venv/
+
+# Secrets (never commit)
+.env
+.env.*

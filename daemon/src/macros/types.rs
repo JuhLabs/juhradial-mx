@@ -304,6 +304,9 @@ pub struct MacroEvent {
 pub enum RecordedEventType {
     KeyDown,
     KeyUp,
+    /// A mouse button (`key` holds left, right, middle, back or forward).
+    MouseDown,
+    MouseUp,
 }
 
 // ============================================================================
@@ -361,6 +364,12 @@ pub fn events_to_actions(events: &[MacroEvent]) -> Vec<MacroAction> {
             RecordedEventType::KeyUp => {
                 actions.push(MacroAction::KeyUp(event.key.clone()));
             }
+            RecordedEventType::MouseDown => {
+                actions.push(MacroAction::MouseDown(event.key.clone()));
+            }
+            RecordedEventType::MouseUp => {
+                actions.push(MacroAction::MouseUp(event.key.clone()));
+            }
         }
     }
 
@@ -373,6 +382,8 @@ pub fn mouse_button_to_number(button: &str) -> u8 {
         "left" => 1,
         "middle" => 2,
         "right" => 3,
+        "back" => 8,
+        "forward" => 9,
         _ => 1,
     }
 }
@@ -511,5 +522,17 @@ mod tests {
         assert_eq!(mouse_button_to_number("middle"), 2);
         assert_eq!(mouse_button_to_number("right"), 3);
         assert_eq!(mouse_button_to_number("unknown"), 1);
+    }
+
+    /// What Settings sends for Record then Save (audit P0 #1: the payload
+    /// had no id, so SaveMacro rejected every recording).
+    #[test]
+    fn settings_record_payload_parses() {
+        let json = include_str!("../../../tests/fixtures/qt_new_macro.json");
+        let config: MacroConfig = serde_json::from_str(json).expect("Qt payload must parse");
+        assert_eq!(config.id, "my_macro");
+        assert!(!config.use_standard_delay, "recorded delays must play back");
+        assert_eq!(config.repeat_mode, RepeatMode::Once);
+        assert_eq!(config.actions.len(), 5);
     }
 }

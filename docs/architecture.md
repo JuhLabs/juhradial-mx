@@ -16,7 +16,7 @@ The system is three cooperating processes that share state only through D-Bus an
 | --- | --- | --- | --- |
 | Daemon | Rust (Tokio) | `juhradiald` | Talks HID++ to the device, diverts buttons and the thumb wheel, reads input via evdev and hidraw, injects actions through uinput, and exposes the D-Bus service. |
 | Overlay | Python, PyQt6 | `overlay/juhradial-overlay.py` | The radial menu window. Subscribes to `MenuRequested(x, y)`, positions itself at the cursor, and renders the wheel. |
-| Settings UI | Python, GTK4 | `overlay/settings_*.py` | Configuration app. Writes `~/.config/juhradial/config.json` and calls `ReloadConfig`. |
+| Settings UI | Python, PyQt6 + QML | `settings-qt/` | Configuration app (the GTK4 app in `overlay/settings_*.py` remains as the fallback on Qt < 6.9). Writes `~/.config/juhradial/config.json` and calls `ReloadConfig`. |
 
 ```mermaid
 flowchart TD
@@ -29,7 +29,7 @@ flowchart TD
         DBUS["dbus/ service<br/>org.kde.juhradialmx.Daemon"]
     end
     Overlay["Overlay (PyQt6)<br/>radial menu window"]
-    Settings["Settings UI (GTK4)"]
+    Settings["Settings UI (Qt/QML, GTK4 fallback)"]
     Config["~/.config/juhradial/config.json"]
 
     MX <-->|HID++ reports| HID
@@ -123,7 +123,7 @@ The gesture path is the canonical example of how a hardware event becomes a visi
 
 ## The settings UI
 
-`overlay/settings_*.py` is a GTK4 application, one module per page (buttons, devices, easy-switch, flow, gaming, haptics, macros, scroll, settings). It is the only writer of `~/.config/juhradial/config.json`. After a save it calls `ReloadConfig` so the daemon re-reads the file and re-applies volatile device state (haptic patterns, thumb-wheel divert, non-gesture button diverts, and per-app hardware profiles) without a restart. Device-state pages (DPI, SmartShift, Easy-Switch, thumb wheel) call the daemon's getters and setters directly over D-Bus.
+`settings-qt/` is a PyQt6 + QML application: `main.py` boots the engine and the D-Bus single-instance gate, `bridge/backend.py` is the config and daemon bridge, `bridge/theme.py` the design tokens and theme list, and `qml/pages/*.qml` one page per tab on a shared set of components in `qml/components/`. `scripts/juhradial-settings.sh` starts it whenever PyQt6's QML module imports and Qt is 6.9 or newer (so does the tray's Settings entry), and otherwise falls back to the GTK4 application in `overlay/settings_*.py`, one module per page. Whichever app runs is the only writer of `~/.config/juhradial/config.json`. After a save it calls `ReloadConfig` so the daemon re-reads the file and re-applies volatile device state (haptic patterns, thumb-wheel divert, non-gesture button diverts, and per-app hardware profiles) without a restart. Device-state pages (DPI, SmartShift, Easy-Switch, thumb wheel) call the daemon's getters and setters directly over D-Bus.
 
 ## D-Bus interface
 
@@ -186,6 +186,17 @@ Macros and gaming mode:
 | `IsMacroRunning` / `ReloadMacroTriggers` | `bool` / `()` | Query engine state; reload trigger bindings. |
 | `SetGamingMode` / `GetGamingMode` / `CycleGamingDpi` | `(b)` / `bool` / `s` | Toggle gaming mode (suppresses the overlay) and cycle gaming DPI. |
 
+Keypad, keyboard and other devices:
+
+| Method | Returns / args | Purpose |
+| --- | --- | --- |
+| `GetKeypadStatus` / `SetKeypadPage` / `RefreshKeypadPlates` | `(b, s, y, y)` / `(y page)` / `()` | MX Keypad connection, page, and a repaint after Settings saved plates. |
+| `SetKeypadKeyImage` / `ClearKeypadKeyImage` | `(y page, y key, s path)` / `(y page, y key)` | Paint one key live from a script: a 118 x 118 baseline JPEG, at most 64 KB. Runtime only; clear gives the key its plate back. Example: `gdbus call --session --dest org.kde.juhradialmx --object-path /org/kde/juhradialmx/Daemon --method org.kde.juhradialmx.Daemon.SetKeypadKeyImage 0 5 ~/status.jpg` |
+| `GetScrollForce` / `SetScrollForce` | `(b supported, y %, y default %)` / `(y %) -> b` | Ratchet force, SmartShift Enhanced `0x2111` tunable torque. |
+| `ListReceivers` | `a(ssa(yyqss))` | Bolt and Unifying receivers with slot, kind, wireless PID, name and role (this mouse / keyboard). Read-only. |
+| `ModifiersHeld` | `as` | Modifier keys held right now (Flow "Hold Ctrl to cross"). |
+| `TryAppProfile` / `StopAppProfileTrial` | `(s class, u seconds) -> b` / `() -> b` | App profiles "Try now": act as if that app were in front for up to 300 s. |
+
 ### Signals
 
 | Signal | Payload | Emitted when |
@@ -201,6 +212,11 @@ Macros and gaming mode:
 | `DpiChanged` | `(q dpi)` | DPI change reported by the device. |
 | `MacroPlaybackStarted` / `MacroPlaybackStopped` | `(s id)` | Macro engine state. |
 | `GamingModeChanged` | `(b enabled)` | Gaming mode toggled. |
+| `DeviceNameRefreshed` | `(s name)` | The mouse's real model name, once HID++ answers after an evdev-name start. |
+| `ActiveProfileChanged` | `(s app)` | Application class whose per-app hardware profile was just applied on focus change; empty when the focus leaves every profiled app. |
+| `NewAppSeen` | `(s app)` | An application class (lowercased) focused for the first time since the daemon started; Settings offers a profile for it once. |
+| `KeyboardBatteryChanged` | `(y percent, b charging)` | MX Keys S battery, read the moment a key press re-links the keyboard's radio (receiver link-up notice); only while `keyboard.mx_keys.enabled` is on. |
+| `KeyboardBacklightChanged` | `(y level, y levels, y status)` | MX Keys S backlight level changed on the keyboard (its backlight keys or light sensor), from the BACKLIGHT2 event on the keyboard's receiver; only while `keyboard.mx_keys.enabled` is on. |
 
 The hardware-readback signals (`BatteryChanged`, `RatchetChanged`, `HostChanged`, `DpiChanged`) are pushed from the hidraw notification path and broadcast directly on the connection; they are declared in the interface so clients can introspect them.
 

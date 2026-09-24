@@ -4,7 +4,7 @@ JuhRadial MX - Overlay Painting Mixin
 All drawing/rendering methods for the radial menu, extracted as a mixin
 class to keep the main overlay file focused on logic.
 
-IMPORTANT: Mutable globals (COLORS, ACTIONS, RADIAL_IMAGE, RADIAL_PARAMS,
+IMPORTANT: Mutable globals (COLORS, ACTIONS, RADIAL_IMAGE, RADIAL_PARAMS, WHEEL_MATERIAL,
 AI_ICONS) are accessed via the overlay_actions module attribute
 (e.g. overlay_actions.COLORS) so that reassignment in on_show is visible.
 
@@ -36,6 +36,36 @@ from i18n import _
 
 class RadialMenuPaintingMixin:
     """Mixin providing all paint/draw methods for RadialMenu."""
+
+    # Ring-size scaling: a configured outer radius sets ``ui_scale`` in
+    # RADIAL_PARAMS (overlay_actions.apply_ring_geometry). Everything sized in
+    # pixels rather than derived from a radius reads it here, so the drawn
+    # size and the matching hit radius cannot drift apart.
+    def _get_ui_scale(self):
+        return (overlay_actions.RADIAL_PARAMS or {}).get("ui_scale", 1.0)
+
+    def _subitem_paint_radius(self):
+        """Radius of a drawn submenu item circle (24 px at the default ring)."""
+        return 24 * self._get_ui_scale()
+
+    def _subitem_hit_radius(self):
+        """Hover radius around a submenu item (32 px at the default ring).
+
+        Kept a step larger than the drawn radius so the fan stays forgiving;
+        both follow ui_scale together.
+        """
+        return 32 * self._get_ui_scale()
+
+    def _paint_origin(self):
+        """Ring centre in painter (logical) space.
+
+        win_px is the device-pixel window size and paintEvent applies
+        p.scale(ring_scale), so dividing by ring_scale lands the drawn centre
+        on win_px / 2 device px, exactly where hit-testing measures from
+        (#147). At ring_scale 1.0 this is plain win_px / 2.
+        """
+        half = self.win_px / 2 / getattr(self, "ring_scale", 1.0)
+        return half, half
 
     def paintEvent(self, event):
         # During COSMIC XWayland cursor sync, paint a near-invisible fill
@@ -70,8 +100,7 @@ class RadialMenuPaintingMixin:
         # ring at win_px / 2 * ring_scale device px while hit-testing measured
         # from win_px / 2, leaving the visible ring offset from its own hit
         # regions by (ring_scale - 1) * win_px / 2 px down and right.
-        cx = self.win_px / 2 / ring_scale
-        cy = self.win_px / 2 / ring_scale
+        cx, cy = self._paint_origin()
 
         # Menu open bloom - the dial locks in: scale with a hair of overshoot
         # plus a subtle rotation settle, like a machined wheel clicking home.
@@ -121,11 +150,16 @@ class RadialMenuPaintingMixin:
                 p.setPen(Qt.PenStyle.NoPen)
                 p.drawEllipse(QPointF(cx + 4, cy + 6), outer_disc_r, outer_disc_r)
 
-                # Main background
-                base_color = QColor(overlay_actions.COLORS["base"])
-                base_color.setAlpha(235)
-                p.setBrush(QBrush(base_color))
-                p.drawEllipse(QPointF(cx, cy), outer_disc_r, outer_disc_r)
+                # Main background: the wheel skin's material, or the palette base
+                material = overlay_actions.WHEEL_MATERIAL
+                if material is not None:
+                    p.drawPixmap(int(cx - material.width() / 2),
+                                 int(cy - material.height() / 2), material)
+                else:
+                    base_color = QColor(overlay_actions.COLORS["base"])
+                    base_color.setAlpha(235)
+                    p.setBrush(QBrush(base_color))
+                    p.drawEllipse(QPointF(cx, cy), outer_disc_r, outer_disc_r)
 
                 # Border
                 border_color = QColor(overlay_actions.COLORS["surface2"])
@@ -376,6 +410,14 @@ class RadialMenuPaintingMixin:
         icon_x = cx + lift_radius * math.cos(icon_angle)
         icon_y = cy + lift_radius * math.sin(icon_angle)
 
+        # Slice button (Line and Classic icon styles): drawn in place of the
+        # shadow, badge and glyph.
+        btn = overlay_actions.get_slice_button(index, int(50 * scale))
+        if btn is not None:
+            p.drawPixmap(int(icon_x - btn.width() / 2),
+                         int(icon_y - btn.height() / 2), btn)
+            return
+
         # Drop shadow (skip if alpha is 0)
         if shadow_alpha > 0:
             p.setBrush(QBrush(QColor(0, 0, 0, shadow_alpha)))
@@ -430,6 +472,9 @@ class RadialMenuPaintingMixin:
             min(255, icon_rgb[1] + brightness),
             min(255, icon_rgb[2] + brightness),
         )
+        glyph_px = int(22 * scale * 1.15 * (1.0 + 0.12 * h))
+        if self._draw_family_glyph(p, icon_x, icon_y, index, glyph_px, icon_color):
+            return
         hover_bold = bold * (1.0 + 0.12 * h)
         icon_size = 26 * 0.65 * scale
         p.save()
@@ -506,7 +551,15 @@ class RadialMenuPaintingMixin:
         icon_y = cy + (icon_place_r + 3.0 * h) * math.sin(icon_angle)
 
         # Glow ring - fades in with highlight; icon pops slightly on hover
-        icon_radius = 26 + 2.0 * h
+        # icon_scale folds in the ring size (ui_scale) and Settings > Icon size;
+        # capped so neighbouring discs never overlap at the largest icon size.
+        icon_radius = min((26 + 2.0 * h) * (overlay_actions.RADIAL_PARAMS or {}).get("icon_scale", 1.0),
+                          icon_place_r * math.sin(math.pi / 8) - 2 + 2.0 * h)
+
+        # Slice button (Line and Classic icon styles) replaces the disc and glyph.
+        if self._draw_slice_button(p, icon_x, icon_y, index, icon_radius, h):
+            return
+
         if h > 0:
             glow = QColor(255, 255, 255, int(40 * h))
             p.setBrush(Qt.BrushStyle.NoBrush)
@@ -534,6 +587,8 @@ class RadialMenuPaintingMixin:
             int(ct1.green() + (ct2.green() - ct1.green()) * h),
             int(ct1.blue() + (ct2.blue() - ct1.blue()) * h),
         )
+        if self._draw_family_glyph(p, icon_x, icon_y, index, int(icon_radius * 1.15), icon_color):
+            return
         self._draw_action_icon(p, icon_x, icon_y, action[4], icon_radius * 0.65, icon_color)
 
     def _draw_minimal_icon(self, p, cx, cy, index):
@@ -548,7 +603,12 @@ class RadialMenuPaintingMixin:
         icon_x = cx + (icon_place_r + 3.0 * h) * math.cos(icon_angle)
         icon_y = cy + (icon_place_r + 3.0 * h) * math.sin(icon_angle)
 
-        icon_radius = 26 + 2.0 * h
+        icon_radius = min((26 + 2.0 * h) * (overlay_actions.RADIAL_PARAMS or {}).get("icon_scale", 1.0),
+                          icon_place_r * math.sin(math.pi / 8) - 2 + 2.0 * h)
+
+        # Slice button (Line and Classic icon styles): floating button, no disc.
+        if self._draw_slice_button(p, icon_x, icon_y, index, icon_radius, h):
+            return
 
         # Subtle hover glow circle behind icon
         if h > 0:
@@ -578,7 +638,35 @@ class RadialMenuPaintingMixin:
             int(ct1.green() + (ct2.green() - ct1.green()) * h),
             int(ct1.blue() + (ct2.blue() - ct1.blue()) * h),
         )
+        if self._draw_family_glyph(p, icon_x, icon_y, index, int(icon_radius * 1.15), icon_color):
+            return
         self._draw_action_icon(p, icon_x, icon_y, action[4], icon_radius * 0.65, icon_color)
+
+    def _draw_slice_button(self, p, cx, cy, index, icon_radius, h):
+        """Draw the icon style's slice button for slice `index` (Line and
+        Classic styles) with a hover glow ring. Returns False when the style
+        has no button for this slice, so the caller draws its disc and glyph."""
+        btn = overlay_actions.get_slice_button(index, int(icon_radius * 2 + 14))
+        if btn is None:
+            return False
+        if h > 0:
+            glow = QColor(255, 255, 255, int(50 * h))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.setPen(QPen(glow, 3))
+            p.drawEllipse(QPointF(cx, cy), icon_radius + 4, icon_radius + 4)
+        p.drawPixmap(int(cx - btn.width() / 2), int(cy - btn.height() / 2), btn)
+        return True
+
+    def _draw_family_glyph(self, p, cx, cy, index, px, color):
+        """Draw the icon family's glyph for slice `index` at `px` when the
+        chosen icon style provides one (tinted, so hover brightness applies).
+        Returns False when the caller should fall back to the cached pixmap
+        or hand-drawn glyph in _draw_action_icon."""
+        glyph = overlay_actions.get_style_glyph(index, px, color)
+        if glyph is None:
+            return False
+        p.drawPixmap(int(cx - glyph.width() / 2), int(cy - glyph.height() / 2), glyph)
+        return True
 
     def _draw_action_icon(self, p, cx, cy, icon_id, size, color):
         """Draw a pre-rendered pixmap for icon_id if one is cached, else fall
@@ -598,7 +686,10 @@ class RadialMenuPaintingMixin:
         if icon_id in all_icons:
             icon_size = size * 1.4
             icon_rect = QRectF(cx - icon_size / 2, cy - icon_size / 2, icon_size, icon_size)
-            p.drawPixmap(icon_rect.toRect(), all_icons[icon_id])
+            icon = all_icons[icon_id]
+            if icon_id in overlay_actions.MONO_OS_ICONS:
+                icon = overlay_actions.tinted_icon(icon_id, icon, QColor(color))
+            p.drawPixmap(icon_rect.toRect(), icon)
             return
         self._draw_icon(p, cx, cy, icon_id, size, color)
 
@@ -1113,7 +1204,7 @@ class RadialMenuPaintingMixin:
         # Submenu items positioned in an arc beyond the main menu
         outer_radius = self._get_outer_radius()
         SUBMENU_RADIUS = self._get_submenu_item_radius()
-        SUBITEM_RADIUS = 24  # Size of each subitem circle
+        SUBITEM_RADIUS = self._subitem_paint_radius()
 
         num_items = len(submenu)
         spread = SUBMENU_ITEM_SPREAD_DEG
@@ -1187,11 +1278,15 @@ class RadialMenuPaintingMixin:
                 **overlay_actions.USER_ICONS,
             }
             if icon_name in all_icons:
-                icon_size = scaled_radius * 1.4
+                disc = icon_name in overlay_actions.DISC_OS_ICONS
+                icon_size = scaled_radius * (2.0 if disc else 1.4)
                 icon_rect = QRectF(
                     item_x - icon_size / 2, item_y - icon_size / 2, icon_size, icon_size
                 )
                 icon = all_icons[icon_name]
+                if icon_name in overlay_actions.MONO_OS_ICONS:
+                    tint = QColor(overlay_actions.COLORS["text"]) if is_highlighted else QColor(overlay_actions.COLORS["subtext1"])
+                    icon = overlay_actions.tinted_icon(icon_name, icon, tint)
                 p.drawPixmap(icon_rect.toRect(), icon)
             else:
                 # Fallback to drawn icon

@@ -4,7 +4,7 @@ First off, thank you for considering contributing to JuhRadial MX! It's people l
 
 ## Code of Conduct
 
-By participating in this project, you agree to maintain a welcoming, inclusive, and harassment-free environment. Please be respectful and constructive in all interactions.
+By participating in this project, you agree to maintain a welcoming, inclusive, and harassment-free environment. Please be respectful and constructive in all interactions. The full text is in our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## How Can I Contribute?
 

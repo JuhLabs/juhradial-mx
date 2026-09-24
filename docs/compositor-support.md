@@ -64,6 +64,18 @@ gnome-extensions enable juhradial-cursor@dev.juhlabs.com
 !!! tip
     GNOME loads new Shell extensions at session start. If enabling it from the terminal does not take effect immediately, log out and back in.
 
+### Supported GNOME versions
+
+The extension declares GNOME Shell 45 to 51. GNOME refuses to load an extension whose `shell-version` list does not name the running major version and reports it as out of date, which is why the menu fell back to the top-left corner on GNOME 51 before JuhRadial MX 0.4.5 ([#144](https://github.com/JuhLabs/juhradial-mx/issues/144)). The extension uses only `global.get_pointer()` and a session D-Bus export, both unchanged in GNOME 51. After updating, log out and back in once so GNOME re-reads the extension. To check it loaded:
+
+```bash
+gnome-extensions info juhradial-cursor@dev.juhlabs.com   # State: ACTIVE
+gdbus call --session --dest org.juhradial.CursorHelper --object-path /org/juhradial/CursorHelper \
+  --method org.juhradial.CursorHelper.GetCursorPosition
+```
+
+When a future GNOME release is out and not yet listed, `State: OUT OF DATE` means the same thing; please open an issue.
+
 
 ### Known limitation: per-app profiles on GNOME Wayland
 

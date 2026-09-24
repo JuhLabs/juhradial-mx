@@ -12,6 +12,9 @@ echo "=== Stopping running processes ==="
 pkill -x juhradiald 2>/dev/null || true
 pkill -f '[j]uhradial-overlay' 2>/dev/null || true
 pkill -f '[j]uhradial-settings' 2>/dev/null || true
+# The Qt settings app runs as "python3 .../settings-qt/main.py", which the
+# pattern above never matches; a stale instance would keep serving the old UI.
+pkill -f '[s]ettings-qt/main\.py' 2>/dev/null || true
 sleep 1
 
 echo "=== Syncing dev -> $INSTALL_DIR ==="
@@ -55,6 +58,16 @@ cp "$DEV_DIR"/overlay/flow/*.py "$SHARE_DIR/flow/"
 mkdir -p "$SHARE_DIR/locales"
 cp -r "$DEV_DIR"/overlay/locales/* "$SHARE_DIR/locales/"
 
+# Qt/QML settings app (mirrors install.sh: main.py + bridge/ + qml/ + assets/,
+# no tools/ or __pycache__) and the wheel skins the overlay resolves
+rm -rf "$SHARE_DIR/settings-qt"
+mkdir -p "$SHARE_DIR/settings-qt"
+cp "$DEV_DIR/settings-qt/main.py" "$DEV_DIR/settings-qt/VERSION" "$SHARE_DIR/settings-qt/"
+cp -r "$DEV_DIR"/settings-qt/bridge "$DEV_DIR"/settings-qt/qml "$DEV_DIR"/settings-qt/assets "$SHARE_DIR/settings-qt/"
+find "$SHARE_DIR/settings-qt" -type d -name __pycache__ -exec rm -rf {} +
+mkdir -p "$SHARE_DIR/assets"
+cp -r "$DEV_DIR"/settings-qt/assets/wheels "$SHARE_DIR/assets/"
+
 # Assets
 mkdir -p "$SHARE_DIR/assets"
 cp "$DEV_DIR"/assets/ai-*.svg "$SHARE_DIR/assets/" 2>/dev/null || true
@@ -71,3 +84,13 @@ cp "$DEV_DIR"/assets/settings-generated/haptics.png "$SHARE_DIR/assets/settings-
 
 echo ""
 echo "Done! Use your keyboard shortcut to start JuhRadial MX."
+
+# The daemon runs as the invoking user's systemd unit; pkill above stopped it,
+# so bring it back under the user manager (not root's) before handing over.
+if [ -n "${SUDO_USER:-}" ]; then
+    echo "=== Restarting juhradialmx-daemon.service for $SUDO_USER ==="
+    sudo -u "$SUDO_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "$SUDO_USER")" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u "$SUDO_USER")/bus" \
+        systemctl --user restart juhradialmx-daemon.service 2>/dev/null || \
+        echo "(no user unit; start the daemon with juhradial-mx)"
+fi

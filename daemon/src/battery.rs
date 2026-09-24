@@ -7,6 +7,7 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -41,6 +42,20 @@ pub type SharedBatteryState = Arc<RwLock<BatteryState>>;
 /// Create a new shared battery state
 pub fn new_shared_state() -> SharedBatteryState {
     Arc::new(RwLock::new(BatteryState::default()))
+}
+
+/// Low-battery pulse latch: fire once when a discharging mouse reaches the
+/// alert level (`battery.alert_percent`, 15 by default), again only after it
+/// was charged or passed the level + 5. Returns (fire, latched). 0 % means
+/// "not read yet" and never fires.
+pub fn low_battery_step(latched: bool, percentage: u8, charging: bool, alert: u8) -> (bool, bool) {
+    if charging || percentage > alert.saturating_add(5) {
+        return (false, false);
+    }
+    if percentage == 0 || latched || percentage > alert {
+        return (false, latched);
+    }
+    (true, true)
 }
 
 /// HID++ Battery query handler
@@ -232,9 +247,10 @@ impl BatteryHandler {
         // Send request
         device.write_all(&request).map_err(BatteryError::IoError)?;
 
-        // Read response with timeout (non-blocking, so we poll)
+        // Read response with timeout: wait on poll(2) instead of sleeping in
+        // fixed 10ms steps (1000ms budget matching the previous 100 x 10ms)
         let mut response = [0u8; 20];
-        let mut attempts = 0;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1000);
 
         loop {
             match device.read(&mut response) {
@@ -272,19 +288,21 @@ impl BatteryHandler {
                     // Short read, continue
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // No data yet
+                    // No data yet - block until readable or out of budget
+                    if !crate::hidpp::device::wait_readable(device.as_raw_fd(), deadline) {
+                        return Err(BatteryError::Timeout);
+                    }
+                    // Data ready: read it before re-checking the deadline
+                    continue;
                 }
                 Err(e) => {
                     return Err(BatteryError::IoError(e));
                 }
             }
 
-            attempts += 1;
-            if attempts > 100 {
+            if std::time::Instant::now() >= deadline {
                 return Err(BatteryError::Timeout);
             }
-
-            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
 
@@ -353,25 +371,17 @@ impl BatteryHandler {
             &response[..response.len().min(12)]
         );
 
-        // HID++ UNIFIED_BATTERY (0x1004) response format:
-        // [0] report_type, [1] device_index, [2] feature_index, [3] function_id
-        // [4] state_of_charge (percentage), [5] level (0-4), [6] flags, [7] charging_status
+        // HID++ UNIFIED_BATTERY (0x1004) response: [4] state of charge,
+        // [5] level flags, [6] charging status, [7] external power
+        // (decode_unified_status).
         //
         // HID++ BATTERY_STATUS (0x1000) response format:
         // [4] level, [5] next_level, [6] status
-        if response.len() >= 8 && self.is_unified_battery {
-            let percentage = response[4];
-            let charging_status = response[7]; // Charging status is at byte 7 for UNIFIED_BATTERY
-
-            // UNIFIED_BATTERY charging_status: 0=discharging, 1=charging, 2=charging_slow, 3=charging_complete, 5=invalid
-            let charging = (1..=3).contains(&charging_status);
-
-            tracing::debug!(
-                percentage,
-                charging_status,
-                charging,
-                "Battery query result (UNIFIED_BATTERY)"
-            );
+        let unified = response.get(4..).filter(|_| self.is_unified_battery);
+        if let Some((percentage, charging)) =
+            unified.and_then(crate::hidpp::device::decode_unified_status)
+        {
+            tracing::debug!(percentage, charging, "Battery query result (UNIFIED_BATTERY)");
 
             Ok((percentage, charging))
         } else if response.len() >= 7 {
@@ -484,46 +494,76 @@ pub async fn start_battery_updater(state: SharedBatteryState) {
     }
 }
 
-/// Start a periodic battery update task using shared HapticManager
-///
-/// This version shares the HidppDevice with haptic feedback to avoid
-/// conflicts when both need to access the same hidraw device.
-pub async fn start_battery_updater_shared(
-    state: SharedBatteryState,
-    haptic_manager: crate::hidpp::SharedHapticManager,
-    radio_recovered: std::sync::Arc<tokio::sync::Notify>,
-) {
-    let mut consecutive_errors = 0u32;
+const BATTERY_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
+const BATTERY_RETRY_INTERVAL: std::time::Duration = std::time::Duration::from_secs(5);
+const BATTERY_WARMUP_DURATION: std::time::Duration = std::time::Duration::from_secs(60);
 
-    // The HID++ battery query polls hidraw with std::thread::sleep(10ms) up to
-    // 100 times (~1s worst case). Holding a std::sync::Mutex across that
-    // blocking I/O while running on a tokio worker is the canonical recipe for
-    // task starvation. Run every query on the blocking thread pool instead.
-    async fn run_query(
-        haptic_manager: crate::hidpp::SharedHapticManager,
-    ) -> Result<(u8, bool), crate::hidpp::HapticError> {
-        tokio::task::spawn_blocking(move || {
-            let mut manager = haptic_manager.lock().unwrap();
-            manager.query_battery()
-        })
-        .await
-        .expect("battery query task panicked")
+#[derive(Default)]
+struct BatteryPollCadence {
+    has_successful_sample: bool,
+}
+
+impl BatteryPollCadence {
+    fn record_query_result(&mut self, succeeded: bool) {
+        self.has_successful_sample |= succeeded;
     }
 
-    // Battery polling cadence is a tradeoff between charging-state freshness
-    // and cursor smoothness. Every HID++ write briefly pauses mouse forwarding
-    // on the receiver firmware (5-30ms), so a fast cadence produces visible
-    // cursor stutter. 60s matches Solaar's default and is well below the
-    // human "did the battery change?" threshold.
-    const POLL_INTERVAL_SECS: u64 = 60;
-    // For the first minute of uptime we tick faster so the UI populates
-    // quickly after launch, then settle to the steady cadence.
-    const WARMUP_INTERVAL_SECS: u64 = 5;
-    const WARMUP_DURATION_SECS: u64 = 60;
+    fn next_interval(&self, elapsed: std::time::Duration) -> std::time::Duration {
+        // Each HID++ query briefly pauses mouse forwarding. End fast polling
+        // on first success, or after one minute even when no mouse is present.
+        if self.has_successful_sample || elapsed >= BATTERY_WARMUP_DURATION {
+            BATTERY_POLL_INTERVAL
+        } else {
+            BATTERY_RETRY_INTERVAL
+        }
+    }
+}
 
-    let started = std::time::Instant::now();
+/// Run blocking HID++ I/O and link-state reporting outside the async worker pool.
+async fn query_battery_shared(
+    haptic_manager: crate::hidpp::SharedHapticManager,
+) -> Result<(u8, bool), crate::hidpp::HapticError> {
+    tokio::task::spawn_blocking(move || {
+        use crate::link_state::{report, LinkState, Transport};
+        let mut manager = haptic_manager.lock().unwrap();
+        let result = manager.query_battery();
+        // The poll doubles as the reachability probe between wakes.
+        match &result {
+            Ok(_) => {
+                report(LinkState::Connected, manager.connection_type().map(Transport::from));
+            }
+            Err(_) if manager.link_parked() => {
+                report(LinkState::Asleep, None);
+            }
+            Err(_) => {}
+        }
+        result
+    })
+    .await
+    .expect("battery query task panicked")
+}
 
-    let initial_result = run_query(haptic_manager.clone()).await;
+/// Shared updater loop with injectable query, timer and elapsed-time boundaries.
+/// Returning false from the timer stops the loop in deterministic tests.
+async fn run_battery_updater_shared_with<Query, QueryFuture, Timer, TimerFuture, Elapsed, Error>(
+    state: SharedBatteryState,
+    radio_recovered: std::sync::Arc<tokio::sync::Notify>,
+    mut query: Query,
+    mut timer: Timer,
+    mut elapsed: Elapsed,
+) where
+    Query: FnMut() -> QueryFuture,
+    QueryFuture: std::future::Future<Output = Result<(u8, bool), Error>>,
+    Timer: FnMut(std::time::Duration) -> TimerFuture,
+    TimerFuture: std::future::Future<Output = bool>,
+    Elapsed: FnMut() -> std::time::Duration,
+    Error: std::fmt::Display,
+{
+    let mut consecutive_errors = 0u32;
+    let mut cadence = BatteryPollCadence::default();
+
+    let initial_result = query().await;
+    cadence.record_query_result(initial_result.is_ok());
 
     match initial_result {
         Ok((percentage, charging)) => {
@@ -546,14 +586,12 @@ pub async fn start_battery_updater_shared(
     }
 
     loop {
-        let cadence = if started.elapsed().as_secs() < WARMUP_DURATION_SECS {
-            WARMUP_INTERVAL_SECS
-        } else {
-            POLL_INTERVAL_SECS
-        };
-        tokio::time::sleep(tokio::time::Duration::from_secs(cadence)).await;
+        if !timer(cadence.next_interval(elapsed())).await {
+            return;
+        }
 
-        let result = run_query(haptic_manager.clone()).await;
+        let result = query().await;
+        cadence.record_query_result(result.is_ok());
 
         match result {
             Ok((percentage, charging)) => {
@@ -595,6 +633,26 @@ pub async fn start_battery_updater_shared(
     }
 }
 
+/// Start battery polling using the shared HID++ device and radio-recovery signal.
+pub async fn start_battery_updater_shared(
+    state: SharedBatteryState,
+    haptic_manager: crate::hidpp::SharedHapticManager,
+    radio_recovered: std::sync::Arc<tokio::sync::Notify>,
+) {
+    let started = std::time::Instant::now();
+    run_battery_updater_shared_with(
+        state,
+        radio_recovered,
+        || query_battery_shared(haptic_manager.clone()),
+        |duration| async move {
+            tokio::time::sleep(duration).await;
+            true
+        },
+        || started.elapsed(),
+    )
+    .await;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -605,5 +663,223 @@ mod tests {
         assert_eq!(state.percentage, 0);
         assert!(!state.charging);
         assert!(!state.available);
+    }
+
+    #[tokio::test]
+    async fn shared_updater_caps_fast_retries_without_a_device() {
+        use std::cell::{Cell, RefCell};
+        use std::time::Duration;
+
+        let elapsed = Cell::new(Duration::ZERO);
+        let sleeps = RefCell::new(Vec::new());
+        let state = new_shared_state();
+        run_battery_updater_shared_with(
+            state.clone(),
+            std::sync::Arc::new(tokio::sync::Notify::new()),
+            || std::future::ready(Err::<(u8, bool), _>("no device")),
+            |duration| {
+                sleeps.borrow_mut().push(duration.as_secs());
+                elapsed.set(elapsed.get() + duration);
+                std::future::ready(sleeps.borrow().len() < 14)
+            },
+            || elapsed.get(),
+        )
+        .await;
+        assert_eq!(
+            *sleeps.borrow(),
+            [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 60, 60]
+        );
+        assert!(!state.read().await.available);
+
+        // Query time counts too, including a slow initial attempt.
+        let mut sleeps = Vec::new();
+        run_battery_updater_shared_with(
+            state,
+            std::sync::Arc::new(tokio::sync::Notify::new()),
+            || std::future::ready(Err::<(u8, bool), _>("timeout")),
+            |duration| {
+                sleeps.push(duration.as_secs());
+                std::future::ready(false)
+            },
+            || Duration::from_secs(60),
+        )
+        .await;
+        assert_eq!(sleeps, [60]);
+    }
+
+    #[tokio::test]
+    async fn shared_updater_notifies_once_per_outage_including_initial_failure() {
+        use std::future::Future;
+        use std::task::{Context, Waker};
+
+        let recovery = std::sync::Arc::new(tokio::sync::Notify::new());
+        let mut waiter = Box::pin(recovery.notified());
+        waiter.as_mut().enable();
+        let mut results = [
+            Err("asleep"),
+            Ok((70, false)),
+            Ok((71, true)),
+            Err("off"),
+            Err("off"),
+            Ok((72, false)),
+            Ok((73, true)),
+        ]
+        .into_iter();
+        let mut notifications = Vec::new();
+        let state = new_shared_state();
+        run_battery_updater_shared_with(
+            state.clone(),
+            recovery.clone(),
+            || std::future::ready(results.next().unwrap()),
+            |_| {
+                let notified = waiter
+                    .as_mut()
+                    .poll(&mut Context::from_waker(Waker::noop()))
+                    .is_ready();
+                notifications.push(notified);
+                if notified {
+                    waiter = Box::pin(recovery.notified());
+                    waiter.as_mut().enable();
+                }
+                std::future::ready(notifications.len() < 7)
+            },
+            || std::time::Duration::ZERO,
+        )
+        .await;
+        assert_eq!(
+            notifications,
+            [false, true, false, false, false, true, false]
+        );
+        let state = state.read().await;
+        assert_eq!(state.percentage, 73);
+        assert!(state.available && state.charging);
+        assert!(state.error.is_none());
+    }
+
+    #[test]
+    fn low_battery_pulse_fires_once_per_discharge() {
+        assert_eq!(low_battery_step(false, 40, false, 15), (false, false));
+        assert_eq!(low_battery_step(false, 15, false, 15), (true, true));
+        assert_eq!(low_battery_step(true, 12, false, 15), (false, true));
+        assert_eq!(low_battery_step(true, 18, false, 15), (false, true)); // hysteresis
+        assert_eq!(low_battery_step(true, 12, true, 15), (false, false)); // charging resets
+        assert_eq!(low_battery_step(false, 0, false, 15), (false, false)); // not read yet
+        assert_eq!(low_battery_step(false, 18, false, 20), (true, true)); // user level
+        assert_eq!(low_battery_step(false, 12, false, 10), (false, false));
+    }
+
+    #[tokio::test]
+    async fn shared_updater_loop_uses_normal_cadence_after_initial_success() {
+        use std::collections::VecDeque;
+        use std::sync::{Arc, Mutex};
+
+        let state = new_shared_state();
+        let query_results = Arc::new(Mutex::new(
+            VecDeque::<Result<(u8, bool), &'static str>>::from([Ok((72, true)), Ok((91, false))]),
+        ));
+        let sleeps = Arc::new(Mutex::new(Vec::new()));
+
+        let results_for_query = query_results.clone();
+        let sleeps_for_query = sleeps.clone();
+        let sleeps_for_timer = sleeps.clone();
+        run_battery_updater_shared_with(
+            state.clone(),
+            Arc::new(tokio::sync::Notify::new()),
+            move || {
+                let mut results = results_for_query.lock().unwrap();
+                if results.len() == 1 {
+                    assert_eq!(
+                        *sleeps_for_query.lock().unwrap(),
+                        [BATTERY_POLL_INTERVAL],
+                        "initial success must select normal cadence before the second query",
+                    );
+                }
+                std::future::ready(
+                    results
+                        .pop_front()
+                        .expect("updater queried more often than expected"),
+                )
+            },
+            move |duration| {
+                let keep_running = {
+                    let mut recorded = sleeps_for_timer.lock().unwrap();
+                    recorded.push(duration);
+                    recorded.len() < 2
+                };
+                std::future::ready(keep_running)
+            },
+            || std::time::Duration::ZERO,
+        )
+        .await;
+
+        assert!(query_results.lock().unwrap().is_empty());
+        assert_eq!(
+            *sleeps.lock().unwrap(),
+            [BATTERY_POLL_INTERVAL, BATTERY_POLL_INTERVAL],
+        );
+
+        let state = state.read().await;
+        assert_eq!(state.percentage, 91);
+        assert!(!state.charging);
+        assert!(state.available);
+        assert_eq!(state.error, None);
+    }
+
+    #[tokio::test]
+    async fn shared_updater_loop_retries_until_success_then_stays_on_normal_cadence() {
+        use std::collections::VecDeque;
+        use std::sync::{Arc, Mutex};
+
+        let state = new_shared_state();
+        let query_results = Arc::new(Mutex::new(
+            VecDeque::<Result<(u8, bool), &'static str>>::from([
+                Err("initial failure"),
+                Ok((87, true)),
+                Err("later failure"),
+            ]),
+        ));
+        let sleeps = Arc::new(Mutex::new(Vec::new()));
+
+        let results_for_query = query_results.clone();
+        let sleeps_for_timer = sleeps.clone();
+        run_battery_updater_shared_with(
+            state.clone(),
+            Arc::new(tokio::sync::Notify::new()),
+            move || {
+                std::future::ready(
+                    results_for_query
+                        .lock()
+                        .unwrap()
+                        .pop_front()
+                        .expect("updater queried more often than expected"),
+                )
+            },
+            move |duration| {
+                let keep_running = {
+                    let mut recorded = sleeps_for_timer.lock().unwrap();
+                    recorded.push(duration);
+                    recorded.len() < 3
+                };
+                std::future::ready(keep_running)
+            },
+            || std::time::Duration::ZERO,
+        )
+        .await;
+
+        assert!(query_results.lock().unwrap().is_empty());
+        assert_eq!(
+            *sleeps.lock().unwrap(),
+            [
+                BATTERY_RETRY_INTERVAL,
+                BATTERY_POLL_INTERVAL,
+                BATTERY_POLL_INTERVAL,
+            ]
+        );
+
+        let state = state.read().await;
+        assert_eq!(state.percentage, 87);
+        assert!(state.charging);
+        assert!(!state.available);
+        assert_eq!(state.error.as_deref(), Some("later failure"));
     }
 }

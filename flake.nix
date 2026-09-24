@@ -31,13 +31,15 @@
           pythonEnv = pkgs.python3.withPackages (ps: with ps; [
             pyqt6
             pygobject3
+            pycairo
           ]);
 
           # Rust daemon - handles evdev input and D-Bus signaling
           juhradiald = pkgs.rustPlatform.buildRustPackage {
             pname = "juhradiald";
-            version = "0.4.3";
+            version = "0.4.5-beta.1";
 
+            # Include crates/mx-keypad beside daemon for the path dependency.
             src = ./.;
             cargoRoot = "daemon";
             buildAndTestSubdir = "daemon";
@@ -60,7 +62,7 @@
 
           default = pkgs.stdenv.mkDerivation {
             pname = "juhradial-mx";
-            version = "0.4.3";
+            version = "0.4.5-beta.1";
             src = ./.;
 
             nativeBuildInputs = with pkgs; [
@@ -71,6 +73,8 @@
             buildInputs = gtkRuntimeLibs ++ (with pkgs; [
               qt6.qtbase
               qt6.qtsvg
+              qt6.qtdeclarative
+              qt6.qtwayland
             ]);
 
             dontBuild = true;
@@ -93,6 +97,13 @@
               # Locale files
               cp -r overlay/locales $out/share/juhradial/
 
+              # Qt/QML settings app (tools/ excluded; GTK dashboard stays as fallback)
+              mkdir -p $out/share/juhradial/settings-qt $out/share/juhradial/assets
+              cp settings-qt/main.py settings-qt/VERSION $out/share/juhradial/settings-qt/
+              cp -r settings-qt/bridge settings-qt/qml settings-qt/assets $out/share/juhradial/settings-qt/
+              find $out/share/juhradial/settings-qt -type d -name __pycache__ -exec rm -rf {} +
+              cp -r settings-qt/assets/wheels $out/share/juhradial/assets/
+
               # Assets - radial wheel images, device illustrations, AI icons
               mkdir -p $out/share/juhradial/assets/radial-wheels
               cp assets/radial-wheels/*.png $out/share/juhradial/assets/radial-wheels/
@@ -105,6 +116,9 @@
               # Symlink so ../assets/ relative paths from overlay scripts resolve correctly
               # (overlay_actions.py, juhradial-overlay.py use os.path.dirname(__file__)/../assets/)
               ln -s $out/share/juhradial/assets $out/share/assets
+
+              # Same for ../settings-qt/assets/ lookups (wheel skins in overlay_actions.py)
+              ln -s $out/share/juhradial/settings-qt $out/share/settings-qt
 
               # App icon
               install -Dm644 assets/juhradial-mx.svg $out/share/icons/hicolor/scalable/apps/juhradial-mx.svg
@@ -135,6 +149,10 @@
               cat > $out/bin/juhradial-settings <<LAUNCHER
               #!/bin/bash
               # JuhRadial MX Settings (Nix)
+              # Prefer the Qt/QML settings app; fall back to the GTK dashboard
+              if [ "\''${JUHRADIAL_SETTINGS:-}" != "gtk" ] && ${pythonEnv}/bin/python3 -c "import PyQt6.QtQml" 2>/dev/null; then
+                  exec ${pythonEnv}/bin/python3 $out/share/juhradial/settings-qt/main.py "\$@"
+              fi
               exec ${pythonEnv}/bin/python3 $out/share/juhradial/settings_dashboard.py "\$@"
               LAUNCHER
               chmod 755 $out/bin/juhradial-settings
@@ -153,15 +171,22 @@
             # Wrap launcher scripts with GTK/Qt environment variables
             postFixup = let
               typelibPath = pkgs.lib.makeSearchPath "lib/girepository-1.0" gtkRuntimeLibs;
-              qtPluginPath = pkgs.lib.makeSearchPath "lib/qt-6/plugins" [ pkgs.qt6.qtbase pkgs.qt6.qtsvg ];
+              qtPluginPath = pkgs.lib.makeSearchPath "lib/qt-6/plugins" [ pkgs.qt6.qtbase pkgs.qt6.qtsvg pkgs.qt6.qtwayland ];
+              qmlImportPath = pkgs.lib.makeSearchPath "lib/qt-6/qml" [ pkgs.qt6.qtdeclarative ];
             in ''
               wrapProgram $out/bin/juhradial-mx \
+                --prefix LD_LIBRARY_PATH : "${pkgs.lib.makeLibraryPath [ pkgs.gtk4-layer-shell ]}" \
                 --set GI_TYPELIB_PATH "${typelibPath}" \
                 --set QT_PLUGIN_PATH "${qtPluginPath}" \
                 --prefix PYTHONPATH : "$out/share/juhradial"
 
+              # QML2_IMPORT_PATH is the deprecated Qt 5 spelling; Qt 6 reads
+              # QML_IMPORT_PATH but still honours the old name, so set both.
               wrapProgram $out/bin/juhradial-settings \
                 --set GI_TYPELIB_PATH "${typelibPath}" \
+                --set QT_PLUGIN_PATH "${qtPluginPath}" \
+                --prefix QML_IMPORT_PATH : "${qmlImportPath}" \
+                --prefix QML2_IMPORT_PATH : "${qmlImportPath}" \
                 --prefix PYTHONPATH : "$out/share/juhradial"
             '';
 
@@ -188,8 +213,8 @@
 
             package = lib.mkOption {
               type = lib.types.package;
-              default = self.packages.${pkgs.system}.default;
-              defaultText = lib.literalExpression "juhradial-mx.packages.\${pkgs.system}.default";
+              default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+              defaultText = lib.literalExpression "juhradial-mx.packages.\${pkgs.stdenv.hostPlatform.system}.default";
               description = "The JuhRadial MX package to use.";
             };
           };
@@ -198,14 +223,54 @@
             # Install the package system-wide
             environment.systemPackages = [ cfg.package ];
 
-            # udev rules for non-root Logitech device access
-            services.udev.extraRules =
-              builtins.readFile (cfg.package + "/etc/udev/rules.d/99-juhradialmx.rules");
+            # Register the packaged user unit and enable it declaratively.
+            # Ordering lives in the unit; never pull in graphical-session.target.
+            systemd.packages = [ cfg.package ];
+            systemd.user.services.juhradialmx-daemon.wantedBy = [
+              "graphical-session.target" "default.target"
+            ];
+
+            boot.kernelModules = [ "uinput" ];
+            # Package registration avoids reading a built derivation at evaluation.
+            services.udev.packages = [ cfg.package ];
+            services.udev.extraRules = ''
+              KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
+            '';
 
             # Ensure 'input' group exists for device permissions
             users.groups.input = { };
           };
         };
+
+      checks = forAllSystems (system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          package = self.packages.${system}.default;
+          host = nixpkgs.lib.nixosSystem {
+            inherit system;
+            modules = [ self.nixosModules.default {
+              services.juhradial-mx.enable = true;
+              system.stateVersion = "24.11";
+            } ];
+          };
+          cfg = host.config;
+        in {
+          inherit package;
+          nixos-module =
+            assert builtins.elem package cfg.systemd.packages;
+            assert builtins.elem package cfg.services.udev.packages;
+            assert builtins.elem "uinput" cfg.boot.kernelModules;
+            assert cfg.users.groups ? input;
+            assert builtins.elem "graphical-session.target"
+              cfg.systemd.user.services.juhradialmx-daemon.wantedBy;
+            pkgs.runCommand "juhradial-nixos-module" { } ''
+              test -x ${package}/bin/juhradiald
+              test -f ${package}/lib/systemd/user/juhradialmx-daemon.service
+              grep -q 'SUBSYSTEM=="hidraw".*GROUP="input"' ${package}/etc/udev/rules.d/99-juhradialmx.rules
+              grep -q 'KERNEL=="uinput".*GROUP="input".*MODE="0660"' ${pkgs.writeText "juhradial-extra-rules" cfg.services.udev.extraRules}
+              touch $out
+            '';
+        });
 
       # Development shell for contributors
       devShells = forAllSystems (system:
@@ -215,9 +280,9 @@
             buildInputs = with pkgs; [
               rustc cargo pkg-config
               dbus systemd
-              (python3.withPackages (ps: with ps; [ pyqt6 pygobject3 ]))
+              (python3.withPackages (ps: with ps; [ pyqt6 pygobject3 pycairo ]))
               gtk4 libadwaita gtk4-layer-shell graphene harfbuzz
-              qt6.qtbase qt6.qtsvg
+              qt6.qtbase qt6.qtsvg qt6.qtdeclarative qt6.qtwayland
               gobject-introspection
             ];
           };

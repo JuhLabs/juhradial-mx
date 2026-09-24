@@ -15,6 +15,23 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  nix:
+    name: Nix package and module
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+
+      - name: Build package
+        run: nix build --print-build-logs
+
+      - name: Check flake and NixOS module
+        run: nix flake check --print-build-logs
+
   build:
     name: Build & Test
     runs-on: ubuntu-latest
@@ -49,7 +66,9 @@ jobs:
       - name: Run Rust tests
         working-directory: daemon
         run: cargo test --verbose
-        continue-on-error: true
+
+      - name: Test MX Keypad protocol
+        run: cargo test --locked --manifest-path crates/mx-keypad/Cargo.toml
 
       - name: Validate structure
         run: |
@@ -58,3 +77,34 @@ jobs:
           test -f overlay/juhradial-overlay.py
           test -f overlay/settings_dashboard.py
           echo "✓ Structure valid"
+
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install system Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-pytest \
+            python3-pyqt6 \
+            python3-pyqt6.qtsvg \
+            python3-gi \
+            python3-gi-cairo \
+            gir1.2-gtk-4.0 \
+            gir1.2-adw-1 \
+            python3-pil \
+            python3-numpy \
+            libegl1 \
+            libgl1 \
+            libxkbcommon0
+
+      - name: Run Python tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python3 -m pytest -q tests/

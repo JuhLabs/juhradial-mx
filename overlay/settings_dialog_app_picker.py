@@ -23,6 +23,16 @@ gi.require_version("Gdk", "4.0")
 
 from gi.repository import Gtk, Adw, Gio, Gdk
 
+try:  # GLib 2.86 deprecated Gio's alias; older GioUnix bindings differ
+    from gi.repository import GLib
+    if (GLib.MAJOR_VERSION, GLib.MINOR_VERSION) < (2, 86):
+        raise ImportError("GioUnix.DesktopAppInfo is only preferred from GLib 2.86")
+    gi.require_version("GioUnix", "2.0")
+    from gi.repository import GioUnix
+    DesktopAppInfo = GioUnix.DesktopAppInfo
+except (ImportError, ValueError):
+    DesktopAppInfo = Gio.DesktopAppInfo
+
 from i18n import _
 from settings_config import ConfigManager
 
@@ -50,7 +60,7 @@ def _is_terminal_app(app_info):
     Popen they open no window and the slice looks dead. Filtered out of the
     picker rather than launched in a terminal, since there is no single
     "the user's terminal" to target reliably."""
-    return isinstance(app_info, Gio.DesktopAppInfo) and app_info.get_boolean("Terminal")
+    return isinstance(app_info, DesktopAppInfo) and app_info.get_boolean("Terminal")
 
 
 def resolve_and_cache_icon(app_info):

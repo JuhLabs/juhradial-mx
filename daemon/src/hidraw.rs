@@ -78,13 +78,17 @@ pub struct HidrawHandler {
     /// Reserved for future HID++ feature discovery
     _reprog_feature_index: Option<u8>,
     /// CIDs diverted for macros (not gesture buttons)
-    macro_cids: Vec<u16>,
+    /// Macro bindings (read live, so a new binding works without a restart).
+    trigger_map: Option<crate::macros::SharedTriggerMap>,
     /// Track which macro CID is currently pressed (for release detection)
     active_macro_cid: Option<u16>,
     /// Shared configuration for button action lookup
     shared_config: Option<crate::config::SharedConfig>,
     /// The action that was triggered on button press (for release handling)
     active_button_action: Option<crate::config::ButtonAction>,
+    /// A Custom button went down since all buttons were last up: its release
+    /// must reach the daemon even when another button took over the slot.
+    custom_down: bool,
     /// ThumbWheel feature index (0x2150), used to disambiguate diverted
     /// thumb-wheel rotation notifications from diverted button events.
     thumbwheel_feature_index: Option<u8>,
@@ -100,10 +104,19 @@ pub struct HidrawHandler {
     /// its existing refresh path; the loop reads the flag via
     /// `take_divert_refresh_needed()`.
     divert_refresh_needed: bool,
+    /// Receiver slot of the mouse (link-down notifications for it mean away).
+    mouse_device_index: Option<u8>,
     /// Timestamp of the last accepted refresh trigger, for debouncing.
     last_refresh_trigger: Option<Instant>,
     /// Native KWin scripting client backed by the daemon's session connection.
     kwin_scripting: Option<crate::compositor::KWinScripting>,
+    /// Gaming mode, to hand a game's ring job to the main loop (see
+    /// gaming::ring_job_active).
+    gaming_mode: Option<crate::gaming::SharedGamingMode>,
+    /// Cursor-delta tracker for directional gestures, fed by the evdev loop.
+    gesture_tracker: Option<crate::gesture::SharedGestureTracker>,
+    /// The press in flight is a directional gesture (no radial menu traffic).
+    directional_press: bool,
 }
 
 /// Map HID++ CID to evdev key code for macro trigger forwarding
@@ -136,16 +149,21 @@ impl HidrawHandler {
             device: None,
             _device_index: 0x02, // Default for Bolt receiver
             _reprog_feature_index: None,
-            macro_cids: Vec::new(),
+            trigger_map: None,
             active_macro_cid: None,
             shared_config: None,
             active_button_action: None,
+            custom_down: false,
             thumbwheel_feature_index: None,
             notification_indices: Default::default(),
             kwin_available: None,
             divert_refresh_needed: false,
+            mouse_device_index: None,
             last_refresh_trigger: None,
             kwin_scripting: None,
+            gaming_mode: None,
+            gesture_tracker: None,
+            directional_press: false,
         }
     }
 
@@ -160,13 +178,37 @@ impl HidrawHandler {
         self.kwin_scripting = Some(scripting);
     }
 
+    pub fn set_gaming_mode(&mut self, gaming: crate::gaming::SharedGamingMode) {
+        self.gaming_mode = Some(gaming);
+    }
+
+    /// Share the directional-gesture tracker (started here on a directional
+    /// press, accumulated by the evdev loop, read back on release).
+    pub fn set_gesture_tracker(&mut self, tracker: crate::gesture::SharedGestureTracker) {
+        self.gesture_tracker = Some(tracker);
+    }
+
+
     /// Register CIDs that are diverted for macro triggers (not gesture buttons)
-    pub fn set_macro_cids(&mut self, cids: Vec<u16>) {
-        self.macro_cids = cids;
+    pub fn set_trigger_map(&mut self, map: crate::macros::SharedTriggerMap) {
+        self.trigger_map = Some(map);
+    }
+
+    /// Whether a diverted CID is a button a macro is bound to.
+    fn is_macro_cid(&self, cid: u16) -> bool {
+        let Some(code) = cid_to_evdev_keycode(cid) else { return false };
+        self.trigger_map
+            .as_ref()
+            .and_then(|m| m.read().ok())
+            .is_some_and(|m| m.get(code).is_some())
     }
 
     /// Register the ThumbWheel feature index so diverted rotation notifications
     /// can be told apart from diverted button events (both use function id 0).
+    pub fn set_mouse_device_index(&mut self, index: Option<u8>) {
+        self.mouse_device_index = index;
+    }
+
     pub fn set_thumbwheel_feature_index(&mut self, index: Option<u8>) {
         self.thumbwheel_feature_index = index;
     }
@@ -207,36 +249,7 @@ impl HidrawHandler {
         std::mem::take(&mut self.divert_refresh_needed)
     }
 
-    /// Look up the configured action for a CID from shared config
-    fn get_action_for_cid(&self, cid: u16) -> crate::config::ButtonAction {
-        if let Some(ref config) = self.shared_config {
-            if let Ok(cfg) = config.read() {
-                return cfg.action_for_cid(cid);
-            }
-        }
-        // Fallback: gesture/haptic buttons default to radial menu
-        match cid {
-            button_cid::GESTURE_BUTTON => crate::config::ButtonAction::VirtualDesktops,
-            button_cid::HAPTIC => crate::config::ButtonAction::RadialMenu,
-            _ => crate::config::ButtonAction::None,
-        }
-    }
 
-    /// Whether a diverted CID should be dispatched as a configured button
-    /// action. Gesture and haptic buttons always are; the other reprogrammable
-    /// buttons (back/forward/middle/shift-wheel) only when the user reassigned
-    /// them away from their native default, which matches what divert applies.
-    fn is_action_button(&self, cid: u16) -> bool {
-        if cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC {
-            return true;
-        }
-        if let Some(ref config) = self.shared_config {
-            if let Ok(cfg) = config.read() {
-                return cfg.remapped_button_cids().contains(&cid);
-            }
-        }
-        false
-    }
 
     /// Find the Logitech hidraw device for HID++ button events
     ///
@@ -260,6 +273,8 @@ impl HidrawHandler {
             // Check uevent for vendor/product ID
             let uevent_path = path.join("device/uevent");
             if let Ok(uevent) = std::fs::read_to_string(&uevent_path) {
+                // MX Keypad has its own worker and must not receive mouse writes.
+                if mx_keypad::matches_device(&uevent) { continue; }
                 // Check for Logitech vendor ID (046D)
                 if !uevent.contains("046D") && !uevent.contains("046d") {
                     continue;
@@ -337,7 +352,7 @@ impl HidrawHandler {
                         "Permission denied opening {:?}. The node should be root:input mode 0660 \
                          (check: ls -l {:?}) and this daemon's user must be in the 'input' group. \
                          Fix: sudo usermod -aG input $USER, then REBOOT (or fully log out and back \
-                         in) so the systemd --user manager picks up the group — a stale session \
+                         in) so the systemd --user manager picks up the group, a stale session \
                          that predates the group change cannot access the device. See issue #52.",
                         path, path
                     );
@@ -388,7 +403,7 @@ impl HidrawHandler {
                     // Short read, ignore
                 }
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    // No data available — sleep before retry. The previous 1ms
+                    // No data available, sleep before retry. The previous 1ms
                     // poll generated 1000 wakeups/sec on an idle mouse, which
                     // contended with the evdev forwarding task on the same
                     // tokio runtime. 10ms still keeps button latency well below
@@ -436,7 +451,26 @@ impl HidrawHandler {
         if report_type == HIDPP_SHORT && feature_index == RECEIVER_CONNECTION_SUB_ID {
             if data.len() >= 5 && (data[4] & 0x40) == 0 {
                 self.flag_divert_refresh("receiver device-connection notification");
+            } else if data.len() >= 5 && Some(data[1]) == self.mouse_device_index {
+                // Link-up is reported as connected once the refresh it
+                // triggers reaches the mouse; link-down means it left.
+                self.release_held_custom();
+                if crate::link_state::report(crate::link_state::LinkState::Away, None) {
+                    tracing::info!("Mouse link down (another host or switched off)");
+                }
             }
+            return;
+        }
+
+        // One receiver node carries every paired device's reports. With a
+        // keyboard on the mouse's receiver its events (0x1004 battery,
+        // backlight) would otherwise be decoded with the mouse's feature
+        // indices: a wrong battery, or a phantom button press. Only receiver
+        // slots (1..=6) are compared; a direct link (0xFF) has no neighbours.
+        if self
+            .mouse_device_index
+            .is_some_and(|i| (1..=6).contains(&i) && i != data[1])
+        {
             return;
         }
 
@@ -533,13 +567,16 @@ impl HidrawHandler {
 
         match output {
             crate::config::ThumbwheelOutput::Button(action) => {
-                // Emit one press per repeat; non-radial actions dispatch directly.
-                for _ in 0..repeats {
-                    let _ = self
-                        .event_tx
-                        .send(GestureEvent::ButtonActionEvent { action, pressed: true })
-                        .await;
-                }
+                // Keep configured speed in one event and one helper invocation.
+                let _ = self
+                    .event_tx
+                    .send(GestureEvent::ButtonActionEvent {
+                        action,
+                        pressed: true,
+                        source: None,
+                        repeats,
+                    })
+                    .await;
             }
             crate::config::ThumbwheelOutput::HorizontalScroll(dir) => {
                 let _ = self
@@ -569,30 +606,70 @@ impl HidrawHandler {
         // A CID of 0 means all buttons released
         let pressed = cid != 0;
 
-        // Whether this CID maps to a configured action (gesture/haptic, or a
-        // reassigned back/forward/middle/shift-wheel) or is the release marker.
-        let is_known = self.is_action_button(cid) || cid == 0;
+        // One config read per event: whether this CID dispatches as a
+        // configured action (gesture/haptic always; back/forward/middle/
+        // shift-wheel only when reassigned, matching what divert applies),
+        // which action, and whether the gesture button is in directional
+        // mode, without re-locking per lookup.
+        let (is_action, action, directional) =
+            match self.shared_config.as_ref().and_then(|c| c.read().ok()) {
+                Some(cfg) => {
+                    let is_action = cid == button_cid::GESTURE_BUTTON
+                        || cid == button_cid::HAPTIC
+                        || cfg.remapped_button_cids().contains(&cid);
+                    (is_action, cfg.action_for_cid(cid), cfg.directional_gestures_enabled())
+                }
+                None => {
+                    // Fallback: gesture/haptic buttons default to radial menu
+                    let action = match cid {
+                        button_cid::GESTURE_BUTTON => crate::config::ButtonAction::VirtualDesktops,
+                        button_cid::HAPTIC => crate::config::ButtonAction::RadialMenu,
+                        _ => crate::config::ButtonAction::None,
+                    };
+                    (
+                        cid == button_cid::GESTURE_BUTTON || cid == button_cid::HAPTIC,
+                        action,
+                        false,
+                    )
+                }
+            };
 
-        if is_known {
-            tracing::info!(
-                cid = cid,
-                pressed = pressed,
-                raw_bytes = format!("{:02X} {:02X} {:02X}", data[4], data[5], data[6]),
-                "Diverted button event"
-            );
-        } else {
-            tracing::debug!(
-                cid = cid,
-                pressed = pressed,
-                raw_bytes = format!("{:02X} {:02X} {:02X}", data[4], data[5], data[6]),
-                "Diverted button event (unknown CID)"
-            );
+        // Hot path: fires on every press/release, so keep logging at debug.
+        tracing::debug!(
+            cid = cid,
+            pressed = pressed,
+            known = is_action || cid == 0,
+            raw_bytes = format!("{:02X} {:02X} {:02X}", data[4], data[5], data[6]),
+            "Diverted button event"
+        );
+
+        // Settings lights the pin of whatever went down. Action presses
+        // carry their CID already (ButtonActionEvent.source).
+        let sends_action = is_action
+            && action != crate::config::ButtonAction::RadialMenu
+            && !(cid == button_cid::GESTURE_BUTTON && directional);
+        if pressed && !sends_action {
+            let _ = self.event_tx.send(GestureEvent::ButtonSeen { cid }).await;
         }
 
-        if self.is_action_button(cid) {
-            // Look up configured action for this button
-            let action = self.get_action_for_cid(cid);
-            tracing::info!(cid, %action, "Button pressed - config action lookup");
+        if cid == button_cid::GESTURE_BUTTON && directional {
+            // Directional gesture: track the drag only. No cursor query and
+            // no Pressed event, so the radial overlay never opens for it.
+            self.press_time = Some(Instant::now());
+            self.directional_press = true;
+            self.active_button_action = None;
+            if let Some(tracker) = &self.gesture_tracker {
+                let threshold = self
+                    .shared_config
+                    .as_ref()
+                    .and_then(|c| c.read().ok().map(|c| c.buttons.gesture_directions.threshold_px))
+                    .unwrap_or(0);
+                tracker.set_threshold(threshold);
+                tracker.start();
+            }
+            tracing::debug!(cid, "Gesture button pressed (directional)");
+        } else if is_action {
+            tracing::debug!(cid, %action, "Button pressed - config action lookup");
 
             if action == crate::config::ButtonAction::RadialMenu {
                 // Radial menu flow: cursor query + ShowMenu via existing path
@@ -600,20 +677,23 @@ impl HidrawHandler {
                 self.handle_gesture_button(true).await;
             } else {
                 // Non-radial action: dispatch immediately via event channel
+                self.custom_down |= action == crate::config::ButtonAction::Custom;
                 self.active_button_action = Some(action);
                 self.press_time = Some(Instant::now());
                 let _ = self
                     .event_tx
                     .send(GestureEvent::ButtonActionEvent {
+                        repeats: 1,
                         action,
                         pressed: true,
+                        source: Some(cid),
                     })
                     .await;
             }
-        } else if self.macro_cids.contains(&cid) {
+        } else if self.is_macro_cid(cid) {
             // Diverted macro button pressed - forward as MacroTriggered
             if let Some(key_code) = cid_to_evdev_keycode(cid) {
-                tracing::info!(
+                tracing::debug!(
                     cid = cid,
                     key_code = format!("0x{:04X}", key_code),
                     "Macro button pressed (diverted)"
@@ -628,8 +708,34 @@ impl HidrawHandler {
                     .await;
             }
         } else if cid == 0 {
-            // All buttons released
-            if self.press_time.is_some() {
+            // All buttons released. A held Custom whose slot another button
+            // took over still gets its release (a duplicate is harmless).
+            if std::mem::take(&mut self.custom_down)
+                && self.active_button_action != Some(crate::config::ButtonAction::Custom)
+            {
+                let _ = self.event_tx.send(GestureEvent::ButtonActionEvent {
+                    repeats: 1, action: crate::config::ButtonAction::Custom, pressed: false, source: None,
+                }).await;
+            }
+            if self.press_time.is_some() && self.directional_press {
+                self.directional_press = false;
+                self.active_button_action = None;
+                let duration_ms = self
+                    .press_time
+                    .map(|t| t.elapsed().as_millis() as u64)
+                    .unwrap_or(0);
+                self.press_time = None;
+                let (dx, dy) = self
+                    .gesture_tracker
+                    .as_ref()
+                    .map(|t| t.finish())
+                    .unwrap_or((0, 0));
+                tracing::info!(duration_ms, dx, dy, "Gesture button released (directional)");
+                let _ = self
+                    .event_tx
+                    .send(GestureEvent::GestureReleased { dx, dy, duration_ms })
+                    .await;
+            } else if self.press_time.is_some() {
                 let active_action = self.active_button_action.take();
                 match active_action {
                     Some(crate::config::ButtonAction::RadialMenu) | None => {
@@ -643,12 +749,14 @@ impl HidrawHandler {
                             .map(|t| t.elapsed().as_millis() as u64)
                             .unwrap_or(0);
                         self.press_time = None;
-                        tracing::info!(duration_ms, %action, "Button released (non-radial action)");
+                        tracing::debug!(duration_ms, %action, "Button released (non-radial action)");
                         let _ = self
                             .event_tx
                             .send(GestureEvent::ButtonActionEvent {
+                                repeats: 1,
                                 action,
                                 pressed: false,
+                                source: None,
                             })
                             .await;
                     }
@@ -657,7 +765,7 @@ impl HidrawHandler {
             if let Some(macro_cid) = self.active_macro_cid.take() {
                 // Forward release event for the macro button
                 if let Some(key_code) = cid_to_evdev_keycode(macro_cid) {
-                    tracing::info!(
+                    tracing::debug!(
                         cid = macro_cid,
                         key_code = format!("0x{:04X}", key_code),
                         "Macro button released (diverted)"
@@ -691,7 +799,8 @@ impl HidrawHandler {
                 .as_ref()
                 .map(|k| k.is_owned())
                 .unwrap_or(false);
-            match crate::compositor::cursor_backend(kwin_owned) {
+            let ring_job = crate::gaming::ring_job_active(self.gaming_mode.as_ref());
+            match crate::compositor::cursor_backend(kwin_owned && !ring_job) {
                 crate::compositor::CursorBackend::KWin => {
                     tracing::info!(
                         kwin_owned,
@@ -755,12 +864,24 @@ impl HidrawHandler {
     }
 
     /// Close the current hidraw handle and clear transient press state.
+    /// The mouse went away mid-hold (hidraw closed, or the receiver lost its
+    /// link on an Easy-Switch): release a held Custom's keys on this computer.
+    fn release_held_custom(&mut self) {
+        if std::mem::take(&mut self.custom_down) {
+            let _ = self.event_tx.try_send(GestureEvent::ButtonActionEvent {
+                repeats: 1, action: crate::config::ButtonAction::Custom, pressed: false, source: None,
+            });
+        }
+    }
+
     pub fn close(&mut self) {
+        self.release_held_custom();
         self.device = None;
         self.device_path = None;
         self.press_time = None;
         self.active_macro_cid = None;
         self.active_button_action = None;
+        self.directional_press = false;
     }
 }
 
@@ -843,6 +964,174 @@ mod tests {
         HidrawHandler::new(tx)
     }
 
+    /// Handler wired like `run_hidraw_loop`: shared config with directional
+    /// gestures set as requested, plus the tracker the evdev loop would feed.
+    fn directional_handler(
+        enabled: bool,
+    ) -> (
+        HidrawHandler,
+        mpsc::Receiver<GestureEvent>,
+        crate::gesture::SharedGestureTracker,
+    ) {
+        let (tx, rx) = mpsc::channel(8);
+        let mut h = HidrawHandler::new(tx);
+        let config = crate::config::new_shared_config();
+        config.write().unwrap().buttons.gesture_directions.enabled = enabled;
+        config.write().unwrap().buttons.back = crate::config::ButtonAction::Copy;
+        h.set_shared_config(config);
+        let tracker = crate::gesture::GestureTracker::new_shared();
+        h.set_gesture_tracker(tracker.clone());
+        (h, rx, tracker)
+    }
+
+    /// REPROG_CONTROLS_V4 divertedButtonsEvent: bytes 4-5 carry the first
+    /// pressed CID (big endian); CID 0 means everything released.
+    fn diverted_button_report(cid: u16) -> [u8; 20] {
+        let mut report = [0u8; 20];
+        report[0] = 0x11;
+        report[1] = 0x02;
+        report[2] = 0x0b;
+        report[4] = (cid >> 8) as u8;
+        report[5] = cid as u8;
+        report
+    }
+
+    fn drain(rx: &mut mpsc::Receiver<GestureEvent>) -> Vec<GestureEvent> {
+        let mut events = Vec::new();
+        while let Ok(event) = rx.try_recv() {
+            events.push(event);
+        }
+        events
+    }
+
+    /// A directional press must never reach the overlay: no Pressed/Released
+    /// (which would open the ring, stick it in toggle mode on a quick tap, or
+    /// execute the hovered slice), only one GestureReleased with the drag.
+    #[tokio::test]
+    async fn directional_press_over_hidpp_emits_only_gesture_released() {
+        let (mut h, mut rx, tracker) = directional_handler(true);
+
+        h.handle_button_event(&diverted_button_report(button_cid::GESTURE_BUTTON))
+            .await;
+        assert!(tracker.is_active());
+        // Only the pin-lighting notice, never Pressed.
+        assert_eq!(
+            drain(&mut rx),
+            vec![GestureEvent::ButtonSeen { cid: button_cid::GESTURE_BUTTON }],
+            "press must not emit Pressed"
+        );
+
+        // What the evdev loop feeds while the button is held.
+        tracker.accumulate(-70, 12);
+
+        h.handle_button_event(&diverted_button_report(0)).await;
+        let events = drain(&mut rx);
+        assert_eq!(events.len(), 1, "{events:?}");
+        assert!(
+            matches!(events[0], GestureEvent::GestureReleased { dx: -70, dy: 12, .. }),
+            "unexpected event: {:?}",
+            events[0]
+        );
+        assert!(!tracker.is_active());
+        assert!(!h.directional_press);
+        assert!(h.press_time.is_none());
+    }
+
+    /// A held Custom (hold-while-pressed keys) is released even when another
+    /// diverted button takes the "first pressed" slot before everything is
+    /// let go: its keys must never stay down.
+    #[tokio::test]
+    async fn held_custom_is_released_when_another_button_took_its_slot() {
+        use crate::config::ButtonAction;
+        let (tx, mut rx) = mpsc::channel(16);
+        let mut h = HidrawHandler::new(tx);
+        let config = crate::config::new_shared_config();
+        config.write().unwrap().buttons.back = ButtonAction::Custom;
+        config.write().unwrap().buttons.forward = ButtonAction::Copy;
+        h.set_shared_config(config);
+        let custom_edges = |events: &[GestureEvent]| -> Vec<bool> {
+            events.iter().filter_map(|e| match e {
+                GestureEvent::ButtonActionEvent { action: ButtonAction::Custom, pressed, .. } => Some(*pressed),
+                _ => None,
+            }).collect()
+        };
+
+        h.handle_button_event(&diverted_button_report(button_cid::BACK_BUTTON)).await;
+        assert_eq!(custom_edges(&drain(&mut rx)), [true]);
+        // Back let go while Forward is held: Forward is now the first pressed.
+        h.handle_button_event(&diverted_button_report(button_cid::FORWARD_BUTTON)).await;
+        let mut edges = custom_edges(&drain(&mut rx));
+        h.handle_button_event(&diverted_button_report(0)).await;
+        edges.extend(custom_edges(&drain(&mut rx)));
+        assert!(!edges.is_empty() && edges.iter().all(|pressed| !pressed), "released, never pressed again: {edges:?}");
+        assert!(!h.custom_down);
+
+        // Plain press and release of the Custom button: exactly one release.
+        h.handle_button_event(&diverted_button_report(button_cid::BACK_BUTTON)).await;
+        h.handle_button_event(&diverted_button_report(0)).await;
+        assert_eq!(custom_edges(&drain(&mut rx)), [true, false]);
+    }
+
+    /// With the feature off (the default and every existing config) the
+    /// gesture button dispatches exactly as before.
+    #[tokio::test]
+    async fn directional_off_keeps_legacy_gesture_dispatch() {
+        let (mut h, mut rx, tracker) = directional_handler(false);
+
+        h.handle_button_event(&diverted_button_report(button_cid::GESTURE_BUTTON))
+            .await;
+        assert!(!tracker.is_active());
+        h.handle_button_event(&diverted_button_report(0)).await;
+
+        assert_eq!(
+            drain(&mut rx),
+            vec![
+                GestureEvent::ButtonActionEvent {
+                    repeats: 1,
+                    action: crate::config::ButtonAction::VirtualDesktops,
+                    pressed: true,
+                    source: Some(button_cid::GESTURE_BUTTON),
+                },
+                GestureEvent::ButtonActionEvent {
+                    repeats: 1,
+                    action: crate::config::ButtonAction::VirtualDesktops,
+                    pressed: false,
+                    source: None,
+                },
+            ]
+        );
+    }
+
+    /// Directional mode only claims the gesture button; other reassigned
+    /// controls keep their normal dispatch.
+    #[tokio::test]
+    async fn directional_mode_leaves_other_buttons_alone() {
+        let (mut h, mut rx, tracker) = directional_handler(true);
+
+        h.handle_button_event(&diverted_button_report(button_cid::BACK_BUTTON))
+            .await;
+        assert!(!tracker.is_active());
+        h.handle_button_event(&diverted_button_report(0)).await;
+
+        assert_eq!(
+            drain(&mut rx),
+            vec![
+                GestureEvent::ButtonActionEvent {
+                    repeats: 1,
+                    action: crate::config::ButtonAction::Copy,
+                    pressed: true,
+                    source: Some(button_cid::BACK_BUTTON),
+                },
+                GestureEvent::ButtonActionEvent {
+                    repeats: 1,
+                    action: crate::config::ButtonAction::Copy,
+                    pressed: false,
+                    source: None,
+                },
+            ]
+        );
+    }
+
     // Issue #102: a receiver "device connection" notification with the link
     // established must request a divert refresh...
     #[tokio::test]
@@ -853,6 +1142,21 @@ mod tests {
         h.process_hidpp_report(&report).await;
         assert!(h.take_divert_refresh_needed());
         // take() consumes the flag
+        assert!(!h.take_divert_refresh_needed());
+    }
+
+    // A link-down for the mouse's own slot publishes "away"; another slot's
+    // does not touch the mouse state.
+    #[tokio::test]
+    async fn receiver_link_down_for_the_mouse_slot_reports_away() {
+        use crate::link_state::{self, LinkState, Transport};
+        let mut h = test_handler();
+        h.set_mouse_device_index(Some(0x02));
+        link_state::report(LinkState::Connected, Some(Transport::Bolt));
+        h.process_hidpp_report(&[0x10, 0x01, 0x41, 0x04, 0x42, 0x00, 0x00]).await;
+        assert_eq!(link_state::current().0, LinkState::Connected);
+        h.process_hidpp_report(&[0x10, 0x02, 0x41, 0x04, 0x42, 0x00, 0x00]).await;
+        assert_eq!(link_state::current().0, LinkState::Away);
         assert!(!h.take_divert_refresh_needed());
     }
 
@@ -890,6 +1194,31 @@ mod tests {
         assert!(h.take_divert_refresh_needed());
     }
 
+    // A keyboard on the same receiver (slot 1) sends a report on a feature
+    // index the mouse (slot 2) uses too: it must not be decoded as the mouse's.
+    #[tokio::test]
+    async fn other_slots_reports_are_not_decoded_as_the_mouse() {
+        let mut h = test_handler();
+        h.set_notification_indices(crate::hidpp::notifications::NotificationIndices {
+            wireless_status: Some(0x0c),
+            ..Default::default()
+        });
+        h.set_mouse_device_index(Some(0x02));
+        h.process_hidpp_report(&[0x11, 0x01, 0x0c, 0x00, 0x01, 0x01, 0x00]).await;
+        assert!(!h.take_divert_refresh_needed(), "the keyboard's report is ignored");
+        h.process_hidpp_report(&[0x11, 0x02, 0x0c, 0x00, 0x01, 0x01, 0x00]).await;
+        assert!(h.take_divert_refresh_needed(), "the mouse's own report still counts");
+        // A direct link (Bluetooth, cable) reports index 0xFF: nothing is gated.
+        let mut direct = test_handler();
+        direct.set_notification_indices(crate::hidpp::notifications::NotificationIndices {
+            wireless_status: Some(0x0c),
+            ..Default::default()
+        });
+        direct.set_mouse_device_index(Some(0xFF));
+        direct.process_hidpp_report(&[0x11, 0xFF, 0x0c, 0x00, 0x01, 0x01, 0x00]).await;
+        assert!(direct.take_divert_refresh_needed());
+    }
+
     // Issue #15 spirit: a burst of connection notifications (flapping link)
     // must coalesce into one refresh, not a refresh storm.
     #[tokio::test]
@@ -901,5 +1230,33 @@ mod tests {
         // Immediately after, within the debounce window: no second trigger.
         h.process_hidpp_report(&report).await;
         assert!(!h.take_divert_refresh_needed());
+    }
+
+    #[tokio::test]
+    async fn thumbwheel_repetitions_are_batched_into_one_event() {
+        let config = crate::config::new_shared_config();
+        {
+            let mut config = config.write().unwrap();
+            config.thumbwheel.mode = crate::config::ThumbwheelMode::Volume;
+            config.thumbwheel.speed = 8;
+        }
+        let (tx, mut rx) = mpsc::channel(16);
+        let mut handler = HidrawHandler::new(tx);
+        handler.set_shared_config(config);
+        handler
+            .handle_thumbwheel_event(&[HIDPP_LONG, 0, 0, 0, 0, 1])
+            .await;
+        let events = drain(&mut rx);
+        assert_eq!(events.len(), 1, "one rotation must send one event");
+        assert!(matches!(
+            events[0],
+            GestureEvent::ButtonActionEvent {
+                repeats: 8,
+                action: crate::config::ButtonAction::VolumeUp,
+                pressed: true,
+                source: None,
+                ..
+            }
+        ));
     }
 }

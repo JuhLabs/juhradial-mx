@@ -129,6 +129,7 @@ fn test_from_config() {
 
     let config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "subtle_collision".to_string(),
         per_event: Default::default(),
         debounce_ms: 30,
@@ -136,6 +137,7 @@ fn test_from_config() {
         reentry_debounce_ms: 50,
         window_switch_enabled: true,
         monitor_switch_enabled: true,
+        ..Default::default()
     };
 
     let manager = HapticManager::from_config(&config);
@@ -149,6 +151,7 @@ fn test_from_config_disabled() {
 
     let config = HapticConfig {
         enabled: false,
+        intensity: 70,
         default_pattern: "subtle_collision".to_string(),
         per_event: Default::default(),
         debounce_ms: 20,
@@ -156,6 +159,7 @@ fn test_from_config_disabled() {
         reentry_debounce_ms: 50,
         window_switch_enabled: true,
         monitor_switch_enabled: true,
+        ..Default::default()
     };
 
     let manager = HapticManager::from_config(&config);
@@ -171,6 +175,7 @@ fn test_update_from_config() {
 
     let new_config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "sharp_state_change".to_string(),
         per_event: Default::default(),
         debounce_ms: 25,
@@ -178,6 +183,7 @@ fn test_update_from_config() {
         reentry_debounce_ms: 50,
         window_switch_enabled: true,
         monitor_switch_enabled: true,
+        ..Default::default()
     };
 
     manager.update_from_config(&new_config);
@@ -264,6 +270,7 @@ fn test_per_event_pattern_get() {
         invalid: Mx4HapticPattern::SharpStateChange,
         window_switch: Mx4HapticPattern::DampStateChange,
         monitor_switch: Mx4HapticPattern::AngryAlert,
+        ..Default::default()
     };
 
     assert_eq!(
@@ -331,6 +338,7 @@ fn test_from_config_with_per_event() {
 
     let config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "subtle_collision".to_string(),
         per_event: HapticEventConfig {
             menu_appear: "damp_state_change".to_string(),
@@ -339,12 +347,14 @@ fn test_from_config_with_per_event() {
             invalid: "subtle_collision".to_string(),
             window_switch: "subtle_collision".to_string(),
             monitor_switch: "subtle_collision".to_string(),
+            ..Default::default()
         },
         debounce_ms: 25,
         slice_debounce_ms: 20,
         reentry_debounce_ms: 50,
         window_switch_enabled: true,
         monitor_switch_enabled: true,
+        ..Default::default()
     };
 
     let manager = HapticManager::from_config(&config);
@@ -369,6 +379,7 @@ fn test_update_from_config_with_per_event() {
 
     let new_config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "angry_alert".to_string(),
         per_event: HapticEventConfig {
             menu_appear: "sharp_state_change".to_string(),
@@ -377,12 +388,14 @@ fn test_update_from_config_with_per_event() {
             invalid: "subtle_collision".to_string(),
             window_switch: "subtle_collision".to_string(),
             monitor_switch: "subtle_collision".to_string(),
+            ..Default::default()
         },
         debounce_ms: 30,
         slice_debounce_ms: 20,
         reentry_debounce_ms: 50,
         window_switch_enabled: true,
         monitor_switch_enabled: true,
+        ..Default::default()
     };
 
     manager.update_from_config(&new_config);
@@ -663,6 +676,7 @@ fn test_from_config_with_slice_debounce() {
 
     let config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "subtle_collision".to_string(),
         per_event: Default::default(),
         debounce_ms: 20,
@@ -670,6 +684,7 @@ fn test_from_config_with_slice_debounce() {
         reentry_debounce_ms: 60,
         window_switch_enabled: true,
         monitor_switch_enabled: true,
+        ..Default::default()
     };
 
     let manager = HapticManager::from_config(&config);
@@ -687,6 +702,7 @@ fn test_update_from_config_with_slice_debounce() {
 
     let new_config = HapticConfig {
         enabled: true,
+        intensity: 70,
         default_pattern: "subtle_collision".to_string(),
         per_event: Default::default(),
         debounce_ms: 20,
@@ -694,6 +710,7 @@ fn test_update_from_config_with_slice_debounce() {
         reentry_debounce_ms: 75,
         window_switch_enabled: true,
         monitor_switch_enabled: true,
+        ..Default::default()
     };
 
     manager.update_from_config(&new_config);
@@ -713,4 +730,100 @@ fn test_pulse_command_construction_fast() {
 
     let bytes = msg.to_bytes();
     assert_eq!(bytes.len(), 7);
+}
+
+#[test]
+fn dpi_list_range_form_keeps_the_step() {
+    // 200, hyphen step 50, 8000, end (x2201 range form).
+    let caps = device::DpiCaps::parse(&[0x00, 0xC8, 0xE0, 0x32, 0x1F, 0x40, 0x00, 0x00]).unwrap();
+    assert_eq!((caps.min, caps.max, caps.step), (200, 8000, 50));
+    assert!(caps.values.is_empty());
+}
+
+#[test]
+fn dpi_list_list_form_keeps_the_values() {
+    let caps = device::DpiCaps::parse(&[0x01, 0x90, 0x03, 0x20, 0x06, 0x40, 0x00, 0x00, 0x12]).unwrap();
+    assert_eq!((caps.min, caps.max, caps.step), (400, 1600, 0));
+    assert_eq!(caps.values, vec![400, 800, 1600]);
+    assert_eq!(caps.snap(1000), 800);
+    assert_eq!(caps.snap(1300), 1600);
+    assert_eq!(device::DpiCaps::parse(&[0x00, 0x00]), None);
+}
+
+#[test]
+fn dpi_snaps_to_the_sensor_step_and_range() {
+    let caps = device::DpiCaps { min: 200, max: 8000, step: 50, values: vec![], default: 0 };
+    assert_eq!(caps.snap(1234), 1250);
+    assert_eq!(caps.snap(1224), 1200);
+    assert_eq!(caps.snap(100), 200);
+    assert_eq!(caps.snap(9000), 8000);
+    // an end that is off the grid is still reachable
+    let odd = device::DpiCaps { min: 400, max: 1300, step: 200, values: vec![], default: 0 };
+    assert_eq!(odd.snap(1290), 1300);
+}
+
+#[test]
+fn force_sense_from_the_owner_mouse() {
+    // Captured 2026-09-23: caps 0x0001, default 5781, max 7689, min 4625; current 4625.
+    let fs = device::ForceSense::parse(
+        &[0x00, 0x01, 0x16, 0x95, 0x1E, 0x09, 0x12, 0x11],
+        &[0x12, 0x11],
+    )
+    .unwrap();
+    assert!(fs.changeable);
+    assert_eq!((fs.min, fs.max, fs.default, fs.current), (4625, 7689, 5781, 4625));
+    assert_eq!(fs.at_percent(0), 4625);
+    assert_eq!(fs.at_percent(100), 7689);
+    assert_eq!(fs.percent_of(fs.default), 38);
+    assert_eq!(fs.percent_of(fs.at_percent(66)), 66);
+    assert_eq!(device::ForceSense::parse(&[0, 1, 0, 0, 0, 5, 0, 9], &[0, 0]), None); // max <= min
+}
+
+#[test]
+fn switched_off_events_stay_quiet_and_macros_start_off() {
+    use crate::config::HapticConfig;
+    let mut config = HapticConfig::default();
+    let m = HapticManager::from_config(&config);
+    assert!(m.event_enabled(HapticEvent::DpiChange));
+    assert!(!m.event_enabled(HapticEvent::MacroStart));
+    config.per_event_enabled.insert("slice_change".into(), false);
+    config.per_event_enabled.insert("macro_finish".into(), true);
+    config.window_switch_enabled = false;
+    let m = HapticManager::from_config(&config);
+    assert!(!m.event_enabled(HapticEvent::SliceChange));
+    assert!(m.event_enabled(HapticEvent::MacroFinish));
+    assert!(!m.event_enabled(HapticEvent::WindowSwitch));
+    assert!(m.event_enabled(HapticEvent::MenuAppear));
+}
+
+#[test]
+fn test_pulse_says_why_it_stayed_silent() {
+    let mut m = HapticManager::new(false);
+    assert_eq!(m.pulse_pattern(Mx4HapticPattern::Knock), TestOutcome::Off);
+    let mut m = HapticManager::new(true);
+    assert_eq!(m.pulse_pattern(Mx4HapticPattern::Knock), TestOutcome::NoMotor);
+    m.set_app_muted(true); // a test is deliberate: the app mute does not apply
+    assert_eq!(m.pulse_pattern(Mx4HapticPattern::Knock), TestOutcome::NoMotor);
+}
+
+#[test]
+fn every_event_has_a_config_key_and_pattern() {
+    let keys: std::collections::HashSet<_> = HapticEvent::ALL.iter().map(|e| e.config_key()).collect();
+    assert_eq!(keys.len(), HapticEvent::ALL.len());
+    let defaults = PerEventPattern::default();
+    for e in HapticEvent::ALL {
+        let _ = defaults.get(&e);
+    }
+    assert_eq!(defaults.get(&HapticEvent::HostArrive), Mx4HapticPattern::HappyAlert);
+}
+
+#[test]
+fn hosts_info_reads_the_count_from_byte_two() {
+    // MX Keys S capture: caps 0x13, descriptor caps 0x04, 3 hosts, current 0
+    assert_eq!(device::parse_hosts_info(&[0x13, 0x04, 0x03, 0x00]), Some((0x13, 3, 0)));
+    // Bolt + BLE mouse: descriptor caps 0x08 is not 8 slots
+    assert_eq!(device::parse_hosts_info(&[0x01, 0x08, 0x03, 0x01]).map(|t| t.1), Some(3));
+    // getHostInfo(slot): [slot, status, bus, pages, nameLen, maxNameLen]
+    assert_eq!(device::parse_host_descriptor(&[0x01, 0x01, 0x02, 0x01, 0x0B, 0x18]), Some((1, 2, 11)));
+    assert_eq!(device::parse_hosts_info(&[0x01]), None);
 }

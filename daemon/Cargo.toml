@@ -1,6 +1,6 @@
 [package]
 name = "juhradiald"
-version = "0.4.4"
+version = "0.4.5-beta.1"
 edition = "2021"
 description = "JuhRadial MX daemon - Radial menu for Logitech MX Master 4 on Linux"
 license = "GPL-3.0"
@@ -8,6 +8,9 @@ authors = ["Julian Hermstad"]
 repository = "https://github.com/juhhally/juhradial-mx"
 
 [dependencies]
+# Independent MX Keypad protocol (also included in source tarballs).
+mx-keypad = { path = "../crates/mx-keypad" }
+
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
@@ -40,6 +43,9 @@ libc = "0.2"
 
 # Temporary files for KWin scripts
 tempfile = "3"
+
+# Configuration export/import archives (--export / --import, Settings > Backup)
+zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # HID++ for haptic feedback (optional - now uses direct hidraw instead)
 # hidapi = { version = "2", optional = true }

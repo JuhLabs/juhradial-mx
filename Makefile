@@ -13,8 +13,14 @@ all: build
 # Build Rust daemon
 build:
 	@echo "Building Rust daemon..."
-	cd daemon && cargo build --release
+	cd daemon && cargo build --release --locked
 	@echo "✓ Daemon built: daemon/target/release/juhradiald"
+
+# The protocol crate is also compiled by every daemon build via its path dependency.
+.PHONY: test-keypad
+test-keypad:
+	cargo test --locked --manifest-path crates/mx-keypad/Cargo.toml
+	cargo clippy --locked --manifest-path crates/mx-keypad/Cargo.toml
 
 # Clean build artifacts
 clean:

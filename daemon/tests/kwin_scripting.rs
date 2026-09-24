@@ -72,7 +72,7 @@ async fn kwin_peer(
     let guid = zbus::Guid::generate();
     let (server_socket, client_socket) = UnixStream::pair().unwrap();
 
-    let server = Builder::unix_stream(server_socket)
+    let server = Builder::async_io_unix_stream(server_socket)
         .server(guid)
         .unwrap()
         .p2p()
@@ -95,7 +95,7 @@ async fn kwin_peer(
         )
         .unwrap()
         .build();
-    let client = Builder::unix_stream(client_socket).p2p().build();
+    let client = Builder::async_io_unix_stream(client_socket).p2p().build();
     let (server, client) = tokio::try_join!(server, client).unwrap();
 
     (server, client, calls)

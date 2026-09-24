@@ -13,6 +13,10 @@ All configuration lives in `~/.config/juhradial/` (or `$XDG_CONFIG_HOME/juhradia
 | `config.json` | Settings app, daemon | Main configuration: haptics, buttons, thumb-wheel, theme, scroll, flow, gaming, app and device settings |
 | `profiles.json` | Settings app, daemon | Per-application radial layouts and per-app hardware overrides |
 | `macros/<uuid>.json` | Settings app | One file per saved macro |
+| `icons/` | Settings app | Application icons imported for radial slices and quick links |
+| `themes/` | You | Custom overlay themes (see [Themes](#themes)) |
+| `flow_keys/` | Overlay | Flow pairing identity; never exported |
+| `plugins/<name>/plugin.json` | You | Plugin actions for radial slices (see [Plugins](plugins.md)); not part of backups |
 | `~/.config/autostart/juhradial-mx.desktop` | Settings app | Login autostart entry (created/removed by the Start at Login toggle) |
 
 !!! note
@@ -34,6 +38,19 @@ systemctl --user restart juhradialmx-daemon.service
     The daemon writes only VOLATILE HID++ state to the device (no onboard-memory writes). Diverts and hardware overrides are re-applied on reconnect, on radio wake (power switch / sleep, where the receiver's device nodes never disappear), and on `ReloadConfig` (which re-diverts the gesture and haptic buttons too), so the mouse comes back to your configured state automatically.
 
 
+## Backup and restore
+
+Settings → Settings → Backup exports everything under `~/.config/juhradial/` that describes your setup into one zip file, and imports such a file again on this machine or another one. The daemon binary offers the same two commands, which is what the Settings buttons run:
+
+```bash
+juhradiald --export ~/juhradial-backup.zip
+juhradiald --import ~/juhradial-backup.zip
+```
+
+The archive holds `manifest.json` (format version, app version, creation time, file list), `config.json`, `profiles.json`, and every file in `macros/`, `icons/` and `themes/`. Flow pairing keys (`flow_keys/`), UI state and scratch files (`.tmp`, `.bak`, `.bad`) stay on the machine.
+
+Import validates before it writes: the manifest must be JuhRadial's and of a format this build understands, every entry must be one of the files above (absolute paths, `..`, nested directories and anything else are refused, so a tampered archive cannot write elsewhere), and every JSON entry must parse as an object. Only then does it keep the current `config.json` and `profiles.json` as `config.json.bak` and `profiles.json.bak`, write each file atomically, and ask a running daemon to reload its configuration and macro triggers. Files on disk that the archive does not mention (extra macros or icons) are left in place.
+
 ## Top-level structure of config.json
 
 ```json
@@ -43,6 +60,7 @@ systemctl --user restart juhradialmx-daemon.service
   "blur_enabled": true,
   "buttons": { ... },
   "thumbwheel": { ... },
+  "keyboard": { ... },
   "radial": { "minimal_mode": false },
   "radial_menu": { ... },
   "scroll": { ... },
@@ -63,6 +81,7 @@ systemctl --user restart juhradialmx-daemon.service
 | `blur_enabled` | bool | Overlay blur effect (auto-disabled on slow GPUs) |
 | `buttons` | object | Physical button action assignments |
 | `thumbwheel` | object | Thumb-wheel behaviour (volume / scroll / zoom / off) |
+| `keyboard` | object | Keyboard support, beta and off by default (generic remap table, MX Keys S battery and backlight) |
 | `radial` | object | Radial menu display options (`minimal_mode`) |
 | `radial_menu` | object | The 8 radial slices, easy-switch options |
 | `scroll` | object | Scroll direction, smoothness, SmartShift |
@@ -79,6 +98,7 @@ systemctl --user restart juhradialmx-daemon.service
 ```json
 "haptics": {
   "enabled": true,
+  "intensity": 70,
   "default_pattern": "subtle_collision",
   "per_event": {
     "menu_appear": "damp_state_change",
@@ -99,6 +119,7 @@ systemctl --user restart juhradialmx-daemon.service
 | Field | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `enabled` | bool | `true` | Master toggle for haptic feedback |
+| `intensity` | int | `70` | Master strength 0-100. `0` silences every pulse. The MX Master 4's firmware waveforms have no amplitude byte, so on that mouse any non-zero value plays at native strength; legacy force-feedback devices scale their pulse amplitude by it. |
 | `default_pattern` | string | `subtle_collision` | Fallback waveform when no per-event pattern is set |
 | `per_event.menu_appear` | string | `damp_state_change` | Pulse when the radial menu opens |
 | `per_event.slice_change` | string | `subtle_collision` | Pulse when hovering a different slice |
@@ -165,6 +186,48 @@ calculator         none                custom
 
 `none` disables the button. `custom` reserves the slot for a user-defined action configured in the UI.
 
+### Other controls (`buttons.controls`)
+
+Mice expose more remappable controls than the named slots above (side buttons on an MX Anywhere, the DPI switch on an MX Vertical). The daemon enumerates them from the HID++ `REPROG_CONTROLS_V4` feature and publishes the list on D-Bus as `ListControls` (a JSON array with each control's id, name and capability bits). Any divertable control can carry an action keyed by its control id:
+
+```json
+"buttons": {
+  "controls": {
+    "0x00D7": "copy",
+    "0x00FD": "zoom_in"
+  }
+}
+```
+
+Keys are the control id in hex (`0x00D7`) or decimal. A control with an action is diverted to the daemon; `none` (or removing the key and reloading) hands it back to the mouse. Settings → Buttons lists these under "Other controls" whenever the connected mouse reports any.
+
+### Directional gestures
+
+The gesture button can run a different action per drag direction. Hold it, move the mouse, release: the dominant axis picks the action, and a press that moves less than `threshold_px` is a click that runs `buttons.gesture` (or `click`, when set). Off by default; Settings → Buttons → Gesture Button has the switch, the four pickers, and the threshold.
+
+```json
+"buttons": {
+  "gesture": "virtual_desktops",
+  "gesture_directions": {
+    "enabled": true,
+    "up": "show_desktop",
+    "down": "task_switcher",
+    "left": "switch_desktop_left",
+    "right": "switch_desktop_right",
+    "threshold_px": 40
+  }
+}
+```
+
+| Field | Meaning | Default |
+| --- | --- | --- |
+| `enabled` | Turn directional gestures on. Absent or `false` keeps the single-action behaviour exactly as before. | `false` |
+| `up`, `down`, `left`, `right` | Action for a drag in that direction. Any button action except `radial_menu`. | `none` |
+| `click` | Action for a press without a drag. Omit it to keep using `buttons.gesture`. | unset |
+| `threshold_px` | Movement below this many pixels counts as a click. | `40` |
+
+The drag is measured from the mouse's own relative motion, so it works on every compositor, and a directional press never opens the radial menu. This applies to the HID++-diverted gesture button (the normal state on the MX Master 4, 3S and 3); it is not available on the evdev-only fallback path.
+
 !!! warning
     The gesture and actions-ring (thumb) buttons are always diverted to the daemon. The back, forward, middle, and shift-wheel buttons are only HID++-diverted when you reassign them away from their native default. Leaving one at its default keeps the firmware behaviour intact (and reassigning back to the default releases the divert without a reconnect). Reassigning `horizontal_scroll` is recorded in the schema but the thumb wheel's native scroll is handled by the `thumbwheel` section below.
 
@@ -190,17 +253,74 @@ How modes behave:
 - `off` and `scroll` use the wheel's native hardware behaviour and are **not** diverted, so horizontal scroll works reliably on every compositor.
 - `volume` and `zoom` are diverted: each rotation tick is re-injected as Volume Up/Down or Ctrl +/- the number of times set by `speed`.
 
+## Per-device overrides (`devices`)
+
+Every setting in this file applies to whichever mouse is connected. To keep separate settings per mouse (two mice on one machine, or a travel mouse with its own button map), add a `devices` block keyed by the mouse's unit id, which Settings → Devices shows as "Unit 0x…" (`GetUnitId` on D-Bus). Any subset of the top-level keys is allowed and is deep-merged over the top-level values while that mouse is connected; the file itself is never rewritten.
+
+```json
+"devices": {
+  "0x1234ABCD": {
+    "buttons": { "back": "undo", "forward": "redo" },
+    "thumbwheel": { "mode": "zoom" }
+  }
+}
+```
+
+Single-mouse configs without a `devices` block behave exactly as before.
+
+## Keyboard (beta)
+
+Off by default and inert until enabled: with the section absent or every switch `false` the daemon never opens, grabs or talks to a keyboard, so a mouse-only install is unaffected.
+
+```json
+"keyboard": {
+  "enabled": false,
+  "remap": { "58": 29 },
+  "mx_keys": { "enabled": false }
+}
+```
+
+| Field | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `enabled` | bool | `false` | Master switch for the generic remap path. |
+| `remap` | object | `{}` | Source evdev key code to target key code, as stringified integers (`"58": 29` is CapsLock to Left Ctrl). Only when `enabled` is true and the table is non-empty is the first physical keyboard grabbed and forwarded through a virtual keyboard with these codes rewritten. |
+| `mx_keys.enabled` | bool | `false` | Let the daemon talk HID++ to an MX Keys S for battery readback (`GetKeyboardBattery`), presence from the receiver's pairing table (`GetKeyboardPaired`, true even while the keyboard's radio sleeps) and the backlight (`SetKeyboardBacklight`, only sent on an explicit request; verified on an MX Keys S). |
+
+`ListKeyboardKeys` returns the evdev key codes of the first keyboard for a remap picker without grabbing it.
+
+## MX Keypad (`keypad`)
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `enabled` | bool | `true` | Drive a connected MX Keypad (`046d:c354`) |
+| `pages` | array | `[]` | Pages of nine keys (`name`, `keys`, optional `apps` window classes that bring the page up); Settings → MX Keypad edits them |
+| `active_page` | int | `0` | The page shown now |
+| `brightness` | int | unset | Panel brightness 1 to 100; unset leaves the keypad's own level |
+| `dim_on_lock` | bool | `true` | While the screen is locked the keys go blank and do nothing (a text key never types into the lock screen). Follows logind's `LockedHint`, which KDE Plasma and GNOME set; on desktops that do not set it the keypad stays as it is |
+
 ## Radial menu
 
 ### Display options
 
 ```json
 "radial": {
-  "minimal_mode": false
+  "minimal_mode": false,
+  "auto_fit": true,
+  "outer_radius": 150,
+  "inner_radius": 45,
+  "icon_scale": 1.0
 }
 ```
 
-`minimal_mode` shows icons only (no slice labels) when `true`.
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `minimal_mode` | bool | `false` | Simplified wheel: the action icons without the ring (also the "Simplified" switch in the Settings header) |
+| `auto_fit` | bool | unset | Automatic sizing: the ring keeps its default size, scaled to the monitor it opens on, and the three keys below stay in the file but are ignored. Unset means on, unless one of the three keys below is set (a ring sized before 0.4.5 keeps its size) |
+| `outer_radius` | int or `null` | `null` (150) | Ring radius in pixels, 80 to 250. Icons, submenus and the centre label scale with it |
+| `inner_radius` | int or `null` | `null` (45) | Centre zone radius in pixels, 20 up to 30 less than the outer radius |
+| `icon_scale` | number or `null` | `null` (1.0) | Slice icon size on top of the ring scale, 0.6 to 1.6 |
+
+`null` (or a missing key) uses the default. Settings → Settings → Radial menu sets all of them (Automatic, Ring size, Center zone, Icon size, Default sizes).
 
 ### Slices
 
@@ -362,7 +482,9 @@ The `gaming` section appears once you open the GAMING page. DPI profiles let you
 ```json
 "app": {
   "start_at_login": true,
-  "show_tray_icon": true
+  "show_tray_icon": true,
+  "suggest_profiles": true,
+  "profile_prompted": ["gimp"]
 }
 ```
 
@@ -370,6 +492,8 @@ The `gaming` section appears once you open the GAMING page. DPI profiles let you
 | --- | --- | --- | --- |
 | `start_at_login` | bool | `true` | Launch the overlay/settings helper at login |
 | `show_tray_icon` | bool | `true` | Show the system tray icon |
+| `suggest_profiles` | bool | `true` | Offer to create an app profile the first time an app without one is focused (Settings → App profiles) |
+| `profile_prompted` | list of strings | `[]` | Window classes already offered a profile; each is asked about once (newest 200 kept) |
 
 Toggling **Start at Login** in the SETTINGS page creates or removes `~/.config/autostart/juhradial-mx.desktop`:
 

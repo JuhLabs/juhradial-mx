@@ -58,9 +58,10 @@ modules:
       env:
         CARGO_HOME: /run/build/juhradiald/cargo
     build-commands:
-      - cargo --offline fetch --manifest-path Cargo.toml --verbose
-      - cargo --offline build --release --verbose
-      - install -Dm755 target/release/juhradiald /app/bin/juhradiald
+      - cargo --offline fetch --locked --manifest-path daemon/Cargo.toml --verbose
+      - cargo --offline build --locked --manifest-path daemon/Cargo.toml --release --verbose
+      - cargo --offline test --locked --manifest-path crates/mx-keypad/Cargo.toml
+      - install -Dm755 daemon/target/release/juhradiald /app/bin/juhradiald
     sources:
       - type: git
         url: https://github.com/JuhLabs/juhradial-mx.git
@@ -72,15 +73,21 @@ modules:
   - name: juhradial-mx
     buildsystem: simple
     build-commands:
-      # Install Python overlay
+      # Install Python overlay (all modules, flow package, locales)
       - mkdir -p /app/share/juhradial
-      - install -Dm755 overlay/juhradial-overlay.py /app/share/juhradial/
-      - install -Dm755 overlay/settings_dashboard.py /app/share/juhradial/
+      - install -Dm644 overlay/*.py /app/share/juhradial/
+      - cp -r overlay/flow overlay/locales /app/share/juhradial/
 
       # Install assets
       - mkdir -p /app/share/juhradial/assets
       - cp -r assets/* /app/share/juhradial/assets/
       - install -Dm644 assets/juhradial-mx.svg /app/share/icons/hicolor/scalable/apps/org.juhlabs.JuhRadialMX.svg
+
+      # The overlay draws slice glyphs from settings-qt/assets and resolves
+      # wheel skins under /app/share/juhradial/assets/wheels
+      - mkdir -p /app/share/juhradial/settings-qt
+      - cp -r settings-qt/assets /app/share/juhradial/settings-qt/
+      - cp -r settings-qt/assets/wheels /app/share/juhradial/assets/
 
       # Create launcher script
       - |

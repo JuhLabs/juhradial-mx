@@ -7,6 +7,8 @@ from pathlib import Path
 from types import MethodType, SimpleNamespace
 from typing import cast
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCROLL_PAGE_PATH = REPO_ROOT / "overlay" / "settings_page_scroll.py"
@@ -231,13 +233,19 @@ def test_only_kde_plasma_reuses_an_existing_settings_window(monkeypatch):
     assert requires_relaunch() is True
 
 
-def test_kde_settings_launch_activates_without_process_checks(monkeypatch):
+def _open_settings_harness(monkeypatch):
+    """open_settings() with its helpers, a fake subprocess, and no Qt app.
+
+    JUHRADIAL_SETTINGS=gtk makes _settings_qt_script() return None so these
+    contracts keep exercising the GTK launch path regardless of whether the
+    Qt settings app is present in the checkout.
+    """
     module = ast.parse(OVERLAY_ACTIONS_PATH.read_text(encoding="utf-8"))
     functions: list[ast.stmt] = [
         node
         for node in module.body
         if isinstance(node, ast.FunctionDef)
-        and node.name in {"_requires_settings_relaunch", "open_settings"}
+        and node.name in {"_requires_settings_relaunch", "_settings_qt_script", "open_settings"}
     ]
 
     class FakeSubprocess:
@@ -261,6 +269,12 @@ def test_kde_settings_launch_activates_without_process_checks(monkeypatch):
         "subprocess": fake_subprocess,
     }
     exec(compile(ast.Module(body=functions, type_ignores=[]), "<overlay-actions>", "exec"), namespace)
+    monkeypatch.setenv("JUHRADIAL_SETTINGS", "gtk")
+    return namespace, fake_subprocess
+
+
+def test_kde_settings_launch_activates_without_process_checks(monkeypatch):
+    namespace, fake_subprocess = _open_settings_harness(monkeypatch)
     open_settings = cast(Callable[[], None], namespace["open_settings"])
 
     monkeypatch.setenv("XDG_CURRENT_DESKTOP", "KDE")
@@ -275,3 +289,55 @@ def test_kde_settings_launch_activates_without_process_checks(monkeypatch):
         "stdout": fake_subprocess.DEVNULL,
         "stderr": fake_subprocess.DEVNULL,
     }
+
+
+def test_settings_launch_prefers_the_qt_app_when_available(monkeypatch):
+    namespace, fake_subprocess = _open_settings_harness(monkeypatch)
+    monkeypatch.delenv("JUHRADIAL_SETTINGS", raising=False)
+    qt_main = str(REPO_ROOT / "settings-qt" / "main.py")
+    namespace["_settings_qt_script"] = lambda: qt_main
+    open_settings = cast(Callable[[], None], namespace["open_settings"])
+
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "GNOME")
+    open_settings()
+
+    # The Qt app has its own single-instance gate: no busctl/pkill dance.
+    assert fake_subprocess.run_calls == []
+    assert len(fake_subprocess.popen_calls) == 1
+    popen_args, popen_kwargs = fake_subprocess.popen_calls[0]
+    assert popen_args[0] == ["python3", qt_main]
+    assert popen_kwargs == {
+        "stdout": fake_subprocess.DEVNULL,
+        "stderr": fake_subprocess.DEVNULL,
+    }
+
+
+def test_settings_qt_script_honours_gtk_override(monkeypatch):
+    namespace, _fake = _open_settings_harness(monkeypatch)
+    settings_qt_script = cast(Callable[[], object], namespace["_settings_qt_script"])
+    assert settings_qt_script() is None
+    monkeypatch.delenv("JUHRADIAL_SETTINGS", raising=False)
+    # With the override gone the result depends on PyQt6.QtQml being importable
+    # and settings-qt/main.py existing; both hold in this checkout.
+    try:
+        import PyQt6.QtQml  # noqa: F401
+    except ImportError:
+        assert settings_qt_script() is None
+    else:
+        result = settings_qt_script()
+        assert result is not None and result.endswith("settings-qt/main.py")
+
+
+def test_settings_qt_script_needs_the_launchers_qt_version(monkeypatch):
+    # The tray opens Settings without the launcher script, so it must apply the
+    # same floor (Qt 6.9: RectangularShadow, VectorImage) or older Qt starts a
+    # Qt app that cannot load its pages instead of the GTK app.
+    qtcore = pytest.importorskip("PyQt6.QtCore")
+    pytest.importorskip("PyQt6.QtQml")
+    namespace, _fake = _open_settings_harness(monkeypatch)
+    monkeypatch.delenv("JUHRADIAL_SETTINGS", raising=False)
+    settings_qt_script = cast(Callable[[], object], namespace["_settings_qt_script"])
+    monkeypatch.setattr(qtcore, "qVersion", lambda: "6.8.2")
+    assert settings_qt_script() is None
+    monkeypatch.setattr(qtcore, "qVersion", lambda: "6.9.0")
+    assert str(settings_qt_script()).endswith("settings-qt/main.py")

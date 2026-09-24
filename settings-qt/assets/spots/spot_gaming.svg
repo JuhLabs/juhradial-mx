@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="spot_gaming_shell" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4B5364"/>
+      <stop offset="0.38" stop-color="#2A303C"/>
+      <stop offset="1" stop-color="#1B1F28"/>
+    </linearGradient>
+    <linearGradient id="spot_gaming_grip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2A303C"/>
+      <stop offset="1" stop-color="#1B1F28"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="256" cy="441" rx="218" ry="27" fill="#000000" fill-opacity="0.08"/>
+  <ellipse cx="256" cy="437" rx="190" ry="18" fill="#000000" fill-opacity="0.25"/>
+  <path d="M133 128c-54 0-91 31-105 94L8 340c-11 66 55 91 93 40l56-75h198l56 75c38 51 104 26 93-40l-20-118c-14-63-51-94-105-94H133Z" fill="url(#spot_gaming_shell)"/>
+  <path d="M97 370c22-31 39-63 60-96h198c21 33 38 65 60 96 20 27 51 23 70 4-10 47-57 59-88 17l-57-75H172l-57 75c-31 42-78 30-88-17 19 19 50 23 70-4Z" fill="url(#spot_gaming_grip)"/>
+  <path d="M133 141h246c44 0 72 23 87 70-23-35-51-48-91-48H137c-40 0-68 13-91 48 15-47 43-70 87-70Z" fill="#E8EAED" fill-opacity="0.08"/>
+  <path d="M126 194h30v31h31v30h-31v31h-30v-31H95v-30h31v-31Z" fill="#1B1F28"/>
+  <path d="M126 199h30v56h-30Z" fill="#3A4150"/>
+  <path d="M100 225h82v30h-82Z" fill="#2A303C"/>
+  <circle cx="205" cy="315" r="37" fill="#1B1F28"/>
+  <circle cx="205" cy="315" r="24" fill="#3A4150"/>
+  <circle cx="307" cy="315" r="37" fill="#1B1F28"/>
+  <circle cx="307" cy="315" r="24" fill="#3A4150"/>
+  <circle cx="401" cy="208" r="18" fill="#2A303C"/>
+  <circle cx="365" cy="244" r="18" fill="#2A303C"/>
+  <circle cx="437" cy="244" r="28" fill="#ACCENT" fill-opacity="0.15"/>
+  <circle cx="437" cy="244" r="22" fill="#ACCENT" fill-opacity="0.35"/>
+  <circle cx="437" cy="244" r="18" fill="#ACCENT"/>
+  <circle cx="401" cy="280" r="18" fill="#2A303C"/>
+  <rect x="237" y="211" width="38" height="14" rx="7" fill="#1B1F28"/>
+  <path d="M169 151h174" stroke="#E8EAED" stroke-opacity="0.12" stroke-width="5" stroke-linecap="round"/>
+</svg>

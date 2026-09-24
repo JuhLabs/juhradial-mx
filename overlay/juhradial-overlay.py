@@ -60,35 +60,42 @@ def _wait_for_x11(timeout=12.0):
     return False
 
 
-_wait_for_x11()
+from overlay_layer_shell import start_niri_layer_shell
+
+_LAYER_SHELL = start_niri_layer_shell()
+if _LAYER_SHELL is None:
+    _wait_for_x11()
 # "xcb;wayland": Qt treats this as an ordered fallback list. If XWayland
 # still is not up (or is missing entirely), the overlay comes up on the
 # native wayland platform - positioning degrades but nothing crashes.
 os.environ["QT_QPA_PLATFORM"] = "xcb;wayland"
+if _LAYER_SHELL is not None:
+    os.environ["QT_QPA_PLATFORM"] = "wayland;offscreen"
 
 import math
 import shlex
 import subprocess
+from pathlib import Path
 
 from PyQt6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PyQt6.QtCore import (
     Qt,
+    QObject,
     pyqtSlot,
     QPropertyAnimation,
     QEasingCurve,
     QTimer,
-    QRectF,
+    QFileSystemWatcher,
 )
 from PyQt6.QtGui import (
+    QCursor,
+    QGuiApplication,
     QPainter,
     QBrush,
     QIcon,
     QPixmap,
     QRegion,
     QColor,
-    QPen,
-    QFont,
-    QRadialGradient,
 )
 from PyQt6.QtDBus import (
     QDBusConnection,
@@ -115,6 +122,7 @@ from overlay_constants import (
     _HAS_XWAYLAND,
     _log,
 )
+from overlay_tray import TrayStatus
 from overlay_cursor import (
     _refresh_monitors,
     get_monitor_at_cursor,
@@ -122,6 +130,7 @@ from overlay_cursor import (
     get_cursor_position_hyprland,
     get_cursor_position_gnome,
     get_cursor_position_qt,
+    get_cursor_position_live,
     get_cursor_position_xwayland,
     get_cursor_position_xwayland_synced,
     get_cursor_pos,
@@ -132,277 +141,8 @@ from overlay_cursor import (
 import overlay_actions
 from overlay_media import MediaStateQuery, actions_use_media_state
 from overlay_painting import RadialMenuPaintingMixin
+import overlay_blur
 from i18n import _
-
-
-class SplashScreen(QWidget):
-    """Premium loading splash for JuhRadial MX startup."""
-
-    # Theme colors - warm silver/chrome palette for premium feel
-    BG = QColor(30, 30, 46)          # #1e1e2e base
-    SURFACE = QColor(69, 71, 90)     # #45475a surface1
-    TEXT = QColor(220, 224, 232)     # warm white
-    ACCENT = QColor(200, 205, 218)   # silver/chrome accent
-    ACCENT_DIM = QColor(160, 168, 190)  # dimmer silver
-    SUBTEXT = QColor(166, 173, 200)  # #a6adc8 subtext0
-
-    SPLASH_SIZE = 320
-    ARC_RADIUS = 80
-    WHEEL_SIZE = 140  # radial wheel rendered inside the spinning arc
-
-    def __init__(self):
-        super().__init__()
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Tool
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setFixedSize(self.SPLASH_SIZE, self.SPLASH_SIZE)
-
-        # Center on primary screen
-        screen = QApplication.primaryScreen()
-        if screen:
-            geo = screen.geometry()
-            self.move(
-                geo.x() + (geo.width() - self.SPLASH_SIZE) // 2,
-                geo.y() + (geo.height() - self.SPLASH_SIZE) // 2,
-            )
-
-        # Load radial wheel image from user's theme (or fallback)
-        self._wheel_pixmap = None
-        wheel_name = None
-        try:
-            from themes import get_radial_image
-            wheel_name = get_radial_image()
-        except (ImportError, AttributeError, ValueError):
-            wheel_name = None
-
-        # Search: theme wheel -> fallback to chrome metallic (premium, theme-neutral)
-        wheel_candidates = []
-        if wheel_name:
-            wheel_candidates.append(wheel_name)
-        wheel_candidates.append("radialwheel1.png")  # chrome metallic (default)
-        wheel_candidates.append("radialwheel3.png")  # neon fallback
-
-        for wname in wheel_candidates:
-            for base in [
-                os.path.join(os.path.dirname(__file__), "..", "assets", "radial-wheels"),
-                "/usr/share/juhradial/assets/radial-wheels",
-            ]:
-                wpath = os.path.join(base, wname)
-                if os.path.exists(wpath):
-                    pm = QPixmap(wpath)
-                    if not pm.isNull():
-                        self._wheel_pixmap = pm.scaled(
-                            self.WHEEL_SIZE, self.WHEEL_SIZE,
-                            Qt.AspectRatioMode.KeepAspectRatio,
-                            Qt.TransformationMode.SmoothTransformation,
-                        )
-                    break
-            if self._wheel_pixmap:
-                break
-
-        # Animation state
-        self._angle = 0.0        # spinning arc angle
-        self._wheel_angle = 0.0  # slow wheel rotation for chrome light-catch
-        self._fade = 1.0         # fade-out progress (1.0 = visible)
-        self._pulse = 0.0        # glow pulse phase
-        self._closing = False
-        self._ready = False      # set True when app loading is done
-        self._show_time = None   # when splash was first shown
-        self._status_text = _("Loading...")
-        self._daemon_iface = None  # set externally to check daemon readiness
-
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._tick)
-        self._timer.setInterval(16)  # ~60fps
-        self._timer.start()
-
-    # Keep the branded transition perceptible without masking a ready daemon.
-    # Full overlay initialization is normally sub-second; a 2s floor made every
-    # fast launch look slow even when D-Bus was already available.
-    MIN_DISPLAY_MS = 250
-
-    def _tick(self):
-        import time
-
-        if self._show_time is None:
-            self._show_time = time.time()
-
-        self._angle = (self._angle + 2.0) % 360.0        # slower arc spin
-        self._wheel_angle = (self._wheel_angle + 0.3) % 360.0  # subtle wheel rotation
-        self._pulse = (self._pulse + 0.03) % (2 * math.pi)     # slower pulse
-
-        if self._closing:
-            self._fade -= 0.05
-            if self._fade <= 0:
-                self._fade = 0
-                self._timer.stop()
-                self.hide()
-                self.deleteLater()
-                return
-        elif self._ready:
-            # App loading done - wait for the short transition + daemon readiness.
-            elapsed_ms = (time.time() - self._show_time) * 1000
-            daemon_ok = (
-                self._daemon_iface is None
-                or self._daemon_iface.isValid()
-            )
-            if elapsed_ms >= self.MIN_DISPLAY_MS and daemon_ok:
-                self._closing = True
-            elif elapsed_ms >= self.MIN_DISPLAY_MS and not daemon_ok:
-                self._status_text = _("Waiting for daemon...")
-            elif daemon_ok:
-                self._status_text = _("Ready")
-
-        self.update()
-
-    def mark_ready(self, daemon_iface=None):
-        """Mark app loading as done. Splash stays until min time + daemon ready."""
-        self._ready = True
-        self._daemon_iface = daemon_iface
-
-    def paintEvent(self, event):
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        cx = self.SPLASH_SIZE / 2
-        cy = self.SPLASH_SIZE / 2
-        opacity = self._fade
-
-        # -- Background: rounded rect with radial glow --
-        p.setOpacity(opacity * 0.95)
-        bg_rect = QRectF(20, 20, self.SPLASH_SIZE - 40, self.SPLASH_SIZE - 40)
-
-        # Subtle radial glow behind the panel
-        glow = QRadialGradient(cx, cy, self.SPLASH_SIZE * 0.5)
-        glow_alpha = int(30 + 10 * math.sin(self._pulse))
-        glow.setColorAt(0.0, QColor(self.ACCENT.red(), self.ACCENT.green(), self.ACCENT.blue(), glow_alpha))
-        glow.setColorAt(1.0, QColor(0, 0, 0, 0))
-        p.setBrush(QBrush(glow))
-        p.setPen(Qt.PenStyle.NoPen)
-        p.drawEllipse(QRectF(0, 0, self.SPLASH_SIZE, self.SPLASH_SIZE))
-
-        # Main panel
-        p.setOpacity(opacity)
-        p.setBrush(QBrush(self.BG))
-        border_pen = QPen(self.SURFACE)
-        border_pen.setWidth(2)
-        p.setPen(border_pen)
-        p.drawRoundedRect(bg_rect, 24, 24)
-
-        # -- Spinning arc --
-        arc_rect = QRectF(
-            cx - self.ARC_RADIUS, cy - self.ARC_RADIUS - 10,
-            self.ARC_RADIUS * 2, self.ARC_RADIUS * 2,
-        )
-
-        # Arc trail (dim)
-        trail_pen = QPen(self.SURFACE)
-        trail_pen.setWidth(3)
-        trail_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        p.setPen(trail_pen)
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        p.drawEllipse(arc_rect)
-
-        # Arc sweep with gradient
-        sweep_pen = QPen()
-        sweep_pen.setWidth(3)
-        sweep_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-
-        # Draw two arcs for a polished look
-        # Primary arc
-        sweep_pen.setColor(self.ACCENT)
-        p.setPen(sweep_pen)
-        start_angle = int(self._angle * 16)
-        p.drawArc(arc_rect, start_angle, 90 * 16)
-
-        # Secondary arc (opposite side, dimmer)
-        dim_accent = QColor(self.ACCENT_DIM)
-        dim_accent.setAlpha(120)
-        sweep_pen.setColor(dim_accent)
-        p.setPen(sweep_pen)
-        p.drawArc(arc_rect, start_angle + 180 * 16, 60 * 16)
-
-        # -- Radial wheel in center of arc --
-        wheel_cy = cy - 10  # same vertical offset as arc center
-        if self._wheel_pixmap:
-            ww = self._wheel_pixmap.width()
-            wh = self._wheel_pixmap.height()
-            # Warm glow behind wheel (pulsing)
-            wheel_glow = QRadialGradient(cx, wheel_cy, self.WHEEL_SIZE * 0.55)
-            wg_alpha = int(35 + 20 * math.sin(self._pulse))
-            wheel_glow.setColorAt(0.0, QColor(220, 215, 200, wg_alpha))  # warm white
-            wheel_glow.setColorAt(0.6, QColor(180, 175, 165, wg_alpha // 3))  # warm dim
-            wheel_glow.setColorAt(1.0, QColor(0, 0, 0, 0))
-            p.setBrush(QBrush(wheel_glow))
-            p.setPen(Qt.PenStyle.NoPen)
-            glow_r = self.WHEEL_SIZE * 0.6
-            p.drawEllipse(QRectF(cx - glow_r, wheel_cy - glow_r, glow_r * 2, glow_r * 2))
-            # Wheel image with subtle slow rotation (chrome light-catch effect)
-            p.save()
-            p.translate(cx, wheel_cy)
-            p.rotate(self._wheel_angle)
-            p.drawPixmap(int(-ww / 2), int(-wh / 2), self._wheel_pixmap)
-            p.restore()
-
-        # -- "JuhRadial MX" text with warm amber glow (matches chrome wheel red rim) --
-        text_y = cy + self.ARC_RADIUS + 10
-        title_font = QFont("Sans", 16, QFont.Weight.Bold)
-        p.setFont(title_font)
-
-        pulse_val = math.sin(self._pulse)
-
-        # Layer 1: Wide soft glow - warm amber/red
-        wide_alpha = int(20 + 12 * pulse_val)
-        p.setPen(QColor(200, 100, 80, wide_alpha))
-        for dx, dy in [(-3, 0), (3, 0), (0, -3), (0, 3), (-2, -2), (2, -2), (-2, 2), (2, 2)]:
-            p.drawText(
-                QRectF(dx, text_y + dy, self.SPLASH_SIZE, 30),
-                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-                "JuhRadial MX",
-            )
-
-        # Layer 2: Medium glow - warm red
-        med_alpha = int(35 + 20 * pulse_val)
-        p.setPen(QColor(190, 80, 60, med_alpha))
-        for dx, dy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
-            p.drawText(
-                QRectF(dx, text_y + dy, self.SPLASH_SIZE, 30),
-                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-                "JuhRadial MX",
-            )
-
-        # Layer 3: Tight glow - subtle warm accent
-        tight_alpha = int(50 + 25 * pulse_val)
-        p.setPen(QColor(180, 70, 55, tight_alpha))
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            p.drawText(
-                QRectF(dx, text_y + dy, self.SPLASH_SIZE, 30),
-                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-                "JuhRadial MX",
-            )
-
-        # Main text (crisp white on top)
-        p.setPen(self.TEXT)
-        p.drawText(
-            QRectF(0, text_y, self.SPLASH_SIZE, 30),
-            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-            "JuhRadial MX",
-        )
-
-        # -- Subtitle (dynamic status) --
-        sub_font = QFont("Sans", 9)
-        p.setFont(sub_font)
-        p.setPen(self.SUBTEXT)
-        p.drawText(
-            QRectF(0, text_y + 28, self.SPLASH_SIZE, 20),
-            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop,
-            self._status_text,
-        )
-
-        p.end()
 
 
 class RadialMenu(RadialMenuPaintingMixin, QWidget):
@@ -440,6 +180,11 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         self.win_px = self._get_win_px()
         self.setFixedSize(self.win_px, self.win_px)
         self.setMouseTracking(True)
+
+        # Full-screen catcher shown behind the ring in toggle mode so a click
+        # anywhere outside the ring dismisses the menu (issue #59, opt-out via
+        # radial.click_outside_closes).
+        self._scrim = _DismissScrim(lambda: self._close_menu(execute=False), self)
 
         # Pre-set circular mask on KDE so the very first frame is shaped
         if IS_KDE:
@@ -588,7 +333,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         print("  JuhRadial MX - PyQt6 Overlay", flush=True)
         print("=" * 60, flush=True)
         print("\n  Modes:", flush=True)
-        print(f"    Hold + release: Execute action on release", flush=True)
+        print("    Hold + release: Execute action on release", flush=True)
         print(
             f"    Quick tap (<{self.TAP_THRESHOLD_MS}ms): Menu stays open, click to select",
             flush=True,
@@ -657,6 +402,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         overlay_actions.COLORS = overlay_actions.load_theme()
         overlay_actions.load_radial_image()
         overlay_actions.MINIMAL_MODE = overlay_actions.load_minimal_mode()
+        overlay_actions.ICON_STYLE = overlay_actions.load_icon_style()
 
         # If already in toggle mode and menu is visible, this is a second tap to close
         if self.toggle_mode and self.isVisible():
@@ -916,6 +662,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # centered wheel, especially on Nvidia, so it was removed.)
         if IS_KDE:
             self._update_kde_mask()
+            self._apply_blur()
 
         self.show()
         self.raise_()
@@ -1041,7 +788,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             )
         else:
             print(
-                f"[HAPTIC] ERROR: daemon_iface is INVALID - cannot send haptic signal"
+                "[HAPTIC] ERROR: daemon_iface is INVALID - cannot send haptic signal"
             )
 
     def _on_haptic_finished(self, watcher, event):
@@ -1067,7 +814,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         background awareness cue, not part of the menu's own hover/select
         haptics.
         """
-        pos = get_cursor_position_xwayland()
+        pos = get_cursor_position_live()
         if not pos:
             from PyQt6.QtGui import QCursor
             qpos = QCursor.pos()
@@ -1109,6 +856,23 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         pos = self.pos()
         self.move(pos.x() + 1, pos.y())
         QTimer.singleShot(0, lambda: self.move(pos.x(), pos.y()))
+
+    def _apply_blur(self):
+        """Frost what lies behind the ring disc (Settings > Menu background
+        blur, KWin only). Re-applied on every open: the window size follows
+        the monitor and the ring size can change between opens."""
+        try:
+            on = bool(overlay_actions._config_section("blur_enabled", True))
+            rects = []
+            # Minimal mode floats the icons without a disc: a frosted disc
+            # behind them reads as a stray circle, so nothing is frosted.
+            if on and not overlay_actions.MINIMAL_MODE:
+                outer = (overlay_actions.RADIAL_PARAMS or {}).get("ring_outer", MENU_RADIUS - 6)
+                rects = overlay_blur.ring_blur_rects(
+                    self.win_px, outer * self.ring_scale, self.devicePixelRatioF())
+            overlay_blur.set_blur_behind(self.winId(), rects)
+        except Exception as e:  # never let a cosmetic effect break the menu
+            print(f"OVERLAY: blur-behind skipped: {e}")
 
     def _update_kde_mask(self):
         """Set circular window mask on KDE to eliminate rectangular artifact."""
@@ -1190,11 +954,18 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
 
         if duration_ms < self.TAP_THRESHOLD_MS:
             # Quick tap - enter toggle mode
-            print(f"OVERLAY: Quick tap detected - entering toggle mode")
+            print("OVERLAY: Quick tap detected - entering toggle mode")
             self.toggle_mode = True
             # Start cursor polling for hover detection in toggle mode
             self.cursor_timer.start()
-            # Menu stays open - user will click to select or tap again to close
+            # Menu stays open - user will click to select or tap again to close.
+            # A full-screen scrim behind the ring makes a click anywhere
+            # outside the ring dismiss it (issue #59).
+            if self._click_outside_closes():
+                self._scrim.cover_all()
+                self._scrim.show()
+                self._scrim.lower()   # keep below the ring window
+                self.raise_()
         else:
             # Normal hold-and-release - close and execute
             self._close_menu(execute=True)
@@ -1203,7 +974,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
     def on_cursor_moved(self, dx, dy):
         """Handle cursor movement from daemon (relative to menu center)."""
         # dx, dy are relative offsets from menu center (button press point),
-        # in physical pixels — convert to the ring's logical space first.
+        # in physical pixels, convert to the ring's logical space first.
         dx /= self.ring_scale
         dy /= self.ring_scale
         if not self._hover_gate("daemon", dx, dy):
@@ -1244,12 +1015,27 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self.move(x - half, y - half)
             print(f"OVERLAY: COSMIC reposition to ({x}, {y})")
 
+    @staticmethod
+    def _click_outside_closes():
+        """Whether a click outside the ring dismisses the open menu (issue #59).
+        Defaults on; opt out with config radial.click_outside_closes = false."""
+        return bool(overlay_actions._config_radial_section().get("click_outside_closes", True))
+
+    def hideEvent(self, event):
+        # Whatever path hides the ring, never leave the scrim up: an orphaned
+        # scrim invisibly swallows every click on the desktop.
+        if self._scrim is not None and self._scrim.isVisible():
+            self._scrim.hide()
+        super().hideEvent(event)
+
     def _close_menu(self, execute=True):
         import time
         # Record the close time so on_show can debounce the daemon's duplicate
         # MenuRequested on every close path, not just the toggle-close branch.
         self._menu_closed_at = time.time()
         self.cursor_timer.stop()
+        if self._scrim is not None:
+            self._scrim.hide()
         self.toggle_mode = False  # Reset toggle mode
 
         print(
@@ -1348,6 +1134,17 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
                 )
             elif cmd_type == "settings":
                 overlay_actions.open_settings()
+            elif cmd_type == "plugin":
+                # "<folder>/<action id>"; the daemon reads the manifest and runs it.
+                self.daemon_iface.asyncCall("RunPluginAction", cmd)
+            elif cmd_type == "macro":
+                # A saved macro, by id; the daemon plays it.
+                self.daemon_iface.asyncCall("ExecuteMacro", cmd)
+            elif cmd_type == "shortcut":
+                # Key chords go through the daemon, which has the uinput
+                # path native Wayland windows need (this branch was missing,
+                # so Copy/Paste/Undo slices did nothing).
+                self.daemon_iface.asyncCall("RunShortcut", cmd)
             elif cmd_type == "submenu":
                 self.submenu_active = True
                 self.submenu_slice = self.highlighted_slice
@@ -1509,7 +1306,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
 
         parent_angle = self.submenu_slice * 45 - 90
         SUBMENU_RADIUS = self._get_submenu_item_radius()
-        SUBITEM_SIZE = 32
+        SUBITEM_SIZE = self._subitem_hit_radius()
 
         num_items = len(submenu)
         spread = SUBMENU_ITEM_SPREAD_DEG
@@ -1539,7 +1336,6 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         # oscillation between PyQt6 event coords and absolute screen coords.
         if self.toggle_mode:
             return
-        _log(f"mouseMoveEvent: toggle_mode={self.toggle_mode}")
         cx = self.win_px / 2
         cy = self.win_px / 2
         pos = event.position()
@@ -1624,6 +1420,123 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             self._close_menu(execute=False)
 
 
+class _DismissScrim(QWidget):
+    """Transparent full-desktop catcher placed behind the ring while the menu is
+    open in toggle mode. A click anywhere on it (outside the ring window)
+    dismisses the menu without executing an action (issue #59). It paints a
+    1/255-alpha fill (imperceptible) rather than nothing: on KDE, KWin shows a
+    frozen cached-wallpaper sheet behind fully unpainted areas of XWayland
+    windows (the artifact the ring's circular mask exists for), so the scrim
+    must present real pixels. It only swallows the dismiss click; the ring
+    stays on top and receives slice clicks."""
+
+    def __init__(self, on_dismiss, ring):
+        super().__init__()
+        self._on_dismiss = on_dismiss
+        self._ring = ring
+        # BypassWindowManagerHint keeps the scrim in the same override-redirect
+        # stacking layer as the ring, so lower()/raise_() order is honoured.
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
+            | Qt.WindowType.WindowDoesNotAcceptFocus
+            | Qt.WindowType.BypassWindowManagerHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        # Failsafe: a scrim that outlives the ring silently swallows every
+        # desktop click. While visible, verify the ring is still up; if not,
+        # hide ourselves no matter which code path closed the menu.
+        self._watchdog = QTimer(self)
+        self._watchdog.setInterval(400)
+        self._watchdog.timeout.connect(self._check_ring)
+
+    def _check_ring(self):
+        if not self._ring.isVisible():
+            self.hide()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 1))
+        painter.end()
+
+    def showEvent(self, event):
+        self._watchdog.start()
+        super().showEvent(event)
+
+    def hideEvent(self, event):
+        self._watchdog.stop()
+        super().hideEvent(event)
+
+    def cover_all(self):
+        """Resize to span every screen (Qt/XWayland space)."""
+        from PyQt6.QtGui import QGuiApplication
+        rect = None
+        for screen in QGuiApplication.screens():
+            g = screen.geometry()
+            rect = g if rect is None else rect.united(g)
+        if rect is not None:
+            self.setGeometry(rect)
+
+    def mousePressEvent(self, event):
+        # Hide FIRST so the scrim can never survive its own dismiss click,
+        # even if the dismiss callback raises.
+        self.hide()
+        self._on_dismiss()
+
+
+def tray_icon_wanted():
+    """Settings > Startup > Show tray icon (app.show_tray_icon, default on).
+    Hidden, the app stays reachable from the launcher and the notifications
+    (low battery) still arrive through notify-send."""
+    import json
+    try:
+        cfg = json.loads((Path.home() / ".config" / "juhradial" / "config.json").read_text())
+        return bool((cfg.get("app") or {}).get("show_tray_icon", True))
+    except (OSError, ValueError, AttributeError):
+        return True
+
+
+def follow_tray_setting(app, tray):
+    """Show or hide the tray icon (and start or stop Flow) live when
+    Settings changes them.
+
+    Settings saves config.json atomically (temp file + rename), which drops a
+    file watch, so watch the directory and re-read after a short debounce.
+    """
+    folder = str(Path.home() / ".config" / "juhradial")
+    watcher = QFileSystemWatcher([folder], app)
+    debounce = QTimer(app)
+    debounce.setSingleShot(True)
+    debounce.setInterval(250)
+    debounce.timeout.connect(lambda: tray.setVisible(tray_icon_wanted()))
+    debounce.timeout.connect(follow_flow_setting)
+    watcher.directoryChanged.connect(lambda _path: debounce.start())
+    return watcher
+
+
+def follow_flow_setting():
+    """Start, stop or retune Flow when Settings saves config.json: the Flow
+    server and its edge indicator live in this process. The flow package is
+    imported only once Flow is on (it needs python-cryptography)."""
+    import json
+    try:
+        cfg = json.loads((Path.home() / ".config" / "juhradial" / "config.json").read_text())
+        wanted = bool((cfg.get("flow") or {}).get("enabled", False))
+    except (OSError, ValueError, AttributeError):
+        return
+    if not wanted and "flow" not in sys.modules:
+        return
+    try:
+        from flow import apply_config
+        apply_config()
+    except Exception as e:
+        _log(f"[Flow] Applying the settings failed: {e}")
+
+
 def create_tray_icon(app, radial_menu):
     """Create system tray icon with menu"""
     icon = QIcon.fromTheme("juhradial-mx")
@@ -1676,27 +1589,78 @@ def create_tray_icon(app, radial_menu):
 
     settings_action = menu.addAction(_("Settings"))
     settings_action.triggered.connect(overlay_actions.open_settings)
+    gaming_action = menu.addAction(_("Gaming mode"))
 
     menu.addSeparator()
 
     def exit_application():
         uid = str(os.getuid())
-        subprocess.run(
-            ["pkill", "-u", uid, "-f", "settings_dashboard.py"], capture_output=True
-        )
+        for pattern in ("settings_dashboard.py", "settings-qt/main.py"):
+            subprocess.run(["pkill", "-u", uid, "-f", pattern], capture_output=True)
         app.quit()
 
     exit_action = menu.addAction(_("Exit"))
     exit_action.triggered.connect(exit_application)
 
     tray.setContextMenu(menu)
-    tray.show()
+    tray.setVisible(tray_icon_wanted())
+    # Tooltip (device, battery, host, profile) and icon badge follow the daemon.
+    tray.status = TrayStatus(tray, icon, parent=tray,
+                             on_profile=lambda app: setattr(overlay_actions, "ACTIVE_APP", app),
+                             on_hosts=overlay_actions.set_host_labels)
+    tray.status.bind_gaming_action(gaming_action)
 
     return tray
 
 
+class _OverlayBus(QObject):
+    """org.kde.juhradialmx.overlay /Overlay: what Settings asks the ring
+    process for (Flow lives here)."""
+
+    # A slot that raises aborts the whole app under PyQt6: answer False instead.
+    @pyqtSlot(result=bool)
+    def SendCursor(self):
+        try:
+            from flow import get_handoff_manager
+            manager = get_handoff_manager()
+            if manager is None:
+                return False
+            screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
+            g = screen.geometry()
+            manager.send_cursor({"x": g.x(), "y": g.y(), "width": g.width(), "height": g.height()})
+            return True
+        except Exception as e:
+            print(f"OVERLAY: SendCursor failed: {e}")
+            return False
+
+    @pyqtSlot(str, str, result=bool)
+    def IdentifyScreens(self, flow_monitor, flow_label):
+        try:
+            from overlay_identify import identify_screens
+            return identify_screens(flow_monitor, flow_label)
+        except Exception as e:
+            print(f"OVERLAY: IdentifyScreens failed: {e}")
+            return False
+
+
+_overlay_bus = None
+
+
+def _export_overlay_bus(bus):
+    global _overlay_bus
+    _overlay_bus = _OverlayBus()
+    if not bus.registerObject("/Overlay", "org.kde.juhradialmx.Overlay", _overlay_bus,
+                              QDBusConnection.RegisterOption.ExportAllSlots):
+        print("OVERLAY: could not export /Overlay on D-Bus")
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    if _LAYER_SHELL is not None:
+        # Qt has read "wayland;offscreen" for this process; apps started from
+        # slices and Settings inherit the usual value, so a Qt app without the
+        # wayland plugin still maps through XWayland instead of offscreen.
+        os.environ["QT_QPA_PLATFORM"] = "xcb;wayland"
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("JuhRadial MX")
     app.setDesktopFileName("juhradial-mx")
@@ -1720,9 +1684,7 @@ if __name__ == "__main__":
         )
         sys.exit(0)
 
-    # Show splash screen immediately (before heavy loading)
-    splash = SplashScreen()
-    splash.show()
+    _export_overlay_bus(bus)
     app.processEvents()
 
     # Load submenu icons and 3D radial image (requires QApplication)
@@ -1733,9 +1695,15 @@ if __name__ == "__main__":
     overlay_actions.load_radial_image()
     app.processEvents()
 
-    w = RadialMenu()
+    if _LAYER_SHELL is not None:
+        from overlay_niri import create_niri_menu
+        w = create_niri_menu(RadialMenu, _LAYER_SHELL)
+        app.aboutToQuit.connect(_LAYER_SHELL.close)
+    else:
+        w = RadialMenu()
     app.processEvents()
     app.tray = create_tray_icon(app, w)
+    app.tray_watch = follow_tray_setting(app, app.tray)
 
     # Start Flow server if enabled in config
     # NOTE: Cannot import settings_config here - it imports GTK4 (gi)
@@ -1756,8 +1724,6 @@ if __name__ == "__main__":
         import traceback
         _log(traceback.format_exc())
 
-    # Mark loading done - splash waits for min display time + daemon D-Bus ready
-    splash.mark_ready(daemon_iface=w.daemon_iface)
 
     print("System tray icon active - right-click for menu", flush=True)
     ret = app.exec()

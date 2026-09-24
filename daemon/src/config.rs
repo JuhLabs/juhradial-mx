@@ -48,6 +48,30 @@ pub struct HapticEventConfig {
     /// Pattern when the cursor moves to a different physical monitor (default: subtle_collision)
     #[serde(default = "default_monitor_switch")]
     pub monitor_switch: String,
+
+    /// Pattern when a directional gesture drag crosses its threshold
+    #[serde(default = "default_gesture_tick")]
+    pub gesture_tick: String,
+
+    /// Pattern when a DPI button changes the DPI
+    #[serde(default = "default_dpi_change")]
+    pub dpi_change: String,
+
+    /// Pattern when a macro starts playing
+    #[serde(default = "default_macro_start")]
+    pub macro_start: String,
+
+    /// Pattern when a macro finishes playing
+    #[serde(default = "default_macro_finish")]
+    pub macro_finish: String,
+
+    /// Pattern when the battery drops to the low mark
+    #[serde(default = "default_low_battery")]
+    pub low_battery: String,
+
+    /// Pattern when the mouse comes back to this computer
+    #[serde(default = "default_host_arrive")]
+    pub host_arrive: String,
 }
 
 fn default_menu_appear() -> String { "damp_state_change".to_string() }
@@ -56,6 +80,12 @@ fn default_confirm() -> String { "sharp_state_change".to_string() }
 fn default_invalid() -> String { "angry_alert".to_string() }
 fn default_window_switch() -> String { "subtle_collision".to_string() }
 fn default_monitor_switch() -> String { "subtle_collision".to_string() }
+fn default_gesture_tick() -> String { "sharp_collision".to_string() }
+fn default_dpi_change() -> String { "sharp_state_change".to_string() }
+fn default_macro_start() -> String { "damp_collision".to_string() }
+fn default_macro_finish() -> String { "completed".to_string() }
+fn default_low_battery() -> String { "angry_alert".to_string() }
+fn default_host_arrive() -> String { "happy_alert".to_string() }
 
 impl Default for HapticEventConfig {
     fn default() -> Self {
@@ -66,6 +96,12 @@ impl Default for HapticEventConfig {
             invalid: default_invalid(),
             window_switch: default_window_switch(),
             monitor_switch: default_monitor_switch(),
+            gesture_tick: default_gesture_tick(),
+            dpi_change: default_dpi_change(),
+            macro_start: default_macro_start(),
+            macro_finish: default_macro_finish(),
+            low_battery: default_low_battery(),
+            host_arrive: default_host_arrive(),
         }
     }
 }
@@ -83,6 +119,19 @@ pub struct HapticConfig {
     /// Enable haptic feedback
     #[serde(default = "default_true")]
     pub enabled: bool,
+
+    /// Master haptic strength, 0-100 (default 70).
+    ///
+    /// HARDWARE NOTE: the MX Master 4 plays fixed firmware waveforms selected
+    /// by ID; its HID++ play command (`send_haptic_pattern`) carries no
+    /// amplitude byte, so per-call strength scaling is impossible on that
+    /// device. There `intensity` acts as a master gate: 0 silences haptics,
+    /// any non-zero value plays the waveform at its native firmware amplitude.
+    /// On legacy force-feedback devices (0x8123, `send_haptic_pulse`) the pulse
+    /// DOES take an intensity byte, so there `intensity` scales amplitude for
+    /// real. Clamped to 0..=100 on load.
+    #[serde(default = "default_intensity")]
+    pub intensity: u8,
 
     /// Default haptic pattern (fallback when event-specific not set)
     #[serde(default = "default_pattern")]
@@ -115,9 +164,34 @@ pub struct HapticConfig {
     /// monitor, independent of the radial menu
     #[serde(default = "default_true")]
     pub monitor_switch_enabled: bool,
+
+    /// Per-event on/off by `HapticEvent::config_key` (absent = the event's
+    /// default: macro start/finish off, everything else on). Window and
+    /// monitor switch keep their own `*_enabled` keys.
+    #[serde(default)]
+    pub per_event_enabled: std::collections::HashMap<String, bool>,
+
+    /// MX Master 4 motor strength in percent (0x19B0 setConfig), written to
+    /// the mouse when it differs. Absent = leave the mouse as it is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub level: Option<u8>,
+
+    /// Haptic Sense Panel press force, in percent of the range the mouse
+    /// reports (0x19C0; 0 = lightest, 100 = firmest). Absent = leave it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub panel_force: Option<u8>,
+
+    /// No pulses while gaming mode is on.
+    #[serde(default = "default_true")]
+    pub mute_in_games: bool,
+
+    /// No pulses while one of these apps (window class, any case) is in front.
+    #[serde(default)]
+    pub muted_apps: Vec<String>,
 }
 
 fn default_true() -> bool { true }
+fn default_intensity() -> u8 { 70 }
 fn default_pattern() -> String { "subtle_collision".to_string() }
 fn default_debounce() -> u64 { 20 }
 fn default_slice_debounce() -> u64 { 20 }
@@ -127,6 +201,7 @@ impl Default for HapticConfig {
     fn default() -> Self {
         Self {
             enabled: true,
+            intensity: default_intensity(),
             default_pattern: default_pattern(),
             per_event: HapticEventConfig::default(),
             debounce_ms: 20,
@@ -134,6 +209,11 @@ impl Default for HapticConfig {
             reentry_debounce_ms: 50,
             window_switch_enabled: true,
             monitor_switch_enabled: true,
+            per_event_enabled: std::collections::HashMap::new(),
+            level: None,
+            panel_force: None,
+            mute_in_games: true,
+            muted_apps: Vec::new(),
         }
     }
 }
@@ -141,7 +221,28 @@ impl Default for HapticConfig {
 impl HapticConfig {
     /// Validate all values
     pub fn validate(&mut self) {
+        self.intensity = self.intensity.clamp(0, 100);
+        self.level = self.level.map(|l| l.clamp(1, 100));
+        self.panel_force = self.panel_force.map(|f| f.min(100));
         self.per_event.validate();
+    }
+
+    /// Whether the event with this `config_key` pulses at all.
+    pub fn event_enabled(&self, key: &str) -> bool {
+        match key {
+            "window_switch" => self.window_switch_enabled,
+            "monitor_switch" => self.monitor_switch_enabled,
+            _ => self
+                .per_event_enabled
+                .get(key)
+                .copied()
+                .unwrap_or(!matches!(key, "macro_start" | "macro_finish")),
+        }
+    }
+
+    /// Whether pulses stay quiet while `app` (a window class) is in front.
+    pub fn app_muted(&self, app: &str) -> bool {
+        self.muted_apps.iter().any(|a| a.eq_ignore_ascii_case(app))
     }
 
     /// Check if haptics are effectively disabled
@@ -186,6 +287,33 @@ pub enum ButtonAction {
     Calculator,
     None,
     Custom,
+    // Wider vocabulary (audit P1 #3).
+    LeftClick,
+    RightClick,
+    /// Horizontal scroll one step (X11 buttons 6 and 7).
+    ScrollLeft,
+    ScrollRight,
+    /// Next preset in `pointer.dpi_presets`.
+    DpiCycle,
+    DpiUp,
+    DpiDown,
+    /// Hold for `pointer.dpi_shift` (precision), release restores.
+    DpiShift,
+    TabNext,
+    TabPrev,
+    TabClose,
+    TabReopen,
+    PageUp,
+    PageDown,
+    Home,
+    End,
+    /// Easy-Switch to host slot 1, 2 or 3, or the next slot.
+    Host1,
+    Host2,
+    Host3,
+    HostNext,
+    /// Turn gaming mode on or off.
+    GamingMode,
 }
 
 impl std::fmt::Display for ButtonAction {
@@ -218,6 +346,27 @@ impl std::fmt::Display for ButtonAction {
             ButtonAction::Calculator => write!(f, "calculator"),
             ButtonAction::None => write!(f, "none"),
             ButtonAction::Custom => write!(f, "custom"),
+            ButtonAction::LeftClick => write!(f, "left_click"),
+            ButtonAction::RightClick => write!(f, "right_click"),
+            ButtonAction::ScrollLeft => write!(f, "scroll_left"),
+            ButtonAction::ScrollRight => write!(f, "scroll_right"),
+            ButtonAction::DpiCycle => write!(f, "dpi_cycle"),
+            ButtonAction::DpiUp => write!(f, "dpi_up"),
+            ButtonAction::DpiDown => write!(f, "dpi_down"),
+            ButtonAction::DpiShift => write!(f, "dpi_shift"),
+            ButtonAction::TabNext => write!(f, "tab_next"),
+            ButtonAction::TabPrev => write!(f, "tab_prev"),
+            ButtonAction::TabClose => write!(f, "tab_close"),
+            ButtonAction::TabReopen => write!(f, "tab_reopen"),
+            ButtonAction::PageUp => write!(f, "page_up"),
+            ButtonAction::PageDown => write!(f, "page_down"),
+            ButtonAction::Home => write!(f, "home"),
+            ButtonAction::End => write!(f, "end"),
+            ButtonAction::Host1 => write!(f, "host1"),
+            ButtonAction::Host2 => write!(f, "host2"),
+            ButtonAction::Host3 => write!(f, "host3"),
+            ButtonAction::HostNext => write!(f, "host_next"),
+            ButtonAction::GamingMode => write!(f, "gaming_mode"),
         }
     }
 }
@@ -229,6 +378,53 @@ fn default_shift_wheel_action() -> ButtonAction { ButtonAction::Smartshift }
 fn default_forward_action() -> ButtonAction { ButtonAction::Forward }
 fn default_back_action() -> ButtonAction { ButtonAction::Back }
 fn default_horizontal_scroll_action() -> ButtonAction { ButtonAction::ScrollLeftRight }
+fn default_direction_action() -> ButtonAction { ButtonAction::None }
+fn default_gesture_threshold_px() -> u32 { 40 }
+
+/// Directional gestures on the gesture button: hold, drag, and a different
+/// action fires per direction. Matches `buttons.gesture_directions` written by
+/// Settings. Absent or `enabled: false` keeps the single-action behaviour of
+/// `buttons.gesture` exactly as before, so existing configs are unaffected.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GestureDirectionsConfig {
+    #[serde(default)]
+    pub enabled: bool,
+
+    #[serde(default = "default_direction_action")]
+    pub up: ButtonAction,
+
+    #[serde(default = "default_direction_action")]
+    pub down: ButtonAction,
+
+    #[serde(default = "default_direction_action")]
+    pub left: ButtonAction,
+
+    #[serde(default = "default_direction_action")]
+    pub right: ButtonAction,
+
+    /// Action for a press with no drag. `None` falls back to `buttons.gesture`,
+    /// so the plain click keeps whatever the user already had assigned.
+    #[serde(default)]
+    pub click: Option<ButtonAction>,
+
+    /// Movement below this many pixels counts as a click.
+    #[serde(default = "default_gesture_threshold_px")]
+    pub threshold_px: u32,
+}
+
+impl Default for GestureDirectionsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            up: default_direction_action(),
+            down: default_direction_action(),
+            left: default_direction_action(),
+            right: default_direction_action(),
+            click: None,
+            threshold_px: default_gesture_threshold_px(),
+        }
+    }
+}
 
 /// Per-button action assignments.
 /// Matches the "buttons" section in config.json written by Settings UI.
@@ -236,6 +432,9 @@ fn default_horizontal_scroll_action() -> ButtonAction { ButtonAction::ScrollLeft
 pub struct ButtonsConfig {
     #[serde(default = "default_gesture_action")]
     pub gesture: ButtonAction,
+
+    #[serde(default)]
+    pub gesture_directions: GestureDirectionsConfig,
 
     #[serde(default = "default_thumb_action")]
     pub thumb: ButtonAction,
@@ -254,20 +453,128 @@ pub struct ButtonsConfig {
 
     #[serde(default = "default_horizontal_scroll_action")]
     pub horizontal_scroll: ButtonAction,
+
+    /// Actions for controls beyond the named slots, keyed by HID++ control id
+    /// as reported by `ListControls` ("0x00D7", decimal accepted). Lets any
+    /// divertable control the mouse exposes (MX Anywhere side buttons, the
+    /// MX Vertical DPI switch) carry an action; a `none` entry keeps the
+    /// control at its native behaviour and clears its divert on reload.
+    #[serde(default)]
+    pub controls: std::collections::HashMap<String, ButtonAction>,
+
+    /// What a button set to `custom` does, keyed by slot name (`back`,
+    /// `middle`, ...) or control CID (`0x00D7`): a recorded shortcut, a
+    /// command, a URL, a saved macro or a plugin action.
+    #[serde(default)]
+    pub custom: std::collections::HashMap<String, CustomAction>,
+}
+
+/// A button's custom action (Settings > Buttons > Custom).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CustomAction {
+    /// shortcut | command | url | macro | plugin | text
+    #[serde(default)]
+    pub kind: String,
+    /// The shortcut ("ctrl+shift+t"), command line, URL, macro id, plugin
+    /// reference ("folder/action") or the text to paste.
+    #[serde(default)]
+    pub value: String,
+    /// `text`: press Enter after pasting.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub enter: bool,
+    /// `shortcut`: keep the keys down while the button is held (push-to-talk)
+    /// instead of tapping them on press.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hold: bool,
+    /// `text`: the paste chord ("" = ctrl+v; terminals use ctrl+shift+v;
+    /// "auto" picks by the window in front).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub paste_with: String,
 }
 
 impl Default for ButtonsConfig {
     fn default() -> Self {
         Self {
             gesture: default_gesture_action(),
+            gesture_directions: GestureDirectionsConfig::default(),
             thumb: default_thumb_action(),
             middle: default_middle_action(),
             shift_wheel: default_shift_wheel_action(),
             forward: default_forward_action(),
             back: default_back_action(),
             horizontal_scroll: default_horizontal_scroll_action(),
+            controls: std::collections::HashMap::new(),
+            custom: std::collections::HashMap::new(),
         }
     }
+}
+
+// ---- MX Keypad ----
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct KeypadConfig {
+    pub enabled: bool,
+    pub active_page: u8,
+    pub pages: Vec<KeypadPage>,
+    /// Panel brightness 1..=100; None leaves the device's own level.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brightness: Option<u8>,
+    /// Blank the keys and ignore presses while the screen is locked.
+    pub dim_on_lock: bool,
+}
+
+impl Default for KeypadConfig {
+    fn default() -> Self {
+        Self { enabled: true, active_page: 0, pages: Vec::new(), brightness: None, dim_on_lock: true }
+    }
+}
+
+impl KeypadConfig {
+    pub fn page_count(&self) -> u8 { self.pages.len().min(u8::MAX as usize) as u8 }
+    pub fn page_index(&self) -> u8 { self.active_page.min(self.page_count().saturating_sub(1)) }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KeypadPage {
+    pub name: String,
+    pub keys: [KeypadKey; 9],
+    /// App classes (lowercased WM class) this page belongs to; empty = the
+    /// general pages shown for every app without pages of its own.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub apps: Vec<String>,
+    /// A folder: left out of the page-button rotation and opened by a
+    /// "page" key; while it is up, either page button goes back.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub folder: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct KeypadKey {
+    pub action: ButtonAction,
+    pub label: String,
+    pub icon: String,
+    pub custom: CustomAction,
+    /// A multistate key: the states after the key's own one. Each press runs
+    /// the state shown, then the key turns to the next (plate `-s<n>.jpg`).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub states: Vec<KeypadKey>,
+}
+
+impl Default for KeypadKey {
+    fn default() -> Self {
+        Self { action: ButtonAction::None, label: String::new(), icon: String::new(), custom: CustomAction::default(), states: Vec::new() }
+    }
+}
+// ---- End MX Keypad ----
+
+/// Parse a `buttons.controls` key: "0x00D7", "00D7"-style hex, or decimal.
+pub fn parse_control_cid(key: &str) -> Option<u16> {
+    let key = key.trim();
+    if let Some(hex) = key.strip_prefix("0x").or_else(|| key.strip_prefix("0X")) {
+        return u16::from_str_radix(hex, 16).ok();
+    }
+    key.parse::<u16>().ok()
 }
 
 // ============================================================================
@@ -376,12 +683,176 @@ impl ThumbwheelConfig {
 }
 
 // ============================================================================
+// Gaming Configuration
+// ============================================================================
+
+/// One gaming DPI preset (Settings > Gaming).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GamingPreset {
+    pub name: String,
+    pub dpi: u16,
+    #[serde(default)]
+    pub color: String,
+}
+
+fn default_gaming_presets() -> Vec<GamingPreset> {
+    [("Precision", 400, "blue"), ("Normal", 1000, "green"), ("Fast", 3200, "red")]
+        .into_iter()
+        .map(|(name, dpi, color)| GamingPreset { name: name.into(), dpi, color: color.into() })
+        .collect()
+}
+fn default_active_preset() -> usize { 1 }
+fn default_keep() -> String { "keep".to_string() }
+fn default_none() -> String { "none".to_string() }
+
+/// Gaming mode (the on/off state itself lives in the daemon; `enabled` in
+/// the file is the Settings app's mirror and is not read).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GamingConfig {
+    /// Hide the radial menu while gaming mode is on.
+    #[serde(default = "default_true")]
+    pub suppress_overlay: bool,
+    /// Index into `dpi_profiles` applied while gaming mode is on.
+    #[serde(default = "default_active_preset")]
+    pub active_dpi_profile: usize,
+    /// DPI presets (1 to 5) the ring button or DPI cycle steps through.
+    #[serde(default = "default_gaming_presets")]
+    pub dpi_profiles: Vec<GamingPreset>,
+    /// Turn on while Feral GameMode is active.
+    #[serde(default)]
+    pub auto_gamemode: bool,
+    /// Turn on while one of these apps (window class, any case) is in front.
+    #[serde(default)]
+    pub auto_apps: Vec<String>,
+    /// The Actions Ring button in games: "none", "dpi_shift" or "dpi_cycle".
+    #[serde(default = "default_none")]
+    pub ring_button: String,
+    /// The scroll wheel in games: "keep", "ratchet" or "freespin".
+    #[serde(default = "default_keep")]
+    pub wheel: String,
+    /// Pulse once per stage (1 to 5) when the preset changes.
+    #[serde(default = "default_true")]
+    pub dpi_pulse: bool,
+}
+
+impl Default for GamingConfig {
+    fn default() -> Self {
+        Self {
+            suppress_overlay: true,
+            active_dpi_profile: default_active_preset(),
+            dpi_profiles: default_gaming_presets(),
+            auto_gamemode: false,
+            auto_apps: Vec::new(),
+            ring_button: default_none(),
+            wheel: default_keep(),
+            dpi_pulse: true,
+        }
+    }
+}
+
+impl GamingConfig {
+    /// Whether `app` (a window class) turns gaming mode on.
+    pub fn auto_app(&self, app: &str) -> bool {
+        self.auto_apps.iter().any(|a| a.eq_ignore_ascii_case(app))
+    }
+
+    /// What the ring button does in games (None = its normal job).
+    pub fn ring_action(&self) -> Option<ButtonAction> {
+        match self.ring_button.as_str() {
+            "dpi_shift" => Some(ButtonAction::DpiShift),
+            "dpi_cycle" => Some(ButtonAction::DpiCycle),
+            _ => None,
+        }
+    }
+}
+
+// ============================================================================
+// Keyboard Configuration (BETA, opt-in)
+// ============================================================================
+
+/// MX Keys S HID++ options (battery readback + backlight). BETA.
+///
+/// Off by default. While disabled the daemon never opens or talks HID++ to any
+/// keyboard, so a normal mouse-only setup is completely unaffected. Even when
+/// enabled, the HID++ paths only run in response to an explicit D-Bus call.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MxKeysConfig {
+    /// Allow the daemon to talk HID++ to an MX Keys S keyboard for battery
+    /// readback and backlight control. Volatile reads are safe; the backlight
+    /// SET is UNVERIFIED on hardware (see `hidpp::device::HidppDevice::set_backlight`).
+    #[serde(default)]
+    pub enabled: bool,
+    /// Move the keyboard to the same computer when the mouse switches
+    /// (matched by host name). Off by default.
+    #[serde(default)]
+    pub move_together: bool,
+}
+
+/// Generic keyboard remap + MX Keys S support. BETA, opt-in.
+///
+/// The whole section is inert unless `enabled` is true:
+/// - `enabled` false (default): no keyboard is ever grabbed, opened, or remapped.
+/// - `enabled` true + non-empty `remap`: the first physical keyboard is grabbed
+///   (EVIOCGRAB) and its events forwarded through a virtual keyboard with the
+///   listed source evdev key codes rewritten to their targets.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct KeyboardConfig {
+    /// Master switch for the generic remap path. Off by default.
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Generic remap table: source evdev key code -> target evdev key code.
+    /// JSON object with stringified integer keys, e.g. `{"58": 29}`
+    /// (CapsLock -> LeftCtrl). Empty by default; an empty table never triggers
+    /// a device grab.
+    #[serde(default)]
+    pub remap: std::collections::HashMap<u16, u16>,
+
+    /// MX Keys S HID++ options (battery + backlight). Independent of the
+    /// generic remap switch above.
+    #[serde(default)]
+    pub mx_keys: MxKeysConfig,
+}
+
+impl KeyboardConfig {
+    /// Whether the generic remap path should grab a keyboard: only when enabled
+    /// AND at least one remap entry exists. Prevents a misconfigured-but-enabled
+    /// section from grabbing the keyboard with an empty (identity) table.
+    pub fn remap_active(&self) -> bool {
+        self.enabled && !self.remap.is_empty()
+    }
+}
+
+/// `battery` section. The tray and Settings also read `alert_mouse` and
+/// `alert_keyboard` (both default true) from the same object.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatteryAlertConfig {
+    /// Alert when a device on battery drops to this percent (10, 15 or 20).
+    #[serde(default = "default_alert_percent")]
+    pub alert_percent: u8,
+}
+
+fn default_alert_percent() -> u8 {
+    15
+}
+
+impl Default for BatteryAlertConfig {
+    fn default() -> Self {
+        Self { alert_percent: default_alert_percent() }
+    }
+}
+
+// ============================================================================
 // Main Configuration
 // ============================================================================
 
 /// Main configuration structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    // ---- MX Keypad ----
+    #[serde(default)]
+    pub keypad: KeypadConfig,
+
     /// Haptic feedback settings
     #[serde(default)]
     pub haptics: HapticConfig,
@@ -402,9 +873,60 @@ pub struct Config {
     #[serde(default)]
     pub thumbwheel: ThumbwheelConfig,
 
+    /// Gaming mode: DPI presets, the ring in games, automatic mode.
+    #[serde(default)]
+    pub gaming: GamingConfig,
+
+    /// Low-battery alert level (the tray notice, Settings, the haptic).
+    #[serde(default)]
+    pub battery: BatteryAlertConfig,
+
+    /// Keyboard support (generic remap + MX Keys S). BETA, opt-in, off by default.
+    #[serde(default)]
+    pub keyboard: KeyboardConfig,
+
+    /// Per-device overrides keyed by unit id ("0x1234ABCD", as `GetUnitId`
+    /// reports it): any subset of this file's keys, deep-merged over the
+    /// top-level values when that device connects. Single-mouse users never
+    /// need this; two mice on one machine keep separate button maps with it.
+    #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
+    pub devices: std::collections::HashMap<String, serde_json::Value>,
+
+    /// Unit key whose overrides are currently applied (not serialized).
+    #[serde(skip)]
+    pub active_unit: Option<String>,
+
+    /// The focused app whose profile carries button overrides, with those
+    /// overrides (profiles.json `hardware.<class>.buttons` and `.custom`,
+    /// keyed like `buttons.custom`). Set on focus change, not serialized.
+    #[serde(skip)]
+    pub active_app: Option<String>,
+    #[serde(skip)]
+    pub app_buttons: std::collections::HashMap<String, ButtonAction>,
+    #[serde(skip)]
+    pub app_custom: std::collections::HashMap<String, CustomAction>,
+
     /// Configuration file path (not serialized)
     #[serde(skip)]
     pub config_path: Option<PathBuf>,
+}
+
+/// Recursively merge `over` into `base`: objects merge key by key, anything
+/// else is replaced.
+fn deep_merge(base: &mut serde_json::Value, over: &serde_json::Value) {
+    match (base, over) {
+        (serde_json::Value::Object(b), serde_json::Value::Object(o)) => {
+            for (k, v) in o {
+                match b.get_mut(k) {
+                    Some(existing) => deep_merge(existing, v),
+                    None => {
+                        b.insert(k.clone(), v.clone());
+                    }
+                }
+            }
+        }
+        (b, o) => *b = o.clone(),
+    }
 }
 
 fn default_theme() -> String {
@@ -414,11 +936,20 @@ fn default_theme() -> String {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            keypad: KeypadConfig::default(),
             haptics: HapticConfig::default(),
             theme: default_theme(),
             blur_enabled: true,
             buttons: ButtonsConfig::default(),
             thumbwheel: ThumbwheelConfig::default(),
+            gaming: GamingConfig::default(),
+            battery: BatteryAlertConfig::default(),
+            keyboard: KeyboardConfig::default(),
+            devices: std::collections::HashMap::new(),
+            active_unit: None,
+            active_app: None,
+            app_buttons: std::collections::HashMap::new(),
+            app_custom: std::collections::HashMap::new(),
             config_path: None,
         }
     }
@@ -518,6 +1049,51 @@ impl Config {
         Ok(config)
     }
 
+    /// Config key for a unit id: "0x" plus eight upper-case hex digits.
+    pub fn unit_key(unit_id: u32) -> String {
+        format!("0x{:08X}", unit_id)
+    }
+
+    fn device_override(&self, unit_key: &str) -> Option<&serde_json::Value> {
+        let norm = |k: &str| k.trim().trim_start_matches("0x").trim_start_matches("0X").to_uppercase();
+        let want = norm(unit_key);
+        self.devices.iter().find(|(k, _)| norm(k) == want).map(|(_, v)| v)
+    }
+
+    /// Select the connected device: remember its unit key and, when
+    /// `devices` has an entry for it, deep-merge that entry over this config.
+    /// Returns whether an override was applied. The base file is never
+    /// changed; `ReloadConfig` re-applies the same unit.
+    pub fn apply_device_overrides(&mut self, unit_key: &str) -> bool {
+        self.active_unit = Some(unit_key.to_string());
+        let overrides = match self.device_override(unit_key) {
+            Some(v) if v.is_object() => v.clone(),
+            _ => return false,
+        };
+        let mut base = match serde_json::to_value(&*self) {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+        deep_merge(&mut base, &overrides);
+        match serde_json::from_value::<Config>(base) {
+            Ok(mut merged) => {
+                merged.haptics.validate();
+                merged.config_path = self.config_path.clone();
+                merged.devices = std::mem::take(&mut self.devices);
+                merged.active_unit = Some(unit_key.to_string());
+                merged.active_app = self.active_app.take();
+                merged.app_buttons = std::mem::take(&mut self.app_buttons);
+                merged.app_custom = std::mem::take(&mut self.app_custom);
+                *self = merged;
+                true
+            }
+            Err(e) => {
+                tracing::warn!(unit = unit_key, error = %e, "Per-device overrides ignored (not valid config)");
+                false
+            }
+        }
+    }
+
     /// Check if haptics are enabled
     pub fn haptics_enabled(&self) -> bool {
         self.haptics.enabled
@@ -528,9 +1104,32 @@ impl Config {
         &self.haptics.default_pattern
     }
 
-    /// Get the configured action for a HID++ CID (Control ID)
+    /// Whether the gesture button resolves to per-direction actions.
+    pub fn directional_gestures_enabled(&self) -> bool {
+        self.buttons.gesture_directions.enabled
+    }
+
+    /// Action for a classified gesture. A click falls back to the plain
+    /// `buttons.gesture` assignment when no explicit click action is set.
+    pub fn gesture_direction_action(&self, direction: crate::gesture::GestureDirection) -> ButtonAction {
+        use crate::gesture::GestureDirection;
+        let d = &self.buttons.gesture_directions;
+        match direction {
+            GestureDirection::Up => d.up,
+            GestureDirection::Down => d.down,
+            GestureDirection::Left => d.left,
+            GestureDirection::Right => d.right,
+            GestureDirection::Click => d.click.unwrap_or(self.buttons.gesture),
+        }
+    }
+
+    /// Get the configured action for a HID++ CID (Control ID): the focused
+    /// app's override first, then the global assignment.
     pub fn action_for_cid(&self, cid: u16) -> ButtonAction {
         use crate::hidraw::button_cid;
+        if let Some(action) = self.app_button(cid) {
+            return action;
+        }
         match cid {
             button_cid::GESTURE_BUTTON => self.buttons.gesture,
             button_cid::HAPTIC => self.buttons.thumb,
@@ -538,8 +1137,89 @@ impl Config {
             button_cid::BACK_BUTTON => self.buttons.back,
             button_cid::FORWARD_BUTTON => self.buttons.forward,
             button_cid::SMART_SHIFT => self.buttons.shift_wheel,
-            _ => ButtonAction::None,
+            _ => self.extra_control_action(cid).unwrap_or(ButtonAction::None),
         }
+    }
+
+    /// The config key a CID's button action lives under: the named slot, or
+    /// the `buttons.controls` key form "0x00D7" (also the `buttons.custom` key).
+    pub fn slot_for_cid(cid: u16) -> String {
+        use crate::hidraw::button_cid;
+        match cid {
+            button_cid::GESTURE_BUTTON => "gesture".into(),
+            button_cid::HAPTIC => "thumb".into(),
+            button_cid::MIDDLE_BUTTON => "middle".into(),
+            button_cid::BACK_BUTTON => "back".into(),
+            button_cid::FORWARD_BUTTON => "forward".into(),
+            button_cid::SMART_SHIFT => "shift_wheel".into(),
+            other => format!("0x{other:04X}"),
+        }
+    }
+
+    /// The custom action for a slot or control key (case-insensitive hex),
+    /// the focused app's own first.
+    pub fn custom_action(&self, source: &str) -> Option<&CustomAction> {
+        fn find<'a>(
+            map: &'a std::collections::HashMap<String, CustomAction>,
+            source: &str,
+        ) -> Option<&'a CustomAction> {
+            map.iter().find(|(k, _)| k.eq_ignore_ascii_case(source)).map(|(_, v)| v)
+        }
+        if self.app_buttons.keys().any(|k| k.eq_ignore_ascii_case(source)) {
+            if let Some(custom) = find(&self.app_custom, source) {
+                return Some(custom);
+            }
+        }
+        find(&self.buttons.custom, source)
+    }
+
+    /// The focused app's override for a CID, if its profile has one.
+    fn app_button(&self, cid: u16) -> Option<ButtonAction> {
+        if self.app_buttons.is_empty() {
+            return None;
+        }
+        let slot = Self::slot_for_cid(cid);
+        self.app_buttons
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case(&slot) || parse_control_cid(k) == Some(cid))
+            .map(|(_, action)| *action)
+    }
+
+    /// Select the focused app's button overrides (None = no profiled app, or
+    /// one without button overrides).
+    pub fn set_app_overrides(
+        &mut self,
+        app: Option<String>,
+        buttons: std::collections::HashMap<String, ButtonAction>,
+        custom: std::collections::HashMap<String, CustomAction>,
+    ) {
+        self.active_app = app;
+        self.app_buttons = buttons;
+        self.app_custom = custom;
+    }
+
+    /// Action configured under `buttons.controls` for a CID, if any.
+    fn extra_control_action(&self, cid: u16) -> Option<ButtonAction> {
+        self.buttons
+            .controls
+            .iter()
+            .find(|(key, _)| parse_control_cid(key) == Some(cid))
+            .map(|(_, action)| *action)
+    }
+
+    /// Every CID named under `buttons.controls` (any action, including `none`),
+    /// so a reload can clear the divert of a control returned to native.
+    pub fn extra_control_cids(&self) -> Vec<u16> {
+        let mut cids: Vec<u16> = self
+            .buttons
+            .controls
+            .keys()
+            .chain(self.app_buttons.keys())
+            .filter_map(|k| parse_control_cid(k))
+            .collect();
+        cids.sort_unstable();
+        cids.dedup();
+        cids
     }
 
     /// CIDs of the non-gesture buttons (back, forward, middle, shift-wheel) the
@@ -549,17 +1229,30 @@ impl Config {
     pub fn remapped_button_cids(&self) -> Vec<u16> {
         use crate::hidraw::button_cid;
         let mut cids = Vec::new();
-        if self.buttons.back != ButtonAction::Back {
-            cids.push(button_cid::BACK_BUTTON);
+        // Effective actions: a focused app's override counts too.
+        for (cid, native) in [
+            (button_cid::BACK_BUTTON, ButtonAction::Back),
+            (button_cid::FORWARD_BUTTON, ButtonAction::Forward),
+            (button_cid::MIDDLE_BUTTON, ButtonAction::MiddleClick),
+            (button_cid::SMART_SHIFT, ButtonAction::Smartshift),
+        ] {
+            if self.action_for_cid(cid) != native {
+                cids.push(cid);
+            }
         }
-        if self.buttons.forward != ButtonAction::Forward {
-            cids.push(button_cid::FORWARD_BUTTON);
-        }
-        if self.buttons.middle != ButtonAction::MiddleClick {
-            cids.push(button_cid::MIDDLE_BUTTON);
-        }
-        if self.buttons.shift_wheel != ButtonAction::Smartshift {
-            cids.push(button_cid::SMART_SHIFT);
+        // Extra controls carry an action only when one is configured; the
+        // named slots above stay authoritative for their own CIDs.
+        for cid in self.extra_control_cids() {
+            if Self::managed_button_cids().contains(&cid)
+                || cid == button_cid::GESTURE_BUTTON
+                || cid == button_cid::HAPTIC
+            {
+                continue;
+            }
+            let action = self.app_button(cid).or_else(|| self.extra_control_action(cid));
+            if action.is_some_and(|a| a != ButtonAction::None) {
+                cids.push(cid);
+            }
         }
         cids
     }
@@ -642,6 +1335,65 @@ mod tests {
     use super::*;
 
     #[test]
+    fn legacy_gesture_config_keeps_directional_gestures_off() {
+        let json = r#"{ "buttons": { "gesture": "copy" } }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(!config.directional_gestures_enabled());
+        assert_eq!(config.buttons.gesture, ButtonAction::Copy);
+        assert_eq!(config.buttons.gesture_directions, GestureDirectionsConfig::default());
+        assert_eq!(config.buttons.gesture_directions.threshold_px, 40);
+    }
+
+    #[test]
+    fn gesture_directions_parse_partial_section_and_fall_back_for_click() {
+        use crate::gesture::GestureDirection;
+        let json = r#"{
+            "buttons": {
+                "gesture": "virtual_desktops",
+                "gesture_directions": {
+                    "enabled": true,
+                    "up": "show_desktop",
+                    "left": "switch_desktop_left",
+                    "threshold_px": 64
+                }
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(config.directional_gestures_enabled());
+        assert_eq!(config.gesture_direction_action(GestureDirection::Up), ButtonAction::ShowDesktop);
+        assert_eq!(config.gesture_direction_action(GestureDirection::Down), ButtonAction::None);
+        assert_eq!(config.gesture_direction_action(GestureDirection::Left), ButtonAction::SwitchDesktopLeft);
+        assert_eq!(config.gesture_direction_action(GestureDirection::Right), ButtonAction::None);
+        assert_eq!(config.gesture_direction_action(GestureDirection::Click), ButtonAction::VirtualDesktops);
+        assert_eq!(config.buttons.gesture_directions.threshold_px, 64);
+    }
+
+    #[test]
+    fn gesture_directions_explicit_click_overrides_gesture_action() {
+        use crate::gesture::GestureDirection;
+        let json = r#"{
+            "buttons": {
+                "gesture": "virtual_desktops",
+                "gesture_directions": { "enabled": true, "click": "task_switcher" }
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.gesture_direction_action(GestureDirection::Click), ButtonAction::TaskSwitcher);
+    }
+
+    #[test]
+    fn gesture_directions_disabled_section_is_inert() {
+        let json = r#"{
+            "buttons": {
+                "gesture_directions": { "enabled": false, "up": "copy" }
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(!config.directional_gestures_enabled());
+        assert_eq!(config.action_for_cid(crate::hidraw::button_cid::GESTURE_BUTTON), ButtonAction::VirtualDesktops);
+    }
+
+    #[test]
     fn test_default_config() {
         let config = Config::default();
         assert_eq!(config.haptics.default_pattern, "subtle_collision");
@@ -662,6 +1414,51 @@ mod tests {
         assert!(haptic.window_switch_enabled);
         assert_eq!(haptic.per_event.monitor_switch, "subtle_collision");
         assert!(haptic.monitor_switch_enabled);
+    }
+
+    #[test]
+    fn test_haptic_intensity_default() {
+        // Field default must match the Settings UI default (70).
+        assert_eq!(HapticConfig::default().intensity, 70);
+        assert_eq!(default_intensity(), 70);
+    }
+
+    #[test]
+    fn test_haptic_intensity_serde_roundtrip() {
+        // Explicit value survives a serialize/deserialize round-trip.
+        let cfg = HapticConfig { intensity: 42, ..HapticConfig::default() };
+        let json = serde_json::to_string(&cfg).unwrap();
+        assert!(json.contains("\"intensity\":42"), "serialized: {json}");
+        let back: HapticConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.intensity, 42);
+    }
+
+    #[test]
+    fn test_haptic_intensity_from_partial_json() {
+        // The Settings UI writes intensity as part of the haptics block.
+        let json = r#"{"haptics": {"intensity": 30}}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.haptics.intensity, 30);
+    }
+
+    #[test]
+    fn test_haptic_intensity_missing_uses_default() {
+        // Older configs without the field fall back to the default (no drop).
+        let json = r#"{"haptics": {"enabled": true}}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.haptics.intensity, 70);
+    }
+
+    #[test]
+    fn test_haptic_intensity_clamped_on_validate() {
+        // Out-of-range values are clamped to 0..=100 on load.
+        let mut high: HapticConfig = serde_json::from_str(r#"{"intensity": 250}"#).unwrap();
+        high.validate();
+        assert_eq!(high.intensity, 100);
+
+        let mut ok: HapticConfig = serde_json::from_str(r#"{"intensity": 55}"#).unwrap();
+        ok.validate();
+        assert_eq!(ok.intensity, 55);
     }
 
     #[test]
@@ -973,6 +1770,93 @@ mod tests {
     }
 
     #[test]
+    fn device_overrides_merge_over_the_base_config() {
+        let json = r#"{
+            "buttons": {"back": "copy", "forward": "paste"},
+            "thumbwheel": {"mode": "volume", "speed": 4},
+            "devices": {"0x1234abcd": {"buttons": {"back": "undo"}, "thumbwheel": {"speed": 2}}}
+        }"#;
+        let mut config: Config = serde_json::from_str(json).unwrap();
+        assert!(!config.apply_device_overrides("0xDEADBEEF"));
+        assert_eq!(config.active_unit.as_deref(), Some("0xDEADBEEF"));
+        assert_eq!(config.buttons.back, ButtonAction::Copy);
+        assert!(config.apply_device_overrides(&Config::unit_key(0x1234ABCD)));
+        assert_eq!(config.buttons.back, ButtonAction::Undo);
+        assert_eq!(config.buttons.forward, ButtonAction::Paste, "untouched keys keep the base value");
+        assert_eq!(config.thumbwheel.speed, 2);
+        assert_eq!(config.thumbwheel.mode, ThumbwheelMode::Volume);
+        assert_eq!(config.devices.len(), 1, "the overrides map survives the merge");
+        assert_eq!(Config::unit_key(0xAB), "0x000000AB");
+        // a bad override never poisons the config
+        let mut bad: Config = serde_json::from_str(r#"{"devices": {"0x1": {"buttons": {"back": "no_such"}}}}"#).unwrap();
+        assert!(!bad.apply_device_overrides("0x00000001"));
+        assert_eq!(bad.buttons.back, ButtonAction::Back);
+    }
+
+    #[test]
+    fn app_button_overrides_win_while_the_app_is_focused() {
+        use crate::hidraw::button_cid;
+        use std::collections::HashMap;
+        let mut config = Config::default();
+        config.buttons.custom.insert("back".into(), CustomAction { kind: "url".into(), value: "https://a".into(), ..Default::default() });
+        assert!(config.remapped_button_cids().is_empty());
+
+        let buttons = HashMap::from([
+            ("back".to_string(), ButtonAction::Custom),
+            ("0x00D7".to_string(), ButtonAction::TabClose),
+            ("middle".to_string(), ButtonAction::MiddleClick),
+        ]);
+        let custom = HashMap::from([("back".to_string(), CustomAction { kind: "shortcut".into(), value: "F13".into(), ..Default::default() })]);
+        config.set_app_overrides(Some("firefox".into()), buttons, custom);
+        assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Custom);
+        assert_eq!(config.action_for_cid(0x00D7), ButtonAction::TabClose);
+        assert_eq!(config.custom_action("back").map(|c| c.value.as_str()), Some("F13"));
+        let remapped = config.remapped_button_cids();
+        assert!(remapped.contains(&button_cid::BACK_BUTTON));
+        assert!(remapped.contains(&0x00D7));
+        assert!(!remapped.contains(&button_cid::MIDDLE_BUTTON), "native middle stays native");
+
+        // Selecting the connected mouse keeps the app's overrides.
+        assert!(!config.apply_device_overrides("0x00000001"));
+        assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Custom);
+
+        config.set_app_overrides(None, HashMap::new(), HashMap::new());
+        assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Back);
+        assert_eq!(config.custom_action("back").map(|c| c.value.as_str()), Some("https://a"));
+        assert!(config.remapped_button_cids().is_empty());
+    }
+
+    #[test]
+    fn button_action_display_matches_its_config_id() {
+        use ButtonAction as A;
+        for a in [A::RadialMenu, A::Custom, A::LeftClick, A::RightClick, A::ScrollLeft, A::ScrollRight,
+                  A::DpiCycle, A::DpiUp, A::DpiDown, A::DpiShift, A::TabNext, A::TabPrev, A::TabClose,
+                  A::TabReopen, A::PageUp, A::PageDown, A::Home, A::End, A::Host1, A::Host2, A::Host3,
+                  A::HostNext, A::GamingMode] {
+            assert_eq!(serde_json::to_value(a).unwrap(), serde_json::Value::String(a.to_string()));
+        }
+    }
+
+    #[test]
+    fn extra_controls_carry_actions_and_diverts() {
+        use crate::hidraw::button_cid;
+        let json = r#"{"buttons": {"controls": {"0x00D7": "copy", "253": "zoom_in", "0x00FE": "none", "junk": "paste", "0x0053": "undo"}}}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.action_for_cid(0x00D7), ButtonAction::Copy);
+        assert_eq!(config.action_for_cid(253), ButtonAction::ZoomIn);
+        assert_eq!(config.action_for_cid(0x00FE), ButtonAction::None);
+        // the named back slot wins over a controls entry for the same CID
+        assert_eq!(config.action_for_cid(button_cid::BACK_BUTTON), ButtonAction::Back);
+        let remapped = config.remapped_button_cids();
+        assert!(remapped.contains(&0x00D7) && remapped.contains(&253));
+        assert!(!remapped.contains(&0x00FE), "a none entry is not diverted");
+        assert!(!remapped.contains(&button_cid::BACK_BUTTON));
+        assert_eq!(config.extra_control_cids(), vec![0x0053, 0x00D7, 0x00FD, 0x00FE]);
+        assert_eq!(parse_control_cid(" 0X1a0 "), Some(0x01A0));
+        assert_eq!(parse_control_cid("junk"), None);
+    }
+
+    #[test]
     fn test_remapped_button_cids() {
         use crate::hidraw::button_cid;
 
@@ -996,5 +1880,86 @@ mod tests {
                 .remapped_button_cids()
                 .contains(&button_cid::BACK_BUTTON)
         );
+    }
+
+    // ========================================================================
+    // Keyboard Config Tests (BETA)
+    // ========================================================================
+
+    #[test]
+    fn test_keyboard_defaults_disabled() {
+        let kb = KeyboardConfig::default();
+        assert!(!kb.enabled);
+        assert!(kb.remap.is_empty());
+        assert!(!kb.mx_keys.enabled);
+        // Nothing should grab the keyboard with defaults.
+        assert!(!kb.remap_active());
+    }
+
+    #[test]
+    fn test_keyboard_remap_active_requires_enabled_and_entries() {
+        let mut kb = KeyboardConfig::default();
+        kb.remap.insert(58, 29); // CapsLock -> LeftCtrl, but still disabled
+        assert!(!kb.remap_active());
+
+        kb.enabled = true;
+        assert!(kb.remap_active());
+
+        kb.remap.clear();
+        // Enabled but empty table must NOT grab.
+        assert!(!kb.remap_active());
+    }
+
+    #[test]
+    fn test_config_without_keyboard_section_backward_compat() {
+        // Existing configs with no "keyboard" section must still parse.
+        let json = r#"{"theme": "catppuccin-mocha"}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(!config.keyboard.enabled);
+        assert!(config.keyboard.remap.is_empty());
+        assert!(!config.keyboard.mx_keys.enabled);
+    }
+
+    #[test]
+    fn test_config_keyboard_json_roundtrip() {
+        let json = r#"{
+            "keyboard": {
+                "enabled": true,
+                "remap": {"58": 29, "1": 14},
+                "mx_keys": {"enabled": true}
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(config.keyboard.enabled);
+        assert_eq!(config.keyboard.remap.get(&58), Some(&29));
+        assert_eq!(config.keyboard.remap.get(&1), Some(&14));
+        assert!(config.keyboard.mx_keys.enabled);
+        assert!(config.keyboard.remap_active());
+
+        // Round-trips back through serialization (string keys in JSON).
+        let out = serde_json::to_string(&config).unwrap();
+        let reparsed: Config = serde_json::from_str(&out).unwrap();
+        assert_eq!(reparsed.keyboard.remap.get(&58), Some(&29));
+    }
+
+    #[test]
+    fn haptics_keys_written_by_settings_load() {
+        let json = r#"{"haptics": {"level": 50, "panel_force": 66, "mute_in_games": false,
+            "muted_apps": ["Steam"], "per_event_enabled": {"slice_change": false, "macro_start": true},
+            "per_event": {"dpi_change": "knock"}, "window_switch_enabled": false}}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        let h = &config.haptics;
+        assert_eq!((h.level, h.panel_force, h.mute_in_games), (Some(50), Some(66), false));
+        assert!(h.app_muted("steam"));
+        assert!(!h.event_enabled("slice_change"));
+        assert!(h.event_enabled("macro_start"));
+        assert!(!h.event_enabled("macro_finish"));
+        assert!(!h.event_enabled("window_switch"));
+        assert!(h.event_enabled("dpi_change"));
+        assert_eq!(h.per_event.dpi_change, "knock");
+        assert_eq!(h.per_event.host_arrive, "happy_alert");
+        // absent keys leave the mouse alone
+        let config: Config = serde_json::from_str("{}").unwrap();
+        assert_eq!((config.haptics.level, config.haptics.panel_force), (None, None));
     }
 }

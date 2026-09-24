@@ -55,6 +55,7 @@ nav:
   - Installation: installation.md
   - Features: features.md
   - Configuration: configuration.md
+  - Plugins: plugins.md
   - Compositor Support: compositor-support.md
   - Troubleshooting: troubleshooting.md
   - Architecture: architecture.md

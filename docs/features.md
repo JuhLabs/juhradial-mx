@@ -51,7 +51,10 @@ The ring opens on whichever mouse button is bound to the **Radial Menu**
 action. By default that is the dedicated Actions Ring button on the MX Master 4
 (the lower thumb control, shown in Settings as **Show Actions Ring**). The
 larger gesture button defaults to **Virtual Desktops**, and the two can be
-swapped or reassigned on the Buttons page.
+swapped or reassigned on the Buttons page. The gesture button can also run
+four separate actions by direction (hold, drag up / down / left / right,
+release), with a plain press keeping its normal action; see
+[Directional gestures](configuration.md#directional-gestures).
 
 ### Hold-drag vs tap
 

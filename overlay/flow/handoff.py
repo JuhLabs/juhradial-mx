@@ -10,13 +10,16 @@ import logging
 import subprocess
 import threading
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from .constants import (
     LOGI_PRESENCE_PORT,
     MSG_CURSOR_HANDOFF,
     MSG_CLIPBOARD_SYNC,
 )
+
+if TYPE_CHECKING:
+    from .logi_presence import FlowPresenceClient
 
 logger = logging.getLogger("juhradial.flow.handoff")
 
@@ -43,7 +46,7 @@ class FlowHandoffManager:
         self.juhflow_bridge = juhflow_bridge
 
         # {peer_name: FlowPresenceClient}
-        self.presence_clients: Dict[str, 'FlowPresenceClient'] = {}
+        self.presence_clients: Dict[str, FlowPresenceClient] = {}
         self._clients_lock = threading.Lock()
 
         # {peer_name: edge} - which edge each peer is assigned to
@@ -235,6 +238,20 @@ class FlowHandoffManager:
 
         # Send clipboard content to whichever channel delivered
         self._sync_clipboard(peer_name)
+
+    def send_cursor(self, screen: Optional[dict] = None) -> None:
+        """Send the cursor to the other computer without touching the edge:
+        the same hand-off an edge hit makes, from the middle of the Flow edge
+        of the Flow monitor (or of `screen`, the one the cursor is on)."""
+        screen = self._get_flow_monitor_screen() or screen
+        if not screen:
+            logger.debug("Send cursor: no screen geometry")
+            return
+        edge = self.get_flow_config().get("direction", "right")
+        sx, sy, sw, sh = screen["x"], screen["y"], screen["width"], screen["height"]
+        cx = {"left": sx, "right": sx + sw - 1}.get(edge, sx + sw // 2)
+        cy = {"top": sy, "bottom": sy + sh - 1}.get(edge, sy + sh // 2)
+        self.on_edge_hit(edge, cx, cy, screen)
 
     def _sync_clipboard(self, peer_name: Optional[str] = None):
         """Sync clipboard to peer via presence or bridge."""

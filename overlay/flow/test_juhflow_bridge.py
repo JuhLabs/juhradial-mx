@@ -15,6 +15,7 @@ import unittest.mock as mock
 from typing import Any
 
 from . import juhflow_bridge as bridge_module
+from .trust import DENIED, PENDING, TRUSTED, TrustStore, fingerprint
 from .crypto import (
     build_encrypted_packet,
     decrypt_payload,
@@ -119,12 +120,30 @@ def _make_bridge(**kwargs):
     tcp_port = _free_port()
     # Use a high random port for discovery to avoid permission issues
     disc_port = _free_port()
+    kwargs.setdefault("trust", TrustStore(os.path.join(tempfile.mkdtemp(), "flow_trusted.json")))
     bridge = JuhFlowBridge(
         tcp_port=tcp_port,
         discovery_port=disc_port,
         **kwargs,
     )
     return bridge, tcp_port
+
+
+def _next_message(client, timeout):
+    """The next message that is not a heartbeat; None when none arrives."""
+    try:
+        while True:
+            msg = client.recv_encrypted(timeout=timeout)
+            if msg is None or msg.get("type") != MSG_HEARTBEAT:
+                return msg
+    except socket.timeout:
+        return None
+
+
+def _approve(bridge, client, state=TRUSTED):
+    """What Settings > Flow > Approve does for this simulated Mac."""
+    bridge.trust.set_state(fingerprint(client._public_key_bytes), state, "test-mac", "macos")
+    return client
 
 
 class TestJuhFlowBridgeHandshake(unittest.TestCase):
@@ -182,7 +201,7 @@ class TestJuhFlowBridgeMessaging(unittest.TestCase):
         self.bridge.start()
         time.sleep(0.2)
 
-        self.client = SimulatedMacClient(self._port)
+        self.client = _approve(self.bridge, SimulatedMacClient(self._port))
         self.client.connect_and_handshake()
         time.sleep(0.2)
 
@@ -295,7 +314,7 @@ class TestJuhFlowBridgeReconnect(unittest.TestCase):
     def test_reconnect_new_session(self):
         """After disconnect, new client should connect with fresh handshake."""
         # First connection
-        client1 = SimulatedMacClient(self._port)
+        client1 = _approve(self.bridge, SimulatedMacClient(self._port))
         client1.connect_and_handshake()
         client1.send_encrypted({
             "type": MSG_EDGE_HIT, "edge": "right",
@@ -308,7 +327,7 @@ class TestJuhFlowBridgeReconnect(unittest.TestCase):
         time.sleep(0.5)
 
         # Second connection (fresh keys)
-        client2 = SimulatedMacClient(self._port)
+        client2 = _approve(self.bridge, SimulatedMacClient(self._port))
         client2.connect_and_handshake()
         client2.send_encrypted({
             "type": MSG_EDGE_HIT, "edge": "left",
@@ -346,8 +365,8 @@ class TestJuhFlowBridgeMultiPeer(unittest.TestCase):
 
     def test_two_clients(self):
         """Two clients should both connect and receive broadcasts."""
-        client1 = SimulatedMacClient(self._port)
-        client2 = SimulatedMacClient(self._port)
+        client1 = _approve(self.bridge, SimulatedMacClient(self._port))
+        client2 = _approve(self.bridge, SimulatedMacClient(self._port))
         try:
             client1.connect_and_handshake()
             client2.connect_and_handshake()
@@ -365,6 +384,66 @@ class TestJuhFlowBridgeMultiPeer(unittest.TestCase):
         finally:
             client1.close()
             client2.close()
+
+
+class TestJuhFlowBridgeApproval(unittest.TestCase):
+    """A computer that was not approved gets nothing and is not listened to."""
+
+    def setUp(self):
+        self._clips = []
+        self._pending = []
+        self.bridge, self._port = _make_bridge(
+            on_clipboard=lambda pid, msg: self._clips.append(msg),
+            on_pending=lambda host, fp: self._pending.append((host, fp)),
+        )
+        self.bridge.start()
+        time.sleep(0.2)
+
+    def tearDown(self):
+        self.bridge.stop()
+        time.sleep(0.1)
+
+    def test_unapproved_peer_is_listed_but_ignored_until_approved(self):
+        client = SimulatedMacClient(self._port)
+        try:
+            client.connect_and_handshake()
+            time.sleep(0.2)
+            fp = fingerprint(client._public_key_bytes)
+            self.assertEqual(self._pending, [("test-mac", fp)])
+            peers = self.bridge.get_peers()
+            self.assertEqual([(p["state"], p["fingerprint"]) for p in peers], [(PENDING, fp)])
+            client.send_encrypted({"type": MSG_CLIPBOARD, "content": "secret", "content_type": "text/plain"})
+            self.bridge.send_clipboard("our secret")
+            time.sleep(0.3)
+            self.assertEqual(self._clips, [], "its clipboard is not taken")
+            self.assertIsNone(_next_message(client, 0.5), "ours is not sent")
+
+            # Approve in Settings: applies at once, no reconnect.
+            _approve(self.bridge, client)
+            client.send_encrypted({"type": MSG_CLIPBOARD, "content": "hello", "content_type": "text/plain"})
+            self.bridge.send_clipboard("shared")
+            time.sleep(0.3)
+            self.assertEqual([m["content"] for m in self._clips], ["hello"])
+            self.assertEqual(_next_message(client, 3.0)["content"], "shared")
+        finally:
+            client.close()
+
+    def test_denied_peer_is_disconnected_and_refused(self):
+        client = SimulatedMacClient(self._port)
+        try:
+            client.connect_and_handshake()
+            time.sleep(0.2)
+            _approve(self.bridge, client, DENIED)
+            self.bridge._drop_denied()
+            time.sleep(1.2)
+            self.assertEqual(self.bridge.get_peers(), [])
+        finally:
+            client.close()
+        again = SimulatedMacClient(self._port)
+        again._private_key, again._public_key_bytes = client._private_key, client._public_key_bytes
+        with self.assertRaises((ConnectionError, OSError, ValueError)):
+            again.connect_and_handshake(timeout=2.0)
+        again.close()
 
 
 class TestJuhFlowBridgeStatusPublication(unittest.TestCase):
@@ -508,6 +587,7 @@ class TestJuhFlowBridgeStatusPublication(unittest.TestCase):
                         "platform": "unknown",
                         "ip": "",
                         "connected_at": 0,
+                        "state": TRUSTED,
                     }
                 ],
             )

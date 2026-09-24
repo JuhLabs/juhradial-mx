@@ -19,77 +19,71 @@ pub use super::triggers::SharedTriggerMap;
 // Key Synthesis
 // ============================================================================
 
-/// Synthesize a key press via xdotool or ydotool
-///
-/// Reuses the same fallback pattern from actions.rs:
-/// try xdotool first (X11), then ydotool (Wayland).
-/// Uses .status() to wait for completion, preventing zombie processes
-/// and ensuring actions execute in strict order.
-fn synthesize_key(action: &str, key: &str) {
-    // Try xdotool first
-    let result = Command::new("xdotool")
-        .args([action, key])
+/// Run an input tool quietly with the session's display variables and wait
+/// for it (keeps steps in order). True when it exited successfully.
+fn run_tool(tool: &str, args: &[&str]) -> bool {
+    let mut cmd = Command::new(tool);
+    cmd.args(args)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
+        .stderr(std::process::Stdio::null());
+    crate::actions::apply_session_env(&mut cmd);
+    cmd.status().map(|s| s.success()).unwrap_or(false)
+}
 
-    match result {
-        Ok(status) if status.success() => {}
-        _ => {
-            // Fallback to ydotool
-            let _ = Command::new("ydotool")
-                .args([action, key])
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status();
+/// Synthesize a key press or release ("keydown" / "keyup").
+///
+/// On Wayland the key goes through uinput (ydotool, evdev code): xdotool
+/// only reaches XWayland windows there. X11, or a key without a code, uses
+/// xdotool with ydotool as the fallback.
+fn synthesize_key(action: &str, key: &str) {
+    if crate::actions::is_wayland_session() {
+        if let Some(code) = crate::actions::key_code(key) {
+            let arg = format!("{}:{}", code, if action == "keydown" { 1 } else { 0 });
+            if run_tool("ydotool", &["key", &arg]) {
+                return;
+            }
         }
+    }
+    if !run_tool("xdotool", &[action, key]) {
+        run_tool("ydotool", &[action, key]);
     }
 }
 
-/// Synthesize a mouse button event
-fn synthesize_mouse(action: &str, button: u8) {
-    let button_str = button.to_string();
-    let result = Command::new("xdotool")
-        .args([action, &button_str])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
+/// `ydotool click` code for an X11 button number: button index | 0x40 press
+/// | 0x80 release (left, right, middle, side, extra).
+fn ydotool_button(button: u8, down: bool, up: bool) -> String {
+    let index = match button {
+        3 => 0x01,
+        2 => 0x02,
+        8 => 0x03,
+        9 => 0x04,
+        _ => 0x00,
+    };
+    format!("0x{:02X}", index | if down { 0x40 } else { 0 } | if up { 0x80 } else { 0 })
+}
 
-    match result {
-        Ok(status) if status.success() => {}
-        _ => {
-            let _ = Command::new("ydotool")
-                .args([action, &button_str])
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status();
+/// Synthesize a mouse button event ("mousedown" / "mouseup").
+fn synthesize_mouse(action: &str, button: u8) {
+    if crate::actions::is_wayland_session() {
+        let code = ydotool_button(button, action == "mousedown", action == "mouseup");
+        if run_tool("ydotool", &["click", &code]) {
+            return;
         }
+    }
+    let button_str = button.to_string();
+    if !run_tool("xdotool", &[action, &button_str]) {
+        run_tool("ydotool", &[action, &button_str]);
     }
 }
 
 /// Type a text string by synthesizing key events
 fn synthesize_text(text: &str) {
-    let result = Command::new("xdotool")
-        .args(["type", "--", text])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
-
-    match result {
-        Ok(status) if status.success() => {}
-        _ => {
-            let _ = Command::new("ydotool")
-                .args(["type", "--", text])
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status();
-        }
+    if crate::actions::is_wayland_session() && run_tool("ydotool", &["type", "--", text]) {
+        return;
+    }
+    if !run_tool("xdotool", &["type", "--", text]) {
+        run_tool("ydotool", &["type", "--", text]);
     }
 }
 
@@ -97,25 +91,10 @@ fn synthesize_text(text: &str) {
 fn synthesize_scroll(amount: i32) {
     let direction = if amount > 0 { "4" } else { "5" }; // 4=up, 5=down
     let clicks = amount.unsigned_abs().to_string();
-
-    let result = Command::new("xdotool")
-        .args(["click", "--repeat", &clicks, direction])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
-
-    match result {
-        Ok(status) if status.success() => {}
-        _ => {
-            // ydotool uses different scroll interface
-            let _ = Command::new("ydotool")
-                .args(["click", direction])
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status();
-        }
+    if !run_tool("xdotool", &["click", "--repeat", &clicks, direction]) {
+        // ydotool scrolls with the wheel axis: +1 is up.
+        let steps = (if amount > 0 { 1 } else { -1 } * amount.unsigned_abs().min(50) as i32).to_string();
+        run_tool("ydotool", &["mousemove", "--wheel", "-x", "0", "-y", &steps]);
     }
 }
 
@@ -262,7 +241,9 @@ impl MacroEngine {
 
         // Spawn playback thread
         self.thread_handle = Some(thread::spawn(move || {
+            crate::actions::pulse(crate::hidpp::HapticEvent::MacroStart);
             run_playback(config, stop);
+            crate::actions::pulse(crate::hidpp::HapticEvent::MacroFinish);
         }));
     }
 
@@ -488,6 +469,14 @@ mod tests {
             use_standard_delay: false,
             assigned_trigger: None,
         }
+    }
+
+    #[test]
+    fn ydotool_button_codes() {
+        assert_eq!(ydotool_button(1, true, true), "0xC0");
+        assert_eq!(ydotool_button(3, true, false), "0x41");
+        assert_eq!(ydotool_button(8, false, true), "0x83");
+        assert_eq!(ydotool_button(9, true, true), "0xC4");
     }
 
     #[test]

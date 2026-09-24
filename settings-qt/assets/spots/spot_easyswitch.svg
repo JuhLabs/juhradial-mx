@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="spot_easyswitch_mouse" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4B5364"/>
+      <stop offset="0.5" stop-color="#2A303C"/>
+      <stop offset="1" stop-color="#1B1F28"/>
+    </linearGradient>
+    <linearGradient id="spot_easyswitch_button" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3A4150"/>
+      <stop offset="1" stop-color="#1B1F28"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="256" cy="458" rx="144" ry="25" fill="#000000" fill-opacity="0.08"/>
+  <ellipse cx="256" cy="454" rx="121" ry="17" fill="#000000" fill-opacity="0.25"/>
+  <rect x="25" y="103" width="132" height="58" rx="29" fill="none" stroke="#4B5364" stroke-width="6"/>
+  <rect x="190" y="58" width="132" height="58" rx="29" fill="#ACCENT" fill-opacity="0.15" stroke="#ACCENT" stroke-opacity="0.35" stroke-width="12"/>
+  <rect x="190" y="58" width="132" height="58" rx="29" fill="#ACCENT"/>
+  <rect x="355" y="103" width="132" height="58" rx="29" fill="none" stroke="#4B5364" stroke-width="6"/>
+  <path d="M256 135c-82 0-137 51-137 154v48c0 85 54 128 137 128s137-43 137-128v-48c0-103-55-154-137-154Z" fill="url(#spot_easyswitch_mouse)"/>
+  <path d="M256 135c-82 0-137 51-137 154v9h274v-9c0-103-55-154-137-154Z" fill="#3A4150"/>
+  <path d="M256 135v163M119 298h274" fill="none" stroke="#1B1F28" stroke-width="6"/>
+  <rect x="239" y="176" width="34" height="78" rx="17" fill="url(#spot_easyswitch_button)"/>
+  <rect x="248" y="188" width="16" height="37" rx="8" fill="#4B5364"/>
+  <path d="M137 317c8 82 55 123 119 123s111-41 119-123c-21 32-61 48-119 48s-98-16-119-48Z" fill="#1B1F28" fill-opacity="0.55"/>
+  <path d="M164 197c19-30 49-46 92-46" fill="none" stroke="#E8EAED" stroke-opacity="0.10" stroke-width="8" stroke-linecap="round"/>
+</svg>

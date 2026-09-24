@@ -14,6 +14,7 @@ JuhRadial MX builds from source on every supported distribution. The fastest pat
 
 - [Quick start: the one-line installer](#quick-start-the-one-line-installer)
 - [What the installer does](#what-the-installer-does)
+- [Bazzite, Fedora Atomic and other image-based systems](#bazzite-fedora-atomic-and-other-image-based-systems)
 - [Requirements](#requirements)
 - [Manual installation per distro](#manual-installation-per-distro)
   - [Fedora](#fedora)
@@ -96,11 +97,42 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --defaul
     On Ubuntu 24.04 this happens automatically. If you are installing manually there and `cargo build` fails on the lockfile version, run the two commands above (or `rustup update stable`) and rebuild.
 
 
+## Bazzite, Fedora Atomic and other image-based systems
+
+On image-based systems `/usr` is read-only, so the installer switches to user mode by itself (it checks `/run/ostree-booted`). You can also ask for it on any distro:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash -s -- --user
+```
+
+User mode puts everything under your home folder and uses `sudo` only for the udev rules, the `uinput` module and adding you to the `input` group (on Atomic systems it first copies the `input` entry from `/usr/lib/group` into `/etc/group`, which `usermod` needs). Add `--yes` to skip the questions.
+
+| Path | Contents |
+|------|----------|
+| `~/.local/share/juhradial-mx` | Source tree (used for updates) |
+| `~/.local/bin/juhradiald`, `juhradial-mx`, `juhradial-settings` | Daemon and launchers |
+| `~/.local/share/juhradial/` | Overlay, Qt settings app, Flow module, locales, assets |
+| `~/.local/share/applications/` | `.desktop` entries (they name the launchers by full path) |
+| `~/.config/systemd/user/juhradialmx-daemon.service` | systemd user service (`ExecStart=%h/.local/bin/juhradiald`) |
+
+Runtime packages (PyQt6, Qt SVG and Declarative, GTK 4, libadwaita, python-cryptography, ydotool) are checked with `rpm -q`; the installer offers to layer the missing ones with `rpm-ostree install` (a reboot makes them active). The daemon comes prebuilt with a release; without one it is compiled with the host toolchain, or inside a Fedora toolbox through `distrobox` when the host has no compiler (Bazzite and Aurora ship distrobox).
+
+To uninstall a user-mode install:
+
+```bash
+systemctl --user disable --now juhradialmx-daemon.service
+rm -f ~/.local/bin/juhradiald ~/.local/bin/juhradial-mx ~/.local/bin/juhradial-settings
+rm -rf ~/.local/share/juhradial-mx ~/.local/share/juhradial
+rm -f ~/.local/share/applications/juhradial-mx.desktop ~/.local/share/applications/org.kde.juhradialmx.settings.desktop
+rm -f ~/.config/systemd/user/juhradialmx-daemon.service ~/.config/autostart/juhradial-mx.desktop
+sudo rm -f /etc/udev/rules.d/99-juhradialmx.rules /etc/udev/rules.d/60-ydotool-uinput.rules && sudo udevadm control --reload-rules
+```
+
 ## Requirements
 
 - A Wayland compositor (KDE Plasma 6, GNOME, Hyprland, COSMIC, Sway, niri) or X11.
 - Rust toolchain (Cargo >= 1.78) to build the daemon. The installer provides this if needed.
-- Python 3 with PyQt6 (overlay) and GTK4 + libadwaita via PyGObject (settings UI).
+- Python 3 with PyQt6 (overlay and the Qt/QML settings app; the Qt settings app needs Qt 6.9 or newer) and GTK4 + libadwaita via PyGObject (the fallback GTK settings app on older Qt).
 - XWayland, used for overlay window positioning on Wayland.
 - A supported mouse (Logitech MX Master 4 / 3S / 3 for full HID++, or any mouse in generic evdev mode). See [FAQ](faq.md) for device coverage.
 
@@ -116,7 +148,7 @@ Family also covers RHEL, CentOS Stream, Rocky, AlmaLinux, Nobara, Ultramarine.
 sudo dnf install -y \
     rust cargo \
     python3 python3-pip \
-    python3-pyqt6 qt6-qtsvg \
+    python3-pyqt6 qt6-qtsvg qt6-qtdeclarative \
     python3-gobject gtk4 libadwaita \
     gtk4-layer-shell \
     python3-cryptography \
@@ -135,7 +167,8 @@ sudo apt-get update
 sudo apt-get install -y \
     rustc cargo \
     python3 python3-pip python3-venv \
-    python3-pyqt6 python3-pyqt6.qtsvg \
+    python3-pyqt6 python3-pyqt6.qtsvg python3-pyqt6.qtqml python3-pyqt6.qtquick \
+    qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-effects \
     python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
     python3-cryptography \
     libdbus-1-dev libsystemd-dev \
@@ -159,7 +192,7 @@ Family also covers Manjaro, EndeavourOS, Garuda, Artix, CachyOS, ArcoLinux, Arch
 sudo pacman -S --noconfirm --needed \
     rust \
     python python-pip \
-    python-pyqt6 qt6-svg \
+    python-pyqt6 qt6-svg qt6-declarative \
     python-gobject gtk4 libadwaita \
     gtk4-layer-shell \
     python-cryptography \
@@ -175,7 +208,7 @@ sudo pacman -S --noconfirm --needed \
 sudo zypper install -y \
     rust cargo \
     python3 python3-pip \
-    python3-PyQt6 \
+    python3-PyQt6 qt6-declarative-imports \
     python3-gobject gtk4 libadwaita-devel \
     python3-cryptography \
     dbus-1-devel systemd-devel \

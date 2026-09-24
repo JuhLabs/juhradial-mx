@@ -5,9 +5,12 @@
 //! button divert, haptics, DPI, SmartShift, battery, and Easy-Switch.
 
 use std::collections::HashSet;
+
+use super::controls::ControlInfo;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 
 use super::constants::{blocklisted_features, features, report_type};
@@ -17,6 +20,38 @@ use super::patterns::Mx4HapticPattern;
 
 /// Software ID for HID++ message tracking
 const SOFTWARE_ID: u8 = 0x01;
+
+/// Wait for `fd` to become readable, up to `deadline`.
+///
+/// Used by the HID++ request loops (here and in the battery module) instead of
+/// fixed 10ms sleeps, so responses are picked up the moment they arrive.
+/// Returns false on timeout or poll error; retries on EINTR with the remaining
+/// budget.
+pub(crate) fn wait_readable(fd: std::os::unix::io::RawFd, deadline: std::time::Instant) -> bool {
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            return false;
+        }
+        let mut pfd = libc::pollfd {
+            fd,
+            events: libc::POLLIN,
+            revents: 0,
+        };
+        // Round up so a sub-millisecond remainder does not busy-spin.
+        let timeout_ms = remaining.as_millis().clamp(1, i32::MAX as u128) as libc::c_int;
+        let ret = unsafe { libc::poll(&mut pfd, 1, timeout_ms) };
+        if ret > 0 {
+            return true;
+        }
+        if ret == 0 {
+            return false;
+        }
+        if std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted {
+            return false;
+        }
+    }
+}
 
 /// HID++ device wrapper for communication with MX Master 4
 ///
@@ -43,6 +78,8 @@ pub struct HidppDevice {
     dpi_supported: bool,
     /// Adjustable DPI feature index (0x2201)
     dpi_feature_index: Option<u8>,
+    /// getSensorDpiList answer (connection-scoped; read on first use)
+    dpi_caps: Option<DpiCaps>,
     /// Whether SmartShift feature is available (0x2111 or 0x2110)
     smartshift_supported: bool,
     /// SmartShift feature index (0x2111 Enhanced preferred, 0x2110 legacy fallback)
@@ -67,6 +104,373 @@ pub struct HidppDevice {
     thumbwheel_feature_index: Option<u8>,
     /// Path to the hidraw device we connected to
     device_path: PathBuf,
+    /// REPROG_CONTROLS_V4 inventory from the last `list_controls()` scan
+    /// (connection-scoped; empty until scanned).
+    controls: Vec<ControlInfo>,
+    /// HID++ 1.0 error the receiver answered to our last request (`0x8F`),
+    /// cleared by the next matched reply. 0x04 means the paired device's
+    /// radio is parked (idle or on another host): see `link_parked()`.
+    last_receiver_error: Option<u8>,
+    /// HID++ 2.0 error code (`0xFF` reply) answering our last request,
+    /// cleared by the next request (set_current_host tells failure from the
+    /// silent success of a switch with it).
+    last_hidpp_error: Option<u8>,
+    /// Unit id from DEVICE_INFORMATION (0x0003): unique per physical device,
+    /// the key for per-device config overrides (`devices.0xXXXXXXXX`).
+    unit_id: Option<u32>,
+    /// Main firmware versions (0x0003 getFwInfo), read once on first ask.
+    firmware: Option<Vec<String>>,
+    /// True once `divert_buttons` saw the gesture button (CID 0x00C3) in the
+    /// REPROG_CONTROLS_V4 table (connection-scoped; read by GetCapabilities).
+    gesture_button_seen: bool,
+}
+
+/// Unit id from a `getDeviceInfo` reply (bytes 5..9, big-endian); zero means
+/// the device reports none.
+fn parse_unit_id(resp: &[u8]) -> Option<u32> {
+    if resp.len() < 9 {
+        return None;
+    }
+    let id = u32::from_be_bytes([resp[5], resp[6], resp[7], resp[8]]);
+    (id != 0).then_some(id)
+}
+
+/// A main-firmware entity from DEVICE_INFORMATION (0x0003) getFwInfo
+/// (fn 1) payload `[type, prefix(3), major, minor, build(2 BE), ..]` as
+/// "RBM 27.00.B0015" (Solaar's notation); `None` for the bootloader (type 1),
+/// hardware (2) and other entities. Layout read on an MX Master 4, which
+/// reports two main entities, RBM 27.00.B0015 and RBM 27.03.B0019.
+pub fn parse_firmware_entity(payload: &[u8]) -> Option<String> {
+    if payload.len() < 8 || payload[0] & 0x0F != 0 {
+        return None;
+    }
+    let prefix: String = payload[1..4]
+        .iter()
+        .filter(|b| b.is_ascii_alphanumeric())
+        .map(|&b| b as char)
+        .collect();
+    let build = u16::from_be_bytes([payload[6], payload[7]]);
+    let mut version = format!("{:02X}.{:02X}", payload[4], payload[5]);
+    if build != 0 {
+        version.push_str(&format!(".B{build:04X}"));
+    }
+    Some(if prefix.is_empty() { version } else { format!("{prefix} {version}") })
+}
+
+/// Device kind in a receiver pairing-information register reply (long
+/// register 0xB5): Bolt answers sub 0x50+slot with the kind in the low
+/// nibble of byte 5, Unifying answers sub 0x20+slot-1 with it in byte 11
+/// (Solaar `device_pairing_information`). 1 = keyboard, 2 = mouse.
+pub fn parse_pairing_kind(bolt: bool, reply: &[u8]) -> Option<u8> {
+    let at = if bolt { 5 } else { 11 };
+    (reply.len() > at && reply[2] == 0x83 && reply[3] == 0xB5).then(|| reply[at] & 0x0F)
+}
+
+/// One paired device in a receiver's pairing table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PairedDevice {
+    pub slot: u8,
+    /// HID++ 1.0 device kind: 1 keyboard, 2 mouse, 3 numpad, ...
+    pub kind: u8,
+    pub wpid: u16,
+    pub name: String,
+}
+
+/// A slot's pairing information (long register 0xB5): (kind, wireless PID).
+/// Bolt: sub 0x50+slot, kind in byte 5, WPID little-endian in bytes 6..7.
+/// Unifying: sub 0x20+slot-1, WPID in bytes 7..8, kind in byte 11 (Solaar
+/// `device_pairing_information`).
+pub fn parse_pairing_info(bolt: bool, reply: &[u8]) -> Option<(u8, u16)> {
+    let kind = parse_pairing_kind(bolt, reply)?;
+    let wpid = if bolt {
+        u16::from_le_bytes([*reply.get(6)?, *reply.get(7)?])
+    } else {
+        u16::from_be_bytes([*reply.get(7)?, *reply.get(8)?])
+    };
+    Some((kind, wpid))
+}
+
+/// A slot's code name (long register 0xB5). Bolt: sub 0x60+slot, length in
+/// byte 6, name from byte 7; Unifying: sub 0x40+slot-1, length in byte 5,
+/// name from byte 6 (Solaar `device_codename`).
+pub fn parse_codename(bolt: bool, reply: &[u8]) -> Option<String> {
+    if reply.len() < 7 || reply[2] != 0x83 || reply[3] != 0xB5 {
+        return None;
+    }
+    let (len_at, from) = if bolt { (6, 7) } else { (5, 6) };
+    let len = usize::from(*reply.get(len_at)?).min(14);
+    let bytes = reply.get(from..from + len)?;
+    let name: String = bytes.iter().take_while(|&&b| b != 0).map(|&b| b as char).collect();
+    (!name.trim().is_empty()).then(|| name.trim().to_string())
+}
+
+/// 0x1982 BACKLIGHT2 state, from getBacklightConfig (fn 0) and, when the
+/// feature version has it, getBacklightInfo (fn 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BacklightState {
+    pub enabled: bool,
+    /// Raw options byte (bits 3-4 = mode).
+    pub options: u8,
+    /// Capability byte: 0x08 Automatic, 0x10 temporary manual, 0x20 Manual.
+    pub caps: u8,
+    /// 1 Automatic (light sensor), 2 set by the keyboard's keys, 3 Manual.
+    pub mode: u8,
+    /// Level the config holds (what a Manual write keeps).
+    pub stored_level: u8,
+    /// Stay-on durations in 5 s units: hands away, hands near, on a cable.
+    pub dho: u16,
+    pub dhi: u16,
+    pub dpow: u16,
+    pub levels: u8,
+    /// Level lit right now (fn 2), else the stored one.
+    pub level: u8,
+    /// fn 2 status: 0 off by software, 1 off at critical battery, 2 automatic,
+    /// 3 automatic but the room is bright, 4 set by the keys, 5 manual.
+    pub status: Option<u8>,
+}
+
+impl BacklightState {
+    pub fn automatic_supported(&self) -> bool {
+        self.caps & 0x08 != 0
+    }
+
+    /// The setBacklightConfig (fn 1) payload `[enabled, options, effect 0xFF
+    /// (unchanged), level, dho, dhi, dpow]` (u16 little-endian). Mode 2
+    /// cannot be written and goes back as Automatic; the level only counts
+    /// in Manual, so other modes send 0 (Solaar).
+    pub fn config_params(&self) -> [u8; 10] {
+        let mode = if self.mode == 2 { 1 } else { self.mode };
+        let options = (self.options & !0x18) | (mode << 3);
+        let level = if mode == 3 { self.stored_level } else { 0 };
+        let [ho0, ho1] = self.dho.to_le_bytes();
+        let [hi0, hi1] = self.dhi.to_le_bytes();
+        let [pw0, pw1] = self.dpow.to_le_bytes();
+        [self.enabled as u8, options, 0xFF, level, ho0, ho1, hi0, hi1, pw0, pw1]
+    }
+}
+
+/// Decode getBacklightConfig (`[enabled, options, caps, effects(2), level,
+/// dho(2), dhi(2), dpow(2)]`, little-endian) plus the optional getBacklightInfo
+/// (`[levels, live level, status, ..]`).
+pub fn parse_backlight(config: &[u8], info: Option<&[u8]>) -> Option<BacklightState> {
+    if config.len() < 12 {
+        return None;
+    }
+    let stored_level = config[5];
+    Some(BacklightState {
+        enabled: config[0] != 0,
+        options: config[1],
+        caps: config[2],
+        mode: (config[1] >> 3) & 0x03,
+        stored_level,
+        dho: u16::from_le_bytes([config[6], config[7]]),
+        dhi: u16::from_le_bytes([config[8], config[9]]),
+        dpow: u16::from_le_bytes([config[10], config[11]]),
+        levels: info
+            .and_then(|i| i.first().copied())
+            .filter(|n| (2..=16).contains(n))
+            .unwrap_or(8),
+        level: info.and_then(|i| i.get(1).copied()).unwrap_or(stored_level),
+        status: info.and_then(|i| i.get(2).copied()),
+    })
+}
+
+/// Seconds to 0x1982 duration units (5 s, 1..=1440, i.e. 5 s to 2 h).
+pub fn backlight_duration_units(seconds: u16) -> u16 {
+    seconds.div_ceil(5).clamp(1, 1440)
+}
+
+/// One Easy-Switch slot from HOSTS_INFO (0x1815 getHostInfo): whether a
+/// computer is paired there, how (bus type), and its name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostSlot {
+    /// 0x1815 status byte: 1 = a computer is paired in this slot.
+    pub status: u8,
+    /// 0x1815 bus type: 1 = USB receiver (Unifying/Bolt), 2 = Bluetooth...
+    pub bus: u8,
+    pub name: String,
+}
+
+impl HostSlot {
+    pub fn paired(&self) -> bool {
+        self.status == 1
+    }
+}
+
+/// 0x1815 fn0 getFeatureInfo payload: (capabilities, host count, current
+/// host). The count is byte 2: byte 1 is the descriptor capability mask,
+/// which older code read as the count (its "e.g. 8" slots).
+pub fn parse_hosts_info(payload: &[u8]) -> Option<(u8, u8, u8)> {
+    Some((*payload.first()?, *payload.get(2)?, *payload.get(3)?))
+}
+
+/// 0x1815 fn1 getHostInfo payload: (status, bus type, name length).
+pub fn parse_host_descriptor(payload: &[u8]) -> Option<(u8, u8, usize)> {
+    Some((*payload.get(1)?, *payload.get(2)?, *payload.get(4)? as usize))
+}
+
+/// What getSensorDpiList (0x2201 fn 1) reports for sensor 0: the settable
+/// range and its step, or the discrete values of a list-form device.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DpiCaps {
+    pub min: u16,
+    pub max: u16,
+    /// DPI between settable values; 0 when the device lists discrete values.
+    pub step: u16,
+    /// The settable values of a list-form device (empty for a range).
+    pub values: Vec<u16>,
+    /// The sensor's factory DPI (getSensorDpi defaultDpi; 0 = not reported).
+    pub default: u16,
+}
+
+impl DpiCaps {
+    /// Parse the DPI words of a getSensorDpiList reply (the payload after
+    /// the sensor index): big-endian values, a hyphen word `0xE000 | step`
+    /// between the two ends of a range, `0x0000` ends the list.
+    pub fn parse(words: &[u8]) -> Option<Self> {
+        let mut values = Vec::new();
+        let mut step = 0;
+        for w in words.chunks_exact(2) {
+            let v = u16::from_be_bytes([w[0], w[1]]);
+            if v == 0 {
+                break;
+            }
+            if v >> 13 == 0b111 {
+                step = v & 0x1FFF;
+                continue;
+            }
+            values.push(v);
+        }
+        let (min, max) = (*values.iter().min()?, *values.iter().max()?);
+        if step > 0 {
+            values.clear();
+        }
+        Some(Self { min, max, step, values, default: 0 })
+    }
+
+    /// The settable DPI nearest to `dpi`.
+    pub fn snap(&self, dpi: u16) -> u16 {
+        let dpi = dpi.clamp(self.min, self.max);
+        if self.step > 0 {
+            let (min, step) = (u32::from(self.min), u32::from(self.step));
+            let n = (u32::from(dpi) - min + step / 2) / step;
+            let on_grid = (min + n * step).min(u32::from(self.max)) as u16;
+            // the top of a range need not sit on the grid
+            return if self.max - dpi < dpi.abs_diff(on_grid) { self.max } else { on_grid };
+        }
+        self.values.iter().copied().min_by_key(|v| v.abs_diff(dpi)).unwrap_or(dpi)
+    }
+}
+
+/// The Haptic Sense Panel's press force (0x19C0 button 0): raw sensor units,
+/// higher = firmer. `changeable` is capability bit 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForceSense {
+    pub changeable: bool,
+    pub min: u16,
+    pub max: u16,
+    pub default: u16,
+    pub current: u16,
+}
+
+impl ForceSense {
+    /// From the getButtonInfo payload (caps, default, max, min) and the
+    /// getButtonConfig payload (current), all big-endian u16.
+    pub fn parse(info: &[u8], current: &[u8]) -> Option<Self> {
+        let word = |b: &[u8], i: usize| Some(u16::from_be_bytes([*b.get(i)?, *b.get(i + 1)?]));
+        let (min, max) = (word(info, 6)?, word(info, 4)?);
+        if max <= min {
+            return None;
+        }
+        Some(Self {
+            changeable: word(info, 0)? & 0x0001 != 0,
+            default: word(info, 2)?,
+            max,
+            min,
+            current: word(current, 0)?,
+        })
+    }
+
+    /// The raw value `pct` percent of the way from min to max.
+    pub fn at_percent(&self, pct: u8) -> u16 {
+        let span = u32::from(self.max - self.min);
+        (u32::from(self.min) + span * u32::from(pct.min(100)) / 100) as u16
+    }
+
+    /// Where `raw` sits in the range, in percent.
+    pub fn percent_of(&self, raw: u16) -> u8 {
+        let span = u32::from(self.max - self.min);
+        ((u32::from(raw.clamp(self.min, self.max) - self.min) * 100 + span / 2) / span) as u8
+    }
+}
+
+/// Receiver error "connection request failed": the device is paired but not
+/// linked right now (radio parked after idling, or switched to another host).
+pub const RECEIVER_ERR_CONNECT_FAIL: u8 = 0x04;
+
+/// HID++ 1.0 receiver error (`0x8F`) answering one of our requests. The
+/// receiver speaks for a paired device that cannot answer; the code sits at
+/// byte 5 (0x04 connection failed, 0x09 resource error, ...).
+/// The software id for our next request: 2..=13 in turn (0 marks device
+/// notifications, 1 is the kernel's hid-logitech-hidpp driver's, 0x0E our
+/// haptic play's). Requests in flight at the same time on the same device (the
+/// battery poll and a reconnect's feature discovery on another handle, or the
+/// kernel's own) then never take each other's replies: a ROOT getFeature reply
+/// does not say which feature it answers.
+fn next_software_id() -> u8 {
+    static NEXT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 12 + 2
+}
+
+/// Whether an error report (HID++ 2.0 `0xFF` or receiver `0x8F`) answers the
+/// request with this feature index and function/software-id byte: both echo
+/// them. Every hidraw fd sees every report, so another program's failed
+/// request to the same device must not end ours.
+fn answers_request(response: &[u8], feature_index: u8, fn_sw: u8) -> bool {
+    response.len() >= 5 && response[3] == feature_index && response[4] == fn_sw
+}
+
+fn receiver_error_code(response: &[u8], device_index: u8) -> Option<u8> {
+    if response.len() >= 6
+        && (response[0] == report_type::SHORT || response[0] == report_type::LONG)
+        && response[1] == device_index
+        && response[2] == 0x8F
+    {
+        Some(response[5])
+    } else {
+        None
+    }
+}
+
+/// UNIFIED_BATTERY (0x1004) percent: the reported state of charge, or an
+/// estimate from the level flags (critical 0x01, low 0x02, good 0x04, full
+/// 0x08) for firmware that reports levels only.
+fn unified_battery_percent(state_of_charge: u8, level_flags: u8) -> u8 {
+    if state_of_charge > 0 {
+        return state_of_charge;
+    }
+    if level_flags & 0x08 != 0 {
+        90
+    } else if level_flags & 0x04 != 0 {
+        55
+    } else if level_flags & 0x02 != 0 {
+        20
+    } else if level_flags & 0x01 != 0 {
+        5
+    } else {
+        0
+    }
+}
+
+/// UNIFIED_BATTERY (0x1004) getStatus payload `[soc, level, status,
+/// external power]` (HID++ byte 4 on): (percent, charging). The charging
+/// status is payload[2], the byte the battery event carries too; payload[3]
+/// only says whether a cable is in (captured MX Keys S: `64 08 03 01` =
+/// 100 %, full, on USB power, not charging).
+pub fn decode_unified_status(payload: &[u8]) -> Option<(u8, bool)> {
+    let (soc, level, status) = (*payload.first()?, *payload.get(1)?, *payload.get(2)?);
+    let charging = super::notifications::battery_status_label(status) == "charging";
+    Some((unified_battery_percent(soc, level), charging))
 }
 
 trait ButtonDivertIo {
@@ -134,6 +538,21 @@ fn set_button_diverts_with_io(
     diverted
 }
 
+/// Enumerate every control with one REPROG_CONTROLS_V4 scan (getCount, then
+/// getCidInfo per index). Replies that fail to decode are skipped.
+fn list_controls_with_io(io: &mut impl ButtonDivertIo, feature_index: u8) -> Vec<ControlInfo> {
+    let count = match io.short_request(feature_index, 0x00, &[]) {
+        Some(resp) if resp.len() >= 5 => resp[4],
+        _ => return Vec::new(),
+    };
+    (0..count)
+        .filter_map(|index| {
+            io.short_request(feature_index, 0x01, &[index, 0, 0])
+                .and_then(|resp| ControlInfo::from_report(&resp))
+        })
+        .collect()
+}
+
 impl HidppDevice {
     /// Find a Logitech hidraw device suitable for HID++ communication
     ///
@@ -161,6 +580,8 @@ impl HidppDevice {
             let uevent_path = path.join("device/uevent");
 
             if let Ok(uevent) = std::fs::read_to_string(&uevent_path) {
+                // MX Keypad has its own worker and must not receive mouse writes.
+                if mx_keypad::matches_device(&uevent) { continue; }
                 // Check for Logitech vendor ID (046D)
                 if !uevent.contains("046D") && !uevent.contains("046d") {
                     continue;
@@ -169,7 +590,7 @@ impl HidppDevice {
                 // HID++ lives on the vendor-specific HID interface (input2 on
                 // both Bolt and Unifying receivers; sometimes input1 on direct
                 // USB / Bluetooth). Receiver hidraw nodes for input0/input1 are
-                // boot mouse / consumer interfaces — pinging them never works
+                // boot mouse / consumer interfaces, pinging them never works
                 // and just stalls the receiver firmware for the timeout window
                 // (200ms × 6 device indices = 1.2s wasted per non-HID++ node).
                 let is_input2 = uevent.contains("input2");
@@ -284,7 +705,7 @@ impl HidppDevice {
                             "Permission denied opening hidraw device. Node should be root:input \
                              mode 0660; this daemon's user must be in the 'input' group. Run \
                              'sudo usermod -aG input $USER' then REBOOT (or log out and back in) \
-                             so the systemd --user manager inherits the group — a session that \
+                             so the systemd --user manager inherits the group, a session that \
                              predates the group change cannot access the device (issue #52)."
                         );
                     } else {
@@ -301,7 +722,7 @@ impl HidppDevice {
             // First pass: short ping per slot. If nothing answers on this
             // candidate, the receiver may be in deep-sleep (post-suspend, or
             // mouse idle on its radio). Send a wake stimulus and retry once
-            // before giving up — the previous "replug to make it work"
+            // before giving up, the previous "replug to make it work"
             // symptom was a sleeping receiver that never got woken.
             let mut woke_attempted = false;
             let mut pass = 0u8;
@@ -325,6 +746,7 @@ impl HidppDevice {
                     mx4_haptic_feature_index: None,
                     dpi_supported: false,
                     dpi_feature_index: None,
+                    dpi_caps: None,
                     smartshift_supported: false,
                     smartshift_feature_index: None,
                     smartshift_is_enhanced: false,
@@ -335,10 +757,16 @@ impl HidppDevice {
                     reprog_controls_feature_index: None,
                     thumbwheel_supported: false,
                     thumbwheel_feature_index: None,
+                    controls: Vec::new(),
+                    last_receiver_error: None,
+                    last_hidpp_error: None,
+                    unit_id: None,
+                    firmware: None,
+                    gesture_button_seen: false,
                     device_path: device_path.clone(),
                 };
 
-                // Try HID++ validation — uses fast 200ms timeout per slot.
+                // Try HID++ validation, uses fast 200ms timeout per slot.
                 // Responsive devices reply within ~20ms; empty slots never reply.
                 // No retry/sleep: the first ping already wakes the radio, and a
                 // second attempt just adds latency that can stall the receiver.
@@ -369,10 +797,12 @@ impl HidppDevice {
                     continue;
                 }
 
+                hidpp.read_unit_id();
                 tracing::info!(
                     path = %device_path.display(),
                     device_index,
                     connection = %connection_type,
+                    unit_id = hidpp.unit_id.map(|u| format!("0x{:08X}", u)).unwrap_or_default(),
                     haptic_supported = hidpp.haptic_supported,
                     mx4_haptic_supported = hidpp.mx4_haptic_supported,
                     reprog_controls = hidpp.reprog_controls_supported,
@@ -391,10 +821,10 @@ impl HidppDevice {
                 pass = 1;
                 tracing::debug!(
                     path = %device_path.display(),
-                    "No slots responded — sending wake ping and retrying once"
+                    "No slots responded, sending wake ping and retrying once"
                 );
                 if let Ok(mut wake_fd) = device.try_clone() {
-                    // Broadcast ping on slot 0xFF — receivers route this
+                    // Broadcast ping on slot 0xFF, receivers route this
                     // to all paired devices and start their radios.
                     let mut wake = [0u8; 7];
                     wake[0] = report_type::SHORT;
@@ -415,6 +845,344 @@ impl HidppDevice {
         }
 
         tracing::debug!("No valid HID++ 2.0 device found among candidates");
+        None
+    }
+
+    /// Device index of the first KEYBOARD paired to the receiver at
+    /// `device_path`, read from the receiver's own pairing table.
+    ///
+    /// Sends the HID++ 1.0 "fake device arrival" sequence (enable wireless
+    /// notifications on register 0x00, re-announce via register 0x02) and
+    /// parses the 0x41 connection notifications it triggers. The receiver
+    /// answers without a device radio round-trip, so this finds a keyboard
+    /// even while it is deep-asleep - the state every ping-based scan misses.
+    pub fn find_keyboard_index_on_receiver(device_path: &std::path::Path) -> Option<u8> {
+        let mut device = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(device_path)
+            .ok()?;
+
+        device
+            .write_all(&[0x10, 0xFF, 0x80, 0x00, 0x00, 0x01, 0x00])
+            .ok()?;
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        device
+            .write_all(&[0x10, 0xFF, 0x80, 0x02, 0x02, 0x00, 0x00])
+            .ok()?;
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
+        let fd = device.as_raw_fd();
+        let mut buf = [0u8; 32];
+        while wait_readable(fd, deadline) {
+            let n = match device.read(&mut buf) {
+                Ok(n) => n,
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+                Err(_) => break,
+            };
+            // 0x41 connection notification: byte 1 = device index, byte 4 low
+            // nibble = device kind (0x01 = keyboard).
+            if n >= 5 && buf[0] == 0x10 && buf[2] == 0x41 {
+                tracing::debug!(
+                    path = %device_path.display(),
+                    device_index = buf[1],
+                    kind = buf[4] & 0x0F,
+                    "Fake-arrival notification"
+                );
+                if buf[4] & 0x0F == 0x01 {
+                    return Some(buf[1]);
+                }
+            }
+        }
+        tracing::debug!(path = %device_path.display(), "Fake-arrival: no keyboard announced");
+        None
+    }
+
+    /// Whether any connected receiver has a keyboard in its pairing table.
+    ///
+    /// Presence, not reachability: stays true while the keyboard's radio
+    /// sleeps, which is exactly when `open_keyboard` cannot validate it.
+    /// Direct-Bluetooth keyboards are not covered (they validate normally).
+    pub fn any_paired_keyboard() -> bool {
+        Self::find_paired_keyboard().is_some()
+    }
+
+    /// The receiver hidraw node and slot holding a paired keyboard, from the
+    /// receivers' pairing tables (answers while the keyboard sleeps).
+    /// Receiver node and slot of a paired keyboard, read PASSIVELY from the
+    /// receivers' pairing-information registers (long register 0xB5, see
+    /// `parse_pairing_kind`). The receiver answers for sleeping devices too,
+    /// and unlike fake-arrival it sends no 0x41 notices, each of which would
+    /// flag a divert refresh on the mouse. Verified on two Bolt receivers
+    /// (2026-09-24): slot 1 `11 ff 83 b5 51 01 78 b3 ..` = keyboard WPID
+    /// B378 (MX Keys S), empty slots answer `10 ff 8f 83 b5 08 00` at once.
+    pub fn find_paired_keyboard_passive() -> Option<(PathBuf, u8)> {
+        Self::find_all_devices().into_iter().find_map(|(path, ct)| {
+            let bolt = match ct {
+                ConnectionType::Bolt => true,
+                ConnectionType::Unifying => false,
+                _ => return None,
+            };
+            Self::pairing_table_keyboard(&path, bolt).map(|slot| (path, slot))
+        })
+    }
+
+    fn pairing_table_keyboard(device_path: &std::path::Path, bolt: bool) -> Option<u8> {
+        let mut device = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(device_path)
+            .ok()?;
+        let fd = device.as_raw_fd();
+        let mut buf = [0u8; 32];
+        for slot in 1..=6u8 {
+            let sub = if bolt { 0x50 + slot } else { 0x20 + slot - 1 };
+            device.write_all(&[0x10, 0xFF, 0x83, 0xB5, sub, 0x00, 0x00]).ok()?;
+            let deadline = std::time::Instant::now() + std::time::Duration::from_millis(300);
+            let mut answered = false;
+            while wait_readable(fd, deadline) {
+                let n = match device.read(&mut buf) {
+                    Ok(n) => n,
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+                    Err(_) => return None,
+                };
+                let reply = &buf[..n];
+                if n < 5 || reply[1] != 0xFF {
+                    continue;
+                }
+                if reply[2] == 0x8F && reply[3] == 0x83 {
+                    answered = true; // empty slot
+                    break;
+                }
+                if reply[2] == 0x83 && reply[3] == 0xB5 && reply[4] == sub {
+                    if parse_pairing_kind(bolt, reply) == Some(0x01) {
+                        return Some(slot);
+                    }
+                    answered = true;
+                    break;
+                }
+            }
+            if !answered {
+                // This receiver does not answer register reads: callers
+                // fall back to fake-arrival.
+                return None;
+            }
+        }
+        None
+    }
+
+    /// Every Bolt and Unifying receiver with its paired devices, read
+    /// passively from the pairing registers (answers for sleeping devices,
+    /// sends no connection notices). A receiver that does not answer
+    /// register reads is listed without devices.
+    pub fn list_receivers() -> Vec<(PathBuf, bool, Vec<PairedDevice>)> {
+        Self::find_all_devices()
+            .into_iter()
+            .filter_map(|(path, ct)| {
+                let bolt = match ct {
+                    ConnectionType::Bolt => true,
+                    ConnectionType::Unifying => false,
+                    _ => return None,
+                };
+                let devices = Self::pairing_table(&path, bolt).unwrap_or_default();
+                Some((path, bolt, devices))
+            })
+            .collect()
+    }
+
+    /// One long-register 0xB5 read: the reply for `sub`, `Some(None)` for an
+    /// empty slot (error 0x8F), `None` when the receiver does not answer.
+    fn read_receiver_info(device: &mut std::fs::File, sub: u8, param: u8) -> Option<Option<Vec<u8>>> {
+        let fd = device.as_raw_fd();
+        device.write_all(&[0x10, 0xFF, 0x83, 0xB5, sub, param, 0x00]).ok()?;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(300);
+        let mut buf = [0u8; 32];
+        while wait_readable(fd, deadline) {
+            let n = match device.read(&mut buf) {
+                Ok(n) => n,
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+                Err(_) => return None,
+            };
+            let reply = &buf[..n];
+            if n < 5 || reply[1] != 0xFF {
+                continue;
+            }
+            if reply[2] == 0x8F && reply[3] == 0x83 && reply[4] == 0xB5 {
+                return Some(None);
+            }
+            if reply[2] == 0x83 && reply[3] == 0xB5 && reply[4] == sub {
+                return Some(Some(reply.to_vec()));
+            }
+        }
+        None
+    }
+
+    fn pairing_table(device_path: &std::path::Path, bolt: bool) -> Option<Vec<PairedDevice>> {
+        let mut device = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(device_path)
+            .ok()?;
+        let mut out = Vec::new();
+        for slot in 1..=6u8 {
+            let info_sub = if bolt { 0x50 + slot } else { 0x20 + slot - 1 };
+            let Some(info) = Self::read_receiver_info(&mut device, info_sub, 0x00)? else { continue };
+            let Some((kind, wpid)) = parse_pairing_info(bolt, &info) else { continue };
+            // Bolt answers the name read only with part 1 asked for (verified
+            // on hardware: "MX Master 4", "MX KEYS S"); Unifying takes none.
+            let (name_sub, part) = if bolt { (0x60 + slot, 0x01) } else { (0x40 + slot - 1, 0x00) };
+            let name = Self::read_receiver_info(&mut device, name_sub, part)
+                .flatten()
+                .and_then(|r| parse_codename(bolt, &r))
+                .unwrap_or_default();
+            out.push(PairedDevice { slot, kind, wpid, name });
+        }
+        Some(out)
+    }
+
+    pub fn find_paired_keyboard() -> Option<(PathBuf, u8)> {
+        Self::find_all_devices()
+            .into_iter()
+            .filter(|(_, ct)| matches!(ct, ConnectionType::Bolt | ConnectionType::Unifying))
+            .find_map(|(path, _)| Self::find_keyboard_index_on_receiver(&path).map(|idx| (path, idx)))
+    }
+
+    /// Open the first HID++ 2.0 KEYBOARD (MX Keys S and friends).
+    ///
+    /// BETA / additive: this mirrors [`Self::open`] but accepts a keyboard
+    /// instead of a mouse, and is the ONLY entry point that does so. The mouse
+    /// `open()` path filters on DPI support (0x2201); keyboards never report
+    /// DPI, so here a keyboard is a validated HID++ 2.0 device that has NO DPI
+    /// but does expose a battery feature (every MX keyboard does). It is a
+    /// completely separate function, so the existing mouse path is unchanged.
+    ///
+    /// Returns `None` when no compatible keyboard is found. Conservative by
+    /// construction: it only READS during discovery (ping + feature enumerate).
+    ///
+    /// LIMITATION: HID++ validation needs the keyboard's radio awake, and an
+    /// idle MX Keys parks its radio within seconds and ignores pings until a
+    /// key press wakes it. Use [`Self::any_paired_keyboard`] for presence.
+    pub fn open_keyboard() -> Option<Self> {
+        let candidates = Self::find_all_devices();
+        if candidates.is_empty() {
+            tracing::debug!("No Logitech HID++ devices found (keyboard scan)");
+            return None;
+        }
+
+        for (device_path, connection_type) in candidates {
+            let mut designated: Option<u8> = None;
+            let indices_to_try: Vec<u8> = match connection_type {
+                ConnectionType::Usb => vec![0xFF],
+                ConnectionType::Bluetooth => vec![0xFF],
+                ConnectionType::Bolt | ConnectionType::Unifying => {
+                    // Ask the receiver's pairing table which slot holds a
+                    // keyboard (answers even while the keyboard sleeps) and
+                    // probe that slot first; keep the exhaustive scan as
+                    // fallback for receivers that ignore fake-arrival.
+                    let mut order: Vec<u8> = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06];
+                    if let Some(kb) = Self::find_keyboard_index_on_receiver(&device_path) {
+                        designated = Some(kb);
+                        order.retain(|i| *i != kb);
+                        order.insert(0, kb);
+                    }
+                    order
+                }
+            };
+
+            let device = match OpenOptions::new()
+                .read(true)
+                .write(true)
+                .custom_flags(libc::O_NONBLOCK)
+                .open(&device_path)
+            {
+                Ok(f) => f,
+                Err(e) => {
+                    tracing::debug!(path = %device_path.display(), error = %e, "Failed to open hidraw (keyboard scan)");
+                    continue;
+                }
+            };
+
+            for device_index in &indices_to_try {
+                let device_clone = match device.try_clone() {
+                    Ok(d) => d,
+                    Err(_) => continue,
+                };
+
+                let mut hidpp = Self {
+                    device: device_clone,
+                    device_index: *device_index,
+                    connection_type,
+                    feature_table: std::collections::HashMap::new(),
+                    haptic_supported: false,
+                    haptic_feature_index: None,
+                    mx4_haptic_supported: false,
+                    mx4_haptic_feature_index: None,
+                    dpi_supported: false,
+                    dpi_feature_index: None,
+                    dpi_caps: None,
+                    smartshift_supported: false,
+                    smartshift_feature_index: None,
+                    smartshift_is_enhanced: false,
+                    battery_supported: false,
+                    battery_feature_index: None,
+                    is_unified_battery: false,
+                    reprog_controls_supported: false,
+                    reprog_controls_feature_index: None,
+                    thumbwheel_supported: false,
+                    thumbwheel_feature_index: None,
+                    controls: Vec::new(),
+                    last_receiver_error: None,
+                    last_hidpp_error: None,
+                    unit_id: None,
+                    firmware: None,
+                    gesture_button_seen: false,
+                    device_path: device_path.clone(),
+                };
+
+                // The pairing-table-designated keyboard slot gets a 1s budget:
+                // a dozing keyboard re-establishes its radio link before its
+                // first answer (hundreds of ms), and concurrent receiver
+                // traffic stretches that further. Speculative slots keep the
+                // fast budget so empty receivers stay cheap to scan.
+                let attempts = if designated == Some(*device_index) { 100 } else { 20 };
+                if !hidpp.validate_hidpp20_with_attempts(attempts) {
+                    continue;
+                }
+
+                hidpp.enumerate_features();
+
+                // Keyboard signature: HID++ 2.0, battery present, NO DPI sensor.
+                // (Mice report DPI 0x2201; keyboards never do, same heuristic the
+                // mouse `open()` uses to skip keyboards, inverted here.)
+                if hidpp.dpi_supported {
+                    tracing::debug!(
+                        path = %device_path.display(),
+                        device_index,
+                        "HID++ device has DPI (a mouse) - not a keyboard, skipping"
+                    );
+                    continue;
+                }
+                if !hidpp.battery_supported {
+                    continue;
+                }
+
+                tracing::info!(
+                    path = %device_path.display(),
+                    device_index,
+                    connection = %connection_type,
+                    backlight = hidpp.feature_table.contains_key(&features::BACKLIGHT2),
+                    reprog_controls = hidpp.reprog_controls_supported,
+                    "Connected to HID++ keyboard (BETA)"
+                );
+
+                return Some(hidpp);
+            }
+        }
+
+        tracing::debug!("No HID++ keyboard found among candidates");
         None
     }
 
@@ -441,12 +1209,13 @@ impl HidppDevice {
 
     /// Send a HID++ request with a custom max attempt count.
     ///
-    /// Each attempt polls at 10ms intervals. Use a lower max_attempts for
-    /// fast-fail scenarios (e.g., device discovery pings) to avoid
-    /// hammering receivers with long blocking waits on empty slots.
+    /// Each attempt is worth 10ms of timeout budget (the fd is waited on with
+    /// poll(2), so responses are handled as soon as they arrive). Use a lower
+    /// max_attempts for fast-fail scenarios (e.g., device discovery pings) to
+    /// avoid hammering receivers with long blocking waits on empty slots.
     fn hidpp_request_with_timeout(&mut self, feature_index: u8, function: u8, params: &[u8], max_attempts: u32) -> Option<Vec<u8>> {
         // Bluetooth-connected devices do not expose the short (0x10) HID++
-        // report — their HID descriptor only contains the long (0x11) report.
+        // report, their HID descriptor only contains the long (0x11) report.
         // A short write there is dropped and never answered, so route every
         // request through the long path. Makes HID++ validation, feature
         // enumeration and haptics work over Bluetooth.
@@ -462,7 +1231,8 @@ impl HidppDevice {
         request[0] = report_type::SHORT;
         request[1] = self.device_index;
         request[2] = feature_index;
-        request[3] = (function << 4) | SOFTWARE_ID;
+        let sw_id = next_software_id();
+        request[3] = (function << 4) | sw_id;
 
         // Copy params (up to 3 bytes for short report)
         let param_len = params.len().min(3);
@@ -481,9 +1251,12 @@ impl HidppDevice {
             return None;
         }
 
-        // Read response with timeout (non-blocking, so we poll)
+        // Read response with timeout: wait on poll(2) instead of sleeping in
+        // fixed 10ms steps (same total budget, ~5ms less latency per round
+        // trip, and shorter mutex hold windows upstream).
         let mut response = [0u8; 20];
-        let mut attempts = 0u32;
+        let deadline = std::time::Instant::now()
+            + std::time::Duration::from_millis(max_attempts as u64 * 10);
 
         loop {
             match self.device.read(&mut response) {
@@ -505,14 +1278,20 @@ impl HidppDevice {
                         if response[1] == self.device_index
                             && response[2] == feature_index
                             && resp_function == function
-                            && resp_sw_id == SOFTWARE_ID
+                            && resp_sw_id == sw_id
                         {
                             tracing::debug!("HID++ request matched! Returning response");
+                            self.last_receiver_error = None;
                             return Some(response[..len].to_vec());
                         }
                         // Check for error response (0xFF feature_index indicates error)
                         // Format: [report_type, device_idx, 0xFF, orig_feature_idx, orig_fn_sw, error_code, ...]
-                        if response[2] == 0xFF {
+                        // Errors for another device on the same receiver
+                        // (a pairing-table read, the keyboard) are not ours.
+                        if response[1] == self.device_index
+                            && response[2] == 0xFF
+                            && answers_request(&response[..len], feature_index, (function << 4) | sw_id)
+                        {
                             let error_code = response[5];
                             let error_msg = match error_code {
                                 0x00 => "No error",
@@ -533,10 +1312,19 @@ impl HidppDevice {
                                 "HID++ error response: {:02X?}",
                                 &response[..len]
                             );
+                            self.last_hidpp_error = Some(error_code);
                             return None;
                         }
-                        // Legacy error check (0x8F)
-                        if response[2] == 0x8F {
+                        // HID++ 1.0 receiver error (0x8F): the paired device
+                        // cannot answer (0x04 = radio parked). Remembered so
+                        // callers can tell "asleep" from a real failure.
+                        if response[1] == self.device_index
+                            && response[2] == 0x8F
+                            && answers_request(&response[..len], feature_index, (function << 4) | sw_id)
+                        {
+                            if let Some(code) = receiver_error_code(&response[..len], self.device_index) {
+                                self.last_receiver_error = Some(code);
+                            }
                             tracing::debug!("HID++ legacy error response: {:02X?}", &response[..len]);
                             return None;
                         }
@@ -545,7 +1333,7 @@ impl HidppDevice {
                             expected_dev = self.device_index,
                             expected_feat = feature_index,
                             expected_fn = function,
-                            expected_sw = SOFTWARE_ID,
+                            expected_sw = sw_id,
                             got_dev = response[1],
                             got_feat = response[2],
                             got_fn = resp_function,
@@ -558,7 +1346,13 @@ impl HidppDevice {
                     // Short read, continue
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // No data yet
+                    // No data yet - block until readable or out of budget
+                    if !wait_readable(self.device.as_raw_fd(), deadline) {
+                        tracing::debug!(feature_index, function, max_attempts, "HID++ request timeout");
+                        return None;
+                    }
+                    // Data ready: read it before re-checking the deadline
+                    continue;
                 }
                 Err(e) => {
                     tracing::debug!(error = %e, "Error reading HID++ response");
@@ -566,13 +1360,10 @@ impl HidppDevice {
                 }
             }
 
-            attempts += 1;
-            if attempts > max_attempts {
+            if std::time::Instant::now() >= deadline {
                 tracing::debug!(feature_index, function, max_attempts, "HID++ request timeout");
                 return None;
             }
-
-            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
 
@@ -616,7 +1407,8 @@ impl HidppDevice {
         request[0] = report_type::LONG;
         request[1] = self.device_index;
         request[2] = feature_index;
-        request[3] = (function << 4) | SOFTWARE_ID;
+        let sw_id = next_software_id();
+        request[3] = (function << 4) | sw_id;
 
         // Copy params (up to 16 bytes for long report)
         let param_len = params.len().min(16);
@@ -635,9 +1427,10 @@ impl HidppDevice {
             return None;
         }
 
-        // Read response with timeout (same as hidpp_request)
+        // Read response with timeout (same poll(2) approach as hidpp_request,
+        // 1000ms budget matching the previous 100 x 10ms attempts)
         let mut response = [0u8; 20];
-        let mut attempts = 0;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1000);
 
         loop {
             match self.device.read(&mut response) {
@@ -650,21 +1443,23 @@ impl HidppDevice {
                         && response[1] == self.device_index
                         && response[2] == feature_index
                         && resp_function == function
-                        && resp_sw_id == SOFTWARE_ID
+                        && resp_sw_id == sw_id
                     {
                         tracing::debug!("HID++ long request matched: {:02X?}", &response[..len]);
+                        self.last_receiver_error = None;
                         return Some(response[..len].to_vec());
                     }
 
                     // Check for error response. Gate on the report type and
                     // device index first: on Bluetooth the same hidraw fd also
                     // carries 0x02 mouse-motion reports where byte 2 is
-                    // coordinate data — an ungated 0xFF check misparses pointer
+                    // coordinate data, an ungated 0xFF check misparses pointer
                     // motion as a HID++ error (feature enumeration then fails
                     // whenever the mouse is moving).
                     if (response[0] == report_type::SHORT || response[0] == report_type::LONG)
                         && response[1] == self.device_index
                         && response[2] == 0xFF
+                        && answers_request(&response[..len], feature_index, (function << 4) | sw_id)
                     {
                         let error_code = response[5];
                         tracing::warn!(
@@ -674,22 +1469,37 @@ impl HidppDevice {
                         );
                         return None;
                     }
+                    // Receiver error (0x8F) for our device: fail now instead
+                    // of waiting out the 1 s deadline (a parked mouse made
+                    // every setCidReporting call cost a full second).
+                    if let Some(code) = receiver_error_code(&response[..len], self.device_index)
+                        .filter(|_| answers_request(&response[..len], feature_index, (function << 4) | sw_id))
+                    {
+                        self.last_receiver_error = Some(code);
+                        tracing::debug!(code, "HID++ receiver error to long request: {:02X?}", &response[..len]);
+                        return None;
+                    }
                 }
                 Ok(_) => {}
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    // No data yet - block until readable or out of budget
+                    if !wait_readable(self.device.as_raw_fd(), deadline) {
+                        tracing::debug!(feature_index, function, "HID++ long request timeout");
+                        return None;
+                    }
+                    // Data ready: read it before re-checking the deadline
+                    continue;
+                }
                 Err(e) => {
                     tracing::debug!(error = %e, "Error reading HID++ long response");
                     return None;
                 }
             }
 
-            attempts += 1;
-            if attempts > 100 {
+            if std::time::Instant::now() >= deadline {
                 tracing::debug!(feature_index, function, "HID++ long request timeout");
                 return None;
             }
-
-            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
 
@@ -711,6 +1521,22 @@ impl HidppDevice {
             }
         }
 
+        false
+    }
+
+    /// [`Self::validate_hidpp20`] with a custom attempt budget (10ms each).
+    ///
+    /// A dozing wireless device needs its radio link re-established before it
+    /// answers the first ping (hundreds of ms on Bolt), which the default
+    /// 200ms budget misses; discovery paths that KNOW a slot holds a device
+    /// pass a larger budget instead of failing on every scan.
+    fn validate_hidpp20_with_attempts(&mut self, max_attempts: u32) -> bool {
+        let params = [0x00, 0x00, 0xAA];
+        if let Some(response) = self.hidpp_request_with_timeout(0x00, 0x01, &params, max_attempts) {
+            if response.len() >= 7 && response[6] == 0xAA {
+                return true;
+            }
+        }
         false
     }
 
@@ -973,6 +1799,9 @@ impl HidppDevice {
             let cid = ((resp[4] as u16) << 8) | (resp[5] as u16);
             let flags = resp[8];
             let divertable = (flags & 0x20) != 0;
+            if cid == GESTURE_BUTTON_CID {
+                self.gesture_button_seen = true;
+            }
 
             tracing::debug!(
                 index = i,
@@ -1125,6 +1954,28 @@ impl HidppDevice {
         ))
     }
 
+    /// Scan the REPROG_CONTROLS_V4 inventory and cache it for this connection.
+    ///
+    /// READ-ONLY on the device (getCount + getCidInfo). Empty when the feature
+    /// is absent. `cached_controls()` returns the last result without I/O.
+    pub fn list_controls(&mut self) -> Vec<ControlInfo> {
+        let feature_index = match self.reprog_controls_feature_index {
+            Some(idx) => idx,
+            None => return Vec::new(),
+        };
+        if !self.controls.is_empty() {
+            return self.controls.clone();
+        }
+        self.controls = list_controls_with_io(self, feature_index);
+        tracing::debug!(count = self.controls.len(), "REPROG_CONTROLS_V4 inventory scanned");
+        self.controls.clone()
+    }
+
+    /// The inventory from the last `list_controls()` scan (may be empty).
+    pub fn cached_controls(&self) -> &[ControlInfo] {
+        &self.controls
+    }
+
     // =========================================================================
     // ThumbWheel (0x2150)
     // =========================================================================
@@ -1228,6 +2079,11 @@ impl HidppDevice {
         &self.device_path
     }
 
+    /// HID++ device index: the receiver slot, or 0xFF for a direct link.
+    pub fn device_index(&self) -> u8 {
+        self.device_index
+    }
+
     /// Check if any haptic feedback is supported (MX4 or legacy)
     pub fn haptic_supported(&self) -> bool {
         self.mx4_haptic_supported || self.haptic_supported
@@ -1244,6 +2100,62 @@ impl HidppDevice {
     }
 
     /// Get connection type
+    /// Read the unit id from DEVICE_INFORMATION (0x0003, function 0). READ-ONLY.
+    fn read_unit_id(&mut self) {
+        if let Some(idx) = self.get_feature_index(features::DEVICE_INFORMATION) {
+            if let Some(resp) = self.hidpp_request(idx, 0x00, &[]) {
+                self.unit_id = parse_unit_id(&resp);
+            }
+        }
+    }
+
+    /// The device's unit id, when DEVICE_INFORMATION reported one.
+    pub fn unit_id(&self) -> Option<u32> {
+        self.unit_id
+    }
+
+    /// Main firmware versions from DEVICE_INFORMATION (0x0003): entity count
+    /// from getDeviceInfo, then getFwInfo per entity. READ-ONLY, cached for
+    /// the connection; empty without the feature or an answer.
+    pub fn firmware(&mut self) -> Vec<String> {
+        if let Some(fw) = &self.firmware {
+            return fw.clone();
+        }
+        let Some(idx) = self.get_feature_index(features::DEVICE_INFORMATION) else {
+            return Vec::new();
+        };
+        let Some(count) = self.hidpp_request(idx, 0x00, &[]).and_then(|r| r.get(4).copied()) else {
+            return Vec::new();
+        };
+        let fw: Vec<String> = (0..count.min(8))
+            .filter_map(|e| self.hidpp_request(idx, 0x01, &[e]))
+            .filter_map(|r| r.get(4..).and_then(parse_firmware_entity))
+            .collect();
+        self.firmware = Some(fw.clone());
+        fw
+    }
+
+    /// True when the receiver last answered "connection request failed" for
+    /// this device: paired, but its radio is parked (idle or on another
+    /// Easy-Switch host). Callers should wait rather than rescan.
+    pub fn link_parked(&self) -> bool {
+        self.last_receiver_error == Some(RECEIVER_ERR_CONNECT_FAIL)
+    }
+
+    /// True when the last `divert_buttons` scan found the gesture button
+    /// (CID 0x00C3). No I/O.
+    pub fn gesture_button_seen(&self) -> bool {
+        self.gesture_button_seen
+    }
+
+    /// Capability flags from the cached feature table (no I/O).
+    pub fn capabilities(&self) -> std::collections::HashMap<String, bool> {
+        crate::hidpp::capabilities::capability_map(
+            |id| self.feature_table.contains_key(&id),
+            self.gesture_button_seen,
+        )
+    }
+
     pub fn connection_type(&self) -> ConnectionType {
         self.connection_type
     }
@@ -1299,6 +2211,44 @@ impl HidppDevice {
     // =========================================================================
     // Haptic Methods
     // =========================================================================
+
+    /// The motor as the mouse has it (0x19B0 getConfig): enabled, and the
+    /// strength in percent.
+    pub fn get_haptic_level(&mut self) -> Option<(bool, u8)> {
+        let idx = self.mx4_haptic_feature_index?;
+        let r = self.hidpp_request(idx, 0x01, &[0x00, 0x00, 0x00])?;
+        (r.len() >= 6).then(|| (r[4] & 0x01 != 0, r[5]))
+    }
+
+    /// Motor strength in percent (0x19B0 setConfig `[enabled, pct, 0]`,
+    /// hardware-verified). The play command has no amplitude byte, so this
+    /// device-wide value is the only strength there is.
+    pub fn set_haptic_level(&mut self, pct: u8) -> Result<(), HapticError> {
+        let idx = self.mx4_haptic_feature_index.ok_or(HapticError::NotSupported)?;
+        self.hidpp_request(idx, 0x02, &[0x01, pct.clamp(1, 100), 0x00])
+            .map(|_| ())
+            .ok_or(HapticError::CommunicationError)
+    }
+
+    /// The Haptic Sense Panel press force (0x19C0 button 0).
+    pub fn force_sense(&mut self) -> Option<ForceSense> {
+        let idx = *self.feature_table.get(&features::FORCE_SENSING_BUTTON)?;
+        let info = self.hidpp_request(idx, 0x01, &[0x00, 0x00, 0x00])?;
+        let current = self.hidpp_request(idx, 0x02, &[0x00, 0x00, 0x00])?;
+        ForceSense::parse(info.get(4..)?, current.get(4..)?)
+    }
+
+    /// Set the Haptic Sense Panel press force (raw, within the reported range).
+    pub fn set_force_sense(&mut self, raw: u16) -> Result<(), HapticError> {
+        let idx = *self
+            .feature_table
+            .get(&features::FORCE_SENSING_BUTTON)
+            .ok_or(HapticError::NotSupported)?;
+        let [hi, lo] = raw.to_be_bytes();
+        self.hidpp_request(idx, 0x03, &[0x00, hi, lo])
+            .map(|_| ())
+            .ok_or(HapticError::CommunicationError)
+    }
 
     /// Send an MX Master 4 haptic pattern
     ///
@@ -1435,10 +2385,14 @@ impl HidppDevice {
 
         self.hidpp_request(feature_index, 0x02, &params).and_then(|resp| {
             if resp.len() >= 7 {
-                // Response: [report_type, device_idx, feature_idx, fn_sw_id, sensor_idx, dpi_msb, dpi_lsb, ...]
-                let dpi = ((resp[5] as u16) << 8) | (resp[6] as u16);
+                // Response: [report_type, device_idx, feature_idx, fn_sw_id, sensor_idx, dpi_msb, dpi_lsb, default_msb, default_lsb, ...]
+                let mut dpi = ((resp[5] as u16) << 8) | (resp[6] as u16);
+                if dpi == 0 && resp.len() >= 9 {
+                    // Some firmware reads 0 until set: fall back to defaultDpi (Solaar).
+                    dpi = ((resp[7] as u16) << 8) | (resp[8] as u16);
+                }
                 tracing::debug!(dpi, "Got current DPI");
-                Some(dpi)
+                (dpi != 0).then_some(dpi)
             } else {
                 tracing::warn!("Invalid getSensorDpi response length: {}", resp.len());
                 None
@@ -1462,7 +2416,11 @@ impl HidppDevice {
             }
         };
 
-        tracing::info!(feature_index, dpi, "Setting DPI");
+        // Every writer (Settings, app profiles, gaming mode, DPI buttons)
+        // lands on a value the sensor accepts.
+        let requested = dpi;
+        let dpi = self.dpi_caps().map_or(dpi, |c| c.snap(dpi));
+        tracing::info!(feature_index, requested, dpi, "Setting DPI");
 
         // Function [3] setSensorDpi(sensorIdx, dpi) -> sensorIdx, dpi
         // sensorIdx = 0 for the primary sensor
@@ -1490,46 +2448,25 @@ impl HidppDevice {
         }
     }
 
-    /// Get the list of supported DPI values
-    ///
-    /// # Returns
-    /// Vec of supported DPI values, or None if not supported
-    pub fn get_dpi_list(&mut self) -> Option<Vec<u16>> {
-        let feature_index = self.dpi_feature_index?;
-
-        // Function [1] getSensorDpiList(sensorIdx) -> sensorIdx, dpiList
-        let params = [0x00, 0x00, 0x00]; // sensorIdx = 0
-
-        self.hidpp_request(feature_index, 0x01, &params).and_then(|resp| {
-            if resp.len() < 6 {
-                return None;
-            }
-
-            let mut dpi_list = Vec::new();
-            // Response starts at byte 5 (after report_type, device_idx, feature_idx, fn_sw_id, sensor_idx)
-            let data = &resp[5..];
-
-            // Parse pairs of bytes as DPI values
-            let mut i = 0;
-            while i + 1 < data.len() {
-                let dpi = ((data[i] as u16) << 8) | (data[i + 1] as u16);
-                if dpi == 0 {
-                    break; // End of list
+    /// The sensor's settable DPI range and step (getSensorDpiList), read once
+    /// per connection.
+    pub fn dpi_caps(&mut self) -> Option<DpiCaps> {
+        if self.dpi_caps.is_none() {
+            let feature_index = self.dpi_feature_index?;
+            // Function [1] getSensorDpiList(sensorIdx) -> sensorIdx, dpiList
+            let resp = self.hidpp_request(feature_index, 0x01, &[0x00, 0x00, 0x00])?;
+            // [report_type, device_idx, feature_idx, fn_sw_id, sensor_idx, words...]
+            let mut caps = resp.get(5..).and_then(DpiCaps::parse);
+            // Function [2] getSensorDpi -> sensorIdx, dpi, defaultDpi
+            if let (Some(c), Some(r)) = (caps.as_mut(), self.hidpp_request(feature_index, 0x02, &[0x00, 0x00, 0x00])) {
+                if r.len() >= 9 {
+                    c.default = u16::from_be_bytes([r[7], r[8]]);
                 }
-                // Check for hyphen value (0xE000+ range indicates step value)
-                if dpi >= 0xE000 {
-                    // This is a step indicator, skip it for now
-                    // In a range format: [low, -step, high, 0]
-                    i += 2;
-                    continue;
-                }
-                dpi_list.push(dpi);
-                i += 2;
             }
-
-            tracing::debug!(dpi_list = ?dpi_list, "Got DPI list");
-            Some(dpi_list)
-        })
+            self.dpi_caps = caps;
+            tracing::info!(caps = ?self.dpi_caps, "DPI range");
+        }
+        self.dpi_caps.clone()
     }
 
     // =========================================================================
@@ -1659,6 +2596,40 @@ impl HidppDevice {
         }
     }
 
+    /// Scroll force (0x2111 tunable torque): `(default %, max gram-force)`
+    /// when the wheel supports it (getCapabilities bit 0), else None.
+    pub fn scroll_force_caps(&mut self) -> Option<(u8, u8)> {
+        let index = self.smartshift_feature_index.filter(|_| self.smartshift_is_enhanced)?;
+        let resp = self.hidpp_request(index, 0x00, &[])?;
+        (resp.len() >= 8 && resp[4] & 0x01 != 0).then(|| (resp[6], resp[7]))
+    }
+
+    /// Set how firmly the ratchet holds, in % of the wheel's maximum (1..100).
+    /// The current wheel mode is written with it: MX Master 4 applies a torque
+    /// change only then (Solaar). Skipped when the wheel already has that
+    /// value, since the device keeps it in its own memory.
+    pub fn set_scroll_force(&mut self, percent: u8) -> Result<(), HapticError> {
+        let index = self
+            .smartshift_feature_index
+            .filter(|_| self.smartshift_is_enhanced)
+            .ok_or(HapticError::NotSupported)?;
+        self.scroll_force_caps().ok_or(HapticError::NotSupported)?;
+        let percent = percent.clamp(1, 100);
+        let (mode, _, current) = self
+            .get_smartshift()
+            .ok_or_else(|| HapticError::IoError(std::io::Error::other("Could not read the wheel mode")))?;
+        if current == percent {
+            return Ok(());
+        }
+        match self.hidpp_request(index, 0x02, &[mode, 0x00, percent]) {
+            Some(resp) if resp.len() >= 7 => {
+                tracing::info!(percent, "Scroll force set");
+                Ok(())
+            }
+            _ => Err(HapticError::IoError(std::io::Error::other("Failed to set the scroll force"))),
+        }
+    }
+
     /// Get HiResScroll mode configuration (HiRes Wheel 0x2121)
     pub fn get_hiresscroll_mode(&mut self) -> Option<(bool, bool, bool)> {
         let feature_index = self.feature_index(features::HIRES_WHEEL)?;
@@ -1780,18 +2751,9 @@ impl HidppDevice {
                     &resp[..resp.len().min(12)]
                 );
 
-                if self.is_unified_battery && resp.len() >= 8 {
-                    let percentage = resp[4];
-                    let charging_status = resp[7];
-                    let charging = (1..=3).contains(&charging_status);
-
-                    tracing::debug!(
-                        percentage,
-                        charging_status,
-                        charging,
-                        "Battery query result (UNIFIED_BATTERY)"
-                    );
-
+                let unified = resp.get(4..).filter(|_| self.is_unified_battery);
+                if let Some((percentage, charging)) = unified.and_then(decode_unified_status) {
+                    tracing::debug!(percentage, charging, "Battery query result (UNIFIED_BATTERY)");
                     Ok((percentage, charging))
                 } else if resp.len() >= 7 {
                     let percentage = resp[4];
@@ -1823,6 +2785,148 @@ impl HidppDevice {
     }
 
     // =========================================================================
+    // Keyboard Backlight (BACKLIGHT2 0x1982) - BETA, verified on an MX Keys S
+    //
+    // Only reached for keyboards opened via `open_keyboard()`. The feature index
+    // is read from the table populated during `enumerate_features` (0x1982 is on
+    // the safelist, never blocklisted), so no extra struct field or change to
+    // the mouse enumerate path is needed.
+    // =========================================================================
+
+    /// Whether the device advertises the BACKLIGHT2 feature (0x1982).
+    pub fn backlight_supported(&self) -> bool {
+        self.feature_table.contains_key(&features::BACKLIGHT2)
+    }
+
+    /// Discovered BACKLIGHT2 feature index, if present.
+    pub fn backlight_feature_index(&self) -> Option<u8> {
+        self.feature_table.get(&features::BACKLIGHT2).copied()
+    }
+
+    /// Read the current backlight configuration (function 0, READ-ONLY).
+    ///
+    /// Returns the raw payload bytes starting at HID++ byte 4. Per Solaar's
+    /// BACKLIGHT2 V3 decoder the layout is:
+    ///   `[enabled, options, supported, effects(2B), level, dho(2B), dhi(2B), dpow(2B)]`
+    /// Layout from Solaar; the write path that preserves these fields is
+    /// verified on an MX Keys S over Bolt (2026-09-23).
+    pub fn query_backlight_config(&mut self) -> Option<Vec<u8>> {
+        let feature_index = self.backlight_feature_index()?;
+        let resp = self.hidpp_request(feature_index, 0x00, &[])?;
+        if resp.len() < 6 {
+            return None;
+        }
+        Some(resp[4..].to_vec())
+    }
+
+    /// Raw getBacklightInfo payload (fn 2): `[numberOfLevel, currentLevel, ..]`.
+    ///
+    /// `None` when the feature version lacks the function (older BACKLIGHT2
+    /// revisions only implement get/set config).
+    pub fn query_backlight_info(&mut self) -> Option<Vec<u8>> {
+        let feature_index = self.backlight_feature_index()?;
+        let resp = self.hidpp_long_request(feature_index, 0x02, &[])?;
+        if resp.len() < 6 {
+            return None;
+        }
+        Some(resp[4..].to_vec())
+    }
+
+    /// Current backlight state: getBacklightConfig plus getBacklightInfo when
+    /// the feature version has it. READ-ONLY. `None` without the feature or
+    /// an answer (a parked keyboard ignores requests until a key press).
+    pub fn query_backlight_state(&mut self) -> Option<BacklightState> {
+        let config = self.query_backlight_config()?;
+        let info = self.query_backlight_info();
+        parse_backlight(&config, info.as_deref())
+    }
+
+    /// Read the state, change it, write it back (setBacklightConfig, fn 1,
+    /// long report). The read is required: writing without it would send
+    /// zero durations, below the 5 s minimum, into the keyboard's stored
+    /// settings. Solaar hit INVALID_ARGUMENT on some MX Keys firmware
+    /// (pwr-Solaar/Solaar PR #2230), hence preserving every field it reported.
+    ///
+    /// Unlike the mouse HID++ paths, this WRITES a stored keyboard setting
+    /// (like DPI). It only runs when a caller has opted into MX Keys S support
+    /// and issues an explicit request.
+    fn write_backlight(&mut self, change: impl FnOnce(&mut BacklightState)) -> Result<(), HapticError> {
+        let Some(feature_index) = self.backlight_feature_index() else {
+            tracing::debug!("BACKLIGHT2 not available");
+            return Err(HapticError::NotSupported);
+        };
+        let mut state = self.query_backlight_state().ok_or(HapticError::CommunicationError)?;
+        change(&mut state);
+        let params = state.config_params();
+        tracing::info!(
+            feature_index,
+            mode = state.mode,
+            level = params[3],
+            options = format!("0x{:02X}", params[1]),
+            "Setting keyboard backlight"
+        );
+        match self.hidpp_long_request(feature_index, 0x01, &params) {
+            Some(_) => Ok(()),
+            None => {
+                tracing::warn!("Backlight set returned no response (firmware may reject this layout)");
+                Err(HapticError::CommunicationError)
+            }
+        }
+    }
+
+    /// Set keyboard backlight brightness in Manual mode. BETA.
+    ///
+    /// Verified on an MX Keys S over Bolt (2026-09-23: levels 0..7 set from
+    /// Settings, acknowledged and visibly applied). `brightness` is a percent
+    /// (clamped `0..=100`) mapped onto the device's discrete levels (8 on MX
+    /// Keys S; a raw percent as the level is rejected with INVALID_ARGUMENT).
+    /// Always enabled: level 0 in manual mode turns the glow off, while
+    /// enabled = 0 disables the whole backlight feature.
+    pub fn set_backlight(&mut self, brightness: u8) -> Result<(), HapticError> {
+        let pct = brightness.min(100) as u32;
+        self.write_backlight(|s| {
+            let n = s.levels as u32;
+            s.enabled = true;
+            s.mode = 3;
+            s.stored_level = ((pct * (n - 1) + 50) / 100) as u8;
+        })
+    }
+
+    /// Automatic (the light sensor sets the level) or Manual (the stored
+    /// level, taken from what is lit now so nothing jumps).
+    pub fn set_backlight_mode(&mut self, automatic: bool) -> Result<(), HapticError> {
+        if automatic
+            && !self
+                .query_backlight_state()
+                .ok_or(HapticError::CommunicationError)?
+                .automatic_supported()
+        {
+            return Err(HapticError::NotSupported);
+        }
+        self.write_backlight(|s| {
+            s.enabled = true;
+            if automatic {
+                s.mode = 1;
+            } else {
+                s.mode = 3;
+                s.stored_level = s.level.min(s.levels.saturating_sub(1));
+            }
+        })
+    }
+
+    /// How long the backlight stays on, in seconds (0 = keep): with the
+    /// hands away, with the hands near the keys, and on a cable.
+    pub fn set_backlight_durations(&mut self, away_s: u16, near_s: u16, powered_s: u16) -> Result<(), HapticError> {
+        self.write_backlight(|s| {
+            for (field, secs) in [(&mut s.dho, away_s), (&mut s.dhi, near_s), (&mut s.dpow, powered_s)] {
+                if secs > 0 {
+                    *field = backlight_duration_units(secs);
+                }
+            }
+        })
+    }
+
+    // =========================================================================
     // Easy-Switch Methods
     // =========================================================================
 
@@ -1831,97 +2935,49 @@ impl HidppDevice {
     /// This is a READ-ONLY operation that retrieves the friendly names of
     /// paired hosts. It does NOT write to device memory.
     pub fn get_host_names(&mut self) -> Vec<String> {
-        // Query HOSTS_INFO feature (0x1815) directly using IRoot
-        // This bypasses the blocklist check since we only READ, never WRITE
-        let hosts_info_index = match self.get_feature_index(features::HOSTS_INFO) {
-            Some(idx) => idx,
-            None => {
-                tracing::debug!("HOSTS_INFO feature (0x1815) not supported on this device");
-                return Vec::new();
-            }
-        };
+        self.hosts_table().into_iter().map(|h| h.name).collect()
+    }
 
-        tracing::debug!(index = hosts_info_index, "Found HOSTS_INFO feature");
-
-        // Function 0x00: getHostInfo - get number of hosts and capabilities
-        let resp = match self.hidpp_request(hosts_info_index, 0x00, &[]) {
-            Some(r) => r,
-            None => {
-                tracing::debug!("Failed to get host info");
-                return Vec::new();
-            }
-        };
-
-        if resp.len() < 6 {
+    /// Every Easy-Switch slot from HOSTS_INFO (0x1815): paired or empty, the
+    /// bus, the name. Read-only. Empty when the device lacks the feature.
+    pub fn hosts_table(&mut self) -> Vec<HostSlot> {
+        let Some(idx) = self.get_feature_index(features::HOSTS_INFO) else {
+            tracing::debug!("HOSTS_INFO feature (0x1815) not supported on this device");
             return Vec::new();
-        }
-
-        // Response: [4]=capability_flags, [5]=numHosts, [6]=currentHost
-        let num_hosts = resp[5];
-        let _current_host = resp[6];
-        tracing::debug!(num_hosts, "Got host count from device");
-
-        let mut host_names = Vec::new();
-
-        // Get name for each host slot.
-        // Device may report max capacity (e.g. 8) but only 3 slots are real.
-        // Break on first failed slot to avoid noisy HID++ error log spam.
-        for host_idx in 0..num_hosts {
-            // Function 0x01: getHostDescriptor - get status and name length
-            let resp = match self.hidpp_request(hosts_info_index, 0x01, &[host_idx, 0, 0]) {
-                Some(r) => r,
-                None => {
-                    // Non-existent slot - no more valid hosts
-                    break;
-                }
+        };
+        let Some((caps, num_hosts, _current)) = self
+            .hidpp_request(idx, 0x00, &[])
+            .and_then(|r| parse_hosts_info(r.get(4..)?))
+        else {
+            return Vec::new();
+        };
+        let can_name = caps & 0x01 != 0;
+        let mut slots = Vec::new();
+        for host in 0..num_hosts.min(6) {
+            let Some((status, bus, name_len)) = self
+                .hidpp_request(idx, 0x01, &[host, 0, 0])
+                .and_then(|r| parse_host_descriptor(r.get(4..)?))
+            else {
+                slots.push(HostSlot { status: 0, bus: 0, name: String::new() });
+                continue;
             };
-
-            if resp.len() < 9 {
-                host_names.push(String::new());
-                continue;
-            }
-
-            // Response: [4]=host, [5]=busType, [6]=flags, [7]=status, [8]=nameLen, [9]=maxNameLen
-            let name_len = resp[8] as usize;
-            if name_len == 0 {
-                host_names.push(String::new());
-                continue;
-            }
-
-            // Function 0x03: getHostFriendlyName - get actual name (chunked, 14 bytes per call)
-            let mut name_bytes = Vec::new();
-            let mut offset = 0u8;
-
-            while (offset as usize) < name_len {
-                let resp = match self.hidpp_request(hosts_info_index, 0x03, &[host_idx, offset, 0]) {
-                    Some(r) => r,
+            let mut name = Vec::new();
+            let mut offset = 0usize;
+            while can_name && status == 1 && offset < name_len.min(64) {
+                // fn3 getHostFriendlyName(host, offset): [host, offset, 14 bytes]
+                let Some(r) = self.hidpp_request(idx, 0x03, &[host, offset as u8, 0]) else { break };
+                let take = 14.min(name_len - offset);
+                match r.get(6..6 + take) {
+                    Some(chunk) => name.extend_from_slice(chunk),
                     None => break,
-                };
-
-                if resp.len() < 6 {
-                    break;
                 }
-
-                // Response: [4]=host, [5]=offset, [6..20]=name (up to 14 bytes)
-                let chunk_start = 6;
-                let chunk_len = std::cmp::min(14, name_len - offset as usize);
-                if resp.len() >= chunk_start + chunk_len {
-                    name_bytes.extend_from_slice(&resp[chunk_start..chunk_start + chunk_len]);
-                }
-
                 offset += 14;
             }
-
-            // Convert to string, trimming null bytes
-            let name = String::from_utf8_lossy(&name_bytes)
-                .trim_end_matches('\0')
-                .to_string();
-
-            tracing::debug!(host = host_idx, name = %name, "Got host name");
-            host_names.push(name);
+            let name = String::from_utf8_lossy(&name).trim_end_matches('\0').to_string();
+            tracing::debug!(host, status, bus, name = %name, "Host slot");
+            slots.push(HostSlot { status, bus, name });
         }
-
-        host_names
+        slots
     }
 
     /// Get Easy-Switch info: (num_hosts, current_host)
@@ -1943,34 +2999,38 @@ impl HidppDevice {
         Some((num_hosts, current_host))
     }
 
-    /// Switch to a different paired host (Easy-Switch)
+    /// Switch to a different paired host (Easy-Switch). On success the
+    /// device answers nothing (it is already leaving); a HID++ error or a
+    /// receiver error (asleep, away) means it stayed, and says so.
+    /// The CHANGE_HOST (0x1814) feature index, for matching its events.
+    pub fn change_host_index(&mut self) -> Option<u8> {
+        self.feature_index(features::CHANGE_HOST)
+            .or_else(|| self.get_feature_index(features::CHANGE_HOST))
+    }
+
     pub fn set_current_host(&mut self, host_index: u8) -> Result<(), String> {
-        // Query CHANGE_HOST feature (0x1814)
-        let change_host_index = self.get_feature_index(features::CHANGE_HOST)
+        let change_host_index = self
+            .get_feature_index(features::CHANGE_HOST)
             .ok_or_else(|| "CHANGE_HOST feature (0x1814) not supported".to_string())?;
-
-        // Validate host_index (typically 0, 1, or 2)
-        if host_index > 2 {
-            return Err(format!("Invalid host_index: {}. Must be 0, 1, or 2", host_index));
+        let (num_hosts, current) = self.get_easy_switch_info().unwrap_or((3, 0xFF));
+        if host_index >= num_hosts.max(1) {
+            return Err(format!("There is no computer slot {}", host_index + 1));
         }
-
+        if host_index == current {
+            return Ok(());
+        }
         tracing::info!(host_index, "Switching to Easy-Switch host slot");
-
-        // Function 0x01: setCurrentHost with param = host_index
-        let resp = self.hidpp_request(change_host_index, 0x01, &[host_index]);
-
-        match resp {
-            Some(_) => {
-                tracing::info!(host_index, "Successfully sent host switch command");
-                Ok(())
-            }
-            None => {
-                // Note: The device may disconnect before sending a response
-                // when switching hosts, so a missing response might still mean success
-                tracing::warn!(host_index, "No response from host switch command (device may have disconnected)");
-                Ok(())
-            }
+        self.last_hidpp_error = None;
+        self.last_receiver_error = None;
+        // fn1 setCurrentHost(host): one attempt, the silence is the success.
+        let _ = self.hidpp_request_with_timeout(change_host_index, 0x01, &[host_index], 1);
+        if let Some(code) = self.last_hidpp_error {
+            return Err(format!("The device refused the switch (HID++ error 0x{code:02X})"));
         }
+        if self.last_receiver_error.is_some() {
+            return Err("The device is asleep or away".to_string());
+        }
+        Ok(())
     }
 }
 
@@ -2037,6 +3097,176 @@ mod button_divert_tests {
         response[5] = (cid & 0xFF) as u8;
         response[8] = flags;
         response
+    }
+
+    #[test]
+    fn list_controls_decodes_every_index_and_skips_bad_replies() {
+        let mut io = MockButtonDivertIo {
+            short_responses: VecDeque::from(vec![
+                Some(count_response(3)),
+                Some(control_response(0x00C3, 0x31)),
+                None,
+                Some(control_response(0x01A0, 0x20)),
+            ]),
+            ..Default::default()
+        };
+        let controls = list_controls_with_io(&mut io, 0x0B);
+        assert_eq!(controls.iter().map(|c| c.cid).collect::<Vec<_>>(), vec![0x00C3, 0x01A0]);
+        assert!(controls[0].divertable() && controls[0].mouse_button());
+        assert_eq!(io.short_requests.len(), 4);
+        assert_eq!(io.short_requests[1].params, vec![0, 0, 0]);
+        assert_eq!(io.short_requests[3].params, vec![2, 0, 0]);
+        assert!(io.long_requests.is_empty(), "the inventory scan must never write");
+    }
+
+    #[test]
+    fn every_request_gets_its_own_software_id_outside_the_reserved_ones() {
+        let ids: Vec<u8> = (0..300).map(|_| next_software_id()).collect();
+        assert!(ids.iter().all(|id| (2..=13).contains(id)), "not 0, 1 (kernel) or 0x0E (haptic play)");
+        assert!(ids.windows(2).all(|w| w[0] != w[1]), "two requests in a row never share an id");
+    }
+
+    #[test]
+    fn an_error_is_ours_only_when_it_echoes_our_request() {
+        // The owner's MX Master 4 log: another program's request to feature
+        // index 0x27 fn 2 (software id 1) failed while ours was pending.
+        let foreign = [0x11, 0x02, 0xFF, 0x27, 0x21, 0x05, 0x00];
+        assert!(!answers_request(&foreign, 0x13, 0x21));
+        assert!(!answers_request(&foreign, 0x27, 0x31));
+        assert!(answers_request(&foreign, 0x27, 0x21));
+        let parked = [0x10, 0x01, 0x8F, 0x00, 0x0D, 0x04, 0x00];
+        assert!(answers_request(&parked, 0x00, 0x0D));
+        assert!(!answers_request(&parked, 0x09, 0x0D));
+        assert!(!answers_request(&parked[..4], 0x00, 0x0D));
+    }
+
+    #[test]
+    fn receiver_errors_are_recognised_only_for_our_device() {
+        // 10 01 8F 00 0D 04 00: receiver says device 1 is paired but not linked
+        let parked = [0x10, 0x01, 0x8F, 0x00, 0x0D, 0x04, 0x00];
+        assert_eq!(receiver_error_code(&parked, 1), Some(RECEIVER_ERR_CONNECT_FAIL));
+        assert_eq!(receiver_error_code(&parked, 2), None);
+        let mouse_motion = [0x02, 0x01, 0x8F, 0x00, 0x0D, 0x04, 0x00];
+        assert_eq!(receiver_error_code(&mouse_motion, 1), None);
+        assert_eq!(receiver_error_code(&parked[..5], 1), None);
+    }
+
+    #[test]
+    fn unit_id_is_read_big_endian_and_zero_means_none() {
+        let reply = [0x11, 0x02, 0x03, 0x01, 0x03, 0x12, 0x34, 0xAB, 0xCD, 0x00, 0x03];
+        assert_eq!(parse_unit_id(&reply), Some(0x1234ABCD));
+        assert_eq!(parse_unit_id(&[0x11, 0x02, 0x03, 0x01, 0x03, 0, 0, 0, 0]), None);
+        assert_eq!(parse_unit_id(&reply[..8]), None);
+    }
+
+    #[test]
+    fn firmware_entities_decode_like_solaar() {
+        // MX Master 4 getFwInfo payloads (HID++ byte 4 on).
+        let main = [0x00, 0x52, 0x42, 0x4D, 0x27, 0x00, 0x00, 0x15, 0x00, 0xB0, 0x42];
+        assert_eq!(parse_firmware_entity(&main).as_deref(), Some("RBM 27.00.B0015"));
+        let boot = [0x01, 0x4C, 0x44, 0x00, 0x04, 0x00, 0x00, 0x00];
+        assert_eq!(parse_firmware_entity(&boot), None);
+        let hw = [0x02, 0x48, 0x57, 0x00, 0x00, 0x00, 0x00, 0x00];
+        assert_eq!(parse_firmware_entity(&hw), None);
+        assert_eq!(parse_firmware_entity(&[0x00, 0x52, 0x42, 0x4D, 0x12, 0x03, 0x00, 0x00]).as_deref(), Some("RBM 12.03"));
+    }
+
+    #[test]
+    fn pairing_register_kind() {
+        let kb = [0x11, 0xFF, 0x83, 0xB5, 0x51, 0x01, 0x78, 0xB3, 0x58, 0xF0, 0x62, 0x88, 0x01];
+        assert_eq!(parse_pairing_kind(true, &kb), Some(1));
+        let mouse = [0x11, 0xFF, 0x83, 0xB5, 0x52, 0x02, 0x42, 0xB0, 0x37, 0xFC, 0x2B, 0x99, 0x02];
+        assert_eq!(parse_pairing_kind(true, &mouse), Some(2));
+        let unifying = [0x11, 0xFF, 0x83, 0xB5, 0x20, 0x07, 0x08, 0x40, 0x82, 0x04, 0x00, 0x01, 0x07];
+        assert_eq!(parse_pairing_kind(false, &unifying), Some(1));
+        assert_eq!(parse_pairing_kind(true, &[0x10, 0xFF, 0x8F, 0x83, 0xB5, 0x08, 0x00]), None);
+        // Captured on the owner's receivers: MX Keys S is WPID B378, the
+        // mouse slot B042 (MX Master 4 family).
+        assert_eq!(parse_pairing_info(true, &kb), Some((1, 0xB378)));
+        assert_eq!(parse_pairing_info(true, &mouse), Some((2, 0xB042)));
+        assert_eq!(parse_pairing_info(false, &unifying), Some((1, 0x4082)));
+        // Captured: `11 ff 83 b5 61 01 09 4d 58 20 4b 45 59 53 20 53 00..`.
+        let name = [0x11, 0xFF, 0x83, 0xB5, 0x61, 0x01, 0x09, b'M', b'X', b' ', b'K', b'E', b'Y', b'S', b' ', b'S', 0, 0, 0, 0];
+        assert_eq!(parse_codename(true, &name).as_deref(), Some("MX KEYS S"));
+        assert_eq!(parse_codename(true, &name[..6]), None);
+    }
+
+    #[test]
+    fn backlight_state_decodes_config_and_info() {
+        // Solaar capture's fields: options 0x0D (WOW + PWR_SAVE, Automatic),
+        // caps 0x38, level 0, 55 s / 55 s / 300 s; info 8 levels, 5 lit, status 2.
+        let config = [0x01, 0x0D, 0x38, 0x01, 0x00, 0x00, 0x0B, 0x00, 0x0B, 0x00, 0x3C, 0x00];
+        let s = parse_backlight(&config, Some(&[8, 5, 2, 0])).unwrap();
+        assert!(s.enabled && s.automatic_supported());
+        assert_eq!((s.mode, s.level, s.levels, s.status), (1, 5, 8, Some(2)));
+        assert_eq!((s.dho, s.dhi, s.dpow), (11, 11, 60));
+        // No fn 2: 8 levels and the stored level.
+        let s2 = parse_backlight(&[1, 0x18, 0x20, 1, 0, 4, 1, 0, 1, 0, 1, 0], None).unwrap();
+        assert_eq!((s2.mode, s2.level, s2.levels, s2.status), (3, 4, 8, None));
+        assert!(!s2.automatic_supported());
+        assert!(parse_backlight(&config[..8], None).is_none());
+    }
+
+    #[test]
+    fn backlight_state_from_an_mx_keys_s() {
+        // Captured 2026-09-24 over Bolt: Manual, level 7 of 8, 30 min stay-on.
+        let config = [0x01, 0x19, 0x3D, 0x03, 0x00, 0x07, 0x68, 0x01, 0x68, 0x01, 0x68, 0x01];
+        let info = [0x08, 0x07, 0x05, 0x00, 0x03, 0x00, 0x06, 0x00, 0x3C, 0x00];
+        let s = parse_backlight(&config, Some(&info)).unwrap();
+        assert_eq!((s.mode, s.level, s.levels, s.status), (3, 7, 8, Some(5)));
+        assert!(s.automatic_supported());
+        assert_eq!((s.dho * 5, s.dhi * 5, s.dpow * 5), (1800, 1800, 1800));
+        // Re-writing it unchanged sends back what the keyboard reported.
+        assert_eq!(s.config_params(), [1, 0x19, 0xFF, 7, 0x68, 0x01, 0x68, 0x01, 0x68, 0x01]);
+    }
+
+    #[test]
+    fn backlight_write_payload() {
+        let config = [0x01, 0x0D, 0x38, 0x01, 0x00, 0x00, 0x0B, 0x00, 0x0B, 0x00, 0x3C, 0x00];
+        let mut s = parse_backlight(&config, Some(&[8, 5, 2, 0])).unwrap();
+        // Automatic: level goes out as 0, durations preserved.
+        assert_eq!(s.config_params(), [1, 0x0D, 0xFF, 0, 11, 0, 11, 0, 60, 0]);
+        s.mode = 3;
+        s.stored_level = 5;
+        assert_eq!(s.config_params(), [1, 0x1D, 0xFF, 5, 11, 0, 11, 0, 60, 0]);
+        // Set by the keys (mode 2) cannot be written: goes back as Automatic.
+        s.mode = 2;
+        assert_eq!(s.config_params()[1], 0x0D);
+        s.mode = 3;
+        s.dpow = backlight_duration_units(7201);
+        assert_eq!(&s.config_params()[8..], &[0xA0, 0x05]);
+        assert_eq!(backlight_duration_units(1), 1);
+        assert_eq!(backlight_duration_units(0), 1);
+        assert_eq!(backlight_duration_units(30), 6);
+        assert_eq!(backlight_duration_units(31), 7);
+    }
+
+    #[test]
+    fn unified_status_reads_the_charging_byte_not_external_power() {
+        // Captured MX Keys S on USB power, fully charged.
+        assert_eq!(decode_unified_status(&[0x64, 0x08, 0x03, 0x01]), Some((100, false)));
+        // Cable in but the status byte says discharging: not charging.
+        assert_eq!(decode_unified_status(&[0x50, 0x04, 0x00, 0x01]), Some((80, false)));
+        assert_eq!(decode_unified_status(&[0x37, 0x04, 0x01, 0x00]), Some((55, true)));
+        assert_eq!(decode_unified_status(&[0x5A, 0x08, 0x02, 0x02]), Some((90, true)));
+        assert_eq!(decode_unified_status(&[0x14, 0x02, 0x04, 0x01]), Some((20, false)));
+        assert_eq!(decode_unified_status(&[0x00, 0x02]), None);
+    }
+
+    #[test]
+    fn unified_battery_percent_falls_back_to_level_flags() {
+        assert_eq!(unified_battery_percent(73, 0x04), 73);
+        assert_eq!(unified_battery_percent(0, 0x08), 90);
+        assert_eq!(unified_battery_percent(0, 0x04), 55);
+        assert_eq!(unified_battery_percent(0, 0x02), 20);
+        assert_eq!(unified_battery_percent(0, 0x01), 5);
+        assert_eq!(unified_battery_percent(0, 0x00), 0);
+    }
+
+    #[test]
+    fn list_controls_without_count_is_empty() {
+        let mut io = MockButtonDivertIo::default();
+        assert!(list_controls_with_io(&mut io, 0x0B).is_empty());
     }
 
     #[test]

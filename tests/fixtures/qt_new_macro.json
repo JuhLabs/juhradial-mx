@@ -1,0 +1,32 @@
+{
+  "id": "my_macro",
+  "name": "My macro",
+  "description": "",
+  "repeat_mode": "once",
+  "repeat_count": 3,
+  "actions": [
+    {
+      "type": "key_down",
+      "key": "ctrl"
+    },
+    {
+      "type": "delay",
+      "ms": 120
+    },
+    {
+      "type": "key_down",
+      "key": "c"
+    },
+    {
+      "type": "key_up",
+      "key": "c"
+    },
+    {
+      "type": "key_up",
+      "key": "ctrl"
+    }
+  ],
+  "standard_delay_ms": 50,
+  "use_standard_delay": false,
+  "assigned_trigger": null
+}

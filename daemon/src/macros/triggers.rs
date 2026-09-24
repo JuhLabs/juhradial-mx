@@ -19,13 +19,21 @@ pub struct TriggerMap {
 }
 
 impl TriggerMap {
-    /// Build a trigger map from loaded macros
+    /// Build a trigger map from loaded macros. One button runs one macro:
+    /// when two claim the same trigger, the first by id wins (it was random).
     pub fn from_macros(macros: &HashMap<String, MacroConfig>) -> Self {
         let mut bindings = HashMap::new();
+        let mut configs: Vec<&MacroConfig> = macros.values().collect();
+        configs.sort_by(|a, b| a.id.cmp(&b.id));
 
-        for config in macros.values() {
+        for config in configs {
             if let Some(ref trigger) = config.assigned_trigger {
                 if let Some(evdev_code) = parse_trigger(trigger) {
+                    if let Some(owner) = bindings.get(&evdev_code) {
+                        tracing::warn!(trigger = %trigger, kept = %owner, ignored = %config.id,
+                            "Two macros share a trigger; keeping the first");
+                        continue;
+                    }
                     tracing::info!(
                         trigger = %trigger,
                         evdev_code = format!("0x{:03x}", evdev_code),
@@ -74,6 +82,14 @@ impl TriggerMap {
     /// Get all registered evdev key codes (for HID++ button divert)
     pub fn evdev_codes(&self) -> Vec<u16> {
         self.bindings.keys().copied().collect()
+    }
+
+    /// HID++ control ids of the bound buttons the mouse can divert.
+    pub fn cids(&self) -> std::collections::HashSet<u16> {
+        self.bindings
+            .keys()
+            .filter_map(|code| crate::hidraw::evdev_keycode_to_cid(*code))
+            .collect()
     }
 }
 
@@ -185,6 +201,17 @@ mod tests {
         assert_eq!(map.get(0x113), Some("test1"));
         assert_eq!(map.get(0x110), None);
         assert_eq!(map.len(), 1);
+    }
+
+    #[test]
+    fn one_button_runs_one_macro() {
+        let mk = |id: &str| MacroConfig { assigned_trigger: Some("mouse:9".into()), ..MacroConfig::new(id.into(), id.into()) };
+        let macros: HashMap<String, MacroConfig> =
+            ["b", "a", "c"].iter().map(|id| (id.to_string(), mk(id))).collect();
+        let map = TriggerMap::from_macros(&macros);
+        assert_eq!(map.len(), 1);
+        assert_eq!(map.get(0x114), Some("a"));
+        assert_eq!(map.cids(), [crate::hidraw::button_cid::FORWARD_BUTTON].into_iter().collect());
     }
 
     #[test]

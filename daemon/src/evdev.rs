@@ -57,15 +57,26 @@ pub enum GestureEvent {
     Pressed { x: i32, y: i32 },
     /// Gesture button released, includes hold duration
     Released { duration_ms: u64 },
+    /// Directional gesture finished: the press owner classifies nothing, it
+    /// hands the accumulated cursor delta to the event processor. Never
+    /// paired with `Pressed`/`Released`, so the overlay is not involved.
+    GestureReleased { dx: i32, dy: i32, duration_ms: u64 },
     /// Cursor moved while button is held (for hover detection on Wayland)
     CursorMoved { x: i32, y: i32 },
     /// A non-gesture button was pressed/released (for macro trigger detection)
     MacroTriggered { key_code: u16, pressed: bool },
     /// A config-driven button action (non-radial-menu) was triggered
     ButtonActionEvent {
+        /// One for physical buttons; diverted thumb-wheel speed is batched.
+        repeats: u8,
         action: crate::config::ButtonAction,
         pressed: bool,
+        /// CID of the button that fired (resolves `custom` actions via
+        /// Config::slot_for_cid); None for synthetic presses.
+        source: Option<u16>,
     },
+    /// A diverted button went down (Settings lights its pin).
+    ButtonSeen { cid: u16 },
     /// Horizontal scroll from the diverted thumb wheel (sign = direction).
     ThumbwheelScroll { clicks: i32 },
     /// A device-originated HID++ notification (live hardware state change).
@@ -120,6 +131,9 @@ pub struct EvdevHandler {
     /// When non-empty, the device is grabbed (EVIOCGRAB) and events are
     /// forwarded through a virtual device, except for suppressed keys.
     suppressed_keys: HashSet<u16>,
+    /// Macro bindings made after startup (ReloadMacroTriggers): suppressed
+    /// too while the device is grabbed.
+    live_suppressed: Option<crate::macros::SharedTriggerMap>,
     /// Shared configuration for button action lookup
     shared_config: Option<crate::config::SharedConfig>,
     /// The action triggered on button press (for release handling)
@@ -129,6 +143,15 @@ pub struct EvdevHandler {
     kwin_available: Option<crate::compositor::KWinAvailability>,
     /// Native KWin scripting client backed by the daemon's session connection.
     kwin_scripting: Option<crate::compositor::KWinScripting>,
+    /// Gaming mode, to hand a game's ring job to the main loop (see
+    /// gaming::ring_job_active).
+    gaming_mode: Option<crate::gaming::SharedGamingMode>,
+    /// Cursor-delta tracker for directional gestures. Fed from this loop's
+    /// REL events; started and finished by the HID++ handler that owns the
+    /// diverted gesture button. The evdev button path is not involved: on
+    /// this path BTN_BACK is the ring button (`buttons.thumb`), not the
+    /// gesture button.
+    gesture_tracker: Option<crate::gesture::SharedGestureTracker>,
 }
 
 impl EvdevHandler {
@@ -149,10 +172,13 @@ impl EvdevHandler {
             generic_mode: false,
             last_config_check: Instant::now(),
             suppressed_keys: HashSet::new(),
+            live_suppressed: None,
             shared_config: None,
             active_button_action: None,
             kwin_available: None,
             kwin_scripting: None,
+            gaming_mode: None,
+            gesture_tracker: None,
         }
     }
 
@@ -173,16 +199,25 @@ impl EvdevHandler {
             generic_mode: true,
             last_config_check: Instant::now(),
             suppressed_keys: HashSet::new(),
+            live_suppressed: None,
             shared_config: None,
             active_button_action: None,
             kwin_available: None,
             kwin_scripting: None,
+            gaming_mode: None,
+            gesture_tracker: None,
         }
     }
 
     /// Set the shared configuration for button action lookup
     pub fn set_shared_config(&mut self, config: crate::config::SharedConfig) {
         self.shared_config = Some(config);
+    }
+
+    /// Share the directional-gesture tracker. This loop feeds it relative
+    /// motion whenever the HID++ handler has started it for a press.
+    pub fn set_gesture_tracker(&mut self, tracker: crate::gesture::SharedGestureTracker) {
+        self.gesture_tracker = Some(tracker);
     }
 
     /// Share the live KWin availability flag so the gesture handler can pick the
@@ -196,11 +231,28 @@ impl EvdevHandler {
         self.kwin_scripting = Some(scripting);
     }
 
+    pub fn set_gaming_mode(&mut self, gaming: crate::gaming::SharedGamingMode) {
+        self.gaming_mode = Some(gaming);
+    }
+
     /// Set which key codes should be suppressed (eaten) from the OS.
     /// When non-empty, the evdev device will be grabbed exclusively and
     /// events forwarded via a virtual device, minus the suppressed keys.
     pub fn set_suppressed_keys(&mut self, keys: HashSet<u16>) {
         self.suppressed_keys = keys;
+    }
+
+    pub fn set_live_suppression(&mut self, map: crate::macros::SharedTriggerMap) {
+        self.live_suppressed = Some(map);
+    }
+
+    fn is_suppressed(&self, code: u16) -> bool {
+        self.suppressed_keys.contains(&code)
+            || self
+                .live_suppressed
+                .as_ref()
+                .and_then(|m| m.read().ok())
+                .is_some_and(|m| m.get(code).is_some())
     }
 
     /// Update the trigger button (e.g. after config reload)
@@ -318,7 +370,8 @@ impl EvdevHandler {
             }
         }
 
-        tracing::warn!("MX Master 4 not found. Waiting for connection...");
+        // Polled while the mouse is away; the callers say so once.
+        tracing::debug!("MX Master 4 not found. Waiting for connection...");
         Err(EvdevError::DeviceNotFound)
     }
 
@@ -446,7 +499,8 @@ impl EvdevHandler {
             });
         }
 
-        tracing::warn!("No generic mouse found");
+        // Polled every minute while none is plugged in; the caller says so once.
+        tracing::debug!("No generic mouse found");
         Err(EvdevError::DeviceNotFound)
     }
 
@@ -657,7 +711,7 @@ impl EvdevHandler {
                     // Determine if this event should be suppressed from the OS.
                     // Only suppress KEY press/release (value 0 or 1) for macro-bound buttons.
                     let is_suppressed_key = event.event_type() == EventType::KEY
-                        && self.suppressed_keys.contains(&event.code())
+                        && self.is_suppressed(event.code())
                         && (event.value() == 0 || event.value() == 1);
 
                     // Batch events for the virtual device.
@@ -725,17 +779,31 @@ impl EvdevHandler {
         use evdev::{EventType, RelativeAxisCode, SynchronizationCode};
 
         match event.event_type() {
-            EventType::RELATIVE if self.menu_active => match RelativeAxisCode(event.code()) {
-                RelativeAxisCode::REL_X => {
-                    self.pending_cursor_dx += event.value();
-                    self.pending_cursor_update = true;
+            EventType::RELATIVE => {
+                let axis = RelativeAxisCode(event.code());
+                // Directional gestures: the tracker ignores samples unless a
+                // press has started it, so this costs one atomic load per REL.
+                if let Some(tracker) = &self.gesture_tracker {
+                    match axis {
+                        RelativeAxisCode::REL_X => tracker.accumulate(event.value(), 0),
+                        RelativeAxisCode::REL_Y => tracker.accumulate(0, event.value()),
+                        _ => {}
+                    }
                 }
-                RelativeAxisCode::REL_Y => {
-                    self.pending_cursor_dy += event.value();
-                    self.pending_cursor_update = true;
+                if self.menu_active {
+                    match axis {
+                        RelativeAxisCode::REL_X => {
+                            self.pending_cursor_dx += event.value();
+                            self.pending_cursor_update = true;
+                        }
+                        RelativeAxisCode::REL_Y => {
+                            self.pending_cursor_dy += event.value();
+                            self.pending_cursor_update = true;
+                        }
+                        _ => {}
+                    }
                 }
-                _ => {}
-            },
+            }
             EventType::SYNCHRONIZATION if event.code() == SynchronizationCode::SYN_DROPPED.0 => {
                 self.discard_pending_cursor_frame();
             }
@@ -790,7 +858,7 @@ impl EvdevHandler {
 
         if let Some(ref config) = self.shared_config {
             if let Ok(cfg) = config.read() {
-                return cfg.buttons.thumb;
+                return cfg.action_for_cid(crate::hidraw::button_cid::HAPTIC);
             }
         }
         // Default fallback
@@ -819,7 +887,8 @@ impl EvdevHandler {
                         .map(|k| k.is_owned())
                         .unwrap_or(false);
 
-                    if crate::compositor::cursor_backend(kwin_owned)
+                    let ring_job = crate::gaming::ring_job_active(self.gaming_mode.as_ref());
+                    if crate::compositor::cursor_backend(kwin_owned && !ring_job)
                         == crate::compositor::CursorBackend::KWin
                     {
                         tracing::info!(
@@ -863,8 +932,10 @@ impl EvdevHandler {
                     let _ = self
                         .event_tx
                         .send(GestureEvent::ButtonActionEvent {
+                            repeats: 1,
                             action,
                             pressed: true,
+                            source: Some(crate::hidraw::button_cid::GESTURE_BUTTON),
                         })
                         .await;
                 }
@@ -892,8 +963,10 @@ impl EvdevHandler {
                         let _ = self
                             .event_tx
                             .send(GestureEvent::ButtonActionEvent {
+                                repeats: 1,
                                 action,
                                 pressed: false,
+                                source: Some(crate::hidraw::button_cid::GESTURE_BUTTON),
                             })
                             .await;
                     }
@@ -1002,6 +1075,51 @@ mod tests {
         let mut handler = EvdevHandler::new(tx);
         handler.activate_cursor_tracking();
         (handler, rx)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn all_events(rx: &mut mpsc::Receiver<GestureEvent>) -> Vec<GestureEvent> {
+        let mut events = Vec::new();
+        while let Ok(event) = rx.try_recv() {
+            events.push(event);
+        }
+        events
+    }
+
+    /// The evdev loop feeds the shared tracker only while the HID++ handler
+    /// has started it for a directional press, and that motion never turns
+    /// into CursorMoved events while the radial menu is inactive.
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn rel_motion_feeds_tracker_only_while_started() {
+        let (tx, mut rx) = mpsc::channel(16);
+        let mut handler = EvdevHandler::new(tx);
+        let tracker = crate::gesture::GestureTracker::new_shared();
+        handler.set_gesture_tracker(tracker.clone());
+
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 9))
+            .await;
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+        assert_eq!(tracker.finish(), (0, 0), "inactive tracker must ignore motion");
+
+        tracker.start();
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 30))
+            .await;
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_Y, -55))
+            .await;
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+        assert!(
+            all_events(&mut rx).is_empty(),
+            "no CursorMoved while the menu is inactive"
+        );
+        assert_eq!(tracker.finish(), (30, -55));
     }
 
     #[test]

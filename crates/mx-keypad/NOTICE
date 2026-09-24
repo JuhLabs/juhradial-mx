@@ -1,0 +1,8 @@
+mx-keypad
+Copyright (c) 2026 Julian Hermstad
+Licensed under MIT OR Apache-2.0 (see LICENSE-MIT and LICENSE-APACHE).
+
+This crate is original Rust. Its protocol handling was informed by packet
+measurements on a Logitech MX Keypad (046d:c354) and by the MIT-licensed
+@logitech-mx-creative-console/core 0.2.x by Julusian (imageWriter,
+mx-creative-keypad input and model) as a reference. No code was copied.

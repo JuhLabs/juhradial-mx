@@ -9,6 +9,7 @@ SPDX-License-Identifier: GPL-3.0
 """
 
 import importlib.util
+import json
 import logging
 import os
 import socket
@@ -683,7 +684,20 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
             self._juhflow_dot.set_visible(True)
             self._juhflow_label.set_visible(True)
 
-        if peers:
+        # Computers waiting for approval get nothing from the bridge until the
+        # user approves them (overlay/flow/trust.py); Approve on this button.
+        pending = [p for p in peers if p.get("state") == "pending"]
+        peers = [p for p in peers if p.get("state", "trusted") == "trusted"]
+        self._pending_peer = pending[0] if pending and not peers else None
+        if self._pending_peer:
+            self._juhflow_dot.remove_css_class("connected")
+            self._juhflow_dot.add_css_class("disconnected")
+            self._juhflow_label.set_text(_("{name} wants to connect (code {code})").format(
+                name=self._pending_peer.get("hostname", "Mac"),
+                code=self._pending_peer.get("fingerprint", "")))
+            self._juhflow_connect_btn.set_label(_("Approve"))
+            self._juhflow_connect_btn.set_visible(True)
+        elif peers:
             name = peers[0].get("hostname", "Mac")
             self._juhflow_dot.remove_css_class("disconnected")
             self._juhflow_dot.add_css_class("connected")
@@ -697,6 +711,7 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
             self._juhflow_label.set_text(_("Not connected"))
             self._juhflow_label.remove_css_class("success")
             self._juhflow_label.add_css_class("dim-label")
+            self._juhflow_connect_btn.set_label(_("Connect"))
             self._juhflow_connect_btn.set_visible(True)
 
         self._update_link_status(peers)
@@ -758,8 +773,35 @@ class FlowPage(FlowDiscoveryMixin, Gtk.ScrolledWindow):
             return "{}h".format(delta // 3600)
         return "{}d".format(delta // 86400)
 
+    def _approve_pending_peer(self, peer):
+        """Trust the waiting computer's key: the same file the Qt settings app
+        writes and the overlay's bridge re-reads (never import flow here)."""
+        path = os.path.join(os.path.expanduser("~"), ".config", "juhradial", "flow_trusted.json")
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            data = {}
+        trusted = dict(data.get("trusted") or {})
+        denied = dict(data.get("denied") or {})
+        fp = peer.get("fingerprint", "")
+        denied.pop(fp, None)
+        trusted[fp] = {"hostname": peer.get("hostname", ""), "platform": peer.get("platform", ""),
+                       "at": int(time.time())}
+        tmp = path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"trusted": trusted, "denied": denied}, f, indent=2)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+
     def _on_juhflow_connect(self, button):
-        """Start Flow server and JuhFlow bridge to find companion apps."""
+        """Approve a waiting computer, or start Flow server and JuhFlow bridge
+        to find companion apps."""
+        if getattr(self, "_pending_peer", None):
+            self._approve_pending_peer(self._pending_peer)
+            self._pending_peer = None
+            self._update_juhflow_status()
+            return
         button.set_sensitive(False)
         button.set_label(_("Connecting..."))
 

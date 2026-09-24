@@ -17,13 +17,13 @@ use juhradiald::{
     config::load_shared_config,
     dbus::{DBUS_NAME, DBUS_PATH, SharedDeviceName, claim_name, init_dbus_service_with_device},
     evdev::{EvdevError, EvdevHandler, GestureEvent},
-    gaming::new_shared_gaming_mode,
+    gaming::{new_shared_gaming_mode, AutoSource},
     hidpp::{HapticEvent, SharedHapticManager},
     hidraw::{HidrawError, HidrawHandler},
     macros::{MacroEngine, MacroRecorder, TriggerMap},
     new_shared_haptic_manager,
     profiles::{ProfileManager, SharedHardwareProfiles},
-    window_tracker::WindowTracker,
+    window_tracker::{tracker_decision, TrackerDecision, WindowTracker},
 };
 
 use std::collections::HashMap;
@@ -36,7 +36,7 @@ use std::sync::{Arc, Mutex, RwLock};
 /// failure modes. The previous 2-second cadence opened every evdev node on
 /// every tick (including the MX mouse currently streaming events through
 /// another task), causing visible cursor stutter every 2 seconds. 60 seconds
-/// matches the cost of a missed hotplug — barely perceptible — without
+/// matches the cost of a missed hotplug, barely perceptible, without
 /// generating periodic contention on active input devices.
 const DEVICE_POLL_INTERVAL_SECS: u64 = 60;
 
@@ -46,6 +46,11 @@ const DEVICE_POLL_INTERVAL_SECS: u64 = 60;
 /// found one, so a shorter cadence does not reintroduce the steady-state evdev
 /// scanning stutter that `DEVICE_POLL_INTERVAL_SECS` avoids.
 const HIDRAW_RECONNECT_POLL_INTERVAL_SECS: u64 = 5;
+
+/// How long the daemon keeps waiting for the desktop session to export its
+/// environment before giving up on window tracking. Plasma on a slow boot
+/// has been seen to take tens of seconds after the unit starts.
+const WINDOW_TRACKER_WAIT: Duration = Duration::from_secs(180);
 
 /// Emit monotonic checkpoints so cold-start latency can be attributed to a
 /// concrete phase instead of inferring it from process activation.
@@ -275,11 +280,115 @@ struct Args {
     /// List all Logitech devices and exit
     #[arg(long)]
     list_devices: bool,
+
+    /// Write the configuration (config, profiles, macros, icons, themes) to a zip file and exit
+    #[arg(long, value_name = "FILE", conflicts_with = "import")]
+    export: Option<PathBuf>,
+
+    /// Restore a zip written by --export (the current config.json and profiles.json are kept as .bak) and exit
+    #[arg(long, value_name = "FILE")]
+    import: Option<PathBuf>,
+}
+
+/// The lowercased class the first time it is focused in this run, else None.
+/// Profiles are keyed by lowercased class, so "Firefox" and "firefox" are one
+/// application.
+fn first_sighting(seen: &mut HashSet<String>, class: &str) -> Option<String> {
+    let app = class.trim().to_lowercase();
+    if app.is_empty() || !seen.insert(app.clone()) {
+        return None;
+    }
+    Some(app)
+}
+
+/// Config directory the backup commands operate on (XDG aware).
+fn backup_config_dir() -> PathBuf {
+    juhradiald::config::Config::default_config_dir()
+        .unwrap_or_else(juhradiald::profiles::get_config_dir)
+}
+
+/// `juhradiald --export FILE`: no logging, no bus name, no device access.
+fn run_export(dest: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = backup_config_dir();
+    match juhradiald::backup::export(&dir, dest) {
+        Ok(files) => {
+            println!(
+                "Exported {} file(s) from {} to {}",
+                files.len(),
+                dir.display(),
+                dest.display()
+            );
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("Export failed: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+/// `juhradiald --import FILE`: restore, then ask a running daemon to reload.
+async fn run_import(src: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = backup_config_dir();
+    let report = match juhradiald::backup::import(&dir, src) {
+        Ok(report) => report,
+        Err(e) => {
+            eprintln!("Import failed: {}", e);
+            std::process::exit(1);
+        }
+    };
+    println!(
+        "Imported {} file(s) from a {} backup into {}",
+        report.files.len(),
+        report.version,
+        dir.display()
+    );
+    for bak in &report.backed_up {
+        println!("Previous {} kept as {}", bak.trim_end_matches(".bak"), bak);
+    }
+    if reload_running_daemon().await {
+        println!("Running daemon reloaded");
+    } else {
+        println!("No running daemon to reload; the import applies on the next start");
+    }
+    Ok(())
+}
+
+/// ReloadConfig plus ReloadMacroTriggers on the daemon that owns the bus
+/// name, if any. False when no daemon answers.
+async fn reload_running_daemon() -> bool {
+    let Ok(connection) = zbus::Connection::session().await else {
+        return false;
+    };
+    let Ok(proxy) = zbus::proxy::Proxy::new(
+        &connection,
+        DBUS_NAME,
+        DBUS_PATH,
+        "org.kde.juhradialmx.Daemon",
+    )
+    .await
+    else {
+        return false;
+    };
+    if proxy.call_method("ReloadConfig", &()).await.is_err() {
+        return false;
+    }
+    let _ = proxy.call_method("ReloadMacroTriggers", &()).await;
+    true
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+
+    // Backup commands run before logging and before the bus-name claim: they
+    // must work while a daemon is running and print only their own summary.
+    if let Some(dest) = args.export.as_deref() {
+        return run_export(dest);
+    }
+    if let Some(src) = args.import.as_deref() {
+        return run_import(src).await;
+    }
 
     // Initialize logging
     let level = if args.verbose {
@@ -344,7 +453,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let haptic_manager = new_shared_haptic_manager(&haptic_config);
 
     // Try to connect to MX Master 4 for haptic feedback and divert gesture buttons.
-    // HID++ probing does blocking hidraw I/O with std::thread::sleep — running it
+    // HID++ probing does blocking hidraw I/O with std::thread::sleep, running it
     // directly on the tokio runtime stalls every other task (evdev, hidraw, dbus)
     // for up to ~1.5s on cold start. spawn_blocking moves it onto the blocking
     // thread pool so the runtime keeps servicing input events during startup.
@@ -364,10 +473,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             let path = manager.device_path();
             let name = manager.get_device_name_string();
-            (connect_result, divert_result, path, name)
+            let unit = manager.unit_id();
+            (connect_result, divert_result, path, name, unit)
         })
         .await
         .expect("HID++ probe task panicked");
+
+        // Per-device overrides (config `devices.<unit>`): select the connected
+        // mouse before the reassigned-button diverts below read the config.
+        if let Some(unit) = probe.4 {
+            let key = juhradiald::config::Config::unit_key(unit);
+            if let Ok(mut cfg) = shared_config.write() {
+                let applied = cfg.apply_device_overrides(&key);
+                info!(unit = %key, applied, "HID++ device unit id");
+            }
+        }
 
         match probe.0 {
             Ok(true) => {
@@ -455,16 +575,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize gaming mode and macro subsystem
     let gaming_mode = new_shared_gaming_mode(haptic_manager.clone());
+    if let (Ok(cfg), Ok(mut gm)) = (shared_config.read(), gaming_mode.write()) {
+        gm.apply_config(&cfg.gaming);
+    }
     let macro_engine = Arc::new(Mutex::new(MacroEngine::new()));
     let macro_recorder = Arc::new(Mutex::new(MacroRecorder::new()));
     let trigger_map = Arc::new(std::sync::RwLock::new(TriggerMap::default()));
 
     // Load existing macro triggers from disk at startup
-    let macro_cids: Vec<u16>;
+    // The startup divert below; the hidraw loop reads bindings live after.
+    let _startup_macro_cids: Vec<u16>;
     let macro_evdev_codes: HashSet<u16>;
     {
         // Pull what we need out of the trigger map, then drop the write lock
-        // before we await on the blocking divert task — clippy's
+        // before we await on the blocking divert task, clippy's
         // `await_holding_lock` lint is correct: a std RwLock guard is poisoned
         // territory across an await.
         let pending_cids: Vec<(u16, u16)>;
@@ -486,7 +610,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map(|config| config.remapped_button_cids())
             .unwrap_or_default();
 
-        macro_cids = if pending_cids.is_empty() && initial_remapped_cids.is_empty() {
+        _startup_macro_cids = if pending_cids.is_empty() && initial_remapped_cids.is_empty() {
             Vec::new()
         } else {
             // Scan REPROG_CONTROLS_V4 once, then send one long request per
@@ -548,6 +672,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Clone trigger_map and macro_engine for event processing (macro trigger detection)
     // Must clone before D-Bus init which moves them
     let trigger_map_for_events = trigger_map.clone();
+    let trigger_map_for_hidraw = trigger_map.clone();
+    let trigger_map_for_evdev = trigger_map.clone();
+    let trigger_map_for_focus = trigger_map.clone();
     let macro_engine_for_events = macro_engine.clone();
 
     // Active-window channel for per-app hardware profiles. The D-Bus service
@@ -558,12 +685,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Clone the haptic manager for the profile consumer before it is moved into
     // the D-Bus service below.
     let haptic_manager_for_profiles = haptic_manager_for_battery.clone();
+    // Button actions that talk to the mouse itself (SmartShift toggle).
+    juhradiald::actions::set_device_manager(haptic_manager_for_battery.clone());
 
     // Shared per-app hardware profile map. Created empty here, populated once
     // profiles.json is loaded below, and refreshed by `ReloadConfig` whenever
     // the settings UI saves. Both the D-Bus service and the focus-change
     // consumer hold a clone, so a UI save reaches the consumer without restart.
     let hardware_profiles: SharedHardwareProfiles = Arc::new(RwLock::new(HashMap::new()));
+
+    // Pointer/scroll replay after reconnect or wake needs the focused app's
+    // profile and the gaming DPI, owned elsewhere; share them.
+    let replay_ctx = juhradiald::replay::ReplayContext {
+        gaming_mode: gaming_mode.clone(),
+        hardware_profiles: hardware_profiles.clone(),
+        active_profile: juhradiald::replay::new_shared_active_profile(),
+    };
 
     // Export the D-Bus service on the connection that already holds the
     // single-instance name claim from startup.
@@ -574,7 +711,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         haptic_manager,
         device_mode.clone(),
         device_name_state.clone(),
-        gaming_mode,
+        gaming_mode.clone(),
         macro_engine,
         macro_recorder,
         trigger_map,
@@ -607,9 +744,77 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let kwin = kwin_availability.clone();
         tokio::spawn(async move { juhradiald::compositor::run_kwin_watcher(conn, kwin).await });
     }
+    // Feral GameMode: automatic gaming mode (never starts gamemoded).
+    {
+        let conn = dbus_connection.clone();
+        let gaming = gaming_mode.clone();
+        tokio::spawn(async move { juhradiald::gamemode::run_gamemode_watcher(conn, gaming).await });
+    }
+    // Screen lock (logind LockedHint): the keypad goes blank while locked.
+    tokio::spawn(async { juhradiald::screen_lock::run(juhradiald::keypad::set_screen_locked).await });
+    // ---- MX Keypad ----
+    // The guard stops the HID worker on daemon shutdown. Both HID and action
+    // execution have their own blocking workers, independent of mouse input.
+    let (_keypad_worker, mut keypad_events) = juhradiald::keypad::start(shared_config.clone());
+    {
+        let mut actions = ActionContext {
+            connection: dbus_connection.clone(), config: shared_config.clone(),
+            macro_engine: macro_engine_for_events.clone(), gaming_mode: gaming_mode.clone(), shift_restore: None, held_custom: None,
+        };
+        let kwin = kwin_availability.clone();
+        let kwin_scripting = kwin_scripting.clone();
+        tokio::task::spawn_blocking(move || {
+            let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() else { return };
+            rt.block_on(async move {
+                use juhradiald::config::ButtonAction;
+                use juhradiald::keypad::Event;
+                while let Some(event) = keypad_events.recv().await {
+                    match event {
+                        Event::Connection(connected) => {
+                            let _ = actions.connection.emit_signal(None::<&str>, DBUS_PATH,
+                                "org.kde.juhradialmx.Daemon", "KeypadStatusChanged", &(connected,)).await;
+                        }
+                        Event::Pressed(page, key) => {
+                            let _ = actions.connection.emit_signal(None::<&str>, DBUS_PATH,
+                                "org.kde.juhradialmx.Daemon", "KeypadKeyPressed", &(page, key)).await;
+                        }
+                        Event::Action { binding, pressed } => {
+                            if binding.action == ButtonAction::Custom {
+                                run_custom_action(&binding.custom, &actions.macro_engine, pressed).await;
+                            } else if binding.action == ButtonAction::RadialMenu {
+                                let suppressed = actions.gaming_mode.read().is_ok_and(|g| g.should_suppress_overlay());
+                                match keypad_ring_route(pressed, suppressed, kwin.is_owned()) {
+                                    KeypadRing::Hide => { let _ = emit_hide_menu(&actions.connection).await; }
+                                    KeypadRing::Suppressed => debug!("Keypad Actions Ring suppressed - gaming mode active"),
+                                    KeypadRing::KWinScript => {
+                                        // Same as the gesture button: the KWin script calls
+                                        // ShowMenuAtCursor with KWin's own cursor position.
+                                        let conn = actions.connection.clone();
+                                        juhradiald::compositor::trigger_kwin_cursor_script(Some(&kwin_scripting), move || async move {
+                                            let p = juhradiald::cursor::get_cursor_position();
+                                            let _ = emit_menu_requested(&conn, p.x, p.y).await;
+                                        }).await;
+                                    }
+                                    KeypadRing::CursorQuery => {
+                                        let p = juhradiald::cursor::get_cursor_position();
+                                        let _ = emit_menu_requested(&actions.connection, p.x, p.y).await;
+                                    }
+                                }
+                            } else {
+                                actions.run(binding.action, pressed, None, 1).await;
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+    // ---- End MX Keypad ----
+
     let kwin_context = KWinContext {
         availability: kwin_availability,
         scripting: kwin_scripting,
+        gaming: gaming_mode.clone(),
     };
 
     let haptic_manager_for_hidraw = haptic_manager_for_battery.clone();
@@ -664,38 +869,69 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     log_startup_phase(&startup_started_at, "profiles");
 
-    // Initialize window tracker for per-app HARDWARE profiles (Story 3.2/3.3).
-    // The tracker pushes focused-window resource classes; the consumer below
-    // applies any matching HardwareProfile via volatile HID++ setters.
-    let window_tracker = WindowTracker::new();
-    let tracker_desktop = window_tracker.desktop();
-    if window_tracker.is_available() {
-        info!(desktop = tracker_desktop, "Window tracking enabled for per-app hardware profiles");
+    // Window tracker for per-app HARDWARE profiles (Story 3.2/3.3) and the
+    // KDE monitor-switch haptic script. Both depend on the desktop, which a
+    // systemd user unit started at default.target cannot know yet: the
+    // session exports XDG_CURRENT_DESKTOP / WAYLAND_DISPLAY into the user
+    // manager seconds later (see actions::session_var). Deciding once at
+    // startup left a slow boot with no tracker and no monitor-switch haptic
+    // for the whole session (issue #138, Bazzite), so keep re-checking until
+    // the desktop is known, then start both.
+    {
         let watch_tx = active_window_tx.clone();
-        tokio::spawn(async move { window_tracker.watch(watch_tx).await });
-    } else {
-        warn!("Window tracking unavailable - per-app hardware profiles inactive");
-    }
-
-    // Monitor-switch haptic on KDE (X11 or Wayland - detect_desktop() only
-    // checks XDG_CURRENT_DESKTOP, not session type): a persistent KWin script
-    // (installed once, like the active-window script above) reports screen
-    // crossings directly via TriggerHaptic - see cursor::KWIN_CURSOR_SCREEN_SCRIPT
-    // for why this needs to be KWin-native rather than the overlay's own
-    // ambient cursor poll (stale on KDE Wayland outside an open menu). The
-    // overlay skips its own poll on all of KDE for this reason, so a failed
-    // install here silently means no monitor-switch haptic at all on KDE.
-    if tracker_desktop == "kde" {
-        tokio::spawn(async {
-            let installed =
-                tokio::task::spawn_blocking(juhradiald::cursor::watch_cursor_screen_kde)
-                    .await
-                    .unwrap_or(false);
-            if installed {
-                info!("KWin cursor-screen script installed (monitor-switch haptic)");
-            } else {
-                warn!("Failed to install KWin cursor-screen script; monitor-switch haptic inactive on KDE");
+        tokio::spawn(async move {
+            let started = Instant::now();
+            // Started inside the session (not by systemd at default.target):
+            // the process environment is already complete.
+            let env_from_process = std::env::var_os("DISPLAY").is_some()
+                || std::env::var_os("WAYLAND_DISPLAY").is_some();
+            let tracker = loop {
+                let tracker = WindowTracker::new();
+                match tracker_decision(
+                    tracker.desktop(),
+                    tracker.is_available(),
+                    env_from_process,
+                    started.elapsed(),
+                    WINDOW_TRACKER_WAIT,
+                ) {
+                    TrackerDecision::Start => break Some(tracker),
+                    TrackerDecision::GiveUp => break None,
+                    TrackerDecision::Wait => {}
+                }
+                sleep(Duration::from_secs(2)).await;
+            };
+            let Some(tracker) = tracker else {
+                warn!("Window tracking unavailable - per-app hardware profiles inactive");
+                return;
+            };
+            let desktop = tracker.desktop();
+            info!(
+                desktop,
+                waited_ms = started.elapsed().as_millis() as u64,
+                "Window tracking enabled for per-app hardware profiles"
+            );
+            // Monitor-switch haptic on KDE (X11 or Wayland): a persistent KWin
+            // script (installed once, like the active-window script) reports
+            // screen crossings directly via TriggerHaptic - see
+            // cursor::KWIN_CURSOR_SCREEN_SCRIPT for why this needs to be
+            // KWin-native rather than the overlay's own ambient cursor poll
+            // (stale on KDE Wayland outside an open menu). The overlay skips
+            // its own poll on all of KDE for this reason, so a failed install
+            // here means no monitor-switch haptic at all on KDE.
+            if desktop == "kde" {
+                tokio::spawn(async {
+                    let installed =
+                        tokio::task::spawn_blocking(juhradiald::cursor::watch_cursor_screen_kde)
+                            .await
+                            .unwrap_or(false);
+                    if installed {
+                        info!("KWin cursor-screen script installed (monitor-switch haptic)");
+                    } else {
+                        warn!("Failed to install KWin cursor-screen script; monitor-switch haptic inactive on KDE");
+                    }
+                });
             }
+            tracker.watch(watch_tx).await;
         });
     }
 
@@ -703,7 +939,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // profile (volatile only). No-op when no profile matches, so the default
     // (empty hardware map) leaves device state untouched.
     {
-        let mut active_window_rx = active_window_rx;
         let hw_manager = haptic_manager_for_profiles;
         // Read the live shared map (refreshed by ReloadConfig) instead of a
         // one-time snapshot, so UI saves take effect without a daemon restart.
@@ -711,27 +946,92 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Profiles override only the thumb-wheel mode; the invert setting is
         // global, so read it live from the shared config (issue #127).
         let hw_config = shared_config.clone();
+        // The tray tooltip and badge follow the applied profile.
+        let profile_connection = dbus_connection.clone();
+        let focus_replay = replay_ctx.clone();
+        let focus_triggers = trigger_map_for_focus;
+        let focus_gaming = gaming_mode.clone();
         if !hw_profiles.read().map(|m| m.is_empty()).unwrap_or(true) {
             info!("Per-app hardware profiles configured; focus-change application active");
         }
         tokio::spawn(async move {
             let mut current_class = String::new();
+            // Time in front per app: Settings suggests keypad profiles by it.
+            let mut usage = juhradiald::usage::AppUsage::load(
+                juhradiald::config::Config::default_config_dir().map(|d| d.join("app_usage.json")),
+            );
+            // Class whose hardware profile is applied right now ("" = none).
+            let mut active_profile = String::new();
             // True while the last applied profile overrode the thumb wheel,
             // so leaving its app restores the global divert/invert instead of
             // latching the profile's state everywhere (issue #127 review).
             let mut thumbwheel_overridden = false;
-            while let Some(class) = active_window_rx.recv().await {
+            // Classes already announced through NewAppSeen during this run.
+            let mut seen_apps: HashSet<String> = HashSet::new();
+            // Device state before the first profile applied: what leaving
+            // profiled apps restores for settings config.json does not name.
+            let mut baseline: Option<juhradiald::replay::DeviceState> = None;
+            // App profiles "Try now" can stand in for the app in front.
+            let mut focus = juhradiald::focus_trial::FocusSource::new(active_window_rx);
+            let mut was_in_trial = false;
+            while let Some(class) = focus.next().await {
+                // Before the same-class skip, so no trial edge goes unseen.
+                let trial = trial_involved(&mut was_in_trial, focus.in_trial());
                 if class == current_class {
                     continue;
                 }
-                current_class = class.clone();
+                let previous = std::mem::replace(&mut current_class, class.clone());
+                let pulse = window_switch_pulses(&previous, trial);
+                juhradiald::keypad::set_focused_app(&class);
+                if !focus.in_trial() {
+                    usage.focus(&class, std::time::Instant::now());
+                }
+
+                // First focus of an application in this run: Settings decides
+                // whether to offer a profile for it (suppress list, existing
+                // profiles), the daemon only announces it once.
+                if let Some(app) = first_sighting(&mut seen_apps, &class) {
+                    if let Err(e) = profile_connection
+                        .emit_signal(
+                            None::<&str>,
+                            DBUS_PATH,
+                            "org.kde.juhradialmx.Daemon",
+                            "NewAppSeen",
+                            &(app,),
+                        )
+                        .await
+                    {
+                        warn!(error = %e, "Failed to emit NewAppSeen");
+                    }
+                }
 
                 // Window-switch haptic fires on every app-class change,
                 // regardless of whether a hardware profile matches below.
+                // An app on the haptics mute list goes quiet first, so
+                // switching into it does not pulse either.
+                let (app_muted, auto_game) = hw_config
+                    .read()
+                    .map(|c| (c.haptics.app_muted(&class), c.gaming.auto_app(&class)))
+                    .unwrap_or((false, false));
+                // Settings > Gaming > "When these apps are in front".
+                let gaming = focus_gaming.clone();
+                let flipped = tokio::task::spawn_blocking(move || {
+                    gaming.write().ok().and_then(|mut gm| gm.set_auto(AutoSource::App, auto_game))
+                })
+                .await
+                .ok()
+                .flatten();
+                if let Some(on) = flipped {
+                    info!(app = %class, on, "Gaming mode switched by the app in front");
+                    let _ = profile_connection
+                        .emit_signal(None::<&str>, DBUS_PATH, "org.kde.juhradialmx.Daemon", "GamingModeChanged", &(on,))
+                        .await;
+                }
                 let mgr_ws = hw_manager.clone();
                 let _ = tokio::task::spawn_blocking(move || {
                     if let Ok(mut m) = mgr_ws.lock() {
-                        if m.is_window_switch_enabled() {
+                        m.set_app_muted(app_muted);
+                        if pulse && m.is_window_switch_enabled() {
                             let _ = m.emit(HapticEvent::WindowSwitch);
                         }
                     }
@@ -775,28 +1075,107 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 thumbwheel_overridden = thumbwheel_overridden || profile_sets_tw;
 
-                let Some(hw) = hw else { continue };
-                info!(class = %class, "Applying per-app hardware profile");
-                let mgr = hw_manager.clone();
-                let thumbwheel_invert = hw_config
-                    .read()
-                    .map(|c| c.thumbwheel.invert)
-                    .unwrap_or(false);
-                let _ = tokio::task::spawn_blocking(move || {
-                    match mgr.lock() {
-                        Ok(mut m) => {
-                            juhradiald::profiles::apply_hardware_profile(&hw, &mut m, thumbwheel_invert)
-                        }
-                        Err(e) => error!(error = %e, "Failed to lock haptic manager for hardware profile"),
+                // ActiveProfileChanged carries the app class whose profile is
+                // now applied, or "" once the focus leaves profiled apps.
+                let now_active = if hw.is_some() { class.to_lowercase() } else { String::new() };
+                let entering = active_profile.is_empty() && !now_active.is_empty();
+                let profile_changed = now_active != active_profile;
+                if profile_changed {
+                    active_profile = now_active.clone();
+                    if let Ok(mut cell) = focus_replay.active_profile.write() {
+                        *cell = (!now_active.is_empty()).then(|| now_active.clone());
                     }
-                })
+                    if let Err(e) = profile_connection
+                        .emit_signal(
+                            None::<&str>,
+                            DBUS_PATH,
+                            "org.kde.juhradialmx.Daemon",
+                            "ActiveProfileChanged",
+                            &(now_active,),
+                        )
+                        .await
+                    {
+                        warn!(error = %e, "Failed to emit ActiveProfileChanged");
+                    }
+                }
+
+                if !profile_changed {
+                    continue;
+                }
+                apply_app_button_overrides(
+                    &hw_config,
+                    &hw_manager,
+                    &focus_triggers,
+                    (!active_profile.is_empty()).then(|| active_profile.clone()),
+                    hw.as_ref(),
+                )
                 .await;
+                // Entering, switching or leaving a profile: write the full
+                // effective state, so a setting the previous profile changed
+                // returns to the global value (config.json, else the device
+                // state from before the first profile) instead of latching.
+                match &hw {
+                    Some(_) => info!(class = %class, "Applying per-app hardware profile"),
+                    None => info!("Focus left profiled apps; restoring global pointer and scroll state"),
+                }
+                let mgr = hw_manager.clone();
+                let (thumbwheel_invert, unit_key) = hw_config
+                    .read()
+                    .map(|c| (c.thumbwheel.invert, c.active_unit.clone()))
+                    .unwrap_or((false, None));
+                let gaming_dpi = focus_replay.gaming_dpi();
+                let prior = baseline;
+                let captured = tokio::task::spawn_blocking(move || {
+                    let mut m = match mgr.lock() {
+                        Ok(m) => m,
+                        Err(e) => {
+                            error!(error = %e, "Failed to lock haptic manager for hardware profile");
+                            return prior;
+                        }
+                    };
+                    let base = if entering {
+                        Some(juhradiald::replay::read_device_state(&mut m))
+                    } else {
+                        prior
+                    };
+                    let globals = juhradiald::replay::with_session_dpi(
+                        juhradiald::replay::globals_from_config(
+                            &juhradiald::replay::load_raw_config(),
+                            unit_key.as_deref(),
+                        ),
+                    )
+                    .or(base.unwrap_or_default());
+                    let state = juhradiald::replay::effective_state(globals, hw.as_ref(), gaming_dpi);
+                    let (tried, failed) = juhradiald::replay::apply(&mut *m, &state);
+                    debug!(tried, failed, "Profile pointer/scroll state written");
+                    if let Some(hw) = &hw {
+                        // Thumb-wheel override (the global restore is above).
+                        let tw_only = juhradiald::profiles::HardwareProfile {
+                            thumbwheel: hw.thumbwheel,
+                            ..Default::default()
+                        };
+                        juhradiald::profiles::apply_hardware_profile(
+                            &tw_only,
+                            &mut m,
+                            thumbwheel_invert,
+                            globals.natural.unwrap_or(false),
+                        );
+                    }
+                    base
+                })
+                .await
+                .unwrap_or(prior);
+                baseline = if active_profile.is_empty() { None } else { captured };
             }
         });
     }
 
     // Create channel for gesture events
     let (event_tx, mut event_rx) = mpsc::channel::<GestureEvent>(32);
+
+    // Directional gestures: one tracker shared by the press owners (hidraw or
+    // evdev) and the MX evdev loop that sees the mouse's relative motion.
+    let gesture_tracker = juhradiald::gesture::GestureTracker::new_shared();
 
     // Spawn the HID++ hidraw handler (reads button events directly from mouse).
     // Button divert is volatile and is reset by Easy-Switch host changes, so
@@ -807,19 +1186,79 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hidraw_kwin = kwin_context.clone();
     let hidraw_dbus_connection = dbus_connection.clone();
     let hidraw_device_name_state = device_name_state.clone();
+    let hidraw_tracker = gesture_tracker.clone();
+    let hidraw_replay = replay_ctx.clone();
+
+    // Publish mouse reachability transitions (connected/asleep/away/offline).
+    {
+        let conn = dbus_connection.clone();
+        let mut rx = juhradiald::link_state::subscribe();
+        tokio::spawn(async move {
+            let mut last = rx.borrow().0;
+            while rx.changed().await.is_ok() {
+                let (state, transport) = *rx.borrow_and_update();
+                info!(state = state.as_str(), transport = transport.as_str(), "Mouse link changed");
+                // Back from another computer (not a wake): the hand feels
+                // which computer the mouse landed on.
+                if last == juhradiald::link_state::LinkState::Away
+                    && state == juhradiald::link_state::LinkState::Connected
+                {
+                    juhradiald::actions::pulse(HapticEvent::HostArrive);
+                }
+                last = state;
+                if let Err(e) = conn
+                    .emit_signal(
+                        None::<&str>,
+                        DBUS_PATH,
+                        "org.kde.juhradialmx.Daemon",
+                        "DeviceConnectionChanged",
+                        &(state.as_str(), transport.as_str()),
+                    )
+                    .await
+                {
+                    warn!(error = %e, "Failed to emit DeviceConnectionChanged");
+                }
+            }
+        });
+    }
+    // Low-battery pulse (the overlay shows the notice; the hand feels it).
+    {
+        let battery = battery_state_for_events.clone();
+        let alert_config = shared_config.clone();
+        tokio::spawn(async move {
+            let mut latched = false;
+            loop {
+                sleep(Duration::from_secs(60)).await;
+                let (pct, charging) = {
+                    let b = battery.read().await;
+                    (b.percentage, b.charging)
+                };
+                let alert = alert_config.read().map(|c| c.battery.alert_percent).unwrap_or(15);
+                let (fire, next) = juhradiald::battery::low_battery_step(latched, pct, charging, alert);
+                latched = next;
+                if fire {
+                    juhradiald::actions::pulse(HapticEvent::LowBattery);
+                }
+            }
+        });
+    }
     let hidraw_handle = tokio::spawn(async move {
         run_hidraw_loop(
             hidraw_tx,
             HidrawStartup {
                 preferred_path: mx4_hidraw_path,
+                gesture_tracker: hidraw_tracker,
+                replay: hidraw_replay,
             },
-            macro_cids,
-            hidraw_config,
-            hidraw_hotplug,
-            haptic_manager_for_hidraw,
-            hidraw_kwin,
-            hidraw_dbus_connection,
-            hidraw_device_name_state,
+            HidrawShared {
+                trigger_map: trigger_map_for_hidraw,
+                shared_config: hidraw_config,
+                hotplug: hidraw_hotplug,
+                haptic_manager: haptic_manager_for_hidraw,
+                kwin: hidraw_kwin,
+                dbus_connection: hidraw_dbus_connection,
+                device_name_state: hidraw_device_name_state,
+            },
         )
         .await
     });
@@ -839,6 +1278,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let hotplug_for_mx = hotplug_notify.clone();
     let evdev_config = shared_config.clone();
     let evdev_kwin = kwin_context.clone();
+    let evdev_tracker = gesture_tracker.clone();
     let evdev_handle = tokio::spawn(async move {
         run_evdev_loop(
             evdev_tx,
@@ -846,6 +1286,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             hotplug_for_mx,
             evdev_config,
             evdev_kwin,
+            evdev_tracker,
+            trigger_map_for_evdev,
         )
         .await
     });
@@ -866,14 +1308,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
     });
 
+    // Spawn the keyboard remap loop (BETA, opt-in). It idles unless the user
+    // has enabled keyboard remapping AND defined remap entries, so a default
+    // install never grabs the keyboard. Detached and designed to never return,
+    // so it is intentionally NOT part of the shutdown select! below.
+    let keyboard_config = shared_config.clone();
+    let keyboard_hotplug = hotplug_notify.clone();
+    let _keyboard_handle = tokio::spawn(async move {
+        juhradiald::keyboard::run_keyboard_remap_loop(keyboard_config, keyboard_hotplug).await;
+    });
+
+    // MX Keys S link watcher (BETA, opt-in with keyboard.mx_keys.enabled):
+    // pushes KeyboardBatteryChanged when a key press re-links the keyboard,
+    // so Settings stops showing "asleep" the moment the user types.
+    let link_config = shared_config.clone();
+    let link_connection = dbus_connection.clone();
+    let _keyboard_link_handle = tokio::spawn(async move {
+        juhradiald::keyboard::run_keyboard_link_watcher(link_config, link_connection).await;
+    });
+
     // Spawn event processing task with D-Bus connection
+    let config_for_events = shared_config.clone();
+    let hotplug_for_events = hotplug_notify.clone();
+    let gaming_for_events = replay_ctx.gaming_mode.clone();
     let event_handle = tokio::spawn(async move {
+        let actions = ActionContext {
+            connection: dbus_connection.clone(),
+            config: config_for_events,
+            macro_engine: macro_engine_for_events,
+            gaming_mode: gaming_for_events,
+            shift_restore: None,
+            held_custom: None,
+        };
         process_gesture_events(
             &mut event_rx,
             &dbus_connection,
             trigger_map_for_events,
-            macro_engine_for_events,
             battery_state_for_events,
+            hotplug_for_events,
+            actions,
         )
         .await
     });
@@ -971,12 +1444,26 @@ fn list_logitech_devices() {
 
 struct HidrawStartup {
     preferred_path: Option<PathBuf>,
+    gesture_tracker: juhradiald::gesture::SharedGestureTracker,
+    replay: juhradiald::replay::ReplayContext,
+}
+
+/// The daemon-wide handles the hidraw loop shares with the other tasks.
+struct HidrawShared {
+    trigger_map: juhradiald::macros::SharedTriggerMap,
+    shared_config: juhradiald::config::SharedConfig,
+    hotplug: Arc<tokio::sync::Notify>,
+    haptic_manager: SharedHapticManager,
+    kwin: KWinContext,
+    dbus_connection: zbus::Connection,
+    device_name_state: SharedDeviceName,
 }
 
 #[derive(Clone)]
 struct KWinContext {
     availability: juhradiald::compositor::KWinAvailability,
     scripting: juhradiald::compositor::KWinScripting,
+    gaming: juhradiald::gaming::SharedGamingMode,
 }
 
 /// Reconnect HID++ and re-apply volatile button diverts.
@@ -987,19 +1474,19 @@ async fn refresh_hidpp_button_diverts(
     haptic_manager: SharedHapticManager,
     macro_cids: Vec<u16>,
     remapped_cids: Vec<u16>,
-) -> (Option<PathBuf>, Option<String>) {
+) -> (Option<PathBuf>, Option<String>, Option<u32>) {
     match tokio::task::spawn_blocking(move || {
         let mut manager = haptic_manager.lock().unwrap();
         let connected = match manager.connect() {
             Ok(connected) => connected,
             Err(e) => {
                 warn!(error = %e, "HID++ reconnect failed while refreshing button divert");
-                return (None, None);
+                return (None, None, None);
             }
         };
         if !connected {
             debug!("No MX Master HID++ device available for button divert");
-            return (None, None);
+            return (None, None, None);
         }
         let name = manager.get_device_name_string();
 
@@ -1050,14 +1537,14 @@ async fn refresh_hidpp_button_diverts(
             }
         }
 
-        (manager.device_path(), name)
+        (manager.device_path(), name, manager.unit_id())
     })
     .await
     {
         Ok(result) => result,
         Err(e) => {
             error!("HID++ button divert refresh task panicked: {:?}", e);
-            (None, None)
+            (None, None, None)
         }
     }
 }
@@ -1152,26 +1639,455 @@ async fn fetch_notification_indices(
     .unwrap_or_default()
 }
 
-async fn run_hidraw_loop(
-    event_tx: mpsc::Sender<GestureEvent>,
-    startup: HidrawStartup,
-    macro_cids: Vec<u16>,
-    shared_config: juhradiald::config::SharedConfig,
-    hotplug: Arc<tokio::sync::Notify>,
-    haptic_manager: SharedHapticManager,
-    kwin: KWinContext,
-    dbus_connection: zbus::Connection,
-    device_name_state: SharedDeviceName,
+/// Point the shared config at the focused app's button overrides (P1 #2)
+/// and divert exactly the buttons whose effective action changed from or
+/// to their native behaviour.
+async fn apply_app_button_overrides(
+    config: &juhradiald::config::SharedConfig,
+    manager: &SharedHapticManager,
+    triggers: &juhradiald::macros::SharedTriggerMap,
+    app: Option<String>,
+    profile: Option<&juhradiald::profiles::HardwareProfile>,
 ) {
-    let HidrawStartup { mut preferred_path } = startup;
+    let (buttons, custom) = profile
+        .map(|p| (p.buttons.clone(), p.custom.clone()))
+        .unwrap_or_default();
+    // Macro-bound buttons stay diverted whatever the app does.
+    let macro_cids = triggers.read().map(|m| m.cids()).unwrap_or_default();
+    let changed: Vec<(u16, bool)> = match config.write() {
+        Ok(mut c) => {
+            let before: HashSet<u16> = c.remapped_button_cids().into_iter().chain(macro_cids.iter().copied()).collect();
+            c.set_app_overrides(app, buttons, custom);
+            let after: HashSet<u16> = c.remapped_button_cids().into_iter().chain(macro_cids.iter().copied()).collect();
+            before
+                .symmetric_difference(&after)
+                .map(|cid| (*cid, after.contains(cid)))
+                .collect()
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to lock config for per-app buttons");
+            return;
+        }
+    };
+    if changed.is_empty() {
+        return;
+    }
+    let manager = manager.clone();
+    let _ = tokio::task::spawn_blocking(move || {
+        if let Ok(mut m) = manager.lock() {
+            for (cid, divert) in changed {
+                match m.set_button_divert(cid, divert) {
+                    Ok(_) => info!(cid = format!("0x{:04X}", cid), divert, "Per-app button divert"),
+                    Err(e) => warn!(cid = format!("0x{:04X}", cid), error = %e, "Per-app button divert failed"),
+                }
+            }
+        }
+    })
+    .await;
+}
+
+/// Runs button actions for the event loop. Custom, DPI and gaming-mode
+/// actions need the slot or daemon state and run here; the rest go to
+/// `execute_button_action`.
+struct ActionContext {
+    connection: zbus::Connection,
+    config: juhradiald::config::SharedConfig,
+    macro_engine: Arc<Mutex<juhradiald::macros::MacroEngine>>,
+    gaming_mode: juhradiald::gaming::SharedGamingMode,
+    /// DPI to put back when the held DPI-shift button is released.
+    shift_restore: Option<u16>,
+    /// A hold-while-pressed custom action whose keys are down (release
+    /// events carry no source button, so the press remembers it).
+    held_custom: Option<(Option<u16>, juhradiald::config::CustomAction)>,
+}
+
+/// The app-switch pulse is for a switch the user made: not the first report
+/// after the daemon starts (nothing was in front before) and not an App
+/// profiles "Try now" standing in for an app, starting or ending.
+fn window_switch_pulses(previous: &str, trial: bool) -> bool {
+    !previous.is_empty() && !trial
+}
+
+/// Whether a "Try now" trial takes part in this focus report: running now, or
+/// running at the report before (the report that ends it hands the real app back).
+fn trial_involved(was_in_trial: &mut bool, in_trial: bool) -> bool {
+    std::mem::replace(was_in_trial, in_trial) || in_trial
+}
+
+/// What an MX Keypad key bound to the Actions Ring does on one edge. Like the
+/// gesture button: KWin's cursor script on KDE, a cursor query elsewhere, the
+/// menu hidden on release, nothing while gaming mode hides the ring.
+#[derive(Debug, PartialEq, Eq)]
+enum KeypadRing {
+    Hide,
+    Suppressed,
+    KWinScript,
+    CursorQuery,
+}
+
+fn keypad_ring_route(pressed: bool, suppressed: bool, kwin_owned: bool) -> KeypadRing {
+    if !pressed {
+        KeypadRing::Hide
+    } else if suppressed {
+        KeypadRing::Suppressed
+    } else if juhradiald::compositor::cursor_backend(kwin_owned) == juhradiald::compositor::CursorBackend::KWin {
+        KeypadRing::KWinScript
+    } else {
+        KeypadRing::CursorQuery
+    }
+}
+
+impl ActionContext {
+    async fn run(
+        &mut self,
+        action: juhradiald::config::ButtonAction,
+        pressed: bool,
+        source: Option<u16>,
+        repeats: u8,
+    ) {
+        use juhradiald::config::ButtonAction as A;
+        match (action, pressed) {
+            (A::DpiShift, true) => self.dpi_shift(true).await,
+            (A::DpiShift, false) => self.dpi_shift(false).await,
+            (A::Custom, false) => {
+                if let Some((_, held)) = self.held_custom.take() {
+                    run_custom_action(&held, &self.macro_engine, false).await;
+                }
+            }
+            (_, false) => debug!(%action, "Button action released (no-op)"),
+            (A::Custom, true) => self.custom(source).await,
+            (A::DpiCycle | A::DpiUp | A::DpiDown, true) => self.dpi_step(action).await,
+            (A::GamingMode, true) => self.toggle_gaming().await,
+            (_, true) => {
+                info!(%action, "Button action triggered");
+                match juhradiald::actions::execute_button_action_repeated(action, repeats).await {
+                    Ok(true) => {}
+                    // RadialMenu goes through the Pressed path.
+                    Ok(false) => warn!(%action, "Button action wants the radial menu here; ignoring"),
+                    Err(e) => error!(%action, error = %e, "Failed to execute button action"),
+                }
+            }
+        }
+    }
+
+    async fn custom(&mut self, source: Option<u16>) {
+        let slot = source.map(juhradiald::config::Config::slot_for_cid);
+        let custom = slot
+            .as_deref()
+            .and_then(|slot| self.config.read().ok().and_then(|c| c.custom_action(slot).cloned()));
+        match custom {
+            Some(custom) => {
+                info!(slot = ?slot, kind = %custom.kind, "Custom button action");
+                if custom.hold {
+                    match self.held_custom.take() {
+                        // The held button again, listed ahead of another diverted one.
+                        Some(held) if held.0 == source => {
+                            self.held_custom = Some(held);
+                            return;
+                        }
+                        // A second hold button: release the first one's keys.
+                        Some((_, previous)) => run_custom_action(&previous, &self.macro_engine, false).await,
+                        None => {}
+                    }
+                }
+                run_custom_action(&custom, &self.macro_engine, true).await;
+                if custom.hold {
+                    self.held_custom = Some((source, custom));
+                }
+            }
+            None => warn!(slot = ?slot, "Button set to custom but no custom action is saved for it"),
+        }
+    }
+
+    /// DPI cycle / up / down. The new DPI outlives a wake (session DPI) and
+    /// Settings follows it through DpiChanged.
+    async fn dpi_step(&self, action: juhradiald::config::ButtonAction) {
+        if action == juhradiald::config::ButtonAction::DpiCycle && self.gaming_cycle().await {
+            return;
+        }
+        let Some((current, range)) = juhradiald::actions::read_dpi().await else {
+            warn!(%action, "DPI action: the mouse's DPI is not readable");
+            return;
+        };
+        let presets = pointer_setting("dpi_presets")
+            .and_then(|v| v.as_array().cloned())
+            .map(|a| a.iter().filter_map(|d| d.as_u64()).filter_map(|d| u16::try_from(d).ok()).collect::<Vec<_>>())
+            .filter(|p| !p.is_empty())
+            .unwrap_or_else(|| vec![800, 1600, 3200]);
+        let Some(dpi) = juhradiald::actions::next_dpi(action, current, &presets, range) else {
+            return;
+        };
+        if dpi == current {
+            return;
+        }
+        match juhradiald::actions::write_dpi(dpi).await {
+            Ok(()) => {
+                info!(%action, from = current, to = dpi, "DPI changed by a button");
+                juhradiald::actions::pulse(HapticEvent::DpiChange);
+                juhradiald::replay::set_session_dpi(Some(dpi));
+                let _ = self
+                    .connection
+                    .emit_signal(None::<&str>, DBUS_PATH, "org.kde.juhradialmx.Daemon", "DpiChanged", &(dpi,))
+                    .await;
+            }
+            Err(e) => error!(%action, error = %e, "DPI action failed"),
+        }
+    }
+
+    /// Hold for the precision DPI (`pointer.dpi_shift`, default 400), release
+    /// to put the previous DPI back.
+    async fn dpi_shift(&mut self, pressed: bool) {
+        if !pressed {
+            if let Some(dpi) = self.shift_restore.take() {
+                if let Err(e) = juhradiald::actions::write_dpi(dpi).await {
+                    error!(error = %e, dpi, "DPI shift: restoring the DPI failed");
+                }
+            }
+            return;
+        }
+        if self.shift_restore.is_some() {
+            return;
+        }
+        let Some((current, (lo, hi))) = juhradiald::actions::read_dpi().await else {
+            warn!("DPI shift: the mouse's DPI is not readable");
+            return;
+        };
+        let shift = pointer_setting("dpi_shift")
+            .and_then(|v| v.as_u64())
+            .and_then(|d| u16::try_from(d).ok())
+            .unwrap_or(400)
+            .clamp(lo, hi);
+        match juhradiald::actions::write_dpi(shift).await {
+            Ok(()) => self.shift_restore = Some(current),
+            Err(e) => error!(error = %e, dpi = shift, "DPI shift failed"),
+        }
+    }
+
+    /// DPI cycle while gaming mode is on: the next gaming preset, one pulse
+    /// per stage. False when gaming mode is off (the normal cycle runs).
+    async fn gaming_cycle(&self) -> bool {
+        let gaming = self.gaming_mode.clone();
+        let cycled = tokio::task::spawn_blocking(move || {
+            let mut gm = gaming.write().ok()?;
+            if !gm.is_enabled() {
+                return None;
+            }
+            gm.cycle_dpi()?;
+            Some((gm.active_dpi(), gm.stage().0 + 1, gm.dpi_pulse()))
+        })
+        .await
+        .ok()
+        .flatten();
+        let Some((dpi, stage, pulse)) = cycled else { return false };
+        if pulse {
+            juhradiald::actions::pulse_times(HapticEvent::DpiChange, stage);
+        }
+        if let Some(dpi) = dpi {
+            let _ = self
+                .connection
+                .emit_signal(None::<&str>, DBUS_PATH, "org.kde.juhradialmx.Daemon", "DpiChanged", &(dpi,))
+                .await;
+        }
+        true
+    }
+
+    async fn toggle_gaming(&self) {
+        let gaming = self.gaming_mode.clone();
+        // enable()/disable() write the DPI over HID++ (blocking).
+        let enabled = tokio::task::spawn_blocking(move || {
+            let mut gm = gaming.write().ok()?;
+            let on = !gm.is_enabled();
+            if on {
+                gm.enable();
+            } else {
+                gm.disable();
+            }
+            Some(on)
+        })
+        .await
+        .ok()
+        .flatten();
+        if let Some(enabled) = enabled {
+            info!(enabled, "Gaming mode toggled by a button");
+            let _ = self
+                .connection
+                .emit_signal(None::<&str>, DBUS_PATH, "org.kde.juhradialmx.Daemon", "GamingModeChanged", &(enabled,))
+                .await;
+        }
+    }
+}
+
+/// A `pointer.<key>` value from config.json.
+fn pointer_setting(key: &str) -> Option<serde_json::Value> {
+    juhradiald::replay::load_raw_config().get("pointer")?.get(key).cloned()
+}
+
+/// Tell Settings which physical button was pressed (it lights the pin).
+/// Detached, so the press itself (ring, action) never waits on the bus.
+fn emit_button_pressed(connection: &zbus::Connection, cid: u16) {
+    let connection = connection.clone();
+    tokio::spawn(async move {
+        if let Err(e) = connection
+            .emit_signal(None::<&str>, DBUS_PATH, "org.kde.juhradialmx.Daemon", "ButtonPressed", &(cid,))
+            .await
+        {
+            tracing::trace!(error = %e, "Failed to emit ButtonPressed");
+        }
+    });
+}
+
+/// Run a button's custom action (Settings > Buttons > Custom): a recorded
+/// shortcut, a command, a URL, a saved macro or a plugin action.
+/// Run a custom action for one edge of its button or key: hold-while-pressed
+/// shortcuts go down on press and up on release, everything else runs once on
+/// press.
+async fn run_custom_action(
+    custom: &juhradiald::config::CustomAction,
+    macro_engine: &Arc<Mutex<juhradiald::macros::MacroEngine>>,
+    pressed: bool,
+) {
+    use juhradiald::actions::{Action, ActionExecutor, ActionType};
+    let value = custom.value.trim();
+    if value.is_empty() {
+        if pressed {
+            warn!(kind = %custom.kind, "Custom button action has no value");
+        }
+        return;
+    }
+    if custom.kind == "shortcut" && custom.hold {
+        if let Err(e) = juhradiald::actions::shortcut_edge(value, pressed) {
+            error!(error = %e, "Held shortcut failed");
+        }
+        return;
+    }
+    if !pressed {
+        return;
+    }
+    let result = match custom.kind.as_str() {
+        // Not trimmed: leading/trailing spaces are part of the text.
+        // Off the button/keypad loop: a slow clipboard must not stall input.
+        "text" => {
+            let (text, with, enter) = (custom.value.clone(), custom.paste_with.clone(), custom.enter);
+            tokio::spawn(async move {
+                if let Err(e) = juhradiald::actions::paste_text(&text, &with, enter).await {
+                    error!(kind = "text", error = %e, "Custom button action failed");
+                }
+            });
+            Ok(())
+        }
+        "shortcut" => ActionExecutor::execute(&Action {
+            action_type: ActionType::Shortcut(value.to_string()),
+            label: None,
+            icon: None,
+        })
+        .await
+        .map_err(|e| e.to_string()),
+        "command" => ActionExecutor::execute(&Action {
+            action_type: ActionType::Command(value.to_string()),
+            label: None,
+            icon: None,
+        })
+        .await
+        .map_err(|e| e.to_string()),
+        "url" => juhradiald::actions::open_url(value).map_err(|e| e.to_string()),
+        "macro" => match juhradiald::macros::storage::load_macro(value) {
+            Ok(config) => match macro_engine.lock() {
+                Ok(mut engine) => {
+                    engine.execute(config);
+                    Ok(())
+                }
+                Err(e) => Err(e.to_string()),
+            },
+            Err(e) => Err(e.to_string()),
+        },
+        "page" => {
+            juhradiald::keypad::request_page(value);
+            Ok(())
+        }
+        "plugin" => juhradiald::plugins::run(&juhradiald::plugins::plugins_dir(), value)
+            .await
+            .map_err(|e| e.to_string()),
+        other => Err(format!("unknown custom action kind {other:?}")),
+    };
+    if let Err(e) = result {
+        error!(kind = %custom.kind, error = %e, "Custom button action failed");
+    }
+}
+
+/// Write the effective pointer/scroll state to the mouse. False when a write
+/// failed (the next trigger retries).
+async fn replay_pointer_state(
+    manager: SharedHapticManager,
+    ctx: juhradiald::replay::ReplayContext,
+    unit_key: Option<String>,
+) -> bool {
+    let result = tokio::task::spawn_blocking(move || {
+        let state = ctx.effective(unit_key.as_deref());
+        if state == juhradiald::replay::DeviceState::default() {
+            return (0, 0);
+        }
+        match manager.lock() {
+            Ok(mut m) => juhradiald::replay::apply(&mut *m, &state),
+            Err(_) => (0, 1),
+        }
+    })
+    .await
+    .unwrap_or((0, 1));
+    let (tried, failed) = result;
+    if tried > 0 || failed > 0 {
+        info!(tried, failed, "Replayed pointer and scroll state");
+    }
+    // Mouse and keyboard move together needs the mouse's slots cached while
+    // it is here (a device that has left cannot be read).
+    if juhradiald::replay::load_raw_config()
+        .pointer("/keyboard/mx_keys/move_together")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
+        if let Some(m) = juhradiald::actions::device_manager() {
+            let _ = tokio::task::spawn_blocking(move || {
+                if let Ok(mut m) = m.lock() {
+                    let slots = m.host_slots();
+                    let current = m.get_easy_switch_info().map(|(_, c)| c);
+                    juhradiald::easy_switch::remember_mouse(slots, current);
+                }
+            })
+            .await;
+        }
+    }
+    failed == 0
+}
+
+async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawStartup, shared: HidrawShared) {
+    let HidrawStartup {
+        mut preferred_path,
+        gesture_tracker,
+        replay,
+    } = startup;
+    let HidrawShared {
+        trigger_map,
+        shared_config,
+        hotplug,
+        haptic_manager,
+        kwin,
+        dbus_connection,
+        device_name_state,
+    } = shared;
+    let mut replay_gate = juhradiald::replay::ReplayGate::default();
     let mut handler = HidrawHandler::new(event_tx);
-    let macro_cids_for_divert = macro_cids.clone();
     let config_for_thumbwheel = shared_config.clone();
     let config_for_divert = shared_config.clone();
-    handler.set_macro_cids(macro_cids);
+    // Macro-bound buttons, as bound right now (ReloadMacroTriggers).
+    let macro_cids_now = {
+        let map = trigger_map.clone();
+        move || -> Vec<u16> { map.read().map(|m| m.cids().into_iter().collect()).unwrap_or_default() }
+    };
+    handler.set_trigger_map(trigger_map);
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
+    handler.set_gaming_mode(kwin.gaming);
+    handler.set_gesture_tracker(gesture_tracker);
 
     loop {
         // Re-read the reassigned buttons each cycle so a config change is
@@ -1180,14 +2096,59 @@ async fn run_hidraw_loop(
             .read()
             .map(|c| c.remapped_button_cids())
             .unwrap_or_default();
-        let (path, name) = refresh_hidpp_button_diverts(
+        let (path, name, unit) = refresh_hidpp_button_diverts(
             haptic_manager.clone(),
-            macro_cids_for_divert.clone(),
+            macro_cids_now(),
             remapped_cids,
         )
         .await;
+        let refreshed = path.is_some();
         if let Some(path) = path {
             preferred_path = Some(path);
+        }
+        {
+            use juhradiald::link_state::{report, LinkState, Transport};
+            let (transport, index, known) = haptic_manager
+                .lock()
+                .map(|m| (m.connection_type(), m.device_index(), m.device_path().is_some()))
+                .unwrap_or((None, None, false));
+            handler.set_mouse_device_index(index);
+            if refreshed {
+                report(LinkState::Connected, transport.map(Transport::from));
+            } else if known {
+                report(LinkState::Asleep, None);
+            } else {
+                report(LinkState::Offline, None);
+            }
+        }
+        // A different mouse (or the first connect after startup without one)
+        // selects its own `devices.<unit>` overrides; when they change the
+        // button map, divert once more so the new map is live immediately.
+        if let Some(unit) = unit {
+            let key = juhradiald::config::Config::unit_key(unit);
+            let is_new = config_for_divert
+                .read()
+                .map(|c| c.active_unit.as_deref() != Some(key.as_str()))
+                .unwrap_or(false);
+            if is_new {
+                let applied = config_for_divert
+                    .write()
+                    .map(|mut c| c.apply_device_overrides(&key))
+                    .unwrap_or(false);
+                info!(unit = %key, applied, "Per-device overrides selected for the connected mouse");
+                if applied {
+                    let remapped = config_for_divert
+                        .read()
+                        .map(|c| c.remapped_button_cids())
+                        .unwrap_or_default();
+                    let _ = refresh_hidpp_button_diverts(
+                        haptic_manager.clone(),
+                        macro_cids_now(),
+                        remapped,
+                    )
+                    .await;
+                }
+            }
         }
         if let Some(name) = name {
             let changed = {
@@ -1223,6 +2184,19 @@ async fn run_hidraw_loop(
         // reader correct across hotplug/host-switch re-enumeration.
         let note_indices = fetch_notification_indices(haptic_manager.clone()).await;
         handler.set_notification_indices(note_indices);
+
+        // The mouse answered: re-apply DPI, SmartShift, hi-res and natural
+        // scroll (they do not survive every wake/host return), once per wake.
+        // Runs before the listener opens so replies never interleave with it.
+        if refreshed && replay_gate.should_run(Instant::now()) {
+            let unit_key = config_for_divert
+                .read()
+                .ok()
+                .and_then(|c| c.active_unit.clone());
+            if replay_pointer_state(haptic_manager.clone(), replay.clone(), unit_key).await {
+                replay_gate.record_success(Instant::now());
+            }
+        }
 
         // The manager's device path is ping-verified: it is the receiver
         // interface where the mouse actually answered HID++, and therefore
@@ -1352,12 +2326,17 @@ async fn run_evdev_loop(
     hotplug: Arc<tokio::sync::Notify>,
     shared_config: juhradiald::config::SharedConfig,
     kwin: KWinContext,
+    gesture_tracker: juhradiald::gesture::SharedGestureTracker,
+    trigger_map: juhradiald::macros::SharedTriggerMap,
 ) {
     let mut handler = EvdevHandler::new(event_tx.clone());
     handler.set_suppressed_keys(suppressed_keys);
+    handler.set_live_suppression(trigger_map);
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
+    handler.set_gaming_mode(kwin.gaming);
+    handler.set_gesture_tracker(gesture_tracker);
 
     let mut logged_waiting = false;
 
@@ -1484,6 +2463,7 @@ async fn run_generic_evdev_loop(
     handler.set_shared_config(shared_config);
     handler.set_kwin_availability(kwin.availability);
     handler.set_kwin_scripting(kwin.scripting);
+    handler.set_gaming_mode(kwin.gaming);
 
     let mut logged_waiting = false;
 
@@ -1548,6 +2528,18 @@ async fn run_generic_evdev_loop(
     }
 }
 
+/// Forward one event, including its batch and source, to the stateful dispatcher.
+/// Releases must still reach it to end held DPI-shift actions.
+async fn dispatch_button_action_event_with<Executor, Execution>(event: GestureEvent, execute: Executor)
+where
+    Executor: FnOnce(juhradiald::config::ButtonAction, bool, Option<u16>, u8) -> Execution,
+    Execution: std::future::Future<Output = ()>,
+{
+    if let GestureEvent::ButtonActionEvent { action, pressed, source, repeats } = event {
+        execute(action, pressed, source, repeats).await;
+    }
+}
+
 /// Process gesture events from the evdev handler
 ///
 /// Press triggers ydotool injection -> cursor_grabber catches -> emits ShowMenu
@@ -1557,12 +2549,53 @@ async fn process_gesture_events(
     event_rx: &mut mpsc::Receiver<GestureEvent>,
     dbus_connection: &zbus::Connection,
     trigger_map: Arc<std::sync::RwLock<juhradiald::macros::TriggerMap>>,
-    macro_engine: Arc<Mutex<juhradiald::macros::MacroEngine>>,
     battery_state: SharedBatteryState,
+    hotplug: Arc<tokio::sync::Notify>,
+    mut actions: ActionContext,
 ) {
+    let shared_config = actions.config.clone();
+    let macro_engine = actions.macro_engine.clone();
+    // A gaming action the ring button started (its release ends it).
+    let mut ring_action_held: Option<juhradiald::config::ButtonAction> = None;
     while let Some(event) = event_rx.recv().await {
         match event {
+            GestureEvent::GestureReleased { dx, dy, duration_ms } => {
+                // Directional gesture: classify the drag and run the configured
+                // action. This path never touches ShowMenu/HideMenu.
+                let resolved = shared_config.read().ok().map(|cfg| {
+                    let direction = juhradiald::gesture::classify(
+                        dx,
+                        dy,
+                        cfg.buttons.gesture_directions.threshold_px,
+                    );
+                    (direction, cfg.gesture_direction_action(direction))
+                });
+                match resolved {
+                    Some((
+                        direction,
+                        action @ (juhradiald::config::ButtonAction::RadialMenu
+                        | juhradiald::config::ButtonAction::DpiShift),
+                    )) => {
+                        // A drag has no hold to show the ring for or to keep
+                        // the precision DPI during.
+                        warn!(?direction, %action, "not a directional gesture action; ignoring");
+                    }
+                    Some((direction, action)) => {
+                        info!(duration_ms, dx, dy, ?direction, %action, "Directional gesture");
+                        actions.run(action, true, None, 1).await;
+                    }
+                    None => warn!("Directional gesture dropped: config lock poisoned"),
+                }
+            }
             GestureEvent::Pressed { x, y } => {
+                // In a game the ring button can do a gaming job instead.
+                let ring = actions.gaming_mode.read().ok().and_then(|gm| gm.ring_action());
+                if let Some(action) = ring {
+                    info!(%action, "Ring button in a game");
+                    ring_action_held = Some(action);
+                    actions.run(action, true, None, 1).await;
+                    continue;
+                }
                 // HID++ hidraw handler provides cursor coordinates directly
                 info!(x, y, "Gesture button pressed - showing radial menu");
 
@@ -1572,6 +2605,10 @@ async fn process_gesture_events(
                 }
             }
             GestureEvent::Released { duration_ms } => {
+                if let Some(action) = ring_action_held.take() {
+                    actions.run(action, false, None, 1).await;
+                    continue;
+                }
                 info!(duration_ms, "Gesture button released");
 
                 // Emit HideMenu signal via D-Bus
@@ -1589,6 +2626,11 @@ async fn process_gesture_events(
                 }
             }
             GestureEvent::MacroTriggered { key_code, pressed } => {
+                if pressed {
+                    if let Some(cid) = juhradiald::hidraw::evdev_keycode_to_cid(key_code) {
+                        emit_button_pressed(dbus_connection, cid);
+                    }
+                }
                 // Look up TriggerMap for a macro bound to this button
                 let macro_id = {
                     match trigger_map.read() {
@@ -1635,25 +2677,18 @@ async fn process_gesture_events(
                     }
                 }
             }
-            GestureEvent::ButtonActionEvent { action, pressed } => {
+            event @ GestureEvent::ButtonActionEvent { pressed, source, .. } => {
                 if pressed {
-                    info!(%action, "Button action triggered");
-                    match juhradiald::actions::execute_button_action(action).await {
-                        Ok(true) => {
-                            // Action was handled directly
-                        }
-                        Ok(false) => {
-                            // Should not happen (RadialMenu goes through Pressed path)
-                            warn!("ButtonActionEvent with radial_menu - unexpected");
-                        }
-                        Err(e) => {
-                            error!(%action, error = %e, "Failed to execute button action");
-                        }
+                    if let Some(cid) = source {
+                        emit_button_pressed(dbus_connection, cid);
                     }
-                } else {
-                    // Button released for non-radial action - no HideMenu needed
-                    tracing::debug!(%action, "Button action released (no-op)");
                 }
+                dispatch_button_action_event_with(event, |action, pressed, source, repeats| {
+                    actions.run(action, pressed, source, repeats)
+                }).await;
+            }
+            GestureEvent::ButtonSeen { cid } => {
+                emit_button_pressed(dbus_connection, cid);
             }
             GestureEvent::ThumbwheelScroll { clicks } => {
                 tracing::debug!(clicks, "Thumb-wheel horizontal scroll");
@@ -1662,7 +2697,10 @@ async fn process_gesture_events(
                 }
             }
             GestureEvent::Hardware(note) => {
-                if let Err(e) = emit_hardware_notification(dbus_connection, &battery_state, note).await {
+                if let Err(e) =
+                    emit_hardware_notification(dbus_connection, &battery_state, &hotplug, note)
+                        .await
+                {
                     tracing::warn!(?note, error = %e, "Failed to emit hardware notification signal");
                 }
             }
@@ -1677,6 +2715,7 @@ async fn process_gesture_events(
 async fn emit_hardware_notification(
     connection: &zbus::Connection,
     battery_state: &SharedBatteryState,
+    hotplug: &tokio::sync::Notify,
     note: juhradiald::hidpp::notifications::HardwareNotification,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use juhradiald::hidpp::notifications::HardwareNotification as HN;
@@ -1703,8 +2742,20 @@ async fn emit_hardware_notification(
                 .emit_signal(None::<&str>, DBUS_PATH, iface, "RatchetChanged", &(ratchet,))
                 .await?;
         }
-        HN::HostChanged { host } => {
-            info!(host, "Easy-Switch host changed (notification)");
+        HN::HostChanged { host, next } => {
+            info!(host, ?next, "Easy-Switch host changed (notification)");
+            // The mouse's own Easy-Switch button: take the keyboard along.
+            let together = juhradiald::replay::load_raw_config()
+                .pointer("/keyboard/mx_keys/move_together")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if let Some(slot) = next.filter(|_| together).and_then(|to| juhradiald::easy_switch::mouse_left(host, to)) {
+                juhradiald::easy_switch::move_keyboard(slot);
+            }
+            // Volatile button diverts + thumb-wheel reporting are lost when the
+            // mouse returns from another Easy-Switch host. Wake run_hidraw_loop
+            // (the same path device hotplug uses) so it re-applies them.
+            hotplug.notify_waiters();
             connection
                 .emit_signal(None::<&str>, DBUS_PATH, iface, "HostChanged", &(host,))
                 .await?;
@@ -1996,6 +3047,30 @@ mod tests {
         assert!(args.list_devices);
     }
 
+    #[test]
+    fn first_sighting_announces_each_app_once_case_insensitively() {
+        let mut seen = HashSet::new();
+        assert_eq!(first_sighting(&mut seen, "Firefox"), Some("firefox".to_string()));
+        assert_eq!(first_sighting(&mut seen, "firefox"), None);
+        assert_eq!(first_sighting(&mut seen, "FIREFOX "), None);
+        assert_eq!(first_sighting(&mut seen, "org.kde.dolphin"), Some("org.kde.dolphin".to_string()));
+        assert_eq!(first_sighting(&mut seen, ""), None);
+        assert_eq!(first_sighting(&mut seen, "   "), None);
+    }
+
+    #[test]
+    fn test_args_export_and_import_take_a_file_and_exclude_each_other() {
+        let args = Args::parse_from(["juhradiald", "--export", "/tmp/backup.zip"]);
+        assert_eq!(args.export.as_deref(), Some(Path::new("/tmp/backup.zip")));
+        assert!(args.import.is_none());
+        let args = Args::parse_from(["juhradiald", "--import", "b.zip"]);
+        assert_eq!(args.import.as_deref(), Some(Path::new("b.zip")));
+        assert!(Args::try_parse_from(["juhradiald", "--export", "a.zip", "--import", "b.zip"]).is_err());
+        assert!(Args::try_parse_from(["juhradiald", "--export"]).is_err());
+        let args = Args::parse_from(["juhradiald"]);
+        assert!(args.export.is_none() && args.import.is_none());
+    }
+
     #[tokio::test]
     async fn test_gesture_event_channel() {
         let (tx, mut rx) = mpsc::channel::<GestureEvent>(8);
@@ -2089,5 +3164,64 @@ mod tests {
         let clamped = pos.clamp_to_screen(&bounds);
         assert_eq!(clamped.x, 500);
         assert_eq!(clamped.y, 500);
+    }
+
+    #[test]
+    fn app_switch_pulses_only_for_a_switch_the_user_made() {
+        assert!(!window_switch_pulses("", false), "the first report after start is not a switch");
+        assert!(window_switch_pulses("firefox", false));
+        assert!(!window_switch_pulses("firefox", true), "Try now stands in for an app");
+    }
+
+    #[test]
+    fn both_edges_of_a_try_now_trial_count_as_the_trial() {
+        let mut was = false;
+        assert!(!trial_involved(&mut was, false), "a plain switch");
+        assert!(trial_involved(&mut was, true), "the trial starts");
+        assert!(trial_involved(&mut was, false), "the report that ends it hands the real app back");
+        assert!(!trial_involved(&mut was, false), "the next switch is the user's again");
+    }
+
+    #[test]
+    fn keypad_ring_opens_at_the_cursor_like_the_gesture_button() {
+        use KeypadRing::*;
+        for (pressed, suppressed, kwin, want) in [
+            (true, false, true, KWinScript),
+            (true, false, false, CursorQuery),
+            (true, true, true, Suppressed),
+            (true, true, false, Suppressed),
+            (false, true, true, Hide), // a release always closes, even after a suppressed press
+            (false, false, false, Hide),
+        ] {
+            assert_eq!(keypad_ring_route(pressed, suppressed, kwin), want, "{pressed} {suppressed} {kwin}");
+        }
+    }
+
+    #[tokio::test]
+    async fn button_action_dispatch_preserves_batch_source_and_release() {
+        use juhradiald::config::ButtonAction;
+        let mut calls = Vec::new();
+        for pressed in [true, false] {
+            dispatch_button_action_event_with(
+                GestureEvent::ButtonActionEvent {
+                    action: ButtonAction::VolumeUp,
+                    pressed,
+                    source: Some(0x56),
+                    repeats: 8,
+                },
+                |action, pressed, source, repeats| {
+                    calls.push((action, pressed, source, repeats));
+                    std::future::ready(())
+                },
+            )
+            .await;
+        }
+        assert_eq!(
+            calls,
+            [
+                (ButtonAction::VolumeUp, true, Some(0x56), 8),
+                (ButtonAction::VolumeUp, false, Some(0x56), 8),
+            ]
+        );
     }
 }

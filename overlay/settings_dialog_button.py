@@ -198,6 +198,14 @@ class ButtonConfigDialog(Adw.Window):
         groups_box.set_margin_top(12)
         groups_box.set_margin_bottom(16)
 
+        # Directional gestures live on the gesture button only. The grouped
+        # action list below stays the plain-click action (buttons.gesture).
+        self._direction_rows = {}
+        self._direction_switch = None
+        self._threshold_spin = None
+        if self.button_id == "gesture":
+            groups_box.append(self._build_direction_group())
+
         # Find current action
         current_action = button_info.get("action", "")
 
@@ -261,6 +269,80 @@ class ButtonConfigDialog(Adw.Window):
 
         self.set_content(content)
 
+    def _build_direction_group(self):
+        """Hold-and-drag actions for the gesture button.
+
+        Written to buttons.gesture_directions. The daemon keeps the single-action
+        behaviour whenever "enabled" is false or the section is absent, and a
+        drag below threshold_px is a click, which runs buttons.gesture.
+        """
+        saved = config.get("buttons", "gesture_directions", default=None) or {}
+        enabled = bool(saved.get("enabled", False))
+
+        group = Adw.PreferencesGroup()
+        group.set_title(_("Directional Gestures"))
+        group.set_description(
+            _("Hold the gesture button and drag to run a different action per "
+              "direction. A press without dragging runs the action chosen below.")
+        )
+
+        enable_row = Adw.ActionRow()
+        enable_row.set_title(_("Enable directional gestures"))
+        switch = Gtk.Switch()
+        switch.set_valign(Gtk.Align.CENTER)
+        switch.set_active(enabled)
+        enable_row.add_suffix(switch)
+        enable_row.set_activatable_widget(switch)
+        group.add(enable_row)
+        self._direction_switch = switch
+
+        # radial_menu needs a press position the drag path never collects.
+        choices = [(aid, aname) for aid, aname in BUTTON_ACTIONS if aid != "radial_menu"]
+        ids = [aid for aid, _name in choices]
+        names = Gtk.StringList.new([aname for _aid, aname in choices])
+        fallback = ids.index("none") if "none" in ids else 0
+        for key, label in (
+            ("up", _("Drag up")),
+            ("down", _("Drag down")),
+            ("left", _("Drag left")),
+            ("right", _("Drag right")),
+        ):
+            row = Adw.ComboRow(title=label)
+            row.set_model(names)
+            current = saved.get(key, "none")
+            row.set_selected(ids.index(current) if current in ids else fallback)
+            row.set_sensitive(enabled)
+            group.add(row)
+            self._direction_rows[key] = (row, ids)
+
+        threshold_row = Adw.ActionRow()
+        threshold_row.set_title(_("Drag distance"))
+        threshold_row.set_subtitle(_("Movement below this many pixels counts as a click"))
+        spin = Gtk.SpinButton.new_with_range(10, 400, 5)
+        spin.set_valign(Gtk.Align.CENTER)
+        spin.set_value(int(saved.get("threshold_px", 40)))
+        spin.set_sensitive(enabled)
+        threshold_row.add_suffix(spin)
+        group.add(threshold_row)
+        self._threshold_spin = spin
+
+        def _on_toggle(sw, _pspec):
+            for row, _ids in self._direction_rows.values():
+                row.set_sensitive(sw.get_active())
+            spin.set_sensitive(sw.get_active())
+
+        switch.connect("notify::active", _on_toggle)
+        return group
+
+    def _collect_directions(self):
+        directions = {
+            "enabled": bool(self._direction_switch.get_active()),
+            "threshold_px": int(self._threshold_spin.get_value()),
+        }
+        for key, (row, ids) in self._direction_rows.items():
+            directions[key] = ids[row.get_selected()]
+        return directions
+
     def _on_row_activated(self, row):
         """Handle row click - update checkmark and selection"""
         # Clear all checkmarks
@@ -277,6 +359,12 @@ class ButtonConfigDialog(Adw.Window):
 
     def _on_restore_default(self, button):
         """Restore button to default action"""
+        if self._direction_switch is not None:
+            self._direction_switch.set_active(False)
+            for row, ids in self._direction_rows.values():
+                row.set_selected(ids.index("none") if "none" in ids else 0)
+            self._threshold_spin.set_value(40)
+
         default_action = DEFAULT_BUTTON_ACTIONS.get(self.button_id, "Middle Click")
 
         for row in self._all_rows:
@@ -285,7 +373,16 @@ class ButtonConfigDialog(Adw.Window):
                 break
 
     def _on_save(self, button):
+        changed = False
+
+        if self._direction_switch is not None:
+            buttons_config = config.get("buttons", default={})
+            buttons_config["gesture_directions"] = self._collect_directions()
+            config.set("buttons", buttons_config)
+            changed = True
+
         if self.selected_action:
+            changed = True
             action_id, action_name = self.selected_action
 
             # Update the MOUSE_BUTTONS dict
@@ -314,8 +411,9 @@ class ButtonConfigDialog(Adw.Window):
                 if tw_mode is not None:
                     config.set("thumbwheel", "mode", tw_mode)
 
-            config.save()
-
             logger.info("Button %s configured to: %s", self.button_id, action_name)
+
+        if changed:
+            config.save()
 
         self.close()

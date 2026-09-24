@@ -40,16 +40,27 @@ touch "$tmp/installed/juhradial-overlay.py"
     || { echo "FAIL: flat overlay layout not resolved" >&2; exit 1; }
 
 # Daemon resolves from the dev build path when no system binary exists.
-daemon="$(resolve_daemon "$root" "$tmp/absent-local" "$tmp/absent-system")"
+daemon="$(resolve_daemon "$root" "$tmp/absent-local" "$tmp/absent-system" "$tmp/absent-user")"
 [ "$daemon" = "$tmp/repo/daemon/target/release/juhradiald" ] \
     || { echo "FAIL: daemon = '$daemon' (want dev build path)" >&2; exit 1; }
 
 # resolve_daemon MUST fail (non-zero) when no binary exists anywhere, so the
 # launcher can report the error instead of reusing the overlay PID (#52).
-if resolve_daemon "$tmp/empty" "$tmp/absent-local" "$tmp/absent-system" >/dev/null; then
+if resolve_daemon "$tmp/empty" "$tmp/absent-local" "$tmp/absent-system" "$tmp/absent-user" >/dev/null; then
     echo "FAIL: resolve_daemon should fail when no binary exists" >&2
     exit 1
 fi
+
+# install.sh --user (#138): launcher in ~/.local/bin, the app under the user's
+# data dir, the daemon in ~/.local/bin.
+mkdir -p "$tmp/home/.local/bin" "$tmp/data/juhradial"
+touch "$tmp/data/juhradial/juhradial-overlay.py"
+root="$(XDG_DATA_HOME="$tmp/data" resolve_project_root "$tmp/home/.local/bin")"
+[ "$root" = "$tmp/data/juhradial" ] || { echo "FAIL: user-mode root = '$root'" >&2; exit 1; }
+touch "$tmp/home/.local/bin/juhradiald"
+chmod +x "$tmp/home/.local/bin/juhradiald"
+daemon="$(resolve_daemon "$tmp/empty" "$tmp/absent-local" "$tmp/absent-system" "$tmp/home/.local/bin/juhradiald")"
+[ "$daemon" = "$tmp/home/.local/bin/juhradiald" ] || { echo "FAIL: user-mode daemon = '$daemon'" >&2; exit 1; }
 
 # Issue #60: when the systemd user unit is enabled or active, the launcher
 # must defer daemon startup to it entirely, so the managed copy is the only

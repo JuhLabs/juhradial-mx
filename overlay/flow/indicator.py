@@ -102,7 +102,8 @@ class FlowEdgeIndicator(QWidget):
 
     def _load_indicator_image(self):
         """Load the flow indicator PNG from assets."""
-        for base in ["/usr/share/juhradial/assets", "assets"]:
+        share = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for base in ["/usr/share/juhradial/assets", os.path.join(share, "assets"), "assets"]:
             path = os.path.join(base, "flow-indicator.png")
             if os.path.exists(path):
                 pixmap = QPixmap(path)

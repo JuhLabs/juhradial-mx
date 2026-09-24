@@ -35,6 +35,8 @@ pub mod features {
     pub const I_FEATURE_SET: u16 = 0x0001;
     /// Device name and type (READ-ONLY)
     pub const DEVICE_NAME: u16 = 0x0005;
+    /// Device information (0x0003): unit id, transport, model id. READ-ONLY.
+    pub const DEVICE_INFORMATION: u16 = 0x0003;
     /// Battery status (READ-ONLY) - older devices
     pub const BATTERY_STATUS: u16 = 0x1000;
     /// Unified Battery (READ-ONLY) - newer devices like MX Master 4
@@ -46,6 +48,10 @@ pub mod features {
     /// MX Master 4 haptic motor (RUNTIME-ONLY - does NOT persist)
     /// Uses waveform IDs (0x00-0x1B) for predefined haptic patterns.
     pub const MX_MASTER_4_HAPTIC: u16 = 0x19B0;
+    /// Force Sensing Button (MX Master 4 Haptic Sense Panel press force):
+    /// [0] count, [1] info(idx) caps/default/max/min, [2] current(idx),
+    /// [3] set(idx, value). Written only when the user picks a force.
+    pub const FORCE_SENSING_BUTTON: u16 = 0x19C0;
     /// Alternative haptic feature used by mx4notifications project
     /// Some MX Master 4 devices may report this instead of 0x19B0
     pub const MX4_HAPTIC_ALT: u16 = 0x0B4E;
@@ -85,6 +91,18 @@ pub mod features {
     ///
     /// Event [0] thumbwheelEvent carries the signed rotation delta while diverted.
     pub const THUMB_WHEEL: u16 = 0x2150;
+
+    /// BACKLIGHT2 - Keyboard backlight / illumination control (0x1982)
+    ///
+    /// Present on MX Keys / MX Keys S / Craft and similar keyboards (BETA here).
+    /// Functions:
+    /// - [0] getBacklightConfig() (READ-ONLY)
+    /// - [1] setBacklightConfig(enabled, options, ...) - stores the backlight
+    ///   setting on the keyboard (PERSISTS, like ADJUSTABLE_DPI). This is the
+    ///   expected behaviour for a keyboard backlight and does NOT touch the
+    ///   mouse's cross-platform compatibility.
+    /// - [2] getBacklightInfo() (READ-ONLY)
+    pub const BACKLIGHT2: u16 = 0x1982;
 
     /// Change Host - Easy-Switch device slot switching (READ-ONLY safe)
     /// Functions: [0] getHostInfo (returns numHosts, currentHost), [1] setHost(slot)
@@ -177,6 +195,7 @@ pub mod allowed_features {
         features::I_ROOT,
         features::I_FEATURE_SET,
         features::DEVICE_NAME,
+        features::DEVICE_INFORMATION,
         features::BATTERY_STATUS,
         features::LED_CONTROL,
         features::FORCE_FEEDBACK,
@@ -187,6 +206,7 @@ pub mod allowed_features {
         features::REPROG_CONTROLS_V4,
         features::THUMB_WHEEL,
         features::WIRELESS_DEVICE_STATUS,
+        features::BACKLIGHT2,
     ];
 
     /// Check if a feature ID is explicitly allowed

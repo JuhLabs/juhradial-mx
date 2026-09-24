@@ -4,6 +4,9 @@
 # https://github.com/JuhLabs/juhradial-mx
 #
 # Usage: curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash
+#        ... | bash -s -- --user   (everything under $HOME; automatic on
+#                                   Bazzite, Fedora Atomic and other image-based systems)
+#        ... | bash -s -- --yes    (no questions, for scripts)
 #
 # This script will:
 # 1. Detect your Linux distribution
@@ -37,6 +40,14 @@ TOTAL_STEPS=6
 CURRENT_STEP=0
 INSTALL_MODE="install"  # "install" or "upgrade"
 GROUP_ACTIVATION_PENDING=0  # set when 'input' was added but isn't active this session
+SHARE_DIR="/usr/share/juhradial"
+APPS_DIR="/usr/share/applications"
+ICON_DIR="/usr/share/icons/hicolor/scalable/apps"
+PRIV="sudo"   # runs the file installs; empty in user mode
+USER_MODE=0   # --user: install under $HOME (#138)
+ATOMIC=0      # image-based system (rpm-ostree): /usr is read-only
+ASSUME_YES=0  # --yes: no prompts
+REBOOT_FOR_LAYERS=0  # rpm-ostree layered packages wait for a reboot
 
 # ── Output helpers ───────────────────────────────────────────────────
 print_banner() {
@@ -82,6 +93,40 @@ log_error() {
 
 log_dim() {
     echo -e "  ${GRAY}  $1${RESET}"
+}
+
+# ── Options ──────────────────────────────────────────────────────────
+print_usage() {
+    echo "Usage: install.sh [--user] [--yes]"
+    echo "  --user  install under your home folder (~/.local), sudo only for the"
+    echo "          udev rules and the input group. Automatic on image-based systems"
+    echo "          such as Bazzite and Fedora Atomic, where /usr is read-only."
+    echo "  --yes   do not ask before installing"
+}
+
+parse_args() {
+    local arg
+    for arg in "$@"; do
+        case "$arg" in
+            --user) USER_MODE=1 ;;
+            --yes|-y) ASSUME_YES=1 ;;
+            --help|-h) print_usage; exit 0 ;;
+            *) log_error "Unknown option: $arg"; print_usage; exit 1 ;;
+        esac
+    done
+    if [ -e /run/ostree-booted ]; then
+        ATOMIC=1
+        USER_MODE=1
+    fi
+    if [ "$USER_MODE" = "1" ]; then
+        local data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+        INSTALL_DIR="$data_home/juhradial-mx"
+        SHARE_DIR="$data_home/juhradial"
+        BIN_DIR="$HOME/.local/bin"
+        APPS_DIR="$data_home/applications"
+        ICON_DIR="$data_home/icons/hicolor/scalable/apps"
+        PRIV=""
+    fi
 }
 
 # ── Pre-flight checks ───────────────────────────────────────────────
@@ -283,6 +328,9 @@ print_system_info() {
     else
         echo -e "  ${DIM}Mode${RESET}         ${WHITE}Fresh install${RESET}"
     fi
+    if [ "$USER_MODE" = "1" ]; then
+        echo -e "  ${DIM}Location${RESET}     ${WHITE}Your home folder${RESET} ${GRAY}($SHARE_DIR, $BIN_DIR)${RESET}"
+    fi
 
     echo ""
 }
@@ -342,7 +390,7 @@ install_deps_fedora() {
     sudo dnf install -y \
         rust cargo \
         python3 python3-pip \
-        python3-pyqt6 qt6-qtsvg \
+        python3-pyqt6 qt6-qtsvg qt6-qtdeclarative \
         python3-gobject gtk4 libadwaita \
         gtk4-layer-shell \
         python3-cryptography \
@@ -356,7 +404,7 @@ install_deps_arch() {
     sudo pacman -S --noconfirm --needed \
         rust \
         python python-pip \
-        python-pyqt6 qt6-svg \
+        python-pyqt6 qt6-svg qt6-declarative \
         python-gobject gtk4 libadwaita \
         gtk4-layer-shell \
         python-cryptography \
@@ -382,13 +430,28 @@ install_deps_debian() {
     if apt-cache show libgtk4-layer-shell0 &> /dev/null; then
         sudo apt-get install -y libgtk4-layer-shell0
     fi
+
+    # The Qt/QML settings app needs QtQuick.Effects, which requires Qt >= 6.5.
+    # Debian 13 / Ubuntu 25.04+ ship it; older releases keep the GTK settings
+    # app (the launcher falls back automatically).
+    if apt-cache show qml6-module-qtquick-effects &> /dev/null; then
+        sudo apt-get install -y \
+            python3-pyqt6.qtqml python3-pyqt6.qtquick \
+            qml6-module-qtqml qml6-module-qtqml-workerscript \
+            qml6-module-qtquick qml6-module-qtquick-window \
+            qml6-module-qtquick-controls qml6-module-qtquick-templates \
+            qml6-module-qtquick-layouts qml6-module-qtquick-shapes \
+            qml6-module-qtquick-effects
+    else
+        log_warning "Qt >= 6.5 QML modules are not available on this release: the Qt settings app is disabled, the GTK settings app is used instead"
+    fi
 }
 
 install_deps_opensuse() {
     sudo zypper install -y \
         rust cargo \
         python3 python3-pip \
-        python3-PyQt6 \
+        python3-PyQt6 qt6-declarative-imports \
         python3-gobject gtk4 libadwaita-devel \
         python3-cryptography \
         dbus-1-devel systemd-devel \
@@ -404,8 +467,42 @@ install_deps_opensuse() {
     fi
 }
 
+# Image-based systems (Bazzite, Fedora Atomic): nothing can be installed with
+# dnf. Check the runtime packages and offer to layer the missing ones (that
+# needs a reboot); the daemon comes prebuilt or is built in a distrobox.
+ATOMIC_RUNTIME_PKGS="python3-pyqt6 qt6-qtsvg qt6-qtdeclarative python3-gobject gtk4 libadwaita python3-cryptography ydotool"
+install_deps_atomic() {
+    local pkg missing=""
+    for pkg in $ATOMIC_RUNTIME_PKGS; do
+        rpm -q "$pkg" >/dev/null 2>&1 || missing="$missing $pkg"
+    done
+    if [ -z "$missing" ]; then
+        log_success "Runtime packages already present"
+        return 0
+    fi
+    log_warning "Missing on this system:$missing"
+    if [ "$ASSUME_YES" != "1" ]; then
+        echo -e "  ${BOLD}Layer them with rpm-ostree now?${RESET} ${DIM}(needs a reboot afterwards) [y/N]${RESET} \c"
+        read -n 1 -r < /dev/tty
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Skipped. Layer them later: sudo rpm-ostree install$missing"
+            return 0
+        fi
+    fi
+    # shellcheck disable=SC2086
+    sudo rpm-ostree install --idempotent $missing
+    REBOOT_FOR_LAYERS=1
+    log_success "Layered$missing (active after a reboot)"
+}
+
 install_dependencies() {
     step "Installing dependencies"
+    if [ "$ATOMIC" = "1" ]; then
+        log_info "Image-based system: ${BOLD}rpm-ostree${RESET}"
+        install_deps_atomic
+        return 0
+    fi
     log_info "Package manager: ${BOLD}${DISTRO_FAMILY}${RESET}"
 
     case $DISTRO_FAMILY in
@@ -431,8 +528,86 @@ install_dependencies() {
 }
 
 # ── Repository ───────────────────────────────────────────────────────
+
+# Latest release tarball (source snapshot plus a prebuilt daemon). Preferred
+# over a git clone: it is what the Release workflow publishes, it counts toward
+# the project's download total, and the prebuilt daemon skips a full Rust
+# build on most machines. Returns 1 when no release asset is available so the
+# caller can fall back to git. Set JUHRADIAL_FROM_SOURCE=1 to always clone.
+fetch_release() {
+    [ "${JUHRADIAL_FROM_SOURCE:-0}" = "1" ] && return 1
+    command -v tar >/dev/null 2>&1 || return 1
+    [ "$(uname -m)" = "x86_64" ] || return 1
+
+    local api url tmp tarball top uid gid
+    api="https://api.github.com/repos/JuhLabs/juhradial-mx/releases/latest"
+    url="$(curl -fsSL -H 'Accept: application/vnd.github+json' "$api" 2>/dev/null \
+        | grep -o '"browser_download_url": *"[^"]*linux-x86_64\.tar\.gz"' \
+        | head -1 | sed 's/.*"\(https[^"]*\)"/\1/')"
+    [ -n "$url" ] || return 1
+
+    log_info "Downloading $(basename "$url")..."
+    tmp="$(mktemp -d)"
+    tarball="$tmp/release.tar.gz"
+    curl -fsSL -o "$tarball" "$url" || { rm -rf "$tmp"; return 1; }
+    tar -xzf "$tarball" -C "$tmp" || { rm -rf "$tmp"; return 1; }
+    top="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
+    [ -f "$top/daemon/Cargo.toml" ] || { rm -rf "$tmp"; return 1; }
+
+    uid="$(id -u)"
+    gid="$(id -g)"
+    [ -e "$INSTALL_DIR" ] && $PRIV rm -rf "$INSTALL_DIR"
+    $PRIV install -d -o "$uid" -g "$gid" "$INSTALL_DIR"
+    cp -a "$top"/. "$INSTALL_DIR"/
+    rm -rf "$tmp"
+    cd "$INSTALL_DIR"
+    log_success "Release $(cat VERSION 2>/dev/null || echo '?') unpacked"
+    return 0
+}
+
+# Install from a checkout already on this machine (development builds, or a
+# release tarball unpacked by hand): JUHRADIAL_LOCAL_TREE=/path/to/checkout.
+# Copies the tree into INSTALL_DIR without .git, cargo's target directory
+# (except an already-built release daemon, which build_project then reuses),
+# the Qt app's local venv, and bytecode caches.
+install_from_local_tree() {
+    local src="$1" uid gid
+    [ -f "$src/daemon/Cargo.toml" ] || return 1
+    uid="$(id -u)"
+    gid="$(id -g)"
+    log_info "Installing from local tree $src"
+    [ -e "$INSTALL_DIR" ] && $PRIV rm -rf "$INSTALL_DIR"
+    $PRIV install -d -o "$uid" -g "$gid" "$INSTALL_DIR"
+    tar -C "$src" \
+        --exclude=./.git \
+        --exclude=./daemon/target \
+        --exclude=./crates/mx-keypad/target \
+        --exclude=./settings-qt/.venv \
+        --exclude=__pycache__ \
+        -cf - . | tar -C "$INSTALL_DIR" -xf -
+    if [ -x "$src/daemon/target/release/juhradiald" ]; then
+        install -Dm755 "$src/daemon/target/release/juhradiald" "$INSTALL_DIR/daemon/target/release/juhradiald"
+    fi
+    cd "$INSTALL_DIR"
+    log_success "Local tree copied"
+    return 0
+}
+
 clone_repo() {
     step "Fetching source"
+
+    if [ -n "${JUHRADIAL_LOCAL_TREE:-}" ]; then
+        if install_from_local_tree "$JUHRADIAL_LOCAL_TREE"; then
+            return 0
+        fi
+        log_error "JUHRADIAL_LOCAL_TREE=$JUHRADIAL_LOCAL_TREE is not a JuhRadial MX checkout"
+        exit 1
+    fi
+
+    if fetch_release; then
+        return 0
+    fi
+    log_info "No release tarball available; fetching from git"
 
     # Use numeric IDs for ownership: the primary group is not always named after
     # the user (issue #52 hit a chown failure on Arch where the group differs).
@@ -442,7 +617,7 @@ clone_repo() {
 
     if [ -d "$INSTALL_DIR/.git" ]; then
         log_info "Updating existing installation..."
-        sudo chown -R "$uid:$gid" "$INSTALL_DIR"
+        $PRIV chown -R "$uid:$gid" "$INSTALL_DIR"
         git -C "$INSTALL_DIR" fetch origin
         git -C "$INSTALL_DIR" reset --hard origin/master
         git -C "$INSTALL_DIR" clean -fd
@@ -450,8 +625,8 @@ clone_repo() {
         log_info "Cloning repository..."
         # A previous failed install can leave a partial, root-owned dir behind;
         # clear it so the clone starts clean and ends up owned by the user.
-        [ -e "$INSTALL_DIR" ] && sudo rm -rf "$INSTALL_DIR"
-        sudo install -d -o "$uid" -g "$gid" "$INSTALL_DIR"
+        [ -e "$INSTALL_DIR" ] && $PRIV rm -rf "$INSTALL_DIR"
+        $PRIV install -d -o "$uid" -g "$gid" "$INSTALL_DIR"
         git clone "$REPO_URL" "$INSTALL_DIR"
     fi
 
@@ -485,14 +660,44 @@ ensure_rust_toolchain() {
     . "$HOME/.cargo/env"
 }
 
+build_in_distrobox() {
+    command -v distrobox >/dev/null 2>&1 || return 1
+    local box="juhradial-build" image="registry.fedoraproject.org/fedora-toolbox:${VERSION:-latest}"
+    log_info "Building the daemon inside a distrobox ($image)..."
+    if ! distrobox list 2>/dev/null | grep -qw "$box"; then
+        distrobox create --yes --name "$box" --image "$image" || return 1
+    fi
+    distrobox enter "$box" -- bash -c "sudo dnf install -y cargo rust gcc >/dev/null && cd '$INSTALL_DIR/daemon' && cargo build --release"
+}
+
 build_project() {
     step "Building daemon"
-    ensure_rust_toolchain
-    log_info "Compiling Rust daemon..."
     cd "$INSTALL_DIR"
 
+    # A release tarball ships a prebuilt daemon; use it when it runs here
+    # (same architecture, compatible glibc) and only compile otherwise.
+    if [ -x daemon/target/release/juhradiald ] && daemon/target/release/juhradiald --version >/dev/null 2>&1; then
+        log_success "Using the prebuilt daemon ($(daemon/target/release/juhradiald --version 2>/dev/null | head -1))"
+        return 0
+    fi
+
+    # Image-based hosts ship no compiler: build in a Fedora toolbox container
+    # (distrobox shares $HOME, so the binary lands in INSTALL_DIR).
+    if [ "$USER_MODE" = "1" ] && ! command -v cc >/dev/null 2>&1; then
+        if build_in_distrobox; then
+            log_success "Build complete"
+            return 0
+        fi
+        log_error "No C compiler and no distrobox to build in. Install a JuhRadial MX release (it ships a prebuilt daemon) or run this inside a toolbox."
+        exit 1
+    fi
+
+    ensure_rust_toolchain
+    log_info "Compiling Rust daemon..."
+    # Source builds need the sibling protocol crate, including from local trees.
+    [ -f crates/mx-keypad/Cargo.toml ] || { log_error "Source tree is missing crates/mx-keypad"; return 1; }
     cd daemon
-    cargo build --release
+    cargo build --release --locked
     cd ..
 
     log_success "Build complete"
@@ -503,73 +708,100 @@ install_files() {
     step "Installing files"
 
     # Install daemon binary
-    sudo install -Dm755 daemon/target/release/juhradiald "$BIN_DIR/juhradiald"
+    $PRIV install -Dm755 daemon/target/release/juhradiald "$BIN_DIR/juhradiald"
     log_success "Daemon binary"
 
     # Install overlay scripts
-    sudo mkdir -p /usr/share/juhradial
-    sudo cp -r overlay/*.py /usr/share/juhradial/
+    $PRIV mkdir -p $SHARE_DIR
+    $PRIV cp -r overlay/*.py $SHARE_DIR/
     log_success "Overlay scripts"
 
     # Install flow module (subdirectory)
-    sudo cp -r overlay/flow /usr/share/juhradial/flow
+    $PRIV cp -r overlay/flow $SHARE_DIR/flow
     log_success "Flow module"
 
     # Install locale files
     if [ -d overlay/locales ]; then
-        sudo mkdir -p /usr/share/juhradial/locales
-        sudo cp -r overlay/locales/* /usr/share/juhradial/locales/
+        $PRIV mkdir -p $SHARE_DIR/locales
+        $PRIV cp -r overlay/locales/* $SHARE_DIR/locales/
     fi
 
     # Install 3D radial wheel images
-    sudo mkdir -p /usr/share/juhradial/assets/radial-wheels
-    sudo cp -r assets/radial-wheels/*.png /usr/share/juhradial/assets/radial-wheels/
+    $PRIV mkdir -p $SHARE_DIR/assets/radial-wheels
+    $PRIV cp -r assets/radial-wheels/*.png $SHARE_DIR/assets/radial-wheels/
     log_success "Theme assets"
 
     # Install device images (mouse illustrations for settings)
     if [ -d assets/devices ]; then
-        sudo mkdir -p /usr/share/juhradial/assets/devices
-        sudo cp assets/devices/*.png assets/devices/*.svg /usr/share/juhradial/assets/devices/ 2>/dev/null || true
+        $PRIV mkdir -p $SHARE_DIR/assets/devices
+        $PRIV cp assets/devices/*.png assets/devices/*.svg $SHARE_DIR/assets/devices/ 2>/dev/null || true
     fi
 
     # Install AI assistant icons
-    sudo cp assets/ai-*.svg /usr/share/juhradial/assets/ 2>/dev/null || true
+    $PRIV cp assets/ai-*.svg $SHARE_DIR/assets/ 2>/dev/null || true
 
     # Install OS icons (used by Flow easy-switch and device display)
-    sudo cp assets/os-*.svg /usr/share/juhradial/assets/ 2>/dev/null || true
+    $PRIV cp assets/os-*.svg $SHARE_DIR/assets/ 2>/dev/null || true
 
     # Install Flow indicator image
-    sudo cp assets/flow-indicator.png /usr/share/juhradial/assets/ 2>/dev/null || true
+    $PRIV cp assets/flow-indicator.png $SHARE_DIR/assets/ 2>/dev/null || true
 
     # Install generic mouse icon
-    sudo cp assets/genericmouse.png /usr/share/juhradial/assets/ 2>/dev/null || true
+    $PRIV cp assets/genericmouse.png $SHARE_DIR/assets/ 2>/dev/null || true
 
     # Install sidebar navigation icons
-    sudo cp assets/nav-*.png /usr/share/juhradial/assets/ 2>/dev/null || true
+    $PRIV cp assets/nav-*.png $SHARE_DIR/assets/ 2>/dev/null || true
 
     # Install generated settings artwork
     if [ -d assets/settings-generated ]; then
-        sudo mkdir -p /usr/share/juhradial/assets/settings-generated
-        sudo cp assets/settings-generated/control-ring.png /usr/share/juhradial/assets/settings-generated/ 2>/dev/null || true
-        sudo cp assets/settings-generated/easyswitch.png /usr/share/juhradial/assets/settings-generated/ 2>/dev/null || true
-        sudo cp assets/settings-generated/haptics.png /usr/share/juhradial/assets/settings-generated/ 2>/dev/null || true
+        $PRIV mkdir -p $SHARE_DIR/assets/settings-generated
+        $PRIV cp assets/settings-generated/control-ring.png $SHARE_DIR/assets/settings-generated/ 2>/dev/null || true
+        $PRIV cp assets/settings-generated/easyswitch.png $SHARE_DIR/assets/settings-generated/ 2>/dev/null || true
+        $PRIV cp assets/settings-generated/haptics.png $SHARE_DIR/assets/settings-generated/ 2>/dev/null || true
+    fi
+
+    # Install the Qt/QML settings app (the GTK dashboard stays as fallback for
+    # distros without Qt >= 6.5). tools/ and __pycache__ are not shipped.
+    if [ -d settings-qt ]; then
+        $PRIV rm -rf $SHARE_DIR/settings-qt
+        $PRIV mkdir -p $SHARE_DIR/settings-qt
+        $PRIV cp settings-qt/main.py settings-qt/VERSION $SHARE_DIR/settings-qt/
+        $PRIV cp -r settings-qt/bridge settings-qt/qml settings-qt/assets $SHARE_DIR/settings-qt/
+        $PRIV find $SHARE_DIR/settings-qt -type d -name __pycache__ -exec rm -rf {} +
+        # The overlay resolves wheel skins under $SHARE_DIR/assets/wheels
+        $PRIV mkdir -p $SHARE_DIR/assets
+        $PRIV cp -r settings-qt/assets/wheels $SHARE_DIR/assets/
+        log_success "Qt settings app"
     fi
 
     # Install launcher scripts
-    sudo install -Dm755 scripts/juhradial-mx.sh "$BIN_DIR/juhradial-mx"
-    sudo install -Dm755 scripts/juhradial-settings.sh "$BIN_DIR/juhradial-settings"
+    $PRIV install -Dm755 scripts/juhradial-mx.sh "$BIN_DIR/juhradial-mx"
+    $PRIV install -Dm755 scripts/juhradial-settings.sh "$BIN_DIR/juhradial-settings"
 
-    # Install desktop files
-    sudo install -Dm644 packaging/juhradial-mx.desktop /usr/share/applications/juhradial-mx.desktop
-    sudo install -Dm644 packaging/org.kde.juhradialmx.settings.desktop /usr/share/applications/org.kde.juhradialmx.settings.desktop
+    # Install desktop files. ~/.local/bin is not on every desktop's PATH, so a
+    # user-mode entry names the launcher by its full path.
+    local entry
+    for entry in juhradial-mx.desktop org.kde.juhradialmx.settings.desktop; do
+        if [ "$USER_MODE" = "1" ]; then
+            mkdir -p "$APPS_DIR"
+            sed -E "s|^Exec=(juhradial-[a-z]+)|Exec=$BIN_DIR/\1|" "packaging/$entry" > "$APPS_DIR/$entry"
+        else
+            $PRIV install -Dm644 "packaging/$entry" "$APPS_DIR/$entry"
+        fi
+    done
 
     # Install icons
-    sudo install -Dm644 assets/juhradial-mx.svg /usr/share/icons/hicolor/scalable/apps/juhradial-mx.svg
+    $PRIV install -Dm644 assets/juhradial-mx.svg "$ICON_DIR/juhradial-mx.svg"
     log_success "Desktop integration"
 
-    # Install systemd service
+    # Install systemd service (a user-mode daemon lives in ~/.local/bin)
     mkdir -p "$SYSTEMD_USER_DIR"
-    cp packaging/systemd/juhradialmx-daemon.service "$SYSTEMD_USER_DIR/"
+    if [ "$USER_MODE" = "1" ]; then
+        sed "s|^ExecStart=/usr/local/bin/juhradiald|ExecStart=%h/.local/bin/juhradiald|" \
+            packaging/systemd/juhradialmx-daemon.service > "$SYSTEMD_USER_DIR/juhradialmx-daemon.service"
+    else
+        cp packaging/systemd/juhradialmx-daemon.service "$SYSTEMD_USER_DIR/"
+    fi
 
     # Install/update udev rules (always update to fix security issues in older versions)
     if [ -f packaging/udev/99-juhradialmx.rules ]; then
@@ -603,6 +835,10 @@ install_files() {
         if ! getent group input &> /dev/null; then
             sudo groupadd input
             log_info "Created 'input' group"
+        elif [ "$ATOMIC" = "1" ] && ! grep -q '^input:' /etc/group; then
+            # Image-based systems keep system groups in /usr/lib/group, which
+            # usermod cannot edit: copy the entry into /etc/group first.
+            grep '^input:' /usr/lib/group | sudo tee -a /etc/group >/dev/null
         fi
         if ! id -nG "$USER" | grep -qw input; then
             sudo usermod -aG input "$USER"
@@ -882,6 +1118,15 @@ print_success() {
         echo ""
     fi
 
+    if [ "$REBOOT_FOR_LAYERS" = "1" ]; then
+        echo -e "  ${YELLOW}${BOLD}  REBOOT to finish: the layered packages are active after it${RESET}"
+        echo ""
+    fi
+    if [ "$USER_MODE" = "1" ] && [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+        echo -e "  ${DIM}$BIN_DIR is not on your PATH: start it from the app menu, or run $BIN_DIR/juhradial-mx${RESET}"
+        echo ""
+    fi
+
     # First-time GNOME installers need a session restart for the extension
     if [ "$INSTALL_MODE" = "install" ] && [ "$DESKTOP_TYPE" = "gnome" ]; then
         echo -e "  ${YELLOW}${BOLD}════════════════════════════════════════════════${RESET}"
@@ -894,6 +1139,7 @@ print_success() {
 
 # ── Main ─────────────────────────────────────────────────────────────
 main() {
+    parse_args "$@"
     print_banner
     check_root
     detect_distro
@@ -908,7 +1154,10 @@ main() {
     else
         echo -e "  ${BOLD}Proceed with installation?${RESET} ${DIM}[Y/n]${RESET} \c"
     fi
-    read -n 1 -r < /dev/tty
+    REPLY=""
+    if [ "$ASSUME_YES" != "1" ]; then
+        read -n 1 -r < /dev/tty
+    fi
     echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]] && [[ ! -z $REPLY ]]; then
         echo ""

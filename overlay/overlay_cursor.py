@@ -336,7 +336,7 @@ def _get_gnome_cursor_proxy():
     try:
         import gi
         gi.require_version("Gio", "2.0")
-        from gi.repository import Gio, GLib
+        from gi.repository import Gio
         proxy = Gio.DBusProxy.new_for_bus_sync(
             Gio.BusType.SESSION,
             Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES
@@ -542,6 +542,24 @@ def get_cursor_position_xwayland():
     if not _init_xlib():
         return None
     return _xquery_pointer()
+
+
+def get_cursor_position_live():
+    """The pointer from the compositor's own live source where one exists
+    (Hyprland IPC, the GNOME Shell helper extension), else XWayland's view,
+    which stands still while the pointer is over native Wayland windows.
+    None when nothing answers. For background checks such as the
+    monitor-switch pulse, which run while no overlay window is under the
+    pointer."""
+    if IS_HYPRLAND:
+        pos = get_cursor_position_hyprland()
+        if pos:
+            return pos
+    if IS_GNOME:
+        pos = get_cursor_position_gnome()
+        if pos:
+            return pos
+    return get_cursor_position_xwayland() if _HAS_XWAYLAND else None
 
 
 def get_cursor_position_xwayland_synced():

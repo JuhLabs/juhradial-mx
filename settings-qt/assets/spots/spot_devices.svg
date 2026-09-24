@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="spot_devices_keyboard" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3A4150"/>
+      <stop offset="1" stop-color="#1B1F28"/>
+    </linearGradient>
+    <linearGradient id="spot_devices_mouse" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4B5364"/>
+      <stop offset="0.5" stop-color="#2A303C"/>
+      <stop offset="1" stop-color="#1B1F28"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="252" cy="437" rx="237" ry="27" fill="#000000" fill-opacity="0.08"/>
+  <ellipse cx="252" cy="433" rx="211" ry="18" fill="#000000" fill-opacity="0.25"/>
+  <path d="m19 192 313-28 30 198-327 33-16-203Z" fill="#1B1F28"/>
+  <path d="m19 192 313-28 16 168-320 30-9-170Z" fill="url(#spot_devices_keyboard)"/>
+  <path d="m31 202 291-26 3 25-292 25-2-24Z" fill="#4B5364"/>
+  <path d="m34 238 291-25 3 25-292 25-2-25Zm3 37 294-25 3 25-295 25-2-25Zm3 38 296-26 3 26-297 25-2-25Z" fill="#2A303C"/>
+  <path d="m47 208 29-3 2 13-29 2-2-12Zm43-4 29-2 1 12-29 3-1-13Zm43-3 29-3 1 13-29 2-1-12Zm42-4 29-3 2 13-30 2-1-12Zm43-4 29-2 2 12-30 3-1-13Zm44-4 29-3 1 13-29 2-1-12Z" fill="#1B1F28"/>
+  <path d="m50 245 31-3 1 13-30 3-2-13Zm45-4 31-3 1 13-31 3-1-13Zm45-4 31-3 1 13-31 3-1-13Zm45-4 31-3 1 13-30 3-2-13Zm45-4 31-3 2 13-31 3-2-13Zm46-4 31-3 1 13-31 3-1-13Z" fill="#1B1F28"/>
+  <path d="m53 283 31-3 1 13-31 3-1-13Zm45-4 31-3 1 13-31 3-1-13Z" fill="#1B1F28"/>
+  <path d="m143 275 31-3 2 13-31 3-2-13Z" fill="#ACCENT" fill-opacity="0.15" stroke="#ACCENT" stroke-opacity="0.35" stroke-width="8"/>
+  <path d="m143 275 31-3 2 13-31 3-2-13Z" fill="#ACCENT"/>
+  <path d="m189 271 31-3 1 13-31 3-1-13Zm45-4 31-3 1 13-31 3-1-13Zm45-4 31-3 2 13-31 3-2-13Z" fill="#1B1F28"/>
+  <path d="m56 321 41-4 2 17-41 4-2-17Zm55-5 142-12 2 17-142 13-2-18Zm158-14 42-4 2 18-42 3-2-17Z" fill="#1B1F28"/>
+  <path d="M381 209c-56 14-83 64-73 126l7 39c9 57 51 78 104 65 53-14 80-53 66-109l-10-38c-16-61-38-97-94-83Z" fill="url(#spot_devices_mouse)"/>
+  <path d="M381 209c-44 11-70 45-73 90l82-20 85 13c-16-61-38-97-94-83Z" fill="#3A4150"/>
+  <path d="m390 279-9-70M308 299l82-20 85 13" fill="none" stroke="#1B1F28" stroke-width="5"/>
+  <rect x="380" y="226" width="19" height="42" rx="9.5" transform="rotate(-10 380 226)" fill="#1B1F28"/>
+  <ellipse cx="405" cy="331" rx="17" ry="12" transform="rotate(-10 405 331)" fill="#ACCENT" fill-opacity="0.15"/>
+  <ellipse cx="405" cy="331" rx="11" ry="8" transform="rotate(-10 405 331)" fill="#ACCENT" fill-opacity="0.35"/>
+  <ellipse cx="405" cy="331" rx="6" ry="4" transform="rotate(-10 405 331)" fill="#ACCENT"/>
+</svg>

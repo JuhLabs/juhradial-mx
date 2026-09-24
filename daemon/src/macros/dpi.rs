@@ -87,6 +87,17 @@ impl DpiManager {
         &self.profiles
     }
 
+    /// Replace the presets (Settings), keeping the DPI saved for restore.
+    pub fn set_profiles(&mut self, profiles: Vec<DpiProfile>) {
+        self.profiles = profiles;
+        self.active_index = self.active_index.min(self.profiles.len().saturating_sub(1));
+    }
+
+    /// The active preset's position (0-based) and the number of presets.
+    pub fn stage(&self) -> (usize, usize) {
+        (self.active_index, self.profiles.len())
+    }
+
     /// Set active profile by index
     pub fn set_active_index(&mut self, index: usize) -> bool {
         if index < self.profiles.len() {

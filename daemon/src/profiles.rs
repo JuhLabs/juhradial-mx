@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use crate::actions::{get_default_actions, Action};
-use crate::config::{ButtonAction, ThumbwheelMode};
+use crate::config::{ButtonAction, CustomAction, ThumbwheelMode};
 
 /// Current schema version for profiles.json
 ///
@@ -101,10 +101,15 @@ pub struct HardwareProfile {
     pub thumbwheel: Option<ThumbwheelMode>,
 
     /// Per-button action overrides keyed by button name (gesture/thumb/middle/
-    /// back/forward/shift_wheel). Recorded in the schema; applied via config, not
-    /// by `apply_hardware_profile` (which only touches volatile device state).
+    /// back/forward/shift_wheel) or control CID ("0x00D7"). Applied through
+    /// the shared config on focus change (`Config::set_app_overrides`), not by
+    /// `apply_hardware_profile` (which only touches volatile device state).
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub buttons: HashMap<String, ButtonAction>,
+
+    /// What this app's buttons set to `custom` do, keyed like `buttons`.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub custom: HashMap<String, CustomAction>,
 }
 
 impl ProfilesConfig {
@@ -539,6 +544,7 @@ pub fn apply_hardware_profile(
     profile: &HardwareProfile,
     manager: &mut crate::hidpp::HapticManager,
     thumbwheel_invert: bool,
+    natural_scroll: bool,
 ) {
     if let Some(dpi) = profile.dpi {
         match manager.set_dpi(dpi) {
@@ -555,8 +561,9 @@ pub fn apply_hardware_profile(
     }
 
     if let Some(hires) = profile.hires {
-        // invert/target unchanged from device default (false) for per-app apply.
-        match manager.set_hiresscroll_mode(hires, false, false) {
+        // Natural scroll is a global setting: keep the user's invert bit
+        // (forcing it off flipped scroll direction in profiled apps).
+        match manager.set_hiresscroll_mode(hires, natural_scroll, false) {
             Ok(()) => tracing::info!(hires, "Hardware profile: HiRes scroll applied"),
             Err(e) => tracing::warn!(error = %e, "Hardware profile: set_hiresscroll_mode failed"),
         }
@@ -689,6 +696,7 @@ mod tests {
                 hires: Some(true),
                 thumbwheel: Some(ThumbwheelMode::Zoom),
                 buttons: HashMap::new(),
+                custom: HashMap::new(),
             },
         );
         let json = serde_json::to_string(&config).unwrap();

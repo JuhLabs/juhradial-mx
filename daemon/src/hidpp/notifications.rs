@@ -24,7 +24,7 @@ pub enum HardwareNotification {
     /// Scroll-wheel ratchet engaged/disengaged (HiResWheel 0x2121).
     RatchetChanged { ratchet: bool },
     /// Active Easy-Switch host slot changed (CHANGE_HOST 0x1814).
-    HostChanged { host: u8 },
+    HostChanged { host: u8, next: Option<u8> },
     /// Pointer DPI changed (ADJUSTABLE_DPI 0x2201).
     DpiChanged { dpi: u16 },
     /// Device came (back) online (WIRELESS_DEVICE_STATUS 0x1D4B broadcast).
@@ -76,7 +76,7 @@ impl NotificationIndices {
 /// Values match the Linux kernel hid-logitech-hidpp unified-battery driver:
 /// 0 = discharging, 1 = charging, 2 = charging (slow), 3 = full (complete),
 /// 4 = error/not charging.
-fn battery_status_label(status: u8) -> &'static str {
+pub fn battery_status_label(status: u8) -> &'static str {
     match status {
         0 => "discharging",
         1 | 2 => "charging",
@@ -102,7 +102,9 @@ fn decode_host(data: &[u8]) -> Option<HardwareNotification> {
     if data.len() < 5 {
         return None;
     }
-    Some(HardwareNotification::HostChanged { host: data[4] })
+    // MX Keys S sends [old, new]; kept as `next` for mouse-and-keyboard
+    // (easy_switch::mouse_left only trusts it when `host` is this computer).
+    Some(HardwareNotification::HostChanged { host: data[4], next: data.get(5).copied() })
 }
 
 /// ADJUSTABLE_DPI 0x2201 event: DPI as a big-endian u16 in bytes 4..5.
@@ -166,7 +168,10 @@ mod tests {
     fn routes_host_change() {
         let idx = NotificationIndices { change_host: Some(0x09), ..Default::default() };
         let r = report(0x09, &[2]);
-        assert_eq!(idx.route(0x09, &r), Some(HardwareNotification::HostChanged { host: 2 }));
+        assert_eq!(idx.route(0x09, &r), Some(HardwareNotification::HostChanged { host: 2, next: None }));
+        // [old, new] as the MX Keys S sends it
+        let r = report(0x09, &[0, 1]);
+        assert_eq!(idx.route(0x09, &r), Some(HardwareNotification::HostChanged { host: 0, next: Some(1) }));
     }
 
     #[test]

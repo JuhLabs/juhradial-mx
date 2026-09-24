@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "name": "Quick note",
+  "version": "1.0.0",
+  "description": "Append the clipboard to a notes file, with a haptic tap as confirmation",
+  "author": "JuhLabs",
+  "actions": [
+    {
+      "id": "save-clipboard",
+      "label": "Clipboard to note",
+      "icon": "document-save-symbolic",
+      "description": "Appends the clipboard text to ~/Notes/inbox.md with a timestamp",
+      "script": "save-clipboard.sh",
+      "args": ["Notes/inbox.md"]
+    },
+    {
+      "id": "haptic-tap",
+      "label": "Haptic tap",
+      "icon": "input-mouse-symbolic",
+      "description": "A D-Bus call to the JuhRadial daemon: one confirmation pulse on the MX Master 4",
+      "dbus": {
+        "service": "org.kde.juhradialmx",
+        "path": "/org/kde/juhradialmx/Daemon",
+        "interface": "org.kde.juhradialmx.Daemon",
+        "method": "TriggerHapticPattern",
+        "args": ["completed"]
+      }
+    }
+  ]
+}
