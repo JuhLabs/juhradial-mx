@@ -338,6 +338,9 @@ impl JuhRadialService {
                     new_config.set_app_overrides(Some(app), buttons, custom);
                 }
                 let haptic_config = new_config.haptics.clone();
+                if let Ok(mut gm) = self.gaming_mode.write() {
+                    gm.apply_config(&new_config.gaming);
+                }
                 let thumbwheel_config = new_config.thumbwheel.clone();
                 let remapped_cids = new_config.remapped_button_cids();
                 // Extra controls (buttons.controls) from both the new and the
@@ -1003,6 +1006,26 @@ impl JuhRadialService {
 
         Self::gaming_mode_changed(&emitter, enabled).await?;
         Ok(())
+    }
+
+    /// Gaming mode for Settings' status line: (on, turned on automatically,
+    /// active preset 1-based, its DPI, Feral GameMode installed, a game
+    /// registered with GameMode).
+    async fn get_gaming_status(&self) -> fdo::Result<(bool, bool, u32, u16, bool, bool)> {
+        match self.gaming_mode.read() {
+            Ok(gm) => {
+                let (gm_installed, gm_active) = gm.gamemode_state();
+                Ok((
+                    gm.is_enabled(),
+                    gm.auto_engaged(),
+                    gm.stage().0 as u32 + 1,
+                    gm.active_dpi().unwrap_or(0),
+                    gm_installed,
+                    gm_active,
+                ))
+            }
+            Err(_) => Ok((false, false, 0, 0, false, false)),
+        }
     }
 
     async fn get_gaming_mode(&self) -> fdo::Result<bool> {

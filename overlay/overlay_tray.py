@@ -127,6 +127,8 @@ class TrayStatus(QObject):
         self.num_hosts = 0
         self.host_names = []
         self.profile = ""
+        self.gaming = False
+        self.gaming_action = None
         self._low_notified = False
         self._watchers = set()
         self._bus = None
@@ -142,6 +144,7 @@ class TrayStatus(QObject):
             bus.connect("", OBJ_PATH, IFACE, "HostChanged", self._on_host)
             bus.connect("", OBJ_PATH, IFACE, "DeviceNameRefreshed", self._on_device_name)
             bus.connect("", OBJ_PATH, IFACE, "ActiveProfileChanged", self._on_profile)
+            bus.connect("", OBJ_PATH, IFACE, "GamingModeChanged", self._on_gaming)
         self.refresh()
         self.prime()
 
@@ -168,6 +171,24 @@ class TrayStatus(QObject):
     def set_profile(self, profile):
         self.profile = profile
         self.refresh()
+
+    def set_gaming(self, on):
+        self.gaming = bool(on)
+        if self.gaming_action is not None:
+            self.gaming_action.setChecked(self.gaming)
+
+    def bind_gaming_action(self, action):
+        """A checkable tray entry that switches gaming mode and follows it
+        (Settings, a button, automatic mode)."""
+        self.gaming_action = action
+        action.setCheckable(True)
+        action.setChecked(self.gaming)
+        # triggered, not toggled: only a click sends, never our own setChecked.
+        action.triggered.connect(self._toggle_gaming)
+
+    def _toggle_gaming(self, checked):
+        if self._iface is not None:
+            self._iface.asyncCall("SetGamingMode", bool(checked))
 
     @property
     def low(self):
@@ -204,6 +225,13 @@ class TrayStatus(QObject):
         self.prime()
 
     @pyqtSlot(QDBusMessage)
+    def _on_gaming(self, msg):
+        try:
+            self.set_gaming(bool(msg.arguments()[0]))
+        except Exception:
+            pass
+
+    @pyqtSlot(QDBusMessage)
     def _on_profile(self, msg):
         try:
             self.set_profile(str(msg.arguments()[0]))
@@ -218,6 +246,7 @@ class TrayStatus(QObject):
         self._call_then("GetBatteryStatus", lambda a: self.set_battery(_int(a[0]), "charging" if a[1] else ""))
         self._call_then("GetEasySwitchInfo", self._set_easy_switch)
         self._call_then("GetHostNames", self._set_host_names)
+        self._call_then("GetGamingMode", lambda a: self.set_gaming(bool(a[0])))
 
     def _set_easy_switch(self, a):
         self.num_hosts, self.host = _int(a[0]), _int(a[1])

@@ -162,3 +162,21 @@ def test_overlay_running_reads_the_reply_value():
     import bridge.backend as bk
     # Must be a real bool answer, never the always-truthy QDBusReply object.
     assert isinstance(bk.Backend._overlay_running(), bool)
+
+
+def test_tray_gaming_entry_follows_and_switches(status):
+    from PyQt6.QtGui import QAction
+    st, _tray, _notes = status
+    sent = []
+
+    class FakeIface:
+        def asyncCall(self, method, *args):
+            sent.append((method, args))
+    action = QAction("Gaming mode")
+    st.bind_gaming_action(action)
+    assert action.isCheckable() and not action.isChecked()
+    st.set_gaming(True)          # GamingModeChanged from anywhere
+    assert action.isChecked() and sent == []   # following never sends
+    st._iface = FakeIface()
+    action.trigger()             # a click in the tray menu
+    assert sent == [("SetGamingMode", (False,))]

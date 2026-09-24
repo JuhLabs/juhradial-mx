@@ -703,8 +703,13 @@ SEARCH_INDEX = [
     ("devices", "MX Keys S support", "Keyboard", "keyboard mx keys battery backlight enable beta"),
     # Gaming
     ("gaming", "Gaming mode", "Gaming mode", "gaming mode enable game performance"),
-    ("gaming", "Show overlay in games", "Gaming mode", "overlay radial menu game fullscreen suppress"),
-    ("gaming", "Active profile", "DPI profiles", "active profile dpi selection current"),
+    ("gaming", "When Feral GameMode runs a game", "Turn on automatically", "gamemode feral automatic auto game"),
+    ("gaming", "When these apps are in front", "Turn on automatically", "automatic apps games focus"),
+    ("gaming", "Show the radial menu", "In games", "overlay radial menu ring game fullscreen suppress show hide"),
+    ("gaming", "Ring button", "In games", "ring button actions precision dpi cycle preset"),
+    ("gaming", "Scroll wheel", "In games", "wheel lock ratchet free-spin games"),
+    ("gaming", "Pulse on preset change", "In games", "haptic pulse dpi preset stage"),
+    ("gaming", "Game macros", "In games", "macros games"),
     # Flow
     ("flow", "Switch edge", "Behaviour", "switch edge direction screen handoff cursor"),
     ("flow", "Move cursor to edge to switch", "Behaviour", "cursor edge trigger switch handoff pointer"),
@@ -1396,7 +1401,11 @@ class Backend(QObject):
         self._update = self._read_update_cache()
         self._net = None
 
-        self._gaming_mode = bool(self.get("gaming.enabled", False))
+        # The daemon owns gaming mode (a button, the tray or automatic mode
+        # can switch it); primed from GetGamingStatus, then GamingModeChanged.
+        self._gaming_mode = False
+        self._gaming = {"auto": False, "stage": 0, "dpi": 0, "gamemodeInstalled": False,
+                        "gamemodeActive": False}
         self._low_batt_notified = False
         self._repair_autostart_if_stale()
 
@@ -1840,6 +1849,7 @@ class Backend(QObject):
             ("SmartShiftSupported", flag("_ss_supported")),
             ("ThumbwheelSupported", flag("_tw_supported")),
             ("DpiSupported", flag("_dpi_supported")),
+            ("GetGamingStatus", self._apply_gaming_status),
             ("GetEasySwitchInfo", easy_switch),
             ("GetHostNames", host_names),
         ]
@@ -1911,6 +1921,16 @@ class Backend(QObject):
 
     def _set_gaming_live(self, on):
         self._gaming_mode = bool(on)
+        self.liveChanged.emit()
+        # the preset, DPI and automatic flag moved with it
+        self.daemon.call_then("GetGamingStatus", self._apply_gaming_status)
+
+    def _apply_gaming_status(self, r):
+        if not r or len(r) < 6:
+            return
+        self._gaming_mode = bool(r[0])
+        self._gaming = {"auto": bool(r[1]), "stage": _to_int(r[2]), "dpi": _to_int(r[3]),
+                        "gamemodeInstalled": bool(r[4]), "gamemodeActive": bool(r[5])}
         self.liveChanged.emit()
 
     def _set_dpi_live(self, dpi):
@@ -2995,17 +3015,106 @@ class Backend(QObject):
 
     @pyqtSlot(bool)
     def setGamingMode(self, on):
-        self._gaming_mode = bool(on)
+        """Ask the daemon; the switch moves when GamingModeChanged says so."""
         self.setLocal("gaming.enabled", bool(on))
-        self.daemon.call_async("SetGamingMode", bool(on))
-        self.liveChanged.emit()
+
+        def done(r):
+            if r is None:
+                self.notify(_("Gaming mode needs the JuhRadial service"), "info")
+            self.liveChanged.emit()  # a refused change snaps the switch back
+        self.daemon.call_then("SetGamingMode", done, bool(on))
+
+    @pyqtProperty("QVariantMap", notify=liveChanged)
+    def gamingStatus(self):
+        """{auto, stage (1-based), dpi, gamemodeInstalled, gamemodeActive}."""
+        return dict(self._gaming)
+
+    GAMING_NAME_MAX = 12
+    GAMING_PRESETS_MAX = 5
+    GAMING_COLORS = ["blue", "green", "red", "yellow", "mauve", "peach", "teal", "pink"]
+
+    @pyqtSlot(result="QVariant")
+    def gamingPresets(self):
+        out = []
+        for p in (self.get("gaming.dpi_profiles") or []):
+            if isinstance(p, dict):
+                color = str(p.get("color") or "blue")
+                out.append({"name": str(p.get("name") or ""), "dpi": _to_int(p.get("dpi"), 1000),
+                            "color": color, "hex": SLICE_COLORS.get(color, "#89B4FA")})
+        return out
+
+    def _save_presets(self, presets, active=None):
+        presets = presets[:self.GAMING_PRESETS_MAX]
+        if active is None:
+            active = _to_int(self.get("gaming.active_dpi_profile", 1), 1)
+        self._set_path(["gaming", "dpi_profiles"], [
+            {"name": p["name"][:self.GAMING_NAME_MAX], "dpi": self.snapDpi(p["dpi"]), "color": p["color"]}
+            for p in presets])
+        self._set_path(["gaming", "active_dpi_profile"], max(0, min(len(presets) - 1, active)))
+        self._save()
+        self.reloadConfig()
+        self.configChanged.emit()
 
     @pyqtSlot(int, str, "QVariant")
-    def setGamingProfile(self, idx, field, value):
-        profiles = list(self.get("gaming.dpi_profiles") or [])
-        if 0 <= idx < len(profiles):
-            profiles[idx][field] = value
-            self.setLocal("gaming.dpi_profiles", profiles)
+    def setGamingPreset(self, idx, field, value):
+        presets = self.gamingPresets()
+        if not (0 <= idx < len(presets)) or field not in ("name", "dpi", "color"):
+            return
+        if field == "name":
+            value = str(value).strip()[:self.GAMING_NAME_MAX] or presets[idx]["name"]
+        presets[idx][field] = _to_int(value) if field == "dpi" else str(value)
+        self._save_presets(presets)
+
+    @pyqtSlot(int)
+    def setActiveGamingPreset(self, idx):
+        """Takes effect at once while gaming mode is on (the daemon applies it)."""
+        self._save_presets(self.gamingPresets(), idx)
+
+    @pyqtSlot()
+    def addGamingPreset(self):
+        presets = self.gamingPresets()
+        if len(presets) >= self.GAMING_PRESETS_MAX:
+            return
+        used = {p["color"] for p in presets}
+        color = next((c for c in self.GAMING_COLORS if c not in used), "blue")
+        dpi = min(self.dpiRange["max"], (presets[-1]["dpi"] * 2) if presets else 1000)
+        presets.append({"name": _("Preset %d") % (len(presets) + 1), "dpi": dpi, "color": color})
+        self._save_presets(presets)
+
+    @pyqtSlot(int)
+    def removeGamingPreset(self, idx):
+        presets = self.gamingPresets()
+        if len(presets) <= 1 or not (0 <= idx < len(presets)):
+            return
+        active = _to_int(self.get("gaming.active_dpi_profile", 1), 1)
+        presets.pop(idx)
+        self._save_presets(presets, active - 1 if idx < active else active)
+
+    @pyqtSlot(int, int)
+    def moveGamingPreset(self, idx, delta):
+        presets = self.gamingPresets()
+        j = idx + delta
+        if not (0 <= idx < len(presets) and 0 <= j < len(presets)):
+            return
+        active = _to_int(self.get("gaming.active_dpi_profile", 1), 1)
+        presets[idx], presets[j] = presets[j], presets[idx]
+        active = j if active == idx else (idx if active == j else active)
+        self._save_presets(presets, active)
+
+    @pyqtSlot(result="QVariant")
+    def gamingAutoApps(self):
+        return [str(a) for a in (self.get("gaming.auto_apps") or [])]
+
+    @pyqtSlot(str)
+    def addGamingAutoApp(self, cls):
+        cls = (cls or "").strip().lower()
+        apps = self.gamingAutoApps()
+        if cls and cls not in apps:
+            self.set("gaming.auto_apps", apps + [cls])
+
+    @pyqtSlot(str)
+    def removeGamingAutoApp(self, cls):
+        self.set("gaming.auto_apps", [a for a in self.gamingAutoApps() if a != cls])
 
     # ---- macros (the daemon stores them: ~/.config/juhradial/macros) ----
     def _macros(self):

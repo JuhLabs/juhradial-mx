@@ -73,7 +73,7 @@ def test_qml_fallbacks_agree_with_the_defaults():
     pages = REPO / "settings-qt" / "qml" / "pages"
     assert 'Backend.get("radial_menu.easy_switch_shortcuts", false)' in (pages / "EasySwitchPage.qml").read_text()
     assert 'Backend.get("flow.direction", "right")' in (pages / "FlowPage.qml").read_text()
-    assert '!Backend.get("gaming.suppress_overlay", true)' in (pages / "GamingPage.qml").read_text()
+    assert '!cfg("gaming.suppress_overlay", true)' in (pages / "GamingPage.qml").read_text()
     assert 'Backend.get("language", "system")' in (pages / "SettingsPage.qml").read_text()
 
 

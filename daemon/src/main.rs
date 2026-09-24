@@ -17,7 +17,7 @@ use juhradiald::{
     config::load_shared_config,
     dbus::{DBUS_NAME, DBUS_PATH, SharedDeviceName, claim_name, init_dbus_service_with_device},
     evdev::{EvdevError, EvdevHandler, GestureEvent},
-    gaming::new_shared_gaming_mode,
+    gaming::{new_shared_gaming_mode, AutoSource},
     hidpp::{HapticEvent, SharedHapticManager},
     hidraw::{HidrawError, HidrawHandler},
     macros::{MacroEngine, MacroRecorder, TriggerMap},
@@ -575,6 +575,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize gaming mode and macro subsystem
     let gaming_mode = new_shared_gaming_mode(haptic_manager.clone());
+    if let (Ok(cfg), Ok(mut gm)) = (shared_config.read(), gaming_mode.write()) {
+        gm.apply_config(&cfg.gaming);
+    }
     let macro_engine = Arc::new(Mutex::new(MacroEngine::new()));
     let macro_recorder = Arc::new(Mutex::new(MacroRecorder::new()));
     let trigger_map = Arc::new(std::sync::RwLock::new(TriggerMap::default()));
@@ -708,7 +711,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         haptic_manager,
         device_mode.clone(),
         device_name_state.clone(),
-        gaming_mode,
+        gaming_mode.clone(),
         macro_engine,
         macro_recorder,
         trigger_map,
@@ -740,6 +743,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let conn = dbus_connection.clone();
         let kwin = kwin_availability.clone();
         tokio::spawn(async move { juhradiald::compositor::run_kwin_watcher(conn, kwin).await });
+    }
+    // Feral GameMode: automatic gaming mode (never starts gamemoded).
+    {
+        let conn = dbus_connection.clone();
+        let gaming = gaming_mode.clone();
+        tokio::spawn(async move { juhradiald::gamemode::run_gamemode_watcher(conn, gaming).await });
     }
     let kwin_context = KWinContext {
         availability: kwin_availability,
@@ -880,6 +889,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let profile_connection = dbus_connection.clone();
         let focus_replay = replay_ctx.clone();
         let focus_triggers = trigger_map_for_focus;
+        let focus_gaming = gaming_mode.clone();
         if !hw_profiles.read().map(|m| m.is_empty()).unwrap_or(true) {
             info!("Per-app hardware profiles configured; focus-change application active");
         }
@@ -924,10 +934,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // regardless of whether a hardware profile matches below.
                 // An app on the haptics mute list goes quiet first, so
                 // switching into it does not pulse either.
-                let app_muted = hw_config
+                let (app_muted, auto_game) = hw_config
                     .read()
-                    .map(|c| c.haptics.app_muted(&class))
-                    .unwrap_or(false);
+                    .map(|c| (c.haptics.app_muted(&class), c.gaming.auto_app(&class)))
+                    .unwrap_or((false, false));
+                // Settings > Gaming > "When these apps are in front".
+                let gaming = focus_gaming.clone();
+                let flipped = tokio::task::spawn_blocking(move || {
+                    gaming.write().ok().and_then(|mut gm| gm.set_auto(AutoSource::App, auto_game))
+                })
+                .await
+                .ok()
+                .flatten();
+                if let Some(on) = flipped {
+                    info!(app = %class, on, "Gaming mode switched by the app in front");
+                    let _ = profile_connection
+                        .emit_signal(None::<&str>, DBUS_PATH, "org.kde.juhradialmx.Daemon", "GamingModeChanged", &(on,))
+                        .await;
+                }
                 let mgr_ws = hw_manager.clone();
                 let _ = tokio::task::spawn_blocking(move || {
                     if let Ok(mut m) = mgr_ws.lock() {
@@ -1621,6 +1645,9 @@ impl ActionContext {
     /// DPI cycle / up / down. The new DPI outlives a wake (session DPI) and
     /// Settings follows it through DpiChanged.
     async fn dpi_step(&self, action: juhradiald::config::ButtonAction) {
+        if action == juhradiald::config::ButtonAction::DpiCycle && self.gaming_cycle().await {
+            return;
+        }
         let Some((current, range)) = juhradiald::actions::read_dpi().await else {
             warn!(%action, "DPI action: the mouse's DPI is not readable");
             return;
@@ -1677,6 +1704,34 @@ impl ActionContext {
             Ok(()) => self.shift_restore = Some(current),
             Err(e) => error!(error = %e, dpi = shift, "DPI shift failed"),
         }
+    }
+
+    /// DPI cycle while gaming mode is on: the next gaming preset, one pulse
+    /// per stage. False when gaming mode is off (the normal cycle runs).
+    async fn gaming_cycle(&self) -> bool {
+        let gaming = self.gaming_mode.clone();
+        let cycled = tokio::task::spawn_blocking(move || {
+            let mut gm = gaming.write().ok()?;
+            if !gm.is_enabled() {
+                return None;
+            }
+            gm.cycle_dpi()?;
+            Some((gm.active_dpi(), gm.stage().0 + 1, gm.dpi_pulse()))
+        })
+        .await
+        .ok()
+        .flatten();
+        let Some((dpi, stage, pulse)) = cycled else { return false };
+        if pulse {
+            juhradiald::actions::pulse_times(HapticEvent::DpiChange, stage);
+        }
+        if let Some(dpi) = dpi {
+            let _ = self
+                .connection
+                .emit_signal(None::<&str>, DBUS_PATH, "org.kde.juhradialmx.Daemon", "DpiChanged", &(dpi,))
+                .await;
+        }
+        true
     }
 
     async fn toggle_gaming(&self) {
@@ -2281,6 +2336,8 @@ async fn process_gesture_events(
 ) {
     let shared_config = actions.config.clone();
     let macro_engine = actions.macro_engine.clone();
+    // A gaming action the ring button started (its release ends it).
+    let mut ring_action_held: Option<juhradiald::config::ButtonAction> = None;
     while let Some(event) = event_rx.recv().await {
         match event {
             GestureEvent::GestureReleased { dx, dy, duration_ms } => {
@@ -2312,6 +2369,14 @@ async fn process_gesture_events(
                 }
             }
             GestureEvent::Pressed { x, y } => {
+                // In a game the ring button can do a gaming job instead.
+                let ring = actions.gaming_mode.read().ok().and_then(|gm| gm.ring_action());
+                if let Some(action) = ring {
+                    info!(%action, "Ring button in a game");
+                    ring_action_held = Some(action);
+                    actions.run(action, true, None).await;
+                    continue;
+                }
                 // HID++ hidraw handler provides cursor coordinates directly
                 info!(x, y, "Gesture button pressed - showing radial menu");
 
@@ -2321,6 +2386,10 @@ async fn process_gesture_events(
                 }
             }
             GestureEvent::Released { duration_ms } => {
+                if let Some(action) = ring_action_held.take() {
+                    actions.run(action, false, None).await;
+                    continue;
+                }
                 info!(duration_ms, "Gesture button released");
 
                 // Emit HideMenu signal via D-Bus

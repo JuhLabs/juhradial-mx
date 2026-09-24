@@ -78,6 +78,7 @@ ANSWERS = {
     "SmartShiftSupported": [True],
     "ThumbwheelSupported": [True],
     "DpiSupported": [True],
+    "GetGamingStatus": [False, False, 2, 0, True, False],
     "GetEasySwitchInfo": [3, 1],
     "GetHostNames": [["LINUX", "MAC", ""]],
 }

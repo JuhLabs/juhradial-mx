@@ -740,6 +740,22 @@ pub fn pulse(event: crate::hidpp::HapticEvent) {
     });
 }
 
+/// `times` pulses in a row (a DPI stage: one for the first preset, two for
+/// the second, ...).
+pub fn pulse_times(event: crate::hidpp::HapticEvent, times: usize) {
+    let Some(manager) = DEVICE.get().cloned() else { return };
+    std::thread::spawn(move || {
+        for i in 0..times.clamp(1, 5) {
+            if i > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(170));
+            }
+            if let Ok(mut m) = manager.lock() {
+                let _ = m.emit(event);
+            }
+        }
+    });
+}
+
 /// Flip the wheel between ratchet and free-spin, keeping the SmartShift
 /// threshold (what the wheel-mode button under the wheel does).
 async fn toggle_wheel_mode() -> Result<(), ActionError> {

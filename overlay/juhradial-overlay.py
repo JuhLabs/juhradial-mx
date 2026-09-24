@@ -1561,6 +1561,7 @@ def create_tray_icon(app, radial_menu):
 
     settings_action = menu.addAction(_("Settings"))
     settings_action.triggered.connect(overlay_actions.open_settings)
+    gaming_action = menu.addAction(_("Gaming mode"))
 
     menu.addSeparator()
 
@@ -1577,6 +1578,7 @@ def create_tray_icon(app, radial_menu):
     tray.setVisible(tray_icon_wanted())
     # Tooltip (device, battery, host, profile) and icon badge follow the daemon.
     tray.status = TrayStatus(tray, icon, parent=tray)
+    tray.status.bind_gaming_action(gaming_action)
 
     return tray
 

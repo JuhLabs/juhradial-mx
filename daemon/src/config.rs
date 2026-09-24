@@ -613,6 +613,90 @@ impl ThumbwheelConfig {
 }
 
 // ============================================================================
+// Gaming Configuration
+// ============================================================================
+
+/// One gaming DPI preset (Settings > Gaming).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GamingPreset {
+    pub name: String,
+    pub dpi: u16,
+    #[serde(default)]
+    pub color: String,
+}
+
+fn default_gaming_presets() -> Vec<GamingPreset> {
+    [("Precision", 400, "blue"), ("Normal", 1000, "green"), ("Fast", 3200, "red")]
+        .into_iter()
+        .map(|(name, dpi, color)| GamingPreset { name: name.into(), dpi, color: color.into() })
+        .collect()
+}
+fn default_active_preset() -> usize { 1 }
+fn default_keep() -> String { "keep".to_string() }
+fn default_none() -> String { "none".to_string() }
+
+/// Gaming mode (the on/off state itself lives in the daemon; `enabled` in
+/// the file is the Settings app's mirror and is not read).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GamingConfig {
+    /// Hide the radial menu while gaming mode is on.
+    #[serde(default = "default_true")]
+    pub suppress_overlay: bool,
+    /// Index into `dpi_profiles` applied while gaming mode is on.
+    #[serde(default = "default_active_preset")]
+    pub active_dpi_profile: usize,
+    /// DPI presets (1 to 5) the ring button or DPI cycle steps through.
+    #[serde(default = "default_gaming_presets")]
+    pub dpi_profiles: Vec<GamingPreset>,
+    /// Turn on while Feral GameMode is active.
+    #[serde(default)]
+    pub auto_gamemode: bool,
+    /// Turn on while one of these apps (window class, any case) is in front.
+    #[serde(default)]
+    pub auto_apps: Vec<String>,
+    /// The Actions Ring button in games: "none", "dpi_shift" or "dpi_cycle".
+    #[serde(default = "default_none")]
+    pub ring_button: String,
+    /// The scroll wheel in games: "keep", "ratchet" or "freespin".
+    #[serde(default = "default_keep")]
+    pub wheel: String,
+    /// Pulse once per stage (1 to 5) when the preset changes.
+    #[serde(default = "default_true")]
+    pub dpi_pulse: bool,
+}
+
+impl Default for GamingConfig {
+    fn default() -> Self {
+        Self {
+            suppress_overlay: true,
+            active_dpi_profile: default_active_preset(),
+            dpi_profiles: default_gaming_presets(),
+            auto_gamemode: false,
+            auto_apps: Vec::new(),
+            ring_button: default_none(),
+            wheel: default_keep(),
+            dpi_pulse: true,
+        }
+    }
+}
+
+impl GamingConfig {
+    /// Whether `app` (a window class) turns gaming mode on.
+    pub fn auto_app(&self, app: &str) -> bool {
+        self.auto_apps.iter().any(|a| a.eq_ignore_ascii_case(app))
+    }
+
+    /// What the ring button does in games (None = its normal job).
+    pub fn ring_action(&self) -> Option<ButtonAction> {
+        match self.ring_button.as_str() {
+            "dpi_shift" => Some(ButtonAction::DpiShift),
+            "dpi_cycle" => Some(ButtonAction::DpiCycle),
+            _ => None,
+        }
+    }
+}
+
+// ============================================================================
 // Keyboard Configuration (BETA, opt-in)
 // ============================================================================
 
@@ -692,6 +776,10 @@ pub struct Config {
     #[serde(default)]
     pub thumbwheel: ThumbwheelConfig,
 
+    /// Gaming mode: DPI presets, the ring in games, automatic mode.
+    #[serde(default)]
+    pub gaming: GamingConfig,
+
     /// Keyboard support (generic remap + MX Keys S). BETA, opt-in, off by default.
     #[serde(default)]
     pub keyboard: KeyboardConfig,
@@ -752,6 +840,7 @@ impl Default for Config {
             blur_enabled: true,
             buttons: ButtonsConfig::default(),
             thumbwheel: ThumbwheelConfig::default(),
+            gaming: GamingConfig::default(),
             keyboard: KeyboardConfig::default(),
             devices: std::collections::HashMap::new(),
             active_unit: None,
