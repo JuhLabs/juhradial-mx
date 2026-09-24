@@ -839,6 +839,31 @@ Item {
                     }
                     Rectangle { width: parent.width; height: 1; color: Theme.border }
 
+                    // A submenu without links of its own (#118): it starts empty
+                    // here, and says what the wheel shows until you add one.
+                    Row {
+                        visible: page.linkRow >= 0 && aiModel.count === 0
+                        width: parent.width
+                        spacing: Theme.gapS
+                        Text {
+                            width: parent.width - editAi.width - Theme.gapS
+                            anchors.verticalCenter: parent.verticalCenter
+                            wrapMode: Text.WordWrap
+                            text: qsTr("While this list is empty the submenu shows the AI assistants: %1.")
+                                  .arg(Backend.defaultQuickLinks().map(function (l) { return l.name }).join(", "))
+                            color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
+                        }
+                        PrimaryButton {
+                            id: editAi
+                            text: qsTr("Edit the AI links"); ghost: true
+                            onClicked: {
+                                var links = Backend.defaultQuickLinks()
+                                for (var i = 0; i < links.length; i++) aiModel.append(links[i])
+                                page.commitAi()
+                            }
+                        }
+                    }
+
                     Repeater {
                         model: aiModel
                         RowLayout {
@@ -882,9 +907,9 @@ Item {
                                     font.family: Theme.fontMono; font.pixelSize: Theme.fsSmall
                                 }
                             }
-                            IconButton {
-                                icon: "application-x-executable-symbolic"; tint: Theme.textMuted; diameter: 36
-                                tip: qsTr("Open an application instead")
+                            PrimaryButton {
+                                text: qsTr("Pick application"); ghost: true
+                                Accessible.description: qsTr("Open an application instead")
                                 onClicked: { page.aiPickRow = index; linkAppPicker.open() }
                             }
                             IconButton {

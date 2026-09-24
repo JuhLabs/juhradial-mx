@@ -134,6 +134,7 @@ from overlay_cursor import (
     get_cursor_position_hyprland,
     get_cursor_position_gnome,
     get_cursor_position_qt,
+    get_cursor_position_live,
     get_cursor_position_xwayland,
     get_cursor_position_xwayland_synced,
     get_cursor_pos,
@@ -817,7 +818,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         background awareness cue, not part of the menu's own hover/select
         haptics.
         """
-        pos = get_cursor_position_xwayland()
+        pos = get_cursor_position_live()
         if not pos:
             from PyQt6.QtGui import QCursor
             qpos = QCursor.pos()

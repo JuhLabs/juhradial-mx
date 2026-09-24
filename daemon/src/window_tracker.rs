@@ -129,7 +129,7 @@ impl WindowTracker {
                 // install_kwin_script blocks on two dbus-send calls; keep them
                 // off the async worker this future runs on.
                 let installed = tokio::task::spawn_blocking(|| {
-                    install_kwin_script(KWIN_ACTIVE_WINDOW_SCRIPT)
+                    install_kwin_script(KWIN_ACTIVE_WINDOW_SCRIPT, KWIN_ACTIVE_WINDOW_PLUGIN)
                 })
                 .await
                 .unwrap_or(false);
@@ -164,7 +164,24 @@ impl Default for WindowTracker {
 /// the cursor-script pipeline (loadScript → Script.run). `pub(crate)` so other
 /// persistent-script installers (e.g. cursor::watch_cursor_screen_kde) can
 /// reuse it instead of duplicating the loadScript/Script.run dance.
-pub(crate) fn install_kwin_script(script: &str) -> bool {
+/// Stable KWin plugin names: a daemon restart replaces its script instead of
+/// adding one more copy (each copy reported every event again).
+pub(crate) const KWIN_ACTIVE_WINDOW_PLUGIN: &str = "juhradialmx-active-window";
+pub(crate) const KWIN_CURSOR_SCREEN_PLUGIN: &str = "juhradialmx-cursor-screen";
+
+/// The dbus-send arguments that unload `plugin`, then load `path` as it.
+fn kwin_script_calls(path: &str, plugin: &str) -> [Vec<String>; 2] {
+    let call = |method: &str, args: &[String]| {
+        let mut v = vec!["--session".into(), "--print-reply".into(), "--dest=org.kde.KWin".into(),
+                         "/Scripting".into(), format!("org.kde.kwin.Scripting.{method}")];
+        v.extend_from_slice(args);
+        v
+    };
+    [call("unloadScript", &[format!("string:{plugin}")]),
+     call("loadScript", &[format!("string:{path}"), format!("string:{plugin}")])]
+}
+
+pub(crate) fn install_kwin_script(script: &str, plugin: &str) -> bool {
     let mut temp_file = match tempfile::Builder::new().suffix(".js").tempfile() {
         Ok(f) => f,
         Err(e) => {
@@ -177,16 +194,12 @@ pub(crate) fn install_kwin_script(script: &str) -> bool {
         return false;
     }
     let script_path = temp_file.path().to_string_lossy().to_string();
+    let [unload, load] = kwin_script_calls(&script_path, plugin);
+    // Not loaded yet is fine: unloadScript just answers false.
+    let _ = Command::new("dbus-send").args(&unload).output();
 
     let load_output = match Command::new("dbus-send")
-        .args([
-            "--session",
-            "--print-reply",
-            "--dest=org.kde.KWin",
-            "/Scripting",
-            "org.kde.kwin.Scripting.loadScript",
-            &format!("string:{}", script_path),
-        ])
+        .args(&load)
         .output()
     {
         Ok(o) if o.status.success() => o,
@@ -548,6 +561,15 @@ mod tests {
             tracker_decision("kde", true, false, Duration::from_secs(6), max),
             TrackerDecision::Start
         );
+    }
+
+    #[test]
+    fn a_kwin_script_replaces_its_own_earlier_copy() {
+        let [unload, load] = kwin_script_calls("/tmp/x.js", KWIN_CURSOR_SCREEN_PLUGIN);
+        assert_eq!(unload.last().unwrap(), "string:juhradialmx-cursor-screen");
+        assert!(unload.iter().any(|a| a == "org.kde.kwin.Scripting.unloadScript"));
+        assert_eq!(&load[load.len() - 2..], ["string:/tmp/x.js", "string:juhradialmx-cursor-screen"]);
+        assert_ne!(KWIN_ACTIVE_WINDOW_PLUGIN, KWIN_CURSOR_SCREEN_PLUGIN);
     }
 
     #[test]

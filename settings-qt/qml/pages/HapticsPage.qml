@@ -55,7 +55,8 @@ Item {
             }
         }
         label: modelData.name
-        desc: modelData.available ? modelData.desc : modelData.reason
+        desc: !modelData.available ? modelData.reason
+              : modelData.note ? modelData.desc + ". " + modelData.note : modelData.desc
         opacity: page.masterOn && modelData.available ? 1.0 : 0.5
         Row {
             spacing: Theme.gapS

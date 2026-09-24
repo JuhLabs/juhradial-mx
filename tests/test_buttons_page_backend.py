@@ -60,7 +60,7 @@ def test_quick_links_on_every_submenu_slice(backend):
     assert backend.linksFor(0) == [{"name": "Docs", "url": "https://example.org",
                                     "icon": "browser", "command": ""}]
     other = [r for r in rows if r != 0][0]
-    assert backend.linksFor(other)[0]["name"] != "Docs"     # independent lists
+    assert backend.linksFor(other) == []                    # independent lists; untouched = empty
 
 
 def test_clean_url():

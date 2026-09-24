@@ -977,7 +977,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if class == current_class {
                     continue;
                 }
-                current_class = class.clone();
+                let previous = std::mem::replace(&mut current_class, class.clone());
+                let pulse = window_switch_pulses(&previous, focus.in_trial());
                 juhradiald::keypad::set_focused_app(&class);
                 if !focus.in_trial() {
                     usage.focus(&class, std::time::Instant::now());
@@ -1027,7 +1028,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let _ = tokio::task::spawn_blocking(move || {
                     if let Ok(mut m) = mgr_ws.lock() {
                         m.set_app_muted(app_muted);
-                        if m.is_window_switch_enabled() {
+                        if pulse && m.is_window_switch_enabled() {
                             let _ = m.emit(HapticEvent::WindowSwitch);
                         }
                     }
@@ -1682,6 +1683,13 @@ struct ActionContext {
     /// A hold-while-pressed custom action whose keys are down (release
     /// events carry no source button, so the press remembers it).
     held_custom: Option<(Option<u16>, juhradiald::config::CustomAction)>,
+}
+
+/// The app-switch pulse is for a switch the user made: not the first report
+/// after the daemon starts (nothing was in front before) and not an App
+/// profiles "Try now" standing in for an app.
+fn window_switch_pulses(previous: &str, in_trial: bool) -> bool {
+    !previous.is_empty() && !in_trial
 }
 
 /// What an MX Keypad key bound to the Actions Ring does on one edge. Like the
@@ -3135,6 +3143,13 @@ mod tests {
         let clamped = pos.clamp_to_screen(&bounds);
         assert_eq!(clamped.x, 500);
         assert_eq!(clamped.y, 500);
+    }
+
+    #[test]
+    fn app_switch_pulses_only_for_a_switch_the_user_made() {
+        assert!(!window_switch_pulses("", false), "the first report after start is not a switch");
+        assert!(window_switch_pulses("firefox", false));
+        assert!(!window_switch_pulses("firefox", true), "Try now stands in for an app");
     }
 
     #[test]

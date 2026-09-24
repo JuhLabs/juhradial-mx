@@ -144,3 +144,24 @@ def test_monitor_switch_has_its_own_switch_the_daemon_reads(backend):
     assert backend.get("haptics.per_event.monitor_switch") == "subtle_collision"
     config_rs = (Path(__file__).resolve().parents[1] / "daemon/src/config.rs").read_text()
     assert "pub monitor_switch_enabled: bool" in config_rs
+
+
+def test_app_switch_row_says_when_only_xwayland_apps_are_seen(backend, monkeypatch):
+    see = bk.focus_sees_xwayland_only
+    assert not see({"XDG_SESSION_TYPE": "wayland", "XDG_CURRENT_DESKTOP": "KDE"})
+    assert not see({"WAYLAND_DISPLAY": "wayland-1", "XDG_CURRENT_DESKTOP": "Hyprland"})
+    assert not see({"XDG_SESSION_TYPE": "x11", "XDG_CURRENT_DESKTOP": "GNOME"})
+    for desk in ("GNOME", "sway", "COSMIC", "niri"):
+        assert see({"XDG_SESSION_TYPE": "wayland", "XDG_CURRENT_DESKTOP": desk}), desk
+    monkeypatch.setattr(bk, "focus_sees_xwayland_only", lambda env=None: True)
+    ev = {e["key"]: e for e in backend.hapticEvents()}
+    assert ev["window_switch"]["available"] and "XWayland" in ev["window_switch"]["note"]
+    assert "another app" in ev["window_switch"]["desc"]
+
+
+def test_monitor_switch_row_says_when_the_pointer_is_not_live(backend):
+    see = bk.monitor_sees_xwayland_only
+    for desk in ("KDE", "Hyprland", "GNOME"):
+        assert not see({"XDG_SESSION_TYPE": "wayland", "XDG_CURRENT_DESKTOP": desk}), desk
+    for desk in ("COSMIC", "niri", "sway"):
+        assert see({"XDG_SESSION_TYPE": "wayland", "XDG_CURRENT_DESKTOP": desk}), desk

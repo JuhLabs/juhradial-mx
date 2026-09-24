@@ -63,7 +63,7 @@ reportScreenChange();
 /// Install the persistent cursor-screen KWin script (KDE only). Returns
 /// whether installation succeeded, same as `window_tracker::install_kwin_script`.
 pub fn watch_cursor_screen_kde() -> bool {
-    crate::window_tracker::install_kwin_script(KWIN_CURSOR_SCREEN_SCRIPT)
+    crate::window_tracker::install_kwin_script(KWIN_CURSOR_SCREEN_SCRIPT, crate::window_tracker::KWIN_CURSOR_SCREEN_PLUGIN)
 }
 
 /// Menu diameter in pixels (matches overlay MENU_RADIUS * 2)

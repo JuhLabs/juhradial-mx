@@ -168,9 +168,16 @@ def test_quick_links_migrate_from_the_old_ai_links_key(tmp_path, monkeypatch):
     assert "ai_links" not in _disk(tmp_path)["radial_menu"]
 
 
-def test_empty_quick_links_show_the_ai_defaults(backend):
-    names = [r["name"] for r in backend.aiLinks()]
-    assert names == ["Claude", "ChatGPT", "Gemini", "Perplexity"]
+def test_an_untouched_submenu_starts_empty_and_names_the_ai_defaults(backend, tmp_path):
+    # #118: the editor opens blank instead of pre-filling the defaults (which
+    # also filled all four rows, so "Add link" was blocked); the card names
+    # what the wheel shows meanwhile, and an empty list still draws them.
+    assert backend.aiLinks() == []
+    assert [r["name"] for r in backend.defaultQuickLinks()] == ["Claude", "ChatGPT", "Gemini", "Perplexity"]
+    backend.setAiLinks([])
+    assert _submenu_slice(tmp_path)["submenu"] == []
+    import overlay_actions
+    assert overlay_actions.submenu_from_config([]) is None, "the overlay falls back to the AI links"
 
 
 # ---------------------------------------------------------------------------

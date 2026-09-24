@@ -78,7 +78,7 @@ CONFIG = CONFIG_DIR / "config.json"
 PROFILES = CONFIG_DIR / "profiles.json"
 AUTOSTART = _XDG_CONFIG / "autostart" / "juhradial-mx.desktop"
 
-# Actions Ring geometry (Settings → Appearance): the overlay's defaults
+# Actions Ring geometry (Settings → Radial menu): the overlay's defaults
 # (overlay_constants MENU_RADIUS / CENTER_ZONE_RADIUS) and the clamps the GTK
 # app applies in settings_config; tests/test_settings_qt_parity.py pins both.
 RING_OUTER_DEFAULT, RING_INNER_DEFAULT = 150, 45
@@ -413,7 +413,7 @@ HAPTIC_PATTERNS = [
 # default pattern). Defaults mirror daemon config.rs (tests pin them).
 HAPTIC_EVENTS = [
     ("menu_appear", "Menu opens", "The radial menu appears", "menu", "damp_state_change"),
-    ("slice_change", "Slice change", "The pointer moves onto another slice", "menu", "subtle_collision"),
+    ("slice_change", "Slice change", "The pointer moves onto another slice or submenu item", "menu", "subtle_collision"),
     ("confirm", "Action runs", "You let go on a slice and its action runs", "menu", "sharp_state_change"),
     ("invalid", "Empty slice", "You let go on a slice with nothing on it", "menu", "angry_alert"),
     ("gesture_tick", "Gesture threshold", "A drag with the gesture button turns into a direction",
@@ -423,7 +423,7 @@ HAPTIC_EVENTS = [
     ("low_battery", "Low battery", "The battery drops to the alert level set on Devices", "mouse", "angry_alert"),
     ("macro_start", "Macro starts", "A macro begins to play", "mouse", "damp_collision"),
     ("macro_finish", "Macro finishes", "A macro is done", "mouse", "completed"),
-    ("window_switch", "App switch", "Alt+Tab, the taskbar, or clicking into another window",
+    ("window_switch", "App switch", "Alt+Tab, the taskbar, or clicking into another app",
      "desktop", "subtle_collision"),
     ("monitor_switch", "Monitor switch", "The pointer crosses onto another display", "desktop",
      "subtle_collision"),
@@ -610,6 +610,24 @@ def resolve_auto_fit(radial):
         return auto
     radial = radial if isinstance(radial, dict) else {}
     return all(radial.get(k) is None for k in ("outer_radius", "inner_radius", "icon_scale"))
+
+
+def focus_sees_xwayland_only(env=None):
+    """True where the daemon's window tracker falls back to xprop on Wayland
+    (every desktop but KDE Plasma and Hyprland, window_tracker.rs), which sees
+    focus moving between XWayland windows only."""
+    env = env if env is not None else os.environ
+    wayland = env.get("XDG_SESSION_TYPE", "").lower() == "wayland" or bool(env.get("WAYLAND_DISPLAY"))
+    desk = env.get("XDG_CURRENT_DESKTOP", "").upper()
+    return wayland and not any(k in desk for k in ("KDE", "PLASMA", "HYPRLAND"))
+
+
+def monitor_sees_xwayland_only(env=None):
+    """True where the monitor-switch poll has no live pointer on Wayland (not
+    KDE Plasma's KWin script, Hyprland IPC or the GNOME Shell helper)."""
+    env = env if env is not None else os.environ
+    desk = env.get("XDG_CURRENT_DESKTOP", "").upper()
+    return focus_sees_xwayland_only(env) and "GNOME" not in desk
 
 
 def detect_desktop_key(env=None):
@@ -851,6 +869,12 @@ def _u16(v):
 def _u32(v):
     """A D-Bus uint32 (`u`); see _u8."""
     return QDBusArgument(max(0, min(4294967295, int(v))), QMetaType.Type.UInt.value)
+
+
+def _js(value):
+    """A JS array or object reaches a "QVariant" slot as a QJSValue (Qt 6,
+    PyQt 6.11): its plain Python list or dict. Anything else is unchanged."""
+    return value.toVariant() if hasattr(value, "toVariant") else value
 
 
 def _to_int(v, default=0):
@@ -2330,6 +2354,7 @@ class Backend(QObject):
     @pyqtSlot(str, "QVariant")
     def set(self, path, value):
         """Persist a config value and tell the daemon to reload."""
+        value = _js(value)
         self._set_path(path.split("."), value)
         self._save()
         self.reloadConfig()
@@ -2338,6 +2363,7 @@ class Backend(QObject):
     @pyqtSlot(str, "QVariant")
     def setLocal(self, path, value):
         """Persist a config value WITHOUT a daemon reload (UI-only keys)."""
+        value = _js(value)
         self._set_path(path.split("."), value)
         self._save()
         self.configChanged.emit()
@@ -3014,6 +3040,7 @@ class Backend(QObject):
 
     @pyqtSlot("QVariant")
     def setDpiPresets(self, values):
+        values = _js(values)
         vals = sorted({self.snapDpi(_to_int(v)) for v in (values or []) if _to_int(v) > 0})
         self.set("pointer.dpi_presets", vals[:6])
 
@@ -3589,8 +3616,9 @@ class Backend(QObject):
         Read from the slice's `submenu` list, which is what the overlay draws
         (0.4.3, `submenu_from_config`). A config that only has the older
         Qt-side radial_menu.ai_links key is shown from that once (first
-        submenu slice) and moves into the slice on the next save. No links at
-        all shows the AI defaults, exactly like an empty list on the wheel.
+        submenu slice) and moves into the slice on the next save. A submenu
+        without links starts empty (#118): the card says the wheel shows the
+        AI defaults meanwhile (defaultQuickLinks) instead of pre-filling them.
         """
         slices = self._slices.slices()
         items = slices[row].get("submenu") if 0 <= row < len(slices) else None
@@ -3609,8 +3637,12 @@ class Backend(QObject):
             else:
                 out.append({"name": it.get("label", ""), "url": it.get("url", ""),
                             "icon": "browser", "command": ""})
-        return out[:4] or [{"name": l["name"], "url": l["url"], "icon": l["icon"], "command": ""}
-                           for l in DEFAULT_AI_LINKS]
+        return out[:4]
+
+    @pyqtSlot(result="QVariant")
+    def defaultQuickLinks(self):
+        """The AI assistant links the wheel shows under a submenu without links."""
+        return [{"name": l["name"], "url": l["url"], "icon": l["icon"], "command": ""} for l in DEFAULT_AI_LINKS]
 
     @staticmethod
     def _clean_url(url):
@@ -3626,6 +3658,7 @@ class Backend(QObject):
 
     @pyqtSlot("QVariant")
     def setAiLinks(self, links):
+        links = _js(links)
         self.setLinksFor(self._submenu_row(), links)
 
     @pyqtSlot(int, "QVariant")
@@ -3634,6 +3667,7 @@ class Backend(QObject):
         at most four). Link rows carry {name, url}; application rows carry
         {name, command, icon} and launch like an exec slice. Rows without a
         name or without a real address are dropped."""
+        links = _js(links)
         items = []
         for l in (links or []):
             if not isinstance(l, dict):
@@ -3886,6 +3920,7 @@ class Backend(QObject):
 
     @pyqtSlot(str, "QVariant")
     def restoreAppProfile(self, app, entry):
+        entry = _js(entry)
         if not app or not isinstance(entry, dict):
             return
         data = self._load_profiles()
@@ -3898,6 +3933,7 @@ class Backend(QObject):
         """Write the settings the profile overrides (obj.overrides); the rest
         are left out so they follow the global settings. Buttons, custom
         actions and the app's own ring are kept (edited elsewhere)."""
+        obj = _js(obj)
         app = (app or "").strip().lower()
         if not app or not isinstance(obj, dict):
             return
@@ -3957,12 +3993,16 @@ class Backend(QObject):
                 on = bool(self.get(f"haptics.{key}_enabled", True))
             else:
                 on = bool(self.get(f"haptics.per_event_enabled.{key}", key not in HAPTIC_EVENTS_OFF))
-            available, reason = True, ""
+            available, reason, note = True, "", ""
             if key == "window_switch" and not tracking:
                 available, reason = False, _("Your desktop does not tell JuhRadial which window is in front")
+            elif key == "window_switch" and focus_sees_xwayland_only():
+                note = _("On this desktop only apps that run through XWayland are seen.")
+            elif key == "monitor_switch" and monitor_sees_xwayland_only():
+                note = _("On this desktop a crossing is noticed only while the pointer is over an XWayland window.")
             out.append({"key": key, "name": _(name), "desc": _(desc), "group": group,
                         "pattern": str(self.get(f"haptics.per_event.{key}", default)),
-                        "enabled": on, "available": available, "reason": reason})
+                        "enabled": on, "available": available, "reason": reason, "note": note})
         return out
 
     @pyqtSlot(str, str)
@@ -3992,6 +4032,7 @@ class Backend(QObject):
     @pyqtSlot("QVariant")
     def setHapticPatterns(self, patterns):
         """Write every event's pattern in one save (styles, restore, undo)."""
+        patterns = _js(patterns)
         for k, v in dict(patterns or {}).items():
             if any(k == e[0] for e in HAPTIC_EVENTS):
                 self._set_path(["haptics", "per_event", k], str(v))
@@ -4237,6 +4278,7 @@ class Backend(QObject):
 
     @pyqtSlot(int, str, "QVariant")
     def setGamingPreset(self, idx, field, value):
+        value = _js(value)
         presets = self.gamingPresets()
         if not (0 <= idx < len(presets)) or field not in ("name", "dpi", "color"):
             return
@@ -4327,6 +4369,7 @@ class Backend(QObject):
     def macroSummary(self, m):
         """{steps, ms}: steps as the editor shows them (a key press is one
         step), ms how long one run takes."""
+        m = _js(m)
         m = m if isinstance(m, dict) else {}
         acts = m.get("actions") or []
         fixed = bool(m.get("use_standard_delay", True))
@@ -4439,6 +4482,7 @@ class Backend(QObject):
     @pyqtSlot(str, "QVariant", bool, int)
     def testMacro(self, mid, rows, fixed, gap):
         """Play the editor's unsaved steps once."""
+        rows = _js(rows)
         m = new_macro(mid or "test", "test", macro_actions(rows))
         m["use_standard_delay"], m["standard_delay_ms"] = bool(fixed), max(0, int(gap))
         if self.daemon.call("ExecuteMacroInline", json.dumps(m)) is not None:
@@ -4510,6 +4554,7 @@ class Backend(QObject):
     @pyqtSlot(str, "QVariant", result=bool)
     def saveMacroRows(self, mid, rows):
         """Replace a macro's steps from the editor rows."""
+        rows = _js(rows)
         m = self._find_macro(mid)
         if not m:
             return False
@@ -4519,6 +4564,7 @@ class Backend(QObject):
     @pyqtSlot(str, "QVariant", result=bool)
     def saveMacroSteps(self, mid, actions):
         """Replace a macro's ordered action list and resave (step editor)."""
+        actions = _js(actions)
         m = self._find_macro(mid)
         if not m:
             return False
@@ -4769,7 +4815,7 @@ class Backend(QObject):
             return "Bluetooth"
         return receiver or "USB receiver"
 
-    # ---- Actions Ring geometry (Settings → Appearance) ----
+    # ---- Actions Ring geometry (Settings → Radial menu) ----
     @pyqtSlot(result="QVariant")
     def ringGeometry(self):
         outer = self.get("radial.outer_radius")
@@ -5455,6 +5501,7 @@ class Backend(QObject):
     @pyqtSlot(str, str, "QVariant", result=bool)
     def setCustomAction(self, scope, slot, obj):
         """Save a button's custom action and set the button to it."""
+        obj = _js(obj)
         clean = self._clean_custom(obj)
         if clean is None:
             self.notify(_("That custom action cannot run: check the shortcut, link or command."), "danger")

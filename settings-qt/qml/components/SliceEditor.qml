@@ -89,7 +89,7 @@ B.Popup {
                 }
                 Column {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - 38 - changeBtn.width - 24
+                    width: parent.width - 38 - changeBtn.width - pickBtn.width - 32
                     Text { text: ed.d.label || qsTr("No label"); color: Theme.textBody; elide: Text.ElideRight
                         width: parent.width; font.family: Theme.fontUI; font.pixelSize: Theme.fsBody; font.weight: Font.Medium }
                     Text { text: ed.typeWords(ed.d.type); color: Theme.textMuted
@@ -100,6 +100,13 @@ B.Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     // plugin actions are read when the picker opens, so new plugins show without a restart
                     onClicked: { actPicker.actions = Backend.sliceActions(); actPicker.open() }
+                }
+                // Any slice can launch an installed application (#117): its
+                // command and real icon replace what the slice did before.
+                PrimaryButton {
+                    id: pickBtn; text: qsTr("Pick application"); ghost: true
+                    anchors.verticalCenter: parent.verticalCenter
+                    onClicked: appPicker.open()
                 }
             }
         }
@@ -127,16 +134,9 @@ B.Popup {
                 width: parent.width
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - pickBtn.width
+                    width: parent.width
                     text: ed.d.type === "url" ? qsTr("Link") : qsTr("Command")
                     color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsSmall
-                }
-                // Pick an installed application instead of typing a command;
-                // its real icon replaces the glyph on the wheel.
-                PrimaryButton {
-                    id: pickBtn; text: qsTr("Pick application"); ghost: true
-                    visible: ed.d.type === "exec"
-                    onClicked: appPicker.open()
                 }
             }
             Rectangle {
