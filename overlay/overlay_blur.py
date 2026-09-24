@@ -16,13 +16,15 @@ _XA_CARDINAL = 6
 _PROP_MODE_REPLACE = 0
 
 
-def circle_strips(cx, cy, radius, strips=48):
-    """Rectangles (x, y, w, h) covering the disc centred on (cx, cy)."""
+def circle_strips(cx, cy, radius, step=2):
+    """Rectangles (x, y, w, h) covering the disc centred on (cx, cy), `step`
+    pixels tall: a few dozen coarse strips showed as a staircase rim through
+    translucent skins (and around the icons of the minimal ring)."""
     radius = max(0, int(radius))
     if radius == 0:
         return []
     rects = []
-    step = max(1, (2 * radius) // strips)
+    step = max(1, int(step))
     y = -radius
     while y < radius:
         h = min(step, radius - y)

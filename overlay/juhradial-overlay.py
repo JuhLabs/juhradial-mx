@@ -864,7 +864,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         try:
             on = bool(overlay_actions._config_section("blur_enabled", True))
             rects = []
-            if on:
+            # Minimal mode floats the icons without a disc: a frosted disc
+            # behind them reads as a stray circle, so nothing is frosted.
+            if on and not overlay_actions.MINIMAL_MODE:
                 outer = (overlay_actions.RADIAL_PARAMS or {}).get("ring_outer", MENU_RADIUS - 6)
                 rects = overlay_blur.ring_blur_rects(
                     self.win_px, outer * self.ring_scale, self.devicePixelRatioF())

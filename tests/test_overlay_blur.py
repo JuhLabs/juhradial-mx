@@ -43,6 +43,28 @@ def test_region_is_in_device_pixels_under_xwayland_scaling():
     assert overlay_blur.ring_blur_rects(388, 150) == overlay_blur.circle_strips(194, 194, 150)
 
 
+def test_rim_is_smooth_not_a_staircase():
+    # Owner UAT (4K at 125 %): 48 strips were ~10 px tall, a visible stepped
+    # rim. Each strip's edge now stays within a few pixels of the true circle.
+    cx = cy = 250
+    r = 250
+    rects = overlay_blur.circle_strips(cx, cy, r)
+    assert all(h <= 2 for _x, _y, _w, h in rects)
+    for _x, y, w, h in rects:
+        for row in range(y, y + h):
+            mid = row + 0.5 - cy
+            if abs(mid) < 0.95 * r:  # the poles are a few pixels wide anyway
+                assert abs(w / 2 - math.sqrt(r * r - mid * mid)) <= 3
+
+
+def test_minimal_mode_frosts_nothing():
+    # Owner UAT: the minimal ring draws no disc, so the frosted disc showed as
+    # a jagged circle around the floating icons.
+    src = (REPO / "overlay" / "juhradial-overlay.py").read_text(encoding="utf-8")
+    body = src[src.index("    def _apply_blur(self):"):src.index("    def _update_kde_mask(self):")]
+    assert "if on and not overlay_actions.MINIMAL_MODE:" in body
+
+
 def test_empty_radius_means_no_region():
     assert overlay_blur.circle_strips(10, 10, 0) == []
 
