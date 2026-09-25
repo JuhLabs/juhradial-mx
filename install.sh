@@ -32,7 +32,7 @@ GRAY='\033[0;90m'
 # ── Configuration ────────────────────────────────────────────────────
 REPO_URL="https://github.com/JuhLabs/juhradial-mx"
 # The release this installer ships (scripts/bump-version.sh keeps it in step).
-RELEASE_VERSION="0.4.5-beta.1"
+RELEASE_VERSION="0.4.5-beta.2"
 INSTALL_DIR="/opt/juhradial-mx"
 BIN_DIR="/usr/local/bin"
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"

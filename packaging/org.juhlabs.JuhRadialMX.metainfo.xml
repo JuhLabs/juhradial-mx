@@ -89,6 +89,17 @@
   </keywords>
 
   <releases>
+    <release version="0.4.5~beta.2" date="2026-09-25" type="development">
+      <description>
+        <p>Second beta of 0.4.5: fixes from the first beta reports</p>
+        <ul>
+          <li>A grabbed mouse keeps its grab through unrelated input hotplugs, so no button stays stuck for the whole desktop</li>
+          <li>Macro recording in the settings app captures keys and clicks again</li>
+          <li>Directional gestures: Custom on any direction, a shorter default drag distance, optional diagonals</li>
+          <li>Maximize and Minimize as built-in button actions</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.5~beta.1" date="2026-09-24" type="development">
       <description>
         <p>First beta of 0.4.5: a new settings app, MX Keypad support and deeper MX Master 4 haptics</p>
