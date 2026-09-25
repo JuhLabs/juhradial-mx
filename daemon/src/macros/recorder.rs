@@ -185,9 +185,12 @@ impl MacroRecorder {
     pub fn stop(&mut self) -> Vec<MacroEvent> {
         self.recording.store(false, Ordering::Relaxed);
 
-        // Wait for the recording threads to finish
+        // Wait for the recording threads to finish. A panicked thread has
+        // recorded nothing from its device; say so instead of hiding it.
         for handle in self.threads.drain(..) {
-            let _ = handle.join();
+            if handle.join().is_err() {
+                tracing::error!("Recording thread panicked; its device recorded nothing");
+            }
         }
 
         let state = self.state.lock().unwrap();
@@ -238,17 +241,21 @@ fn record_events(
     let device = Device::open(keyboard_path)
         .map_err(|e| RecorderError::DeviceError(format!("Failed to open keyboard: {}", e)))?;
 
-    let mut events = device
-        .into_event_stream()
-        .map_err(|e| RecorderError::DeviceError(format!("Failed to create event stream: {}", e)))?;
-
-    // Use tokio runtime to poll the async event stream from a sync thread
+    // This thread has no tokio context of its own, so it builds a runtime and
+    // creates the async event stream inside it: registering the fd, like the
+    // read timeouts below, needs a running runtime. Created outside, the
+    // stream panicked the thread before the first event and every recording
+    // came back empty.
     let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_io()
+        .enable_all()
         .build()
         .map_err(|e| RecorderError::DeviceError(format!("Failed to create runtime: {}", e)))?;
 
     rt.block_on(async {
+        let mut events = device
+            .into_event_stream()
+            .map_err(|e| RecorderError::DeviceError(format!("Failed to create event stream: {}", e)))?;
+
         loop {
             if !recording.load(Ordering::Relaxed) {
                 break;
@@ -318,9 +325,8 @@ fn record_events(
                 }
             }
         }
-    });
-
-    Ok(())
+        Ok(())
+    })
 }
 
 /// Every real keyboard in /dev/input: (path, name). Synthetic keyboards
@@ -495,6 +501,76 @@ mod tests {
                 assert!(crate::actions::key_code(&name).is_some() || name == "Caps_Lock", "{name}");
             }
         }
+    }
+
+    /// The recording thread end to end on a uinput keyboard. The thread used
+    /// to create its event stream outside its own runtime and panic before
+    /// the first event, so every recording came back empty.
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore] // Needs /dev/uinput; run with `cargo test -- --ignored` on a desktop.
+    fn recording_thread_captures_keys_from_a_uinput_keyboard() {
+        use evdev::{uinput::VirtualDevice, AttributeSet, Device, EventType, InputEvent, KeyCode};
+        use std::time::Duration;
+
+        let mut keys = AttributeSet::<KeyCode>::new();
+        keys.insert(KeyCode::KEY_A);
+        keys.insert(KeyCode::KEY_Z);
+        let mut keyboard = VirtualDevice::builder()
+            .expect("uinput available")
+            .name("JuhRadial recorder test keyboard")
+            .with_keys(&keys)
+            .expect("key set")
+            .build()
+            .expect("virtual keyboard");
+        let node = keyboard
+            .enumerate_dev_nodes_blocking()
+            .expect("dev nodes")
+            .find_map(Result::ok)
+            .expect("event node");
+        // udev may still be settling the new node's permissions.
+        let mut openable = false;
+        for _ in 0..50 {
+            if Device::open(&node).is_ok() {
+                openable = true;
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert!(openable, "open the new node");
+
+        let recording = Arc::new(AtomicBool::new(true));
+        let state = Arc::new(Mutex::new(RecorderState { events: Vec::new(), start_time: Instant::now() }));
+        let thread = {
+            let (recording, state) = (recording.clone(), state.clone());
+            std::thread::spawn(move || record_events(recording, state, &node))
+        };
+        std::thread::sleep(Duration::from_millis(300));
+        keyboard
+            .emit(&[InputEvent::new(EventType::KEY.0, KeyCode::KEY_A.0, 1)])
+            .expect("press");
+        keyboard
+            .emit(&[InputEvent::new(EventType::KEY.0, KeyCode::KEY_A.0, 0)])
+            .expect("release");
+        std::thread::sleep(Duration::from_millis(300));
+        recording.store(false, Ordering::Relaxed);
+
+        let result = thread.join().expect("recording thread must not panic");
+        assert!(result.is_ok(), "{result:?}");
+        let captured: Vec<(RecordedEventType, String)> = state
+            .lock()
+            .unwrap()
+            .events
+            .iter()
+            .map(|e| (e.event_type.clone(), e.key.clone()))
+            .collect();
+        assert_eq!(
+            captured,
+            vec![
+                (RecordedEventType::KeyDown, "a".to_string()),
+                (RecordedEventType::KeyUp, "a".to_string()),
+            ]
+        );
     }
 
     #[test]

@@ -790,7 +790,9 @@ async fn announce_keyboard_battery(connection: &zbus::Connection) {
 /// through a virtual keyboard with the configured source codes rewritten to
 /// their targets; unmapped keys pass through unchanged. The grab is released
 /// (Device dropped) whenever the config is disabled, the table changes, or the
-/// device hotplugs, so changes apply live via `ReloadConfig`.
+/// keyboard itself is gone after a hotplug, so changes apply live via
+/// `ReloadConfig`. A hotplug of some other device leaves the grab alone
+/// (issue #150).
 pub async fn run_keyboard_remap_loop(config: SharedConfig, hotplug: std::sync::Arc<tokio::sync::Notify>) {
     #[cfg(not(target_os = "linux"))]
     {
@@ -844,8 +846,9 @@ async fn run_remap_loop_linux(config: SharedConfig, hotplug: Arc<Notify>) {
 }
 
 /// Grab `path`, forward events through a virtual keyboard with `remap` applied,
-/// and return when the config is disabled/changed, the device hotplugs, or an
-/// IO error occurs. The grabbed `Device` is auto-released on drop.
+/// and return when the config is disabled/changed, the keyboard is gone after
+/// a hotplug, or an IO error occurs. The grabbed `Device` is auto-released on
+/// drop.
 #[cfg(target_os = "linux")]
 async fn run_grabbed(
     path: &Path,
@@ -892,8 +895,15 @@ async fn run_grabbed(
                 }
             }
             _ = hotplug.notified() => {
-                tracing::info!("Keyboard remap: device hotplug, releasing grab");
-                return Ok(());
+                // Same rule as the mouse loop (issue #150): releasing and
+                // retaking the grab on an unrelated hotplug leaves a key
+                // pressed in that gap stuck in the compositor.
+                if crate::evdev::device_is_alive(events.device()) {
+                    tracing::info!("Keyboard remap: input hotplug elsewhere, keeping the grab");
+                } else {
+                    tracing::info!("Keyboard remap: keyboard gone after hotplug, releasing grab");
+                    return Ok(());
+                }
             }
             ev = events.next_event() => {
                 let event = ev?;
