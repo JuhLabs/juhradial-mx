@@ -1772,6 +1772,23 @@ impl ActionContext {
         }
     }
 
+    /// A custom action by slot name, for directional gestures (`gesture_up`
+    /// and friends, see `Config::gesture_custom_slot`). The drag has already
+    /// ended, so a "hold" action is pressed and released at once.
+    async fn custom_slot(&mut self, slot: &str) {
+        let custom = self.config.read().ok().and_then(|c| c.custom_action(slot).cloned());
+        match custom {
+            Some(custom) => {
+                info!(slot, kind = %custom.kind, "Custom gesture action");
+                run_custom_action(&custom, &self.macro_engine, true).await;
+                if custom.hold {
+                    run_custom_action(&custom, &self.macro_engine, false).await;
+                }
+            }
+            None => warn!(slot, "Gesture set to custom but no custom action is saved for it"),
+        }
+    }
+
     async fn custom(&mut self, source: Option<u16>) {
         let slot = source.map(juhradiald::config::Config::slot_for_cid);
         let custom = slot
@@ -2561,24 +2578,26 @@ async fn process_gesture_events(
                 // Directional gesture: classify the drag and run the configured
                 // action. This path never touches ShowMenu/HideMenu.
                 let resolved = shared_config.read().ok().map(|cfg| {
-                    let direction = juhradiald::gesture::classify(
-                        dx,
-                        dy,
-                        cfg.buttons.gesture_directions.threshold_px,
-                    );
-                    (direction, cfg.gesture_direction_action(direction))
+                    let (direction, action) = cfg.classify_gesture(dx, dy);
+                    (direction, action, cfg.gesture_custom_slot(direction))
                 });
                 match resolved {
                     Some((
                         direction,
                         action @ (juhradiald::config::ButtonAction::RadialMenu
                         | juhradiald::config::ButtonAction::DpiShift),
+                        _,
                     )) => {
                         // A drag has no hold to show the ring for or to keep
                         // the precision DPI during.
                         warn!(?direction, %action, "not a directional gesture action; ignoring");
                     }
-                    Some((direction, action)) => {
+                    Some((direction, juhradiald::config::ButtonAction::Custom, slot)) => {
+                        // No button CID names this slot: the direction does.
+                        info!(duration_ms, dx, dy, ?direction, slot, "Directional gesture (custom)");
+                        actions.custom_slot(&slot).await;
+                    }
+                    Some((direction, action, _)) => {
                         info!(duration_ms, dx, dy, ?direction, %action, "Directional gesture");
                         actions.run(action, true, None, 1).await;
                     }

@@ -277,6 +277,9 @@ class ButtonConfigDialog(Adw.Window):
         drag below threshold_px is a click, which runs buttons.gesture.
         """
         saved = config.get("buttons", "gesture_directions", default=None) or {}
+        # Saving merges into this, so keys this dialog does not edit (click,
+        # anything newer) survive a round trip through the fallback app.
+        self._saved_directions = dict(saved)
         enabled = bool(saved.get("enabled", False))
 
         group = Adw.PreferencesGroup()
@@ -306,6 +309,10 @@ class ButtonConfigDialog(Adw.Window):
             ("down", _("Drag down")),
             ("left", _("Drag left")),
             ("right", _("Drag right")),
+            ("up_left", _("Drag up-left")),
+            ("up_right", _("Drag up-right")),
+            ("down_left", _("Drag down-left")),
+            ("down_right", _("Drag down-right")),
         ):
             row = Adw.ComboRow(title=label)
             row.set_model(names)
@@ -317,10 +324,10 @@ class ButtonConfigDialog(Adw.Window):
 
         threshold_row = Adw.ActionRow()
         threshold_row.set_title(_("Drag distance"))
-        threshold_row.set_subtitle(_("Movement below this many pixels counts as a click"))
-        spin = Gtk.SpinButton.new_with_range(10, 400, 5)
+        threshold_row.set_subtitle(_("Sensor counts below which a press is a click (15 is about 0.4 mm at 1000 DPI)"))
+        spin = Gtk.SpinButton.new_with_range(5, 400, 5)
         spin.set_valign(Gtk.Align.CENTER)
-        spin.set_value(int(saved.get("threshold_px", 40)))
+        spin.set_value(int(saved.get("threshold_px", 15)))
         spin.set_sensitive(enabled)
         threshold_row.add_suffix(spin)
         group.add(threshold_row)
@@ -335,10 +342,11 @@ class ButtonConfigDialog(Adw.Window):
         return group
 
     def _collect_directions(self):
-        directions = {
+        directions = dict(getattr(self, "_saved_directions", None) or {})
+        directions.update({
             "enabled": bool(self._direction_switch.get_active()),
             "threshold_px": int(self._threshold_spin.get_value()),
-        }
+        })
         for key, (row, ids) in self._direction_rows.items():
             directions[key] = ids[row.get_selected()]
         return directions
@@ -363,7 +371,7 @@ class ButtonConfigDialog(Adw.Window):
             self._direction_switch.set_active(False)
             for row, ids in self._direction_rows.values():
                 row.set_selected(ids.index("none") if "none" in ids else 0)
-            self._threshold_spin.set_value(40)
+            self._threshold_spin.set_value(15)
 
         default_action = DEFAULT_BUTTON_ACTIONS.get(self.button_id, "Middle Click")
 

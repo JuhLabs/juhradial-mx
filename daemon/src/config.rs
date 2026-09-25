@@ -287,6 +287,9 @@ pub enum ButtonAction {
     Calculator,
     None,
     Custom,
+    /// Maximize (toggle) and minimize the focused window (presets.rs).
+    MaximizeWindow,
+    MinimizeWindow,
     // Wider vocabulary (audit P1 #3).
     LeftClick,
     RightClick,
@@ -342,6 +345,8 @@ impl std::fmt::Display for ButtonAction {
             ButtonAction::SwitchDesktopRight => write!(f, "switch_desktop_right"),
             ButtonAction::TaskSwitcher => write!(f, "task_switcher"),
             ButtonAction::CloseWindow => write!(f, "close_window"),
+            ButtonAction::MaximizeWindow => write!(f, "maximize_window"),
+            ButtonAction::MinimizeWindow => write!(f, "minimize_window"),
             ButtonAction::LockScreen => write!(f, "lock_screen"),
             ButtonAction::Calculator => write!(f, "calculator"),
             ButtonAction::None => write!(f, "none"),
@@ -379,7 +384,9 @@ fn default_forward_action() -> ButtonAction { ButtonAction::Forward }
 fn default_back_action() -> ButtonAction { ButtonAction::Back }
 fn default_horizontal_scroll_action() -> ButtonAction { ButtonAction::ScrollLeftRight }
 fn default_direction_action() -> ButtonAction { ButtonAction::None }
-fn default_gesture_threshold_px() -> u32 { 40 }
+/// Sensor counts at the mouse's DPI (15 is about 0.4 mm at 1000 DPI): a
+/// thumb-held drag is short, especially forward and back.
+fn default_gesture_threshold_px() -> u32 { 15 }
 
 /// Directional gestures on the gesture button: hold, drag, and a different
 /// action fires per direction. Matches `buttons.gesture_directions` written by
@@ -402,14 +409,40 @@ pub struct GestureDirectionsConfig {
     #[serde(default = "default_direction_action")]
     pub right: ButtonAction,
 
+    /// Optional diagonals. While all four are `none` the drag is classified
+    /// four ways as before; once one is set the plane splits into eight
+    /// sectors, and a diagonal without an action falls back to its dominant
+    /// axis (see `Config::classify_gesture`).
+    #[serde(default = "default_direction_action")]
+    pub up_left: ButtonAction,
+
+    #[serde(default = "default_direction_action")]
+    pub up_right: ButtonAction,
+
+    #[serde(default = "default_direction_action")]
+    pub down_left: ButtonAction,
+
+    #[serde(default = "default_direction_action")]
+    pub down_right: ButtonAction,
+
     /// Action for a press with no drag. `None` falls back to `buttons.gesture`,
     /// so the plain click keeps whatever the user already had assigned.
     #[serde(default)]
     pub click: Option<ButtonAction>,
 
-    /// Movement below this many pixels counts as a click.
+    /// Movement below this many sensor counts (at the mouse's DPI) counts as
+    /// a click.
     #[serde(default = "default_gesture_threshold_px")]
     pub threshold_px: u32,
+}
+
+impl GestureDirectionsConfig {
+    /// Any diagonal assigned: the drag is classified into eight sectors.
+    pub fn has_diagonals(&self) -> bool {
+        [self.up_left, self.up_right, self.down_left, self.down_right]
+            .iter()
+            .any(|a| *a != ButtonAction::None)
+    }
 }
 
 impl Default for GestureDirectionsConfig {
@@ -420,6 +453,10 @@ impl Default for GestureDirectionsConfig {
             down: default_direction_action(),
             left: default_direction_action(),
             right: default_direction_action(),
+            up_left: default_direction_action(),
+            up_right: default_direction_action(),
+            down_left: default_direction_action(),
+            down_right: default_direction_action(),
             click: None,
             threshold_px: default_gesture_threshold_px(),
         }
@@ -1119,8 +1156,46 @@ impl Config {
             GestureDirection::Down => d.down,
             GestureDirection::Left => d.left,
             GestureDirection::Right => d.right,
+            GestureDirection::UpLeft => d.up_left,
+            GestureDirection::UpRight => d.up_right,
+            GestureDirection::DownLeft => d.down_left,
+            GestureDirection::DownRight => d.down_right,
             GestureDirection::Click => d.click.unwrap_or(self.buttons.gesture),
         }
+    }
+
+    /// Classify a finished drag and resolve its action. Diagonals only take
+    /// part once one of them has an action, and a diagonal left at `none`
+    /// hands the drag to its dominant axis, so a four-way setup keeps working
+    /// unchanged when a single corner is filled in.
+    pub fn classify_gesture(&self, dx: i32, dy: i32) -> (crate::gesture::GestureDirection, ButtonAction) {
+        let d = &self.buttons.gesture_directions;
+        let mut direction = crate::gesture::classify(dx, dy, d.threshold_px, d.has_diagonals());
+        if direction.is_diagonal() && self.gesture_direction_action(direction) == ButtonAction::None {
+            direction = crate::gesture::classify(dx, dy, d.threshold_px, false);
+        }
+        (direction, self.gesture_direction_action(direction))
+    }
+
+    /// The `buttons.custom` slot a directional gesture's custom action lives
+    /// in: `gesture_up`, `gesture_down_left`, and so on. A plain press uses
+    /// `gesture_click` when it has its own action and the gesture button's
+    /// own `gesture` slot otherwise.
+    pub fn gesture_custom_slot(&self, direction: crate::gesture::GestureDirection) -> String {
+        use crate::gesture::GestureDirection;
+        let name = match direction {
+            GestureDirection::Up => "up",
+            GestureDirection::Down => "down",
+            GestureDirection::Left => "left",
+            GestureDirection::Right => "right",
+            GestureDirection::UpLeft => "up_left",
+            GestureDirection::UpRight => "up_right",
+            GestureDirection::DownLeft => "down_left",
+            GestureDirection::DownRight => "down_right",
+            GestureDirection::Click if self.buttons.gesture_directions.click.is_some() => "click",
+            GestureDirection::Click => return "gesture".to_string(),
+        };
+        format!("gesture_{name}")
     }
 
     /// Get the configured action for a HID++ CID (Control ID): the focused
@@ -1341,7 +1416,46 @@ mod tests {
         assert!(!config.directional_gestures_enabled());
         assert_eq!(config.buttons.gesture, ButtonAction::Copy);
         assert_eq!(config.buttons.gesture_directions, GestureDirectionsConfig::default());
-        assert_eq!(config.buttons.gesture_directions.threshold_px, 40);
+        assert_eq!(config.buttons.gesture_directions.threshold_px, 15);
+    }
+
+    #[test]
+    fn diagonals_only_take_part_once_one_is_assigned() {
+        use crate::gesture::GestureDirection;
+        let four_way: Config = serde_json::from_str(r#"{
+            "buttons": { "gesture_directions": { "enabled": true, "up": "show_desktop", "right": "forward", "threshold_px": 10 } }
+        }"#).unwrap();
+        assert!(!four_way.buttons.gesture_directions.has_diagonals());
+        // Up-right at 45 degrees resolves to the horizontal axis, as before.
+        assert_eq!(four_way.classify_gesture(50, -50), (GestureDirection::Right, ButtonAction::Forward));
+
+        let with_corner: Config = serde_json::from_str(r#"{
+            "buttons": { "gesture_directions": { "enabled": true, "up": "show_desktop", "right": "forward",
+                "up_right": "maximize_window", "threshold_px": 10 } }
+        }"#).unwrap();
+        assert!(with_corner.buttons.gesture_directions.has_diagonals());
+        assert_eq!(with_corner.classify_gesture(50, -50), (GestureDirection::UpRight, ButtonAction::MaximizeWindow));
+        // An unassigned corner hands the drag to its dominant axis.
+        assert_eq!(with_corner.classify_gesture(-40, -50), (GestureDirection::Up, ButtonAction::ShowDesktop));
+        assert_eq!(with_corner.classify_gesture(3, -2), (GestureDirection::Click, ButtonAction::VirtualDesktops));
+    }
+
+    #[test]
+    fn gesture_custom_slots_are_named_by_direction() {
+        use crate::gesture::GestureDirection;
+        let config: Config = serde_json::from_str(r#"{
+            "buttons": { "gesture": "custom", "gesture_directions": { "enabled": true, "up": "custom" },
+                "custom": { "gesture_up": { "kind": "shortcut", "value": "super+Up" },
+                            "gesture": { "kind": "shortcut", "value": "super+d" } } }
+        }"#).unwrap();
+        assert_eq!(config.gesture_custom_slot(GestureDirection::Up), "gesture_up");
+        assert_eq!(config.gesture_custom_slot(GestureDirection::DownLeft), "gesture_down_left");
+        assert_eq!(config.gesture_custom_slot(GestureDirection::Click), "gesture");
+        assert_eq!(config.custom_action("gesture_up").map(|c| c.value.as_str()), Some("super+Up"));
+        let with_click: Config = serde_json::from_str(r#"{
+            "buttons": { "gesture_directions": { "enabled": true, "click": "custom" } }
+        }"#).unwrap();
+        assert_eq!(with_click.gesture_custom_slot(GestureDirection::Click), "gesture_click");
     }
 
     #[test]
@@ -1832,7 +1946,7 @@ mod tests {
         for a in [A::RadialMenu, A::Custom, A::LeftClick, A::RightClick, A::ScrollLeft, A::ScrollRight,
                   A::DpiCycle, A::DpiUp, A::DpiDown, A::DpiShift, A::TabNext, A::TabPrev, A::TabClose,
                   A::TabReopen, A::PageUp, A::PageDown, A::Home, A::End, A::Host1, A::Host2, A::Host3,
-                  A::HostNext, A::GamingMode] {
+                  A::HostNext, A::GamingMode, A::MaximizeWindow, A::MinimizeWindow] {
             assert_eq!(serde_json::to_value(a).unwrap(), serde_json::Value::String(a.to_string()));
         }
     }

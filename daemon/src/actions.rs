@@ -1261,7 +1261,9 @@ pub async fn execute_button_action(action: ButtonAction) -> Result<bool, ActionE
         | ButtonAction::TaskSwitcher
         | ButtonAction::CloseWindow
         | ButtonAction::LockScreen
-        | ButtonAction::Calculator => {
+        | ButtonAction::Calculator
+        | ButtonAction::MaximizeWindow
+        | ButtonAction::MinimizeWindow => {
             if let Some(preset) = crate::presets::Preset::from_button_action(action) {
                 crate::presets::execute_preset(preset).await?;
             }
