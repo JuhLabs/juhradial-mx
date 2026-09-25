@@ -63,6 +63,14 @@ def test_site_matches_cargo(rel, pattern, form):
     assert match.group(1) == expected, f"{rel} says {match.group(1)}, expected {expected} for Cargo {cargo_version()}"
 
 
+def test_readme_banner_matches_cargo():
+    # The note under the badges names the release in prose; the badge alone
+    # is easy to bump while this line keeps naming the previous beta.
+    match = re.search(r"^> \*\*This is JuhRadial MX [^(]*\(`(\S+?)`\)\.\*\*", _read("README.md"), re.M)
+    assert match, "README.md: release banner not found"
+    assert match.group(1) == cargo_version(), f"README banner says {match.group(1)}, Cargo says {cargo_version()}"
+
+
 @pytest.mark.parametrize("semver,arch,tilde,badge", [
     ("0.4.5", "0.4.5", "0.4.5", "0.4.5"),
     ("0.4.5-beta.1", "0.4.5beta1", "0.4.5~beta.1", "0.4.5--beta.1"),

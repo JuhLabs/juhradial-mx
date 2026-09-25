@@ -68,7 +68,7 @@ If the installer adds you to the `input` group, log out and back in once. Minima
 -->
 
 > [!NOTE]
-> **This is JuhRadial MX 0.4.5 Beta (`0.4.5-beta.1`).** The release is feature complete: a redesigned Settings app, MX Keypad and MX Keys S support, and a long list of fixes. It is marked beta because so much is new, and we want it tested on more hardware and desktops before the stable 0.4.5. If something breaks or feels wrong, please [open an issue](https://github.com/JuhLabs/juhradial-mx/issues/new/choose) with your distro, desktop, device and connection (Bolt, Unifying or Bluetooth). **Devices → Copy diagnostics** in Settings copies the details and the last service log lines for you. Ideas and questions are welcome in [Discussions](https://github.com/JuhLabs/juhradial-mx/discussions).
+> **This is JuhRadial MX 0.4.5 Beta 2 (`0.4.5-beta.2`).** The release is feature complete: a redesigned Settings app, MX Keypad and MX Keys S support, and a long list of fixes. It is marked beta because so much is new, and we want it tested on more hardware and desktops before the stable 0.4.5. If something breaks or feels wrong, please [open an issue](https://github.com/JuhLabs/juhradial-mx/issues/new/choose) with your distro, desktop, device and connection (Bolt, Unifying or Bluetooth). **Devices → Copy diagnostics** in Settings copies the details and the last service log lines for you. Ideas and questions are welcome in [Discussions](https://github.com/JuhLabs/juhradial-mx/discussions).
 
 ## What's new since 0.4.4
 

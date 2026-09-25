@@ -13,6 +13,7 @@
 #                                              (tilde, type="development" for a pre-release)
 #   flake.nix                                  version = "..." (both packages, SemVer)
 #   README.md                                  version badge (shields.io escapes "-" as "--")
+#                                              and the release banner ("0.4.5 Beta 2 (`0.4.5-beta.2`)")
 #   .github/SECURITY.md                        "Current release" row (SemVer)
 #   settings-qt/VERSION                        the Qt settings app's own version string (SemVer)
 #   install.sh                                 RELEASE_VERSION, the tarball the one-liner downloads (SemVer)
@@ -30,6 +31,8 @@ NEW="$1"
 NEW_ARCH="${NEW/-beta./beta}"
 NEW_TILDE="${NEW/-/\~}"
 NEW_BADGE="${NEW//-/--}"
+NEW_HUMAN="$NEW"
+case "$NEW" in *-beta.*) NEW_HUMAN="${NEW%%-beta.*} Beta ${NEW##*-beta.}" ;; esac
 RELEASE_TYPE=""
 case "$NEW" in *-*) RELEASE_TYPE=' type="development"' ;; esac
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -49,6 +52,7 @@ sed -i "s/^pkgver=.*/pkgver=$NEW_ARCH/" packaging/arch/PKGBUILD
 sed -i "s/^Version:\([[:space:]]*\).*/Version:\1$NEW_TILDE/" packaging/rpm/juhradial-mx.spec
 sed -i "s/version = \"[0-9A-Za-z.-]*\";/version = \"$NEW\";/g" flake.nix
 sed -i "s#img.shields.io/badge/version-[0-9A-Za-z.-]*-cyan.svg\" alt=\"Version [0-9A-Za-z.-]*\"#img.shields.io/badge/version-$NEW_BADGE-cyan.svg\" alt=\"Version $NEW\"#" README.md
+sed -i "s/^> \*\*This is JuhRadial MX [^(]*(\`[0-9A-Za-z.-]*\`)\.\*\*/> **This is JuhRadial MX $NEW_HUMAN (\`$NEW\`).**/" README.md
 printf '%s\n' "$NEW" > settings-qt/VERSION
 sed -i "s/^RELEASE_VERSION=\".*\"$/RELEASE_VERSION=\"$NEW\"/" install.sh
 
