@@ -1,10 +1,11 @@
 # Features
 
 JuhRadial MX turns the Logitech MX Master 4 (and the MX Master 3S / 3) into a
-fully programmable Linux power tool: a radial gesture menu, button and action
-remapping, thumb-wheel actions, SmartShift scroll, actuator haptics,
-Easy-Switch host control, per-application profiles, cross-computer JuhFlow, and
-a gaming mode with macros.
+fully programmable Linux power tool: an Actions Ring at the cursor, button
+remapping and directional gestures, custom actions, thumb-wheel actions,
+SmartShift scroll, actuator haptics, Easy-Switch host control, per-application
+profiles, cross-computer JuhFlow, a gaming mode with macros, plugins, and, since
+0.4.5, a new Qt/QML Settings app, the MX Keypad's display keys and the MX Keys S.
 
 This page is the feature reference. For installation see [Installation](installation.md), for
 the on-disk config schema see [Configuration](configuration.md), for compositor specifics see
@@ -23,15 +24,21 @@ the on-disk config schema see [Configuration](configuration.md), for compositor 
 
 | Feature | What it gives you | Needs HID++ |
 |---|---|:---:|
-| [Radial Menu](#radial-menu) | 8-slice gesture ring with hold-drag or tap selection | No |
-| [Button & Action Remapping](#button-action-remapping) | Reassign back / forward / middle / shift-wheel and the gesture buttons | Partial |
+| [Radial Menu](#radial-menu) | 8-slice Actions Ring with hold-drag or tap selection, themes, skins, icon styles | No |
+| [The Settings app](#the-settings-app) | Qt/QML app: themes with wallpapers, search, 18 languages, keyboard navigation | No |
+| [Button & Action Remapping](#button-action-remapping) | Every button and every control the mouse reports, for all apps, this mouse or one app | Partial |
+| [Directional gestures](#directional-gestures) | Drag the gesture button in up to eight directions for more actions | Yes |
+| [Custom actions](#custom-actions) | A shortcut, app, command, link, macro or plugin action on any button or slice | No |
 | [Thumb-Wheel](#thumb-wheel) | Bind the side wheel to volume, zoom, or horizontal scroll | Yes |
-| [Scroll & SmartShift](#scroll-smartshift) | Pointer speed, wheel mode, SmartShift threshold, HiRes scroll | Yes |
-| [Haptic Feedback](#haptic-feedback) | Per-event actuator pulses with presets | Yes |
-| [Easy-Switch](#easy-switch) | Switch between paired computers, read paired names | Yes |
-| [Per-Application Profiles](#per-application-profiles) | Auto DPI / buttons / scroll on window focus | Yes |
+| [Scroll & SmartShift](#scroll-smartshift) | Pointer speed, wheel mode, SmartShift threshold, HiRes scroll, scroll force | Yes |
+| [Haptic Feedback](#haptic-feedback) | Strength levels, Sense Panel force, a switch and pattern per event | Yes |
+| [Easy-Switch](#easy-switch) | Switch between paired computers, see every slot, take the keyboard along | Yes |
+| [Per-Application Profiles](#per-application-profiles) | Override only what you change per app, with its own ring | Yes |
 | [JuhFlow](#juhflow) | Encrypted cross-computer cursor and clipboard (Linux and Mac) | No |
-| [Gaming Mode + Macros](#gaming-mode-macros) | DPI profiles, overlay suppression, macro engine | Partial |
+| [MX Keypad](#mx-keypad) | Nine display keys with pages, per-app profiles, key art and packs | No (USB) |
+| [MX Keys S (beta)](#mx-keys-s-beta) | Battery, backlight, Easy-Switch follow and key remapping | Yes |
+| [Gaming Mode + Macros](#gaming-mode-macros) | DPI presets, ring-button job, macros that record and play on Wayland | Partial |
+| [Plugins](#plugins) and [Backup](#backup) | Your own actions from a folder; config, profiles, macros, icons and themes in one zip | No |
 
 ---
 
@@ -107,28 +114,46 @@ floating icons only, with no pizza-slice wedges or text labels. It is a
 quieter, lower-footprint HUD for users who already know the layout. Backed by
 the `radial.minimal_mode` config key.
 
-### Themes
+### Themes, wheel skins and icon styles
 
-Themes recolor the entire wheel. Vector themes are drawn live in their own
-palette; the 3D themes ship bespoke pre-rendered wheel art. The theme preview
-in Settings shows the actual ring each theme produces before you apply it.
+Three independent choices, all in **Settings → Themes**, all applied live on
+the next menu open without a restart:
 
-| Theme | Style |
-|---|---|
-| PHOSPHOR | Signature dark, phosphor accent |
-| JuhRadial MX | Premium dark with cyan accents |
-| Catppuccin Mocha | Soothing dark pastel |
-| Catppuccin Latte | Light pastel |
-| Nord | Arctic north-bluish |
-| Dracula | Dark, vibrant |
-| GitHub Light | Clean light |
-| Solarized Light | Precision light palette |
-| Pearl Blossom / Neon Sci-Fi / Dark Ember / Golden Classic | 3D rendered wheels |
+- **Colour theme**: twelve accents, each paired with a matched wallpaper behind
+  the Settings app's glass cards (Azure is the default, then Sky, Indigo,
+  Violet, Emerald, Teal, Cyan, Brass, Amber, Coral, Rose and Magenta). The
+  accent recolours the ring too. Automatic follows your desktop's accent.
+- **Wheel skin**: the material the ring is drawn on, independent of the colour
+  theme: Classic, Classic Light and a set of artistic skins (chrome, glass,
+  brass and more), previewed on hover.
+- **Icon style**: Line, Classic, Mono or Mono 2 (the default for new configs)
+  for the slice glyphs; an app you pick for a slice keeps its own icon.
 
-The menu also animates: a bloom on open, smooth slice-hover crossfades, a
-droplet pop-out for submenu items, and a selection flash on the picked slice.
+The ring's outer size, centre zone and icon size are sliders on the Buttons
+page, or **Automatic size** fits them to each monitor. The menu also animates:
+a bloom on open, smooth slice-hover crossfades, a droplet pop-out for submenu
+items, and a selection flash on the picked slice.
 
 ---
+
+## The Settings app
+
+Since 0.4.5 Settings is a PyQt6 + QML application (`juhradial-settings`, or
+the tray icon's Settings entry): frosted glass cards over the theme's
+wallpaper, a page per tab (Dashboard, Buttons, Point & Scroll, Haptics,
+Gaming, Macros, Apps, Easy-Switch, Devices, Flow, MX Keypad, Themes,
+Settings), search across every setting from the header, keyboard shortcuts
+(F1 lists them), full keyboard navigation, and 18 languages (Settings →
+Language picks one, or the desktop locale by default). The Buttons page shows
+your mouse as a photo with clickable callouts (MX Master 4, and the 3 / 3S
+body), the Dashboard says whether the mouse is reachable and what needs a
+fix, and the Devices page shows live link state, battery, the keyboard
+backlight, receivers and copies diagnostics for a bug report.
+
+The GTK4 app stays in the tree as the automatic fallback on distros whose Qt
+is older than 6.9 (Ubuntu 24.04, Debian 13); `JUHRADIAL_SETTINGS=gtk` forces
+it. Whichever app runs is the only writer of `~/.config/juhradial/config.json`
+and asks the daemon to reload after every save.
 
 ## Button & Action Remapping
 
@@ -150,10 +175,13 @@ Assignments**.
 
 ### Available actions
 
-Pick from a full catalog: Middle Click, Back, Forward, Copy, Paste, Undo, Redo,
-Screenshot, SmartShift, Scroll Left/Right, Volume Up / Down, Play/Pause, Mute,
-Radial Menu, Virtual Desktops, Zoom In / Out, **Custom Action**, **Do Nothing**,
-plus the portable system actions:
+Pick from a full catalog: Actions Ring, Virtual Desktops, Left / Right / Middle
+Click, Back, Forward, Scroll Left / Right, Copy, Paste, Undo, Redo, Screenshot,
+SmartShift (ratchet / free-spin), Volume Up / Down, Play/Pause, Mute, Zoom In /
+Out, DPI cycle / up / down and hold-for-precision, next, previous, close and
+reopen tab, Page Up / Down, Home, End, Easy-Switch to computer 1 to 3 or the
+next one, gaming mode on / off, **Custom action**, **Do Nothing**, plus the
+portable system actions:
 
 | System action | What it does |
 |---|---|
@@ -161,6 +189,7 @@ plus the portable system actions:
 | Switch Desktop Left / Right | Move to the adjacent virtual desktop |
 | Task Switcher | Open the window switcher / overview |
 | Close Window | Close the active window |
+| Maximize Window / Minimize Window | Maximize (toggle) or minimize the active window |
 | Lock Screen | Lock the session |
 | Calculator | Launch the calculator |
 
@@ -182,6 +211,45 @@ behavior comes back immediately, no reconnect required. See [Architecture](archi
 for the divert model in detail.
 
 ---
+
+## Directional gestures
+
+Hold the gesture button and drag; on release the drag's direction picks the
+action, and a press that barely moves keeps the gesture button's own action.
+Off by default; **Settings → Buttons → Directional gestures** has the switch,
+a pad with a picker per direction, presets to start from (Desktops, Browser,
+Editing, Media) and the drag distance.
+
+- **Four directions** (up, down, left, right) by default. The four **corners**
+  are optional diagonals: while they are empty a drag is classified four ways,
+  once one has an action the plane splits into eight 45 degree sectors, and an
+  empty corner hands its drags to the nearest axis.
+- **Any action** the picker offers, including **Custom** (each direction keeps
+  its own custom action), except the ring itself and precision DPI, which need
+  a hold.
+- **Drag distance** in sensor counts at the mouse's DPI (default 15, about
+  0.4 mm at 1000 DPI); the actuator ticks when a drag crosses it.
+- A directional press never opens or closes the ring, and the drag is measured
+  from the mouse's own motion, so it works on every compositor. It applies to
+  the HID++-diverted gesture button (the normal state on the MX Master 4, 3S
+  and 3), not to the evdev-only fallback path.
+
+## Custom actions
+
+**Custom** on any button, direction or ring slice opens the same editor:
+
+- a **shortcut**, recorded from the keyboard (modifier chips plus a key list
+  that covers F13 to F24, Print, Insert and keys the desktop grabs first), with
+  **Hold while pressed** to keep it down for as long as the button is held
+  (push to talk);
+- an **application** from your installed apps, with its real icon;
+- a **command** line, or a **link** (http, https or mailto);
+- a saved **macro** or a **plugin** action;
+- on the MX Keypad also a **text** to paste and a jump to a **page**.
+
+Invalid shortcuts and links are refused before they are saved. Custom actions
+are kept per button (and per app profile, or for this mouse only) under
+`buttons.custom` in `config.json`.
 
 ## Thumb-Wheel
 
@@ -353,18 +421,56 @@ peer-to-peer with no cloud. Configured in **Settings → Flow**.
 
 ---
 
+## MX Keypad
+
+The Logitech MX Keypad (USB) gets its own tab in Settings. Its nine display
+keys show an icon and label each, grouped in **pages** the two page buttons
+flip through. A key can run a shortcut, app, command, macro, plugin action,
+paste a **text** (exact characters on every keyboard layout, optional Enter),
+hold a shortcut while pressed, go to a page, open a **folder** of keys, or be
+a **two-state** key (mute on / off). Pages can belong to apps and come up by
+themselves while that app is in front, with 27 ready profiles (browsers,
+editors, terminals, media, meetings, creative tools, and profiles for Claude
+Code and Codex) suggested for the apps you use most. Keys take glyphs, any
+installed app's icon, your own picture, animated GIF or WebP, key art from a
+gallery in two styles, a colour per key and a brightness setting; your own
+profiles export as packs that Import pack restores. While the screen is
+locked the keys go blank on desktops that report the lock to logind, such as
+KDE Plasma and GNOME; other lock screens (swaylock, hyprlock) leave the keys
+active for now. Scripts can paint a key live over D-Bus. The daemon drives the
+displays through the separate `mx-keypad` protocol crate.
+
+## MX Keys S (beta)
+
+Opt-in, off by default, and nothing in this path touches a mouse-only
+install. With the keyboard's support turned on in **Settings → Devices** the
+daemon reads its battery over HID++ (shown live with a low-battery alert),
+reads and sets the **backlight** (Automatic or Manual, the level, and how long
+it stays on, on battery and on a cable), and follows **Easy-Switch** both ways
+when "Mouse and keyboard move together" is on: switching the mouse takes the
+keyboard along (matched by computer name, a sleeping keyboard follows when it
+wakes), and an Easy-Switch key on the keyboard takes the mouse. A
+`keyboard.remap` table rewrites keys on the first physical keyboard (CapsLock
+to Ctrl and friends) through a virtual keyboard. Presence is read from the
+receiver's pairing table, so the keyboard shows up even while its radio
+sleeps.
+
 ## Gaming Mode + Macros
 
 ### Gaming Mode
 
 A profile aimed at games, configured in **Settings → Gaming**.
 
-- **Enable Gaming Mode:** master toggle for gaming-optimized settings.
+- **Enable Gaming Mode:** master toggle, also in the tray menu, or automatic
+  while Feral GameMode runs a game or a listed app is in front (it only undoes
+  what it switched on itself).
 - **Show Radial Menu:** allow or suppress the ring while gaming, to prevent
   accidental activation mid-game.
-- **DPI Profiles:** three editable presets (Precision 400, Normal 1000, Fast
-  3200 by default), each with a name, color, and DPI value, plus an Active
-  Profile selector to switch quickly.
+- **DPI presets:** up to five, each with a name, colour and DPI value, the
+  active one applied at once while gaming mode is on.
+- **Ring button job:** precision DPI while held, or cycling the presets,
+  instead of the ring while gaming.
+- **Wheel lock:** keep the wheel in ratchet or free-spin during a game.
 
 ### Macros
 
@@ -375,8 +481,10 @@ Macros**.
   a millisecond timeline.
 - **Repeat modes:** Once, While Holding, Toggle On/Off, Repeat N Times, and
   Sequence.
-- **Record:** capture a sequence directly, then refine the steps.
-- **Binding:** assign a macro to a key or a mouse button.
+- **Record:** capture a sequence from every keyboard and mouse (clicks
+  included, with the recorded timing), then refine the steps.
+- **Playback on Wayland** through the kernel's uinput, and **binding** to a
+  mouse button that takes effect without a restart.
 
 Macros pair with gaming mode through evdev capture: bind **any** mouse button
 (side buttons, extra buttons) on essentially any mouse with extra buttons to a
@@ -384,10 +492,31 @@ macro, with a capture dialog that detects exactly the button you press.
 
 ---
 
+## Plugins
+
+A folder in `~/.config/juhradial/plugins/` with a `plugin.json` adds actions
+that run a command, a D-Bus call or a script shipped in the folder. They
+appear in the slice action picker under the plugin's name, in the Custom
+editor, and in **Settings → Settings → Plugins** with the reason when a
+manifest is invalid. Two examples ship in `examples/plugins/`. The manifest
+format is on the [Plugins](plugins.md) page.
+
+## Backup
+
+**Settings → Settings → Backup** writes one zip with `config.json`,
+`profiles.json` and the files under `macros/`, `icons/` and `themes/`, and
+restores such a file on this or another machine; the same runs from the
+command line as `juhradiald --export FILE` and `juhradiald --import FILE`.
+Import validates the whole archive before touching the disk, keeps the
+replaced files as `.bak`, and reloads a running daemon. Plugin folders and Flow
+pairing keys are not part of the archive: plugins are copied by hand, and the
+keys never leave the machine.
+
 ## See also
 
 - [Configuration](configuration.md): the `~/.config/juhradial/config.json` schema for every
   setting above
+- [Plugins](plugins.md): the `plugin.json` manifest and the two examples
 - [Compositor-Support](compositor-support.md): per-compositor cursor and positioning behavior
 - [Architecture](architecture.md): daemon, overlay, D-Bus, and the HID++ divert model
 - [Troubleshooting](troubleshooting.md): fixes for menu position, detection, and permissions

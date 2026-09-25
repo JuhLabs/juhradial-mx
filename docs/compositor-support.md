@@ -17,7 +17,7 @@ See also: [Installation](installation.md), [Configuration](configuration.md), [T
 | **Hyprland** | IPC socket (`cursorpos`), `hyprctl` fallback | XWayland | Fully supported |
 | **COSMIC** | XWayland `XQueryPointer` | XWayland | Fully supported |
 | **Sway / wlroots** | XWayland `XQueryPointer` | XWayland | Supported |
-| **niri** | XWayland `XQueryPointer` via `xwayland-satellite` | XWayland (interim) | Supported |
+| **niri** | Pointer position from the layer-shell surface itself (`gtk4-layer-shell`); XWayland `XQueryPointer` via `xwayland-satellite` otherwise | Layer-shell (native), XWayland fallback | Supported |
 | **X11** (any DE) | `XQueryPointer` / `xdotool` | Native X11 | Supported |
 
 !!! note
@@ -184,15 +184,15 @@ Make sure XWayland is enabled in your Sway config (`xwayland enable`, which is t
 
 ## niri
 
-niri exposes `NIRI_SOCKET` but has **no cursor IPC**, and it tiles XWayland toplevels rather than allowing free override-redirect placement. The current (interim) approach runs **`xwayland-satellite`** to provide an XWayland display, then uses the same raw XWayland `XQueryPointer` + synchronized override-redirect surface path as COSMIC.
+niri exposes `NIRI_SOCKET` but has **no cursor IPC**, and it tiles XWayland toplevels rather than allowing free override-redirect placement. Since 0.4.5 the overlay therefore opens the menu on a **Wayland layer-shell surface** when `gtk4-layer-shell` is installed: the surface covers the output, the ring is drawn where the pointer enters it, and clicks outside the ring still reach the windows below. That path does not depend on XWayland at all and lands the ring where the cursor is on every output.
 
 ### Setup
 
-1. Install and run **`xwayland-satellite`** so that `DISPLAY` is set in your niri session. Without it the daemon has no XWayland to query and falls back to screen-center.
-2. Confirm `echo $DISPLAY` prints a value (for example `:0`) inside your niri session before launching JuhRadial MX.
+1. Install **`gtk4-layer-shell`**. The installer installs it on Fedora, Arch and Debian/Ubuntu; on openSUSE it is skipped when the default repositories lack it, and an image-based install (`install.sh --user` on Bazzite or Fedora Atomic) does not layer it, so add it by hand there. With it present the native path is used automatically.
+2. Without the library the previous path is used: run **`xwayland-satellite`** so that `DISPLAY` is set in your niri session, and confirm `echo $DISPLAY` prints a value (for example `:0`) before launching JuhRadial MX. Without either, the daemon has no pointer position and falls back to screen-center.
 
 !!! note
-    niri support is **interim**. Because niri tiles XWayland surfaces, precise free-floating placement depends on the satellite. A dedicated `wlr-layer-shell` surface (via `gtk4-layer-shell`) is the planned path for fully native niri positioning. Until then, run JuhRadial MX with `xwayland-satellite` active.
+    The layer-shell path was validated on a wlroots compositor; reports from real niri sessions are welcome on [#22](https://github.com/JuhLabs/juhradial-mx/issues/22).
 
 
 ---
@@ -243,7 +243,7 @@ echo "DISPLAY=$DISPLAY  HYPRLAND=$HYPRLAND_INSTANCE_SIGNATURE  NIRI=$NIRI_SOCKET
 |:---|:---|:---|
 | Menu in top-left corner | GNOME | Enable the cursor extension, then log out/in (see GNOME section) |
 | Menu blurred / animated / off-position | Hyprland | Add the overlay window rules |
-| Menu at screen center | niri | Run `xwayland-satellite` so `DISPLAY` is set |
+| Menu at screen center | niri | Install `gtk4-layer-shell`, or run `xwayland-satellite` so `DISPLAY` is set |
 | Menu off-position at non-100% scale | KDE Plasma 6 | Update to a current build (the identity cursor pass-through fixes fractional scaling) |
 | Per-app profiles never switch | GNOME Wayland | Known limitation; use a global profile or a KDE/Hyprland/X11 session |
 | Menu does not appear at all | Any | Confirm the daemon is running (`pgrep juhradiald`) and XWayland is available |

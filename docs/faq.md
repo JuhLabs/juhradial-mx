@@ -12,10 +12,13 @@ Quick answers to the questions people ask most about JuhRadial MX, the native Li
 
 | Device | Support level |
 |--------|---------------|
-| Logitech MX Master 4 | Full HID++ (radial menu, haptics, DPI, scroll, easy-switch, battery) |
-| Logitech MX Master 3S | Full HID++ |
-| Logitech MX Master 3 | Full HID++ |
+| Logitech MX Master 4 | Full HID++ (radial menu, haptics, DPI, scroll, Easy-Switch, battery) |
+| Logitech MX Master 3S | Full HID++ (no haptic motor on this model) |
+| Logitech MX Master 3 | Full HID++ (no haptic motor on this model) |
+| Other Logitech mice on HID++ | Every divertable control the mouse reports can carry an action; DPI, scroll and Easy-Switch where the mouse exposes them |
 | Any other mouse | Generic mode via evdev (radial menu + button remapping) |
+| Logitech MX Keypad (USB) | Nine display keys with pages, per-app profiles, key art and packs, since 0.4.5 |
+| Logitech MX Keys S | Opt-in beta since 0.4.5: battery, backlight, Easy-Switch follow and key remapping over the receiver |
 
 !!! note
     Hardware-specific features (haptic feedback, DPI control, easy-switch host names, live battery) need a real HID++ device. On a generic mouse you still get the radial menu and button remapping. See [Features](features.md) for the full breakdown.
@@ -48,13 +51,13 @@ Both. JuhRadial MX is built Wayland-first and also runs on X11. The daemon detec
 | Hyprland | IPC socket | Fully supported |
 | COSMIC | XWayland sync | Fully supported |
 | Sway / wlroots | XWayland fallback | Supported |
-| niri | XWayland (xwayland-satellite) | Supported |
+| niri | Layer-shell surface at the pointer (with `gtk4-layer-shell`), XWayland otherwise | Supported |
 | X11 (any DE) | xdotool | Supported |
 
-GNOME and niri have specific setup notes (a Shell extension for GNOME, an XWayland satellite for niri). See [Compositor-Support](compositor-support.md) for the details.
+GNOME has a specific setup note (a Shell extension, GNOME 45 to 51), and niri needs `gtk4-layer-shell` for the native path. See [Compositor-Support](compositor-support.md) for the details.
 
 !!! tip
-    On Wayland the overlay relies on XWayland for window positioning. If the menu appears in the top-left corner instead of at your cursor, that is almost always a compositor cursor-detection issue covered in [Troubleshooting](troubleshooting.md).
+    On Wayland the overlay relies on XWayland for window positioning, except on niri with `gtk4-layer-shell`, where it uses a layer-shell surface. If the menu appears in the top-left corner instead of at your cursor, that is almost always a compositor cursor-detection issue covered in [Troubleshooting](troubleshooting.md).
 
 
 <div align="center">
@@ -155,7 +158,7 @@ Installed with `--user` (or on Bazzite / Fedora Atomic)? The files live under yo
 
 ### How do I update?
 
-Re-run the one-line installer; it rebuilds from the latest source. See [Installation](installation.md) for details.
+Re-run the one-line installer. It downloads the newest release (betas included, with a prebuilt daemon), reinstalls the files and restarts the service; set `JUHRADIAL_FROM_SOURCE=1` in front of `bash` to build the current `master` instead. See [Installation](installation.md) for details.
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/github/separator.png" width="80%" alt="">

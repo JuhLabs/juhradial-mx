@@ -1,8 +1,8 @@
 site_name: JuhRadial MX
 site_description: >-
-  The ultimate Logitech MX Master experience on Linux. Radial menu, haptics,
-  button and thumb-wheel remapping, per-app profiles, Easy-Switch, and
-  cross-computer Flow, native on Wayland.
+  The Logitech MX experience on Linux, native on Wayland. Actions Ring,
+  haptics, button remapping and gestures, per-app profiles, Easy-Switch,
+  the MX Keypad, the MX Keys S, and cross-computer Flow.
 site_url: https://juhlabs.github.io/juhradial-mx/
 site_author: JuhLabs
 copyright: Copyright &copy; JuhLabs, GPL-3.0
