@@ -285,10 +285,16 @@ To run the daemon directly with verbose logging while debugging, see [Troublesho
 
 ## Updating
 
-Re-run the same one-line command. When `/opt/juhradial-mx` already exists, the installer switches to upgrade mode: it fetches the latest `master`, hard-resets the source tree, rebuilds the daemon, reinstalls files and udev rules, and restarts the running service.
+Re-run the same one-line command. When `/opt/juhradial-mx` already exists, the installer switches to upgrade mode: it downloads the newest release tarball (betas included; it carries a prebuilt daemon, which is used when it runs on your machine), reinstalls files and udev rules, and restarts the running service. When no release asset can be downloaded it falls back to fetching `master` and building from source.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash
+```
+
+To install the current `master` instead of the newest release (for a fix that has been merged but not tagged yet):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | JUHRADIAL_FROM_SOURCE=1 bash
 ```
 
 On NixOS, update the flake input and rebuild:
