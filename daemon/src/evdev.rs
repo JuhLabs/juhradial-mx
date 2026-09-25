@@ -164,11 +164,21 @@ pub struct EvdevHandler {
 /// evdev answers every ioctl with `ENODEV` once the device is disconnected
 /// (or the handle revoked), so a plain state query on the held fd tells a live
 /// device from a lingering node without opening, closing or grabbing anything.
-/// Used on hotplug notifications to choose between keeping a grab and
-/// re-scanning (issue #150).
+/// Only `ENODEV` counts as gone: any other error says nothing about the node,
+/// and dropping a grab on it would reopen the very gap this guards against,
+/// while a device that really is gone also fails the next read. Used on
+/// hotplug notifications to choose between keeping a grab and re-scanning
+/// (issue #150).
 #[cfg(target_os = "linux")]
 pub fn device_is_alive(device: &evdev::Device) -> bool {
-    device.get_key_state().is_ok()
+    match device.get_key_state() {
+        Ok(_) => true,
+        Err(e) if e.raw_os_error() == Some(libc::ENODEV) => false,
+        Err(e) => {
+            tracing::warn!("Liveness probe failed without ENODEV, keeping the device: {}", e);
+            true
+        }
+    }
 }
 
 /// The next hotplug notification, subscribed the moment this is called (tokio
@@ -651,6 +661,12 @@ impl EvdevHandler {
     async fn run_event_loop(&mut self) -> Result<(), EvdevError> {
         use evdev::{uinput::VirtualDevice as UinputDevice, Device, EventType};
 
+        // Subscribe to hotplug before touching the device, so a removal during
+        // the scan, open or grab below is not lost: `notify_waiters` stores
+        // no permit for a late subscriber.
+        let hotplug = self.hotplug.clone();
+        let mut next_hotplug = std::pin::pin!(wait_for_hotplug(hotplug.as_deref()));
+
         // Find the device based on mode
         let device_info = if self.generic_mode {
             Self::find_any_mouse()?
@@ -753,9 +769,6 @@ impl EvdevHandler {
         // only when the held device is gone: the dead-node case the hotplug
         // arm from #104 guarded against, now told apart from a live node by
         // the kernel itself.
-        let hotplug = self.hotplug.clone();
-        let mut next_hotplug = std::pin::pin!(wait_for_hotplug(hotplug.as_deref()));
-
         loop {
             let next = tokio::select! {
                 next = events.next_event() => next,
