@@ -9,6 +9,18 @@ use crate::hidpp::{HapticEvent, Mx4HapticPattern};
 use crate::macros::events_to_actions;
 use super::service::JuhRadialService;
 
+/// Run blocking work on its own thread and await its result. Method handlers
+/// run on the zbus executor, which is not a tokio context, so
+/// `tokio::task::spawn_blocking` panics there with "there is no reactor
+/// running"; a oneshot channel needs no runtime.
+async fn on_thread<T: Send + 'static>(work: impl FnOnce() -> T + Send + 'static) -> Option<T> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(work());
+    });
+    rx.await.ok()
+}
+
 #[interface(name = "org.kde.juhradialmx.Daemon")]
 impl JuhRadialService {
     // ---- MX Keypad ----
@@ -668,7 +680,7 @@ impl JuhRadialService {
 
     /// Modifier keys held right now ("ctrl", "shift", "alt", "super").
     async fn modifiers_held(&self) -> fdo::Result<Vec<String>> {
-        Ok(tokio::task::spawn_blocking(crate::keyboard::modifiers_held).await.unwrap_or_default())
+        Ok(on_thread(crate::keyboard::modifiers_held).await.unwrap_or_default())
     }
 
     /// Bolt and Unifying receivers with their paired devices:
@@ -680,7 +692,7 @@ impl JuhRadialService {
             .lock()
             .ok()
             .and_then(|m| Some((m.device_path()?, m.device_index()?)));
-        let rows = tokio::task::spawn_blocking(move || {
+        let rows = on_thread(move || {
             let keyboard = crate::keyboard::manager().lock().ok().and_then(|mut k| k.receiver_slot());
             crate::hidpp::device::HidppDevice::list_receivers()
                 .into_iter()
