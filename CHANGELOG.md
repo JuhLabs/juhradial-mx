@@ -5,6 +5,12 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **An input hotplug elsewhere no longer drops the mouse grab** - While a macro-bound button kept the mouse grabbed, any device appearing on or leaving `/dev/input` (a keyboard re-binding its USB interfaces, a hub enumerating) made the daemon release the grab, destroy its virtual mouse and take both again. A click inside that gap reached the compositor from the physical node while its release arrived from the new virtual mouse, and libinput then held the button for the whole seat, on every mouse, until the mouse's node went away or the daemon was stopped. On a hotplug notification the daemon now asks the kernel whether it still backs the device it holds and only re-scans when it does not; the keyboard remap grab follows the same rule. Reported, with the diagnosis, by [@iceteaSA](https://github.com/iceteaSA) in [#150](https://github.com/JuhLabs/juhradial-mx/issues/150).
+
 ## [0.4.5-beta.1] - 2026-09-24
 
 ### Added

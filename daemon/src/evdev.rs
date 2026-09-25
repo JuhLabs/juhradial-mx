@@ -15,8 +15,9 @@
 
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Notify};
 
 /// Name of the uinput virtual device created for button suppression.
 ///
@@ -152,6 +153,36 @@ pub struct EvdevHandler {
     /// this path BTN_BACK is the ring button (`buttons.thumb`), not the
     /// gesture button.
     gesture_tracker: Option<crate::gesture::SharedGestureTracker>,
+    /// `/dev/input` hotplug notifications. The event loop keeps its grab and
+    /// virtual mouse through a hotplug of some other device and only ends the
+    /// session when the kernel no longer backs the device it holds (issue #150).
+    hotplug: Option<Arc<Notify>>,
+}
+
+/// Whether the kernel still backs the device behind an open handle.
+///
+/// evdev answers every ioctl with `ENODEV` once the device is disconnected
+/// (or the handle revoked), so a plain state query on the held fd tells a live
+/// device from a lingering node without opening, closing or grabbing anything.
+/// Used on hotplug notifications to choose between keeping a grab and
+/// re-scanning (issue #150).
+#[cfg(target_os = "linux")]
+pub fn device_is_alive(device: &evdev::Device) -> bool {
+    device.get_key_state().is_ok()
+}
+
+/// The next hotplug notification, subscribed the moment this is called (tokio
+/// delivers `notify_waiters` to a `Notified` from its creation, polled or
+/// not); never resolves without a subscription (generic mouse mode has none).
+#[cfg(target_os = "linux")]
+fn wait_for_hotplug(hotplug: Option<&Notify>) -> impl std::future::Future<Output = ()> + '_ {
+    let notified = hotplug.map(Notify::notified);
+    async move {
+        match notified {
+            Some(notified) => notified.await,
+            None => std::future::pending().await,
+        }
+    }
 }
 
 impl EvdevHandler {
@@ -179,6 +210,7 @@ impl EvdevHandler {
             kwin_scripting: None,
             gaming_mode: None,
             gesture_tracker: None,
+            hotplug: None,
         }
     }
 
@@ -206,6 +238,7 @@ impl EvdevHandler {
             kwin_scripting: None,
             gaming_mode: None,
             gesture_tracker: None,
+            hotplug: None,
         }
     }
 
@@ -218,6 +251,12 @@ impl EvdevHandler {
     /// motion whenever the HID++ handler has started it for a press.
     pub fn set_gesture_tracker(&mut self, tracker: crate::gesture::SharedGestureTracker) {
         self.gesture_tracker = Some(tracker);
+    }
+
+    /// Subscribe the event loop to `/dev/input` hotplug notifications, so a
+    /// device that is gone is noticed even when its node lingers.
+    pub fn set_hotplug(&mut self, hotplug: Arc<Notify>) {
+        self.hotplug = Some(hotplug);
     }
 
     /// Share the live KWin availability flag so the gesture handler can pick the
@@ -705,8 +744,40 @@ impl EvdevHandler {
         // collect events and emit the full batch when SYN_REPORT arrives.
         let mut event_batch: Vec<evdev::InputEvent> = Vec::with_capacity(8);
 
+        // Hotplug notifications are taken here instead of by cancelling this
+        // future from the outside: cancelling drops the device handle, which
+        // releases the grab and destroys the virtual mouse. A click inside
+        // that gap reaches the compositor from the physical node while its
+        // release arrives from the new virtual mouse, and the button stays
+        // held for the whole seat (issue #150). The session therefore ends
+        // only when the held device is gone: the dead-node case the hotplug
+        // arm from #104 guarded against, now told apart from a live node by
+        // the kernel itself.
+        let hotplug = self.hotplug.clone();
+        let mut next_hotplug = std::pin::pin!(wait_for_hotplug(hotplug.as_deref()));
+
         loop {
-            match events.next_event().await {
+            let next = tokio::select! {
+                next = events.next_event() => next,
+                _ = &mut next_hotplug => {
+                    next_hotplug.set(wait_for_hotplug(hotplug.as_deref()));
+                    if device_is_alive(events.device()) {
+                        tracing::info!(
+                            "Input hotplug elsewhere, keeping {:?} [{}]",
+                            device_info.path,
+                            mode_label
+                        );
+                        continue;
+                    }
+                    tracing::info!(
+                        "Device {:?} is gone after input hotplug, re-scanning [{}]",
+                        device_info.path,
+                        mode_label
+                    );
+                    return Err(EvdevError::DeviceNotFound);
+                }
+            };
+            match next {
                 Ok(event) => {
                     // Determine if this event should be suppressed from the OS.
                     // Only suppress KEY press/release (value 0 or 1) for macro-bound buttons.
@@ -765,6 +836,17 @@ impl EvdevHandler {
                     if e.kind() == std::io::ErrorKind::WouldBlock {
                         // No events available, continue waiting
                         continue;
+                    }
+                    if e.raw_os_error() == Some(libc::ENODEV) {
+                        // The kernel dropped the device under the open fd
+                        // (unplug, receiver reset): the same outcome as the
+                        // hotplug probe, so the caller re-scans at once.
+                        tracing::info!(
+                            "Device {:?} is gone (ENODEV), re-scanning [{}]",
+                            device_info.path,
+                            mode_label
+                        );
+                        return Err(EvdevError::DeviceNotFound);
                     }
                     tracing::error!("Error reading event: {:?}", e);
                     return Err(EvdevError::IoError(e));
@@ -1067,6 +1149,55 @@ mod tests {
             }
         }
         events
+    }
+
+    /// The liveness probe behind hotplug handling (issue #150): a grabbed
+    /// device must read alive, and dead once the kernel has dropped its node.
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore] // Needs /dev/uinput; run with `cargo test -- --ignored` on a desktop.
+    fn grabbed_device_reads_dead_once_its_node_is_gone() {
+        use evdev::{uinput::VirtualDevice, AttributeSet, Device, KeyCode};
+        use std::time::Duration;
+
+        let mut keys = AttributeSet::<KeyCode>::new();
+        keys.insert(KeyCode::BTN_LEFT);
+        let mut victim = VirtualDevice::builder()
+            .expect("uinput available")
+            .name("JuhRadial hotplug test device")
+            .with_keys(&keys)
+            .expect("key set")
+            .build()
+            .expect("virtual device");
+        let node = victim
+            .enumerate_dev_nodes_blocking()
+            .expect("dev nodes")
+            .find_map(Result::ok)
+            .expect("event node");
+
+        // udev may still be settling the new node's permissions.
+        let mut held = Err(std::io::Error::other("not tried"));
+        for _ in 0..50 {
+            held = Device::open(&node);
+            if held.is_ok() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let mut held = held.expect("open the new node");
+        held.grab().expect("grab");
+        assert!(device_is_alive(&held), "a grabbed live device reads alive");
+
+        drop(victim);
+        let mut gone = false;
+        for _ in 0..50 {
+            if !device_is_alive(&held) {
+                gone = true;
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert!(gone, "a device whose node is gone reads dead (ENODEV)");
     }
 
     #[cfg(target_os = "linux")]

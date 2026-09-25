@@ -70,13 +70,15 @@ fn log_startup_phase(started_at: &Instant, phase: &'static str) {
 /// Why this exists (issues #121/#125): the suppression vdev is created on
 /// every MX connection (`GESTURE_BUTTON_CODES` is never empty), and building
 /// or dropping it fires genuine Create/Remove inotify events that look like a
-/// real plug/unplug. `run_evdev_loop`/`run_hidraw_loop` cancel a healthy
-/// session on *any* hotplug notification (required for Easy-Switch host
-/// changes and Bolt sleep recovery, issue #102), so without this filter the
-/// vdev's own churn self-triggers a reconnect loop. On USB/Bolt the
-/// round-trip usually lands inside one debounce window and self-corrects; on
-/// Bluetooth it is slow enough to escape the debounce repeatedly, producing a
-/// sustained cursor-lag loop.
+/// real plug/unplug. Both loops used to cancel a healthy session on *any*
+/// hotplug notification, so the vdev's own churn self-triggered a reconnect
+/// loop: on USB/Bolt the round-trip usually landed inside one debounce window
+/// and self-corrected; on Bluetooth it was slow enough to escape the debounce
+/// repeatedly, producing a sustained cursor-lag loop. `run_hidraw_loop` still
+/// cancels on any notification (required for Easy-Switch host changes and
+/// Bolt sleep recovery, issue #102); `run_evdev_loop` keeps a live grab and
+/// only re-scans when its device is gone (issue #150), so today the filter
+/// mainly spares the hidraw listener a needless restart.
 ///
 /// A Create is recognized by reading the node's name from sysfs at the moment
 /// the event is processed. The vdev cannot pre-register its own paths: the
@@ -2337,6 +2339,7 @@ async fn run_evdev_loop(
     handler.set_kwin_scripting(kwin.scripting);
     handler.set_gaming_mode(kwin.gaming);
     handler.set_gesture_tracker(gesture_tracker);
+    handler.set_hotplug(hotplug.clone());
 
     let mut logged_waiting = false;
 
@@ -2350,35 +2353,30 @@ async fn run_evdev_loop(
                     device_info.path, device_info.name
                 );
 
-                // Run the event loop until device disconnect OR hotplug. The
-                // grabbed fd lives inside start(); without the hotplug arm a
-                // re-enumeration that leaves the old node present kept the
-                // loop glued to a dead grab. Cancelling start() drops its
-                // device handle, which closes the fd and releases the grab.
-                let start_result = tokio::select! {
-                    result = handler.start() => Some(result),
-                    _ = hotplug.notified() => None,
-                };
-                match start_result {
-                    Some(Ok(())) => {
+                // Run the event loop until the device is gone. Hotplug
+                // notifications are handled inside start(): a hotplug of some
+                // other device leaves the grab and the virtual mouse alone,
+                // and only a device the kernel has let go of ends the session
+                // (issue #150; the dead-node case of issue #102 is kept).
+                match handler.start().await {
+                    Ok(()) => {
                         info!("Event loop ended normally");
                     }
-                    Some(Err(EvdevError::DeviceNotFound)) => {
-                        warn!("Device disconnected, will poll for reconnection...");
+                    Err(EvdevError::DeviceNotFound) => {
+                        // Re-scan at once: the node may already be back (a
+                        // receiver reset re-creates it inside the watcher's
+                        // debounce window, so no second notification comes).
+                        warn!("Device disconnected, re-scanning...");
                         logged_waiting = false;
+                        continue;
                     }
-                    Some(Err(EvdevError::PermissionDenied)) => {
+                    Err(EvdevError::PermissionDenied) => {
                         error!("Permission denied. Ensure udev rules are installed.");
                         error!("Run: sudo usermod -aG input $USER && logout");
                         // Continue polling in case permissions are fixed
                     }
-                    Some(Err(EvdevError::IoError(e))) => {
+                    Err(EvdevError::IoError(e)) => {
                         error!("I/O error: {}. Will retry...", e);
-                    }
-                    None => {
-                        info!("Device hotplug detected, re-scanning MX devices");
-                        logged_waiting = false;
-                        continue;
                     }
                 }
             }
