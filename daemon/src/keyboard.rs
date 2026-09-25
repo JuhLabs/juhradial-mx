@@ -858,6 +858,11 @@ async fn run_grabbed(
 ) -> std::io::Result<()> {
     use evdev::{uinput::VirtualDevice, Device, EventType, InputEvent};
 
+    // Subscribe before opening and grabbing, so a removal during setup is not
+    // lost (`notify_waiters` stores no permit); re-armed after each
+    // notification (issue #150).
+    let mut next_hotplug = std::pin::pin!(hotplug.notified());
+
     let mut device = Device::open(path)?;
 
     // Build the virtual keyboard mirroring the real device's key set, THEN grab.
@@ -894,7 +899,8 @@ async fn run_grabbed(
                     return Ok(());
                 }
             }
-            _ = hotplug.notified() => {
+            _ = &mut next_hotplug => {
+                next_hotplug.set(hotplug.notified());
                 // Same rule as the mouse loop (issue #150): releasing and
                 // retaking the grab on an unrelated hotplug leaves a key
                 // pressed in that gap stuck in the compositor.
