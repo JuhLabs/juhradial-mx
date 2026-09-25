@@ -38,7 +38,7 @@ the on-disk config schema see [Configuration](configuration.md), for compositor 
 | [MX Keypad](#mx-keypad) | Nine display keys with pages, per-app profiles, key art and packs | No (USB) |
 | [MX Keys S (beta)](#mx-keys-s-beta) | Battery, backlight, Easy-Switch follow and key remapping | Yes |
 | [Gaming Mode + Macros](#gaming-mode-macros) | DPI presets, ring-button job, macros that record and play on Wayland | Partial |
-| [Plugins](#plugins) and [Backup](#backup) | Your own actions from a folder; one zip with the whole setup | No |
+| [Plugins](#plugins) and [Backup](#backup) | Your own actions from a folder; config, profiles, macros, icons and themes in one zip | No |
 
 ---
 
@@ -435,8 +435,10 @@ Code and Codex) suggested for the apps you use most. Keys take glyphs, any
 installed app's icon, your own picture, animated GIF or WebP, key art from a
 gallery in two styles, a colour per key and a brightness setting; your own
 profiles export as packs that Import pack restores. While the screen is
-locked the keys go blank, and scripts can paint a key live over D-Bus. The
-daemon drives the displays through the separate `mx-keypad` protocol crate.
+locked the keys go blank on desktops that report the lock to logind, such as
+KDE Plasma and GNOME; other lock screens (swaylock, hyprlock) leave the keys
+active for now. Scripts can paint a key live over D-Bus. The daemon drives the
+displays through the separate `mx-keypad` protocol crate.
 
 ## MX Keys S (beta)
 
@@ -506,8 +508,9 @@ format is on the [Plugins](plugins.md) page.
 restores such a file on this or another machine; the same runs from the
 command line as `juhradiald --export FILE` and `juhradiald --import FILE`.
 Import validates the whole archive before touching the disk, keeps the
-replaced files as `.bak`, and reloads a running daemon. Flow pairing keys never
-leave the machine.
+replaced files as `.bak`, and reloads a running daemon. Plugin folders and Flow
+pairing keys are not part of the archive: plugins are copied by hand, and the
+keys never leave the machine.
 
 ## See also
 

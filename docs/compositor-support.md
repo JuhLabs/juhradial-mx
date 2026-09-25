@@ -188,7 +188,7 @@ niri exposes `NIRI_SOCKET` but has **no cursor IPC**, and it tiles XWayland topl
 
 ### Setup
 
-1. Install **`gtk4-layer-shell`** (the installer lists it for every distro family). With it present the native path is used automatically.
+1. Install **`gtk4-layer-shell`**. The installer installs it on Fedora, Arch and Debian/Ubuntu; on openSUSE it is skipped when the default repositories lack it, and an image-based install (`install.sh --user` on Bazzite or Fedora Atomic) does not layer it, so add it by hand there. With it present the native path is used automatically.
 2. Without the library the previous path is used: run **`xwayland-satellite`** so that `DISPLAY` is set in your niri session, and confirm `echo $DISPLAY` prints a value (for example `:0`) before launching JuhRadial MX. Without either, the daemon has no pointer position and falls back to screen-center.
 
 !!! note

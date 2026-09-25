@@ -14,7 +14,7 @@ JuhRadial MX is a native Linux companion for Logitech MX devices. A small Rust d
 curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash
 ```
 
-The installer detects your distro, installs the runtime packages, downloads the newest release (with a prebuilt daemon, so most installs skip the Rust build), sets up the udev rules and autostart, and works for updates too. There are also `.deb` and `.rpm` downloads on the [releases page](https://github.com/JuhLabs/juhradial-mx/releases), `install.sh --user` for Bazzite and Fedora Atomic, and a NixOS module. Full steps and per-distro notes: [Installation](installation.md).
+The installer detects your distro, installs the packages it needs (runtime and build dependencies), downloads the newest release (with a prebuilt daemon, so most installs skip the Rust build), sets up the udev rules and autostart, and works for updates too. There are also `.deb` and `.rpm` downloads on the [releases page](https://github.com/JuhLabs/juhradial-mx/releases), `install.sh --user` for Bazzite and Fedora Atomic, and a NixOS module. Full steps and per-distro notes: [Installation](installation.md).
 
 ## Explore
 
@@ -38,7 +38,7 @@ The installer detects your distro, installs the runtime packages, downloads the 
 - **MX Keys S support** (opt-in, beta): battery, backlight, Easy-Switch follow and key remapping.
 - **Directional gestures**: hold the gesture button and drag up, down, left or right, or diagonally, for more actions, with Custom on any direction.
 - **Deeper MX Master 4 haptics**: four strength levels, the Sense Panel press force and a switch and pattern for each event.
-- **Custom actions on any button**, per-app buttons, macros that record and play back on Wayland, gaming mode, plugins, and a one-zip backup of your whole setup.
+- **Custom actions on any button**, per-app buttons, macros that record and play back on Wayland, gaming mode, plugins, and a one-zip backup of your configuration, profiles, macros, icons and themes.
 - **More ways to install**: `.deb` and `.rpm` downloads, a prebuilt daemon in the release tarball, `install.sh --user` for image-based systems, a NixOS module and a native radial menu on niri.
 
 Beta 2 fixes the mouse grab dropping on unrelated input hotplugs (which could leave a button stuck for the whole desktop), macro recording coming back empty, and rounds out the directional gestures. The full list, with credits and issue links, is in the [changelog](https://github.com/JuhLabs/juhradial-mx/blob/master/CHANGELOG.md).

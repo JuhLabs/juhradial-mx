@@ -57,7 +57,7 @@ Both. JuhRadial MX is built Wayland-first and also runs on X11. The daemon detec
 GNOME has a specific setup note (a Shell extension, GNOME 45 to 51), and niri needs `gtk4-layer-shell` for the native path. See [Compositor-Support](compositor-support.md) for the details.
 
 !!! tip
-    On Wayland the overlay relies on XWayland for window positioning. If the menu appears in the top-left corner instead of at your cursor, that is almost always a compositor cursor-detection issue covered in [Troubleshooting](troubleshooting.md).
+    On Wayland the overlay relies on XWayland for window positioning, except on niri with `gtk4-layer-shell`, where it uses a layer-shell surface. If the menu appears in the top-left corner instead of at your cursor, that is almost always a compositor cursor-detection issue covered in [Troubleshooting](troubleshooting.md).
 
 
 <div align="center">
