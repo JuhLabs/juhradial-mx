@@ -228,7 +228,7 @@ A direction set to `custom` runs the custom action saved under `buttons.custom.g
 | Field | Meaning | Default |
 | --- | --- | --- |
 | `enabled` | Turn directional gestures on. Absent or `false` keeps the single-action behaviour exactly as before. | `false` |
-| `up`, `down`, `left`, `right` | Action for a drag in that direction. Any button action except `radial_menu` and `dpi_shift`. | `none` |
+| `up`, `down`, `left`, `right` | Action for a drag in that direction. Any button action the picker offers (not `radial_menu`, `dpi_shift`, or the thumb wheel's `scroll_left_right`), including `custom`. | `none` |
 | `up_left`, `up_right`, `down_left`, `down_right` | Optional diagonal actions; see above for how they change the classification. | `none` |
 | `click` | Action for a press without a drag. Omit it to keep using `buttons.gesture`. | unset |
 | `threshold_px` | Movement below this many sensor counts (at the mouse's DPI, so 15 is about 0.4 mm at 1000 DPI) counts as a click. Thumb-held drags are short, especially forward and back, so keep it low. | `15` |

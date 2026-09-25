@@ -176,6 +176,8 @@ _BASE_BUTTON_ACTIONS = [
     ("switch_desktop_right", "Switch Desktop Right"),
     ("task_switcher", "Task Switcher"),
     ("close_window", "Close Window"),
+    ("maximize_window", "Maximize Window"),
+    ("minimize_window", "Minimize Window"),
     ("lock_screen", "Lock Screen"),
     ("calculator", "Calculator"),
     ("none", "Do Nothing"),
