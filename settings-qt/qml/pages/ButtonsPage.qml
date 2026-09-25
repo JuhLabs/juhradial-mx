@@ -207,7 +207,7 @@ Item {
         id: btnPicker
         onPicked: (id) => page.pick(page.pickSlot, id)
     }
-    CustomActionEditor { id: customEd; onSaved: page.bump++ }
+    CustomActionEditor { id: customEd; onSaved: { page.bump++; page.dirBump++ } }
     SliceEditor { id: sliceEd }
 
     // ---- Quick links editor (each submenu slice's own links) ----
@@ -960,7 +960,7 @@ Item {
                     CardHeader {
                         width: parent.width
                         title: qsTr("Directional gestures")
-                        subtitle: qsTr("Hold the gesture button and drag to run a different action per direction. A press without dragging keeps the gesture button's own action.")
+                        subtitle: qsTr("Hold the gesture button and drag to run a different action per direction. The corners are optional diagonals. A press without dragging keeps the gesture button's own action.")
                         icon: "image://icon/" + Theme.accent.toString().slice(1) + "/" + Theme.iconStyle + "/view-app-grid-symbolic"
                         Toggle {
                             checked: dirCol.on
@@ -994,9 +994,9 @@ Item {
                         verticalItemAlignment: Grid.AlignVCenter
                         Repeater {
                             model: [
-                                { key: "" }, { key: "up", label: qsTr("Drag up") }, { key: "" },
+                                { key: "up_left", label: qsTr("Drag up-left") }, { key: "up", label: qsTr("Drag up") }, { key: "up_right", label: qsTr("Drag up-right") },
                                 { key: "left", label: qsTr("Drag left") }, { key: "click" }, { key: "right", label: qsTr("Drag right") },
-                                { key: "" }, { key: "down", label: qsTr("Drag down") }, { key: "" }
+                                { key: "down_left", label: qsTr("Drag down-left") }, { key: "down", label: qsTr("Drag down") }, { key: "down_right", label: qsTr("Drag down-right") }
                             ]
                             Item {
                                 required property var modelData
@@ -1013,9 +1013,14 @@ Item {
                                     ComboBox {
                                         width: 196
                                         accessibleName: modelData.label || ""
-                                        model: Backend.gestureActions()
+                                        model: Backend.directionActions()
                                         currentId: (page.dirBump, Backend.get("buttons.gesture_directions." + modelData.key, "none"))
-                                        onActivated2: (id) => dirCol.setDir(modelData.key, id)
+                                        // Custom: the editor saves buttons.custom.gesture_<direction>
+                                        // and sets the direction to it (directions are global).
+                                        onActivated2: (id) => {
+                                            if (id === "custom") customEd.openFor("", "gesture_" + modelData.key, modelData.label)
+                                            else dirCol.setDir(modelData.key, id)
+                                        }
                                     }
                                 }
                                 Rectangle {
@@ -1045,10 +1050,10 @@ Item {
                     SettingRow {
                         visible: dirCol.on
                         label: qsTr("Drag distance")
-                        desc: qsTr("Movement below this many pixels counts as a press")
+                        desc: qsTr("Sensor counts below which a press is a click. 15 is about 0.4 mm at 1000 DPI; forward and back drags are short, so keep it low.")
                         Slider {
-                            width: 200; from: 10; to: 400; showValue: true; suffix: " px"
-                            value: Backend.get("buttons.gesture_directions.threshold_px", 40)
+                            width: 200; from: 5; to: 400; showValue: true; suffix: ""
+                            value: Backend.get("buttons.gesture_directions.threshold_px", 15)
                             onCommitted: (v) => Backend.set("buttons.gesture_directions.threshold_px", Math.round(v / 5) * 5)
                         }
                     }

@@ -128,6 +128,8 @@ BUTTON_ACTIONS = [
     ("switch_desktop_right", "Desktop Right", "go-next-symbolic", "ring"),
     ("task_switcher", "Task Switcher", "view-paged-symbolic", "ring"),
     ("close_window", "Close Window", "window-close-symbolic", "ring"),
+    ("maximize_window", "Maximize Window", "window-maximize-symbolic", "ring"),
+    ("minimize_window", "Minimize Window", "window-minimize-symbolic", "ring"),
     ("left_click", "Left Click", "input-mouse-symbolic", "mouse"),
     ("right_click", "Right Click", "input-mouse-symbolic", "mouse"),
     ("middle_click", "Middle Click", "input-mouse-symbolic", "mouse"),
@@ -5355,6 +5357,14 @@ class Backend(QObject):
         return [a for a in self.buttonActions()
                 if a["id"] not in DIRECTIONAL_EXCLUDED and not a["hidden"]]
 
+    @pyqtSlot(result="QVariant")
+    def directionActions(self):
+        """gestureActions plus Custom: a direction keeps its own custom action
+        under buttons.custom.gesture_<direction> (the daemon's
+        gesture_custom_slot), so the picker can offer it."""
+        return [a for a in self.buttonActions()
+                if (a["id"] == "custom" or a["id"] not in DIRECTIONAL_EXCLUDED) and not a["hidden"]]
+
     # ---- button map, per scope ----
     #   ""       all apps: config.json buttons.<slot> / buttons.controls.<hex>
     #   "@mouse" this mouse only: the same keys under devices.<unit id>
@@ -5363,7 +5373,13 @@ class Backend(QObject):
 
     @staticmethod
     def _button_key(slot):
-        return f"buttons.controls.{slot}" if slot.lower().startswith("0x") else f"buttons.{slot}"
+        if slot.lower().startswith("0x"):
+            return f"buttons.controls.{slot}"
+        if slot.startswith("gesture_"):
+            # Directional gesture slots (gesture_up, gesture_down_left, ...):
+            # the action lives under buttons.gesture_directions.
+            return f"buttons.gesture_directions.{slot[len('gesture_'):]}"
+        return f"buttons.{slot}"
 
     def _mouse_prefix(self):
         return f"devices.{self._unit_id}." if self._unit_id else ""

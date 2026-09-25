@@ -1,8 +1,8 @@
 //! Directional gestures for the gesture button.
 //!
 //! Holding the gesture button and moving the mouse selects one of four
-//! directional actions; a press without movement is a click. Two pieces live
-//! here:
+//! directional actions (eight with the optional diagonals); a press without
+//! movement is a click. Two pieces live here:
 //!
 //! - [`classify`], the pure delta-to-direction rule shared by every input
 //!   path and covered by unit tests.
@@ -27,34 +27,65 @@ pub enum GestureDirection {
     Down,
     Left,
     Right,
+    /// The diagonals, only when [`classify`] runs with them enabled.
+    UpLeft,
+    UpRight,
+    DownLeft,
+    DownRight,
     /// Movement stayed under the threshold.
     Click,
+}
+
+impl GestureDirection {
+    pub fn is_diagonal(self) -> bool {
+        matches!(
+            self,
+            GestureDirection::UpLeft
+                | GestureDirection::UpRight
+                | GestureDirection::DownLeft
+                | GestureDirection::DownRight
+        )
+    }
 }
 
 /// Classify the cursor delta accumulated during a press.
 ///
 /// Distances are compared squared so no float is involved. Below
-/// `threshold_px` the press is a click; otherwise the dominant axis wins and
-/// an exact diagonal resolves to the horizontal axis so the result is
-/// deterministic. Screen Y grows downward, so a negative `dy` is an upward
-/// drag.
-pub fn classify(dx: i32, dy: i32, threshold_px: u32) -> GestureDirection {
+/// `threshold_px` the press is a click. With `diagonals` off the dominant
+/// axis wins and an exact diagonal resolves to the horizontal axis so the
+/// result is deterministic. With `diagonals` on the plane splits into eight
+/// 45 degree sectors centred on the eight directions: a drag within 22.5
+/// degrees of an axis is that axis, anything else is the diagonal between
+/// them (tan 22.5 degrees is 0.414, compared as 414/1000). Screen Y grows
+/// downward, so a negative `dy` is an upward drag.
+pub fn classify(dx: i32, dy: i32, threshold_px: u32, diagonals: bool) -> GestureDirection {
     // Magnitudes as u64: |i32::MIN|^2 * 2 = 2^63 and u32::MAX^2 both fit.
     let (dx_abs, dy_abs) = (u64::from(dx.unsigned_abs()), u64::from(dy.unsigned_abs()));
     let threshold = u64::from(threshold_px);
     if dx_abs * dx_abs + dy_abs * dy_abs < threshold * threshold {
         return GestureDirection::Click;
     }
-    if dx_abs >= dy_abs {
+    let horizontal = if diagonals { dy_abs * 1000 < dx_abs * 414 } else { dx_abs >= dy_abs };
+    let vertical = if diagonals { dx_abs * 1000 < dy_abs * 414 } else { !horizontal };
+    if horizontal {
         if dx < 0 {
             GestureDirection::Left
         } else {
             GestureDirection::Right
         }
-    } else if dy < 0 {
-        GestureDirection::Up
+    } else if vertical {
+        if dy < 0 {
+            GestureDirection::Up
+        } else {
+            GestureDirection::Down
+        }
     } else {
-        GestureDirection::Down
+        match (dx < 0, dy < 0) {
+            (true, true) => GestureDirection::UpLeft,
+            (false, true) => GestureDirection::UpRight,
+            (true, false) => GestureDirection::DownLeft,
+            (false, false) => GestureDirection::DownRight,
+        }
     }
 }
 
@@ -142,38 +173,62 @@ mod tests {
 
     #[test]
     fn classifies_each_cardinal_direction() {
-        assert_eq!(classify(0, -40, 40), GestureDirection::Up);
-        assert_eq!(classify(0, 40, 40), GestureDirection::Down);
-        assert_eq!(classify(-40, 0, 40), GestureDirection::Left);
-        assert_eq!(classify(40, 0, 40), GestureDirection::Right);
+        for diagonals in [false, true] {
+            assert_eq!(classify(0, -40, 40, diagonals), GestureDirection::Up);
+            assert_eq!(classify(0, 40, 40, diagonals), GestureDirection::Down);
+            assert_eq!(classify(-40, 0, 40, diagonals), GestureDirection::Left);
+            assert_eq!(classify(40, 0, 40, diagonals), GestureDirection::Right);
+        }
     }
 
     #[test]
     fn below_threshold_is_click() {
-        assert_eq!(classify(0, 0, 40), GestureDirection::Click);
-        assert_eq!(classify(20, 20, 40), GestureDirection::Click);
-        assert_eq!(classify(-39, 0, 40), GestureDirection::Click);
+        for diagonals in [false, true] {
+            assert_eq!(classify(0, 0, 40, diagonals), GestureDirection::Click);
+            assert_eq!(classify(20, 20, 40, diagonals), GestureDirection::Click);
+            assert_eq!(classify(-39, 0, 40, diagonals), GestureDirection::Click);
+        }
     }
 
     #[test]
     fn dominant_axis_wins_and_diagonal_is_horizontal() {
-        assert_eq!(classify(50, -30, 40), GestureDirection::Right);
-        assert_eq!(classify(-30, 50, 40), GestureDirection::Down);
-        assert_eq!(classify(40, -40, 40), GestureDirection::Right);
-        assert_eq!(classify(-40, 40, 40), GestureDirection::Left);
+        assert_eq!(classify(50, -30, 40, false), GestureDirection::Right);
+        assert_eq!(classify(-30, 50, 40, false), GestureDirection::Down);
+        assert_eq!(classify(40, -40, 40, false), GestureDirection::Right);
+        assert_eq!(classify(-40, 40, 40, false), GestureDirection::Left);
+    }
+
+    #[test]
+    fn diagonals_take_the_45_degree_sectors_between_the_axes() {
+        assert_eq!(classify(50, -30, 40, true), GestureDirection::UpRight);
+        assert_eq!(classify(-30, 50, 40, true), GestureDirection::DownLeft);
+        assert_eq!(classify(40, -40, 40, true), GestureDirection::UpRight);
+        assert_eq!(classify(-40, 40, 40, true), GestureDirection::DownLeft);
+        assert_eq!(classify(-60, -60, 40, true), GestureDirection::UpLeft);
+        assert_eq!(classify(60, 60, 40, true), GestureDirection::DownRight);
+        // Within 22.5 degrees of an axis stays on that axis: 100 by 41 is
+        // 22.3 degrees, 100 by 42 is 22.8 degrees.
+        assert_eq!(classify(100, 41, 40, true), GestureDirection::Right);
+        assert_eq!(classify(100, 42, 40, true), GestureDirection::DownRight);
+        assert_eq!(classify(-41, -100, 40, true), GestureDirection::Up);
+        assert_eq!(classify(-42, -100, 40, true), GestureDirection::UpLeft);
+        assert!(GestureDirection::UpLeft.is_diagonal() && !GestureDirection::Up.is_diagonal());
     }
 
     #[test]
     fn extreme_deltas_do_not_overflow() {
-        assert_eq!(classify(i32::MIN, 0, 40), GestureDirection::Left);
-        assert_eq!(classify(0, i32::MAX, 40), GestureDirection::Down);
-        assert_eq!(classify(i32::MIN, i32::MIN, u32::MAX), GestureDirection::Click);
+        for diagonals in [false, true] {
+            assert_eq!(classify(i32::MIN, 0, 40, diagonals), GestureDirection::Left);
+            assert_eq!(classify(0, i32::MAX, 40, diagonals), GestureDirection::Down);
+            assert_eq!(classify(i32::MIN, i32::MIN, u32::MAX, diagonals), GestureDirection::Click);
+        }
+        assert_eq!(classify(i32::MIN, i32::MIN, 40, true), GestureDirection::UpLeft);
     }
 
     #[test]
     fn zero_threshold_never_clicks_on_movement() {
-        assert_eq!(classify(1, 0, 0), GestureDirection::Right);
-        assert_eq!(classify(0, 0, 0), GestureDirection::Right);
+        assert_eq!(classify(1, 0, 0, false), GestureDirection::Right);
+        assert_eq!(classify(0, 0, 0, false), GestureDirection::Right);
     }
 
     #[test]

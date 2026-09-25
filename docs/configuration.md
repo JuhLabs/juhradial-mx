@@ -181,7 +181,8 @@ redo               screenshot          smartshift         scroll_left_right
 volume_up          volume_down         play_pause         mute
 zoom_in            zoom_out            show_desktop       switch_desktop_left
 switch_desktop_right  task_switcher    close_window       lock_screen
-calculator         none                custom
+calculator         maximize_window     minimize_window    none
+custom
 ```
 
 `none` disables the button. `custom` reserves the slot for a user-defined action configured in the UI.
@@ -203,7 +204,11 @@ Keys are the control id in hex (`0x00D7`) or decimal. A control with an action i
 
 ### Directional gestures
 
-The gesture button can run a different action per drag direction. Hold it, move the mouse, release: the dominant axis picks the action, and a press that moves less than `threshold_px` is a click that runs `buttons.gesture` (or `click`, when set). Off by default; Settings → Buttons → Gesture Button has the switch, the four pickers, and the threshold.
+The gesture button can run a different action per drag direction. Hold it, move the mouse, release: the dominant axis picks the action, and a press that moves less than `threshold_px` is a click that runs `buttons.gesture` (or `click`, when set). Off by default; Settings → Buttons → Directional gestures has the switch, the pickers, and the drag distance.
+
+The four corners are optional diagonals. While `up_left`, `up_right`, `down_left` and `down_right` are all `none`, a drag is classified four ways; once one of them has an action the plane splits into eight 45 degree sectors, and a corner still at `none` hands its drags to the nearest axis.
+
+A direction set to `custom` runs the custom action saved under `buttons.custom.gesture_<direction>` (`gesture_up`, `gesture_down_left`, ...); a plain press set to `custom` uses `gesture_click`, or the button's own `gesture` slot when `click` is unset. The Settings picker offers Custom on every direction and opens the same editor as the buttons.
 
 ```json
 "buttons": {
@@ -214,7 +219,8 @@ The gesture button can run a different action per drag direction. Hold it, move 
     "down": "task_switcher",
     "left": "switch_desktop_left",
     "right": "switch_desktop_right",
-    "threshold_px": 40
+    "up_right": "maximize_window",
+    "threshold_px": 15
   }
 }
 ```
@@ -222,9 +228,10 @@ The gesture button can run a different action per drag direction. Hold it, move 
 | Field | Meaning | Default |
 | --- | --- | --- |
 | `enabled` | Turn directional gestures on. Absent or `false` keeps the single-action behaviour exactly as before. | `false` |
-| `up`, `down`, `left`, `right` | Action for a drag in that direction. Any button action except `radial_menu`. | `none` |
+| `up`, `down`, `left`, `right` | Action for a drag in that direction. Any button action except `radial_menu` and `dpi_shift`. | `none` |
+| `up_left`, `up_right`, `down_left`, `down_right` | Optional diagonal actions; see above for how they change the classification. | `none` |
 | `click` | Action for a press without a drag. Omit it to keep using `buttons.gesture`. | unset |
-| `threshold_px` | Movement below this many pixels counts as a click. | `40` |
+| `threshold_px` | Movement below this many sensor counts (at the mouse's DPI, so 15 is about 0.4 mm at 1000 DPI) counts as a click. Thumb-held drags are short, especially forward and back, so keep it low. | `15` |
 
 The drag is measured from the mouse's own relative motion, so it works on every compositor, and a directional press never opens the radial menu. This applies to the HID++-diverted gesture button (the normal state on the MX Master 4, 3S and 3); it is not available on the evdev-only fallback path.
 

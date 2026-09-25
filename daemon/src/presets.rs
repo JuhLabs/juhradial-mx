@@ -24,6 +24,8 @@ pub enum Preset {
     CloseWindow,
     LockScreen,
     Calculator,
+    MaximizeWindow,
+    MinimizeWindow,
 }
 
 impl Preset {
@@ -37,6 +39,8 @@ impl Preset {
             "close_window" => Preset::CloseWindow,
             "lock_screen" => Preset::LockScreen,
             "calculator" => Preset::Calculator,
+            "maximize_window" => Preset::MaximizeWindow,
+            "minimize_window" => Preset::MinimizeWindow,
             _ => return None,
         })
     }
@@ -51,6 +55,8 @@ impl Preset {
             Preset::CloseWindow => "close_window",
             Preset::LockScreen => "lock_screen",
             Preset::Calculator => "calculator",
+            Preset::MaximizeWindow => "maximize_window",
+            Preset::MinimizeWindow => "minimize_window",
         }
     }
 
@@ -64,6 +70,8 @@ impl Preset {
             ButtonAction::CloseWindow => Preset::CloseWindow,
             ButtonAction::LockScreen => Preset::LockScreen,
             ButtonAction::Calculator => Preset::Calculator,
+            ButtonAction::MaximizeWindow => Preset::MaximizeWindow,
+            ButtonAction::MinimizeWindow => Preset::MinimizeWindow,
             _ => return None,
         })
     }
@@ -115,6 +123,19 @@ pub fn resolve(preset: Preset, de: &str) -> Action {
         Preset::LockScreen => command("loginctl lock-session"),
         // Launch whichever calculator is installed; sh runs the chain.
         Preset::Calculator => command("kcalc || gnome-calculator || qalculate-gtk || xcalc"),
+        // KWin's own shortcuts through kglobalaccel; Hyprland has no minimize,
+        // parking the window on a special workspace is the usual stand-in;
+        // elsewhere GNOME's default bindings.
+        Preset::MaximizeWindow => match de {
+            "kde" => kwin("Window Maximize"),
+            "hyprland" => command("hyprctl dispatch fullscreen 1"),
+            _ => shortcut("super+Up"),
+        },
+        Preset::MinimizeWindow => match de {
+            "kde" => kwin("Window Minimize"),
+            "hyprland" => command("hyprctl dispatch movetoworkspacesilent special:minimized"),
+            _ => shortcut("super+h"),
+        },
     }
 }
 
@@ -144,6 +165,8 @@ mod tests {
             "close_window",
             "lock_screen",
             "calculator",
+            "maximize_window",
+            "minimize_window",
         ] {
             let p = Preset::from_name(name).unwrap();
             assert_eq!(p.as_str(), name);
