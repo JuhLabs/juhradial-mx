@@ -12,7 +12,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.4.5--beta.1-cyan.svg" alt="Version 0.4.5-beta.1">
+      <img src="https://img.shields.io/badge/version-0.4.5--beta.2-cyan.svg" alt="Version 0.4.5-beta.2">
     </a>
     <a href="https://juhlabs.github.io/juhradial-mx/">
       <img src="https://img.shields.io/badge/docs-juhlabs.github.io-4FEFC9.svg" alt="Documentation">

@@ -2,7 +2,7 @@
 # Build: rpmbuild -ba juhradial-mx.spec
 
 Name:           juhradial-mx
-Version:        0.4.5~beta.1
+Version:        0.4.5~beta.2
 Release:        1%{?dist}
 Summary:        Beautiful radial menu for Logitech MX Master mice on Linux
 
@@ -144,6 +144,13 @@ install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdi
 %{_udevrulesdir}/99-juhradialmx.rules
 %{_udevrulesdir}/60-ydotool-uinput.rules
 %changelog
+* Fri Sep 25 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.2-1
+- A grabbed mouse keeps its grab through unrelated input hotplugs
+  (no button stays stuck for the whole desktop)
+- Macro recording in the settings app captures keys and clicks again
+- Directional gestures: Custom on any direction, shorter default drag
+  distance, optional diagonals; Maximize and Minimize actions
+
 * Thu Sep 24 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.1-1
 - Beta of 0.4.5: new Qt/QML settings app, twelve themes, 18 languages
 - MX Keypad support: key art on the LCD keys, pages, app profiles, packs

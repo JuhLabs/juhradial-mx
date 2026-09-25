@@ -2,7 +2,7 @@
 # Arch Linux PKGBUILD for JuhRadial MX
 
 pkgname=juhradial-mx
-pkgver=0.4.5beta1
+pkgver=0.4.5beta2
 # Tag and archive form of pkgver (pkgver cannot hold a hyphen): 0.4.5beta1 -> 0.4.5-beta.1
 _srcver="${pkgver/beta/-beta.}"
 pkgrel=1
