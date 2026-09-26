@@ -5,7 +5,12 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.5-beta.3] - 2026-09-26
+
+### Fixed
+
+- **Haptics no longer go silent after the mouse wakes** - A reconnect right after the radio woke (the re-divert after Bolt sleep) raced the mouse coming up, and one unanswered feature query left the haptic feature out of the table for the whole connection: no pulses until the next reconnect. An unanswered feature slot is now asked once more, and a slot that stays silent is logged.
+- **The release build runs the settings and overlay test suite** - The release workflow gated a release on the Rust build and the packages only. It now runs the Python and Qt suite on the tag, in a Fedora container with Qt 6.11, where the QML tests really compile the settings app's QML (on Ubuntu's Qt 6.4 they skipped themselves).
 
 ### Changed
 

@@ -89,6 +89,17 @@
   </keywords>
 
   <releases>
+    <release version="0.4.5~beta.3" date="2026-09-26" type="development">
+      <description>
+        <p>Third beta of 0.4.5: directional gestures leave the pointer alone</p>
+        <ul>
+          <li>The gesture button is diverted with raw XY, so a directional flick no longer moves the cursor</li>
+          <li>Drag distance is defined at 1000 DPI and scaled to the mouse's DPI, so one value is one physical flick</li>
+          <li>Arrows on the gesture pad, and its corners are translated</li>
+          <li>Haptics no longer go silent after the mouse wakes from radio sleep</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.5~beta.2" date="2026-09-25" type="development">
       <description>
         <p>Second beta of 0.4.5: fixes from the first beta reports</p>
