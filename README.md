@@ -37,27 +37,45 @@
 
 ## Install
 
-Paste one line into a terminal as your normal user (not with `sudo`). The installer finds your distro, shows what it will change, and asks for `sudo` only for packages and system paths.
+Paste one line into a terminal as your normal user (not with `sudo`). The installer finds your distro, shows what it will change, and asks for `sudo` only for packages and system paths. It runs on these distributions and their derivatives:
 
-**Fedora, Ubuntu, Debian, Linux Mint, Pop!_OS, Zorin, Arch, Manjaro, EndeavourOS, CachyOS, openSUSE** and their derivatives:
+![Fedora](https://img.shields.io/badge/Fedora-51A2DA?logo=fedora&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?logo=ubuntu&logoColor=white) ![Debian](https://img.shields.io/badge/Debian-A81D33?logo=debian&logoColor=white) ![Linux Mint](https://img.shields.io/badge/Linux_Mint-87CF3E?logo=linuxmint&logoColor=white) ![Pop!_OS](https://img.shields.io/badge/Pop!__OS-48B9C7?logo=popos&logoColor=white) ![Zorin](https://img.shields.io/badge/Zorin-15A6F0?logo=zorin&logoColor=white)<br>
+![Arch](https://img.shields.io/badge/Arch-1793D1?logo=archlinux&logoColor=white) ![Manjaro](https://img.shields.io/badge/Manjaro-35BF5C?logo=manjaro&logoColor=white) ![EndeavourOS](https://img.shields.io/badge/EndeavourOS-7F7FFF?logo=endeavouros&logoColor=white) ![CachyOS](https://img.shields.io/badge/CachyOS-1CB5E0?logo=cachyos&logoColor=white) ![openSUSE](https://img.shields.io/badge/openSUSE-73BA25?logo=opensuse&logoColor=white)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash
 ```
 
-**Bazzite, Fedora Silverblue, Kinoite and other image-based systems** (installs under `~/.local`; `sudo` only for the udev rules, `uinput` and the `input` group; add `--yes` to skip the questions):
+![Bazzite](https://img.shields.io/badge/Bazzite-7C3AED?logo=fedora&logoColor=white) ![Fedora Silverblue](https://img.shields.io/badge/Fedora_Silverblue-51A2DA?logo=fedora&logoColor=white) ![Kinoite](https://img.shields.io/badge/Kinoite-51A2DA?logo=fedora&logoColor=white)
+
+Image-based systems install under `~/.local`; `sudo` is used only for the udev rules, `uinput` and the `input` group (add `--yes` to skip the questions):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash -s -- --user
 ```
 
-**NixOS**, to try it without installing (the NixOS module is under [Other ways to install](#other-ways-to-install)):
+![NixOS](https://img.shields.io/badge/NixOS-5277C3?logo=nixos&logoColor=white)
+
+Try it without installing (the NixOS module is under [Other ways to install](#other-ways-to-install)):
 
 ```bash
 nix run github:JuhLabs/juhradial-mx
 ```
 
 If the installer adds you to the `input` group, log out and back in once. Minimal systems may need `curl` first (`sudo apt install curl` on Debian and Ubuntu). Coming from 0.4.4? Run the same line again; [Upgrading from 0.4.4](#upgrading-from-044) has the details.
+
+### Other ways to install
+
+| Path | How |
+|---|---|
+| **Debian / Ubuntu package** | Download the `.deb` from the [release](https://github.com/JuhLabs/juhradial-mx/releases), then `sudo apt install ./juhradial-mx_*.deb` |
+| **Fedora package** | Download the `.rpm` from the [release](https://github.com/JuhLabs/juhradial-mx/releases), then `sudo dnf install ./juhradial-mx-*.rpm` |
+| **Arch Linux** | Build [packaging/arch/PKGBUILD](packaging/arch/PKGBUILD) with `makepkg -si` (not on the AUR yet) |
+| **NixOS module** | Add the flake input, import `juhradial-mx.nixosModules.default` and set `services.juhradial-mx.enable = true;` |
+| **From source** | [Clone the repository](https://github.com/JuhLabs/juhradial-mx.git), build `daemon/` with Cargo, then run `scripts/juhradial-mx.sh` |
+| **Flatpak** | An experimental [manifest](packaging/org.juhlabs.JuhRadialMX.yaml); not published |
+
+The `.deb` and `.rpm` install the program, udev rules and user service, but not the per-user setup the installer does. After installing one, add yourself to the `input` group (`sudo usermod -aG input $USER`), log out and back in, run `systemctl --user enable --now juhradialmx-daemon`, then start `juhradial-mx`. GNOME needs the cursor helper extension, which only the one-line installer sets up, so GNOME users should prefer the installer. The [installation guide](https://juhlabs.github.io/juhradial-mx/installation/) covers requirements, manual setup per distro and NixOS.
 
 <!-- DEMO GIF: record a short 3-5s clip of the radial menu (hold the gesture button,
      drag to a slice, release), save it as assets/github/demo.gif, and uncomment:
@@ -205,20 +223,6 @@ Bolt, Unifying and Bluetooth connections are supported, including two receivers 
 - **Settings on Qt older than 6.9** (for example Ubuntu 24.04 and Debian 13). The previous GTK Settings app opens instead, without the MX Keypad tab and the other new pages; the radial menu, buttons and keypad keep working. Debian 12 (Qt 6.4, libadwaita 1.2) can run neither Settings app. *Workaround:* set things up in the new app on another computer and bring them over with **Backup**, or edit `~/.config/juhradial/config.json`. *Being worked on:* the new Settings app on older Qt versions.
 
 See [compositor support](https://juhlabs.github.io/juhradial-mx/compositor-support/) for the details per desktop.
-
-## Other ways to install
-
-| Path | How |
-|---|---|
-| **Debian / Ubuntu package** | Download the `.deb` from the [release](https://github.com/JuhLabs/juhradial-mx/releases), then `sudo apt install ./juhradial-mx_*.deb` |
-| **Fedora package** | Download the `.rpm` from the [release](https://github.com/JuhLabs/juhradial-mx/releases), then `sudo dnf install ./juhradial-mx-*.rpm` |
-| **Arch Linux** | Build [packaging/arch/PKGBUILD](packaging/arch/PKGBUILD) with `makepkg -si` (not on the AUR yet) |
-| **NixOS module** | Add the flake input, import `juhradial-mx.nixosModules.default` and set `services.juhradial-mx.enable = true;` |
-| **Nix, try it** | `nix run github:JuhLabs/juhradial-mx` |
-| **From source** | [Clone the repository](https://github.com/JuhLabs/juhradial-mx.git), build `daemon/` with Cargo, then run `scripts/juhradial-mx.sh` |
-| **Flatpak** | An experimental [manifest](packaging/org.juhlabs.JuhRadialMX.yaml); not published |
-
-The `.deb` and `.rpm` install the program, udev rules and user service, but not the per-user setup the installer does. After installing one, add yourself to the `input` group (`sudo usermod -aG input $USER`), log out and back in, run `systemctl --user enable --now juhradialmx-daemon`, then start `juhradial-mx`. GNOME needs the cursor helper extension, which only the one-line installer sets up, so GNOME users should prefer the installer. The [installation guide](https://juhlabs.github.io/juhradial-mx/installation/) covers requirements, manual setup per distro and NixOS.
 
 ## Upgrading from 0.4.4
 
@@ -416,7 +420,7 @@ If JuhRadial MX is useful to you, a star helps other Linux users find the projec
 
 ## Trademark notice
 
-JuhRadial MX is not affiliated with, endorsed by, or associated with Logitech. Logitech, MX Master, MX Keys, MX Keypad, Logi Options+, and related names are trademarks of Logitech International S.A. This is an independent, community-built open-source project.
+JuhRadial MX is not affiliated with, endorsed by, or associated with Logitech. Logitech, MX Master, MX Keys, MX Keypad, Logi Options+, and related names are trademarks of Logitech International S.A. Distribution names and logos belong to their respective projects and appear only to say where JuhRadial MX runs. This is an independent, community-built open-source project.
 
 <p align="center">
   Maintained by <a href="https://github.com/JuhLabs">JuhLabs</a>
