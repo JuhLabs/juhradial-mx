@@ -2799,8 +2799,14 @@ async fn emit_hardware_notification(
         HN::DpiChanged { dpi } => {
             info!(dpi, "DPI changed (notification)");
             // The gesture drag distance scales by the DPI the mouse runs at,
-            // whoever changed it.
-            juhradiald::hidpp::device::remember_dpi(dpi);
+            // whoever changed it. Only a value a sensor can run at is taken:
+            // 0x2201 has no documented event, so should a firmware send one
+            // with a different payload layout, the decoded number must not
+            // replace the DPI the daemon set or read (replay.rs uses the same
+            // bounds for config.json).
+            if (100..=25_600).contains(&dpi) {
+                juhradiald::hidpp::device::remember_dpi(dpi);
+            }
             connection
                 .emit_signal(None::<&str>, DBUS_PATH, iface, "DpiChanged", &(dpi,))
                 .await?;
