@@ -2,7 +2,7 @@
 # Build: rpmbuild -ba juhradial-mx.spec
 
 Name:           juhradial-mx
-Version:        0.4.5~beta.2
+Version:        0.4.5~beta.3
 Release:        1%{?dist}
 Summary:        Beautiful radial menu for Logitech MX Master mice on Linux
 
@@ -144,6 +144,12 @@ install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdi
 %{_udevrulesdir}/99-juhradialmx.rules
 %{_udevrulesdir}/60-ydotool-uinput.rules
 %changelog
+* Sat Sep 26 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.3-1
+- Directional gestures: the gesture button is diverted with raw XY, so a
+  flick no longer moves the cursor; drag distance is defined at 1000 DPI
+  and scaled to the mouse's DPI; arrows on the gesture pad
+- Haptics no longer go silent after the mouse wakes from radio sleep
+
 * Fri Sep 25 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.2-1
 - A grabbed mouse keeps its grab through unrelated input hotplugs
   (no button stays stuck for the whole desktop)
