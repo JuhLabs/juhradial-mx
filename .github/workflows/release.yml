@@ -199,9 +199,46 @@ jobs:
           path: rpm-out/
           if-no-files-found: error
 
+  # The settings app and overlay suite (the same job as CI), on the tag
+  # itself: a tag cut outside the tested branch history must not produce
+  # release assets that CI never saw.
+  python-tests:
+    name: Python tests
+    needs: [linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.linux.outputs.tag }}
+
+      - name: Install system Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-pytest \
+            python3-pyqt6 \
+            python3-pyqt6.qtsvg \
+            python3-gi \
+            python3-gi-cairo \
+            gir1.2-gtk-4.0 \
+            gir1.2-adw-1 \
+            python3-pil \
+            python3-numpy \
+            libegl1 \
+            libgl1 \
+            libxkbcommon0
+
+      - name: Run Python tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python3 -m pytest -q tests/
+
   release:
     name: Draft GitHub Release
-    needs: [linux, deb, rpm]
+    needs: [linux, deb, rpm, python-tests]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
