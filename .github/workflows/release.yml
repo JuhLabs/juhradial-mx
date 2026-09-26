@@ -199,9 +199,78 @@ jobs:
           path: rpm-out/
           if-no-files-found: error
 
+  # The settings app and overlay suite (the same job as CI), on the tag
+  # itself: a tag cut outside the tested branch history must not produce
+  # release assets that CI never saw.
+  python-tests:
+    name: Python tests
+    needs: [linux]
+    runs-on: ubuntu-latest
+    # The settings app needs Qt 6.9 or newer with QtQml; Ubuntu's packages
+    # are Qt 6.4 and the PyPI PyQt6 wheel lacks the Qt libraries its own
+    # QML plugins need (QtQuick.VectorImage, QtQmlCore). Fedora ships the
+    # full Qt the app runs on, so the suite runs there.
+    container: fedora:44
+    timeout-minutes: 15
+
+    steps:
+      - name: Install Python, Qt and GTK test dependencies
+        run: |
+          dnf -y install \
+            git \
+            python3-pytest \
+            python3-pyqt6 \
+            python3-gobject \
+            python3-cairo \
+            gtk4 \
+            libadwaita \
+            python3-pillow \
+            python3-numpy \
+            python3-cryptography \
+            python3-requests \
+            python3-zeroconf \
+            qt6-qtdeclarative \
+            qt6-qtsvg \
+            mesa-libEGL \
+            mesa-libGL \
+            libxkbcommon \
+            dejavu-sans-fonts
+
+      - name: Checkout tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.linux.outputs.tag }}
+
+      - name: Qt 6.9+ with QtQml is present
+        run: |
+          python3 - <<'PY'
+          from PyQt6 import QtCore, QtQml, QtSvg
+          assert QtCore.QT_VERSION >= 0x060900, QtCore.QT_VERSION_STR
+          print("Qt", QtCore.QT_VERSION_STR, "PyQt", QtCore.PYQT_VERSION_STR)
+          PY
+
+      # The container runs as root; the installer test refuses root (as the
+      # installer itself does), so the suite runs as an ordinary user.
+      - name: Run Python tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          useradd -m ci
+          chown -R ci .
+          runuser -u ci -- env QT_QPA_PLATFORM=offscreen python3 -m pytest -q -rs tests/
+
+      # The QML modules must have run, not skipped: a skip here means the
+      # settings app's QML was never compiled by this job.
+      - name: QML tests ran (no skips)
+        run: |
+          runuser -u ci -- env QT_QPA_PLATFORM=offscreen python3 -m pytest -q -rs tests/test_settings_qt_smoke.py tests/test_qml_slot_arguments.py | tee qml-tests.log
+          if grep -q "SKIP" qml-tests.log; then
+            echo "QML tests were skipped" >&2
+            exit 1
+          fi
   release:
     name: Draft GitHub Release
-    needs: [linux, deb, rpm]
+    needs: [linux, deb, rpm, python-tests]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
