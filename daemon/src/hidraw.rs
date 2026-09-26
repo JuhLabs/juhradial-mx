@@ -30,6 +30,11 @@ pub const FEATURE_REPROG_CONTROLS_V4: u16 = 0x1B04;
 
 /// Diverted button notification function ID
 pub const DIVERTED_BUTTONS_EVENT: u8 = 0x00;
+/// REPROG_CONTROLS_V4 divertedRawMouseXYDataEvent (function 1): the motion
+/// of a button diverted with raw XY while it is held, `dx` and `dy` as
+/// big-endian i16 in bytes 4-7. The mouse sends these instead of moving the
+/// pointer, so a directional gesture leaves the cursor where it was.
+pub const RAW_XY_EVENT: u8 = 0x01;
 
 /// HID++ 1.0 receiver notification sub-id: "device connection". Bolt and
 /// Unifying receivers emit this SHORT report when a paired device's radio
@@ -525,6 +530,18 @@ impl HidrawHandler {
                     return;
                 }
             }
+
+            // Raw XY motion of the diverted gesture button (directional
+            // gestures). Gated on the REPROG_CONTROLS_V4 index: other
+            // features' function-1 events (and getCidInfo replies, which
+            // carry a non-zero sw_id and never reach here) must not count as
+            // a drag.
+            if function_id == RAW_XY_EVENT
+                && self.notification_indices.reprog_controls == Some(feature_index)
+            {
+                self.handle_raw_xy_event(data);
+                return;
+            }
         }
 
         // Check for diverted button event (feature 0x1B04, function 0x00)
@@ -586,6 +603,20 @@ impl HidrawHandler {
                     })
                     .await;
             }
+        }
+    }
+
+    /// Feed a divertedRawMouseXYDataEvent to the gesture tracker. The tracker
+    /// ignores samples outside a directional press, so nothing is counted for
+    /// a raw XY report that arrives while no press is in flight.
+    fn handle_raw_xy_event(&self, data: &[u8]) {
+        if data.len() < 8 {
+            return;
+        }
+        let dx = i32::from(i16::from_be_bytes([data[4], data[5]]));
+        let dy = i32::from(i16::from_be_bytes([data[6], data[7]]));
+        if let Some(tracker) = &self.gesture_tracker {
+            tracker.accumulate(dx, dy);
         }
     }
 
@@ -664,7 +695,11 @@ impl HidrawHandler {
                     .as_ref()
                     .and_then(|c| c.read().ok().map(|c| c.buttons.gesture_directions.threshold_px))
                     .unwrap_or(0);
-                tracker.set_threshold(threshold);
+                // In the mouse's own counts at the DPI it runs now.
+                tracker.set_threshold(crate::gesture::scaled_threshold(
+                    threshold,
+                    crate::hidpp::device::known_dpi(),
+                ));
                 tracker.start();
             }
             tracing::debug!(cid, "Gesture button pressed (directional)");
@@ -1035,6 +1070,58 @@ mod tests {
         assert!(!tracker.is_active());
         assert!(!h.directional_press);
         assert!(h.press_time.is_none());
+    }
+
+    /// REPROG_CONTROLS_V4 divertedRawMouseXYDataEvent on feature index
+    /// `feature` (function 1, sw_id 0): dx and dy as big-endian i16.
+    fn raw_xy_report(feature: u8, dx: i16, dy: i16) -> [u8; 20] {
+        let mut report = [0u8; 20];
+        report[0] = 0x11;
+        report[1] = 0x02;
+        report[2] = feature;
+        report[3] = RAW_XY_EVENT << 4;
+        report[4..6].copy_from_slice(&dx.to_be_bytes());
+        report[6..8].copy_from_slice(&dy.to_be_bytes());
+        report
+    }
+
+    /// With the gesture button diverted with raw XY the drag arrives as HID++
+    /// events on the REPROG_CONTROLS_V4 index (the pointer does not move):
+    /// they count toward the gesture exactly as evdev motion would.
+    #[tokio::test]
+    async fn raw_xy_events_feed_the_directional_drag() {
+        let (mut h, mut rx, tracker) = directional_handler(true);
+        h.set_notification_indices(crate::hidpp::notifications::NotificationIndices {
+            reprog_controls: Some(0x0b),
+            ..Default::default()
+        });
+
+        // Motion before the press is not a drag.
+        h.process_hidpp_report(&raw_xy_report(0x0b, 50, 50)).await;
+        h.handle_button_event(&diverted_button_report(button_cid::GESTURE_BUTTON)).await;
+        assert!(tracker.is_active());
+        h.process_hidpp_report(&raw_xy_report(0x0b, -40, 5)).await;
+        h.process_hidpp_report(&raw_xy_report(0x0b, -30, 7)).await;
+        // Function 1 on another feature's index is not motion.
+        h.process_hidpp_report(&raw_xy_report(0x0c, 100, 100)).await;
+        // A getCidInfo reply (function 1, our sw_id) on the same index is not motion.
+        let mut reply = raw_xy_report(0x0b, 100, 100);
+        reply[3] |= 0x01;
+        h.process_hidpp_report(&reply).await;
+        // Fewer than four parameter bytes: ignored rather than misread.
+        h.process_hidpp_report(&raw_xy_report(0x0b, 100, 100)[..7]).await;
+
+        h.handle_button_event(&diverted_button_report(0)).await;
+        let events = drain(&mut rx);
+        let released = events
+            .iter()
+            .find_map(|e| match e {
+                GestureEvent::GestureReleased { dx, dy, .. } => Some((*dx, *dy)),
+                _ => None,
+            })
+            .expect("GestureReleased");
+        assert_eq!(released, (-70, 12), "{events:?}");
+        assert!(!tracker.is_active());
     }
 
     /// A held Custom (hold-while-pressed keys) is released even when another

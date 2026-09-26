@@ -384,8 +384,9 @@ fn default_forward_action() -> ButtonAction { ButtonAction::Forward }
 fn default_back_action() -> ButtonAction { ButtonAction::Back }
 fn default_horizontal_scroll_action() -> ButtonAction { ButtonAction::ScrollLeftRight }
 fn default_direction_action() -> ButtonAction { ButtonAction::None }
-/// Sensor counts at the mouse's DPI (15 is about 0.4 mm at 1000 DPI): a
-/// thumb-held drag is short, especially forward and back.
+/// Sensor counts at 1000 DPI (15 is about 0.4 mm), scaled to the mouse's
+/// current DPI by `gesture::scaled_threshold`: a thumb-held drag is short,
+/// especially forward and back.
 fn default_gesture_threshold_px() -> u32 { 15 }
 
 /// Directional gestures on the gesture button: hold, drag, and a different
@@ -430,8 +431,10 @@ pub struct GestureDirectionsConfig {
     #[serde(default)]
     pub click: Option<ButtonAction>,
 
-    /// Movement below this many sensor counts (at the mouse's DPI) counts as
-    /// a click.
+    /// Movement below this many sensor counts, as if the mouse ran at
+    /// `gesture::REFERENCE_DPI` (1000), counts as a click. The daemon scales
+    /// it by the DPI the mouse runs at, so one value means one physical
+    /// distance at any DPI.
     #[serde(default = "default_gesture_threshold_px")]
     pub threshold_px: u32,
 }
@@ -1167,12 +1170,15 @@ impl Config {
     /// Classify a finished drag and resolve its action. Diagonals only take
     /// part once one of them has an action, and a diagonal left at `none`
     /// hands the drag to its dominant axis, so a four-way setup keeps working
-    /// unchanged when a single corner is filled in.
-    pub fn classify_gesture(&self, dx: i32, dy: i32) -> (crate::gesture::GestureDirection, ButtonAction) {
+    /// unchanged when a single corner is filled in. `dpi` is the DPI the
+    /// mouse runs at (the drag distance is defined at 1000 and scaled to it;
+    /// unknown = used as is).
+    pub fn classify_gesture(&self, dx: i32, dy: i32, dpi: Option<u16>) -> (crate::gesture::GestureDirection, ButtonAction) {
         let d = &self.buttons.gesture_directions;
-        let mut direction = crate::gesture::classify(dx, dy, d.threshold_px, d.has_diagonals());
+        let threshold = crate::gesture::scaled_threshold(d.threshold_px, dpi);
+        let mut direction = crate::gesture::classify(dx, dy, threshold, d.has_diagonals());
         if direction.is_diagonal() && self.gesture_direction_action(direction) == ButtonAction::None {
-            direction = crate::gesture::classify(dx, dy, d.threshold_px, false);
+            direction = crate::gesture::classify(dx, dy, threshold, false);
         }
         (direction, self.gesture_direction_action(direction))
     }
@@ -1427,17 +1433,24 @@ mod tests {
         }"#).unwrap();
         assert!(!four_way.buttons.gesture_directions.has_diagonals());
         // Up-right at 45 degrees resolves to the horizontal axis, as before.
-        assert_eq!(four_way.classify_gesture(50, -50), (GestureDirection::Right, ButtonAction::Forward));
+        assert_eq!(four_way.classify_gesture(50, -50, None), (GestureDirection::Right, ButtonAction::Forward));
 
         let with_corner: Config = serde_json::from_str(r#"{
             "buttons": { "gesture_directions": { "enabled": true, "up": "show_desktop", "right": "forward",
                 "up_right": "maximize_window", "threshold_px": 10 } }
         }"#).unwrap();
         assert!(with_corner.buttons.gesture_directions.has_diagonals());
-        assert_eq!(with_corner.classify_gesture(50, -50), (GestureDirection::UpRight, ButtonAction::MaximizeWindow));
+        assert_eq!(with_corner.classify_gesture(50, -50, None), (GestureDirection::UpRight, ButtonAction::MaximizeWindow));
         // An unassigned corner hands the drag to its dominant axis.
-        assert_eq!(with_corner.classify_gesture(-40, -50), (GestureDirection::Up, ButtonAction::ShowDesktop));
-        assert_eq!(with_corner.classify_gesture(3, -2), (GestureDirection::Click, ButtonAction::VirtualDesktops));
+        assert_eq!(with_corner.classify_gesture(-40, -50, None), (GestureDirection::Up, ButtonAction::ShowDesktop));
+        assert_eq!(with_corner.classify_gesture(3, -2, None), (GestureDirection::Click, ButtonAction::VirtualDesktops));
+        // The distance is defined at 1000 DPI: at 4000 the same setting is
+        // four times the counts, so a 12-count drag is a click there and a
+        // 40-count one is not; at 500 it is half.
+        assert_eq!(with_corner.classify_gesture(0, -12, Some(4000)).0, GestureDirection::Click);
+        assert_eq!(with_corner.classify_gesture(0, -40, Some(4000)).0, GestureDirection::Up);
+        assert_eq!(with_corner.classify_gesture(0, -5, Some(500)).0, GestureDirection::Up);
+        assert_eq!(with_corner.classify_gesture(0, -12, Some(1000)).0, GestureDirection::Up);
     }
 
     #[test]

@@ -231,9 +231,9 @@ A direction set to `custom` runs the custom action saved under `buttons.custom.g
 | `up`, `down`, `left`, `right` | Action for a drag in that direction. Any button action the picker offers (not `radial_menu`, `dpi_shift`, or the thumb wheel's `scroll_left_right`), including `custom`. | `none` |
 | `up_left`, `up_right`, `down_left`, `down_right` | Optional diagonal actions; see above for how they change the classification. | `none` |
 | `click` | Action for a press without a drag. Omit it to keep using `buttons.gesture`. | unset |
-| `threshold_px` | Movement below this many sensor counts (at the mouse's DPI, so 15 is about 0.4 mm at 1000 DPI) counts as a click. Thumb-held drags are short, especially forward and back, so keep it low. | `15` |
+| `threshold_px` | Movement below this many sensor counts, as if the mouse ran at 1000 DPI, counts as a click (15 is about 0.4 mm). The daemon scales it by the DPI the mouse runs at, so one value means one physical flick whether the sensor is at 800 or 4000. Thumb-held drags are short, especially forward and back, so keep it low. | `15` |
 
-The drag is measured from the mouse's own relative motion, so it works on every compositor, and a directional press never opens the radial menu. This applies to the HID++-diverted gesture button (the normal state on the MX Master 4, 3S and 3); it is not available on the evdev-only fallback path.
+The gesture button is diverted with HID++ raw XY while directional gestures are on: the mouse reports the drag over HID++ and the pointer stays where it was, so a gesture never nudges the cursor off what you were pointing at. On a mouse whose gesture button does not offer raw XY the drag is measured from the mouse's relative motion instead (and the pointer moves with it). Either way it works on every compositor, and a directional press never opens the radial menu. This applies to the HID++-diverted gesture button (the normal state on the MX Master 4, 3S and 3); it is not available on the evdev-only fallback path.
 
 !!! warning
     The gesture and actions-ring (thumb) buttons are always diverted to the daemon. The back, forward, middle, and shift-wheel buttons are only HID++-diverted when you reassign them away from their native default. Leaving one at its default keeps the firmware behaviour intact (and reassigning back to the default releases the divert without a reconnect). Reassigning `horizontal_scroll` is recorded in the schema but the thumb wheel's native scroll is handled by the `thumbwheel` section below.
@@ -434,7 +434,7 @@ The Settings app's submenu editor has an **App…** button per row for picking a
 | --- | --- | --- | --- |
 | `speed` | int | `10` | Pointer speed |
 | `acceleration` | bool | `true` | Enable pointer acceleration |
-| `dpi` | int | (UI) | Explicit DPI, written when set in the Point & Scroll page |
+| `dpi` | int | (UI) | Explicit DPI, written when set in the Point & Scroll page. The daemon re-applies it on every (re)connect; remove the key to leave the DPI to the mouse or to another tool (Solaar, libratbag), since only keys present in the file are ever written to the device |
 | `accel_profile` | string | `adaptive` | Acceleration profile when written by the UI |
 
 ## Flow

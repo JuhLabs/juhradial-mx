@@ -324,8 +324,8 @@ class ButtonConfigDialog(Adw.Window):
 
         threshold_row = Adw.ActionRow()
         threshold_row.set_title(_("Drag distance"))
-        threshold_row.set_subtitle(_("Sensor counts below which a press is a click (15 is about 0.4 mm at 1000 DPI)"))
-        spin = Gtk.SpinButton.new_with_range(5, 400, 5)
+        threshold_row.set_subtitle(_("Sensor counts at 1000 DPI below which a press is a click, scaled to the mouse's DPI (15 is about 0.4 mm)"))
+        spin = Gtk.SpinButton.new_with_range(1, 400, 1)
         spin.set_valign(Gtk.Align.CENTER)
         spin.set_value(int(saved.get("threshold_px", 15)))
         spin.set_sensitive(enabled)

@@ -388,6 +388,7 @@ impl JuhRadialService {
                 }
                 let thumbwheel_config = new_config.thumbwheel.clone();
                 let remapped_cids = new_config.remapped_button_cids();
+                let gesture_raw_xy = new_config.directional_gestures_enabled();
                 // Extra controls (buttons.controls) from both the new and the
                 // outgoing config, so a key that was removed still gets its
                 // divert cleared below.
@@ -467,7 +468,9 @@ impl JuhRadialService {
                         // divert is volatile and the mouse clears it on
                         // power-off / radio sleep (issue #102), so a Settings
                         // save doubles as a manual recovery without waiting
-                        // for the next reconnect.
+                        // for the next reconnect. Raw XY on the gesture button
+                        // follows the directional gestures switch.
+                        manager.set_gesture_raw_xy(gesture_raw_xy);
                         match manager.divert_buttons() {
                             Ok(n) if n > 0 => tracing::info!(
                                 count = n,

@@ -58,6 +58,9 @@ pub struct HapticManager {
     monitor_switch_enabled: bool,
     /// Last pulse timestamp for debouncing (milliseconds)
     last_pulse_ms: u64,
+    /// Divert the gesture button with raw XY (directional gestures on), so
+    /// the reconnect divert applies the same flags as the first one.
+    gesture_raw_xy: bool,
     /// Connection state for reconnection logic
     connection_state: ConnectionState,
     /// Timestamp of last disconnect/failure for cooldown
@@ -134,6 +137,7 @@ impl HapticManager {
             window_switch_enabled: true,
             monitor_switch_enabled: true,
             last_pulse_ms: 0,
+            gesture_raw_xy: false,
             connection_state: ConnectionState::NotConnected,
             last_disconnect_ms: 0,
             debounce_ms: 20,
@@ -178,6 +182,7 @@ impl HapticManager {
             window_switch_enabled: config.window_switch_enabled,
             monitor_switch_enabled: config.monitor_switch_enabled,
             last_pulse_ms: 0,
+            gesture_raw_xy: false,
             connection_state: ConnectionState::NotConnected,
             last_disconnect_ms: 0,
             debounce_ms: config.debounce_ms,
@@ -272,10 +277,16 @@ impl HapticManager {
         }
     }
 
+    /// Whether the gesture button is diverted with raw XY (directional
+    /// gestures on): every divert, including the reconnect one, applies it.
+    pub fn set_gesture_raw_xy(&mut self, enabled: bool) {
+        self.gesture_raw_xy = enabled;
+    }
+
     /// Divert gesture buttons so HID++ notifications are sent
     pub fn divert_buttons(&mut self) -> Result<u8, HapticError> {
         match &mut self.device {
-            Some(device) => device.divert_buttons(),
+            Some(device) => device.divert_buttons(self.gesture_raw_xy),
             None => {
                 tracing::debug!("No device connected, cannot divert buttons");
                 Ok(0)
@@ -1034,6 +1045,7 @@ impl HapticManager {
             dpi: device.feature_index(features::ADJUSTABLE_DPI),
             hires_wheel: device.feature_index(features::HIRES_WHEEL),
             wireless_status: device.feature_index(features::WIRELESS_DEVICE_STATUS),
+            reprog_controls: device.feature_index(features::REPROG_CONTROLS_V4),
         }
     }
 

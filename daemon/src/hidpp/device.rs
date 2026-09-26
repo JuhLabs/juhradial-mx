@@ -21,6 +21,25 @@ use super::patterns::Mx4HapticPattern;
 /// Software ID for HID++ message tracking
 const SOFTWARE_ID: u8 = 0x01;
 
+/// The sensor DPI the daemon last set or read on the connected mouse
+/// (0 = not known yet). Every DPI writer (Settings, replay, app profiles,
+/// gaming mode, the DPI buttons, precision hold) goes through `set_dpi` and
+/// every reader through `get_dpi`, so this follows the mouse without a
+/// request per gesture; the directional gesture drag distance scales by it.
+static KNOWN_DPI: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
+
+/// The DPI the mouse was last set to or read at, if any.
+pub fn known_dpi() -> Option<u16> {
+    match KNOWN_DPI.load(std::sync::atomic::Ordering::Relaxed) {
+        0 => None,
+        dpi => Some(dpi),
+    }
+}
+
+fn remember_dpi(dpi: u16) {
+    KNOWN_DPI.store(dpi, std::sync::atomic::Ordering::Relaxed);
+}
+
 /// Wait for `fd` to become readable, up to `deadline`.
 ///
 /// Used by the HID++ request loops (here and in the battery module) instead of
@@ -123,6 +142,10 @@ pub struct HidppDevice {
     /// True once `divert_buttons` saw the gesture button (CID 0x00C3) in the
     /// REPROG_CONTROLS_V4 table (connection-scoped; read by GetCapabilities).
     gesture_button_seen: bool,
+    /// The gesture button was diverted with raw XY on this connection. The
+    /// raw XY change gate is written only to set it or to clear it, so a
+    /// mouse that never had it sees exactly the divert bytes it always did.
+    gesture_raw_xy_applied: bool,
 }
 
 /// Unit id from a `getDeviceInfo` reply (bytes 5..9, big-endian); zero means
@@ -763,6 +786,7 @@ impl HidppDevice {
                     unit_id: None,
                     firmware: None,
                     gesture_button_seen: false,
+            gesture_raw_xy_applied: false,
                     device_path: device_path.clone(),
                 };
 
@@ -1139,6 +1163,7 @@ impl HidppDevice {
                     unit_id: None,
                     firmware: None,
                     gesture_button_seen: false,
+            gesture_raw_xy_applied: false,
                     device_path: device_path.clone(),
                 };
 
@@ -1756,7 +1781,15 @@ impl HidppDevice {
     ///
     /// - 0x00C3 (195): Gesture button (thumb button on MX Master 4)
     /// - 0x01A0 (416): Haptic button (if present as separate control)
-    pub fn divert_buttons(&mut self) -> Result<u8, HapticError> {
+    ///
+    /// With `gesture_raw_xy` the gesture button is also diverted with raw XY
+    /// when the control supports it: while it is held the mouse reports its
+    /// motion as HID++ `divertedRawMouseXYDataEvent`s instead of moving the
+    /// pointer, so a directional gesture leaves the cursor where it was. A
+    /// control that reports the capability gets the flag written explicitly
+    /// either way, so turning directional gestures off clears it on the next
+    /// divert (ReloadConfig, reconnect) too.
+    pub fn divert_buttons(&mut self, gesture_raw_xy: bool) -> Result<u8, HapticError> {
         let feature_index = match self.reprog_controls_feature_index {
             Some(idx) => idx,
             None => {
@@ -1765,7 +1798,7 @@ impl HidppDevice {
             }
         };
 
-        tracing::info!(feature_index, "Diverting gesture buttons via REPROG_CONTROLS_V4");
+        tracing::info!(feature_index, gesture_raw_xy, "Diverting gesture buttons via REPROG_CONTROLS_V4");
 
         // Function 0: getCount() - get number of remappable controls
         let count = match self.hidpp_request(feature_index, 0x00, &[]) {
@@ -1799,6 +1832,7 @@ impl HidppDevice {
             let cid = ((resp[4] as u16) << 8) | (resp[5] as u16);
             let flags = resp[8];
             let divertable = (flags & 0x20) != 0;
+            let raw_xy_capable = ControlInfo::from_report(&resp).is_some_and(|c| c.raw_xy());
             if cid == GESTURE_BUTTON_CID {
                 self.gesture_button_seen = true;
             }
@@ -1828,12 +1862,19 @@ impl HidppDevice {
                 //   bit 4: RawXYDiverted         (0x10) - divert raw XY movement
                 //   bit 5: ChangeRawXYDivert     (0x20) - MUST set to apply bit 4
                 //
-                // We set divert + change gate = 0x03. No persist, no rawXY.
-                let divert_flags: u8 = 0x03; // TemporaryDiverted | ChangeTemporaryDivert
+                // We set divert + change gate = 0x03. No persist. Raw XY only
+                // on the gesture button, only when the control advertises it
+                // (getCidInfo additional flags bit 0) and only for directional
+                // gestures; its change gate is written to set it, and to clear
+                // it again on the connection that set it.
+                let raw_xy = cid == GESTURE_BUTTON_CID && raw_xy_capable && gesture_raw_xy;
+                let clear_raw_xy = cid == GESTURE_BUTTON_CID && self.gesture_raw_xy_applied && !raw_xy;
+                let divert_flags: u8 = 0x03 // TemporaryDiverted | ChangeTemporaryDivert
+                    | if raw_xy { 0x30 } else if clear_raw_xy { 0x20 } else { 0x00 };
                 let params: &[u8] = &[
                     (cid >> 8) as u8,   // CID high byte
                     (cid & 0xFF) as u8, // CID low byte
-                    divert_flags,       // 0x03: divert=true with change gate
+                    divert_flags,       // divert=true with change gate (+ raw XY)
                     0x00,               // remap target CID high (0 = no remap)
                     0x00,               // remap target CID low  (0 = no remap)
                 ];
@@ -1842,9 +1883,14 @@ impl HidppDevice {
                     Some(resp) => {
                         tracing::info!(
                             cid = format!("0x{:04X}", cid),
+                            raw_xy,
+                            flags = format!("0x{:02X}", divert_flags),
                             response = format!("{:02X?}", &resp[4..resp.len().min(9)]),
                             "Button diverted successfully"
                         );
+                        if cid == GESTURE_BUTTON_CID {
+                            self.gesture_raw_xy_applied = raw_xy;
+                        }
                         diverted += 1;
                     }
                     None => {
@@ -2392,6 +2438,9 @@ impl HidppDevice {
                     dpi = ((resp[7] as u16) << 8) | (resp[8] as u16);
                 }
                 tracing::debug!(dpi, "Got current DPI");
+                if dpi != 0 {
+                    remember_dpi(dpi);
+                }
                 (dpi != 0).then_some(dpi)
             } else {
                 tracing::warn!("Invalid getSensorDpi response length: {}", resp.len());
@@ -2435,9 +2484,11 @@ impl HidppDevice {
                 if resp.len() >= 7 {
                     let confirmed_dpi = ((resp[5] as u16) << 8) | (resp[6] as u16);
                     tracing::info!(requested_dpi = dpi, confirmed_dpi, "DPI set successfully");
+                    remember_dpi(if confirmed_dpi != 0 { confirmed_dpi } else { dpi });
                     Ok(())
                 } else {
                     tracing::warn!("Short setSensorDpi response, but command may have succeeded");
+                    remember_dpi(dpi);
                     Ok(())
                 }
             }

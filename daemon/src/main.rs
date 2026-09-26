@@ -453,6 +453,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize haptic manager for MX4 haptic feedback
     let haptic_config = shared_config.read().unwrap().haptics.clone();
     let haptic_manager = new_shared_haptic_manager(&haptic_config);
+    // Directional gestures divert the gesture button with raw XY, so the
+    // drag comes over HID++ and the pointer stays put (ReloadConfig keeps
+    // this in step with the switch).
+    let gesture_raw_xy = shared_config
+        .read()
+        .map(|c| c.directional_gestures_enabled())
+        .unwrap_or(false);
+    haptic_manager.lock().unwrap().set_gesture_raw_xy(gesture_raw_xy);
 
     // Try to connect to MX Master 4 for haptic feedback and divert gesture buttons.
     // HID++ probing does blocking hidraw I/O with std::thread::sleep, running it
@@ -1497,6 +1505,10 @@ async fn refresh_hidpp_button_diverts(
             Ok(_) => warn!("No HID++ gesture buttons found to divert"),
             Err(e) => warn!(error = %e, "Failed to divert HID++ gesture buttons"),
         }
+        // The DPI the mouse (re)connected at, for the directional gesture drag
+        // distance (device::known_dpi); every later DPI write or read keeps
+        // it current. After the divert so a parked radio delays nothing else.
+        let _ = manager.get_dpi();
 
         // Macro and reassigned CIDs all use the same REPROG_CONTROLS_V4 table,
         // so enumerate it once rather than once per configured control.
@@ -2578,7 +2590,8 @@ async fn process_gesture_events(
                 // Directional gesture: classify the drag and run the configured
                 // action. This path never touches ShowMenu/HideMenu.
                 let resolved = shared_config.read().ok().map(|cfg| {
-                    let (direction, action) = cfg.classify_gesture(dx, dy);
+                    let (direction, action) =
+                        cfg.classify_gesture(dx, dy, juhradiald::hidpp::device::known_dpi());
                     (direction, action, cfg.gesture_custom_slot(direction))
                 });
                 match resolved {

@@ -7216,3 +7216,31 @@ msgstr "≈ %1 linjer"
 
 #~ msgid "Which button opens the radial menu on this mouse"
 #~ msgstr "Hvilken knapp åpner radialmenyen på denne musen"
+
+#: settings-qt/qml/pages/ButtonsPage.qml
+msgid "Drag up-left"
+msgstr "Dra opp til venstre"
+
+#: settings-qt/qml/pages/ButtonsPage.qml
+msgid "Drag up-right"
+msgstr "Dra opp til høyre"
+
+#: settings-qt/qml/pages/ButtonsPage.qml
+msgid "Drag down-left"
+msgstr "Dra ned til venstre"
+
+#: settings-qt/qml/pages/ButtonsPage.qml
+msgid "Drag down-right"
+msgstr "Dra ned til høyre"
+
+#: settings-qt/qml/pages/ButtonsPage.qml
+msgid "Sensor counts at 1000 DPI below which a press is a click, scaled to the mouse's current DPI so the same flick registers at any DPI. 15 is about 0.4 mm; forward and back drags are short, so keep it low."
+msgstr "Sensorsteg ved 1000 DPI som et trykk må bevege seg mindre enn for å telle som et klikk, skalert til musens gjeldende DPI slik at samme flikk registreres uansett DPI. 15 er omtrent 0,4 mm; drag fram og tilbake er korte, så hold den lav."
+
+#: settings-qt/bridge/backend.py
+msgid "Maximize Window"
+msgstr "Maksimer vindu"
+
+#: settings-qt/bridge/backend.py
+msgid "Minimize Window"
+msgstr "Minimer vindu"

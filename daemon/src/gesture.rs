@@ -89,6 +89,31 @@ pub fn classify(dx: i32, dy: i32, threshold_px: u32, diagonals: bool) -> Gesture
     }
 }
 
+/// The DPI the drag distance is defined at: `threshold_px` in config.json is
+/// a count of sensor steps as if the mouse ran at this DPI.
+pub const REFERENCE_DPI: u16 = 1000;
+
+/// The drag distance in the mouse's own sensor counts at `dpi`.
+///
+/// A flick of the thumb covers the same fraction of a millimetre whatever
+/// the sensor resolution, but the counts it produces grow with the DPI, so a
+/// distance in raw counts that fits 1000 DPI misses every flick at 4000 and
+/// fires on nothing at 400. Scaling by the current DPI keeps one setting
+/// meaning one physical distance (Solaar divides its gesture motion by the
+/// DPI the same way). With the DPI unknown the counts are used as they are,
+/// which is exact at [`REFERENCE_DPI`]. A non-zero distance never scales
+/// down to zero, so a press with no motion at all stays a click.
+pub fn scaled_threshold(threshold_px: u32, dpi: Option<u16>) -> u32 {
+    match dpi {
+        Some(dpi) if dpi > 0 && threshold_px > 0 => {
+            let scaled = (u64::from(threshold_px) * u64::from(dpi) + u64::from(REFERENCE_DPI) / 2)
+                / u64::from(REFERENCE_DPI);
+            u32::try_from(scaled).unwrap_or(u32::MAX).max(1)
+        }
+        _ => threshold_px,
+    }
+}
+
 /// Cursor-delta accumulator for the press currently in flight.
 #[derive(Debug, Default)]
 pub struct GestureTracker {
@@ -179,6 +204,22 @@ mod tests {
             assert_eq!(classify(-40, 0, 40, diagonals), GestureDirection::Left);
             assert_eq!(classify(40, 0, 40, diagonals), GestureDirection::Right);
         }
+    }
+
+    #[test]
+    fn threshold_scales_with_the_dpi() {
+        // Identity at the reference DPI and when the DPI is unknown.
+        assert_eq!(scaled_threshold(15, Some(REFERENCE_DPI)), 15);
+        assert_eq!(scaled_threshold(15, None), 15);
+        assert_eq!(scaled_threshold(15, Some(0)), 15);
+        // The same physical flick at 4000 DPI is four times the counts.
+        assert_eq!(scaled_threshold(15, Some(4000)), 60);
+        assert_eq!(scaled_threshold(3, Some(4000)), 12);
+        // Rounded, never zero for a non-zero distance.
+        assert_eq!(scaled_threshold(15, Some(400)), 6);
+        assert_eq!(scaled_threshold(1, Some(200)), 1);
+        // A zero distance (tick disabled) stays zero.
+        assert_eq!(scaled_threshold(0, Some(4000)), 0);
     }
 
     #[test]
