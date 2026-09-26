@@ -59,6 +59,19 @@ nix run github:JuhLabs/juhradial-mx
 
 If the installer adds you to the `input` group, log out and back in once. Minimal systems may need `curl` first (`sudo apt install curl` on Debian and Ubuntu). Coming from 0.4.4? Run the same line again; [Upgrading from 0.4.4](#upgrading-from-044) has the details.
 
+### Other ways to install
+
+| Path | How |
+|---|---|
+| **Debian / Ubuntu package** | Download the `.deb` from the [release](https://github.com/JuhLabs/juhradial-mx/releases), then `sudo apt install ./juhradial-mx_*.deb` |
+| **Fedora package** | Download the `.rpm` from the [release](https://github.com/JuhLabs/juhradial-mx/releases), then `sudo dnf install ./juhradial-mx-*.rpm` |
+| **Arch Linux** | Build [packaging/arch/PKGBUILD](packaging/arch/PKGBUILD) with `makepkg -si` (not on the AUR yet) |
+| **NixOS module** | Add the flake input, import `juhradial-mx.nixosModules.default` and set `services.juhradial-mx.enable = true;` |
+| **From source** | [Clone the repository](https://github.com/JuhLabs/juhradial-mx.git), build `daemon/` with Cargo, then run `scripts/juhradial-mx.sh` |
+| **Flatpak** | An experimental [manifest](packaging/org.juhlabs.JuhRadialMX.yaml); not published |
+
+The `.deb` and `.rpm` install the program, udev rules and user service, but not the per-user setup the installer does. After installing one, add yourself to the `input` group (`sudo usermod -aG input $USER`), log out and back in, run `systemctl --user enable --now juhradialmx-daemon`, then start `juhradial-mx`. GNOME needs the cursor helper extension, which only the one-line installer sets up, so GNOME users should prefer the installer. The [installation guide](https://juhlabs.github.io/juhradial-mx/installation/) covers requirements, manual setup per distro and NixOS.
+
 <!-- DEMO GIF: record a short 3-5s clip of the radial menu (hold the gesture button,
      drag to a slice, release), save it as assets/github/demo.gif, and uncomment:
 <div align="center">
@@ -205,20 +218,6 @@ Bolt, Unifying and Bluetooth connections are supported, including two receivers 
 - **Settings on Qt older than 6.9** (for example Ubuntu 24.04 and Debian 13). The previous GTK Settings app opens instead, without the MX Keypad tab and the other new pages; the radial menu, buttons and keypad keep working. Debian 12 (Qt 6.4, libadwaita 1.2) can run neither Settings app. *Workaround:* set things up in the new app on another computer and bring them over with **Backup**, or edit `~/.config/juhradial/config.json`. *Being worked on:* the new Settings app on older Qt versions.
 
 See [compositor support](https://juhlabs.github.io/juhradial-mx/compositor-support/) for the details per desktop.
-
-## Other ways to install
-
-| Path | How |
-|---|---|
-| **Debian / Ubuntu package** | Download the `.deb` from the [release](https://github.com/JuhLabs/juhradial-mx/releases), then `sudo apt install ./juhradial-mx_*.deb` |
-| **Fedora package** | Download the `.rpm` from the [release](https://github.com/JuhLabs/juhradial-mx/releases), then `sudo dnf install ./juhradial-mx-*.rpm` |
-| **Arch Linux** | Build [packaging/arch/PKGBUILD](packaging/arch/PKGBUILD) with `makepkg -si` (not on the AUR yet) |
-| **NixOS module** | Add the flake input, import `juhradial-mx.nixosModules.default` and set `services.juhradial-mx.enable = true;` |
-| **Nix, try it** | `nix run github:JuhLabs/juhradial-mx` |
-| **From source** | [Clone the repository](https://github.com/JuhLabs/juhradial-mx.git), build `daemon/` with Cargo, then run `scripts/juhradial-mx.sh` |
-| **Flatpak** | An experimental [manifest](packaging/org.juhlabs.JuhRadialMX.yaml); not published |
-
-The `.deb` and `.rpm` install the program, udev rules and user service, but not the per-user setup the installer does. After installing one, add yourself to the `input` group (`sudo usermod -aG input $USER`), log out and back in, run `systemctl --user enable --now juhradialmx-daemon`, then start `juhradial-mx`. GNOME needs the cursor helper extension, which only the one-line installer sets up, so GNOME users should prefer the installer. The [installation guide](https://juhlabs.github.io/juhradial-mx/installation/) covers requirements, manual setup per distro and NixOS.
 
 ## Upgrading from 0.4.4
 
