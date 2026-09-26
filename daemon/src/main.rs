@@ -453,6 +453,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize haptic manager for MX4 haptic feedback
     let haptic_config = shared_config.read().unwrap().haptics.clone();
     let haptic_manager = new_shared_haptic_manager(&haptic_config);
+    // Directional gestures divert the gesture button with raw XY, so the
+    // drag comes over HID++ and the pointer stays put (ReloadConfig keeps
+    // this in step with the switch).
+    let gesture_raw_xy = shared_config
+        .read()
+        .map(|c| c.directional_gestures_enabled())
+        .unwrap_or(false);
+    haptic_manager.lock().unwrap().set_gesture_raw_xy(gesture_raw_xy);
 
     // Try to connect to MX Master 4 for haptic feedback and divert gesture buttons.
     // HID++ probing does blocking hidraw I/O with std::thread::sleep, running it
@@ -1476,9 +1484,13 @@ async fn refresh_hidpp_button_diverts(
     haptic_manager: SharedHapticManager,
     macro_cids: Vec<u16>,
     remapped_cids: Vec<u16>,
+    gesture_raw_xy: bool,
 ) -> (Option<PathBuf>, Option<String>, Option<u32>) {
     match tokio::task::spawn_blocking(move || {
         let mut manager = haptic_manager.lock().unwrap();
+        // From the effective config (per-device overrides included), so the
+        // divert below and the manager's own reconnect divert agree.
+        manager.set_gesture_raw_xy(gesture_raw_xy);
         let connected = match manager.connect() {
             Ok(connected) => connected,
             Err(e) => {
@@ -1497,6 +1509,10 @@ async fn refresh_hidpp_button_diverts(
             Ok(_) => warn!("No HID++ gesture buttons found to divert"),
             Err(e) => warn!(error = %e, "Failed to divert HID++ gesture buttons"),
         }
+        // The DPI the mouse (re)connected at, for the directional gesture drag
+        // distance (device::known_dpi); every later DPI write or read keeps
+        // it current. After the divert so a parked radio delays nothing else.
+        let _ = manager.get_dpi();
 
         // Macro and reassigned CIDs all use the same REPROG_CONTROLS_V4 table,
         // so enumerate it once rather than once per configured control.
@@ -2111,14 +2127,15 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
     loop {
         // Re-read the reassigned buttons each cycle so a config change is
         // picked up on the next reconnect (live changes go through ReloadConfig).
-        let remapped_cids = config_for_divert
+        let (remapped_cids, gesture_raw_xy) = config_for_divert
             .read()
-            .map(|c| c.remapped_button_cids())
+            .map(|c| (c.remapped_button_cids(), c.directional_gestures_enabled()))
             .unwrap_or_default();
         let (path, name, unit) = refresh_hidpp_button_diverts(
             haptic_manager.clone(),
             macro_cids_now(),
             remapped_cids,
+            gesture_raw_xy,
         )
         .await;
         let refreshed = path.is_some();
@@ -2156,14 +2173,15 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
                     .unwrap_or(false);
                 info!(unit = %key, applied, "Per-device overrides selected for the connected mouse");
                 if applied {
-                    let remapped = config_for_divert
+                    let (remapped, gesture_raw_xy) = config_for_divert
                         .read()
-                        .map(|c| c.remapped_button_cids())
+                        .map(|c| (c.remapped_button_cids(), c.directional_gestures_enabled()))
                         .unwrap_or_default();
                     let _ = refresh_hidpp_button_diverts(
                         haptic_manager.clone(),
                         macro_cids_now(),
                         remapped,
+                        gesture_raw_xy,
                     )
                     .await;
                 }
@@ -2578,7 +2596,8 @@ async fn process_gesture_events(
                 // Directional gesture: classify the drag and run the configured
                 // action. This path never touches ShowMenu/HideMenu.
                 let resolved = shared_config.read().ok().map(|cfg| {
-                    let (direction, action) = cfg.classify_gesture(dx, dy);
+                    let (direction, action) =
+                        cfg.classify_gesture(dx, dy, juhradiald::hidpp::device::known_dpi());
                     (direction, action, cfg.gesture_custom_slot(direction))
                 });
                 match resolved {
@@ -2779,6 +2798,15 @@ async fn emit_hardware_notification(
         }
         HN::DpiChanged { dpi } => {
             info!(dpi, "DPI changed (notification)");
+            // The gesture drag distance scales by the DPI the mouse runs at,
+            // whoever changed it. Only a value a sensor can run at is taken:
+            // 0x2201 has no documented event, so should a firmware send one
+            // with a different payload layout, the decoded number must not
+            // replace the DPI the daemon set or read (replay.rs uses the same
+            // bounds for config.json).
+            if (100..=25_600).contains(&dpi) {
+                juhradiald::hidpp::device::remember_dpi(dpi);
+            }
             connection
                 .emit_signal(None::<&str>, DBUS_PATH, iface, "DpiChanged", &(dpi,))
                 .await?;

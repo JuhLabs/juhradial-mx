@@ -993,10 +993,11 @@ Item {
                         horizontalItemAlignment: Grid.AlignHCenter
                         verticalItemAlignment: Grid.AlignVCenter
                         Repeater {
+                            // angle: the up arrow turned clockwise to point the way the drag goes
                             model: [
-                                { key: "up_left", label: qsTr("Drag up-left") }, { key: "up", label: qsTr("Drag up") }, { key: "up_right", label: qsTr("Drag up-right") },
-                                { key: "left", label: qsTr("Drag left") }, { key: "click" }, { key: "right", label: qsTr("Drag right") },
-                                { key: "down_left", label: qsTr("Drag down-left") }, { key: "down", label: qsTr("Drag down") }, { key: "down_right", label: qsTr("Drag down-right") }
+                                { key: "up_left", label: qsTr("Drag up-left"), angle: 315 }, { key: "up", label: qsTr("Drag up"), angle: 0 }, { key: "up_right", label: qsTr("Drag up-right"), angle: 45 },
+                                { key: "left", label: qsTr("Drag left"), angle: 270 }, { key: "click" }, { key: "right", label: qsTr("Drag right"), angle: 90 },
+                                { key: "down_left", label: qsTr("Drag down-left"), angle: 225 }, { key: "down", label: qsTr("Drag down"), angle: 180 }, { key: "down_right", label: qsTr("Drag down-right"), angle: 135 }
                             ]
                             Item {
                                 required property var modelData
@@ -1005,10 +1006,19 @@ Item {
                                     visible: modelData.key !== "" && modelData.key !== "click"
                                     anchors.centerIn: parent
                                     spacing: 4
-                                    Text {
+                                    Row {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        text: modelData.label || ""
-                                        color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                                        spacing: 4
+                                        ActionIcon {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            iconName: "go-up"; rotation: modelData.angle || 0
+                                            tint: Theme.textMuted; px: 14
+                                        }
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: modelData.label || ""
+                                            color: Theme.textMuted; font.family: Theme.fontUI; font.pixelSize: Theme.fsMicro
+                                        }
                                     }
                                     ComboBox {
                                         width: 196
@@ -1050,11 +1060,11 @@ Item {
                     SettingRow {
                         visible: dirCol.on
                         label: qsTr("Drag distance")
-                        desc: qsTr("Sensor counts below which a press is a click. 15 is about 0.4 mm at 1000 DPI; forward and back drags are short, so keep it low.")
+                        desc: qsTr("Sensor counts at 1000 DPI below which a press is a click, scaled to the mouse's current DPI so the same flick registers at any DPI. 15 is about 0.4 mm; forward and back drags are short, so keep it low.")
                         Slider {
-                            width: 200; from: 5; to: 400; showValue: true; suffix: ""
+                            width: 200; from: 1; to: 400; showValue: true; suffix: ""
                             value: Backend.get("buttons.gesture_directions.threshold_px", 15)
-                            onCommitted: (v) => Backend.set("buttons.gesture_directions.threshold_px", Math.round(v / 5) * 5)
+                            onCommitted: (v) => Backend.set("buttons.gesture_directions.threshold_px", Math.round(v))
                         }
                     }
                 }

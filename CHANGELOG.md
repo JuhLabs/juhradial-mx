@@ -5,6 +5,14 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Directional gestures no longer move the pointer** - While directional gestures are on, the gesture button is diverted with HID++ raw XY: the mouse reports the drag over HID++ and the cursor stays where it was, so a flick never nudges it off what you were pointing at (the same route Solaar's mouse gestures take). A gesture button without raw XY keeps the previous behaviour, where the drag is read from the mouse's relative motion. Requested by [@iceteaSA](https://github.com/iceteaSA) in [#146](https://github.com/JuhLabs/juhradial-mx/issues/146).
+- **Drag distance is defined at 1000 DPI and scaled to the mouse's DPI** - `threshold_px` was compared with raw sensor counts, so the same setting meant a quarter of the distance at 4000 DPI and four times it at 250. It now means counts at 1000 DPI, and the daemon scales it by the DPI it last set or read on the mouse, so one value is one physical flick at any DPI. Nothing changes at 1000 DPI; at other DPIs set the distance you want the flick to be (the slider now goes down to 1, in steps of 1). Measured and reported by [@iceteaSA](https://github.com/iceteaSA) in [#146](https://github.com/JuhLabs/juhradial-mx/issues/146).
+- **Direction arrows on the gesture pad** - Each direction picker in Settings → Buttons → Directional gestures carries an arrow for its drag, and the four corners are translated.
+
 ## [0.4.5-beta.2] - 2026-09-25
 
 ### Added

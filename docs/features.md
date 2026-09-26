@@ -227,12 +227,14 @@ Editing, Media) and the drag distance.
 - **Any action** the picker offers, including **Custom** (each direction keeps
   its own custom action), except the ring itself and precision DPI, which need
   a hold.
-- **Drag distance** in sensor counts at the mouse's DPI (default 15, about
-  0.4 mm at 1000 DPI); the actuator ticks when a drag crosses it.
-- A directional press never opens or closes the ring, and the drag is measured
-  from the mouse's own motion, so it works on every compositor. It applies to
-  the HID++-diverted gesture button (the normal state on the MX Master 4, 3S
-  and 3), not to the evdev-only fallback path.
+- **Drag distance** in sensor counts at 1000 DPI (default 15, about 0.4 mm),
+  scaled to the DPI the mouse runs at so the same flick registers at any DPI;
+  the actuator ticks when a drag crosses it.
+- **The pointer stays put.** The gesture button is diverted with raw XY, so
+  the mouse reports the drag over HID++ instead of moving the cursor. A
+  directional press never opens or closes the ring, and it works on every
+  compositor. It applies to the HID++-diverted gesture button (the normal
+  state on the MX Master 4, 3S and 3), not to the evdev-only fallback path.
 
 ## Custom actions
 

@@ -110,7 +110,7 @@ msgid_plural "%n buttons do something else in this app"
 msgstr[0] ""
 msgstr[1] ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1077
+#: settings-qt/qml/pages/ButtonsPage.qml:1087
 msgid "%n found"
 msgstr ""
 
@@ -802,7 +802,7 @@ msgstr ""
 msgid "Buttons follow all apps again"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1075
+#: settings-qt/qml/pages/ButtonsPage.qml:1085
 msgid "Buttons this mouse reports that have no marker above. Assign an action to divert one; Disabled leaves it native."
 msgstr ""
 
@@ -1574,19 +1574,19 @@ msgstr ""
 msgid "Dracula"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1052 settings-qt/bridge/backend.py:713
+#: settings-qt/qml/pages/ButtonsPage.qml:1062 settings-qt/bridge/backend.py:713
 msgid "Drag distance"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:999
+#: settings-qt/qml/pages/ButtonsPage.qml:1000
 msgid "Drag down"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:999
+#: settings-qt/qml/pages/ButtonsPage.qml:1000
 msgid "Drag down-left"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:999
+#: settings-qt/qml/pages/ButtonsPage.qml:1000
 msgid "Drag down-right"
 msgstr ""
 
@@ -1594,23 +1594,23 @@ msgstr ""
 msgid "Drag each marker onto its button. Positions are saved as you go."
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:998
+#: settings-qt/qml/pages/ButtonsPage.qml:999
 msgid "Drag left"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:998
+#: settings-qt/qml/pages/ButtonsPage.qml:999
 msgid "Drag right"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:997
+#: settings-qt/qml/pages/ButtonsPage.qml:998
 msgid "Drag up"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:997
+#: settings-qt/qml/pages/ButtonsPage.qml:998
 msgid "Drag up-left"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:997
+#: settings-qt/qml/pages/ButtonsPage.qml:998
 msgid "Drag up-right"
 msgstr ""
 
@@ -3586,7 +3586,7 @@ msgstr ""
 msgid "Other computer"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1074 settings-qt/bridge/backend.py:714 settings-qt/bridge/backend.py:714
+#: settings-qt/qml/pages/ButtonsPage.qml:1084 settings-qt/bridge/backend.py:714 settings-qt/bridge/backend.py:714
 msgid "Other controls"
 msgstr ""
 
@@ -3930,7 +3930,7 @@ msgstr ""
 msgid "Press the mouse button here"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1035
+#: settings-qt/qml/pages/ButtonsPage.qml:1045
 msgid "Press without dragging"
 msgstr ""
 
@@ -4260,7 +4260,7 @@ msgstr ""
 msgid "Report a bug"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1089
+#: settings-qt/qml/pages/ButtonsPage.qml:1099
 msgid "Reports raw movement"
 msgstr ""
 
@@ -4640,8 +4640,8 @@ msgstr ""
 msgid "Sense Panel"
 msgstr ""
 
-#: settings-qt/qml/pages/ButtonsPage.qml:1053
-msgid "Sensor counts below which a press is a click. 15 is about 0.4 mm at 1000 DPI; forward and back drags are short, so keep it low."
+#: settings-qt/qml/pages/ButtonsPage.qml:1063
+msgid "Sensor counts at 1000 DPI below which a press is a click, scaled to the mouse's current DPI so the same flick registers at any DPI. 15 is about 0.4 mm; forward and back drags are short, so keep it low."
 msgstr ""
 
 #: settings-qt/assets/keypad/art/art.json

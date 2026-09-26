@@ -45,6 +45,14 @@ pub struct NotificationIndices {
     pub dpi: Option<u8>,
     pub hires_wheel: Option<u8>,
     pub wireless_status: Option<u8>,
+    /// REPROG_CONTROLS_V4 (0x1B04): not routed here (its diverted button
+    /// event has its own handler), kept so the hidraw reader can tell the
+    /// raw XY drag events of a directional gesture apart from other features'
+    /// function-1 events.
+    pub reprog_controls: Option<u8>,
+    /// Its feature version: from 5 the first raw XY report after a press is
+    /// spurious and is dropped (Solaar does the same for the MX Master 3S).
+    pub reprog_controls_version: u8,
 }
 
 impl NotificationIndices {
