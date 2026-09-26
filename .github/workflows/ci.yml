@@ -122,18 +122,21 @@ jobs:
           print("Qt", QtCore.QT_VERSION_STR, "PyQt", QtCore.PYQT_VERSION_STR)
           PY
 
+      # The container runs as root; the installer test refuses root (as the
+      # installer itself does), so the suite runs as an ordinary user.
       - name: Run Python tests
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python3 -m pytest -q tests/
+        run: |
+          useradd -m ci
+          chown -R ci .
+          runuser -u ci -- env QT_QPA_PLATFORM=offscreen python3 -m pytest -q -rs tests/
 
       # The QML modules must have run, not skipped: a skip here means the
       # settings app's QML was never compiled by this job.
       - name: QML tests ran (no skips)
-        env:
-          QT_QPA_PLATFORM: offscreen
         run: |
-          python3 -m pytest -q -rs tests/test_settings_qt_smoke.py tests/test_qml_slot_arguments.py | tee qml-tests.log
+          runuser -u ci -- env QT_QPA_PLATFORM=offscreen python3 -m pytest -q -rs tests/test_settings_qt_smoke.py tests/test_qml_slot_arguments.py | tee qml-tests.log
           if grep -q "SKIP" qml-tests.log; then
             echo "QML tests were skipped" >&2
             exit 1
