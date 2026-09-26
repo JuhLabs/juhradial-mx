@@ -101,6 +101,9 @@ jobs:
             libadwaita \
             python3-pillow \
             python3-numpy \
+            python3-cryptography \
+            python3-requests \
+            python3-zeroconf \
             qt6-qtdeclarative \
             qt6-qtsvg \
             mesa-libEGL \
