@@ -1601,7 +1601,7 @@ impl HidppDevice {
 
         // Enumerate each feature (function 0x01 of IFeatureSet)
         for i in 0..feature_count {
-            if let Some(resp) = self.hidpp_request(feature_set_index, 0x01, &[i, 0, 0]) {
+            if let Some(resp) = self.get_feature_id_reply(feature_set_index, i) {
                 if resp.len() < 6 {
                     continue;
                 }
@@ -1766,6 +1766,24 @@ impl HidppDevice {
         let feature_index = self.reprog_controls_feature_index?;
         let resp = self.hidpp_request(feature_index, 0x02, &[(cid >> 8) as u8, (cid & 0xFF) as u8, 0])?;
         (resp.len() >= 7).then(|| resp[6] & 0x10 != 0)
+    }
+
+    /// IFeatureSet getFeatureId for slot `index`, asked twice before giving
+    /// up. A reconnect right after the radio wakes (the #102 re-divert path)
+    /// races the mouse coming up, and one unanswered slot used to leave a
+    /// hole in the feature table for the whole connection: with 0x19B0
+    /// missing the daemon believed the mouse had no haptics until the next
+    /// reconnect.
+    fn get_feature_id_reply(&mut self, feature_set_index: u8, index: u8) -> Option<Vec<u8>> {
+        if let Some(resp) = self.hidpp_request(feature_set_index, 0x01, &[index, 0, 0]) {
+            return Some(resp);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        let resp = self.hidpp_request(feature_set_index, 0x01, &[index, 0, 0]);
+        if resp.is_none() {
+            tracing::warn!(index, "getFeatureId unanswered twice; feature slot skipped");
+        }
+        resp
     }
 
     /// Get the feature index for a given feature ID using IRoot
