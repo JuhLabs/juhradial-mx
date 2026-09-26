@@ -36,7 +36,10 @@ pub fn known_dpi() -> Option<u16> {
     }
 }
 
-fn remember_dpi(dpi: u16) {
+/// Record a DPI the mouse reported on its own (0x2201 change notification,
+/// a DPI button on the mouse, another tool's write) so the gesture drag
+/// distance follows it too.
+pub fn remember_dpi(dpi: u16) {
     KNOWN_DPI.store(dpi, std::sync::atomic::Ordering::Relaxed);
 }
 
@@ -117,6 +120,10 @@ pub struct HidppDevice {
     reprog_controls_supported: bool,
     /// REPROG_CONTROLS_V4 feature index (0x1B04) - for button divert
     reprog_controls_feature_index: Option<u8>,
+    /// REPROG_CONTROLS_V4 feature version (getFeatureId byte 7, 0 when the
+    /// reply did not carry it). From version 5 the first raw XY report after
+    /// a press is spurious (Solaar's MX Master 3S workaround).
+    reprog_controls_version: u8,
     /// Whether ThumbWheel feature is available (0x2150)
     thumbwheel_supported: bool,
     /// ThumbWheel feature index (0x2150) - for thumb-wheel divert
@@ -777,6 +784,7 @@ impl HidppDevice {
                     battery_feature_index: None,
                     is_unified_battery: false,
                     reprog_controls_supported: false,
+                    reprog_controls_version: 0,
                     reprog_controls_feature_index: None,
                     thumbwheel_supported: false,
                     thumbwheel_feature_index: None,
@@ -1154,6 +1162,7 @@ impl HidppDevice {
                     battery_feature_index: None,
                     is_unified_battery: false,
                     reprog_controls_supported: false,
+                    reprog_controls_version: 0,
                     reprog_controls_feature_index: None,
                     thumbwheel_supported: false,
                     thumbwheel_feature_index: None,
@@ -1712,8 +1721,11 @@ impl HidppDevice {
                 if feature_id == features::REPROG_CONTROLS_V4 {
                     self.reprog_controls_supported = true;
                     self.reprog_controls_feature_index = Some(feature_index);
+                    // getFeatureId: [4-5] id, [6] type, [7] version
+                    self.reprog_controls_version = resp.get(7).copied().unwrap_or(0);
                     tracing::info!(
                         index = feature_index,
+                        version = self.reprog_controls_version,
                         "REPROG_CONTROLS_V4 feature found (0x1B04) - button divert available"
                     );
                 }
@@ -1740,6 +1752,20 @@ impl HidppDevice {
             reprog_controls = self.reprog_controls_supported,
             "Feature enumeration complete (blocklisted features excluded)"
         );
+    }
+
+    /// REPROG_CONTROLS_V4 feature version (0 when unknown).
+    pub fn reprog_controls_version(&self) -> u8 {
+        self.reprog_controls_version
+    }
+
+    /// Whether the mouse currently reports `cid` with raw XY diverted
+    /// (getCidReporting, function 2: flags in byte 6, bit 4). `None` when
+    /// the request fails.
+    fn cid_raw_xy_diverted(&mut self, cid: u16) -> Option<bool> {
+        let feature_index = self.reprog_controls_feature_index?;
+        let resp = self.hidpp_request(feature_index, 0x02, &[(cid >> 8) as u8, (cid & 0xFF) as u8, 0])?;
+        (resp.len() >= 7).then(|| resp[6] & 0x10 != 0)
     }
 
     /// Get the feature index for a given feature ID using IRoot
@@ -1866,9 +1892,18 @@ impl HidppDevice {
                 // on the gesture button, only when the control advertises it
                 // (getCidInfo additional flags bit 0) and only for directional
                 // gestures; its change gate is written to set it, and to clear
-                // it again on the connection that set it.
+                // it when the mouse has it and should not.
                 let raw_xy = cid == GESTURE_BUTTON_CID && raw_xy_capable && gesture_raw_xy;
-                let clear_raw_xy = cid == GESTURE_BUTTON_CID && self.gesture_raw_xy_applied && !raw_xy;
+                // Clear raw XY when this daemon set it, and when a previous
+                // daemon left it on the mouse (temporary diverts survive a
+                // daemon restart, not a reconnect): the read costs one request
+                // and only runs for a raw-XY-capable gesture button that must
+                // not have it.
+                let clear_raw_xy = cid == GESTURE_BUTTON_CID
+                    && raw_xy_capable
+                    && !raw_xy
+                    && (self.gesture_raw_xy_applied
+                        || self.cid_raw_xy_diverted(cid).unwrap_or(false));
                 let divert_flags: u8 = 0x03 // TemporaryDiverted | ChangeTemporaryDivert
                     | if raw_xy { 0x30 } else if clear_raw_xy { 0x20 } else { 0x00 };
                 let params: &[u8] = &[

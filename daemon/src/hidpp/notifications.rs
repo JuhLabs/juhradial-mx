@@ -50,6 +50,9 @@ pub struct NotificationIndices {
     /// raw XY drag events of a directional gesture apart from other features'
     /// function-1 events.
     pub reprog_controls: Option<u8>,
+    /// Its feature version: from 5 the first raw XY report after a press is
+    /// spurious and is dropped (Solaar does the same for the MX Master 3S).
+    pub reprog_controls_version: u8,
 }
 
 impl NotificationIndices {

@@ -122,6 +122,9 @@ pub struct HidrawHandler {
     gesture_tracker: Option<crate::gesture::SharedGestureTracker>,
     /// The press in flight is a directional gesture (no radial menu traffic).
     directional_press: bool,
+    /// Drop the next raw XY report: the first one after a press is spurious
+    /// on REPROG_CONTROLS_V4 version 5 and later.
+    skip_first_raw_xy: bool,
 }
 
 /// Map HID++ CID to evdev key code for macro trigger forwarding
@@ -169,6 +172,7 @@ impl HidrawHandler {
             gaming_mode: None,
             gesture_tracker: None,
             directional_press: false,
+            skip_first_raw_xy: false,
         }
     }
 
@@ -609,8 +613,11 @@ impl HidrawHandler {
     /// Feed a divertedRawMouseXYDataEvent to the gesture tracker. The tracker
     /// ignores samples outside a directional press, so nothing is counted for
     /// a raw XY report that arrives while no press is in flight.
-    fn handle_raw_xy_event(&self, data: &[u8]) {
+    fn handle_raw_xy_event(&mut self, data: &[u8]) {
         if data.len() < 8 {
+            return;
+        }
+        if std::mem::take(&mut self.skip_first_raw_xy) {
             return;
         }
         let dx = i32::from(i16::from_be_bytes([data[4], data[5]]));
@@ -688,6 +695,7 @@ impl HidrawHandler {
             // no Pressed event, so the radial overlay never opens for it.
             self.press_time = Some(Instant::now());
             self.directional_press = true;
+            self.skip_first_raw_xy = self.notification_indices.reprog_controls_version >= 5;
             self.active_button_action = None;
             if let Some(tracker) = &self.gesture_tracker {
                 let threshold = self
@@ -1122,6 +1130,33 @@ mod tests {
             .expect("GestureReleased");
         assert_eq!(released, (-70, 12), "{events:?}");
         assert!(!tracker.is_active());
+    }
+
+    /// REPROG_CONTROLS_V4 version 5 and later: the first raw XY report after
+    /// a press is spurious and must not count; the second one does. On an
+    /// older version every report counts.
+    #[tokio::test]
+    async fn first_raw_xy_sample_is_dropped_on_v5() {
+        for (version, expected) in [(5u8, (-30, 7)), (4u8, (-70, 12))] {
+            let (mut h, mut rx, _tracker) = directional_handler(true);
+            h.set_notification_indices(crate::hidpp::notifications::NotificationIndices {
+                reprog_controls: Some(0x0b),
+                reprog_controls_version: version,
+                ..Default::default()
+            });
+            h.handle_button_event(&diverted_button_report(button_cid::GESTURE_BUTTON)).await;
+            h.process_hidpp_report(&raw_xy_report(0x0b, -40, 5)).await;
+            h.process_hidpp_report(&raw_xy_report(0x0b, -30, 7)).await;
+            h.handle_button_event(&diverted_button_report(0)).await;
+            let released = drain(&mut rx)
+                .into_iter()
+                .find_map(|e| match e {
+                    GestureEvent::GestureReleased { dx, dy, .. } => Some((dx, dy)),
+                    _ => None,
+                })
+                .expect("GestureReleased");
+            assert_eq!(released, expected, "version {version}");
+        }
     }
 
     /// A held Custom (hold-while-pressed keys) is released even when another

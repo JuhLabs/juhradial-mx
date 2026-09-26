@@ -1046,6 +1046,7 @@ impl HapticManager {
             hires_wheel: device.feature_index(features::HIRES_WHEEL),
             wireless_status: device.feature_index(features::WIRELESS_DEVICE_STATUS),
             reprog_controls: device.feature_index(features::REPROG_CONTROLS_V4),
+            reprog_controls_version: device.reprog_controls_version(),
         }
     }
 
