@@ -518,6 +518,33 @@ impl ButtonDivertIo for HidppDevice {
     }
 }
 
+/// Pause before the second getFeatureId of a slot that did not answer.
+const FEATURE_ID_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(50);
+
+/// IFeatureSet getFeatureId (function 1) for slot `index`, asked once more
+/// after `retry_delay` when the first request goes unanswered. A reconnect
+/// right after the radio wakes (the #102 re-divert path) races the mouse
+/// coming up, and one unanswered slot used to leave a hole in the feature
+/// table for the whole connection: with 0x19B0 missing the daemon believed
+/// the mouse had no haptics until the next reconnect. A slot that stays
+/// silent is logged and skipped as before.
+fn feature_id_reply_with_io(
+    io: &mut impl ButtonDivertIo,
+    feature_set_index: u8,
+    index: u8,
+    retry_delay: std::time::Duration,
+) -> Option<Vec<u8>> {
+    if let Some(resp) = io.short_request(feature_set_index, 0x01, &[index, 0, 0]) {
+        return Some(resp);
+    }
+    std::thread::sleep(retry_delay);
+    let resp = io.short_request(feature_set_index, 0x01, &[index, 0, 0]);
+    if resp.is_none() {
+        tracing::warn!(index, "getFeatureId unanswered twice; feature slot skipped");
+    }
+    resp
+}
+
 fn set_button_diverts_with_io(
     io: &mut impl ButtonDivertIo,
     feature_index: u8,
@@ -1769,21 +1796,9 @@ impl HidppDevice {
     }
 
     /// IFeatureSet getFeatureId for slot `index`, asked twice before giving
-    /// up. A reconnect right after the radio wakes (the #102 re-divert path)
-    /// races the mouse coming up, and one unanswered slot used to leave a
-    /// hole in the feature table for the whole connection: with 0x19B0
-    /// missing the daemon believed the mouse had no haptics until the next
-    /// reconnect.
+    /// up (see `feature_id_reply_with_io`).
     fn get_feature_id_reply(&mut self, feature_set_index: u8, index: u8) -> Option<Vec<u8>> {
-        if let Some(resp) = self.hidpp_request(feature_set_index, 0x01, &[index, 0, 0]) {
-            return Some(resp);
-        }
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        let resp = self.hidpp_request(feature_set_index, 0x01, &[index, 0, 0]);
-        if resp.is_none() {
-            tracing::warn!(index, "getFeatureId unanswered twice; feature slot skipped");
-        }
-        resp
+        feature_id_reply_with_io(self, feature_set_index, index, FEATURE_ID_RETRY_DELAY)
     }
 
     /// Get the feature index for a given feature ID using IRoot
@@ -3201,6 +3216,48 @@ mod button_divert_tests {
         response[5] = (cid & 0xFF) as u8;
         response[8] = flags;
         response
+    }
+
+    /// One unanswered getFeatureId is asked again; an answer on either
+    /// attempt is used and a slot silent twice is given up, each with exactly
+    /// the requests it took and no more.
+    #[test]
+    fn feature_id_is_asked_twice_before_a_slot_is_skipped() {
+        let no_wait = std::time::Duration::ZERO;
+        let reply = |id: u16| {
+            let mut r = vec![0u8; 20];
+            r[0] = 0x11;
+            r[2] = 0x01;
+            r[4] = (id >> 8) as u8;
+            r[5] = id as u8;
+            r
+        };
+
+        // Answered first time: one request.
+        let mut io = MockButtonDivertIo {
+            short_responses: VecDeque::from(vec![Some(reply(0x19B0))]),
+            ..Default::default()
+        };
+        assert_eq!(feature_id_reply_with_io(&mut io, 0x01, 7, no_wait), Some(reply(0x19B0)));
+        assert_eq!(io.short_requests.len(), 1);
+        assert_eq!((io.short_requests[0].function, &io.short_requests[0].params[..]), (0x01, &[7, 0, 0][..]));
+
+        // Silent once, answered on the retry: two requests, same slot.
+        let mut io = MockButtonDivertIo {
+            short_responses: VecDeque::from(vec![None, Some(reply(0x19B0))]),
+            ..Default::default()
+        };
+        assert_eq!(feature_id_reply_with_io(&mut io, 0x01, 7, no_wait), Some(reply(0x19B0)));
+        assert_eq!(io.short_requests.len(), 2);
+        assert!(io.short_requests.iter().all(|r| r.feature_index == 0x01 && r.params == [7, 0, 0]));
+
+        // Silent twice: skipped after exactly two requests.
+        let mut io = MockButtonDivertIo {
+            short_responses: VecDeque::from(vec![None, None]),
+            ..Default::default()
+        };
+        assert_eq!(feature_id_reply_with_io(&mut io, 0x01, 7, no_wait), None);
+        assert_eq!(io.short_requests.len(), 2);
     }
 
     #[test]
