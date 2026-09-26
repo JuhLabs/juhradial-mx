@@ -206,37 +206,40 @@ jobs:
     name: Python tests
     needs: [linux]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # The settings app needs Qt 6.9 or newer with QtQml; Ubuntu's packages
+    # are Qt 6.4 and the PyPI PyQt6 wheel lacks the Qt libraries its own
+    # QML plugins need (QtQuick.VectorImage, QtQmlCore). Fedora ships the
+    # full Qt the app runs on, so the suite runs there.
+    container: fedora:44
+    timeout-minutes: 15
 
     steps:
+      - name: Install Python, Qt and GTK test dependencies
+        run: |
+          dnf -y install \
+            git \
+            python3-pytest \
+            python3-pyqt6 \
+            python3-gobject \
+            python3-cairo \
+            gtk4 \
+            libadwaita \
+            python3-pillow \
+            python3-numpy \
+            qt6-qtdeclarative \
+            qt6-qtsvg \
+            mesa-libEGL \
+            mesa-libGL \
+            libxkbcommon \
+            dejavu-sans-fonts
+
       - name: Checkout tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.linux.outputs.tag }}
 
-      - name: Install system Python dependencies
+      - name: Qt 6.9+ with QtQml is present
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            python3-pytest \
-            python3-pip \
-            python3-gi \
-            python3-gi-cairo \
-            gir1.2-gtk-4.0 \
-            gir1.2-adw-1 \
-            python3-pil \
-            python3-numpy \
-            libegl1 \
-            libgl1 \
-            libxkbcommon0
-
-      # The settings app needs Qt 6.9 or newer with QtQml (juhradial-settings
-      # falls back to GTK below that). Ubuntu's python3-pyqt6 is Qt 6.4 and
-      # ships QtQml separately, so the QML tests would skip themselves: take
-      # the PyPI wheel, which bundles a current Qt, and refuse anything older.
-      - name: Install PyQt6 with QtQml (Qt 6.9+)
-        run: |
-          python3 -m pip install --break-system-packages "PyQt6>=6.9"
           python3 - <<'PY'
           from PyQt6 import QtCore, QtQml, QtSvg
           assert QtCore.QT_VERSION >= 0x060900, QtCore.QT_VERSION_STR
@@ -259,7 +262,6 @@ jobs:
             echo "QML tests were skipped" >&2
             exit 1
           fi
-
   release:
     name: Draft GitHub Release
     needs: [linux, deb, rpm, python-tests]
