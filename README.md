@@ -37,21 +37,25 @@
 
 ## Install
 
-Paste one line into a terminal as your normal user (not with `sudo`). The installer finds your distro, shows what it will change, and asks for `sudo` only for packages and system paths.
+Paste one line into a terminal as your normal user (not with `sudo`). The installer finds your distro, shows what it will change, and asks for `sudo` only for packages and system paths. It runs on these distributions and their derivatives:
 
-**Fedora, Ubuntu, Debian, Linux Mint, Pop!_OS, Zorin, Arch, Manjaro, EndeavourOS, CachyOS, openSUSE** and their derivatives:
+![Fedora](https://img.shields.io/badge/Fedora-51A2DA?logo=fedora&logoColor=white) ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?logo=ubuntu&logoColor=white) ![Debian](https://img.shields.io/badge/Debian-A81D33?logo=debian&logoColor=white) ![Linux Mint](https://img.shields.io/badge/Linux_Mint-87CF3E?logo=linuxmint&logoColor=white) ![Pop!_OS](https://img.shields.io/badge/Pop!__OS-48B9C7?logo=popos&logoColor=white) ![Zorin](https://img.shields.io/badge/Zorin-15A6F0?logo=zorin&logoColor=white) ![Arch](https://img.shields.io/badge/Arch-1793D1?logo=archlinux&logoColor=white) ![Manjaro](https://img.shields.io/badge/Manjaro-35BF5C?logo=manjaro&logoColor=white) ![EndeavourOS](https://img.shields.io/badge/EndeavourOS-7F7FFF?logo=endeavouros&logoColor=white) ![CachyOS](https://img.shields.io/badge/CachyOS-1CB5E0?logo=cachyos&logoColor=white) ![openSUSE](https://img.shields.io/badge/openSUSE-73BA25?logo=opensuse&logoColor=white)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash
 ```
 
-**Bazzite, Fedora Silverblue, Kinoite and other image-based systems** (installs under `~/.local`; `sudo` only for the udev rules, `uinput` and the `input` group; add `--yes` to skip the questions):
+![Bazzite](https://img.shields.io/badge/Bazzite-7C3AED?logo=fedora&logoColor=white) ![Fedora Silverblue](https://img.shields.io/badge/Fedora_Silverblue-51A2DA?logo=fedora&logoColor=white) ![Kinoite](https://img.shields.io/badge/Kinoite-51A2DA?logo=fedora&logoColor=white)
+
+Image-based systems install under `~/.local`; `sudo` is used only for the udev rules, `uinput` and the `input` group (add `--yes` to skip the questions):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install.sh | bash -s -- --user
 ```
 
-**NixOS**, to try it without installing (the NixOS module is under [Other ways to install](#other-ways-to-install)):
+![NixOS](https://img.shields.io/badge/NixOS-5277C3?logo=nixos&logoColor=white)
+
+Try it without installing (the NixOS module is under [Other ways to install](#other-ways-to-install)):
 
 ```bash
 nix run github:JuhLabs/juhradial-mx
@@ -415,7 +419,7 @@ If JuhRadial MX is useful to you, a star helps other Linux users find the projec
 
 ## Trademark notice
 
-JuhRadial MX is not affiliated with, endorsed by, or associated with Logitech. Logitech, MX Master, MX Keys, MX Keypad, Logi Options+, and related names are trademarks of Logitech International S.A. This is an independent, community-built open-source project.
+JuhRadial MX is not affiliated with, endorsed by, or associated with Logitech. Logitech, MX Master, MX Keys, MX Keypad, Logi Options+, and related names are trademarks of Logitech International S.A. Distribution names and logos belong to their respective projects and appear only to say where JuhRadial MX runs. This is an independent, community-built open-source project.
 
 <p align="center">
   Maintained by <a href="https://github.com/JuhLabs">JuhLabs</a>
