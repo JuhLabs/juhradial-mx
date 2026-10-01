@@ -89,6 +89,15 @@
   </keywords>
 
   <releases>
+    <release version="0.4.5~beta.4" date="2026-10-01" type="development">
+      <description>
+        <p>Fourth beta of 0.4.5: an MX Keypad can be set up where the GTK Settings fallback opens</p>
+        <ul>
+          <li>juhradial-settings --keypad-template adds a ready keypad page from a terminal, without the Qt Settings app (Ubuntu 24.04, Linux Mint 22, Debian 13)</li>
+          <li>The service log shows when an MX Keypad connects, disconnects or cannot be opened, and why</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.5~beta.3" date="2026-09-26" type="development">
       <description>
         <p>Third beta of 0.4.5: directional gestures leave the pointer alone</p>
