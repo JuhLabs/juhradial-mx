@@ -2,7 +2,7 @@
 # Build: rpmbuild -ba juhradial-mx.spec
 
 Name:           juhradial-mx
-Version:        0.4.5~beta.3
+Version:        0.4.5~beta.4
 Release:        1%{?dist}
 Summary:        Beautiful radial menu for Logitech MX Master mice on Linux
 
@@ -144,6 +144,12 @@ install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdi
 %{_udevrulesdir}/99-juhradialmx.rules
 %{_udevrulesdir}/60-ydotool-uinput.rules
 %changelog
+* Thu Oct 01 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.4-1
+- MX Keypad templates from a terminal (juhradial-settings --keypad-template),
+  so a keypad can be set up where the GTK Settings fallback opens
+- The service log shows when an MX Keypad connects, disconnects or cannot
+  be opened, and why
+
 * Sat Sep 26 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.3-1
 - Directional gestures: the gesture button is diverted with raw XY, so a
   flick no longer moves the cursor; drag distance is defined at 1000 DPI
