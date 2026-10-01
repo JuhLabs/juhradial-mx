@@ -187,23 +187,33 @@ pub fn start(config: SharedConfig) -> (Worker, UnboundedReceiver<Event>) {
     let stop = Arc::new(AtomicBool::new(false));
     let worker = Worker(stop.clone());
     tokio::task::spawn_blocking(move || {
+        let mut reported = Reported::new();
         while !tx.is_closed() && !stop.load(Ordering::Relaxed) {
             let enabled = config.read().map(|c| c.keypad.enabled).unwrap_or(false);
             if enabled {
-                for device in mx_keypad::discover().unwrap_or_default() {
+                let devices = mx_keypad::discover().unwrap_or_default();
+                forget_unplugged(&mut reported, &devices);
+                for device in devices {
                     if tx.is_closed() { return; }
                     match Keypad::open(&device.path) {
                         Ok(mut keypad) => {
                             if let Ok(mut name) = NAME.lock() { *name = device.name; }
-                            if let Err(error) = connected(&mut keypad, &config, &tx, &stop) {
-                                tracing::debug!(%error, "MX Keypad disconnected or unavailable");
-                            }
+                            let result = connected(&mut keypad, &config, &tx, &stop);
                             // Only the allowed feature report, including when disabled.
                             let _ = keypad.reset_to_logo();
-                            if CONNECTED.swap(false, Ordering::Relaxed) { let _ = tx.send(Event::Connection(false)); }
+                            if CONNECTED.swap(false, Ordering::Relaxed) {
+                                let _ = tx.send(Event::Connection(false));
+                                match result {
+                                    Ok(()) => tracing::info!("MX Keypad released"),
+                                    Err(error) => tracing::info!(%error, "MX Keypad disconnected"),
+                                }
+                                reported.clear();
+                            } else if let Err(error) = result {
+                                report_failure(&mut reported, &device.path, "MX Keypad did not start", &error);
+                            }
                             break;
                         }
-                        Err(error) => tracing::debug!(%error, "Cannot open MX Keypad"),
+                        Err(error) => { report_failure(&mut reported, &device.path, "Cannot open MX Keypad", &error); }
                     }
                 }
             }
@@ -211,6 +221,29 @@ pub fn start(config: SharedConfig) -> (Worker, UnboundedReceiver<Event>) {
         }
     });
     (worker, rx)
+}
+
+/// Keypad failures already in the journal, by node.
+type Reported = Vec<(std::path::PathBuf, String)>;
+
+/// Write a keypad failure to the journal once per plug-in: the worker polls
+/// every 2.5 s, so one that lasts would repeat for as long as the keypad is
+/// there. Returns whether it was written.
+fn report_failure(reported: &mut Reported, path: &Path, what: &str, error: &io::Error) -> bool {
+    let failure = (path.to_path_buf(), format!("{what}: {error}"));
+    if reported.contains(&failure) { return false; }
+    let hint = if error.kind() == io::ErrorKind::PermissionDenied {
+        ". The node should be root:input mode 0660 and this user in the 'input' group (sudo usermod -aG input $USER, then log out and back in)"
+    } else { "" };
+    tracing::warn!(path = %path.display(), "{}{hint}", failure.1);
+    reported.push(failure);
+    true
+}
+
+/// Forget the failures of nodes that are gone, so a keypad that is plugged in
+/// again is reported again.
+fn forget_unplugged(reported: &mut Reported, present: &[mx_keypad::DeviceInfo]) {
+    reported.retain(|(path, _)| present.iter().any(|device| device.path == *path));
 }
 
 fn plates_dir(config: &SharedConfig) -> std::path::PathBuf {
@@ -332,6 +365,7 @@ impl HeldKeys {
 fn connected(keypad: &mut Keypad, config: &SharedConfig, tx: &UnboundedSender<Event>, stop: &AtomicBool) -> io::Result<()> {
     keypad.init()?;
     CONNECTED.store(true, Ordering::Relaxed);
+    tracing::info!(name = %NAME.lock().map(|n| n.clone()).unwrap_or_default(), "MX Keypad connected");
     let _ = tx.send(Event::Connection(true));
     let dir = plates_dir(config);
     let mut held = HeldKeys::default();
@@ -507,6 +541,24 @@ mod tests {
         assert_eq!(turn_page(&[1, 2], 1, PageButton::Left), Some(2));
         assert_eq!(turn_page(&[0, 4], 3, PageButton::Right), Some(4));
         assert_eq!(turn_page(&[], 0, PageButton::Right), None);
+    }
+
+    #[test]
+    fn a_keypad_that_keeps_failing_is_reported_once_per_plug_in() {
+        let (first, second) = (Path::new("/dev/hidraw7"), Path::new("/dev/hidraw9"));
+        let node = |path: &Path| mx_keypad::DeviceInfo { path: path.to_path_buf(), name: "MX Keypad".into() };
+        let denied = || io::Error::from(io::ErrorKind::PermissionDenied);
+        let mut reported = Vec::new();
+        assert!(report_failure(&mut reported, first, "Cannot open MX Keypad", &denied()));
+        assert!(!report_failure(&mut reported, first, "Cannot open MX Keypad", &denied()), "the next poll finds the same failure");
+        assert!(report_failure(&mut reported, first, "MX Keypad did not start", &denied()), "a different failure is news");
+        assert!(report_failure(&mut reported, second, "Cannot open MX Keypad", &denied()), "a second keypad is reported too");
+        assert!(!report_failure(&mut reported, first, "Cannot open MX Keypad", &denied()), "two failures do not take turns");
+
+        // The first keypad is unplugged while the second one stays.
+        forget_unplugged(&mut reported, &[node(second)]);
+        assert!(!report_failure(&mut reported, second, "Cannot open MX Keypad", &denied()));
+        assert!(report_failure(&mut reported, first, "Cannot open MX Keypad", &denied()), "plugged in again, it is reported again");
     }
 
     #[test]

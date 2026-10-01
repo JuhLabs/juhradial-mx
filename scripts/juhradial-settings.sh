@@ -32,6 +32,21 @@ sys.exit(0 if (Adw.get_major_version(), Adw.get_minor_version()) >= (1, 4) else 
 PY
 }
 
+# --keypad-template [name]: ready MX Keypad pages without a Settings window.
+# The templates and key images need PyQt6's QtGui and QtSvg only, so this runs
+# ahead of the Qt version check and works where the GTK app is the fallback.
+if [ "${1:-}" = "--keypad-template" ]; then
+    shift
+    for keypad_cli in /usr/share/juhradial/settings-qt/bridge/keypad_cli.py "$user_share/settings-qt/bridge/keypad_cli.py" "$here/settings-qt/bridge/keypad_cli.py" "$here/../settings-qt/bridge/keypad_cli.py"; do
+        if [ -f "$keypad_cli" ]; then
+            exec python3 "$keypad_cli" "$@"
+        fi
+    done
+    echo "Error: the keypad template tool was not found (settings-qt/bridge/keypad_cli.py)"
+    echo "Please run the installer or launch from the project directory"
+    exit 1
+fi
+
 if [ "${JUHRADIAL_SETTINGS:-}" != "gtk" ] && qt_ok; then
     for qt_main in /usr/share/juhradial/settings-qt/main.py "$user_share/settings-qt/main.py" "$here/settings-qt/main.py" "$here/../settings-qt/main.py"; do
         if [ -f "$qt_main" ]; then
