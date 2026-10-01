@@ -220,7 +220,7 @@ Bolt, Unifying and Bluetooth connections are supported, including two receivers 
 - **Monitor-switch haptic on COSMIC and niri.** It can be missed or late, because the pointer position is only visible over XWayland windows there. *Being worked on:* following the desktop's own active monitor where it offers one.
 - **niri without `gtk4-layer-shell`.** The installer adds `gtk4-layer-shell` wherever the distro packages it, and the menu then opens at the pointer. *Workaround* where it is not packaged (for example openSUSE's default repositories): run `xwayland-satellite`.
 - **MX Keypad on a locked screen.** The keys go blank on lock on desktops that report the lock to logind, such as KDE Plasma and GNOME; on other desktops they stay active. *Being worked on:* more lock screens, such as swaylock and hyprlock.
-- **Settings on Qt older than 6.9** (for example Ubuntu 24.04 and Debian 13). The previous GTK Settings app opens instead, without the MX Keypad tab and the other new pages; the radial menu, buttons and keypad keep working. Debian 12 (Qt 6.4, libadwaita 1.2) can run neither Settings app. *Workaround:* set things up in the new app on another computer and bring them over with **Backup**, or edit `~/.config/juhradial/config.json`. *Being worked on:* the new Settings app on older Qt versions.
+- **Settings on Qt older than 6.9** (for example Ubuntu 24.04, Linux Mint 22 and Debian 13). The previous GTK Settings app opens instead, without the MX Keypad tab and the other new pages; the radial menu, buttons and keypad keep working. Debian 12 (Qt 6.4, libadwaita 1.2) can run neither Settings app. *Workaround:* an MX Keypad gets its pages from a terminal: `juhradial-settings --keypad-template` lists the ready templates and `juhradial-settings --keypad-template everyday` adds one. For the rest, set things up in the new app on another computer and bring them over with **Backup**, or edit `~/.config/juhradial/config.json`. *Being worked on:* the new Settings app on older Qt versions.
 
 See [compositor support](https://juhlabs.github.io/juhradial-mx/compositor-support/) for the details per desktop.
 
@@ -296,6 +296,7 @@ JuhFlow moves the cursor and clipboard between Linux and macOS over the local ne
 | Menu opens at the top-left on GNOME | Log out and back in to load the cursor helper, or run `gnome-extensions enable juhradial-cursor@dev.juhlabs.com`. |
 | Mouse, keypad or keyboard is not detected | Check that your user is in the `input` group and that the udev rules are installed, then log out and back in. |
 | Settings opens the old GTK window | Your Qt is older than 6.9. Install PyQt6 6.9 or newer, or keep using the GTK app. |
+| MX Keypad keys stay black | It has no pages yet. Add them in Settings, or where the GTK window opens, with `juhradial-settings --keypad-template everyday`. |
 | Menu is hidden on Hyprland | Add the rules from the [compositor support guide](https://juhlabs.github.io/juhradial-mx/compositor-support/). |
 | Build fails | Install the development packages for your distro, including `hidapi-devel` and `dbus-devel` on Fedora-family systems. |
 

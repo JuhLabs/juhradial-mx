@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MX Keypad templates from a terminal** - `juhradial-settings --keypad-template` lists the four ready templates and `juhradial-settings --keypad-template everyday` adds one as a page, key images included, and has the daemon show it. It opens no window and needs no QML, so an MX Keypad can be set up where the GTK Settings fallback opens and has no keypad page (Qt older than 6.9: Ubuntu 24.04, Linux Mint 22, Debian 13). A template that is already a page is not added twice, and it asks you to close an open Settings window first so the page is not saved over. Reported by [@BioTechi](https://github.com/BioTechi) in [#168](https://github.com/JuhLabs/juhradial-mx/issues/168).
+
 ### Fixed
 
 - **The service log shows what happens with an MX Keypad** - Finding, opening and starting the keypad were only logged at debug level, so the journal looked the same whether the keypad was running, could not be opened or was never found. The daemon now logs when a keypad connects and when it disconnects (with the cause), and a keypad that cannot be opened or started is logged once per plug-in with the reason; a permission error names the `input` group. Reported by [@BioTechi](https://github.com/BioTechi) in [#168](https://github.com/JuhLabs/juhradial-mx/issues/168).
