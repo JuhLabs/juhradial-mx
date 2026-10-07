@@ -45,11 +45,12 @@ Homepage: https://github.com/JuhLabs/juhradial-mx
 Section: utils
 Priority: optional
 Depends: python3, python3-pyqt6, python3-cryptography, python3-gi, python3-gi-cairo, gir1.2-gtk-4.0, gir1.2-adw-1, libc6
-Recommends: ydotool, python3-pyqt6.qtsvg, python3-pyqt6.qtqml, python3-pyqt6.qtquick, qml6-module-qtquick-effects, libgtk4-layer-shell0
+Recommends: ydotool, python3-pyqt6.qtsvg, libgtk4-layer-shell0, python3-pyqt6.qtqml, python3-pyqt6.qtquick, qml6-module-qtqml, qml6-module-qtqml-workerscript, qml6-module-qtquick, qml6-module-qtquick-window, qml6-module-qtquick-controls, qml6-module-qtquick-templates, qml6-module-qtquick-layouts, qml6-module-qtquick-shapes, qml6-module-qtquick-dialogs, qml6-module-qt-labs-folderlistmodel, qml6-module-qtquick-effects, qml6-module-qtquick-vectorimage, qt6-svg-plugins
 Description: Radial menu and configuration for Logitech MX Master mice on Linux
  Hold the gesture button to open a radial menu, remap buttons, set DPI,
  SmartShift, haptics, Easy-Switch and per-app profiles. The Qt settings app
- needs Qt 6.9; older releases use the GTK settings app automatically.
+ needs Qt 6.4 and the recommended QML modules; without them the GTK settings
+ app opens instead.
 CONTROL
 cat > "$stage/DEBIAN/postinst" <<'POSTINST'
 #!/bin/sh

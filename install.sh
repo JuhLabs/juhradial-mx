@@ -416,6 +416,15 @@ install_deps_arch() {
         git make base-devel
 }
 
+# QML module packages of the Qt settings app on Debian-family systems.
+DEBIAN_QML_PKGS="python3-pyqt6.qtqml python3-pyqt6.qtquick \
+qml6-module-qtqml qml6-module-qtqml-workerscript \
+qml6-module-qtquick qml6-module-qtquick-window \
+qml6-module-qtquick-controls qml6-module-qtquick-templates \
+qml6-module-qtquick-layouts qml6-module-qtquick-shapes \
+qml6-module-qtquick-dialogs qml6-module-qt-labs-folderlistmodel"
+DEBIAN_QML_OPTIONAL_PKGS="qml6-module-qtquick-effects qml6-module-qtquick-vectorimage qt6-svg-plugins"
+
 install_deps_debian() {
     sudo apt-get update
     sudo apt-get install -y \
@@ -433,20 +442,24 @@ install_deps_debian() {
         sudo apt-get install -y libgtk4-layer-shell0
     fi
 
-    # The Qt/QML settings app needs QtQuick.Effects, which requires Qt >= 6.5.
-    # Debian 13 / Ubuntu 25.04+ ship it; older releases keep the GTK settings
-    # app (the launcher falls back automatically).
-    if apt-cache show qml6-module-qtquick-effects &> /dev/null; then
-        sudo apt-get install -y \
-            python3-pyqt6.qtqml python3-pyqt6.qtquick \
-            qml6-module-qtqml qml6-module-qtqml-workerscript \
-            qml6-module-qtquick qml6-module-qtquick-window \
-            qml6-module-qtquick-controls qml6-module-qtquick-templates \
-            qml6-module-qtquick-layouts qml6-module-qtquick-shapes \
-            qml6-module-qtquick-effects
-    else
-        log_warning "Qt >= 6.5 QML modules are not available on this release: the Qt settings app is disabled, the GTK settings app is used instead"
+    # The Qt/QML settings app (Qt 6.4 or newer: Ubuntu 24.04, Linux Mint 22,
+    # Debian 12 and later). Debian packages every QML module on its own, so
+    # each module settings-qt/qml imports needs its package in one of the two
+    # lists below (tests/test_qml_packages.py holds them to that). Issue #172:
+    # the list was short and most Settings tabs came up empty.
+    # shellcheck disable=SC2086
+    if ! sudo apt-get install -y $DEBIAN_QML_PKGS; then
+        log_warning "The Qt QML packages are not available on this release: the GTK settings app is used instead"
     fi
+    # What newer Qt adds (frosted cards from 6.5, vector illustrations from
+    # 6.8) and the SVG image plugin: installed where the release has them;
+    # the app draws stand-ins where it does not.
+    local pkg
+    for pkg in $DEBIAN_QML_OPTIONAL_PKGS; do
+        if apt-cache show "$pkg" &> /dev/null; then
+            sudo apt-get install -y "$pkg" || true
+        fi
+    done
 }
 
 install_deps_opensuse() {
@@ -665,7 +678,10 @@ ensure_rust_toolchain() {
         log_info "Rust toolchain not found; installing rustup"
     fi
 
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+    # rustup's installer script at the commit of rustup 1.29.1 (what
+    # sh.rustup.rs serves), by its hash: the script that runs is the one that
+    # was reviewed, whatever that address serves later.
+    curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/rust-lang/rustup/d95a37b6ab92cc1e455d1576039333c97ca3e2c5/rustup-init.sh | sh -s -- -y --default-toolchain stable --profile minimal
     # shellcheck source=/dev/null
     . "$HOME/.cargo/env"
 }

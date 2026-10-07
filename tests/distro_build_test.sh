@@ -45,7 +45,7 @@ set -e
 export CARGO_TARGET_DIR=/tmp/jr-target
 if ! command -v cargo >/dev/null 2>&1 || [ "$(cargo --version | cut -d' ' -f2 | cut -d. -f2)" -lt 78 ]; then
     echo "-- bootstrapping rustup (distro cargo absent or too old)"
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+    curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/rust-lang/rustup/d95a37b6ab92cc1e455d1576039333c97ca3e2c5/rustup-init.sh | sh -s -- -y --default-toolchain stable --profile minimal
     . "$HOME/.cargo/env"
 fi
 cargo --version
