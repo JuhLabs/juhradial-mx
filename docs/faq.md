@@ -1,3 +1,8 @@
+---
+title: "FAQ"
+description: "Answers about JuhRadial MX: supported Logitech devices, Wayland and X11, privacy, and running it next to other Logitech tools."
+---
+
 # Frequently Asked Questions
 
 Quick answers to the questions people ask most about JuhRadial MX, the native Linux power-tool for the Logitech MX Master 4 (and friends). If you do not find your answer here, check [Troubleshooting](troubleshooting.md) or open a thread in [Discussions](https://github.com/JuhLabs/juhradial-mx/discussions).

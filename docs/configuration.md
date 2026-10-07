@@ -1,3 +1,8 @@
+---
+title: "Configuration reference"
+description: "Reference for ~/.config/juhradial/config.json: every key JuhRadial MX reads, its default and what it changes."
+---
+
 # Configuration
 
 JuhRadial MX is configured through plain JSON files under your XDG config directory. The Settings app (GTK4) writes these files for you, but every value is human readable and safe to edit by hand. This page is the full reference: where the files live, every top-level section and its key fields, the theme list, the per-application profile format, and autostart.

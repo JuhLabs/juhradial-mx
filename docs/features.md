@@ -1,3 +1,8 @@
+---
+title: "Features: radial menu, remapping, haptics, Easy-Switch, MX Keypad"
+description: "What JuhRadial MX does: the Actions Ring radial menu, button remapping, gestures, MX Master 4 haptics, SmartShift and DPI, Easy-Switch, Flow, the MX Keypad and macros."
+---
+
 # Features
 
 JuhRadial MX turns the Logitech MX Master 4 (and the MX Master 3S / 3) into a
@@ -150,9 +155,11 @@ body), the Dashboard says whether the mouse is reachable and what needs a
 fix, and the Devices page shows live link state, battery, the keyboard
 backlight, receivers and copies diagnostics for a bug report.
 
-The GTK4 app stays in the tree as the automatic fallback on distros whose Qt
-is older than 6.9 (Ubuntu 24.04, Debian 13); `JUHRADIAL_SETTINGS=gtk` forces
-it. Whichever app runs is the only writer of `~/.config/juhradial/config.json`
+The Qt app runs on Qt 6.4 and newer (Ubuntu 24.04, Linux Mint 22, Debian 12
+and later). What newer Qt adds, the frosted cards from 6.5 and the soft shadows
+from 6.9, has plainer stand-ins on older releases, so every page is there. The
+GTK4 app stays in the tree as the automatic fallback below Qt 6.4;
+`JUHRADIAL_SETTINGS=gtk` forces it. Whichever app runs is the only writer of `~/.config/juhradial/config.json`
 and asks the daemon to reload after every save.
 
 ## Button & Action Remapping
@@ -513,6 +520,21 @@ Import validates the whole archive before touching the disk, keeps the
 replaced files as `.bak`, and reloads a running daemon. Plugin folders and Flow
 pairing keys are not part of the archive: plugins are copied by hand, and the
 keys never leave the machine.
+
+## Command line
+
+`juhradial-mx` with a command talks to the running service and exits. It opens no window and needs no display, so it works over SSH, in scripts and on a keyboard shortcut.
+
+| Command | What it does |
+|---|---|
+| `juhradial-mx status` | The mouse, its link, battery, DPI and Easy-Switch computer, and the MX Keypad. `--json` prints the same as JSON. |
+| `juhradial-mx doctor` | Checks the service, the menu, the `input` group, the device nodes, the udev rules, the session and Qt, and prints the fix for each point that is wrong. Exits 1 when something has to be fixed. |
+| `juhradial-mx dpi` | Prints the DPI; `juhradial-mx dpi 1600` sets it (snapped to the mouse's step). |
+| `juhradial-mx host 2` | Sends the mouse to Easy-Switch computer 2. |
+| `juhradial-mx keypad-page 3` | Shows page 3 on the MX Keypad. |
+| `juhradial-mx reload` | Has the service read `config.json` again after a hand edit. |
+
+Without a command, `juhradial-mx` starts the radial menu as before.
 
 ## See also
 

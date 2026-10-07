@@ -13,6 +13,8 @@ edit_uri: edit/master/docs/
 
 theme:
   name: material
+  # overrides/main.html adds the Open Graph and Twitter card tags.
+  custom_dir: overrides
   logo: assets/juhradial-mx.svg
   favicon: assets/juhradial-mx.svg
   icon:
@@ -54,6 +56,10 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Features: features.md
+  - Guides:
+      - Logi Options+ alternative: logi-options-plus-alternative.md
+      - MX Keypad on Linux: mx-keypad.md
+      - Coming from logiops or Solaar: migrating.md
   - Configuration: configuration.md
   - Plugins: plugins.md
   - Compositor Support: compositor-support.md

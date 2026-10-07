@@ -1,3 +1,8 @@
+---
+title: "Logitech MX Master, MX Keypad and MX Keys S on Linux"
+description: "Open-source Linux control for Logitech MX Master mice, the MX Keypad and the MX Keys S: radial menu, button remapping, haptics and Easy-Switch on Wayland and X11."
+---
+
 <div align="center">
   <img src="https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/assets/github/readme-header.png" width="100%" alt="JuhRadial MX">
   <p><strong>The Logitech MX experience on Linux, native on Wayland</strong></p>
@@ -33,7 +38,7 @@ The installer detects your distro, installs the packages it needs (runtime and b
 
 0.4.5 is out as a beta (Beta 2 as of 25 September 2026) and is feature complete; it is marked beta because so much is new and we want it tested on more hardware and desktops before the stable release.
 
-- **A new Settings app** built with Qt/QML: frosted glass cards over a wallpaper, twelve colour themes with matched wallpapers, search across every setting, keyboard navigation and 18 languages. The GTK app stays as the fallback on Qt older than 6.9.
+- **A new Settings app** built with Qt/QML: frosted glass cards over a wallpaper, twelve colour themes with matched wallpapers, search across every setting, keyboard navigation and 18 languages. It runs on Qt 6.4 and newer; the GTK app stays as the fallback below that.
 - **MX Keypad support**: nine display keys with pages, per-app profiles, key art, folders, two-state keys, text keys and shareable packs.
 - **MX Keys S support** (opt-in, beta): battery, backlight, Easy-Switch follow and key remapping.
 - **Directional gestures**: hold the gesture button and drag up, down, left or right, or diagonally, for more actions, with Custom on any direction.

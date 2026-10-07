@@ -1,3 +1,8 @@
+---
+title: "Plugins"
+description: "Write a JuhRadial MX plugin: a folder with a plugin.json adds your own actions to the radial menu's slice picker."
+---
+
 # Plugins
 
 A plugin adds actions to JuhRadial MX without touching its code. It is a folder in `~/.config/juhradial/plugins/` (or `$XDG_CONFIG_HOME/juhradial/plugins/`) with a `plugin.json` that declares one or more actions. Every action runs one of three ways: a shell command, a D-Bus method call, or a script shipped in the plugin folder.

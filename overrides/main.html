@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{#- Link previews and search results: Open Graph and Twitter card tags on
+    every page (title and description from the page's front matter, else the
+    site's), and on the home page what the software is, as structured data. -#}
+{% block extrahead %}
+  {% set page_meta = page.meta if page and page.meta else {} %}
+  {% if page_meta.title %}
+    {% set share_title = page_meta.title ~ " - " ~ config.site_name %}
+  {% elif page and page.title and not page.is_homepage %}
+    {% set share_title = page.title | striptags ~ " - " ~ config.site_name %}
+  {% else %}
+    {% set share_title = config.site_name %}
+  {% endif %}
+  {% set share_description = page_meta.description or config.site_description %}
+  {% set share_image = config.site_url ~ "assets/social-card.png" %}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ config.site_name }}">
+  <meta property="og:title" content="{{ share_title }}">
+  <meta property="og:description" content="{{ share_description }}">
+  {% if page and page.canonical_url %}
+  <meta property="og:url" content="{{ page.canonical_url }}">
+  {% endif %}
+  <meta property="og:image" content="{{ share_image }}">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="JuhRadial MX: Linux control for Logitech MX Master mice">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ share_title }}">
+  <meta name="twitter:description" content="{{ share_description }}">
+  <meta name="twitter:image" content="{{ share_image }}">
+  {% if page and page.is_homepage %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": {{ config.site_name | tojson }},
+    "description": {{ share_description | tojson }},
+    "url": {{ config.site_url | tojson }},
+    "image": {{ share_image | tojson }},
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "Linux",
+    "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+    "isAccessibleForFree": true,
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "JuhLabs", "url": "https://github.com/JuhLabs" },
+    "codeRepository": {{ config.repo_url | tojson }}
+  }
+  </script>
+  {% endif %}
+{% endblock %}

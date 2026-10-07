@@ -1,3 +1,8 @@
+---
+title: "Install on Fedora, Ubuntu, Debian, Mint, Arch, openSUSE and NixOS"
+description: "Install JuhRadial MX with one line on Fedora, Ubuntu, Debian, Linux Mint, Arch, openSUSE and Bazzite, from a package, on NixOS, or by hand. Updating and removing it."
+---
+
 # Installation
 
 JuhRadial MX builds from source on every supported distribution. The fastest path is the one-line installer, which detects your distro, pulls the right packages, compiles the Rust daemon, and wires up autostart and device permissions for you. Manual and NixOS paths are documented below for people who prefer to drive each step themselves.
@@ -132,7 +137,7 @@ sudo rm -f /etc/udev/rules.d/99-juhradialmx.rules /etc/udev/rules.d/60-ydotool-u
 
 - A Wayland compositor (KDE Plasma 6, GNOME, Hyprland, COSMIC, Sway, niri) or X11.
 - Rust toolchain (Cargo >= 1.78) to build the daemon. The installer provides this if needed.
-- Python 3 with PyQt6 (overlay and the Qt/QML settings app; the Qt settings app needs Qt 6.9 or newer) and GTK4 + libadwaita via PyGObject (the fallback GTK settings app on older Qt).
+- Python 3 with PyQt6 (overlay and the Qt/QML settings app; the Qt settings app needs Qt 6.4 or newer) and GTK4 + libadwaita via PyGObject (the fallback GTK settings app below that).
 - XWayland, used for overlay window positioning on Wayland.
 - A supported mouse (Logitech MX Master 4 / 3S / 3 for full HID++, or any mouse in generic evdev mode). See [FAQ](faq.md) for device coverage.
 
@@ -168,7 +173,11 @@ sudo apt-get install -y \
     rustc cargo \
     python3 python3-pip python3-venv \
     python3-pyqt6 python3-pyqt6.qtsvg python3-pyqt6.qtqml python3-pyqt6.qtquick \
-    qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-effects \
+    qml6-module-qtqml qml6-module-qtqml-workerscript \
+    qml6-module-qtquick qml6-module-qtquick-window \
+    qml6-module-qtquick-controls qml6-module-qtquick-templates \
+    qml6-module-qtquick-layouts qml6-module-qtquick-shapes \
+    qml6-module-qtquick-dialogs qml6-module-qt-labs-folderlistmodel \
     python3-gi python3-gi-cairo gir1.2-gtk-4.0 gir1.2-adw-1 \
     python3-cryptography \
     libdbus-1-dev libsystemd-dev \
@@ -178,7 +187,15 @@ sudo apt-get install -y \
 
 # Optional: layer-shell support where the package exists
 sudo apt-get install -y libgtk4-layer-shell0
+
+# Newer Qt only (frosted cards from Qt 6.5, vector illustrations from 6.8):
+# skip the ones your release does not have, Settings draws stand-ins
+sudo apt-get install -y qml6-module-qtquick-effects qml6-module-qtquick-vectorimage qt6-svg-plugins
 ```
+
+Debian and Ubuntu package every QML module on its own. With one of them
+missing, `juhradial-settings` names it in the terminal and the page that needs
+it shows the command to install it.
 
 !!! note
     On Ubuntu 24.04 the distro Rust (1.75) is too old for the committed lockfile. Bootstrap rustup as shown in [The rustup bootstrap](#the-rustup-bootstrap) before building.

@@ -1,3 +1,8 @@
+---
+title: "Troubleshooting"
+description: "Fix a radial menu that does not appear, a Logitech mouse or MX Keypad that is not detected, permissions, Settings pages that do not load, and build errors."
+---
+
 # Troubleshooting
 
 Practical fixes for the most common JuhRadial MX problems, written as **problem -> cause -> fix**. Most issues fall into one of six buckets: the daemon will not build, the mouse is not detected, the daemon is not running, the menu shows up in the wrong place, button or thumb-wheel actions do nothing, or haptics and battery are missing.
@@ -9,6 +14,8 @@ See also: [Installation](installation.md) Â· [Configuration](configuration.md) Â
 ---
 
 ## Quick diagnostics
+
+Start with `juhradial-mx doctor`: it checks the service, the `input` group, the device nodes, the udev rules, the session and Qt in one go and prints the fix next to each point that is wrong. The sections below explain each of them.
 
 Run these first. The output tells you which section you need.
 
@@ -223,6 +230,31 @@ Then `hyprctl reload`. See [Compositor-Support](compositor-support.md) for other
 Also run `xwayland-satellite` so the rest of the XWayland pipeline functions. See [Compositor-Support](compositor-support.md) for the full niri setup.
 
 ---
+
+## Settings
+
+### Problem: a Settings page says it could not be loaded, or the old GTK window opens
+
+**Cause.** The Settings app is built from Qt's QML modules. Fedora, Arch and openSUSE ship them in one package; Debian, Ubuntu, Linux Mint and Kali package each module on its own, so one can be missing. The installer installs all of them; a manual or partial install can leave one out.
+
+**Fix.** Start Settings from a terminal:
+
+```bash
+juhradial-settings
+```
+
+It prints what this Qt can load and, where a module is missing, the command that installs it, for example:
+
+```text
+Qt 6.10.2
+  ok       effects: QtQuick.Effects
+  missing  vector: QtQuick.VectorImage
+  fix: sudo apt install qml6-module-qtquick-vectorimage
+```
+
+A page that cannot be built shows the same command with a **Copy command** button. `n/a` in that list is not an error: the Qt on this system is older than the feature, and Settings draws a plainer stand-in.
+
+The GTK window opens when Qt is older than 6.4 or PyQt6's QML support is not installed at all (`python3-pyqt6.qtqml` and `python3-pyqt6.qtquick` on Debian-family systems).
 
 ## Buttons and thumb-wheel actions do nothing
 

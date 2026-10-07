@@ -1,3 +1,8 @@
+---
+title: "KDE Plasma 6, GNOME, Hyprland, niri, sway, COSMIC and X11"
+description: "How JuhRadial MX places the radial menu and finds the focused app on KDE Plasma 6, GNOME, Hyprland, COSMIC, sway, niri and X11, with the setup each desktop needs."
+---
+
 # Compositor & Desktop Support
 
 JuhRadial MX runs natively across the major Linux desktops. Two things have to work for the radial menu to land on your cursor: the daemon has to **find the cursor position** when you press the gesture button, and the overlay window has to **position itself** at that point. Different compositors expose this in different ways, so the daemon picks the most accurate source available for your session.
