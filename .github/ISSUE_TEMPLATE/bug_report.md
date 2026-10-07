@@ -25,6 +25,15 @@ What actually happened instead.
 If applicable, add screenshots or log output to help explain your problem.
 
 <details>
+<summary>Self-check (click to expand)</summary>
+
+```
+Paste output of: juhradial-mx doctor
+```
+
+</details>
+
+<details>
 <summary>Daemon logs (click to expand)</summary>
 
 ```

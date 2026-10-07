@@ -99,6 +99,13 @@ main() {
         return 1
     }
 
+    # juhradial-mx status | doctor | dpi | host | keypad-page | reload: ask the
+    # running service from a terminal or a script, and exit.
+    case "${1:-}" in
+        status|doctor|dpi|host|keypad-page|reload|help|--help|-h)
+            exec python3 "$root/settings-qt/bridge/ctl.py" "$@" ;;
+    esac
+
     # Start the overlay (it listens for D-Bus signals) unless one is already up.
     if ! pgrep -f '[j]uhradial-overlay.py' >/dev/null 2>&1; then
         python3 "$overlay" &
