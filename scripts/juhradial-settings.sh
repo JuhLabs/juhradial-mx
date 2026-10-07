@@ -3,24 +3,15 @@
 # JuhRadial MX Settings Launcher
 # https://github.com/JuhLabs/juhradial-mx
 #
-# Prefers the Qt/QML settings app when it is installed and the runtime Qt is
-# new enough for it (6.9: RectangularShadow, VectorImage); otherwise starts the
-# GTK settings app, which needs libadwaita 1.4. Both read and write the same
-# config.json. Set JUHRADIAL_SETTINGS=gtk to force GTK.
+# Prefers the Qt/QML settings app when it is installed and this Qt can run it
+# (6.4 or newer with the QML modules its window is built from: settings-qt's
+# bridge/compat.py answers that); otherwise starts the GTK settings app, which
+# needs libadwaita 1.4. Both read and write the same config.json. Set
+# JUHRADIAL_SETTINGS=gtk to force GTK.
 
 here="$(cd "$(dirname "$0")" && pwd)"
 # install.sh --user puts the app under the user's data dir (#138).
 user_share="${XDG_DATA_HOME:-$HOME/.local/share}/juhradial"
-
-qt_ok() {
-    python3 - <<'PY' 2>/dev/null
-import sys
-import PyQt6.QtQml  # noqa: F401
-from PyQt6.QtCore import qVersion
-major, minor = (int(x) for x in qVersion().split(".")[:2])
-sys.exit(0 if (major, minor) >= (6, 9) else 1)
-PY
-}
 
 adw_ok() {
     python3 - <<'PY' 2>/dev/null
@@ -47,20 +38,28 @@ if [ "${1:-}" = "--keypad-template" ]; then
     exit 1
 fi
 
-if [ "${JUHRADIAL_SETTINGS:-}" != "gtk" ] && qt_ok; then
-    for qt_main in /usr/share/juhradial/settings-qt/main.py "$user_share/settings-qt/main.py" "$here/settings-qt/main.py" "$here/../settings-qt/main.py"; do
-        if [ -f "$qt_main" ]; then
-            exec python3 "$qt_main" "$@"
+if [ "${JUHRADIAL_SETTINGS:-}" != "gtk" ]; then
+    for qt_dir in /usr/share/juhradial/settings-qt "$user_share/settings-qt" "$here/settings-qt" "$here/../settings-qt"; do
+        [ -f "$qt_dir/main.py" ] || continue
+        # Exit 0: this Qt runs the app. A part that is merely missing gets a
+        # stand-in; the report names the package, so say it once on the way in.
+        if qt_report="$(python3 "$qt_dir/bridge/compat.py" 2>/dev/null)"; then
+            case "$qt_report" in *missing*) printf '%s\n' "$qt_report" >&2 ;; esac
+            exec python3 "$qt_dir/main.py" "$@"
         fi
+        if [ -n "$qt_report" ]; then
+            printf 'The Qt settings app cannot start, opening the GTK one:\n%s\n' "$qt_report" >&2
+        fi
+        break
     done
 fi
 
 # GTK settings app: installed location first, then the local development tree
 if ! adw_ok; then
-    echo "Error: JuhRadial MX Settings needs either Qt 6.9 or newer (PyQt6 with QtQml)"
+    echo "Error: JuhRadial MX Settings needs either Qt 6.4 or newer (PyQt6 with QtQml and QtQuick)"
     echo "or GTK 4 with libadwaita 1.4 or newer. This system has neither."
     echo "The radial menu and the daemon keep working; edit ~/.config/juhradial/config.json by hand"
-    echo "or install PyQt6 6.9 or newer from your distribution."
+    echo "or install PyQt6 with its QML modules from your distribution."
     exit 1
 fi
 if [ -f /usr/share/juhradial/settings_dashboard.py ]; then

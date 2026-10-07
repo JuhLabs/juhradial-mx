@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic as B
+import QtQuick.Templates as T
 
 // "Pick application" popup: the installed applications as the desktop menu
 // lists them, with search and keyboard navigation. Emits picked(app) with
@@ -15,7 +16,7 @@ B.Popup {
     focus: true
     width: 460
     height: Math.min(600, parent ? parent.height - 80 : 600)
-    anchors.centerIn: B.Overlay.overlay
+    anchors.centerIn: T.Overlay.overlay
     closePolicy: B.Popup.CloseOnEscape | B.Popup.CloseOnPressOutside
 
     property var _apps: []
@@ -46,7 +47,7 @@ B.Popup {
         radius: Theme.radiusCard; color: Theme.surfaceGlassHi
         border.color: Theme.borderStrong; border.width: 1
     }
-    B.Overlay.modal: Rectangle { color: "#99000000" }
+    T.Overlay.modal: Rectangle { color: "#99000000" }
 
     contentItem: Column {
         spacing: 12

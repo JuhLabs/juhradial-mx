@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Window
-import QtQuick.Effects
 
 // The one surface material: frosted wallpaper sample + graphite tint + hairline
 // + lit top edge + ambient shadow. Every control lives on one of these, never
@@ -50,7 +49,7 @@ Item {
         function onHeightChanged() { Qt.callLater(root._sync) }
     }
 
-    RectangularShadow {
+    Shadow {
         visible: root.shadow
         anchors.fill: parent
         radius: root.radius
@@ -66,7 +65,7 @@ Item {
         anchors.fill: parent
         visible: root.frosted
         layer.enabled: root.frosted
-        layer.effect: MultiEffect { maskEnabled: true; maskSource: frostMask; brightness: -0.12 }
+        layer.effect: FrostEffect { maskSource: frostMask }
         Image {
             x: -root._wx; y: -root._wy
             width: root.Window.width; height: root.Window.height

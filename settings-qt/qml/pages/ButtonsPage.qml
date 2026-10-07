@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Effects
 import QtQuick.Shapes
 import QtQuick.Window
 import QtQuick.Controls.Basic as B
@@ -271,7 +270,7 @@ Item {
         y: img.y + img.height - 70
         width: img.width * spread; height: 110
         ShapePath {
-            strokeWidth: 0
+            strokeWidth: 0; strokeColor: "transparent"
             fillGradient: RadialGradient {
                 centerX: img.width * spread / 2; centerY: 55
                 focalX: img.width * spread / 2; focalY: 55
@@ -673,7 +672,7 @@ Item {
                                     FocusHalo { active: slot.activeFocus; radius: slot.width / 2 }
 
                                     // glow = state: the hovered button lights in its own colour
-                                    RectangularShadow {
+                                    Shadow {
                                         anchors.fill: parent
                                         radius: width / 2
                                         blur: slot.lit ? 18 : 10

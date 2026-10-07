@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic as B
+import QtQuick.Templates as T
 
 // Reusable action chooser popup. Call open() after setting `actions` (a list of
 // {id, name, icon?, hex?, groupName?, hidden?}) and `title`. Emits picked(id).
@@ -18,7 +19,7 @@ B.Popup {
     focus: true
     width: 480
     height: Math.min(600, parent ? parent.height - 80 : 600)
-    anchors.centerIn: B.Overlay.overlay
+    anchors.centerIn: T.Overlay.overlay
     closePolicy: B.Popup.CloseOnEscape | B.Popup.CloseOnPressOutside
 
     property string _q: ""
@@ -74,7 +75,7 @@ B.Popup {
         radius: Theme.radiusCard; color: Theme.surfaceGlassHi
         border.color: Theme.borderStrong; border.width: 1
     }
-    B.Overlay.modal: Rectangle { color: "#99000000" }
+    T.Overlay.modal: Rectangle { color: "#99000000" }
 
     contentItem: Column {
         spacing: 12

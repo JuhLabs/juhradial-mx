@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic as B
+import QtQuick.Templates as T
 
 // Full editor for one radial slice: pick the base action, then customise its
 // label, command/URL and colour, and nudge its position. Reads/writes through
@@ -15,7 +16,7 @@ B.Popup {
     modal: true; dim: true; focus: true
     width: 460
     height: Math.min(620, parent ? parent.height - 60 : 620)
-    anchors.centerIn: B.Overlay.overlay
+    anchors.centerIn: T.Overlay.overlay
     closePolicy: B.Popup.CloseOnEscape | B.Popup.CloseOnPressOutside
 
     function reload() { ed.d = ed.model.sliceAt(ed.row) }
@@ -42,7 +43,7 @@ B.Popup {
         radius: Theme.radiusCard; color: Theme.surfaceGlassHi
         border.color: Theme.borderStrong; border.width: 1
     }
-    B.Overlay.modal: Rectangle { color: "#99000000" }
+    T.Overlay.modal: Rectangle { color: "#99000000" }
 
     contentItem: Column {
         spacing: 14

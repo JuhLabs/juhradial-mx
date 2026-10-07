@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic as B
+import QtQuick.Templates as T
 
 // Key art gallery: the bundled art in two sets (Artsy fills the key, Minimal
 // sits above the label), with search and keyboard navigation. Emits
@@ -14,7 +15,7 @@ B.Popup {
     focus: true
     width: 560
     height: Math.min(640, parent ? parent.height - 80 : 640)
-    anchors.centerIn: B.Overlay.overlay
+    anchors.centerIn: T.Overlay.overlay
     closePolicy: B.Popup.CloseOnEscape | B.Popup.CloseOnPressOutside
 
     property var _art: []
@@ -48,7 +49,7 @@ B.Popup {
         radius: Theme.radiusCard; color: Theme.surfaceGlassHi
         border.color: Theme.borderStrong; border.width: 1
     }
-    B.Overlay.modal: Rectangle { color: "#99000000" }
+    T.Overlay.modal: Rectangle { color: "#99000000" }
 
     contentItem: Column {
         spacing: 12

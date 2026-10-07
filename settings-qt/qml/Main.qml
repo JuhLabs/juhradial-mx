@@ -336,12 +336,16 @@ ApplicationWindow {
                 readonly property real modesWide: minimalLabel.implicitWidth + genericLabel.implicitWidth + 2 * 46 + 2 * 8 + Theme.gapL
                 readonly property bool roomy: room >= pageTitle.implicitWidth + 220 + modesWide
                                                      + statusBadges.implicitWidth + 5 * spacing
+                // The whole title fits beside a search field at its narrowest
+                // and the bare switches: the search field gives way first.
+                readonly property bool titleFits: room >= pageTitle.implicitWidth + 150 + 2 * 46 + Theme.gapL
+                                                         + statusBadges.implicitWidth + 5 * spacing
                 Text {
                     id: pageTitle
                     // A long translated title gives way last, with an ellipsis.
                     Layout.fillWidth: true
                     Layout.maximumWidth: implicitWidth
-                    Layout.minimumWidth: Math.min(implicitWidth, 110)
+                    Layout.minimumWidth: header.titleFits ? implicitWidth : Math.min(implicitWidth, 110)
                     elide: Text.ElideRight
                     text: navModel.get(nav.current).label
                     color: Theme.textPrimary
@@ -487,6 +491,13 @@ ApplicationWindow {
                                 y: pageLoader.active ? 0 : 8
                                 Behavior on y { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
                             }
+                        }
+                        // A page that cannot be built says why (issue #172).
+                        // Created only then: nothing of it exists otherwise.
+                        Loader {
+                            anchors.fill: parent
+                            active: pageLoader.status === Loader.Error
+                            sourceComponent: PageError { objectName: "pageError"; source: pageLoader.source }
                         }
                         // The side gutters still scroll the page.
                         MouseArea {

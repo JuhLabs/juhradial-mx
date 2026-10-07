@@ -5144,6 +5144,14 @@ class Backend(QObject):
         name = time.strftime("juhradial-backup-%Y%m%d-%H%M.zip")
         return QUrl.fromLocalFile(str(folder / name)).toString()
 
+    @pyqtProperty(str, constant=True)
+    def documentsFolder(self):
+        """file: URL of the Documents folder (the home directory when there is
+        none), where a save dialog starts."""
+        from PyQt6.QtCore import QStandardPaths
+        folder = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+        return QUrl.fromLocalFile(folder or str(pathlib.Path.home())).toString()
+
     def _run_backup(self, flag, path):
         """Run `juhradiald <flag> <path>`; returns (ok, message)."""
         binary = self._daemon_binary()
@@ -5977,7 +5985,26 @@ class Backend(QObject):
             f"Link: {self.linkState} via {self.transport}",
             f"Capabilities: {caps}",
             f"OS: {self._os_name()}",
+            f"Qt: {self._qt_summary()}",
         ])
+
+    # What bridge/compat.py found in this Qt (main.py hands it over).
+    _qt_features = None
+
+    def setQtFeatures(self, caps):
+        self._qt_features = dict(caps)
+
+    def _qt_summary(self):
+        from PyQt6.QtCore import qVersion
+        missing = sorted(k for k, v in (self._qt_features or {}).items() if not v)
+        return qVersion() + (f" (stand-ins for: {', '.join(missing)})" if missing else "")
+
+    @pyqtSlot(str, result=str)
+    def qmlErrorHint(self, error):
+        """The command that installs the QML modules a page load error names,
+        or "" (Debian-family systems package every module on its own, #172)."""
+        from bridge import compat
+        return compat.hint_for_error(error)
 
     @staticmethod
     def _os_name():

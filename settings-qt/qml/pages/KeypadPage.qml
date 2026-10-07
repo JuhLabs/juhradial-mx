@@ -1,7 +1,5 @@
-import QtCore
 import QtQuick
 import QtQuick.Controls.Basic as B
-import QtQuick.Dialogs
 import QtQuick.Layouts
 import "../components"
 
@@ -492,17 +490,17 @@ Item {
         title: qsTr("Which app is this profile for?")
         onPicked: (app) => { if (Backend.addKeypadAppProfile(app.id)) editor.load() }
     }
-    FileDialog {
+    FilePicker {
         id: exportDialog
         property var indexes: []
         title: qsTr("Save pages as a keypad pack")
-        fileMode: FileDialog.SaveFile
+        saving: true
         defaultSuffix: "zip"
-        currentFolder: StandardPaths.writableLocation(StandardPaths.DocumentsLocation)
+        currentFolder: Backend.documentsFolder
         nameFilters: [qsTr("Keypad pack (*.zip)")]
         onAccepted: Backend.exportKeypadPack(selectedFile.toString(), indexes)
     }
-    FileDialog {
+    FilePicker {
         id: packDialog
         title: qsTr("Import a keypad pack")
         nameFilters: [qsTr("Keypad pack (*.zip portable.json)")]

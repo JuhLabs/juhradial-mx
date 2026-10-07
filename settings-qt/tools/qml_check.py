@@ -18,10 +18,13 @@ from PyQt6.QtQml import QQmlComponent, QQmlEngine  # noqa: E402
 from PyQt6.QtCore import QUrl                      # noqa: E402
 from bridge.theme import Theme                     # noqa: E402
 from bridge.backend import Backend                 # noqa: E402
+from bridge import compat                          # noqa: E402
 
 app = QGuiApplication(sys.argv)
 engine = QQmlEngine()
 theme, backend = Theme(), Backend()
+caps = compat.install(engine, theme)
+print("stand-ins:", ", ".join(compat.selectors(caps)) or "none")
 ctx = engine.rootContext()
 ctx.setContextProperty("Theme", theme)
 ctx.setContextProperty("Backend", backend)

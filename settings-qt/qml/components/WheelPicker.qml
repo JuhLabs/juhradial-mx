@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Effects
 
 // Horizontal gallery of radial-wheel skins (independent of the colour theme).
 // Reads Theme.wheelList(); current = config radial.wheel. selected(key) fires.
@@ -54,7 +53,7 @@ Flickable {
                     border.width: cell.sel ? 2 : 1
                     border.color: cell.sel ? Theme.accent : (hov.hovered ? Theme.borderStrong : Theme.border)
                     Behavior on border.color { ColorAnimation { duration: Theme.dShort } }
-                    RectangularShadow {
+                    Shadow {
                         anchors.fill: parent; radius: 14; blur: 14
                         color: Theme.accentGlow; z: -1
                         opacity: cell.sel ? 0.55 : 0

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 
 // Sidebar nav row. "Light is state": only the active row carries accent (the
 // filament and its bloom); inactive rows are graphite and white. Hover is a
@@ -43,7 +42,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         opacity: it.active ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
-        RectangularShadow {
+        Shadow {
             anchors.fill: parent
             radius: 1.5; blur: 10; spread: 1
             color: Theme.accentGlow

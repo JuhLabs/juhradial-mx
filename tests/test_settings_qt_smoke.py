@@ -2,9 +2,8 @@
 
 Runs the app's own offscreen checks: every QML page compiles against the real
 Theme/Backend context, and the config backend round-trips through a temp
-config. Skipped where PyQt6's QML module is missing; the QML compile is also
-skipped on Qt < 6.5 (no QtQuick.Effects), which is exactly when the launcher
-falls back to the GTK settings app.
+config. Skipped where PyQt6's QML module is missing. The QML compile runs on
+every Qt from 6.4 up: what newer Qt adds has stand-ins (bridge/compat.py).
 """
 
 import os
@@ -34,8 +33,6 @@ def _run_tool(name):
 def test_every_qml_page_compiles():
     result = _run_tool("qml_check.py")
     output = result.stdout + result.stderr
-    if result.returncode != 0 and "QtQuick.Effects" in output:
-        pytest.skip("QtQuick.Effects (Qt >= 6.5) is not installed")
     assert result.returncode == 0, output
     assert "ALL OK" in result.stdout, output
 

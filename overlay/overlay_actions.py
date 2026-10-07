@@ -856,9 +856,10 @@ def _requires_settings_relaunch():
 def _settings_qt_script():
     """Path of the Qt/QML settings app when it is present and runnable, else None.
 
-    The Qt app needs PyQt6's QML module and Qt 6.9 or newer at runtime
-    (RectangularShadow, VectorImage); otherwise the GTK settings app stays the
-    target, as in the launcher script. JUHRADIAL_SETTINGS=gtk forces the GTK app.
+    The Qt app needs PyQt6's QML module and Qt 6.4 or newer at runtime (what
+    newer Qt adds has stand-ins, settings-qt/bridge/compat.py); otherwise the
+    GTK settings app stays the target, as in the launcher script.
+    JUHRADIAL_SETTINGS=gtk forces the GTK app.
     """
     if os.environ.get("JUHRADIAL_SETTINGS") == "gtk":
         return None
@@ -867,7 +868,7 @@ def _settings_qt_script():
         from PyQt6.QtCore import qVersion
     except ImportError:
         return None
-    if tuple(int(x) for x in qVersion().split(".")[:2]) < (6, 9):
+    if tuple(int(x) for x in qVersion().split(".")[:2]) < (6, 4):
         return None
     here = os.path.dirname(os.path.abspath(__file__))
     for candidate in (
@@ -876,8 +877,21 @@ def _settings_qt_script():
         "/usr/share/juhradial/settings-qt/main.py",
     ):
         if os.path.exists(candidate):
-            return os.path.normpath(candidate)
+            return os.path.normpath(candidate) if _settings_qt_loads(candidate) else None
     return None
+
+
+def _settings_qt_loads(main_py):
+    """Whether this Qt has the QML modules the Qt settings window is built
+    from: the launcher's own check (bridge/compat.py exits 0). Debian-family
+    systems package each module on its own, so a new enough Qt is not enough,
+    and a window that cannot be built would leave the tray entry doing nothing."""
+    check = os.path.join(os.path.dirname(main_py), "bridge", "compat.py")
+    try:
+        return subprocess.run(["python3", check], stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL, timeout=20, check=False).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def open_settings():

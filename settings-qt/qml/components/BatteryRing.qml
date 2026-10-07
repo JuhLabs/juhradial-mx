@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Shapes
-import QtQuick.Effects
 
 // Battery gauge: a glowing ring whose colour is driven by charge level (NOT the
 // theme) plus a detailed battery glyph in the centre. One severity scale for
@@ -24,9 +23,8 @@ Item {
                                      : qsTr("%1 percent").arg(percent)
 
     // faint track
-    Shape {
+    CurveShape {
         anchors.fill: parent
-        preferredRendererType: Shape.CurveRenderer
         ShapePath {
             strokeColor: "#22FFFFFF"; strokeWidth: Math.max(5, r.size * 0.07)
             fillColor: "transparent"; capStyle: ShapePath.RoundCap
@@ -38,21 +36,16 @@ Item {
         }
     }
     // glowing level arc
-    Shape {
+    CurveShape {
         id: arc
         anchors.fill: parent
-        preferredRendererType: Shape.CurveRenderer
         // render the shape into a multisampled layer so the MultiEffect glow
         // does not upscale a low-res texture (was visibly pixelated at HiDPI).
-        layer.enabled: true
+        layer.enabled: Theme.effects
         layer.samples: 8
         layer.smooth: true
         layer.textureSize: Qt.size(r.width * 2, r.height * 2)
-        layer.effect: MultiEffect {
-            shadowEnabled: true; shadowColor: r.lvl
-            shadowBlur: 1.0; shadowOpacity: 0.85
-            shadowHorizontalOffset: 0; shadowVerticalOffset: 0
-        }
+        layer.effect: GlowEffect { shadowColor: r.lvl }
         ShapePath {
             strokeColor: r.lvl; strokeWidth: Math.max(5, r.size * 0.07)
             fillColor: "transparent"; capStyle: ShapePath.RoundCap

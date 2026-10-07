@@ -1,8 +1,8 @@
 """Ready MX Keypad pages from a terminal.
 
-The Settings app needs Qt 6.9 for its QML. The keypad templates and the key
-images need QtGui and QtSvg only, so where the GTK Settings fallback opens
-instead (Ubuntu 24.04, Linux Mint 22, Debian 13) a keypad still gets pages:
+The Settings app needs Qt 6.4 and its QML modules. The keypad templates and
+the key images need QtGui and QtSvg only, so where the GTK Settings fallback
+opens instead (Ubuntu 22.04, or no QML packages) a keypad still gets pages:
 
     juhradial-settings --keypad-template            list the templates
     juhradial-settings --keypad-template everyday   add that page

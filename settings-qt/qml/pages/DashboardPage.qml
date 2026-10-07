@@ -215,7 +215,7 @@ Item {
                             width: 230; height: 90
                             y: parent.height - 62
                             ShapePath {
-                                strokeWidth: 0
+                                strokeWidth: 0; strokeColor: "transparent"
                                 fillGradient: RadialGradient {
                                     centerX: 115; centerY: 45; centerRadius: 115
                                     focalX: 115; focalY: 45

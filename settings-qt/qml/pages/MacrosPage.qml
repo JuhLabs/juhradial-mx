@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Window
-import QtQuick.Dialogs
 import QtQuick.Controls.Basic as B
 import "../components"
 import "../components/keys.js" as KeyNames
@@ -74,16 +73,15 @@ Item {
 
     MacroEditor { id: macroEditor }
     MacroBindDialog { id: bindDialog }
-    FileDialog {
+    FilePicker {
         id: exportDialog
         property string macroId: ""
-        fileMode: FileDialog.SaveFile
+        saving: true
         nameFilters: [qsTr("Macro files (*.json)")]
         onAccepted: Backend.exportMacro(macroId, selectedFile.toString())
     }
-    FileDialog {
+    FilePicker {
         id: importDialog
-        fileMode: FileDialog.OpenFile
         nameFilters: [qsTr("Macro files (*.json)")]
         onAccepted: Backend.importMacro(selectedFile.toString())
     }

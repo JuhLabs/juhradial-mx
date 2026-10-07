@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic as B
+import QtQuick.Templates as T
 
 // Bind a macro to a mouse button by pressing it (or picking it). Shows what
 // the choice changes: another macro on that button is unbound, and a button
@@ -17,7 +18,7 @@ B.Popup {
     modal: true; dim: true; focus: true
     width: 480
     height: Math.min(implicitHeight, parent ? parent.height - 60 : 520)
-    anchors.centerIn: B.Overlay.overlay
+    anchors.centerIn: T.Overlay.overlay
     closePolicy: B.Popup.CloseOnEscape | B.Popup.CloseOnPressOutside
     padding: 22
 
@@ -64,7 +65,7 @@ B.Popup {
         radius: Theme.radiusCard; color: Theme.surfaceGlassHi
         border.color: Theme.borderStrong; border.width: 1
     }
-    B.Overlay.modal: Rectangle { color: "#99000000" }
+    T.Overlay.modal: Rectangle { color: "#99000000" }
 
     contentItem: Column {
         spacing: 16

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 
 // Switch. Checked = accent fill + a soft glow (it is "on", so it is lit).
 Item {
@@ -27,7 +26,7 @@ Item {
     Accessible.onToggleAction: toggle()
     Accessible.onPressAction: toggle()
 
-    RectangularShadow {
+    Shadow {
         anchors.fill: parent
         radius: height / 2
         blur: 12; spread: 0

@@ -170,6 +170,7 @@ class Theme(QObject):
         if self._auto:
             self._i = nearest_theme(desktop_accent(), self._i)
         self._reduce = self._load_flag("reduce_transparency", False)
+        self._effects = True
         self._icon_style = self._load_icon_style()
         self._motion_setting = self._load_config_flag("app", "reduce_motion")
         self._desktop_motion = False
@@ -427,9 +428,24 @@ class Theme(QObject):
         return png.as_uri() if png.exists() else ""
 
     # ---- accessibility: solid cards instead of frosted sampling ----
+    # The frost is a MultiEffect layer: where QtQuick.Effects cannot be loaded
+    # (Qt 6.4, bridge/compat.py) the cards are solid whatever the setting says.
     @pyqtProperty(bool, notify=changed)
     def reduceTransparency(self):
+        return self._reduce or not self._effects
+
+    @pyqtProperty(bool, notify=changed)
+    def reduceTransparencySetting(self):
         return self._reduce
+
+    @pyqtProperty(bool, notify=changed)
+    def effects(self):
+        return self._effects
+
+    def setEffectsAvailable(self, available):
+        if bool(available) != self._effects:
+            self._effects = bool(available)
+            self.changed.emit()
 
     @pyqtSlot(bool)
     def setReduceTransparency(self, v):

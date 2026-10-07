@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls.Basic as QQC
-import QtQuick.Dialogs
 import QtQuick.Window
 import "../components"
 
@@ -330,8 +329,11 @@ Item {
                     }
                     SettingRow {
                         label: qsTr("Reduce transparency")
-                        desc: qsTr("Solid cards instead of frosted glass. Easier to read, lighter on the GPU.")
+                        desc: Theme.effects
+                              ? qsTr("Solid cards instead of frosted glass. Easier to read, lighter on the GPU.")
+                              : qsTr("This Qt has no blur effect, so the cards are already solid.")
                         Toggle {
+                            enabled: Theme.effects
                             checked: Theme.reduceTransparency
                             onToggled: (v) => Theme.setReduceTransparency(v)
                         }
@@ -718,18 +720,17 @@ Item {
     }
 
     // ---- Backup file dialogs (native where the platform offers one) ----
-    FileDialog {
+    FilePicker {
         id: exportDialog
         title: qsTr("Export JuhRadial MX settings")
-        fileMode: FileDialog.SaveFile
+        saving: true
         nameFilters: [qsTr("Zip archive (*.zip)")]
         defaultSuffix: "zip"
         onAccepted: Backend.exportBackup(selectedFile.toString())
     }
-    FileDialog {
+    FilePicker {
         id: importDialog
         title: qsTr("Import JuhRadial MX settings")
-        fileMode: FileDialog.OpenFile
         nameFilters: [qsTr("Zip archive (*.zip)"), qsTr("All files (*)")]
         onAccepted: {
             importPopup.url = selectedFile.toString()

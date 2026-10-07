@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 
 // Keyboard focus lights up like every other live state: a 2 px accent ring
 // with a soft halo. Drop inside any control; anchors to the parent bounds.
@@ -11,7 +10,7 @@ Item {
     anchors.fill: parent
     anchors.margins: -margin
     visible: active
-    RectangularShadow {
+    Shadow {
         anchors.fill: parent
         radius: h.radius + h.margin
         blur: 8; spread: 1

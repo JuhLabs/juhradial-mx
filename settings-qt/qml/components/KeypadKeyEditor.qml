@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Dialogs
 
 Column {
     id: ed
@@ -227,7 +226,7 @@ Column {
             ed.update("plate", ""); ed.update("art", "")
         }
     }
-    FileDialog {
+    FilePicker {
         id: pictureDialog
         title: qsTr("Choose a picture for this key")
         nameFilters: [qsTr("Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp *.svg)")]

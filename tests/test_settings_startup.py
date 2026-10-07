@@ -245,7 +245,7 @@ def _open_settings_harness(monkeypatch):
         node
         for node in module.body
         if isinstance(node, ast.FunctionDef)
-        and node.name in {"_requires_settings_relaunch", "_settings_qt_script", "open_settings"}
+        and node.name in {"_requires_settings_relaunch", "_settings_qt_script", "_settings_qt_loads", "open_settings"}
     ]
 
     class FakeSubprocess:
@@ -330,14 +330,20 @@ def test_settings_qt_script_honours_gtk_override(monkeypatch):
 
 def test_settings_qt_script_needs_the_launchers_qt_version(monkeypatch):
     # The tray opens Settings without the launcher script, so it must apply the
-    # same floor (Qt 6.9: RectangularShadow, VectorImage) or older Qt starts a
-    # Qt app that cannot load its pages instead of the GTK app.
+    # same floor (Qt 6.4, settings-qt/bridge/compat.py MIN_QT) or older Qt
+    # starts a Qt app that cannot load its pages instead of the GTK app.
     qtcore = pytest.importorskip("PyQt6.QtCore")
     pytest.importorskip("PyQt6.QtQml")
     namespace, _fake = _open_settings_harness(monkeypatch)
     monkeypatch.delenv("JUHRADIAL_SETTINGS", raising=False)
     settings_qt_script = cast(Callable[[], object], namespace["_settings_qt_script"])
-    monkeypatch.setattr(qtcore, "qVersion", lambda: "6.8.2")
+    monkeypatch.setattr(qtcore, "qVersion", lambda: "6.3.2")
     assert settings_qt_script() is None
-    monkeypatch.setattr(qtcore, "qVersion", lambda: "6.9.0")
+    monkeypatch.setattr(qtcore, "qVersion", lambda: "6.4.2")
     assert str(settings_qt_script()).endswith("settings-qt/main.py")
+    # A new enough Qt is not enough: the launcher's check has to pass too
+    # (Debian-family systems package every QML module on its own).
+    (args, _kwargs), = _fake.run_calls[-1:]
+    assert args[0][-1].endswith("settings-qt/bridge/compat.py")
+    monkeypatch.setattr(_fake, "run", lambda *a, **k: SimpleNamespace(returncode=1))
+    assert settings_qt_script() is None

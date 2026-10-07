@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 
 // Bottom-centre status toast with an optional action (Undo). One at a time;
 // a new message replaces the current one. show(text, kind, actionLabel, cb).
@@ -39,7 +38,7 @@ Item {
         visible: opacity > 0.01
         Behavior on opacity { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
         Behavior on anchors.bottomMargin { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
-        RectangularShadow {
+        Shadow {
             anchors.fill: parent; radius: 12; blur: 24; offset.y: 8; color: "#80000000"
         }
         Rectangle {
