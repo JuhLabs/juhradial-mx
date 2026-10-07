@@ -89,6 +89,17 @@
   </keywords>
 
   <releases>
+    <release version="0.4.5~beta.5" date="2026-10-07" type="development">
+      <description>
+        <p>Fifth beta of 0.4.5: the new Settings app on older Qt, and Settings pages that always load</p>
+        <ul>
+          <li>The Qt Settings app runs on Qt 6.4 and newer (Ubuntu 24.04, Linux Mint 22, Debian 12 and 13), MX Keypad tab included</li>
+          <li>Fixed Settings tabs that came up empty on Debian-family systems; a page that cannot load shows the command that fixes it</li>
+          <li>The gesture button no longer cuts out while another device reconnects</li>
+          <li>New terminal commands: juhradial-mx status, doctor, dpi, host, keypad-page and reload</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.5~beta.4" date="2026-10-01" type="development">
       <description>
         <p>Fourth beta of 0.4.5: an MX Keypad can be set up where the GTK Settings fallback opens</p>

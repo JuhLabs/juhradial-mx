@@ -6,7 +6,8 @@ We release patches for security vulnerabilities for the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.4.5-beta.4   | :white_check_mark: Current release |
+| 0.4.5-beta.5   | :white_check_mark: Current release |
+| 0.4.5-beta.4   | :white_check_mark: |
 | 0.4.5-beta.3   | :white_check_mark: |
 | 0.4.5-beta.2   | :white_check_mark: |
 | 0.4.5-beta.1   | :white_check_mark: |

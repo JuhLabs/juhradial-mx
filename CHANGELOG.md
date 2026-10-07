@@ -5,6 +5,30 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5-beta.5] - 2026-10-07
+
+### Added
+
+- **The new Settings app on Qt 6.4 and newer** - The Qt Settings app needed Qt 6.9, so Ubuntu 24.04, Linux Mint 22 and Debian 12 and 13 got the GTK window without the MX Keypad tab (Debian 12 got no Settings at all). It now runs from Qt 6.4 up: it asks the QML engine what it can load and draws a stand-in for what is missing, solid cards for the frosted ones below Qt 6.5, layered shadows below 6.9, the SVG image plugin for vector illustrations below 6.8. Every page and control is there, the MX Keypad tab included. On Qt 6.9 and newer nothing changes. Checked on Ubuntu 24.04, Debian 12, 13 and testing, Kali and Fedora 44. Reported by [@BioTechi](https://github.com/BioTechi) in [#168](https://github.com/JuhLabs/juhradial-mx/issues/168).
+- **A Settings page that cannot load says why** - A page whose QML could not be built was an empty pane. It now shows Qt's error and, where a QML module is missing, the command that installs it, with a copy button. `juhradial-settings` prints the same list in a terminal, and Copy system info carries the Qt version.
+- **`juhradial-mx` commands for the terminal and for scripts** - `juhradial-mx status` prints the mouse, its link, battery, DPI and Easy-Switch computer and the MX Keypad (`--json` for scripts); `doctor` checks the service, the menu, the `input` group, the device nodes, the udev rules, the session and Qt, and prints the fix for each point that is wrong; `dpi`, `host`, `keypad-page` and `reload` change things. No window and no display needed.
+- **Guides and link previews on the documentation site** - Three new pages (a Logi Options+ alternative for Linux, the MX Keypad on Linux, coming from logiops or Solaar), a title and description per page, and Open Graph and Twitter card tags so a shared link shows a preview.
+- **Fuzzing for everything a device or a file can hand the daemon** - `daemon/fuzz` holds cargo-fuzz targets for the HID++ report parsers, the MX Keypad reports and descriptor, `config.json`, and the backup import (which also asserts that no entry is written outside the configuration directory). A workflow runs them on changes to the daemon and weekly.
+
+### Fixed
+
+- **Most Settings tabs were empty on Debian-family systems with a current Qt** - Debian, Ubuntu, Linux Mint and Kali package every QML module on its own, and the installer and the `.deb` left three out (`QtQuick.VectorImage`, `QtQuick.Dialogs`, `QtCore`), so every page but Point & Scroll and Themes came up blank. The installer and the `.deb` now name every module the app imports, a test holds the two lists to the QML, and a CI job installs exactly the installer's list on Ubuntu 24.04 and Debian testing and loads every page. A module that is still missing costs polish, never a page. Reported by [@Recnamoken](https://github.com/Recnamoken) in [#172](https://github.com/JuhLabs/juhradial-mx/issues/172).
+- **The gesture button no longer cuts out while another device reconnects** - Every device that appeared or disappeared under `/dev/input` restarted the mouse's HID++ listener, which drops button events for about two seconds and writes the scroll settings again. With a device that kept reconnecting, that was a dead gesture button half of the time. The listener now restarts only for Logitech nodes (the MX Keypad excepted, it has its own worker), for nodes that cannot be identified, and when the mouse itself reports back; the journal line names the node that changed. Seen in [#168](https://github.com/JuhLabs/juhradial-mx/issues/168).
+- **An MX Keypad that does not start is tried less often** - A keypad that could not be opened or started was tried every 2.5 seconds for as long as it was plugged in, each time followed by a report to a device that had not answered. Attempts now back off to one every 30 seconds, start over when a keypad is plugged in or out, and send nothing after a failed start.
+- **Page titles in Settings are no longer cut off while there is room** - With a wider system font the title ("Dashbo...") gave way before the search field did.
+- **A macro trigger number past the last key code is ignored** - `mouse:65541` wrapped around onto the left button. Found by the new fuzz target.
+- **A stray outline under the mouse picture** on Qt 6.4's software renderer.
+
+### Changed
+
+- **The installer pins rustup's install script by its commit**, and the documentation build moves to urllib3 2.8.0 (three advisories).
+- **The CodeQL action steps move together** (4.38.2), and Dependabot groups them into one pull request.
+
 ## [0.4.5-beta.4] - 2026-10-01
 
 ### Added

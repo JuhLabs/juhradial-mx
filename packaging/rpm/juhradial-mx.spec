@@ -2,7 +2,7 @@
 # Build: rpmbuild -ba juhradial-mx.spec
 
 Name:           juhradial-mx
-Version:        0.4.5~beta.4
+Version:        0.4.5~beta.5
 Release:        1%{?dist}
 Summary:        Beautiful radial menu for Logitech MX Master mice on Linux
 
@@ -144,6 +144,14 @@ install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdi
 %{_udevrulesdir}/99-juhradialmx.rules
 %{_udevrulesdir}/60-ydotool-uinput.rules
 %changelog
+* Wed Oct 07 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.5-1
+- The Qt Settings app runs on Qt 6.4 and newer (Ubuntu 24.04, Linux Mint 22,
+  Debian 12 and 13), with stand-ins for what newer Qt adds
+- Settings pages no longer come up empty where a QML module is missing; a
+  page that cannot load shows the command that installs it
+- The HID++ listener restarts only for Logitech device nodes
+- juhradial-mx status, doctor, dpi, host, keypad-page and reload
+
 * Thu Oct 01 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.4-1
 - MX Keypad templates from a terminal (juhradial-settings --keypad-template),
   so a keypad can be set up where the GTK Settings fallback opens
