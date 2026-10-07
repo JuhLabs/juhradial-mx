@@ -11,6 +11,9 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 pub const PACKET_SIZE: usize = 4095;
+/// USB ids of the MX Keypad.
+pub const VENDOR_ID: u16 = 0x046d;
+pub const PRODUCT_ID: u16 = 0xc354;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KeyWindow {
@@ -182,8 +185,8 @@ pub fn discover() -> io::Result<Vec<DeviceInfo>> {
 pub fn matches_device(uevent: &str) -> bool {
     uevent.lines().filter_map(|line| line.strip_prefix("HID_ID=")).any(|id| {
         let parts: Vec<_> = id.split(':').collect();
-        parts.len() == 3 && u32::from_str_radix(parts[1], 16) == Ok(0x046d)
-            && u32::from_str_radix(parts[2], 16) == Ok(0xc354)
+        parts.len() == 3 && u32::from_str_radix(parts[1], 16) == Ok(u32::from(VENDOR_ID))
+            && u32::from_str_radix(parts[2], 16) == Ok(u32::from(PRODUCT_ID))
     })
 }
 

@@ -75,10 +75,12 @@ fn log_startup_phase(started_at: &Instant, phase: &'static str) {
 /// loop: on USB/Bolt the round-trip usually landed inside one debounce window
 /// and self-corrected; on Bluetooth it was slow enough to escape the debounce
 /// repeatedly, producing a sustained cursor-lag loop. `run_hidraw_loop` still
-/// cancels on any notification (required for Easy-Switch host changes and
-/// Bolt sleep recovery, issue #102); `run_evdev_loop` keeps a live grab and
-/// only re-scans when its device is gone (issue #150), so today the filter
-/// mainly spares the hidraw listener a needless restart.
+/// cancels on every notification it gets (required for Easy-Switch host
+/// changes and Bolt sleep recovery, issue #102), but is notified only for
+/// nodes that can be a HID++ device (`hotplug_may_be_hidpp`, issue #168);
+/// `run_evdev_loop` keeps a live grab and only re-scans when its device is
+/// gone (issue #150), so today the filter mainly spares the hidraw listener
+/// a needless restart.
 ///
 /// A Create is recognized by reading the node's name from sysfs at the moment
 /// the event is processed. The vdev cannot pre-register its own paths: the
@@ -148,8 +150,135 @@ fn sysfs_input_device_name(path: &std::path::Path) -> Option<String> {
         .map(|s| s.trim_end().to_string())
 }
 
+/// Vendor and product of an input event node.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct InputId {
+    vendor: u16,
+    product: u16,
+}
+
+impl InputId {
+    /// A Logitech node other than the MX Keypad, which has its own worker and
+    /// speaks no HID++ to the mouse listener.
+    fn may_be_hidpp(self) -> bool {
+        self.vendor == juhradiald::evdev::LOGITECH_VENDOR_ID
+            && !(self.vendor == mx_keypad::VENDOR_ID && self.product == mx_keypad::PRODUCT_ID)
+    }
+}
+
+/// Ids of an input event node from sysfs (`device/id/vendor`, `product`).
+/// Like the name, read without opening the node (issue #15).
+fn sysfs_input_id(path: &std::path::Path) -> Option<InputId> {
+    let node = path.file_name()?.to_str()?;
+    let dir = std::path::Path::new("/sys/class/input").join(node).join("device/id");
+    let read = |file: &str| {
+        let text = std::fs::read_to_string(dir.join(file)).ok()?;
+        u16::from_str_radix(text.trim(), 16).ok()
+    };
+    Some(InputId { vendor: read("vendor")?, product: read("product")? })
+}
+
+/// What a node that just appeared is, as far as the HID++ listener cares.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NewNode {
+    /// Logitech's, so possibly the mouse or its receiver.
+    Hidpp,
+    /// Another vendor's, or the MX Keypad.
+    Other,
+    /// Removed again before it could be read: nothing is left to bind to.
+    Gone,
+    /// Present but unreadable.
+    Unknown,
+}
+
+fn classify_new_node(path: &std::path::Path) -> NewNode {
+    match sysfs_input_id(path) {
+        Some(id) if id.may_be_hidpp() => NewNode::Hidpp,
+        Some(_) => NewNode::Other,
+        None if path.exists() => NewNode::Unknown,
+        None => NewNode::Gone,
+    }
+}
+
+/// Whether a real /dev/input hotplug event can concern a HID++ device, which
+/// is when the HID++ listener has to restart. Every restart drops diverted
+/// button events for about two seconds and writes the scroll and pointer
+/// settings again, so a webcam, a headset, a keypad or a short-lived virtual
+/// device that keeps coming back must not cause one each time: that left a
+/// reporter's gesture button dead half of the time, on a four second cycle
+/// (issue #168).
+///
+/// A Create is judged by the node's ids in sysfs; a node that is not
+/// Logitech's, or is gone again already, is remembered in `other_paths`. A
+/// Remove cannot be read any more, so it is another device's only when its
+/// path was remembered. A node that is there but unreadable, and a Remove of
+/// a path never seen, count as possibly HID++: one restart too many costs two
+/// seconds, one too few leaves the buttons dead.
+fn hotplug_may_be_hidpp(
+    kind: &notify::EventKind,
+    paths: &[std::path::PathBuf],
+    other_paths: &mut std::collections::HashSet<std::path::PathBuf>,
+    classify: impl Fn(&std::path::Path) -> NewNode,
+) -> bool {
+    use notify::EventKind;
+    let mut may_be = paths.is_empty();
+    match kind {
+        EventKind::Create(_) => {
+            for path in paths {
+                match classify(path) {
+                    NewNode::Other | NewNode::Gone => {
+                        other_paths.insert(path.clone());
+                    }
+                    NewNode::Hidpp | NewNode::Unknown => {
+                        // Also when the kernel reused the number of a remembered node.
+                        other_paths.remove(path);
+                        may_be = true;
+                    }
+                }
+            }
+        }
+        EventKind::Remove(_) => {
+            for path in paths {
+                if !other_paths.remove(path) {
+                    may_be = true;
+                }
+            }
+        }
+        _ => may_be = true,
+    }
+    may_be
+}
+
+/// The nodes of a hotplug event for the journal: `event12 "Name" 046d:c354`,
+/// or `event12 (gone)` once it is removed.
+fn describe_hotplug_nodes(paths: &[std::path::PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| {
+            let node = path.file_name().and_then(|n| n.to_str()).unwrap_or("?");
+            match (sysfs_input_device_name(path), sysfs_input_id(path)) {
+                (Some(name), Some(id)) => format!("{node} \"{name}\" {:04x}:{:04x}", id.vendor, id.product),
+                (Some(name), None) => format!("{node} \"{name}\""),
+                _ if path.exists() => node.to_string(),
+                _ => format!("{node} (gone)"),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Wake-ups from the hotplug watcher. `any` fires on every real change under
+/// /dev/input; `hidpp` only when the change can concern a HID++ device. The
+/// daemon's own "the mouse answers again" signals (battery poll recovered,
+/// Easy-Switch return) fire `hidpp` as well.
+#[derive(Clone)]
+struct HotplugWake {
+    any: Arc<tokio::sync::Notify>,
+    hidpp: Arc<tokio::sync::Notify>,
+}
+
 /// Spawn a background thread that watches /dev/input/ for device hotplug events
-/// using inotify. Returns a Notify that fires when event* devices appear or
+/// using inotify. Returns the wake-ups that fire when event* devices appear or
 /// disappear. This allows evdev loops to re-scan immediately instead of waiting
 /// for the fallback poll (`DEVICE_POLL_INTERVAL_SECS`).
 ///
@@ -159,8 +288,11 @@ fn sysfs_input_device_name(path: &std::path::Path) -> Option<String> {
 /// of the daemon's own button-suppression vdev is filtered out too - see
 /// `hotplug_event_is_self_caused` (issues #121/#125). A 500ms debounce window
 /// coalesces rapid events from USB hubs into a single notification.
-fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
-    let hotplug = Arc::new(tokio::sync::Notify::new());
+fn spawn_device_hotplug_watcher() -> HotplugWake {
+    let hotplug = HotplugWake {
+        any: Arc::new(tokio::sync::Notify::new()),
+        hidpp: Arc::new(tokio::sync::Notify::new()),
+    };
     let hotplug_tx = hotplug.clone();
 
     std::thread::spawn(move || {
@@ -194,11 +326,23 @@ fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
         info!("Device hotplug watcher active on /dev/input/");
 
         let mut last_notify = Instant::now() - Duration::from_secs(1);
+        let mut last_hidpp_notify = last_notify;
         let debounce = Duration::from_millis(500);
         // Paths of the daemon's own suppression vdev(s), maintained from the
         // events themselves (Create records, Remove consumes). Lives in this
         // thread only, so there is no cross-thread registration race.
         let mut own_vdev_paths = std::collections::HashSet::new();
+        // Nodes that are not Logitech's, so their Remove is known to be
+        // another device's. Seeded with what is plugged in now: the watch is
+        // already active, so a node that appears meanwhile arrives as a Create.
+        let mut other_paths: std::collections::HashSet<_> = std::fs::read_dir(&input_dir)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| path.file_name().is_some_and(|n| n.to_string_lossy().starts_with("event")))
+            .filter(|path| classify_new_node(path) == NewNode::Other)
+            .collect();
 
         loop {
             match rx.recv() {
@@ -240,17 +384,42 @@ fn spawn_device_hotplug_watcher() -> Arc<tokio::sync::Notify> {
                         continue;
                     }
 
+                    // Before the debounce as well: a debounced-away Create
+                    // would not remember its path for the Remove.
+                    let may_be_hidpp = hotplug_may_be_hidpp(
+                        &event.kind,
+                        &event.paths,
+                        &mut other_paths,
+                        classify_new_node,
+                    );
+
                     // Debounce: coalesce rapid events (e.g. USB hub enumerating
-                    // multiple devices) into a single scan notification.
+                    // multiple devices) into a single scan notification. The
+                    // HID++ wake-up has its own window, so a Logitech node
+                    // right behind another device's is not swallowed with it.
                     let now = Instant::now();
-                    if now.duration_since(last_notify) < debounce {
+                    let wake_any = now.duration_since(last_notify) >= debounce;
+                    let wake_hidpp =
+                        may_be_hidpp && now.duration_since(last_hidpp_notify) >= debounce;
+                    if !wake_any && !wake_hidpp {
                         debug!("Device hotplug debounced: {:?}", event.kind);
                         continue;
                     }
-                    last_notify = now;
 
-                    info!("Device hotplug detected: {:?}", event.kind);
-                    hotplug_tx.notify_waiters();
+                    info!(
+                        "Device hotplug detected: {:?} {}{}",
+                        event.kind,
+                        describe_hotplug_nodes(&event.paths),
+                        if may_be_hidpp { "" } else { " (not a HID++ device)" }
+                    );
+                    if wake_any {
+                        last_notify = now;
+                        hotplug_tx.any.notify_waiters();
+                    }
+                    if wake_hidpp {
+                        last_hidpp_notify = now;
+                        hotplug_tx.hidpp.notify_waiters();
+                    }
                 }
                 Ok(Err(e)) => {
                     warn!("Device watcher error: {}", e);
@@ -834,13 +1003,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let battery_state_for_events = battery_state.clone();
 
     // Start inotify watcher on /dev/input/ for instant device hotplug detection.
-    // Shared across the evdev loops and the hidraw loop; the battery updater
-    // also fires it when a failing poll starts succeeding again, which is how
-    // a Bolt radio wake is detected without any node hotplug (issue #102).
-    let hotplug_notify = spawn_device_hotplug_watcher();
+    // The evdev loops follow every change; the hidraw loop follows the ones
+    // that can be a HID++ device. The battery updater fires that wake-up too
+    // when a failing poll starts succeeding again, which is how a Bolt radio
+    // wake is detected without any node hotplug (issue #102).
+    let hotplug_wake = spawn_device_hotplug_watcher();
+    let hotplug_notify = hotplug_wake.any.clone();
 
     // Spawn battery status updater (shares HidppDevice with haptic via SharedHapticManager)
-    let battery_radio_recovered = hotplug_notify.clone();
+    let battery_radio_recovered = hotplug_wake.hidpp.clone();
     let battery_handle = tokio::spawn(async move {
         start_battery_updater_shared(
             battery_state,
@@ -1192,7 +1363,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // this loop owns re-applying diverts whenever the mouse hotplugs/reconnects.
     let hidraw_tx = event_tx.clone();
     let hidraw_config = shared_config.clone();
-    let hidraw_hotplug = hotplug_notify.clone();
+    let hidraw_hotplug = hotplug_wake.hidpp.clone();
     let hidraw_kwin = kwin_context.clone();
     let hidraw_dbus_connection = dbus_connection.clone();
     let hidraw_device_name_state = device_name_state.clone();
@@ -1339,7 +1510,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Spawn event processing task with D-Bus connection
     let config_for_events = shared_config.clone();
-    let hotplug_for_events = hotplug_notify.clone();
+    // HostChanged wakes the hidraw loop, nothing else.
+    let hotplug_for_events = hotplug_wake.hidpp.clone();
     let gaming_for_events = replay_ctx.gaming_mode.clone();
     let event_handle = tokio::spawn(async move {
         let actions = ActionContext {
@@ -2903,6 +3075,202 @@ mod tests {
         // shorter cadence after Easy-Switch or hotplug events.
         assert_eq!(DEVICE_POLL_INTERVAL_SECS, 60);
         assert_eq!(HIDRAW_RECONNECT_POLL_INTERVAL_SECS, 5);
+    }
+
+    // --- which hotplug events restart the HID++ listener (issue #168) ---
+
+    fn nodes<'a>(known: &'a [(&'a str, NewNode)]) -> impl Fn(&Path) -> NewNode + 'a {
+        // A node no test names was removed again before it could be read.
+        move |p: &Path| known.iter().find(|(path, _)| Path::new(path) == p).map_or(NewNode::Gone, |(_, kind)| *kind)
+    }
+
+    fn create(path: &str) -> (EventKind, Vec<PathBuf>) {
+        (EventKind::Create(CreateKind::File), vec![PathBuf::from(path)])
+    }
+
+    fn remove(path: &str) -> (EventKind, Vec<PathBuf>) {
+        (EventKind::Remove(RemoveKind::File), vec![PathBuf::from(path)])
+    }
+
+    #[test]
+    fn only_logitech_ids_other_than_the_keypad_may_be_hidpp() {
+        assert!(InputId { vendor: 0x046d, product: 0xb034 }.may_be_hidpp(), "a mouse on Bluetooth");
+        assert!(InputId { vendor: 0x046d, product: 0xc548 }.may_be_hidpp(), "a Bolt receiver");
+        // Its own worker drives the MX Keypad; in issue #168 it sat next to
+        // the mouse whose listener restarted every four seconds.
+        assert!(!InputId { vendor: 0x046d, product: 0xc354 }.may_be_hidpp());
+        assert!(!InputId { vendor: 0x0c45, product: 0x6366 }.may_be_hidpp(), "a webcam");
+        assert!(!InputId { vendor: 0, product: 0 }.may_be_hidpp(), "a uinput device");
+    }
+
+    #[test]
+    fn another_devices_node_comes_and_goes_without_a_hidpp_restart() {
+        let mut other = HashSet::new();
+        let (kind, paths) = create("/dev/input/event20");
+        assert!(!hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[("/dev/input/event20", NewNode::Other)])));
+        // The node is gone when its Remove is read: the remembered path decides.
+        let (kind, paths) = remove("/dev/input/event20");
+        assert!(!hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[])));
+        assert!(other.is_empty(), "a consumed path is forgotten");
+    }
+
+    #[test]
+    fn a_node_that_is_gone_before_it_can_be_read_restarts_nothing() {
+        // A virtual device created and dropped within milliseconds, over and
+        // over: there is nothing to bind to, and its Remove follows at once.
+        let mut other = HashSet::new();
+        for _ in 0..3 {
+            let (kind, paths) = create("/dev/input/event30");
+            assert!(!hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[])));
+            let (kind, paths) = remove("/dev/input/event30");
+            assert!(!hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[])));
+        }
+        assert!(other.is_empty());
+    }
+
+    #[test]
+    fn a_logitech_node_restarts_the_listener_both_ways() {
+        // A mouse back on Bluetooth, or a receiver's device node (Easy-Switch
+        // return, issue #102): the diverts have to be applied again.
+        let mut other = HashSet::new();
+        let (kind, paths) = create("/dev/input/event22");
+        assert!(hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[("/dev/input/event22", NewNode::Hidpp)])));
+        assert!(other.is_empty());
+        let (kind, paths) = remove("/dev/input/event22");
+        assert!(hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[])));
+    }
+
+    #[test]
+    fn what_cannot_be_identified_counts_as_hidpp() {
+        let mut other = HashSet::new();
+        // There, but its ids cannot be read.
+        let (kind, paths) = create("/dev/input/event23");
+        assert!(hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[("/dev/input/event23", NewNode::Unknown)])));
+        // A Remove of a node that was never seen arriving.
+        let (kind, paths) = remove("/dev/input/event24");
+        assert!(hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[])));
+        // An event without paths, and one of another kind.
+        assert!(hotplug_may_be_hidpp(&EventKind::Create(CreateKind::File), &[], &mut other, nodes(&[])));
+        assert!(hotplug_may_be_hidpp(&EventKind::Any, &[PathBuf::from("/dev/input/event25")], &mut other, nodes(&[])));
+    }
+
+    #[test]
+    fn a_reused_event_number_forgets_the_other_device() {
+        // The webcam's Remove was lost (inotify overflow) and the kernel gave
+        // its number to the mouse: the mouse's Remove must not be swallowed.
+        let mut other = HashSet::new();
+        let (kind, paths) = create("/dev/input/event20");
+        assert!(!hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[("/dev/input/event20", NewNode::Other)])));
+        assert!(hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[("/dev/input/event20", NewNode::Hidpp)])));
+        let (kind, paths) = remove("/dev/input/event20");
+        assert!(hotplug_may_be_hidpp(&kind, &paths, &mut other, nodes(&[])));
+    }
+
+    #[test]
+    fn one_logitech_node_in_a_batch_is_enough() {
+        let mut other = HashSet::new();
+        let known = [("/dev/input/event20", NewNode::Other), ("/dev/input/event22", NewNode::Hidpp)];
+        let paths = vec![PathBuf::from("/dev/input/event20"), PathBuf::from("/dev/input/event22")];
+        assert!(hotplug_may_be_hidpp(&EventKind::Create(CreateKind::File), &paths, &mut other, nodes(&known)));
+        // The webcam's path is still remembered for its own Remove.
+        assert!(other.contains(Path::new("/dev/input/event20")));
+        assert!(!other.contains(Path::new("/dev/input/event22")));
+    }
+
+    /// The ids come from the kernel's sysfs for a real node, and a node that
+    /// is removed reads as gone.
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore] // Needs /dev/uinput; run with `cargo test -- --ignored` on a desktop.
+    fn new_nodes_are_classified_from_sysfs() {
+        use evdev::{uinput::VirtualDevice, AttributeSet, BusType, KeyCode};
+
+        let device = |vendor: u16, product: u16| {
+            let mut keys = AttributeSet::<KeyCode>::new();
+            keys.insert(KeyCode::BTN_LEFT);
+            let mut device = VirtualDevice::builder()
+                .expect("uinput available")
+                .name("JuhRadial hotplug test device")
+                .input_id(evdev::InputId::new(BusType::BUS_USB, vendor, product, 1))
+                .with_keys(&keys)
+                .expect("key set")
+                .build()
+                .expect("virtual device");
+            let node = device
+                .enumerate_dev_nodes_blocking()
+                .expect("dev nodes")
+                .find_map(Result::ok)
+                .expect("event node");
+            (device, node)
+        };
+
+        let (mouse, mouse_node) = device(0x046d, 0xb034);
+        let (keypad, keypad_node) = device(mx_keypad::VENDOR_ID, mx_keypad::PRODUCT_ID);
+        let (webcam, webcam_node) = device(0x0c45, 0x6366);
+        assert_eq!(sysfs_input_id(&mouse_node), Some(InputId { vendor: 0x046d, product: 0xb034 }));
+        assert_eq!(classify_new_node(&mouse_node), NewNode::Hidpp);
+        assert_eq!(classify_new_node(&keypad_node), NewNode::Other);
+        assert_eq!(classify_new_node(&webcam_node), NewNode::Other);
+        assert!(describe_hotplug_nodes(std::slice::from_ref(&webcam_node))
+            .ends_with("\"JuhRadial hotplug test device\" 0c45:6366"));
+
+        drop((mouse, keypad, webcam));
+        let mut gone = false;
+        for _ in 0..50 {
+            if classify_new_node(&mouse_node) == NewNode::Gone {
+                gone = true;
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert!(gone, "a removed node reads as gone");
+        assert!(describe_hotplug_nodes(&[mouse_node]).ends_with(" (gone)"));
+    }
+
+    /// The watcher end to end: another vendor's device wakes the evdev side
+    /// only, a Logitech one wakes the HID++ listener too.
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    #[ignore] // Needs /dev/uinput; run with `cargo test -- --ignored` on a desktop.
+    async fn only_a_logitech_node_wakes_the_hidpp_listener() {
+        use evdev::{uinput::VirtualDevice, AttributeSet, BusType, KeyCode};
+        use tokio::time::timeout;
+
+        let device = |vendor: u16, product: u16| {
+            let mut keys = AttributeSet::<KeyCode>::new();
+            keys.insert(KeyCode::BTN_LEFT);
+            VirtualDevice::builder()
+                .expect("uinput available")
+                .name("JuhRadial hotplug test device")
+                .input_id(evdev::InputId::new(BusType::BUS_USB, vendor, product, 1))
+                .with_keys(&keys)
+                .expect("key set")
+                .build()
+                .expect("virtual device")
+        };
+
+        let wake = spawn_device_hotplug_watcher();
+        tokio::time::sleep(Duration::from_millis(300)).await; // the watch is set up
+        let any = wake.any.notified();
+        let hidpp = wake.hidpp.notified();
+        tokio::pin!(any, hidpp);
+        any.as_mut().enable();
+        hidpp.as_mut().enable();
+
+        let webcam = device(0x0c45, 0x6366);
+        timeout(Duration::from_secs(3), &mut any).await.expect("every real change wakes the evdev loops");
+        assert!(
+            timeout(Duration::from_millis(900), &mut hidpp).await.is_err(),
+            "another vendor's node must not restart the HID++ listener"
+        );
+        drop(webcam);
+        assert!(
+            timeout(Duration::from_millis(900), &mut hidpp).await.is_err(),
+            "nor must its removal"
+        );
+
+        let _mouse = device(0x046d, 0xb034);
+        timeout(Duration::from_secs(3), &mut hidpp).await.expect("a Logitech node wakes the HID++ listener");
     }
 
     // --- hotplug self-caused filter (issues #121/#125) ---

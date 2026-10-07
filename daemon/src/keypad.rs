@@ -188,39 +188,82 @@ pub fn start(config: SharedConfig) -> (Worker, UnboundedReceiver<Event>) {
     let worker = Worker(stop.clone());
     tokio::task::spawn_blocking(move || {
         let mut reported = Reported::new();
+        // Attempts in a row that failed, and the polls left before the next one.
+        let mut failures = 0;
+        let mut wait = 0;
+        let mut present = Vec::new();
         while !tx.is_closed() && !stop.load(Ordering::Relaxed) {
             let enabled = config.read().map(|c| c.keypad.enabled).unwrap_or(false);
             if enabled {
                 let devices = mx_keypad::discover().unwrap_or_default();
                 forget_unplugged(&mut reported, &devices);
-                for device in devices {
-                    if tx.is_closed() { return; }
-                    match Keypad::open(&device.path) {
-                        Ok(mut keypad) => {
-                            if let Ok(mut name) = NAME.lock() { *name = device.name; }
-                            let result = connected(&mut keypad, &config, &tx, &stop);
-                            // Only the allowed feature report, including when disabled.
-                            let _ = keypad.reset_to_logo();
-                            if CONNECTED.swap(false, Ordering::Relaxed) {
-                                let _ = tx.send(Event::Connection(false));
-                                match result {
-                                    Ok(()) => tracing::info!("MX Keypad released"),
-                                    Err(error) => tracing::info!(%error, "MX Keypad disconnected"),
+                // A keypad that was unplugged or plugged in is a fresh start.
+                let nodes: Vec<_> = devices.iter().map(|device| device.path.clone()).collect();
+                if nodes != present {
+                    present = nodes;
+                    failures = 0;
+                    wait = 0;
+                }
+                if wait > 0 {
+                    wait -= 1;
+                } else {
+                    let mut failed = false;
+                    for device in devices {
+                        if tx.is_closed() { return; }
+                        match Keypad::open(&device.path) {
+                            Ok(mut keypad) => {
+                                if let Ok(mut name) = NAME.lock() { *name = device.name; }
+                                let result = connected(&mut keypad, &config, &tx, &stop);
+                                if CONNECTED.swap(false, Ordering::Relaxed) {
+                                    // Only the allowed feature report, including when disabled.
+                                    let _ = keypad.reset_to_logo();
+                                    let _ = tx.send(Event::Connection(false));
+                                    match result {
+                                        Ok(()) => tracing::info!("MX Keypad released"),
+                                        Err(error) => tracing::info!(%error, "MX Keypad disconnected"),
+                                    }
+                                    reported.clear();
+                                } else if let Err(error) = result {
+                                    // It never took the keys over, so there is
+                                    // nothing to hand back: no report goes to
+                                    // a keypad that did not start.
+                                    report_failure(&mut reported, &device.path, "MX Keypad did not start", &error);
+                                    failed = true;
                                 }
-                                reported.clear();
-                            } else if let Err(error) = result {
-                                report_failure(&mut reported, &device.path, "MX Keypad did not start", &error);
+                                break;
                             }
-                            break;
+                            Err(error) => {
+                                report_failure(&mut reported, &device.path, "Cannot open MX Keypad", &error);
+                                failed = true;
+                            }
                         }
-                        Err(error) => { report_failure(&mut reported, &device.path, "Cannot open MX Keypad", &error); }
                     }
+                    failures = if failed { failures + 1 } else { 0 };
+                    wait = polls_before_retry(failures) - 1;
                 }
             }
-            std::thread::sleep(Duration::from_millis(2500));
+            std::thread::sleep(POLL);
         }
     });
     (worker, rx)
+}
+
+/// How often the worker looks for a keypad.
+const POLL: Duration = Duration::from_millis(2500);
+
+/// Polls from one attempt to the next. A keypad that keeps failing is tried
+/// less and less often, down to every 30 s: an attempt every 2.5 s for as
+/// long as it stays plugged in helps nobody, and on one system an input
+/// device re-enumerated in step with them (issue #168). Unplugging it, or
+/// plugging one in, starts over.
+fn polls_before_retry(failures: u32) -> u32 {
+    match failures {
+        0 | 1 => 1,
+        2 => 2,
+        3 => 4,
+        4 => 8,
+        _ => 12,
+    }
 }
 
 /// Keypad failures already in the journal, by node.
@@ -541,6 +584,12 @@ mod tests {
         assert_eq!(turn_page(&[1, 2], 1, PageButton::Left), Some(2));
         assert_eq!(turn_page(&[0, 4], 3, PageButton::Right), Some(4));
         assert_eq!(turn_page(&[], 0, PageButton::Right), None);
+    }
+
+    #[test]
+    fn a_keypad_that_keeps_failing_is_tried_less_often() {
+        let waits: Vec<_> = (0..8).map(|failures| polls_before_retry(failures) * POLL.as_millis() as u32).collect();
+        assert_eq!(waits, [2500, 2500, 5000, 10_000, 20_000, 30_000, 30_000, 30_000]);
     }
 
     #[test]

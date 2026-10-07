@@ -127,15 +127,37 @@ fn gdk_button_to_evdev(button: u32) -> Option<u16> {
         4..=7 => Some(0x113 + (button - 4) as u16),
         // X11 mapping: button 8+ -> BTN_SIDE (0x113) + offset
         // (scroll buttons 4-7 are consumed by GDK, never reach GestureClick)
-        8.. => Some(0x113 + (button - 8) as u16),
+        // A number past the last key code the kernel has is no button: the
+        // sum used to wrap around and land on an unrelated one (a macro file
+        // with "mouse:65541" bound itself to the left button).
+        8.. => u16::try_from(button - 8)
+            .ok()
+            .and_then(|offset| 0x113u16.checked_add(offset))
+            .filter(|code| *code <= KEY_MAX),
         _ => None,
     }
 }
+
+/// The highest key code of the kernel's input layer (`KEY_MAX`).
+const KEY_MAX: u16 = 0x2ff;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::macros::types::{MacroConfig, RepeatMode};
+
+    #[test]
+    fn a_button_number_past_the_last_key_code_is_no_trigger() {
+        // Found by the config_json fuzz target: the offset was cut to 16 bits
+        // and added without a check, so these wrapped onto real buttons.
+        assert_eq!(parse_trigger("mouse:8"), Some(0x113));
+        assert_eq!(parse_trigger("mouse:500"), Some(KEY_MAX));
+        assert_eq!(parse_trigger("mouse:501"), None);
+        assert_eq!(parse_trigger("mouse:65541"), None, "wrapped to BTN_LEFT");
+        assert_eq!(parse_trigger("mouse:4294967295"), None);
+        assert_eq!(parse_trigger("mouse:4294967296"), None, "not a u32");
+        assert_eq!(parse_trigger("mouse:0"), None);
+    }
 
     #[test]
     fn test_parse_mouse_trigger_wayland() {
