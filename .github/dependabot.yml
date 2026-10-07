@@ -23,3 +23,10 @@ updates:
     labels:
       - dependencies
       - github-actions
+    groups:
+      # init, autobuild, analyze and upload-sarif are one release: a pull
+      # request per step leaves them on different versions when only some
+      # are merged, and the analysis then fails.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"

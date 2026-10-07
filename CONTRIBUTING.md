@@ -127,6 +127,18 @@ cd daemon && cargo test
 cd daemon && cargo clippy
 ```
 
+### Fuzzing
+
+Parsers of bytes that a device or a file hands the daemon have fuzz targets in `daemon/fuzz` (HID++ reports, MX Keypad reports, `config.json`, the backup import). A parser you add or change should be reachable from one of them. They need a nightly toolchain and [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz):
+
+```bash
+rustup toolchain install nightly
+cargo install cargo-fuzz
+cd daemon
+cargo +nightly fuzz list
+cargo +nightly fuzz run hidpp_reports -- -max_total_time=120
+```
+
 ## Code Style
 
 ### Rust (Daemon)

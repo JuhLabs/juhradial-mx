@@ -81,10 +81,10 @@ jobs:
   python-tests:
     name: Python tests
     runs-on: ubuntu-latest
-    # The settings app needs Qt 6.9 or newer with QtQml; Ubuntu's packages
-    # are Qt 6.4 and the PyPI PyQt6 wheel lacks the Qt libraries its own
-    # QML plugins need (QtQuick.VectorImage, QtQmlCore). Fedora ships the
-    # full Qt the app runs on, so the suite runs there.
+    # The whole suite runs where the settings app has every Qt feature it
+    # draws with (Qt 6.9 or newer, all QML modules in one package). The
+    # "Settings on ..." job below runs the same QML on Qt 6.4 and on
+    # Debian's one-package-per-module layout.
     container: fedora:44
     timeout-minutes: 15
 
@@ -137,6 +137,71 @@ jobs:
       - name: QML tests ran (no skips)
         run: |
           runuser -u ci -- env QT_QPA_PLATFORM=offscreen python3 -m pytest -q -rs tests/test_settings_qt_smoke.py tests/test_qml_slot_arguments.py | tee qml-tests.log
+          if grep -q "SKIP" qml-tests.log; then
+            echo "QML tests were skipped" >&2
+            exit 1
+          fi
+
+  # The settings app where issues #168 and #172 came from: Debian-family
+  # systems, which package every QML module on its own, on the oldest Qt the
+  # app runs on (6.4: Ubuntu 24.04, Linux Mint 22) and on a current one. The
+  # packages are the installer's own lists, so a module the QML imports and
+  # the installer forgets fails here and not on somebody's desktop.
+  settings-debian:
+    name: Settings on ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "debian:testing"]
+    container: ${{ matrix.image }}
+    timeout-minutes: 15
+    env:
+      DEBIAN_FRONTEND: noninteractive
+
+    steps:
+      - name: Install git, Python and PyQt6
+        run: |
+          apt-get update
+          apt-get install -y git python3 python3-pytest python3-pyqt6 python3-pyqt6.qtsvg fonts-dejavu-core
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install the QML packages the installer installs
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(sed -n '/^DEBIAN_QML_PKGS="/,/^DEBIAN_QML_OPTIONAL_PKGS=/p' install.sh)"
+          apt-get install -y $DEBIAN_QML_PKGS
+          for pkg in $DEBIAN_QML_OPTIONAL_PKGS; do
+            if apt-cache show "$pkg" > /dev/null 2>&1; then
+              apt-get install -y "$pkg"
+            fi
+          done
+
+      # "missing" is a part this Qt has and no installed package provides:
+      # the installer's lists are short again.
+      - name: Nothing this Qt offers is left uninstalled
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 settings-qt/bridge/compat.py | tee compat.log
+          if grep -q "missing" compat.log; then
+            echo "the installer's package lists leave a QML module out" >&2
+            exit 1
+          fi
+
+      - name: Every Settings page loads, and the settings tests pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          useradd -m ci
+          chown -R ci .
+          runuser -u ci -- env QT_QPA_PLATFORM=offscreen python3 settings-qt/tools/qml_check.py
+          runuser -u ci -- env QT_QPA_PLATFORM=offscreen python3 -m pytest -q -rs \
+            tests/test_qt_compat.py tests/test_qml_packages.py tests/test_page_error.py \
+            tests/test_settings_qt_smoke.py tests/test_qml_slot_arguments.py tests/test_qml_i18n.py | tee qml-tests.log
           if grep -q "SKIP" qml-tests.log; then
             echo "QML tests were skipped" >&2
             exit 1

@@ -1,0 +1,65 @@
+# Fuzzing: everything a device or a file can hand the daemon.
+#
+# daemon/fuzz holds one cargo-fuzz target per source of untrusted bytes: the
+# HID++ reports of a mouse, a keyboard or a receiver, the MX Keypad's reports
+# and descriptor, config.json, and the zip `juhradiald --import` reads. A
+# short run on every change to the daemon, a longer one each week.
+name: Fuzz
+
+on:
+  push:
+    branches: [master]
+    paths: ["daemon/**", "crates/**", ".github/workflows/fuzz.yml"]
+  pull_request:
+    branches: [master]
+    paths: ["daemon/**", "crates/**", ".github/workflows/fuzz.yml"]
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [hidpp_reports, keypad_reports, config_json, backup_import]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libdbus-1-dev \
+            pkg-config \
+            libudev-dev \
+            libhidapi-dev \
+            libhidapi-hidraw0
+
+      # libFuzzer's instrumentation needs a nightly compiler.
+      - name: Install nightly Rust and cargo-fuzz
+        run: |
+          rustup toolchain install nightly --profile minimal
+          cargo install cargo-fuzz --version 0.13.2 --locked
+
+      - name: Fuzz ${{ matrix.target }}
+        working-directory: daemon
+        env:
+          SECONDS_TO_RUN: ${{ github.event_name == 'schedule' && '600' || '120' }}
+        run: cargo +nightly fuzz run ${{ matrix.target }} -- -max_total_time="$SECONDS_TO_RUN" -max_len=4096
+
+      - name: Upload the input that crashed it
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: daemon/fuzz/artifacts/
+          if-no-files-found: ignore

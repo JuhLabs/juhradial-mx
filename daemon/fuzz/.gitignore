@@ -1,0 +1,7 @@
+target/
+corpus/
+artifacts/
+coverage/
+# Resolved fresh by each run: a second lock of the daemon tree would have to
+# be bumped with every daemon dependency.
+Cargo.lock
