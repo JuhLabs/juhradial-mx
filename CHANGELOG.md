@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Backups are read with zip 9** - zip 8.6 has three advisories (RUSTSEC-2026-0367, -0368 and -0369) about extracting archives with symbolic links and set-user-ID bits. JuhRadial MX never extracts an archive: a backup import reads each entry and checks its path itself, so it was not affected, but the advisories no longer apply to the daemon at all.
+- **The security scan fails on a known vulnerability** - It ran `cargo audit` and ignored the result. It now runs OSV-Scanner, the same scanner and data as OpenSSF Scorecard's Vulnerabilities check, over the daemon, the MX Keypad crate and the documentation build, and fails on an advisory. CI also builds with the committed `Cargo.lock` only and runs clippy, and Dependabot bundles patch releases into one pull request a week.
 
 ## [0.4.5-beta.5] - 2026-10-07
 

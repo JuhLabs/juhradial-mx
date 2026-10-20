@@ -11,6 +11,12 @@ updates:
     labels:
       - dependencies
       - rust
+    groups:
+      # Patch releases share one pull request a week. Minor and major
+      # versions (a minor version can break a 0.x crate) keep one each.
+      cargo-patch:
+        update-types:
+          - patch
 
   # GitHub Actions workflow versions
   - package-ecosystem: github-actions
@@ -30,3 +36,12 @@ updates:
       codeql-action:
         patterns:
           - "github/codeql-action*"
+      # Every other action's minor and patch releases in one pull request; a
+      # major version keeps its own. A dependency joins the first group it
+      # matches, so CodeQL stays in the group above.
+      actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch

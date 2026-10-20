@@ -53,6 +53,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          components: clippy
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -61,14 +63,19 @@ jobs:
 
       - name: Build Rust daemon
         working-directory: daemon
-        run: cargo build --release
+        run: cargo build --release --locked
 
       - name: Run Rust tests
         working-directory: daemon
-        run: cargo test --verbose
+        run: cargo test --locked --verbose
 
       - name: Test MX Keypad protocol
         run: cargo test --locked --manifest-path crates/mx-keypad/Cargo.toml
+
+      - name: Clippy
+        run: |
+          cargo clippy --locked --all-targets --manifest-path daemon/Cargo.toml -- -D warnings
+          cargo clippy --locked --all-targets --manifest-path crates/mx-keypad/Cargo.toml -- -D warnings
 
       - name: Validate structure
         run: |

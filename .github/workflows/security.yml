@@ -1,4 +1,10 @@
 # JuhRadial MX Security Scan
+#
+# OSV-Scanner checks every lockfile (daemon/, crates/mx-keypad/,
+# docs/requirements.txt) against the OSV database: the same scanner and data
+# behind OpenSSF Scorecard's Vulnerabilities check, so an advisory fails here
+# before Scorecard reports it. daemon/osv-scanner.toml lists the accepted
+# informational advisories, each with a reason and an expiry date.
 name: Security Scan
 
 on:
@@ -14,24 +20,31 @@ permissions:
   contents: read
 
 jobs:
-  cargo-audit:
-    name: Cargo Security Audit
-    runs-on: ubuntu-latest
+  # Pushes, the weekly run and manual runs: every open advisory, uploaded to
+  # code scanning; the run fails while one is open.
+  scan:
+    name: OSV-Scanner
+    if: github.event_name != 'pull_request'
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+    with:
+      scan-args: |-
+        --recursive
+        ./
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-
-      - name: Run cargo audit
-        working-directory: daemon
-        run: cargo audit || true  # Don't fail on advisories
-        continue-on-error: true
-
-      - name: Security check passed
-        run: echo "✓ Security scan complete"
+  # Pull requests: fails only on advisories the pull request brings in.
+  scan-pr:
+    name: OSV-Scanner (pull request)
+    if: github.event_name == 'pull_request'
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+    with:
+      scan-args: |-
+        --recursive
+        ./
