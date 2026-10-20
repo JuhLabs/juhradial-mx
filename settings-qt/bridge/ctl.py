@@ -14,6 +14,7 @@ import grp
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -23,7 +24,10 @@ sys.path.insert(0, str(HERE.parent))
 
 SERVICE = "juhradialmx-daemon"
 RULES = "99-juhradialmx.rules"
+UACCESS_RULES = "70-juhradialmx-uaccess.rules"
 RULES_DIRS = ("/etc/udev/rules.d", "/usr/lib/udev/rules.d", "/lib/udev/rules.d")
+GNOME_HELPER = "juhradial-cursor@dev.juhlabs.com"
+HYPRLAND_DOCS = "https://juhlabs.github.io/juhradial-mx/compositor-support/#hyprland"
 LOGITECH = "046D"
 COMMANDS = ("status", "doctor", "dpi", "host", "keypad-page", "reload")
 
@@ -123,6 +127,59 @@ def in_group(name, user_groups):
     return listed, group.gr_gid in user_groups
 
 
+def gnome_helper_state(info, on_disk):
+    """The cursor helper from `gnome-extensions info` output: "active", "off",
+    "out of date", "error", "not loaded" (installed, but GNOME Shell reads new
+    extensions only at login) or "missing"."""
+    fields = dict(line.strip().split(": ", 1) for line in info.splitlines() if ": " in line)
+    state = fields.get("State", "").upper()
+    if not state:
+        return "not loaded" if on_disk else "missing"
+    if state in ("ACTIVE", "ENABLED"):
+        return "active"
+    if state in ("OUT OF DATE", "ERROR"):
+        return state.lower()
+    return "not loaded" if fields.get("Enabled", "").lower() == "yes" else "off"
+
+
+def hyprland_rules(config_dir):
+    """(kind, files, legacy) for the Hyprland config in config_dir. kind is
+    "lua" when hyprland.lua exists (Hyprland 0.55 and newer load it instead of
+    hyprland.conf), "conf", or None; files are those of that kind holding the
+    menu's rules; legacy says whether a .conf still has windowrulev2 rules,
+    which Hyprland 0.53 and newer reject."""
+    root = pathlib.Path(config_dir)
+    kind = "lua" if (root / "hyprland.lua").is_file() else "conf" if (root / "hyprland.conf").is_file() else None
+    files, legacy, seen = [], False, set()
+    for top, dirs, names in os.walk(root, followlinks=True):
+        real = os.path.realpath(top)
+        if real in seen:
+            dirs[:] = []
+            continue
+        seen.add(real)
+        for name in sorted(names):
+            if not name.endswith((".lua", ".conf")):
+                continue
+            path = os.path.join(top, name)
+            try:
+                text = pathlib.Path(path).read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            if "JuhRadial MX" not in text:
+                continue
+            if kind and name.endswith("." + kind):
+                files.append(path)
+            if name.endswith(".conf") and re.search(r"^\s*windowrulev2\b.*JuhRadial MX", text, re.M):
+                legacy = True
+    return kind, sorted(files), legacy
+
+
+def hyprland_version(text):
+    """(major, minor) from `hyprctl version -j`, or None."""
+    match = re.search(r'"tag":\s*"v(\d+)\.(\d+)', text)
+    return (int(match[1]), int(match[2])) if match else None
+
+
 def doctor(daemon, probe=None):
     """[(level, text, fix)] with level "ok", "warn" or "fail"."""
     probe = probe or Probe()
@@ -155,16 +212,21 @@ def doctor(daemon, probe=None):
     if not probe.overlay_running():
         add("fail", "The radial menu (overlay) is not running", "start it with: juhradial-mx")
 
-    # Permissions: the device nodes belong to the input group.
+    # Permissions: the device nodes belong to the input group, and the
+    # logged-in user also gets them through uaccess (UACCESS_RULES).
     listed, active = in_group("input", probe.groups())
+    nodes = probe.hidraw_nodes()
+    blocked = [(node, name) for node, name in nodes if not probe.can_open(node)]
     if active:
         add("ok", "This session is in the input group")
+    elif nodes and not blocked and probe.can_open("/dev/uinput"):
+        add("warn", "The MX devices work through this login's device access, but this session is not in the input group: "
+                    "macro recording and generic-mode mice need it",
+            "log out and back in" if listed else "sudo usermod -aG input $USER, then log out and back in")
     elif listed:
         add("fail", "You are in the input group, but this login session predates that", "log out and back in")
     else:
         add("fail", "Your user is not in the input group", "sudo usermod -aG input $USER, then log out and back in")
-    nodes = probe.hidraw_nodes()
-    blocked = [(node, name) for node, name in nodes if not probe.can_open(node)]
     if not nodes:
         add("warn", "No Logitech device is plugged in or paired right now")
     for node, name in blocked:
@@ -172,8 +234,9 @@ def doctor(daemon, probe=None):
             "check the input group above" if not active else f"its udev rule is missing or old: install {RULES}, then replug the device")
     if nodes and not blocked:
         add("ok", f"{len(nodes)} Logitech device node(s) can be opened")
-    if not probe.rules_installed():
-        add("warn", f"{RULES} is not installed", "run the installer again, or copy packaging/udev/" + RULES + " to /etc/udev/rules.d")
+    for rules in (RULES, UACCESS_RULES):
+        if not probe.rules_installed(rules):
+            add("warn", f"{rules} is not installed", "run the installer again, or copy packaging/udev/" + rules + " to /etc/udev/rules.d")
     if not probe.can_open("/dev/uinput"):
         add("warn", "/dev/uinput cannot be opened: remapped buttons and typed shortcuts will not work",
             "sudo modprobe uinput, and check the input group above")
@@ -185,9 +248,39 @@ def doctor(daemon, probe=None):
     if session == "wayland" and not probe.which("ydotool"):
         add("warn", "ydotool is not installed: shortcuts cannot be typed into native Wayland windows",
             "install the ydotool package")
-    if "GNOME" in desktop.upper() and session == "wayland" and not probe.gnome_helper_enabled():
-        add("fail", "The GNOME cursor helper extension is not enabled: the menu opens in a corner",
-            "gnome-extensions enable juhradial-cursor@dev.juhlabs.com, then log out and back in")
+    if "GNOME" in desktop.upper() and session == "wayland":
+        corner = "the menu opens in a corner"
+        problems = {
+            "missing": (f"The GNOME cursor helper extension is not installed: {corner}", "run the installer again"),
+            "not loaded": (f"The GNOME cursor helper extension is installed, but GNOME Shell has not loaded it: {corner}",
+                           "log out and back in once (GNOME Shell reads new extensions at login); "
+                           f"if it is still off: gnome-extensions enable {GNOME_HELPER}"),
+            "off": (f"The GNOME cursor helper extension is turned off: {corner}", f"gnome-extensions enable {GNOME_HELPER}"),
+            "out of date": ("GNOME Shell reports the cursor helper extension as out of date for this GNOME version",
+                            "update JuhRadial MX (run the installer again), then log out and back in"),
+            "error": (f"The GNOME cursor helper extension failed to load: {corner}",
+                      f"its error: journalctl --user -b -g {GNOME_HELPER}"),
+        }
+        state = probe.gnome_helper_state()
+        if state == "active":
+            add("ok", "The GNOME cursor helper extension is active")
+        elif state in problems:
+            add("fail", *problems[state])
+    if probe.env("HYPRLAND_INSTANCE_SIGNATURE"):
+        kind, files, legacy = probe.hyprland_rules()
+        version = probe.hyprland_version()
+        if kind is None:
+            add("warn", "No hyprland.lua or hyprland.conf to check the menu's window rules in",
+                f"make sure the rules from {HYPRLAND_DOCS} are in the config Hyprland loads")
+        elif kind == "conf" and legacy and version and version >= (0, 53):
+            add("fail", f"Hyprland {version[0]}.{version[1]} rejects the old windowrulev2 rules for the menu",
+                f"replace them with the windowrule block from {HYPRLAND_DOCS}, then: hyprctl reload")
+        elif not files:
+            add("fail", f"No window rules for the menu in hyprland.{kind} or the files it loads: "
+                        "it can be tiled, bordered or animated",
+                f"run the installer again, or add the rules from {HYPRLAND_DOCS}")
+        else:
+            add("ok", f"Hyprland window rules for the menu are in {files[0]}")
 
     # The Settings app: compat.py's report, one line here.
     report = probe.qt_report()
@@ -239,8 +332,8 @@ class Probe:
     def hidraw_nodes(self):
         return logitech_hidraw_nodes()
 
-    def rules_installed(self):
-        return any(os.path.isfile(os.path.join(d, RULES)) for d in RULES_DIRS)
+    def rules_installed(self, name=RULES):
+        return any(os.path.isfile(os.path.join(d, name)) for d in RULES_DIRS)
 
     def overlay_running(self):
         try:
@@ -248,13 +341,26 @@ class Probe:
         except (OSError, subprocess.SubprocessError):
             return True  # cannot tell: say nothing
 
-    def gnome_helper_enabled(self):
+    def gnome_helper_state(self):
         try:
-            result = subprocess.run(["gnome-extensions", "info", "juhradial-cursor@dev.juhlabs.com"],
-                                    capture_output=True, text=True, timeout=3)
+            result = subprocess.run(["gnome-extensions", "info", GNOME_HELPER], capture_output=True, text=True, timeout=3)
         except (OSError, subprocess.SubprocessError):
-            return True  # cannot tell: say nothing
-        return any(state in result.stdout for state in ("ENABLED", "ACTIVE"))
+            return "active"  # cannot tell: say nothing
+        data = pathlib.Path(os.environ.get("XDG_DATA_HOME") or pathlib.Path.home() / ".local" / "share")
+        on_disk = any((d / "gnome-shell" / "extensions" / GNOME_HELPER).is_dir()
+                      for d in (data, pathlib.Path("/usr/share"), pathlib.Path("/usr/local/share")))
+        return gnome_helper_state(result.stdout, on_disk)
+
+    def hyprland_rules(self):
+        config = pathlib.Path(os.environ.get("XDG_CONFIG_HOME") or pathlib.Path.home() / ".config")
+        return hyprland_rules(config / "hypr")
+
+    def hyprland_version(self):
+        try:
+            result = subprocess.run(["hyprctl", "version", "-j"], capture_output=True, text=True, timeout=3)
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return hyprland_version(result.stdout)
 
     def daemon_version(self):
         from PyQt6.QtDBus import QDBus, QDBusMessage

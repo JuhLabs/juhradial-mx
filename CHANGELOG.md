@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`juhradial-mx doctor` checks the desktop integrations that break most often** - On Hyprland it looks for the menu's window rules in the config Hyprland loads (`hyprland.lua` or `hyprland.conf`) and flags `windowrulev2` rules that Hyprland 0.53 and newer reject. On GNOME it tells apart a cursor helper extension that is missing, installed but not loaded yet (GNOME Shell reads new extensions at login), turned off, out of date or failing, each with its own fix. It also checks `70-juhradialmx-uaccess.rules`, and a session that reaches the MX devices through it but is not in the `input` group yet gets a warning instead of a failure. From [#179](https://github.com/JuhLabs/juhradial-mx/issues/179) and [#185](https://github.com/JuhLabs/juhradial-mx/discussions/185).
+
 ### Fixed
 
 - **Hyprland window rules that current Hyprland loads** - The installer wrote `windowrulev2` rules, which Hyprland 0.53 and newer reject (`windowrulev2 is deprecated`), and looked for existing rules in `.conf` files only. On a Lua configuration (`hyprland.lua`, Hyprland 0.55 and newer) an old `juhradial-rules.conf` that nothing loads counted as configured, and with `hyprland.lua` alone it wrote that unloaded file and reported the rules as configured. It now adds an `hl.window_rule` block to `hyprland.lua`, a `windowrule` block to `hyprland.conf` on 0.53 and newer and `windowrulev2` only before 0.53, looks for existing rules only in the kind of file Hyprland loads, and when it cannot add them it prints them and says a manual step is needed. The compositor and troubleshooting pages show the rules for each Hyprland version. Reported by [@zxzxn3](https://github.com/zxzxn3) in [#179](https://github.com/JuhLabs/juhradial-mx/issues/179).

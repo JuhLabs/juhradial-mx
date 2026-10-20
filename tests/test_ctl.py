@@ -46,8 +46,9 @@ class FakeDaemon:
 class FakeProbe:
     def __init__(self, **over):
         self.values = dict(env={"XDG_SESSION_TYPE": "wayland", "XDG_CURRENT_DESKTOP": "KDE"}, groups=[1000, 104],
-                           which=True, nodes=[("/dev/hidraw3", "Logitech MX Master 4")], blocked=set(), rules=True,
-                           overlay=True, gnome=True, version=ctl.app_version(), qt=["Qt 6.11.2", "ok  effects: QtQuick.Effects"])
+                           which=True, nodes=[("/dev/hidraw3", "Logitech MX Master 4")], blocked=set(),
+                           rules={ctl.RULES, ctl.UACCESS_RULES}, overlay=True, gnome="active",
+                           hypr=("lua", ["/home/tester/.config/hypr/hyprland.lua"], False), hypr_version=(0, 56), version=ctl.app_version(), qt=["Qt 6.11.2", "ok  effects: QtQuick.Effects"])
         self.values.update(over)
 
     def env(self, name): return self.values["env"].get(name, "")
@@ -55,9 +56,11 @@ class FakeProbe:
     def which(self, program): return "/usr/bin/" + program if self.values["which"] else None
     def can_open(self, path): return path not in self.values["blocked"]
     def hidraw_nodes(self): return self.values["nodes"]
-    def rules_installed(self): return self.values["rules"]
+    def rules_installed(self, name=ctl.RULES): return name in self.values["rules"]
     def overlay_running(self): return self.values["overlay"]
-    def gnome_helper_enabled(self): return self.values["gnome"]
+    def gnome_helper_state(self): return self.values["gnome"]
+    def hyprland_rules(self): return self.values["hypr"]
+    def hyprland_version(self): return self.values["hypr_version"]
     def daemon_version(self): return self.values["version"]
     def qt_report(self): return self.values["qt"]
 
@@ -151,12 +154,82 @@ def test_doctor_names_each_problem_with_its_fix():
     assert status == 1 and "The service is 0.0.1" in text
     # GNOME without its cursor helper, Wayland without ydotool, missing rules.
     probe = FakeProbe(env={"XDG_SESSION_TYPE": "wayland", "XDG_CURRENT_DESKTOP": "ubuntu:GNOME"},
-                      gnome=False, which=False, rules=False)
+                      gnome="not loaded", which=False, rules=set())
     status, text = run(["doctor"], probe=probe)
     assert status == 1
-    assert "GNOME cursor helper extension is not enabled" in text
+    assert "GNOME Shell has not loaded it" in text and "log out and back in once" in text
     assert "WARN  ydotool is not installed" in text
     assert "WARN  99-juhradialmx.rules is not installed" in text
+    assert "WARN  70-juhradialmx-uaccess.rules is not installed" in text
+
+
+def test_doctor_accepts_uaccess_access_before_the_next_login():
+    # 70-juhradialmx-uaccess.rules: the devices open although the session
+    # predates the input group; only macro recording and generic mice wait.
+    status, text = run(["doctor"], probe=FakeProbe(groups=[1000]))
+    assert status == 0, text
+    assert "WARN  The MX devices work through this login's device access" in text
+    assert "log out and back in" in text
+
+
+@pytest.mark.parametrize("info, on_disk, state", [
+    ("  Description: JuhRadial MX: cursor position\n  Enabled: Yes\n  State: ACTIVE\n", True, "active"),
+    ("  State: ENABLED\n", True, "active"),
+    ("  Enabled: Yes\n  State: INITIALIZED\n", True, "not loaded"),
+    ("  Enabled: No\n  State: INACTIVE\n", True, "off"),
+    ("  Enabled: Yes\n  State: OUT OF DATE\n", True, "out of date"),
+    ("  Enabled: Yes\n  State: ERROR\n", True, "error"),
+    ("", True, "not loaded"),
+    ("", False, "missing"),
+])
+def test_gnome_helper_state_reads_gnome_extensions_info(info, on_disk, state):
+    assert ctl.gnome_helper_state(info, on_disk) == state
+
+
+@pytest.mark.parametrize("state, fix", [
+    ("missing", "run the installer again"),
+    ("off", "gnome-extensions enable juhradial-cursor@dev.juhlabs.com"),
+    ("out of date", "update JuhRadial MX"),
+    ("error", "journalctl --user -b -g juhradial-cursor@dev.juhlabs.com"),
+])
+def test_doctor_names_the_fix_for_each_gnome_helper_state(state, fix):
+    probe = FakeProbe(env={"XDG_SESSION_TYPE": "wayland", "XDG_CURRENT_DESKTOP": "GNOME"}, gnome=state)
+    status, text = run(["doctor"], probe=probe)
+    assert status == 1 and fix in text
+
+
+def test_hyprland_rules_follow_the_config_hyprland_loads(tmp_path):
+    hypr = tmp_path / "hypr"
+    (hypr / "modules").mkdir(parents=True)
+    (hypr / "hyprland.lua").write_text('require("modules.rules")\n')
+    (hypr / "juhradial-rules.conf").write_text("windowrulev2 = float, title:^(JuhRadial MX)$\n")
+    # A stale .conf does not count for a Lua config (issue #179).
+    assert ctl.hyprland_rules(hypr) == ("lua", [], True)
+    (hypr / "modules" / "rules.lua").write_text('hl.window_rule({ match = { class = "^(JuhRadial MX)$" } })\n')
+    (hypr / "modules" / "loop").symlink_to(hypr)
+    assert ctl.hyprland_rules(hypr) == ("lua", [str(hypr / "modules" / "rules.lua")], True)
+    (hypr / "hyprland.lua").unlink()
+    (hypr / "hyprland.conf").write_text("source = juhradial-rules.conf\n")
+    assert ctl.hyprland_rules(hypr) == ("conf", [str(hypr / "juhradial-rules.conf")], True)
+    assert ctl.hyprland_rules(tmp_path / "none") == (None, [], False)
+
+
+def test_hyprland_version_reads_the_tag():
+    assert ctl.hyprland_version('{\n    "version": "0.56.2",\n    "tag": "v0.56.2",\n}') == (0, 56)
+    assert ctl.hyprland_version("") is None
+
+
+def test_doctor_checks_the_hyprland_window_rules():
+    env = {"XDG_SESSION_TYPE": "wayland", "XDG_CURRENT_DESKTOP": "Hyprland", "HYPRLAND_INSTANCE_SIGNATURE": "x"}
+    status, text = run(["doctor"], probe=FakeProbe(env=env))
+    assert status == 0 and "ok    Hyprland window rules for the menu are in" in text
+    status, text = run(["doctor"], probe=FakeProbe(env=env, hypr=("lua", [], False)))
+    assert status == 1 and "No window rules for the menu in hyprland.lua" in text
+    status, text = run(["doctor"], probe=FakeProbe(env=env, hypr=("conf", ["/h/hyprland.conf"], True)))
+    assert status == 1 and "Hyprland 0.56 rejects the old windowrulev2 rules" in text
+    # Before 0.53 windowrulev2 is the right syntax.
+    status, text = run(["doctor"], probe=FakeProbe(env=env, hypr=("conf", ["/h/hyprland.conf"], True), hypr_version=(0, 52)))
+    assert status == 0, text
 
 
 def test_doctor_passes_on_the_qt_fix_of_issue_172():
