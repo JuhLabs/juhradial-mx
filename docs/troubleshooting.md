@@ -201,7 +201,39 @@ curl -fsSL https://raw.githubusercontent.com/JuhLabs/juhradial-mx/master/install
 
 **Cause.** Without window rules, Hyprland tiles or stacks the overlay like a normal window.
 
-**Fix.** Add the overlay rules (the installer does this automatically on Hyprland). In `hyprland.conf` or a sourced rules file:
+**Fix.** Add the overlay rules (the installer does this on Hyprland, and says so when it could not). Use the syntax for your Hyprland version. Hyprland 0.53 and newer reject the old `windowrulev2` lines with `windowrulev2 is deprecated`, so rules from an older install need replacing.
+
+Hyprland 0.55 and newer, in `hyprland.lua` or a module it loads:
+
+```lua
+hl.window_rule({
+    name = "juhradial-overlay",
+    match = { title = "^(JuhRadial MX)$" },
+    float = true,
+    pin = true,
+    no_blur = true,
+    no_shadow = true,
+    no_anim = true,
+    border_size = 0,
+})
+```
+
+Hyprland 0.53 and newer with `hyprland.conf`, in `hyprland.conf` or a sourced file:
+
+```conf
+windowrule {
+    name = juhradial-overlay
+    match:title = ^(JuhRadial MX)$
+    float = on
+    pin = on
+    no_blur = on
+    no_shadow = on
+    no_anim = on
+    border_size = 0
+}
+```
+
+Hyprland 0.52 and older:
 
 ```conf
 windowrulev2 = float,    title:^(JuhRadial MX)$

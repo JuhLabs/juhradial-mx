@@ -370,7 +370,7 @@ gnome-extensions disable juhradial-cursor@dev.juhlabs.com
 rm -rf ~/.local/share/gnome-shell/extensions/juhradial-cursor@dev.juhlabs.com
 ```
 
-Hyprland users should remove the `JuhRadial MX` rules block added under `~/.config/hypr/`, typically `~/.config/hypr/juhradial-rules.conf` or a section in `hyprland.conf`.
+Hyprland users should remove the `JuhRadial MX` rules block added under `~/.config/hypr/`: a section in `hyprland.lua`, `hyprland.conf` or `custom/rules.conf`, or `~/.config/hypr/juhradial-rules.conf` from an older install.
 
 </details>
 
