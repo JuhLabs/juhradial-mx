@@ -139,7 +139,7 @@ pub fn parse_input(data: &[u8]) -> Option<Input> {
         }
     } else if data.starts_with(&[0x11, 0xff, 0x0b, 0]) {
         let mut buttons = Vec::new();
-        for pair in data[4..].chunks_exact(2) {
+        for pair in data[4..].as_chunks::<2>().0 {
             let button = match u16::from_be_bytes([pair[0], pair[1]]) {
                 0 => return Some(Input::Pages(buttons)),
                 0x01a1 => PageButton::Left,

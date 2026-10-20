@@ -5,6 +5,12 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The security scan fails on a known vulnerability** - It ran `cargo audit` and ignored the result. It now runs OSV-Scanner, the same scanner and data as OpenSSF Scorecard's Vulnerabilities check, over the daemon, the MX Keypad crate and the documentation build, and fails on an advisory. CI also builds with the committed `Cargo.lock` only and runs clippy, and Dependabot bundles patch releases into one pull request a week.
+
 ## [0.4.5-beta.5] - 2026-10-07
 
 ### Added

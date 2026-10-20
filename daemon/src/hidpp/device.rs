@@ -360,7 +360,7 @@ impl DpiCaps {
     pub fn parse(words: &[u8]) -> Option<Self> {
         let mut values = Vec::new();
         let mut step = 0;
-        for w in words.chunks_exact(2) {
+        for w in words.as_chunks::<2>().0 {
             let v = u16::from_be_bytes([w[0], w[1]]);
             if v == 0 {
                 break;
