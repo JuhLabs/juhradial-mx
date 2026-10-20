@@ -14,7 +14,7 @@ juhradiald = { path = ".." }
 mx-keypad = { path = "../../crates/mx-keypad" }
 serde_json = "1"
 tempfile = "3"
-zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # Its own workspace: built only by `cargo fuzz`, with a nightly toolchain.
 [workspace]

@@ -1,0 +1,21 @@
+# Read by OSV-Scanner, and through it by OpenSSF Scorecard's Vulnerabilities
+# check. Only informational advisories belong here, never a vulnerability:
+# each entry says why it does not apply and expires, so it is looked at again.
+
+# zbus 5 depends on zvariant, zbus_names and zvariant_derive, which zbus 6.0
+# (2026-10-16) folded into itself. These are "unmaintained" notices with no
+# vulnerability and no patched version; they go away with the move to zbus 6.
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0370"
+ignoreUntil = 2027-01-31
+reason = "zvariant: informational unmaintained notice (merged into zbus 6.0), no vulnerability; clears with the zbus 6 migration"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0371"
+ignoreUntil = 2027-01-31
+reason = "zbus_names: informational unmaintained notice (merged into zbus 6.0), no vulnerability; clears with the zbus 6 migration"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0372"
+ignoreUntil = 2027-01-31
+reason = "zvariant_derive: informational unmaintained notice (merged into zbus 6.0), no vulnerability; clears with the zbus 6 migration"

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Hyprland window rules that current Hyprland loads** - The installer wrote `windowrulev2` rules, which Hyprland 0.53 and newer reject (`windowrulev2 is deprecated`), and looked for existing rules in `.conf` files only. On a Lua configuration (`hyprland.lua`, Hyprland 0.55 and newer) an old `juhradial-rules.conf` that nothing loads counted as configured, and with `hyprland.lua` alone it wrote that unloaded file and reported the rules as configured. It now adds an `hl.window_rule` block to `hyprland.lua`, a `windowrule` block to `hyprland.conf` on 0.53 and newer and `windowrulev2` only before 0.53, looks for existing rules only in the kind of file Hyprland loads, and when it cannot add them it prints them and says a manual step is needed. The compositor and troubleshooting pages show the rules for each Hyprland version. Reported by [@zxzxn3](https://github.com/zxzxn3) in [#179](https://github.com/JuhLabs/juhradial-mx/issues/179).
 
+### Changed
+
+- **Backups are read with zip 9** - zip 8.6 has three advisories (RUSTSEC-2026-0367, -0368 and -0369) about extracting archives with symbolic links and set-user-ID bits. JuhRadial MX never extracts an archive: a backup import reads each entry and checks its path itself, so it was not affected, but the advisories no longer apply to the daemon at all.
+
 ## [0.4.5-beta.5] - 2026-10-07
 
 ### Added
