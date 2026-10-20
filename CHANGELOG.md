@@ -5,6 +5,12 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Backups are read with zip 9** - zip 8.6 has three advisories (RUSTSEC-2026-0367, -0368 and -0369) about extracting archives with symbolic links and set-user-ID bits. JuhRadial MX never extracts an archive: a backup import reads each entry and checks its path itself, so it was not affected, but the advisories no longer apply to the daemon at all.
+
 ## [0.4.5-beta.5] - 2026-10-07
 
 ### Added

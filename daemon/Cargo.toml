@@ -45,7 +45,7 @@ libc = "0.2"
 tempfile = "3"
 
 # Configuration export/import archives (--export / --import, Settings > Backup)
-zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # HID++ for haptic feedback (optional - now uses direct hidraw instead)
 # hidapi = { version = "2", optional = true }

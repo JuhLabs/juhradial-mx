@@ -200,7 +200,7 @@ pub fn import(config_dir: &Path, src: &Path) -> Result<ImportReport, BackupError
         if entry.is_dir() {
             continue;
         }
-        let name = entry.name().to_string();
+        let name = entry.name()?.into_owned();
         if name == MANIFEST {
             continue;
         }
@@ -423,7 +423,7 @@ mod tests {
         );
         let mut archive = ZipArchive::new(fs::File::open(out.path()).unwrap()).unwrap();
         let entries: Vec<String> = (0..archive.len())
-            .map(|i| archive.by_index(i).unwrap().name().to_string())
+            .map(|i| archive.by_index(i).unwrap().name().unwrap().into_owned())
             .collect();
         assert!(entries.contains(&MANIFEST.to_string()));
         assert!(!entries.iter().any(|n| n.contains("flow_keys")));
@@ -618,6 +618,31 @@ mod tests {
         zip.finish().unwrap();
         let report = import(dst.path(), file.path()).unwrap();
         assert_eq!(report.files, vec!["macros/m.json"]);
+    }
+
+    #[test]
+    fn import_writes_symlink_and_setuid_entries_as_plain_files() {
+        // RUSTSEC-2026-0367, -0368 and -0369 are zip's extract(): import
+        // reads entries itself, so a link arrives as its target text and an
+        // entry's Unix mode bits are never applied.
+        use std::os::unix::fs::PermissionsExt;
+        let dst = tempfile::tempdir().unwrap();
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let mut zip = ZipWriter::new(file.reopen().unwrap());
+        let options = SimpleFileOptions::default();
+        zip.start_file(MANIFEST, options).unwrap();
+        zip.write_all(&manifest_json(APP, FORMAT)).unwrap();
+        zip.add_symlink("icons/link.png", "/etc/passwd", options).unwrap();
+        zip.start_file("icons/suid.png", options.unix_permissions(0o6755)).unwrap();
+        zip.write_all(b"png").unwrap();
+        zip.finish().unwrap();
+        let report = import(dst.path(), file.path()).unwrap();
+        assert_eq!(report.files, vec!["icons/link.png", "icons/suid.png"]);
+        let link = dst.path().join("icons/link.png");
+        assert!(fs::symlink_metadata(&link).unwrap().file_type().is_file());
+        assert_eq!(fs::read(&link).unwrap(), b"/etc/passwd");
+        let mode = fs::metadata(dst.path().join("icons/suid.png")).unwrap().permissions().mode();
+        assert_eq!(mode & 0o7000, 0, "no setuid, setgid or sticky bit");
     }
 
     #[test]
