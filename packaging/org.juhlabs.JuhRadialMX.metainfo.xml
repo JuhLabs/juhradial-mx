@@ -89,6 +89,17 @@
   </keywords>
 
   <releases>
+    <release version="0.4.5~beta.6" date="2026-10-20" type="development">
+      <description>
+        <p>Sixth beta of 0.4.5: Hyprland 0.55 and newer, access without logging out, verified downloads</p>
+        <ul>
+          <li>The installer writes Hyprland window rules in the syntax of the config Hyprland loads, Lua included</li>
+          <li>The MX devices work right after installing and after a Bluetooth reconnect, without logging out</li>
+          <li>juhradial-mx doctor checks the Hyprland window rules and the GNOME cursor helper</li>
+          <li>Release files carry signed build provenance, and the installer checks the tarball's SHA-256</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.5~beta.5" date="2026-10-07" type="development">
       <description>
         <p>Fifth beta of 0.4.5: the new Settings app on older Qt, and Settings pages that always load</p>
