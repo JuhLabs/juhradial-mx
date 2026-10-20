@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run the shell-level tests in the pytest gate: launcher path resolution
-(#52, #60, #138) and the install.sh --user end-to-end run (#138).
+(#52, #60, #138), the install.sh --user end-to-end run (#138) and the
+installer's Hyprland window rules (#179).
 
 Run: python3 -m pytest tests/test_shell_scripts.py -q
 """
@@ -14,7 +15,7 @@ import pytest
 TESTS = Path(__file__).resolve().parent
 
 
-@pytest.mark.parametrize("script", ["test_launcher.sh", "test_install_user.sh"])
+@pytest.mark.parametrize("script", ["test_launcher.sh", "test_install_user.sh", "test_install_hyprland.sh"])
 def test_shell_script(script):
     if not shutil.which("bash") or not shutil.which("tar"):
         pytest.skip("needs bash and tar")

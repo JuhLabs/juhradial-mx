@@ -145,7 +145,43 @@ Hyprland's per-app tracking reads the `.socket2` event stream and parses `active
 
 ### Setup
 
-The installer detects Hyprland and adds the overlay window rules automatically. To add them manually, put these in `hyprland.conf` (or an included rules file):
+The installer detects Hyprland and adds the overlay window rules to the config Hyprland loads: `hyprland.lua` when it exists (Hyprland 0.55 and newer load it instead of `hyprland.conf`), otherwise `custom/rules.conf` (end-4's dots-hyprland) or `hyprland.conf`, in the syntax of the running Hyprland version. When it cannot add them, for example because the config is read-only or lives somewhere else, it prints the rules and says they need adding by hand.
+
+To add them manually, use the block for your Hyprland version, then run `hyprctl reload`.
+
+**Hyprland 0.55 and newer**, in `hyprland.lua` or a module it loads:
+
+```lua
+-- JuhRadial MX overlay window rules
+hl.window_rule({
+    name = "juhradial-overlay",
+    match = { title = "^(JuhRadial MX)$" },
+    float = true,
+    pin = true,
+    no_blur = true,
+    no_shadow = true,
+    no_anim = true,
+    border_size = 0,
+})
+```
+
+**Hyprland 0.53 and newer with `hyprland.conf`**, in `hyprland.conf` or a sourced file:
+
+```conf
+# JuhRadial MX overlay window rules
+windowrule {
+    name = juhradial-overlay
+    match:title = ^(JuhRadial MX)$
+    float = on
+    pin = on
+    no_blur = on
+    no_shadow = on
+    no_anim = on
+    border_size = 0
+}
+```
+
+**Hyprland 0.52 and older**, in `hyprland.conf` or a sourced file:
 
 ```conf
 # JuhRadial MX overlay window rules

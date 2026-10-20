@@ -5,6 +5,12 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Hyprland window rules that current Hyprland loads** - The installer wrote `windowrulev2` rules, which Hyprland 0.53 and newer reject (`windowrulev2 is deprecated`), and looked for existing rules in `.conf` files only. On a Lua configuration (`hyprland.lua`, Hyprland 0.55 and newer) an old `juhradial-rules.conf` that nothing loads counted as configured, and with `hyprland.lua` alone it wrote that unloaded file and reported the rules as configured. It now adds an `hl.window_rule` block to `hyprland.lua`, a `windowrule` block to `hyprland.conf` on 0.53 and newer and `windowrulev2` only before 0.53, looks for existing rules only in the kind of file Hyprland loads, and when it cannot add them it prints them and says a manual step is needed. The compositor and troubleshooting pages show the rules for each Hyprland version. Reported by [@zxzxn3](https://github.com/zxzxn3) in [#179](https://github.com/JuhLabs/juhradial-mx/issues/179).
+
 ## [0.4.5-beta.5] - 2026-10-07
 
 ### Added

@@ -346,7 +346,56 @@ configure_hyprland() {
     log_info "Configuring Hyprland window rules..."
 
     HYPR_CONFIG_DIR="$HOME/.config/hypr"
-    RULES_CONTENT='
+    HYPR_RULES_OK=false
+    RULES_CONTENT=""
+    local docs="https://juhlabs.github.io/juhradial-mx/compositor-support/#hyprland"
+    local ext target="" syntax="" version reason=""
+
+    # Hyprland 0.55+ loads hyprland.lua instead of hyprland.conf when it exists
+    if [ -f "$HYPR_CONFIG_DIR/hyprland.lua" ]; then
+        ext="lua"
+        target="$HYPR_CONFIG_DIR/hyprland.lua"
+        RULES_CONTENT='
+-- ######## JuhRadial MX - Radial Menu Overlay ########
+-- These rules ensure the radial menu appears correctly as an overlay
+hl.window_rule({
+    name = "juhradial-overlay",
+    match = { title = "^(JuhRadial MX)$" },
+    float = true,
+    pin = true,
+    no_blur = true,
+    no_shadow = true,
+    no_anim = true,
+    border_size = 0,
+})'
+    else
+        ext="conf"
+        # Try dots-hyprland custom rules first (end-4/dots-hyprland structure)
+        if [ -f "$HYPR_CONFIG_DIR/custom/rules.conf" ]; then
+            target="$HYPR_CONFIG_DIR/custom/rules.conf"
+        elif [ -f "$HYPR_CONFIG_DIR/hyprland.conf" ]; then
+            target="$HYPR_CONFIG_DIR/hyprland.conf"
+        fi
+
+        # Hyprland 0.53 replaced windowrulev2 with rule blocks
+        version=$(hyprctl version -j 2>/dev/null | sed -n 's/.*"tag": *"v\([0-9][0-9.]*\).*/\1/p' | head -n 1)
+        if [ -n "$version" ] && [ "$(printf '%s\n' 0.53 "$version" | sort -V | head -n 1)" = "0.53" ]; then
+            syntax="block"
+            RULES_CONTENT='
+# ######## JuhRadial MX - Radial Menu Overlay ########
+# These rules ensure the radial menu appears correctly as an overlay
+windowrule {
+    name = juhradial-overlay
+    match:title = ^(JuhRadial MX)$
+    float = on
+    pin = on
+    no_blur = on
+    no_shadow = on
+    no_anim = on
+    border_size = 0
+}'
+        elif [ -n "$version" ]; then
+            RULES_CONTENT='
 # ######## JuhRadial MX - Radial Menu Overlay ########
 # These rules ensure the radial menu appears correctly as an overlay
 windowrulev2 = float, title:^(JuhRadial MX)$
@@ -355,31 +404,41 @@ windowrulev2 = noborder, title:^(JuhRadial MX)$
 windowrulev2 = noshadow, title:^(JuhRadial MX)$
 windowrulev2 = pin, title:^(JuhRadial MX)$
 windowrulev2 = noanim, title:^(JuhRadial MX)$'
+        fi
+    fi
 
-    # Check if rules already exist
-    if grep -q "JuhRadial MX" "$HYPR_CONFIG_DIR"/*.conf "$HYPR_CONFIG_DIR"/**/*.conf 2>/dev/null; then
+    # Check if rules already exist in the kind of file Hyprland loads
+    if grep -Rqs --include="*.$ext" "JuhRadial MX" "$HYPR_CONFIG_DIR"; then
+        if [ "$syntax" = "block" ] && grep -Rqs --include="*.conf" "windowrulev2.*JuhRadial MX" "$HYPR_CONFIG_DIR"; then
+            log_warning "Found old windowrulev2 rules for JuhRadial MX, which Hyprland $version no longer loads"
+            log_dim "Replace them with the rules at $docs"
+            return 0
+        fi
         log_dim "Hyprland rules already configured"
+        HYPR_RULES_OK=true
         return 0
     fi
 
-    # Try dots-hyprland custom rules first (end-4/dots-hyprland structure)
-    if [ -f "$HYPR_CONFIG_DIR/custom/rules.conf" ]; then
-        echo "$RULES_CONTENT" >> "$HYPR_CONFIG_DIR/custom/rules.conf"
-        log_success "Added rules to custom/rules.conf"
-    # Try standard hyprland.conf
-    elif [ -f "$HYPR_CONFIG_DIR/hyprland.conf" ]; then
-        echo "$RULES_CONTENT" >> "$HYPR_CONFIG_DIR/hyprland.conf"
-        log_success "Added rules to hyprland.conf"
-    # Create a new rules file and source it
-    else
-        mkdir -p "$HYPR_CONFIG_DIR"
-        echo "$RULES_CONTENT" > "$HYPR_CONFIG_DIR/juhradial-rules.conf"
-
-        if [ -f "$HYPR_CONFIG_DIR/hyprland.conf" ]; then
-            echo "source=juhradial-rules.conf" >> "$HYPR_CONFIG_DIR/hyprland.conf"
-        fi
-        log_success "Created juhradial-rules.conf"
+    if [ -z "$target" ]; then
+        reason="no hyprland.lua or hyprland.conf in $HYPR_CONFIG_DIR"
+    elif [ -z "$RULES_CONTENT" ]; then
+        reason="hyprctl did not report the Hyprland version"
+    elif [ ! -w "$target" ]; then
+        reason="$target is not writable"
     fi
+    if [ -n "$reason" ]; then
+        log_warning "Hyprland window rules not added: $reason"
+        if [ -n "$RULES_CONTENT" ]; then
+            log_dim "Add these rules to the config Hyprland loads, then run: hyprctl reload"
+            echo "$RULES_CONTENT"
+        fi
+        log_dim "Rules for each Hyprland version: $docs"
+        return 0
+    fi
+
+    echo "$RULES_CONTENT" >> "$target"
+    log_success "Added rules to ${target#"$HYPR_CONFIG_DIR"/}"
+    HYPR_RULES_OK=true
 
     # Reload Hyprland config if possible
     if command -v hyprctl &> /dev/null; then
@@ -1068,8 +1127,10 @@ configure_desktop() {
     configure_gnome
     install_autostart
 
-    if [ "$DESKTOP_TYPE" = "hyprland" ]; then
+    if [ "$DESKTOP_TYPE" = "hyprland" ] && [ "$HYPR_RULES_OK" = true ]; then
         log_success "Hyprland window rules configured"
+    elif [ "$DESKTOP_TYPE" = "hyprland" ]; then
+        log_warning "Hyprland window rules need the manual step above"
     elif [ "$DESKTOP_TYPE" = "gnome" ]; then
         log_success "GNOME cursor helper extension installed"
     elif [ "$DESKTOP_TYPE" = "cosmic" ]; then
