@@ -94,6 +94,7 @@ ls /sys/bus/hid/devices/ | grep -i 046D
 
 # 2. Make sure the udev rules are installed (the dev sync script does NOT install them):
 sudo install -Dm644 packaging/udev/99-juhradialmx.rules /etc/udev/rules.d/99-juhradialmx.rules
+sudo install -Dm644 packaging/udev/70-juhradialmx-uaccess.rules /etc/udev/rules.d/70-juhradialmx-uaccess.rules
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 

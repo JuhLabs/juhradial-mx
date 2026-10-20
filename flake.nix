@@ -164,6 +164,7 @@
 
               # udev rules (for NixOS module)
               install -Dm644 packaging/udev/99-juhradialmx.rules $out/etc/udev/rules.d/99-juhradialmx.rules
+              install -Dm644 packaging/udev/70-juhradialmx-uaccess.rules $out/etc/udev/rules.d/70-juhradialmx-uaccess.rules
 
               runHook postInstall
             '';

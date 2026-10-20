@@ -32,6 +32,7 @@ install -Dm644 assets/juhradial-mx.svg "$stage/usr/share/icons/hicolor/scalable/
 install -Dm644 packaging/systemd/juhradialmx-daemon.service "$stage/usr/lib/systemd/user/juhradialmx-daemon.service"
 sed -i 's|^ExecStart=/usr/local/bin/juhradiald|ExecStart=/usr/bin/juhradiald|' "$stage/usr/lib/systemd/user/juhradialmx-daemon.service"
 install -Dm644 packaging/udev/99-juhradialmx.rules "$stage/usr/lib/udev/rules.d/99-juhradialmx.rules"
+install -Dm644 packaging/udev/70-juhradialmx-uaccess.rules "$stage/usr/lib/udev/rules.d/70-juhradialmx-uaccess.rules"
 install -Dm644 packaging/udev/60-ydotool-uinput.rules "$stage/usr/lib/udev/rules.d/60-ydotool-uinput.rules"
 install -Dm644 LICENSE "$stage/usr/share/doc/juhradial-mx/copyright"
 

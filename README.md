@@ -355,6 +355,7 @@ sudo rm -f  /usr/share/applications/juhradial-mx.desktop \
 
 # 4. Remove udev rules and uinput module configuration, then reload
 sudo rm -f  /etc/udev/rules.d/99-juhradialmx.rules \
+            /etc/udev/rules.d/70-juhradialmx-uaccess.rules \
             /etc/udev/rules.d/60-ydotool-uinput.rules \
             /etc/modules-load.d/juhradial-uinput.conf
 sudo udevadm control --reload-rules && sudo udevadm trigger

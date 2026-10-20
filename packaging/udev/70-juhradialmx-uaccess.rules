@@ -1,0 +1,20 @@
+# JuhRadial MX - device access for the logged-in user (systemd-logind uaccess)
+#
+# 73-seat-late.rules turns the uaccess tag into an ACL for the user of the
+# active seat when a device appears, so the tag has to be set before it runs.
+# The same tags in 99-juhradialmx.rules come too late for that: logind still
+# applies them when you log in, but a device that appears later in the session
+# (a Bluetooth reconnect, Easy-Switch back to this computer, a receiver plugged
+# in) got no ACL and needed the input group. With this file the MX devices work
+# right after installing, before the next login.
+#
+# Logitech devices only, matched by the parent HID device name
+# "<bus>:046D:<product>.<n>": bus 0003 is USB (receivers and cables), 0005 is
+# Bluetooth, whose virtual uhid parents expose no idVendor attribute.
+# 99-juhradialmx.rules keeps the input group grant, which macro recording and
+# generic-mode mice need for devices of other makers.
+
+SUBSYSTEM=="hidraw", KERNELS=="0003:046D:*", TAG+="uaccess"
+SUBSYSTEM=="hidraw", KERNELS=="0005:046D:*", TAG+="uaccess"
+SUBSYSTEM=="input", KERNEL=="event*", KERNELS=="0003:046D:*", TAG+="uaccess"
+SUBSYSTEM=="input", KERNEL=="event*", KERNELS=="0005:046D:*", TAG+="uaccess"

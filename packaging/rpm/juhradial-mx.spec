@@ -115,6 +115,7 @@ sed -i 's|^ExecStart=/usr/local/bin/juhradiald|ExecStart=%{_bindir}/juhradiald|'
 
 # Install udev rules
 install -Dm644 packaging/udev/99-juhradialmx.rules %{buildroot}%{_udevrulesdir}/99-juhradialmx.rules
+install -Dm644 packaging/udev/70-juhradialmx-uaccess.rules %{buildroot}%{_udevrulesdir}/70-juhradialmx-uaccess.rules
 install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdir}/60-ydotool-uinput.rules
 
 
@@ -142,6 +143,7 @@ install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdi
 %{_datadir}/icons/hicolor/scalable/apps/juhradial-mx.svg
 %{_userunitdir}/juhradialmx-daemon.service
 %{_udevrulesdir}/99-juhradialmx.rules
+%{_udevrulesdir}/70-juhradialmx-uaccess.rules
 %{_udevrulesdir}/60-ydotool-uinput.rules
 %changelog
 * Wed Oct 07 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.5-1

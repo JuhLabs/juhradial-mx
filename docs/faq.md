@@ -147,7 +147,7 @@ sudo rm -f /usr/share/applications/juhradial-mx.desktop
 sudo rm -f /usr/share/applications/org.kde.juhradialmx.settings.desktop
 
 # Remove the udev rule and reload
-sudo rm -f /etc/udev/rules.d/99-juhradialmx.rules
+sudo rm -f /etc/udev/rules.d/99-juhradialmx.rules /etc/udev/rules.d/70-juhradialmx-uaccess.rules
 sudo udevadm control --reload-rules
 
 # Remove the per-user service unit and your config (optional)

@@ -327,7 +327,7 @@ Deploying a dev build over an install:
 ```bash
 sudo bash scripts/sync-to-install.sh
 # Note: this does NOT install udev rules. Copy them manually:
-sudo cp packaging/udev/99-juhradialmx.rules /etc/udev/rules.d/
+sudo cp packaging/udev/99-juhradialmx.rules packaging/udev/70-juhradialmx-uaccess.rules /etc/udev/rules.d/
 ```
 
 !!! note

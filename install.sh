@@ -891,6 +891,9 @@ install_files() {
     # Install/update udev rules (always update to fix security issues in older versions)
     if [ -f packaging/udev/99-juhradialmx.rules ]; then
         sudo install -Dm644 packaging/udev/99-juhradialmx.rules /etc/udev/rules.d/
+        if [ -f packaging/udev/70-juhradialmx-uaccess.rules ]; then
+            sudo install -Dm644 packaging/udev/70-juhradialmx-uaccess.rules /etc/udev/rules.d/
+        fi
         [ -f /etc/udev/rules.d/99-logitech-hidpp.rules ] && sudo rm -f /etc/udev/rules.d/99-logitech-hidpp.rules
 
         # /dev/uinput access: ydotool (Wayland shortcut + thumb-wheel injection)

@@ -74,13 +74,14 @@ The installer (`install.sh`) runs as a fresh install or an in-place upgrade, dep
 For non-root access to the mouse and for action injection, the installer:
 
 - Installs `99-juhradialmx.rules` into `/etc/udev/rules.d/` and removes the older `99-logitech-hidpp.rules` if present.
+- Installs `70-juhradialmx-uaccess.rules`, which gives the logged-in user access to Logitech hidraw and input nodes as soon as they appear (systemd-logind `uaccess`), so the MX devices work right after installing and after every Bluetooth reconnect, without logging out.
 - Installs `60-ydotool-uinput.rules` so the logged-in user can open `/dev/uinput` (used by both `ydotool` and the daemon's own virtual input device). Stock distros ship `/dev/uinput` as `root:root 0600`.
 - Loads the `uinput` kernel module now (`modprobe uinput`) and on boot (`/etc/modules-load.d/juhradial-uinput.conf`).
 - Reloads rules (`udevadm control --reload-rules` + `udevadm trigger`).
-- Ensures the `input` group exists and adds your user to it (device access via hidraw/evdev comes from `GROUP="input"`).
+- Ensures the `input` group exists and adds your user to it. The group covers what the uaccess rule does not: devices of other makers, which macro recording and generic-mode mice read, and sessions that are not on the local seat.
 
 !!! info
-    If your user was just added to the `input` group, log out and back in for the new group membership to take effect. Until then the daemon cannot open the device.
+    Your MX devices work right away through the uaccess rule. If your user was just added to the `input` group, log out and back in once for that too: until then macro recording and generic-mode mice cannot open devices of other makers. `juhradial-mx doctor` shows which applies.
 
 
 ### ydotoold (Wayland action injection)
@@ -130,7 +131,7 @@ rm -f ~/.local/bin/juhradiald ~/.local/bin/juhradial-mx ~/.local/bin/juhradial-s
 rm -rf ~/.local/share/juhradial-mx ~/.local/share/juhradial
 rm -f ~/.local/share/applications/juhradial-mx.desktop ~/.local/share/applications/org.kde.juhradialmx.settings.desktop
 rm -f ~/.config/systemd/user/juhradialmx-daemon.service ~/.config/autostart/juhradial-mx.desktop
-sudo rm -f /etc/udev/rules.d/99-juhradialmx.rules /etc/udev/rules.d/60-ydotool-uinput.rules && sudo udevadm control --reload-rules
+sudo rm -f /etc/udev/rules.d/99-juhradialmx.rules /etc/udev/rules.d/70-juhradialmx-uaccess.rules /etc/udev/rules.d/60-ydotool-uinput.rules && sudo udevadm control --reload-rules
 ```
 
 ## Requirements
