@@ -615,7 +615,7 @@ fetch_release() {
     command -v tar >/dev/null 2>&1 || return 1
     [ "$(uname -m)" = "x86_64" ] || return 1
 
-    local api url tmp tarball top uid gid
+    local api url tmp tarball top uid gid name expected
     tmp="$(mktemp -d)"
     tarball="$tmp/release.tar.gz"
     # This release's tarball by its fixed address: no GitHub API call (the API
@@ -632,6 +632,16 @@ fetch_release() {
         [ -n "$url" ] && curl -fsSL -o "$tarball" "$url" || { rm -rf "$tmp"; return 1; }
         log_info "Downloaded $(basename "$url")"
     fi
+    # The tarball carries a prebuilt daemon: install it only when it matches
+    # the SHA256SUMS published with the same release, else build from source.
+    name="$(basename "$url")"
+    expected="$(curl -fsSL "${url%/*}/SHA256SUMS" 2>/dev/null | awk -v f="$name" '$2 == f { print $1 }')"
+    if [ -z "$expected" ] || [ "$(sha256sum "$tarball" 2>/dev/null | cut -d' ' -f1)" != "$expected" ]; then
+        log_warning "Could not verify $name against the release's SHA256SUMS, building from source instead"
+        rm -rf "$tmp"
+        return 1
+    fi
+    log_dim "SHA-256 matches the release's SHA256SUMS"
     tar -xzf "$tarball" -C "$tmp" || { rm -rf "$tmp"; return 1; }
     top="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -1)"
     [ -f "$top/daemon/Cargo.toml" ] || { rm -rf "$tmp"; return 1; }

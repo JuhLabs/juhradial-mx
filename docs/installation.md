@@ -51,8 +51,8 @@ The installer (`install.sh`) runs as a fresh install or an in-place upgrade, dep
 |-------|--------------|
 | Detect | Reads `/etc/os-release` to resolve a distro family (`arch`, `fedora`, `debian`, `opensuse`), falling back to `ID_LIKE` and then to the available package manager (`pacman`, `apt-get`, `dnf`, `zypper`). Detects Wayland vs X11, the desktop/compositor, an existing install, and whether a Logitech device (USB vendor `046d`) is present. |
 | 1. Dependencies | Installs the build and runtime packages for your distro family (Rust/Cargo, Python + PyQt6, GTK4/libadwaita, `gtk4-layer-shell`, HID and evdev dev headers, D-Bus/systemd dev headers, `ydotool`, `git`, `make`). |
-| 2. Fetch source | Clones `https://github.com/JuhLabs/juhradial-mx` into `/opt/juhradial-mx` (or, on upgrade, `git fetch` + `git reset --hard origin/master` + `git clean -fd`). |
-| 3. Build daemon | Ensures a usable Rust toolchain (see the rustup note below), then runs `cargo build --release` in `daemon/`. |
+| 2. Fetch source | Downloads this version's release tarball (a source snapshot plus a prebuilt daemon) and checks it against the `SHA256SUMS` published with the release. Without a release, or when the tarball does not match, it clones `https://github.com/JuhLabs/juhradial-mx` into `/opt/juhradial-mx` instead (on upgrade: `git fetch` + `git reset --hard origin/master` + `git clean -fd`). |
+| 3. Build daemon | Uses the release's prebuilt daemon when it runs on this system; otherwise ensures a usable Rust toolchain (see the rustup note below) and runs `cargo build --release` in `daemon/`. |
 | 4. Install files | Copies the daemon binary, overlay scripts, theme/device assets, launcher scripts, desktop entries, icons, the systemd user unit, and udev rules into place (see layout table). |
 | 5. Desktop integration | Applies compositor-specific setup (Hyprland window rules, GNOME cursor-helper extension). KDE, Sway, and COSMIC need no extra config. |
 | 6. Enable service | Reloads the systemd user manager, enables `juhradialmx-daemon`, sets up `ydotoold` autostart, then starts (or restarts) the daemon. |
@@ -102,6 +102,17 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --defaul
 !!! tip
     On Ubuntu 24.04 this happens automatically. If you are installing manually there and `cargo build` fails on the lockfile version, run the two commands above (or `rustup update stable`) and rebuild.
 
+
+### Checking a release download
+
+Every release lists the SHA-256 of each file in `SHA256SUMS`, and from 0.4.5 Beta 6 on it carries build provenance: a signed record, made by the release workflow, of the commit and the workflow run that built each file. The installer checks the tarball against `SHA256SUMS` before it unpacks it. To check a file you downloaded yourself, from the folder it is in:
+
+```bash
+sha256sum -c SHA256SUMS --ignore-missing
+gh attestation verify juhradial-mx-0.4.5-beta.6-linux-x86_64.tar.gz --repo JuhLabs/juhradial-mx
+```
+
+`gh attestation verify` also takes the release's `juhradial-mx-<version>.sigstore.json` file with `--bundle`.
 
 ## Bazzite, Fedora Atomic and other image-based systems
 

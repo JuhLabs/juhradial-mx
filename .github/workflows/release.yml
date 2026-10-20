@@ -343,6 +343,9 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      # Build provenance: an OIDC token to sign with, and the attestation store.
+      id-token: write
+      attestations: write
 
     steps:
       - name: Checkout tag
@@ -368,6 +371,21 @@ jobs:
           done
           sha256sum -- *.tar.gz *.deb *.rpm > SHA256SUMS
           cat SHA256SUMS
+
+      # Signed SLSA build provenance for every asset in SHA256SUMS: kept in
+      # the repository's attestations (gh attestation verify) and shipped as a
+      # Sigstore bundle, the file Scorecard's Signed-Releases check looks for.
+      - name: Attest build provenance
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: release-assets/SHA256SUMS
+
+      - name: Ship the attestation bundle with the release
+        env:
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          VERSION: ${{ needs.linux.outputs.version }}
+        run: cp -- "$BUNDLE" "release-assets/juhradial-mx-$VERSION.sigstore.json"
 
       - name: Extract release notes from CHANGELOG.md
         run: |

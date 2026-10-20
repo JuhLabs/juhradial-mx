@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Signed build provenance for every release file** - The release workflow attests each tarball, `.deb` and `.rpm` with GitHub's build provenance, a Sigstore-signed record of the commit and the workflow run that built it, and attaches the bundle as `juhradial-mx-<version>.sigstore.json`. `gh attestation verify <file> --repo JuhLabs/juhradial-mx` checks a download; the installation guide shows how.
+
 - **`juhradial-mx doctor` checks the desktop integrations that break most often** - On Hyprland it looks for the menu's window rules in the config Hyprland loads (`hyprland.lua` or `hyprland.conf`) and flags `windowrulev2` rules that Hyprland 0.53 and newer reject. On GNOME it tells apart a cursor helper extension that is missing, installed but not loaded yet (GNOME Shell reads new extensions at login), turned off, out of date or failing, each with its own fix. It also checks `70-juhradialmx-uaccess.rules`, and a session that reaches the MX devices through it but is not in the `input` group yet gets a warning instead of a failure. From [#179](https://github.com/JuhLabs/juhradial-mx/issues/179) and [#185](https://github.com/JuhLabs/juhradial-mx/discussions/185).
 
 ### Fixed
@@ -18,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The installer checks the release tarball before it installs it** - The tarball carries a prebuilt daemon, and it was unpacked without a check. It is now compared with the `SHA256SUMS` published with the same release; a tarball that does not match, or a release without the file, makes the installer build from source instead.
 - **Backups are read with zip 9** - zip 8.6 has three advisories (RUSTSEC-2026-0367, -0368 and -0369) about extracting archives with symbolic links and set-user-ID bits. JuhRadial MX never extracts an archive: a backup import reads each entry and checks its path itself, so it was not affected, but the advisories no longer apply to the daemon at all.
 - **The security scan fails on a known vulnerability** - It ran `cargo audit` and ignored the result. It now runs OSV-Scanner, the same scanner and data as OpenSSF Scorecard's Vulnerabilities check, over the daemon, the MX Keypad crate and the documentation build, and fails on an advisory. CI also builds with the committed `Cargo.lock` only and runs clippy, and Dependabot bundles patch releases into one pull request a week.
 
