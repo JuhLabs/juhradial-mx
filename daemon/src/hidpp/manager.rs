@@ -91,6 +91,10 @@ pub struct HapticManager {
     /// the mouse as it is).
     level: Option<u8>,
     panel_force: Option<u8>,
+    /// Bumped every time `connect()` establishes a device connection, so a
+    /// same-node reconnect can be told apart from a connection that never
+    /// dropped (issue #192).
+    connection_generation: u64,
 }
 
 /// Why a Test pulse did not play (TriggerHapticPattern's answer).
@@ -153,6 +157,7 @@ impl HapticManager {
             gaming_active: false,
             level: None,
             panel_force: None,
+            connection_generation: 0,
         }
     }
 
@@ -198,6 +203,7 @@ impl HapticManager {
             gaming_active: false,
             level: config.level,
             panel_force: config.panel_force,
+            connection_generation: 0,
         }
     }
 
@@ -253,6 +259,7 @@ impl HapticManager {
                 let connection = device.connection_type();
                 self.device = Some(device);
                 self.connection_state = ConnectionState::Connected;
+                self.bump_connection_generation();
                 self.apply_device_haptics();
 
                 if haptic_supported {
@@ -423,6 +430,17 @@ impl HapticManager {
     /// Get the hidraw device path the MX Master 4 is connected to
     pub fn device_path(&self) -> Option<PathBuf> {
         self.device.as_ref().map(|d| d.device_path().to_path_buf())
+    }
+
+    /// How many times `connect()` has established a device connection.
+    /// Lets a late reader (e.g. `hidraw_listener_mismatch`) recognize a
+    /// same-node reconnect that a bare path comparison would miss.
+    pub fn connection_generation(&self) -> u64 {
+        self.connection_generation
+    }
+
+    fn bump_connection_generation(&mut self) {
+        self.connection_generation = self.connection_generation.wrapping_add(1);
     }
 
     /// Get the device name via HID++ DEVICE_NAME feature (0x0005)
@@ -1226,5 +1244,25 @@ impl HapticManager {
 impl Default for HapticManager {
     fn default() -> Self {
         Self::new(true)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn connection_generation_starts_at_zero() {
+        let manager = HapticManager::new(true);
+        assert_eq!(manager.connection_generation(), 0);
+    }
+
+    #[test]
+    fn connection_generation_bumps_on_each_call() {
+        let mut manager = HapticManager::new(true);
+        manager.bump_connection_generation();
+        assert_eq!(manager.connection_generation(), 1);
+        manager.bump_connection_generation();
+        assert_eq!(manager.connection_generation(), 2);
     }
 }

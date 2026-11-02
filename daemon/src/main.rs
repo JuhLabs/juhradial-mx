@@ -1739,18 +1739,39 @@ async fn refresh_hidpp_button_diverts(
     }
 }
 
-/// Resolve only when the HID++ manager is connected on a DIFFERENT hidraw
-/// node than the event listener opened, and stay pending otherwise.
+/// Whether the hidraw listener opened at `listener_path`/`listener_generation`
+/// is stale against the HID++ manager's current, currently-connected state:
+/// a different node (the second-receiver tie-break), or the same node but a
+/// newer connection generation (a same-node reconnect, which a path-only
+/// comparison cannot see — issue #192). `None` manager state (momentarily
+/// disconnected) is never itself a reason to re-bind.
+fn listener_is_stale(
+    listener_path: &std::path::Path,
+    listener_generation: u64,
+    manager_path: Option<&std::path::Path>,
+    manager_generation: u64,
+) -> bool {
+    match manager_path {
+        Some(manager_path) => manager_path != listener_path || manager_generation != listener_generation,
+        None => false,
+    }
+}
+
+/// Resolve only when the HID++ manager's connection is stale against what the
+/// event listener opened with, and stay pending otherwise.
 ///
-/// This is the deaf-listener condition a second plugged-in receiver produces:
-/// auto-detect ties both receivers on priority and can open the one the mouse
-/// is not paired to. Diverted button notifications then never arrive, so
-/// nothing on the listener's own path would ever end the session; this arm
-/// gives the reconnect loop a reason to re-bind onto the manager's
-/// ping-verified path (e.g. once the battery updater connects it).
+/// Covers two deaf-listener conditions: a second plugged-in receiver, where
+/// auto-detect ties on priority and can open the one the mouse is not paired
+/// to; and a same-node reconnect (issue #192), where the manager drops and
+/// re-establishes the same hidraw path (e.g. after a lazy connect from the
+/// battery updater or thumb-wheel refresh) without the listener noticing.
+/// Diverted button notifications never arrive in either case, so nothing on
+/// the listener's own path would ever end the session; this arm gives the
+/// reconnect loop a reason to re-bind onto the manager's ping-verified state.
 async fn hidraw_listener_mismatch(
     haptic_manager: &SharedHapticManager,
     listener_path: Option<std::path::PathBuf>,
+    listener_generation: u64,
 ) {
     let Some(listener_path) = listener_path else {
         // No opened path to compare; leave the session to its other arms.
@@ -1759,16 +1780,24 @@ async fn hidraw_listener_mismatch(
     };
     loop {
         tokio::time::sleep(Duration::from_secs(5)).await;
-        let manager_path = haptic_manager
+        let (manager_path, manager_generation) = haptic_manager
             .lock()
             .ok()
-            .and_then(|m| m.device_path());
-        if let Some(manager_path) = manager_path {
-            if manager_path != listener_path {
-                return;
-            }
+            .map(|m| (m.device_path(), m.connection_generation()))
+            .unwrap_or((None, listener_generation));
+        if listener_is_stale(&listener_path, listener_generation, manager_path.as_deref(), manager_generation) {
+            return;
         }
     }
+}
+
+/// Whether `run_hidraw_loop` should retry immediately rather than opening the
+/// listener this cycle: `refresh_hidpp_button_diverts` found nothing this
+/// cycle, but the shared manager now reports a connected device path — set by
+/// a lazy connect inside `apply_thumbwheel_reporting`/`fetch_notification_indices`
+/// that ran later in the same cycle and never flipped `refreshed` (issue #192).
+fn should_retry_for_late_connect(refreshed: bool, manager_device_path: Option<&std::path::Path>) -> bool {
+    !refreshed && manager_device_path.is_some()
 }
 
 /// Apply thumb-wheel divert from config and return the ThumbWheel feature index.
@@ -2394,6 +2423,20 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
         let note_indices = fetch_notification_indices(haptic_manager.clone()).await;
         handler.set_notification_indices(note_indices);
 
+        // The two steps above lazily connect the shared manager on demand
+        // (thumbwheel_supported()/query_battery() both call connect() if not
+        // yet connected) even when the button-divert refresh above found
+        // nothing. That connection never flips `refreshed`, so without this
+        // check the loop would open the listener and skip replay against the
+        // stale "not refreshed" view (issue #192). Loop immediately so the
+        // next pass re-reads the now-connected manager and divert/replay run
+        // against live state.
+        let late_connect_path = haptic_manager.lock().ok().and_then(|m| m.device_path());
+        if should_retry_for_late_connect(refreshed, late_connect_path.as_deref()) {
+            debug!("HID++ manager connected since last refresh; retrying hidraw loop immediately");
+            continue;
+        }
+
         // The mouse answered: re-apply DPI, SmartShift, hi-res and natural
         // scroll (they do not survive every wake/host return), once per wake.
         // Runs before the listener opens so replies never interleave with it.
@@ -2447,16 +2490,24 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
 
                 // Run the event loop until error, until input hotplug tells
                 // us the mouse may have returned from another Easy-Switch
-                // host, or until the HID++ manager turns out to be connected
-                // on a different node than we opened (the deaf-listener state
-                // a second plugged-in receiver can produce: no events arrive,
-                // so nothing else would ever re-trigger this loop).
+                // host, or until the HID++ manager's connection turns out to
+                // be stale against what we opened (a different node, the
+                // deaf-listener state a second plugged-in receiver can
+                // produce; or the same node but a newer connection
+                // generation, a same-node reconnect, issue #192). In either
+                // case no events arrive, so nothing else would ever
+                // re-trigger this loop.
                 let listener_path = handler.device_path();
+                let listener_generation = haptic_manager
+                    .lock()
+                    .ok()
+                    .map(|m| m.connection_generation())
+                    .unwrap_or(0);
                 let start_result = tokio::select! {
                     result = handler.start() => Some(result),
                     _ = hotplug.notified() => None,
-                    _ = hidraw_listener_mismatch(&haptic_manager, listener_path) => {
-                        info!("HID++ manager connected on a different node; re-binding event listener");
+                    _ = hidraw_listener_mismatch(&haptic_manager, listener_path, listener_generation) => {
+                        info!("HID++ manager connection is stale; re-binding event listener");
                         None
                     }
                 };
@@ -3636,5 +3687,58 @@ mod tests {
                 (ButtonAction::VolumeUp, false, Some(0x56), 8),
             ]
         );
+    }
+
+    // --- issue #192: Bluetooth settings not applied until daemon restart ---
+
+    #[test]
+    fn a_late_lazy_connect_after_a_failed_refresh_retries_immediately() {
+        // refresh_hidpp_button_diverts found nothing this cycle, but a later
+        // step in the same cycle (apply_thumbwheel_reporting /
+        // fetch_notification_indices) lazily connected the shared manager.
+        // That connection never flips `refreshed`, so without a retry the
+        // loop would open the listener and replay pointer state against the
+        // stale "not refreshed" view.
+        assert!(should_retry_for_late_connect(false, Some(Path::new("/dev/hidraw3"))));
+    }
+
+    #[test]
+    fn a_refreshed_cycle_never_needs_the_late_connect_retry() {
+        assert!(!should_retry_for_late_connect(true, Some(Path::new("/dev/hidraw3"))));
+    }
+
+    #[test]
+    fn no_manager_connection_at_all_needs_no_retry() {
+        assert!(!should_retry_for_late_connect(false, None));
+    }
+
+    #[test]
+    fn listener_is_stale_on_a_different_node() {
+        let listener_path = Path::new("/dev/hidraw3");
+        assert!(listener_is_stale(listener_path, 1, Some(Path::new("/dev/hidraw5")), 1));
+    }
+
+    #[test]
+    fn listener_is_stale_on_a_same_node_reconnect() {
+        // The deaf-listener gap a path-only comparison misses (issue #192):
+        // the manager reconnected on the SAME node the listener already
+        // opened, so the path comparison alone sees no difference.
+        let listener_path = Path::new("/dev/hidraw3");
+        assert!(listener_is_stale(listener_path, 1, Some(listener_path), 2));
+    }
+
+    #[test]
+    fn listener_is_not_stale_on_the_same_node_same_generation() {
+        let listener_path = Path::new("/dev/hidraw3");
+        assert!(!listener_is_stale(listener_path, 1, Some(listener_path), 1));
+    }
+
+    #[test]
+    fn listener_is_not_stale_while_the_manager_is_disconnected() {
+        // Matches the existing (pre-#192) behavior: a momentary disconnect
+        // alone is not a reason to re-bind; only a path or generation
+        // mismatch against a currently-connected manager is.
+        let listener_path = Path::new("/dev/hidraw3");
+        assert!(!listener_is_stale(listener_path, 1, None, 1));
     }
 }
