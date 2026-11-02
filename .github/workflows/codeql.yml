@@ -39,7 +39,7 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+      uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
       with:
         languages: ${{ matrix.language }}
         # Use security-and-quality query suite for comprehensive analysis
@@ -51,14 +51,14 @@ jobs:
     # For compiled languages (Rust), we need to build the code
     # Autobuild attempts a basic build, but we can customize if needed
     - name: Autobuild
-      uses: github/codeql-action/autobuild@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+      uses: github/codeql-action/autobuild@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
       if: matrix.language == 'rust'
 
     # For Python, no build step is needed (interpreted language)
     # CodeQL will analyze the source directly
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+      uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
       with:
         category: "/language:${{ matrix.language }}"
         # Upload SARIF results to GitHub Security tab
