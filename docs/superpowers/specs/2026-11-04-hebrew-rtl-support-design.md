@@ -124,9 +124,14 @@ edge") follow mirroring; a few may have a legitimate reason to stay fixed
 (e.g. a numeric value that should always read LTR) and get a one-line
 comment explaining why, left alone.
 
-**GTK RTL mechanism.** In the overlay's startup path (exact entry point —
-likely near where `setup_i18n()` is called — to be confirmed during
-implementation), after resolving the configured language:
+**GTK RTL mechanism.** Confirmed during builder-check follow-up: the "old-Qt
+fallback settings dialog" named in Goals and the overlay's own tray/chrome
+are the *same* GTK/Adwaita codebase (`overlay/settings_dialog_*.py` imports
+`from gi.repository import Gtk, Adw`), not a separate Qt-Widgets surface —
+there is no third toolkit or third mechanism to design for. One GTK call
+covers both. In the overlay's startup path (exact entry point — likely near
+where `setup_i18n()` is called — to be confirmed during implementation),
+after resolving the configured language:
 
 ```python
 import gi
@@ -149,11 +154,23 @@ headlessly) walks every Settings page with `LANGUAGE=he` / the configured-
 Hebrew path, grabs each page's window via `QQuickWindow.grabWindow()`,
 saves a PNG per page. Same idea for the GTK fallback dialog and overlay
 chrome (`Gtk.Widget` offscreen rendering, or a plain screenshot if offscreen
-GTK rendering proves awkward — builder's call). Claude reviews the PNGs
-first for obvious breakage (overlapping/cut-off text, something clearly not
-mirrored), fixes what's wrong, then hands the full screenshot set to the
-user — as files, or a small Artifact gallery page if that's more convenient
-to flip through — for the user's own pass. Iterate until the user signs off.
+GTK rendering proves awkward — builder's call). The same script also grabs
+each page once more with an unaffected LTR language (English) selected, both
+before and after the `LayoutMirroring`/`set_default_direction` wiring lands —
+this is the check for the anti-goal "RTL changes that visibly break the 18
+existing LTR languages": a global, conditional switch is exactly the kind of
+change a wrong condition (e.g. firing unconditionally) would break silently
+for every other language, and nothing else in this design would catch that.
+Claude reviews the PNGs first for obvious breakage (overlapping/cut-off
+text, an LTR page that changed, something clearly not mirrored), fixes
+what's wrong, then hands the full screenshot set to the user — as files, or
+a small Artifact gallery page if that's more convenient to flip through —
+for the user's own pass. Iterate until the user signs off.
+
+Hebrew-capable fonts are already present in the implementation environment
+(confirmed via `fc-list :lang=he`: Noto Sans/Serif Hebrew, David CLM, Shofar
+— not just tofu/boxes), so the screenshots this verification step produces
+will actually show Hebrew glyphs rather than needing a font install first.
 
 ## What's left to the builder (implementation plan)
 
@@ -175,3 +192,7 @@ to flip through — for the user's own pass. Iterate until the user signs off.
 - Whether `RTL_LANGUAGES` lives in one shared place both apps import, or is
   duplicated per the existing pattern of two independent language lists —
   builder's call, document whichever is chosen.
+- A one-line callout in the PR description that this also changes Arabic's
+  layout (currently LTR-laid-out despite being an RTL language) as a side
+  effect of the shared mirroring mechanism — existing Arabic users should
+  see it flagged as intended, not stumble on it as an unannounced change.
