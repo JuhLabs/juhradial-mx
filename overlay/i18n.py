@@ -39,6 +39,7 @@ SUPPORTED_LANGUAGES = {
     "zh_CN": "中文 (简体)",
     "ko": "한국어",
     "hi": "हिन्दी",
+    "he": "עברית",
     "pl": "Polski",
     "tr": "Turkce",
     "nl": "Nederlands",
@@ -46,6 +47,8 @@ SUPPORTED_LANGUAGES = {
     "ar": "العربية",
     "uk": "Українська",
 }
+
+RTL_LANGUAGES = frozenset({"ar", "he"})
 
 
 def get_configured_language() -> str:

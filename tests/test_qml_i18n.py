@@ -193,3 +193,17 @@ def test_empty_python_string_is_not_the_catalog_header(monkeypatch):
     assert "Project-Id-Version" in i18n._translation.gettext("")
     assert i18n._("") == ""
     assert i18n._("Disabled") == "Deaktiviert"
+
+
+def test_hebrew_is_in_the_backend_language_list():
+    from bridge.backend import LANGUAGES
+    assert ("he", "עברית") in LANGUAGES
+
+
+def test_is_rtl_language():
+    from bridge.i18n import is_rtl_language, RTL_LANGUAGES
+    from bridge.backend import LANGUAGES
+
+    assert RTL_LANGUAGES == {"ar", "he"}
+    for lang, _name in LANGUAGES:
+        assert is_rtl_language(lang) == (lang in ("he", "ar"))

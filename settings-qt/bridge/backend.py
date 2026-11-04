@@ -579,7 +579,7 @@ DESKTOP_ENVS = [("auto", "Auto-detect"), ("kde", "KDE Plasma"), ("gnome", "GNOME
                 ("cosmic", "COSMIC"), ("generic", "Generic / Other")]
 # Every locale shipped in overlay/locales, in its own language.
 LANGUAGES = [("en", "English"), ("ar", "العربية"), ("de", "Deutsch"),
-             ("es", "Español"), ("fr", "Français"), ("hi", "हिन्दी"),
+             ("es", "Español"), ("fr", "Français"), ("he", "עברית"), ("hi", "हिन्दी"),
              ("it", "Italiano"), ("ja", "日本語"), ("ko", "한국어"),
              ("nb", "Norsk bokmål"), ("nl", "Nederlands"), ("pl", "Polski"),
              ("pt_BR", "Português (Brasil)"), ("ru", "Русский"), ("sv", "Svenska"),

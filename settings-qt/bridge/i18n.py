@@ -24,6 +24,13 @@ _SETTINGS_QT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = (Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
                / "juhradial" / "config.json")
 
+RTL_LANGUAGES = frozenset({"ar", "he"})
+
+
+def is_rtl_language(language: str) -> bool:
+    """True for an explicit RTL language code."""
+    return language in RTL_LANGUAGES
+
 
 def locale_dirs() -> list[Path]:
     """Catalog directories in lookup order (checkout/opt first, then /usr/share)."""
