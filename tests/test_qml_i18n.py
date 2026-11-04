@@ -207,3 +207,49 @@ def test_is_rtl_language():
     assert RTL_LANGUAGES == {"ar", "he"}
     for lang, _name in LANGUAGES:
         assert is_rtl_language(lang) == (lang in ("he", "ar"))
+
+
+def test_layout_direction_for_explicit_languages():
+    from PyQt6.QtCore import Qt
+    from bridge.i18n import layout_direction_for
+    from bridge.backend import LANGUAGES
+
+    for lang, _name in LANGUAGES:
+        expected = (Qt.LayoutDirection.RightToLeft if lang in ("he", "ar")
+                    else Qt.LayoutDirection.LeftToRight)
+        assert layout_direction_for(lang) == expected, lang
+
+
+def test_layout_direction_for_system_follows_locale():
+    from PyQt6.QtCore import QLocale
+    from bridge.i18n import layout_direction_for
+
+    assert layout_direction_for(None) == QLocale.system().textDirection()
+
+
+def test_layout_mirroring_follows_application_direction(tmp_path):
+    from PyQt6.QtCore import QUrl, Qt
+    from PyQt6.QtGui import QGuiApplication
+    from PyQt6.QtQml import QQmlApplicationEngine
+    from bridge.i18n import layout_direction_for
+    from bridge.backend import LANGUAGES
+
+    app = QGuiApplication.instance() or QGuiApplication([])
+    qml = tmp_path / "M.qml"
+    qml.write_text(
+        "import QtQuick\n"
+        "Item {\n"
+        " LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft\n"
+        " LayoutMirroring.childrenInherit: true\n"
+        " property bool mirrored: LayoutMirroring.enabled\n"
+        "}\n")
+    try:
+        for lang, _name in LANGUAGES:
+            app.setLayoutDirection(layout_direction_for(lang))
+            engine = QQmlApplicationEngine()
+            engine.load(QUrl.fromLocalFile(str(qml)))
+            root = engine.rootObjects()[0]
+            assert root.property("mirrored") == (lang in ("he", "ar")), lang
+            engine.deleteLater()
+    finally:
+        app.setLayoutDirection(Qt.LayoutDirection.LeftToRight)

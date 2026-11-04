@@ -165,6 +165,7 @@ Item {
             anchors.left: irLabel.right; anchors.right: irSlot.left; anchors.rightMargin: Theme.gapS
             anchors.verticalCenter: parent.verticalCenter
             text: ir.value; color: Theme.textPrimary; wrapMode: Text.WordWrap
+            // Numeric readout: stays right-aligned even when the page mirrors for RTL.
             horizontalAlignment: Text.AlignRight
             font.family: ir.mono ? Theme.fontMono : Theme.fontUI
             font.pixelSize: Theme.fsSmall; font.weight: Font.DemiBold

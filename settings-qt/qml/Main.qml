@@ -14,6 +14,8 @@ ApplicationWindow {
     palette.toolTipBase: Theme.surfaceSolid
     palette.toolTipText: Theme.textPrimary
     font.family: Theme.fontUI
+    LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
+    LayoutMirroring.childrenInherit: true
 
     // One Undo pattern for every page (a Loader-loaded page reaches it as
     // Window.window.undoToast(qsTr("Macro deleted"), function () { ... })).

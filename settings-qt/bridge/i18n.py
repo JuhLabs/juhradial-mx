@@ -32,6 +32,18 @@ def is_rtl_language(language: str) -> bool:
     return language in RTL_LANGUAGES
 
 
+def layout_direction_for(language):
+    """Qt.LayoutDirection for the configured language: RTL_LANGUAGES decides
+    an explicit override outright; None ("system", from configured_language)
+    defers to the system locale's own direction."""
+    from PyQt6.QtCore import QLocale, Qt
+
+    if language is None:
+        return QLocale.system().textDirection()
+    return (Qt.LayoutDirection.RightToLeft if is_rtl_language(language)
+            else Qt.LayoutDirection.LeftToRight)
+
+
 def locale_dirs() -> list[Path]:
     """Catalog directories in lookup order (checkout/opt first, then /usr/share)."""
     return [_SETTINGS_QT.parent / "overlay" / "locales",

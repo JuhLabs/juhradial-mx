@@ -91,6 +91,7 @@ Item {
         color: Theme.textBody; font.family: Theme.fontMono
         font.pixelSize: Theme.fsSmall; font.weight: Font.Medium
         width: visible ? Math.max(38, implicitWidth) : 0
+        // Numeric value readout: stays right-aligned even when the page mirrors for RTL.
         horizontalAlignment: Text.AlignRight
     }
     MouseArea {
