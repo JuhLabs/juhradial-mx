@@ -77,7 +77,9 @@ Item {
         width: ma.pressed ? 20 : 18; height: width; radius: width / 2
         color: "white"; border.color: Theme.accent; border.width: 2
         anchors.verticalCenter: parent.verticalCenter
-        x: track.x + (track.width - width) * s._frac
+        // An explicit x is not mirrored like the anchored fill: under RTL the
+        // fill grows leftward from track.right, so the knob counts from there.
+        x: track.x + (track.width - width) * (s.LayoutMirroring.enabled ? 1 - s._frac : s._frac)
         Behavior on width { NumberAnimation { duration: 90 } }
         Behavior on x { enabled: !ma.pressed; NumberAnimation { duration: 90 } }
         FocusHalo { active: s.activeFocus; radius: knob.width / 2; margin: 3 }
@@ -99,7 +101,9 @@ Item {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
         function setAt(mx) {
-            var f = Math.max(0, Math.min(1, (mx - track.x) / track.width))
+            var f = (mx - track.x) / track.width
+            if (s.LayoutMirroring.enabled) f = 1 - f  // RTL: from at the right end
+            f = Math.max(0, Math.min(1, f))
             var v = s.from + f * (s.to - s.from)
             if (s.stepSize > 0) v = Math.min(s.to, s.from + Math.round((v - s.from) / s.stepSize) * s.stepSize)
             s._v = v; s._held = true

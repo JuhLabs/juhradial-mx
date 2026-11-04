@@ -253,3 +253,153 @@ def test_layout_mirroring_follows_application_direction(tmp_path):
             engine.deleteLater()
     finally:
         app.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+
+
+# --- RTL geometry of components that place children with an explicit x: ---
+# LayoutMirroring mirrors anchors and Row/Grid order but never an explicit x
+# binding, so each such binding has to mirror its own math. These load the
+# real component files (the bug lives in their geometry), hosted under an
+# Item with LayoutMirroring on or off.
+
+COMPONENTS = QML / "components"
+_APP = None
+
+
+def _host(tmp_path, mirrored, body):
+    from PyQt6.QtCore import QUrl
+    from PyQt6.QtGui import QGuiApplication
+    from PyQt6.QtQml import QQmlApplicationEngine
+    from bridge.theme import Theme
+
+    global _APP  # the app must outlive this call, or the engine has none
+    _APP = QGuiApplication.instance() or QGuiApplication([])
+    qml = tmp_path / f"Host_{int(mirrored)}.qml"
+    qml.write_text(
+        "import QtQuick\nimport QtQuick.Window\n"
+        f'import "{QUrl.fromLocalFile(str(COMPONENTS)).toString()}"\n'
+        "Window {\n width: 400; height: 80; visible: true\n"
+        " Item {\n  anchors.fill: parent\n"
+        f"  LayoutMirroring.enabled: {'true' if mirrored else 'false'}\n"
+        "  LayoutMirroring.childrenInherit: true\n"
+        f"{body}\n }}\n}}\n")
+    engine = QQmlApplicationEngine()
+    theme = Theme(probe_desktop=False)
+    engine.rootContext().setContextProperty("Theme", theme)
+    backend = _stub_backend()
+    engine.rootContext().setContextProperty("Backend", backend)
+    engine.load(QUrl.fromLocalFile(str(qml)))
+    assert engine.rootObjects(), "host QML failed to load"
+    engine._keep = (theme, backend)
+    _settle()
+    return engine
+
+
+def _stub_backend():
+    from PyQt6.QtCore import QObject, pyqtProperty, pyqtSlot
+
+    class StubBackend(QObject):
+        # Only what DpiControl reads: the sensor range and its snap.
+        @pyqtProperty("QVariantMap", constant=True)
+        def dpiRange(self):
+            return {"min": 200, "max": 8000, "step": 50}
+
+        @pyqtSlot(int, result=int)
+        def snapDpi(self, v):
+            return v
+    return StubBackend()
+
+
+def _settle(ms=600):
+    # Let positioners polish and Behavior animations (knob x, pill x) finish.
+    import time
+    from PyQt6.QtCore import QCoreApplication
+    end = time.monotonic() + ms / 1000
+    while time.monotonic() < end:
+        QCoreApplication.processEvents()
+        time.sleep(0.01)
+
+
+def _find(engine, name):
+    from PyQt6.QtQuick import QQuickItem
+    obj = engine.rootObjects()[0].findChild(QQuickItem, name)
+    assert obj is not None, name
+    return obj
+
+
+@pytest.mark.parametrize("mirrored", [False, True])
+def test_slider_knob_sits_at_the_end_of_the_fill(tmp_path, mirrored):
+    engine = _host(tmp_path, mirrored,
+                   '  Slider { objectName: "sl"; width: 300; from: 0; to: 100;'
+                   ' value: 20; showValue: true; suffix: "%" }')
+    sl = _find(engine, "sl")
+    track, fill, knob, label, ma = sl.childItems()
+    assert track.width() < sl.width()  # the value label takes a share
+    assert knob.width() == knob.height() == 18
+    knob_c = knob.x() + knob.width() / 2
+    fill_l, fill_r = fill.x(), fill.x() + fill.width()
+    if mirrored:
+        # anchors mirrored: track hugs the right, fill grows leftward from it
+        assert fill_r == pytest.approx(track.x() + track.width())
+        assert label.x() < track.x()
+        leading = fill_l
+    else:
+        assert fill_l == pytest.approx(track.x())
+        leading = fill_r
+    assert abs(knob_c - leading) <= knob.width() / 2, (mirrored, knob_c, fill_l, fill_r)
+    # and the knob is over the track, at the fill's moving end
+    assert track.x() <= knob_c <= track.x() + track.width()
+
+    # pressing at the fill's moving end reads back the same value (drag math)
+    from PyQt6.QtCore import QMetaObject, Q_ARG, QVariant
+    QMetaObject.invokeMethod(ma, "setAt", Q_ARG(QVariant, leading))
+    assert sl.property("shown") == pytest.approx(20, abs=0.5), mirrored
+    engine.deleteLater()
+
+
+@pytest.mark.parametrize("mirrored", [False, True])
+def test_dpi_ticks_line_up_with_the_slider_knob(tmp_path, mirrored):
+    from PyQt6.QtQuick import QQuickItem
+    engine = _host(tmp_path, mirrored,
+                   '  DpiControl { objectName: "dc"; width: 400; value: 800;'
+                   ' presets: [800, 3200] }')
+    sl = None
+    for o in engine.rootObjects()[0].findChildren(QQuickItem):
+        if o.property("stepSize") is not None and o.property("pageStep") == 500:
+            sl = o
+            break
+    assert sl is not None
+    rng = sl.property("to") - sl.property("from")
+    assert rng > 0
+    _track, fill, knob = sl.childItems()[:3]
+    knob_c = knob.x() + knob.width() / 2
+    # the knob rides the fill's moving end (left end once mirrored) ...
+    leading = fill.x() if mirrored else fill.x() + fill.width()
+    assert abs(knob_c - leading) <= knob.width() / 2, (mirrored, knob_c, leading)
+    ticks = [c for c in sl.childItems() if c.width() == 2 and c.height() == 7]
+    assert len(ticks) == 2
+    tick_c = {round(c.x() + 1) for c in ticks}
+    # ... and the 800 tick sits under the knob (value 800)
+    assert min(abs(t - knob_c) for t in tick_c) <= 1.5, (mirrored, knob_c, tick_c)
+    engine.deleteLater()
+
+
+@pytest.mark.parametrize("mirrored", [False, True])
+@pytest.mark.parametrize("current", ["a", "c"])
+def test_segmented_pill_sits_under_the_selected_segment(tmp_path, mirrored, current):
+    engine = _host(tmp_path, mirrored,
+                   '  SegmentedControl { objectName: "seg"; width: 300;'
+                   f' currentId: "{current}";'
+                   ' model: [{id: "a", name: "A"}, {id: "b", name: "B"}, {id: "c", name: "C"}] }')
+    seg = _find(engine, "seg")
+    pill = [c for c in seg.childItems() if c.width() == pytest.approx(100 - 4)]
+    assert len(pill) == 1
+    pill = pill[0]
+    row = seg.childItems()[-1]
+    segs = {c.property("modelData")["id"]: c
+            for c in row.childItems() if c.property("modelData") is not None}
+    assert set(segs) == {"a", "b", "c"}
+    # the Row really mirrors: "a" is leftmost in LTR, rightmost in RTL
+    assert (segs["a"].x() > segs["c"].x()) == mirrored
+    sel = segs[current]
+    assert pill.x() == pytest.approx(sel.x() + 2), (mirrored, current, pill.x(), sel.x())
+    engine.deleteLater()

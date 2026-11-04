@@ -65,7 +65,9 @@ Item {
                         required property int modelData
                         width: 2; height: 7; radius: 1
                         color: Math.abs(dc.shown - modelData) < 1 ? Theme.accent : Theme.textMuted
-                        x: 9 + (sl.width - 18) * (modelData - sl.from) / Math.max(1, sl.to - sl.from) - 1
+                        readonly property real _frac: (modelData - sl.from) / Math.max(1, sl.to - sl.from)
+                        // Same RTL rule as the Slider's knob: an explicit x is not mirrored.
+                        x: 9 + (sl.width - 18) * (LayoutMirroring.enabled ? 1 - _frac : _frac) - 1
                         y: sl.height / 2 + 6
                     }
                 }
