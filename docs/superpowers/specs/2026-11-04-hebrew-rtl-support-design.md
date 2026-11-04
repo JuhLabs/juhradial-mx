@@ -23,8 +23,12 @@ User-requested. No external deadline.
 - The Qt Settings app lays out right-to-left when Hebrew (or Arabic) is
   selected: reading order, anchor sides, and row/column order mirror: not
   just translated text inside an unchanged LTR layout.
-- The GTK overlay (tray menu, drag-session chrome, old-Qt fallback settings
-  dialog) does the same for its own, much smaller, surface.
+- The overlay package does the same for its own, much smaller, surfaces:
+  the GTK settings dashboard (old-Qt fallback) and the PyQt6 tray `QMenu`.
+  **Correction found during plan writing:** these are two different
+  toolkits, not one GTK surface — see the GTK RTL mechanism section below.
+  The hand-painted radial pie-menu chrome itself is explicitly out of
+  scope (see that section); only the tray context menu mirrors.
 - A reviewable, repeatable way to check RTL layout without the user needing
   to build or run anything themselves first: screenshots per page.
 
@@ -124,29 +128,56 @@ edge") follow mirroring; a few may have a legitimate reason to stay fixed
 (e.g. a numeric value that should always read LTR) and get a one-line
 comment explaining why, left alone.
 
-**GTK RTL mechanism.** Confirmed during builder-check follow-up: the "old-Qt
-fallback settings dialog" named in Goals and the overlay's own tray/chrome
-are the *same* GTK/Adwaita codebase (`overlay/settings_dialog_*.py` imports
-`from gi.repository import Gtk, Adw`), not a separate Qt-Widgets surface —
-there is no third toolkit or third mechanism to design for. One GTK call
-covers both. In the overlay's startup path (exact entry point — likely near
-where `setup_i18n()` is called — to be confirmed during implementation),
-after resolving the configured language:
+**GTK RTL mechanism.** **Correction found during plan writing:** the
+builder-check follow-up's conclusion below is wrong about scope.
+`overlay/settings_dashboard.py` and its `settings_page_*.py`/
+`settings_dialog_*.py` children (the "old-Qt fallback settings dialog") are
+GTK4/Adwaita, confirmed. But `overlay/juhradial-overlay.py` — the tray icon,
+its `QMenu` context menu, and the drag-session radial pie-menu chrome
+(`RadialMenuPaintingMixin`) — imports zero `gi`/GTK; it is PyQt6 Widgets
+(`QApplication`, `QSystemTrayIcon`, `QMenu`, custom `QPainter` drawing).
+`overlay_layer_shell.py`'s `gi.require_version("Gtk", "4.0")` is only for
+the Wayland layer-shell positioning protocol, not rendering. So there are
+three mechanisms, not two: QML `LayoutMirroring` (Qt Settings app), GTK
+`Gtk.Widget.set_default_direction` (GTK settings dashboard), and PyQt6
+Widgets `QApplication.setLayoutDirection` (overlay tray + radial app) — the
+GTK call does **not** cover the tray/chrome.
+
+Scope decision (made with the user during planning): the tray `QMenu` gets
+`QApplication.setLayoutDirection(Qt.RightToLeft)` for he/ar — standard Qt
+Widgets RTL, mirrors menu item order/alignment for free, same
+explicit-override gap as GTK (Qt Widgets doesn't auto-derive from an
+in-app language override either, so this needs the same explicit,
+language-keyed call as GTK does). The hand-painted radial pie menu itself
+is **out of scope** for this pass: mirroring a circle's slice order is a
+different design problem than text-flow mirroring, not a natural fit for
+"functional mirroring," and pixel-perfect polish is already a non-goal.
+This is a known gap for a future pass, not silently dropped.
+
+In the GTK settings dashboard's startup path (`overlay/settings_dashboard.py`,
+via `overlay/i18n.py`'s `setup_i18n()`, which every GTK and PyQt6 overlay
+entry point already calls on startup and on every language reload), after
+resolving the configured language:
 
 ```python
 import gi
-gi.require_version("Gtk", "3.0")  # or whatever version this app targets
+gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk
 Gtk.Widget.set_default_direction(
     Gtk.TextDirection.RTL if lang in RTL_LANGUAGES else Gtk.TextDirection.LTR
 )
 ```
 
-`RTL_LANGUAGES = {"ar", "he"}` (or equivalent), defined once and reused by
-both the Qt (`Qt.locale(lang).textDirection`, which already knows RTL
-locales) and GTK sides where a static check is simpler than relying on
-`QLocale`/`gtk_get_locale_direction` alone — needed specifically because of
-the explicit-override gap above.
+And, for the overlay's own `QApplication` (constructed in
+`juhradial-overlay.py`), the same language keys a
+`QApplication.setLayoutDirection(Qt.RightToLeft | Qt.LeftToRight)` call.
+
+`RTL_LANGUAGES = {"ar", "he"}` (or equivalent), defined once per app and
+reused by both mechanisms within that app (Qt Settings app's own pair;
+`overlay/`'s pair, shared by its GTK dashboard and its PyQt6 tray/radial
+app since both already live in the same package with a shared `i18n.py`) —
+duplicated across the two top-level apps per the existing two-independent-
+language-lists pattern, not hunted down into one cross-package import.
 
 **Verification.** A small Python script (offscreen `QT_QPA_PLATFORM`, same
 technique `tests/test_qml_i18n.py` already uses to load the QML engine
