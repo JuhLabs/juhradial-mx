@@ -5,6 +5,12 @@ All notable changes to JuhRadial MX will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **MX Master 4 settings over Bluetooth apply on wake, not just after a restart** - `run_hidraw_loop` gated button-divert replay and DPI/SmartShift/scroll replay on whether its own button-divert refresh had reconnected the HID++ manager that cycle. A lazy connect triggered later in the same cycle (the thumb-wheel or notification-index refresh, or the battery updater) never flipped that flag, so a Bluetooth wake could leave settings silently unapplied until the daemon was restarted by hand; the existing listener watchdog also only recognized a reconnect on a *different* hidraw node, never the same one. The loop now retries immediately when a late connect is detected, and a connection-generation counter lets the watchdog catch a same-node reconnect too. Reported by [@zxzxn3](https://github.com/zxzxn3) in [#192](https://github.com/JuhLabs/juhradial-mx/issues/192).
+
 ## [0.4.5-beta.6] - 2026-10-20
 
 ### Added
