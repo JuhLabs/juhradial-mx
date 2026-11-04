@@ -57,14 +57,14 @@ def shoot_tray_menu(out_dir):
     daemon/D-Bus session) - enough to check RTL item order/alignment."""
     sys.path.insert(0, str(REPO / "overlay"))
     os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
+    from PyQt6.QtCore import Qt
     from PyQt6.QtWidgets import QApplication, QMenu
     import i18n
 
     app = QApplication.instance() or QApplication([])
     for lang in LANGS:
         i18n.get_configured_language = lambda lang=lang: lang
-        _ = i18n.setup_i18n()
-        app.setLayoutDirection(i18n.qt_direction_for(lang))
+        _ = i18n.setup_i18n()  # also sets app's direction (apply_platform_direction)
         menu = QMenu()
         menu.addAction(_("Settings"))
         menu.addAction(_("Easy-Switch"))
@@ -74,7 +74,7 @@ def shoot_tray_menu(out_dir):
         app.processEvents()
         menu.grab().save(str(out_dir / f"tray_menu_{lang}.png"))
         menu.close()
-    app.setLayoutDirection(app.layoutDirection().__class__.LeftToRight)
+    app.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
 
 
 def main():

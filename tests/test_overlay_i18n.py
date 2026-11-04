@@ -80,3 +80,38 @@ def test_setup_i18n_sets_and_resets_gtk_direction_on_language_switch(monkeypatch
     cfg.write_text('{"language": "en"}')
     i18n_module.setup_i18n()
     assert Gtk.Widget.get_default_direction() == Gtk.TextDirection.LTR
+
+
+_QT_APP = None
+
+
+@pytest.fixture
+def qt_app():
+    """The tray app's QApplication. Importing PyQt6.QtWidgets is what turns
+    on apply_platform_direction's Qt branch; restore the direction after."""
+    import os
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PyQt6.QtWidgets import QApplication
+
+    global _QT_APP  # keep it alive past this test, as the app is per process
+    app = _QT_APP = QApplication.instance() or QApplication([])
+    original = app.layoutDirection()
+    yield app
+    app.setLayoutDirection(original)
+
+
+def test_setup_i18n_sets_and_resets_qt_direction_on_language_switch(monkeypatch, tmp_path, qt_app):
+    from PyQt6.QtCore import Qt
+    import i18n as i18n_module
+
+    assert "PyQt6.QtWidgets" in sys.modules  # else the Qt branch silently no-ops
+    cfg = tmp_path / "config.json"
+    monkeypatch.setattr(i18n_module, "CONFIG_FILE", cfg)
+
+    cfg.write_text('{"language": "he"}')
+    i18n_module.setup_i18n()
+    assert qt_app.layoutDirection() == Qt.LayoutDirection.RightToLeft
+
+    cfg.write_text('{"language": "en"}')
+    i18n_module.setup_i18n()
+    assert qt_app.layoutDirection() == Qt.LayoutDirection.LeftToRight
