@@ -1,0 +1,1196 @@
+# Hebrew translations for JuhRadial MX package.
+# Copyright (C) 2026 THE JuhRadial MX'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the JuhRadial MX package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: JuhRadial MX 0.4.1\n"
+"Report-Msgid-Bugs-To: https://github.com/JuhLabs/juhradial-mx/issues\n"
+"POT-Creation-Date: 2026-03-04 11:35+0100\n"
+"PO-Revision-Date: 2026-03-04 11:35+0100\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: he\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: overlay/juhradial-overlay.py:847 overlay/settings_dialogs.py:467
+msgid "Settings"
+msgstr "הגדרות"
+
+#: overlay/juhradial-overlay.py:859
+msgid "Exit"
+msgstr "יציאה"
+
+#: overlay/overlay_actions.py:214 overlay/settings_page_buttons.py:391
+#: overlay/settings_page_easyswitch.py:81
+msgid "Easy-Switch"
+msgstr "Easy-Switch"
+
+#: overlay/overlay_painting.py:957
+msgid "Drag"
+msgstr "גרירה"
+
+#: overlay/settings_config.py:224
+msgid "Settings saved"
+msgstr "ההגדרות נשמרו"
+
+#: overlay/settings_config.py:227
+msgid "Error saving settings: {}"
+msgstr "שגיאה בשמירת ההגדרות: {}"
+
+#: overlay/settings_dashboard.py:62
+msgid "JuhRadial MX Settings"
+msgstr "הגדרות JuhRadial MX"
+
+#: overlay/settings_dashboard.py:113
+msgid "+ ADD APPLICATION"
+msgstr "+ הוספת אפליקציה"
+
+#: overlay/settings_dashboard.py:313 overlay/settings_dashboard.py:350
+msgid "N/A"
+msgstr "לא זמין"
+
+#: overlay/settings_dashboard.py:422
+msgid "MOUSE CONFIGURATION"
+msgstr "תצורת העכבר"
+
+#: overlay/settings_dashboard.py:474
+msgid "Developed by"
+msgstr "פותח על ידי"
+
+#: overlay/settings_dashboard.py:492
+msgid ""
+"Free &amp; open source software.\n"
+"If you enjoy this project,\n"
+"consider supporting development."
+msgstr "תוכנה חופשית &amp; קוד פתוח.\nאם אתם נהנים מהפרויקט הזה,\nשקלו לתמוך בפיתוח."
+
+#: overlay/settings_dashboard.py:507
+msgid "Buy me a coffee"
+msgstr "קנו לי קפה"
+
+#: overlay/settings_dashboard.py:598
+msgid "Logi Bolt USB"
+msgstr "Logi Bolt USB"
+
+#: overlay/settings_dialogs.py:46
+msgid "Configure {}"
+msgstr "הגדרת {}"
+
+#: overlay/settings_dialogs.py:58 overlay/settings_dialogs.py:216
+#: overlay/settings_dialogs.py:498 overlay/settings_dialogs.py:785
+#: overlay/settings_dialogs.py:1299 overlay/settings_page_flow.py:647
+msgid "Cancel"
+msgstr "ביטול"
+
+#: overlay/settings_dialogs.py:63 overlay/settings_dialogs.py:220
+#: overlay/settings_dialogs.py:502 overlay/settings_dialogs.py:1304
+msgid "Save"
+msgstr "שמירה"
+
+#: overlay/settings_dialogs.py:87
+msgid "Restore Default"
+msgstr "שחזור ברירת מחדל"
+
+#: overlay/settings_dialogs.py:96
+msgid "Current: {}"
+msgstr "נוכחי: {}"
+
+#: overlay/settings_dialogs.py:96
+msgid "Not set"
+msgstr "לא הוגדר"
+
+#: overlay/settings_dialogs.py:202
+msgid "Configure Radial Menu"
+msgstr "הגדרת התפריט הרדיאלי"
+
+#: overlay/settings_dialogs.py:241
+msgid ""
+"Configure the 8 actions in your radial menu. Click on a slice to change its "
+"action."
+msgstr "הגדירו את 8 הפעולות בתפריט הרדיאלי שלכם. לחצו על פלח כדי לשנות את הפעולה שלו."
+
+#: overlay/settings_dialogs.py:256 overlay/settings_dialogs.py:735
+#: overlay/settings_dialogs.py:1338
+msgid "Slice {}"
+msgstr "פלח {}"
+
+#: overlay/settings_dialogs.py:396
+msgid "Run Command"
+msgstr "הרצת פקודה"
+
+#: overlay/settings_dialogs.py:396
+msgid "Execute a shell command"
+msgstr "הרצת פקודת shell"
+
+#: overlay/settings_dialogs.py:397
+msgid "Open URL"
+msgstr "פתיחת כתובת URL"
+
+#: overlay/settings_dialogs.py:397
+msgid "Open a web address"
+msgstr "פתיחת כתובת אינטרנט"
+
+#: overlay/settings_dialogs.py:398
+msgid "Open Settings"
+msgstr "פתיחת הגדרות"
+
+#: overlay/settings_dialogs.py:398
+msgid "Open JuhRadial settings"
+msgstr "פתיחת הגדרות JuhRadial"
+
+#: overlay/settings_dialogs.py:399 overlay/settings_dialogs.py:466
+msgid "Emoji Picker"
+msgstr "בורר אימוג'ים"
+
+#: overlay/settings_dialogs.py:399
+msgid "Show emoji picker"
+msgstr "הצגת בורר אימוג'ים"
+
+#: overlay/settings_dialogs.py:400
+msgid "Submenu"
+msgstr "תפריט משנה"
+
+#: overlay/settings_dialogs.py:400
+msgid "Show a submenu with more options"
+msgstr "הצגת תפריט משנה עם אפשרויות נוספות"
+
+#: overlay/settings_dialogs.py:413
+msgid "Play/Pause"
+msgstr "הפעלה/השהיה"
+
+#: overlay/settings_dialogs.py:420
+msgid "Next Track"
+msgstr "רצועה הבאה"
+
+#: overlay/settings_dialogs.py:427
+msgid "Previous Track"
+msgstr "רצועה קודמת"
+
+#: overlay/settings_dialogs.py:434
+msgid "Volume Up"
+msgstr "הגברת עוצמת הקול"
+
+#: overlay/settings_dialogs.py:441
+msgid "Volume Down"
+msgstr "הנמכת עוצמת הקול"
+
+#: overlay/settings_dialogs.py:448
+msgid "Mute"
+msgstr "השתקה"
+
+#: overlay/settings_dialogs.py:454
+msgid "Screenshot"
+msgstr "צילום מסך"
+
+#: overlay/settings_dialogs.py:456
+msgid "Lock Screen"
+msgstr "נעילת מסך"
+
+#: overlay/settings_dialogs.py:462
+msgid "Files"
+msgstr "קבצים"
+
+#: overlay/settings_dialogs.py:463
+msgid "Terminal"
+msgstr "מסוף"
+
+#: overlay/settings_dialogs.py:464
+msgid "Browser"
+msgstr "דפדפן"
+
+#: overlay/settings_dialogs.py:465
+msgid "New Note"
+msgstr "פתק חדש"
+
+#: overlay/settings_dialogs.py:471
+msgid "Configure Slice {}"
+msgstr "הגדרת פלח {}"
+
+#: overlay/settings_dialogs.py:523
+msgid "Quick Actions"
+msgstr "פעולות מהירות"
+
+#: overlay/settings_dialogs.py:565
+msgid "Custom Configuration"
+msgstr "תצורה מותאמת אישית"
+
+#: overlay/settings_dialogs.py:572
+msgid "Label"
+msgstr "תווית"
+
+#: overlay/settings_dialogs.py:579
+msgid "Enter action label"
+msgstr "הזינו תווית לפעולה"
+
+#: overlay/settings_dialogs.py:585
+msgid "Action Type"
+msgstr "סוג פעולה"
+
+#: overlay/settings_dialogs.py:606 overlay/settings_dialogs.py:705
+msgid "Command"
+msgstr "פקודה"
+
+#: overlay/settings_dialogs.py:613 overlay/settings_dialogs.py:706
+msgid "e.g., playerctl play-pause"
+msgstr "לדוגמה, playerctl play-pause"
+
+#: overlay/settings_dialogs.py:620
+msgid "Color"
+msgstr "צבע"
+
+#: overlay/settings_dialogs.py:649
+msgid "Icon"
+msgstr "סמל"
+
+#: overlay/settings_dialogs.py:658
+msgid "Icon name (e.g., folder-symbolic)"
+msgstr "שם סמל (לדוגמה, folder-symbolic)"
+
+#: overlay/settings_dialogs.py:702
+msgid "URL"
+msgstr "כתובת URL"
+
+#: overlay/settings_dialogs.py:703
+msgid "e.g., https://claude.ai"
+msgstr "לדוגמה, https://claude.ai"
+
+#: overlay/settings_dialogs.py:774
+msgid "Add Application Profile"
+msgstr "הוספת פרופיל אפליקציה"
+
+#: overlay/settings_dialogs.py:801
+msgid ""
+"Create a custom profile for a specific application.\n"
+"The radial menu will use this profile when the application is active."
+msgstr "יצירת פרופיל מותאם אישית לאפליקציה מסוימת.\nהתפריט הרדיאלי ישתמש בפרופיל זה כאשר האפליקציה פעילה."
+
+#: overlay/settings_dialogs.py:809
+msgid "Select Application"
+msgstr "בחירת אפליקציה"
+
+#: overlay/settings_dialogs.py:812
+msgid "Running Applications:"
+msgstr "אפליקציות פעילות:"
+
+#: overlay/settings_dialogs.py:833
+msgid "Or enter application class manually:"
+msgstr "לחלופין, הזינו מחלקת אפליקציה באופן ידני:"
+
+#: overlay/settings_dialogs.py:839
+msgid "e.g., firefox, code, gimp"
+msgstr "לדוגמה, firefox, code, gimp"
+
+#: overlay/settings_dialogs.py:846
+msgid "Add Profile"
+msgstr "הוספת פרופיל"
+
+#: overlay/settings_dialogs.py:1008
+msgid "Running"
+msgstr "פועל"
+
+#: overlay/settings_dialogs.py:1021
+msgid "(Enter app name manually below)"
+msgstr "(הזינו את שם האפליקציה ידנית למטה)"
+
+#: overlay/settings_dialogs.py:1047
+msgid "No Application Selected"
+msgstr "לא נבחרה אפליקציה"
+
+#: overlay/settings_dialogs.py:1048
+msgid "Please select or enter an application name."
+msgstr "אנא בחרו או הזינו שם אפליקציה."
+
+#: overlay/settings_dialogs.py:1050 overlay/settings_dialogs.py:1100
+#: overlay/settings_dialogs.py:1246 overlay/settings_page_settings.py:287
+#: overlay/settings_page_settings.py:398
+msgid "OK"
+msgstr "אישור"
+
+#: overlay/settings_dialogs.py:1084 overlay/settings_dialogs.py:1091
+msgid "Profile created for {}"
+msgstr "נוצר פרופיל עבור {}"
+
+#: overlay/settings_dialogs.py:1098 overlay/settings_dialogs.py:1243
+msgid "Error"
+msgstr "שגיאה"
+
+#: overlay/settings_dialogs.py:1098
+msgid "Failed to create profile: {}"
+msgstr "יצירת הפרופיל נכשלה: {}"
+
+#: overlay/settings_dialogs.py:1112
+msgid "Application Profiles"
+msgstr "פרופילי אפליקציות"
+
+#: overlay/settings_dialogs.py:1124
+msgid "Close"
+msgstr "סגירה"
+
+#: overlay/settings_dialogs.py:1129 overlay/settings_page_easyswitch.py:93
+msgid "Refresh"
+msgstr "רענון"
+
+#: overlay/settings_dialogs.py:1201
+msgid "Slices: {}/8 configured"
+msgstr "פלחים: {}/8 הוגדרו"
+
+#: overlay/settings_dialogs.py:1209
+msgid "Edit Slices"
+msgstr "עריכת פלחים"
+
+#: overlay/settings_dialogs.py:1214
+msgid "Remove"
+msgstr "הסרה"
+
+#: overlay/settings_dialogs.py:1239
+msgid "Removed profile for {}"
+msgstr "הפרופיל עבור {} הוסר"
+
+#: overlay/settings_dialogs.py:1244
+msgid "Failed to remove profile: {}"
+msgstr "הסרת הפרופיל נכשלה: {}"
+
+#: overlay/settings_dialogs.py:1264
+msgid "No application profiles yet. Use '+ Add Application' to create one."
+msgstr "עדיין אין פרופילי אפליקציות. השתמשו ב-'+ הוספת אפליקציה' כדי ליצור אחד."
+
+#: overlay/settings_dialogs.py:1268
+msgid "Profiles: {}"
+msgstr "פרופילים: {}"
+
+#: overlay/settings_dialogs.py:1288
+msgid "Edit Profile: {}"
+msgstr "עריכת פרופיל: {}"
+
+#: overlay/settings_dialogs.py:1322
+msgid ""
+"Choose which action each slice should use when this application is active."
+msgstr "בחרו באיזו פעולה ישתמש כל פלח כאשר אפליקציה זו פעילה."
+
+#: overlay/settings_dialogs.py:1453
+msgid "Updated profile for {}"
+msgstr "הפרופיל עבור {} עודכן"
+
+#: overlay/settings_page_buttons.py:88
+msgid "Actions Ring"
+msgstr "טבעת הפעולות"
+
+#: overlay/settings_page_buttons.py:93
+msgid "Click any action to customize"
+msgstr "לחצו על כל פעולה כדי להתאים אותה אישית"
+
+#: overlay/settings_page_buttons.py:112
+msgid "Top"
+msgstr "למעלה"
+
+#: overlay/settings_page_buttons.py:113
+msgid "Top Right"
+msgstr "למעלה מימין"
+
+#: overlay/settings_page_buttons.py:114
+msgid "Right"
+msgstr "ימין"
+
+#: overlay/settings_page_buttons.py:115
+msgid "Bottom Right"
+msgstr "למטה מימין"
+
+#: overlay/settings_page_buttons.py:116
+msgid "Bottom"
+msgstr "למטה"
+
+#: overlay/settings_page_buttons.py:117
+msgid "Bottom Left"
+msgstr "למטה משמאל"
+
+#: overlay/settings_page_buttons.py:118
+msgid "Left"
+msgstr "שמאל"
+
+#: overlay/settings_page_buttons.py:119
+msgid "Top Left"
+msgstr "למעלה משמאל"
+
+#: overlay/settings_page_buttons.py:157
+msgid "Easy-Switch Shortcuts"
+msgstr "קיצורי דרך ל-Easy-Switch"
+
+#: overlay/settings_page_buttons.py:162
+msgid "Replace Emoji with Easy-Switch 1, 2, 3 submenu"
+msgstr "החלפת אימוג'י בתפריט המשנה של Easy-Switch 1, 2, 3"
+
+#: overlay/settings_page_buttons.py:190
+msgid "Button Assignments"
+msgstr "שיוכי לחצנים"
+
+#: overlay/settings_page_buttons.py:398
+msgid "Emoji"
+msgstr "אימוג'י"
+
+#: overlay/settings_page_devices.py:35
+msgid "Connected Device"
+msgstr "מכשיר מחובר"
+
+#: overlay/settings_page_devices.py:39
+msgid "Device Name"
+msgstr "שם המכשיר"
+
+#: overlay/settings_page_devices.py:39
+msgid "Your Logitech mouse model"
+msgstr "דגם עכבר ה-Logitech שלכם"
+
+#: overlay/settings_page_devices.py:53
+msgid "Connection"
+msgstr "חיבור"
+
+#: overlay/settings_page_devices.py:53
+msgid "How your device is connected"
+msgstr "כיצד המכשיר שלכם מחובר"
+
+#: overlay/settings_page_devices.py:79
+msgid "Battery Level"
+msgstr "רמת הסוללה"
+
+#: overlay/settings_page_devices.py:79
+msgid "Current battery status"
+msgstr "מצב הסוללה הנוכחי"
+
+#: overlay/settings_page_devices.py:99
+msgid "Firmware Version"
+msgstr "גרסת קושחה"
+
+#: overlay/settings_page_devices.py:99
+msgid "Device firmware information"
+msgstr "פרטי קושחת המכשיר"
+
+#: overlay/settings_page_devices.py:100
+msgid "Managed by JuhRadial MX"
+msgstr "מנוהל על ידי JuhRadial MX"
+
+#: overlay/settings_page_devices.py:108
+msgid "Device Management"
+msgstr "ניהול מכשיר"
+
+#: overlay/settings_page_devices.py:113
+msgid ""
+"JuhRadial MX handles device configuration natively via HID++. Button "
+"remapping, scroll settings, and haptics are all managed through this "
+"settings window."
+msgstr "JuhRadial MX מטפל בתצורת המכשיר באופן טבעי דרך HID++. מיפוי מחדש של לחצנים, הגדרות גלילה והפטיקה - כולם מנוהלים דרך חלון הגדרות זה."
+
+#: overlay/settings_page_devices.py:154
+msgid "USB Receiver / Bluetooth"
+msgstr "מקלט USB / Bluetooth"
+
+#: overlay/settings_page_devices.py:157
+msgid "USB Receiver"
+msgstr "מקלט USB"
+
+#: overlay/settings_page_devices.py:178 overlay/settings_page_settings.py:212
+msgid "Charging"
+msgstr "בטעינה"
+
+#: overlay/settings_page_devices.py:178 overlay/settings_page_settings.py:212
+msgid "Discharging"
+msgstr "מתרוקנת"
+
+#: overlay/settings_page_devices.py:182 overlay/settings_page_devices.py:185
+msgid "Unavailable"
+msgstr "לא זמין"
+
+#: overlay/settings_page_easyswitch.py:45
+msgid "Coming Soon"
+msgstr "בקרוב"
+
+#: overlay/settings_page_easyswitch.py:85
+msgid "Switch between paired computers"
+msgstr "מעבר בין מחשבים מזווגים"
+
+#: overlay/settings_page_easyswitch.py:107
+msgid "Paired Computers"
+msgstr "מחשבים מזווגים"
+
+#: overlay/settings_page_easyswitch.py:118
+msgid "About Easy-Switch"
+msgstr "אודות Easy-Switch"
+
+#: overlay/settings_page_easyswitch.py:122
+msgid ""
+"Easy-Switch allows your mouse to connect to multiple computers.\n"
+"Use the button on your mouse to switch between paired devices."
+msgstr "Easy-Switch מאפשר לעכבר שלכם להתחבר למספר מחשבים.\nהשתמשו בלחצן שבעכבר כדי לעבור בין מכשירים מזווגים."
+
+#: overlay/settings_page_easyswitch.py:127
+msgid "Note:"
+msgstr "הערה:"
+
+#: overlay/settings_page_easyswitch.py:130
+msgid ""
+"Host names are read from the device and reflect\n"
+"the computer names set during pairing."
+msgstr "שמות המארחים נקראים מהמכשיר ומשקפים\nאת שמות המחשבים שהוגדרו בעת הזיווג."
+
+#: overlay/settings_page_easyswitch.py:135
+msgid ""
+"Slots are auto-detected from your mouse pairing state. Add or remove "
+"pairings on the mouse/receiver side, then press Refresh here."
+msgstr "החריצים מזוהים אוטומטית ממצב הזיווג של העכבר. הוסיפו או הסירו זיווגים בצד העכבר/המקלט, ולאחר מכן לחצו כאן על רענון."
+
+#: overlay/settings_page_easyswitch.py:189
+msgid "Slot {}"
+msgstr "חריץ {}"
+
+#: overlay/settings_page_easyswitch.py:199
+#: overlay/settings_page_settings.py:214
+msgid "Connected"
+msgstr "מחובר"
+
+#: overlay/settings_page_easyswitch.py:199
+msgid "Click to switch"
+msgstr "לחצו כדי לעבור"
+
+#: overlay/settings_page_easyswitch.py:210
+msgid "Active"
+msgstr "פעיל"
+
+#: overlay/settings_page_easyswitch.py:344
+msgid "Could not connect to daemon"
+msgstr "לא ניתן להתחבר לדימון"
+
+#: overlay/settings_page_easyswitch.py:367
+msgid "Detected slots: {}"
+msgstr "חריצים שזוהו: {}"
+
+#: overlay/settings_page_easyswitch.py:370
+msgid "Detected slots: --"
+msgstr "חריצים שזוהו: --"
+
+#: overlay/settings_page_flow.py:129
+msgid "Logitech Flow"
+msgstr "Logitech Flow"
+
+#: overlay/settings_page_flow.py:133
+msgid "Seamlessly move between computers"
+msgstr "מעבר חלק בין מחשבים"
+
+#: overlay/settings_page_flow.py:140
+msgid "Flow Control"
+msgstr "בקרת Flow"
+
+#: overlay/settings_page_flow.py:143
+msgid "Enable Flow"
+msgstr "הפעלת Flow"
+
+#: overlay/settings_page_flow.py:143
+msgid "Control multiple computers with one mouse"
+msgstr "שליטה במספר מחשבים עם עכבר אחד"
+
+#: overlay/settings_page_flow.py:153
+msgid "Switch at screen edge"
+msgstr "מעבר בקצה המסך"
+
+#: overlay/settings_page_flow.py:153
+msgid "Move cursor to edge to switch computers"
+msgstr "הזיזו את הסמן לקצה כדי לעבור בין מחשבים"
+
+#: overlay/settings_page_flow.py:165
+msgid "Computers on Network"
+msgstr "מחשבים ברשת"
+
+#: overlay/settings_page_flow.py:172 overlay/settings_page_flow.py:496
+msgid "No other computers detected"
+msgstr "לא זוהו מחשבים נוספים"
+
+#: overlay/settings_page_flow.py:185 overlay/settings_page_flow.py:292
+msgid "Scan Network"
+msgstr "סריקת רשת"
+
+#: overlay/settings_page_flow.py:195
+msgid "How Flow Works"
+msgstr "איך Flow עובד"
+
+#: overlay/settings_page_flow.py:199
+msgid ""
+"Logitech Flow allows you to seamlessly control multiple computers\n"
+"with a single mouse by moving your cursor to the edge of the screen."
+msgstr "Logitech Flow מאפשר לכם לשלוט בצורה חלקה במספר מחשבים\nעם עכבר אחד, על ידי הזזת הסמן לקצה המסך."
+
+#: overlay/settings_page_flow.py:203
+msgid "Requirements:"
+msgstr "דרישות:"
+
+#: overlay/settings_page_flow.py:204
+msgid "JuhRadialMX running on all computers"
+msgstr "JuhRadialMX פועל בכל המחשבים"
+
+#: overlay/settings_page_flow.py:205
+msgid "Computers connected to the same network"
+msgstr "מחשבים מחוברים לאותה רשת"
+
+#: overlay/settings_page_flow.py:206
+msgid "Flow enabled on all devices"
+msgstr "Flow מופעל בכל המכשירים"
+
+#: overlay/settings_page_flow.py:207
+msgid "Compatible Software Detected:"
+msgstr "זוהתה תוכנה תואמת:"
+
+#: overlay/settings_page_flow.py:208
+msgid "JuhRadialMX instances"
+msgstr "מופעים של JuhRadialMX"
+
+#: overlay/settings_page_flow.py:210
+msgid "open-source KVM"
+msgstr "KVM בקוד פתוח"
+
+#: overlay/settings_page_flow.py:213
+msgid "Features:"
+msgstr "תכונות:"
+
+#: overlay/settings_page_flow.py:214
+msgid "Move cursor between screens seamlessly"
+msgstr "הזזת הסמן בין מסכים בצורה חלקה"
+
+#: overlay/settings_page_flow.py:215
+msgid "Copy and paste across computers"
+msgstr "העתקה והדבקה בין מחשבים"
+
+#: overlay/settings_page_flow.py:216
+msgid "Transfer files by dragging"
+msgstr "העברת קבצים על ידי גרירה"
+
+#: overlay/settings_page_flow.py:283
+msgid "Scanning..."
+msgstr "סורק..."
+
+#: overlay/settings_page_flow.py:530
+msgid "Unknown"
+msgstr "לא ידוע"
+
+#: overlay/settings_page_flow.py:563 overlay/settings_page_flow.py:648
+msgid "Link"
+msgstr "קישור"
+
+#: overlay/settings_page_flow.py:569
+msgid "Input Leap detected"
+msgstr "זוהה Input Leap"
+
+#: overlay/settings_page_flow.py:571
+msgid "This computer is running Input Leap (open-source KVM)"
+msgstr "מחשב זה מריץ את Input Leap (KVM בקוד פתוח)"
+
+#: overlay/settings_page_flow.py:586
+msgid "Install JuhRadialMX"
+msgstr "התקינו את JuhRadialMX"
+
+#: overlay/settings_page_flow.py:588
+msgid "Install JuhRadialMX on this computer to enable Flow linking"
+msgstr "התקינו את JuhRadialMX במחשב זה כדי לאפשר קישור Flow"
+
+#: overlay/settings_page_flow.py:628
+msgid "Link with {}"
+msgstr "קישור עם {}"
+
+#: overlay/settings_page_flow.py:630
+#, python-brace-format
+msgid ""
+"Enter the pairing code shown on {name} to link the computers.\n"
+"\n"
+"If you don't see a pairing code, open Flow settings on the other computer."
+msgstr "הזינו את קוד הזיווג המוצג ב-{name} כדי לקשר בין המחשבים.\n\nאם אינכם רואים קוד זיווג, פתחו את הגדרות Flow במחשב השני."
+
+#: overlay/settings_page_flow.py:640
+msgid "Enter 6-digit pairing code"
+msgstr "הזינו קוד זיווג בן 6 ספרות"
+
+#: overlay/settings_page_flow.py:684
+msgid "Linked with {}"
+msgstr "מקושר עם {}"
+
+#: overlay/settings_page_haptics.py:26
+msgid "Sharp Click"
+msgstr "קליק חד"
+
+#: overlay/settings_page_haptics.py:26
+msgid "Crisp, sharp feedback"
+msgstr "משוב חד וברור"
+
+#: overlay/settings_page_haptics.py:27
+msgid "Soft Click"
+msgstr "קליק רך"
+
+#: overlay/settings_page_haptics.py:27
+msgid "Softer, dampened feedback"
+msgstr "משוב רך ומרוכך"
+
+#: overlay/settings_page_haptics.py:28
+msgid "Sharp Bump"
+msgstr "חבטה חדה"
+
+#: overlay/settings_page_haptics.py:28
+msgid "Strong collision feedback"
+msgstr "משוב התנגשות חזק"
+
+#: overlay/settings_page_haptics.py:29
+msgid "Soft Bump"
+msgstr "חבטה רכה"
+
+#: overlay/settings_page_haptics.py:29
+msgid "Gentle collision feedback"
+msgstr "משוב התנגשות עדין"
+
+#: overlay/settings_page_haptics.py:30
+msgid "Subtle"
+msgstr "עדין"
+
+#: overlay/settings_page_haptics.py:30
+msgid "Very light, subtle feedback"
+msgstr "משוב קליל ועדין מאוד"
+
+#: overlay/settings_page_haptics.py:31
+msgid "Whisper"
+msgstr "לחישה"
+
+#: overlay/settings_page_haptics.py:31
+msgid "Barely perceptible feedback"
+msgstr "משוב שכמעט ואינו מורגש"
+
+#: overlay/settings_page_haptics.py:32
+msgid "Happy"
+msgstr "שמח"
+
+#: overlay/settings_page_haptics.py:32
+msgid "Positive notification feel"
+msgstr "תחושת התראה חיובית"
+
+#: overlay/settings_page_haptics.py:33
+msgid "Alert"
+msgstr "התראה"
+
+#: overlay/settings_page_haptics.py:33
+msgid "Warning/error feel"
+msgstr "תחושת אזהרה/שגיאה"
+
+#: overlay/settings_page_haptics.py:34
+msgid "Complete"
+msgstr "הושלם"
+
+#: overlay/settings_page_haptics.py:34
+msgid "Success/completion feel"
+msgstr "תחושת הצלחה/השלמה"
+
+#: overlay/settings_page_haptics.py:35
+msgid "Square Wave"
+msgstr "גל ריבועי"
+
+#: overlay/settings_page_haptics.py:35
+msgid "Mechanical square pattern"
+msgstr "תבנית ריבועית מכנית"
+
+#: overlay/settings_page_haptics.py:36
+msgid "Wave"
+msgstr "גל"
+
+#: overlay/settings_page_haptics.py:36
+msgid "Smooth wave pattern"
+msgstr "תבנית גלית חלקה"
+
+#: overlay/settings_page_haptics.py:37
+msgid "Firework"
+msgstr "זיקוק"
+
+#: overlay/settings_page_haptics.py:37
+msgid "Burst pattern"
+msgstr "תבנית התפרצות"
+
+#: overlay/settings_page_haptics.py:38
+msgid "Strong Alert"
+msgstr "התראה חזקה"
+
+#: overlay/settings_page_haptics.py:38
+msgid "Strong error pattern"
+msgstr "תבנית שגיאה חזקה"
+
+#: overlay/settings_page_haptics.py:39
+msgid "Knock"
+msgstr "נקישה"
+
+#: overlay/settings_page_haptics.py:39
+msgid "Knocking pattern"
+msgstr "תבנית נקישות"
+
+#: overlay/settings_page_haptics.py:40
+msgid "Jingle"
+msgstr "ג'ינגל"
+
+#: overlay/settings_page_haptics.py:40
+msgid "Musical jingle pattern"
+msgstr "תבנית ג'ינגל מוזיקלית"
+
+#: overlay/settings_page_haptics.py:41
+msgid "Ringing"
+msgstr "צלצול"
+
+#: overlay/settings_page_haptics.py:41
+msgid "Ring/vibrate pattern"
+msgstr "תבנית צלצול/רטט"
+
+#: overlay/settings_page_haptics.py:54
+msgid "Haptic Feedback"
+msgstr "משוב הפטי"
+
+#: overlay/settings_page_haptics.py:58
+msgid "Enable Haptic Feedback"
+msgstr "הפעלת משוב הפטי"
+
+#: overlay/settings_page_haptics.py:58
+msgid "Feel vibrations when using the radial menu"
+msgstr "הרגישו רטט בעת השימוש בתפריט הרדיאלי"
+
+#: overlay/settings_page_haptics.py:72
+msgid "Haptic Patterns"
+msgstr "תבניות הפטיות"
+
+#: overlay/settings_page_haptics.py:78
+msgid "Menu Appear"
+msgstr "הופעת התפריט"
+
+#: overlay/settings_page_haptics.py:78
+msgid "Pattern when radial menu opens"
+msgstr "תבנית כאשר התפריט הרדיאלי נפתח"
+
+#: overlay/settings_page_haptics.py:81
+msgid "Slice Hover"
+msgstr "ריחוף מעל פלח"
+
+#: overlay/settings_page_haptics.py:82
+msgid "Pattern when hovering over different slices"
+msgstr "תבנית בעת ריחוף מעל פלחים שונים"
+
+#: overlay/settings_page_haptics.py:84
+msgid "Selection"
+msgstr "בחירה"
+
+#: overlay/settings_page_haptics.py:84
+msgid "Pattern when selecting an action"
+msgstr "תבנית בעת בחירת פעולה"
+
+#: overlay/settings_page_haptics.py:85
+msgid "Invalid Action"
+msgstr "פעולה לא חוקית"
+
+#: overlay/settings_page_haptics.py:85
+msgid "Pattern for blocked/invalid actions"
+msgstr "תבנית לפעולות חסומות/לא חוקיות"
+
+#: overlay/settings_page_haptics.py:103
+msgid "Apply to All"
+msgstr "החלה על הכול"
+
+#: overlay/settings_page_haptics.py:103
+msgid "Set all events to the same pattern"
+msgstr "הגדרת כל האירועים לאותה תבנית"
+
+#: overlay/settings_page_haptics.py:114
+msgid "Test Haptics"
+msgstr "בדיקת הפטיקה"
+
+#: overlay/settings_page_haptics.py:115
+msgid "Test Pattern"
+msgstr "בדיקת תבנית"
+
+#: overlay/settings_page_haptics.py:115
+msgid "Feel the selected pattern"
+msgstr "הרגישו את התבנית הנבחרת"
+
+#: overlay/settings_page_haptics.py:116
+msgid "Test"
+msgstr "בדיקה"
+
+#: overlay/settings_page_scroll.py:35
+msgid "Pointer Speed"
+msgstr "מהירות הסמן"
+
+#: overlay/settings_page_scroll.py:38
+msgid "Adjust tracking sensitivity"
+msgstr "כיוון רגישות המעקב"
+
+#: overlay/settings_page_scroll.py:58
+msgid "DPI"
+msgstr "DPI"
+
+#: overlay/settings_page_scroll.py:68
+msgid "Slow"
+msgstr "איטי"
+
+#: overlay/settings_page_scroll.py:83
+msgid "Fast"
+msgstr "מהיר"
+
+#: overlay/settings_page_scroll.py:185
+msgid "Pointer"
+msgstr "סמן"
+
+#: overlay/settings_page_scroll.py:203
+msgid "Acceleration Profile"
+msgstr "פרופיל תאוצה"
+
+#: overlay/settings_page_scroll.py:203
+msgid "How pointer speed scales with movement"
+msgstr "כיצד מהירות הסמן משתנה בהתאם לתנועה"
+
+#: overlay/settings_page_scroll.py:206
+msgid "Adaptive (Recommended)"
+msgstr "אדפטיבי (מומלץ)"
+
+#: overlay/settings_page_scroll.py:207
+msgid "Flat (Linear)"
+msgstr "שטוח (לינארי)"
+
+#: overlay/settings_page_scroll.py:208
+msgid "System Default"
+msgstr "ברירת מחדל של המערכת"
+
+#: overlay/settings_page_scroll.py:231 overlay/settings_page_scroll.py:825
+msgid "Settings are up to date"
+msgstr "ההגדרות מעודכנות"
+
+#: overlay/settings_page_scroll.py:249
+msgid "Apply to Device"
+msgstr "החלה על המכשיר"
+
+#: overlay/settings_page_scroll.py:262
+msgid "Applies DPI, SmartShift, and scroll settings to your device"
+msgstr "מחיל הגדרות DPI, SmartShift וגלילה על המכשיר שלכם"
+
+#: overlay/settings_page_scroll.py:274
+msgid "Scroll Wheel"
+msgstr "גלגל הגלילה"
+
+#: overlay/settings_page_scroll.py:289
+msgid "SmartShift"
+msgstr "SmartShift"
+
+#: overlay/settings_page_scroll.py:309
+msgid ""
+"Auto-switch to free-spin when scrolling fast, return to ratchet when slow"
+msgstr "מעבר אוטומטי לגלילה חופשית בעת גלילה מהירה, וחזרה לגלילה מדורגת בעת גלילה איטית"
+
+#: overlay/settings_page_scroll.py:326
+msgid "Switch Threshold"
+msgstr "סף מעבר"
+
+#: overlay/settings_page_scroll.py:342
+msgid "Stay ratchet"
+msgstr "הישארות במצב מדורג"
+
+#: overlay/settings_page_scroll.py:360
+msgid "Easy free-spin"
+msgstr "גלילה חופשית קלה"
+
+#: overlay/settings_page_scroll.py:375
+msgid "Natural Scrolling"
+msgstr "גלילה טבעית"
+
+#: overlay/settings_page_scroll.py:376
+msgid "Scroll content in the direction of finger movement"
+msgstr "גלילת תוכן בכיוון תנועת האצבע"
+
+#: overlay/settings_page_scroll.py:386
+msgid "High-Resolution Scroll"
+msgstr "גלילה ברזולוציה גבוהה"
+
+#: overlay/settings_page_scroll.py:387
+msgid "More scroll events for smoother, faster scrolling"
+msgstr "יותר אירועי גלילה לגלילה חלקה ומהירה יותר"
+
+#: overlay/settings_page_scroll.py:403 overlay/settings_page_scroll.py:424
+msgid "Scroll Speed"
+msgstr "מהירות גלילה"
+
+#: overlay/settings_page_scroll.py:403
+msgid "Lines scrolled per wheel notch"
+msgstr "שורות שנגללות לכל נקודת עצירה בגלגל"
+
+#: overlay/settings_page_scroll.py:421
+msgid "Thumb Wheel"
+msgstr "גלגלת אגודל"
+
+#: overlay/settings_page_scroll.py:424
+msgid "Horizontal scroll sensitivity"
+msgstr "רגישות גלילה אופקית"
+
+#: overlay/settings_page_scroll.py:440
+msgid "Invert Direction"
+msgstr "היפוך כיוון"
+
+#: overlay/settings_page_scroll.py:440
+msgid "Reverse thumb wheel scroll direction"
+msgstr "היפוך כיוון הגלילה של גלגלת האגודל"
+
+#: overlay/settings_page_scroll.py:793
+msgid "DPI set to {}"
+msgstr "DPI הוגדר ל-{}"
+
+#: overlay/settings_page_scroll.py:799
+msgid "DPI error: daemon not running?"
+msgstr "שגיאת DPI: ייתכן שהדימון אינו פועל?"
+
+#: overlay/settings_page_scroll.py:808
+msgid "Click Apply to save changes"
+msgstr "לחצו על החלה כדי לשמור את השינויים"
+
+#: overlay/settings_page_scroll.py:819
+msgid "Settings applied!"
+msgstr "ההגדרות הוחלו!"
+
+#: overlay/settings_page_scroll.py:912
+msgid "enabled"
+msgstr "מופעל"
+
+#: overlay/settings_page_scroll.py:912
+msgid "disabled"
+msgstr "מושבת"
+
+#: overlay/settings_page_scroll.py:913
+msgid "SmartShift {}"
+msgstr "SmartShift {}"
+
+#: overlay/settings_page_scroll.py:922
+msgid "SmartShift error: daemon not running?"
+msgstr "שגיאת SmartShift: ייתכן שהדימון אינו פועל?"
+
+#: overlay/settings_page_settings.py:47
+msgid "Appearance"
+msgstr "מראה"
+
+#: overlay/settings_page_settings.py:50
+msgid "Theme"
+msgstr "ערכת נושא"
+
+#: overlay/settings_page_settings.py:50
+msgid "Choose color theme for radial menu and settings"
+msgstr "בחירת ערכת צבעים לתפריט הרדיאלי ולהגדרות"
+
+#: overlay/settings_page_settings.py:68
+msgid "Blur Effect"
+msgstr "אפקט טשטוש"
+
+#: overlay/settings_page_settings.py:68
+msgid "Enable background blur for radial menu"
+msgstr "הפעלת טשטוש רקע לתפריט הרדיאלי"
+
+#: overlay/settings_page_settings.py:79
+msgid "Language"
+msgstr "שפה"
+
+#: overlay/settings_page_settings.py:79
+msgid "Choose display language"
+msgstr "בחירת שפת תצוגה"
+
+#: overlay/settings_page_settings.py:123
+msgid "Desktop Environment"
+msgstr "סביבת שולחן עבודה"
+
+#: overlay/settings_page_settings.py:132
+msgid "Desktop"
+msgstr "שולחן עבודה"
+
+#: overlay/settings_page_settings.py:133
+msgid "Commands for screenshot, files, etc. adapt to your DE (detected: {})"
+msgstr "הפקודות לצילום מסך, קבצים וכדומה מותאמות לסביבת שולחן העבודה שלכם (זוהתה: {})"
+
+#: overlay/settings_page_settings.py:151
+msgid "Apply DE Defaults"
+msgstr "החלת ברירות המחדל של סביבת שולחן העבודה"
+
+#: overlay/settings_page_settings.py:152
+msgid "Update radial menu commands to match selected desktop"
+msgstr "עדכון פקודות התפריט הרדיאלי כך שיתאימו לשולחן העבודה שנבחר"
+
+#: overlay/settings_page_settings.py:154
+msgid "Apply"
+msgstr "החלה"
+
+#: overlay/settings_page_settings.py:163
+msgid "Application"
+msgstr "אפליקציה"
+
+#: overlay/settings_page_settings.py:166
+msgid "Start at Login"
+msgstr "הפעלה בעת הכניסה למערכת"
+
+#: overlay/settings_page_settings.py:166
+msgid "Launch JuhRadial MX when you log in"
+msgstr "הפעלת JuhRadial MX בעת הכניסה למערכת"
+
+#: overlay/settings_page_settings.py:174
+msgid "Show Tray Icon"
+msgstr "הצגת סמל במגש המערכת"
+
+#: overlay/settings_page_settings.py:174
+msgid "Display icon in system tray"
+msgstr "הצגת הסמל במגש המערכת"
+
+#: overlay/settings_page_settings.py:187
+msgid "Device Information"
+msgstr "פרטי המכשיר"
+
+#: overlay/settings_page_settings.py:191 overlay/settings_page_settings.py:192
+msgid "Not available"
+msgstr "לא זמין"
+
+#: overlay/settings_page_settings.py:219
+msgid "Device"
+msgstr "מכשיר"
+
+#: overlay/settings_page_settings.py:220
+msgid "Battery"
+msgstr "סוללה"
+
+#: overlay/settings_page_settings.py:221
+msgid "Status"
+msgstr "מצב"
+
+#: overlay/settings_page_settings.py:231 overlay/settings_page_settings.py:236
+msgid "Reset"
+msgstr "איפוס"
+
+#: overlay/settings_page_settings.py:234
+msgid "Restore Defaults"
+msgstr "שחזור ברירות מחדל"
+
+#: overlay/settings_page_settings.py:234
+msgid "Reset all settings to factory defaults"
+msgstr "איפוס כל ההגדרות לברירות המחדל של היצרן"
+
+#: overlay/settings_page_settings.py:279
+msgid "Updated for {}: {}"
+msgstr "עודכן עבור {}: {}"
+
+#: overlay/settings_page_settings.py:281
+msgid "All commands already match selected DE"
+msgstr "כל הפקודות כבר תואמות לסביבת שולחן העבודה שנבחרה"
+
+#: overlay/settings_page_settings.py:284
+msgid "Desktop Commands Updated"
+msgstr "פקודות שולחן העבודה עודכנו"
+
+#: overlay/settings_page_settings.py:393
+msgid "Settings Reset"
+msgstr "ההגדרות אופסו"
+
+#: overlay/settings_page_settings.py:395
+msgid ""
+"All settings have been restored to defaults. Please restart JuhRadial MX for "
+"changes to take effect."
+msgstr "כל ההגדרות שוחזרו לברירות המחדל. אנא הפעילו מחדש את JuhRadial MX כדי שהשינויים ייכנסו לתוקף."
+
+#: overlay/settings_widgets.py:231
+msgid "MX Master 4"
+msgstr "MX Master 4"
