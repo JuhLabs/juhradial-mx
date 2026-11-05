@@ -188,7 +188,7 @@ msgstr "דקה אחת"
 msgid ""
 "1. Pair the mouse with each computer on its own Easy-Switch channel, then "
 "set both channels above."
-msgstr "1. זווגו את העכבר עם כל מחשב בערוץ Easy-Switch נפרד משלו, ולאחר מכן הגדירו את שני הערוצים למעלה."
+msgstr "1. שייך את העכבר עם כל מחשב בערוץ Easy-Switch נפרד משלו, ולאחר מכן הגדירו את שני הערוצים למעלה."
 
 #: settings-qt/bridge/backend.py:3625
 msgid "10 minutes"
@@ -1801,7 +1801,7 @@ msgstr "שכפול שורה"
 msgid ""
 "Each computer names its slot when it pairs, which is where the names above "
 "come from."
-msgstr "כל מחשב קורא בשם לחריץ שלו כשהוא מזדווג, ומשם מגיעים השמות שלמעלה."
+msgstr "כל מחשב קורא בשם לחריץ שלו כשהוא משוייך, ומשם מגיעים השמות שלמעלה."
 
 #: settings-qt/qml/components/KeypadKeyEditor.qml:54
 msgid ""
@@ -1908,7 +1908,7 @@ msgstr "פלח ריק"
 #: settings-qt/qml/pages/EasySwitchPage.qml:37
 msgid ""
 "Empty. Hold the Easy-Switch button for 3 seconds to pair a computer here"
-msgstr "ריק. החזיקו את לחצן Easy-Switch למשך 3 שניות כדי לזווג מחשב כאן"
+msgstr "ריק. החזיקו את לחצן Easy-Switch למשך 3 שניות כדי לשייך מחשב כאן"
 
 #: settings-qt/bridge/backend.py:154
 msgid "End"
@@ -2536,7 +2536,7 @@ msgstr "החזיקו עבור DPI מדויק, שחררו כדי לחזור"
 #: settings-qt/qml/pages/EasySwitchPage.qml:240
 msgid ""
 "Hold it for 3 seconds to pair a new computer in that slot (its light blinks)."
-msgstr "החזיקו למשך 3 שניות כדי לזווג מחשב חדש בחריץ הזה (האור שלו מהבהב)."
+msgstr "החזיקו למשך 3 שניות כדי לשייך מחשב חדש בחריץ הזה (האור שלו מהבהב)."
 
 #: settings-qt/qml/pages/ButtonsPage.qml:962
 msgid ""
@@ -3528,13 +3528,13 @@ msgstr "תשעה מקשים, הפעולות היומיומיות שלכם"
 msgid ""
 "No Bolt or Unifying receiver is plugged in. Devices on Bluetooth pair "
 "through your desktop's Bluetooth settings."
-msgstr "אין מקלט Bolt או Unifying מחובר. מכשירים ב-Bluetooth מזדווגים דרך הגדרות ה-Bluetooth של שולחן העבודה שלכם."
+msgstr "אין מקלט Bolt או Unifying מחובר. מכשירים ב-Bluetooth משתייכים דרך הגדרות ה-Bluetooth של שולחן העבודה שלכם."
 
 #: settings-qt/qml/pages/DevicesPage.qml:510
 msgid ""
 "No MX Keys S found. Pair it with a Bolt or Unifying receiver on this "
 "computer; a keyboard on Bluetooth only is not supported yet."
-msgstr "לא נמצא MX Keys S. זווגו אותה עם מקלט Bolt או Unifying במחשב הזה; מקלדת ב-Bluetooth בלבד עדיין אינה נתמכת."
+msgstr "לא נמצא MX Keys S. שייכו אותה עם מקלט Bolt או Unifying במחשב הזה; מקלדת ב-Bluetooth בלבד עדיין אינה נתמכת."
 
 #: settings-qt/qml/pages/AppsPage.qml:414
 msgid "No app profiles yet"
@@ -3719,7 +3719,7 @@ msgstr "שום דבר עדיין לא נדרס: פתחו כדי לבחור"
 
 #: settings-qt/qml/pages/DevicesPage.qml:609
 msgid "Nothing paired, or the receiver did not answer"
-msgstr "שום דבר לא זווג, או שהמקלט לא הגיב"
+msgstr "שום דבר לא שויך, או שהמקלט לא הגיב"
 
 #: settings-qt/qml/pages/FlowPage.qml:508
 msgid "Nothing shows up? A firewall may block Flow."
@@ -3855,7 +3855,7 @@ msgstr "קליק רך ומעוגל אחד"
 msgid ""
 "One zip file with your configuration, profiles, macros, slice icons and "
 "themes. Flow pairing keys stay on this machine"
-msgstr "קובץ zip אחד עם התצורה, הפרופילים, המאקרו, סמלי הפלחים וערכות הנושא שלכם. מפתחות הזיווג של Flow נשארים במחשב הזה"
+msgstr "קובץ zip אחד עם התצורה, הפרופילים, המאקרו, סמלי הפלחים וערכות הנושא שלכם. מפתחות השיוך של Flow נשארים במחשב הזה"
 
 #: settings-qt/assets/keypad/profiles.json
 msgid ""
@@ -4047,21 +4047,21 @@ msgstr "מברשת צבע"
 #: settings-qt/qml/pages/EasySwitchPage.qml:36
 #: settings-qt/qml/pages/EasySwitchPage.qml:40
 msgid "Paired"
-msgstr "מזווג"
+msgstr "משוייך"
 
 #: settings-qt/qml/pages/EasySwitchPage.qml:38
 msgid "Paired over Bluetooth"
-msgstr "מזווג דרך Bluetooth"
+msgstr "משוייך דרך Bluetooth"
 
 #: settings-qt/qml/pages/EasySwitchPage.qml:39
 msgid "Paired with a USB receiver"
-msgstr "מזווג עם מקלט USB"
+msgstr "משוייך עם מקלט USB"
 
 #: settings-qt/qml/pages/DevicesPage.qml:630
 msgid ""
 "Pairing and unpairing stay with Logi Options+ or Solaar: JuhRadial only "
 "reads the receivers."
-msgstr "זיווג וביטול זיווג נשארים ב-Logi Options+ או Solaar: JuhRadial רק קורא את המקלטים."
+msgstr "שיוך וביטול שיוך נשארים ב-Logi Options+ או Solaar: JuhRadial רק קורא את המקלטים."
 
 #: settings-qt/qml/pages/KeypadPage.qml:237
 msgid "Pale grey"
@@ -5872,7 +5872,7 @@ msgstr "העכבר לא קיבל את השינוי הזה."
 
 #: settings-qt/bridge/backend.py:4238
 msgid "The mouse did not switch. Is it awake, and is that computer paired?"
-msgstr "העכבר לא עבר. האם הוא ער, והאם המחשב הזה מזווג?"
+msgstr "העכבר לא עבר. האם הוא ער, והאם המחשב הזה משוייך?"
 
 #: settings-qt/bridge/backend.py:462
 msgid "The mouse is asleep or on another computer"
@@ -6557,7 +6557,7 @@ msgstr "מה %1 עושה כאשר לוחצים עליו"
 #: settings-qt/qml/pages/DevicesPage.qml:583
 msgid ""
 "What each Logitech USB receiver has paired, read from the receiver itself"
-msgstr "מה כל מקלט USB של Logitech זיווג, נקרא מהמקלט עצמו"
+msgstr "מה כל מקלט USB של Logitech שייך, נקרא מהמקלט עצמו"
 
 #: settings-qt/qml/pages/HapticsPage.qml:192
 msgid ""

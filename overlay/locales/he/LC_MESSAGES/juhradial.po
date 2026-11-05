@@ -28,7 +28,7 @@ msgstr "יציאה"
 #: overlay/overlay_actions.py:214 overlay/settings_page_buttons.py:391
 #: overlay/settings_page_easyswitch.py:81
 msgid "Easy-Switch"
-msgstr "Easy-Switch"
+msgstr "מעבר-מהיר"
 
 #: overlay/overlay_painting.py:957
 msgid "Drag"
@@ -71,7 +71,7 @@ msgstr "תוכנה חופשית &amp; קוד פתוח.\nאם אתם נהנים �
 
 #: overlay/settings_dashboard.py:507
 msgid "Buy me a coffee"
-msgstr "קנו לי קפה"
+msgstr "קנה לי קפה"
 
 #: overlay/settings_dashboard.py:598
 msgid "Logi Bolt USB"
@@ -237,7 +237,7 @@ msgstr "פקודה"
 
 #: overlay/settings_dialogs.py:613 overlay/settings_dialogs.py:706
 msgid "e.g., playerctl play-pause"
-msgstr "לדוגמה, playerctl play-pause"
+msgstr "לדוגמה, שליטה על נגן, נגן-השהה"
 
 #: overlay/settings_dialogs.py:620
 msgid "Color"
@@ -249,7 +249,7 @@ msgstr "סמל"
 
 #: overlay/settings_dialogs.py:658
 msgid "Icon name (e.g., folder-symbolic)"
-msgstr "שם סמל (לדוגמה, folder-symbolic)"
+msgstr "שם סמל (לדוגמה, ס)"
 
 #: overlay/settings_dialogs.py:702
 msgid "URL"
@@ -418,11 +418,11 @@ msgstr "למעלה משמאל"
 
 #: overlay/settings_page_buttons.py:157
 msgid "Easy-Switch Shortcuts"
-msgstr "קיצורי דרך ל-Easy-Switch"
+msgstr "קיצורי דרך ל-מעבר-מהיר"
 
 #: overlay/settings_page_buttons.py:162
 msgid "Replace Emoji with Easy-Switch 1, 2, 3 submenu"
-msgstr "החלפת אימוג'י בתפריט המשנה של Easy-Switch 1, 2, 3"
+msgstr "החלפת אימוג'י בתפריט המשנה של מעבר-מהיר 1, 2, 3"
 
 #: overlay/settings_page_buttons.py:190
 msgid "Button Assignments"
@@ -442,7 +442,7 @@ msgstr "שם המכשיר"
 
 #: overlay/settings_page_devices.py:39
 msgid "Your Logitech mouse model"
-msgstr "דגם עכבר ה-Logitech שלכם"
+msgstr "דגם עכבר ה-לוג'יטק שלכם"
 
 #: overlay/settings_page_devices.py:53
 msgid "Connection"
@@ -509,21 +509,21 @@ msgstr "בקרוב"
 
 #: overlay/settings_page_easyswitch.py:85
 msgid "Switch between paired computers"
-msgstr "מעבר בין מחשבים מזווגים"
+msgstr "מעבר בין מחשבים משויכים"
 
 #: overlay/settings_page_easyswitch.py:107
 msgid "Paired Computers"
-msgstr "מחשבים מזווגים"
+msgstr "מחשבים משויכים"
 
 #: overlay/settings_page_easyswitch.py:118
 msgid "About Easy-Switch"
-msgstr "אודות Easy-Switch"
+msgstr "אודות מעבר-מהיר"
 
 #: overlay/settings_page_easyswitch.py:122
 msgid ""
 "Easy-Switch allows your mouse to connect to multiple computers.\n"
 "Use the button on your mouse to switch between paired devices."
-msgstr "Easy-Switch מאפשר לעכבר שלכם להתחבר למספר מחשבים.\nהשתמשו בלחצן שבעכבר כדי לעבור בין מכשירים מזווגים."
+msgstr "מעבר-מהיר מאפשר לעכבר שלכם להתחבר למספר מחשבים.\nהשתמשו בלחצן שבעכבר כדי לעבור בין מכשירים משויכים."
 
 #: overlay/settings_page_easyswitch.py:127
 msgid "Note:"
@@ -533,13 +533,13 @@ msgstr "הערה:"
 msgid ""
 "Host names are read from the device and reflect\n"
 "the computer names set during pairing."
-msgstr "שמות המארחים נקראים מהמכשיר ומשקפים\nאת שמות המחשבים שהוגדרו בעת הזיווג."
+msgstr "שמות המארחים נקראים מהמכשיר ומשקפים\nאת שמות המחשבים שהוגדרו בעת השיוך."
 
 #: overlay/settings_page_easyswitch.py:135
 msgid ""
 "Slots are auto-detected from your mouse pairing state. Add or remove "
 "pairings on the mouse/receiver side, then press Refresh here."
-msgstr "החריצים מזוהים אוטומטית ממצב הזיווג של העכבר. הוסיפו או הסירו זיווגים בצד העכבר/המקלט, ולאחר מכן לחצו כאן על רענון."
+msgstr "החריצים מזוהים אוטומטית ממצב השיוך של העכבר. הוסיפו או הסירו שיוכים בצד העכבר/המקלט, ולאחר מכן לחצו כאן על רענון."
 
 #: overlay/settings_page_easyswitch.py:189
 msgid "Slot {}"
@@ -580,11 +580,11 @@ msgstr "מעבר חלק בין מחשבים"
 
 #: overlay/settings_page_flow.py:140
 msgid "Flow Control"
-msgstr "בקרת Flow"
+msgstr "Flow שליטת"
 
 #: overlay/settings_page_flow.py:143
 msgid "Enable Flow"
-msgstr "הפעלת Flow"
+msgstr "Flow איפשור"
 
 #: overlay/settings_page_flow.py:143
 msgid "Control multiple computers with one mouse"
@@ -612,13 +612,13 @@ msgstr "סריקת רשת"
 
 #: overlay/settings_page_flow.py:195
 msgid "How Flow Works"
-msgstr "איך Flow עובד"
+msgstr "איך Flow עובדת"
 
 #: overlay/settings_page_flow.py:199
 msgid ""
 "Logitech Flow allows you to seamlessly control multiple computers\n"
 "with a single mouse by moving your cursor to the edge of the screen."
-msgstr "Logitech Flow מאפשר לכם לשלוט בצורה חלקה במספר מחשבים\nעם עכבר אחד, על ידי הזזת הסמן לקצה המסך."
+msgstr "Logitech Flow (זרימה) מאפשר לכם לשלוט בצורה חלקה במספר מחשבים\nעם עכבר אחד, על ידי הזזת הסמן לקצה המסך."
 
 #: overlay/settings_page_flow.py:203
 msgid "Requirements:"
@@ -678,7 +678,7 @@ msgstr "קישור"
 
 #: overlay/settings_page_flow.py:569
 msgid "Input Leap detected"
-msgstr "זוהה Input Leap"
+msgstr "זוהתה קפיצה בקלט"
 
 #: overlay/settings_page_flow.py:571
 msgid "This computer is running Input Leap (open-source KVM)"
@@ -702,11 +702,11 @@ msgid ""
 "Enter the pairing code shown on {name} to link the computers.\n"
 "\n"
 "If you don't see a pairing code, open Flow settings on the other computer."
-msgstr "הזינו את קוד הזיווג המוצג ב-{name} כדי לקשר בין המחשבים.\n\nאם אינכם רואים קוד זיווג, פתחו את הגדרות Flow במחשב השני."
+msgstr "הזינו את קוד השיוך המוצג ב-{name} כדי לקשר בין המחשבים.\n\nאם אינכם רואים קוד שיוך, פתחו את הגדרות Flow במחשב השני."
 
 #: overlay/settings_page_flow.py:640
 msgid "Enter 6-digit pairing code"
-msgstr "הזינו קוד זיווג בן 6 ספרות"
+msgstr "הזינו קוד שיוך בן 6 ספרות"
 
 #: overlay/settings_page_flow.py:684
 msgid "Linked with {}"
@@ -734,7 +734,7 @@ msgstr "חבטה חדה"
 
 #: overlay/settings_page_haptics.py:28
 msgid "Strong collision feedback"
-msgstr "משוב התנגשות חזק"
+msgstr "משוב התנגדות חזק"
 
 #: overlay/settings_page_haptics.py:29
 msgid "Soft Bump"
@@ -742,7 +742,7 @@ msgstr "חבטה רכה"
 
 #: overlay/settings_page_haptics.py:29
 msgid "Gentle collision feedback"
-msgstr "משוב התנגשות עדין"
+msgstr "משוב התנגדות עדין"
 
 #: overlay/settings_page_haptics.py:30
 msgid "Subtle"
