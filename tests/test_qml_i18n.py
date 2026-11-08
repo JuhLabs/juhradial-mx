@@ -397,8 +397,13 @@ def test_segmented_pill_sits_under_the_selected_segment(tmp_path, mirrored, curr
     assert len(pill) == 1
     pill = pill[0]
     row = seg.childItems()[-1]
-    segs = {c.property("modelData")["id"]: c
-            for c in row.childItems() if c.property("modelData") is not None}
+
+    def model_data(c):
+        value = c.property("modelData")
+        return value.toVariant() if hasattr(value, "toVariant") else value
+
+    segs = {data["id"]: c
+            for c in row.childItems() for data in [model_data(c)] if data is not None}
     assert set(segs) == {"a", "b", "c"}
     # the Row really mirrors: "a" is leftmost in LTR, rightmost in RTL
     assert (segs["a"].x() > segs["c"].x()) == mirrored
