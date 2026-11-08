@@ -269,6 +269,7 @@ def _host(tmp_path, mirrored, body):
     from PyQt6.QtCore import QUrl
     from PyQt6.QtGui import QGuiApplication
     from PyQt6.QtQml import QQmlApplicationEngine
+    from bridge import compat
     from bridge.theme import Theme
 
     global _APP  # the app must outlive this call, or the engine has none
@@ -287,6 +288,7 @@ def _host(tmp_path, mirrored, body):
     engine.rootContext().setContextProperty("Theme", theme)
     backend = _stub_backend()
     engine.rootContext().setContextProperty("Backend", backend)
+    compat.install(engine, theme)  # registers +noshadow/+noeffects stand-ins, like main.py
     engine.load(QUrl.fromLocalFile(str(qml)))
     assert engine.rootObjects(), "host QML failed to load"
     engine._keep = (theme, backend)
