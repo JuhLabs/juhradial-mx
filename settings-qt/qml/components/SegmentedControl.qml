@@ -56,7 +56,10 @@ Item {
         id: pill
         width: seg._segW - 4; height: parent.height - 6
         radius: height / 2; y: 3
-        x: 2 + seg._indexOf(seg.currentId) * seg._segW
+        // The Row below mirrors its child order under RTL (segment i sits in
+        // slot _count - 1 - i); this explicit x does not, so mirror the slot.
+        x: 2 + (seg.LayoutMirroring.enabled ? seg._count - 1 - seg._indexOf(seg.currentId)
+                                            : seg._indexOf(seg.currentId)) * seg._segW
         color: Theme.accent
         Behavior on x { NumberAnimation { duration: Theme.dMed; easing.type: Easing.OutCubic } }
         Rectangle {

@@ -138,7 +138,8 @@ Item {
             }
         }
     }
-    // Right-aligned mono readout: every number on the page lines up.
+    // Right-aligned mono readout: every number on the page lines up, even when
+    // the page mirrors for RTL.
     component Readout: Text {
         width: 96
         horizontalAlignment: Text.AlignRight

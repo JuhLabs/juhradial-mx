@@ -1665,6 +1665,10 @@ if __name__ == "__main__":
     app.setApplicationName("JuhRadial MX")
     app.setDesktopFileName("juhradial-mx")
 
+    from i18n import setup_i18n
+
+    _ = setup_i18n()  # re-run now that QApplication exists, to set this app's text direction
+
     # Single-instance guard: a session-restored duplicate (issue #60) or a
     # double launch would both subscribe to MenuRequested and fight over
     # showing and grabbing the menu, breaking the gesture UX. Own a well-known

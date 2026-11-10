@@ -24,6 +24,25 @@ _SETTINGS_QT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = (Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
                / "juhradial" / "config.json")
 
+RTL_LANGUAGES = frozenset({"ar", "he"})
+
+
+def is_rtl_language(language: str) -> bool:
+    """True for an explicit RTL language code."""
+    return language in RTL_LANGUAGES
+
+
+def layout_direction_for(language):
+    """Qt.LayoutDirection for the configured language: RTL_LANGUAGES decides
+    an explicit override outright; None ("system", from configured_language)
+    defers to the system locale's own direction."""
+    from PyQt6.QtCore import QLocale, Qt
+
+    if language is None:
+        return QLocale.system().textDirection()
+    return (Qt.LayoutDirection.RightToLeft if is_rtl_language(language)
+            else Qt.LayoutDirection.LeftToRight)
+
 
 def locale_dirs() -> list[Path]:
     """Catalog directories in lookup order (checkout/opt first, then /usr/share)."""

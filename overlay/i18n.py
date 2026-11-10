@@ -39,6 +39,7 @@ SUPPORTED_LANGUAGES = {
     "zh_CN": "中文 (简体)",
     "ko": "한국어",
     "hi": "हिन्दी",
+    "he": "עברית",
     "pl": "Polski",
     "tr": "Turkce",
     "nl": "Nederlands",
@@ -46,6 +47,53 @@ SUPPORTED_LANGUAGES = {
     "ar": "العربية",
     "uk": "Українська",
 }
+
+RTL_LANGUAGES = frozenset({"ar", "he"})
+
+
+def gtk_direction_for(lang: str):
+    """Gtk.TextDirection for the configured language: RTL_LANGUAGES decides
+    an explicit override outright; "system" defers to the process locale
+    GTK itself would read (setup_i18n already ran locale.setlocale for that
+    branch). Imports gi lazily so a process that never touches GTK (the
+    PyQt6 tray app) never gains it as a hard dependency."""
+    import gi
+
+    gi.require_version("Gtk", "4.0")
+    from gi.repository import Gtk
+
+    if lang == "system":
+        return Gtk.get_locale_direction()
+    return Gtk.TextDirection.RTL if lang in RTL_LANGUAGES else Gtk.TextDirection.LTR
+
+
+def qt_direction_for(lang: str):
+    """PyQt6 Qt.LayoutDirection for the configured language, mirroring
+    gtk_direction_for's rule for the overlay's own QApplication (tray menu).
+    Imports PyQt6.QtCore lazily, same reasoning as gtk_direction_for."""
+    from PyQt6.QtCore import QLocale, Qt
+
+    if lang == "system":
+        return QLocale.system().textDirection()
+    return (Qt.LayoutDirection.RightToLeft if lang in RTL_LANGUAGES
+            else Qt.LayoutDirection.LeftToRight)
+
+
+def apply_platform_direction(lang: str) -> None:
+    """Set the default direction of every GUI toolkit this process has
+    already loaded. Checked via sys.modules, not import, so a process using
+    only one toolkit never gains the other as a dependency: the GTK settings
+    dashboard never imports PyQt6, the PyQt6 tray app never imports GTK."""
+    import sys
+
+    if "gi.repository.Gtk" in sys.modules:
+        from gi.repository import Gtk
+        Gtk.Widget.set_default_direction(gtk_direction_for(lang))
+    if "PyQt6.QtWidgets" in sys.modules:
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app is not None:
+            app.setLayoutDirection(qt_direction_for(lang))
 
 
 def get_configured_language() -> str:
@@ -63,6 +111,7 @@ def get_configured_language() -> str:
 def setup_i18n():
     """Initialize gettext with configured or system language. Returns _() function."""
     lang = get_configured_language()
+    apply_platform_direction(lang)
 
     if lang == "system":
         # Use system locale

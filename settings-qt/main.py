@@ -19,7 +19,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from bridge.theme import Theme          # noqa: E402
 from bridge.backend import Backend      # noqa: E402
-from bridge.i18n import install_translator  # noqa: E402
+from bridge.i18n import install_translator, configured_language, layout_direction_for  # noqa: E402
 from bridge import compat               # noqa: E402
 
 MONO_DIR = HERE / "assets" / "icons" / "mono"
@@ -218,6 +218,7 @@ def main():
     # Ahead of the translator: see compat.install.
     backend.setQtFeatures(compat.install(engine, theme))
     _ = install_translator(app)  # qsTr() -> gettext catalogs; _ keeps the reference for the app's lifetime
+    app.setLayoutDirection(layout_direction_for(configured_language()))
 
     # B1: the radial overlay colours itself from config.json `radial.accent`,
     # but the settings theme index lives in ui_state.json - so picking a theme
