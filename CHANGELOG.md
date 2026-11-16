@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The source build bootstraps Rust when the distro's is too old for the lockfile** - The installer installed rustup only below cargo 1.78, but the crates in the committed `Cargo.lock` need Rust 1.88 (zip 9, zbus 5). With a toolchain in between, Debian 13's 1.85 for one, a build from source stopped at `zip@9.0.5 requires rustc 1.88`. The floor is now 1.88. Installs that use the prebuilt daemon from a release were not affected.
 - **MX Master 4 settings over Bluetooth apply on wake, not just after a restart** - `run_hidraw_loop` gated button-divert replay and DPI/SmartShift/scroll replay on whether its own button-divert refresh had reconnected the HID++ manager that cycle. A lazy connect triggered later in the same cycle (the thumb-wheel or notification-index refresh, or the battery updater) never flipped that flag, so a Bluetooth wake could leave settings silently unapplied until the daemon was restarted by hand; the existing listener watchdog also only recognized a reconnect on a *different* hidraw node, never the same one. The loop now retries immediately when a late connect is detected, and a connection-generation counter lets the watchdog catch a same-node reconnect too. Reported by [@zxzxn3](https://github.com/zxzxn3) in [#192](https://github.com/JuhLabs/juhradial-mx/issues/192).
 
 ## [0.4.5-beta.6] - 2026-10-20

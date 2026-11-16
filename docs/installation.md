@@ -90,9 +90,9 @@ Keyboard-shortcut button actions and thumb-wheel actions (volume, zoom, horizont
 
 ### The rustup bootstrap
 
-The committed `Cargo.lock` is lockfile format v4 (needs Cargo >= 1.78) and the `toml_edit` dependency needs rustc >= 1.76. Several distros ship an older toolchain (Ubuntu 24.04 ships Rust 1.75), which cannot build the daemon.
+The crates pinned in the committed `Cargo.lock` need Rust >= 1.88 (`zip` 9 needs 1.88, `zbus` 5 needs 1.87). Several distros ship an older toolchain (Ubuntu 24.04 ships Rust 1.75, Debian 13 ships 1.85), which cannot build the daemon.
 
-The installer checks the active Cargo version and, if it is older than 1.78 or missing entirely, bootstraps the official toolchain non-interactively:
+The installer checks the active Cargo version and, if it is older than 1.88 or missing entirely, bootstraps the official toolchain non-interactively:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
@@ -148,7 +148,7 @@ sudo rm -f /etc/udev/rules.d/99-juhradialmx.rules /etc/udev/rules.d/70-juhradial
 ## Requirements
 
 - A Wayland compositor (KDE Plasma 6, GNOME, Hyprland, COSMIC, Sway, niri) or X11.
-- Rust toolchain (Cargo >= 1.78) to build the daemon. The installer provides this if needed.
+- Rust toolchain (Cargo >= 1.88) to build the daemon. The installer provides this if needed.
 - Python 3 with PyQt6 (overlay and the Qt/QML settings app; the Qt settings app needs Qt 6.4 or newer) and GTK4 + libadwaita via PyGObject (the fallback GTK settings app below that).
 - XWayland, used for overlay window positioning on Wayland.
 - A supported mouse (Logitech MX Master 4 / 3S / 3 for full HID++, or any mouse in generic evdev mode). See [FAQ](faq.md) for device coverage.
