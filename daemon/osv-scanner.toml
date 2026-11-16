@@ -7,15 +7,15 @@
 # vulnerability and no patched version; they go away with the move to zbus 6.
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0370"
-ignoreUntil = 2027-01-31
+effectiveUntil = 2027-01-31
 reason = "zvariant: informational unmaintained notice (merged into zbus 6.0), no vulnerability; clears with the zbus 6 migration"
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0371"
-ignoreUntil = 2027-01-31
+effectiveUntil = 2027-01-31
 reason = "zbus_names: informational unmaintained notice (merged into zbus 6.0), no vulnerability; clears with the zbus 6 migration"
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0372"
-ignoreUntil = 2027-01-31
+effectiveUntil = 2027-01-31
 reason = "zvariant_derive: informational unmaintained notice (merged into zbus 6.0), no vulnerability; clears with the zbus 6 migration"
