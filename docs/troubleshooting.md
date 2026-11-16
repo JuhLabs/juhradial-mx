@@ -45,9 +45,9 @@ Run these first. The output tells you which section you need.
 
 ### Problem: the build fails on an older distro (Ubuntu 24.04, Debian stable, and similar)
 
-**Cause.** The committed `Cargo.lock` is lockfile format v4, which needs `cargo >= 1.78`, and one dependency (`toml_edit`) needs `rustc >= 1.76`. Distro Rust packages are frequently older: Ubuntu 24.04 ships `1.75`. A too-old `cargo` produces lockfile or edition errors before anything compiles.
+**Cause.** The crates pinned in the committed `Cargo.lock` need Rust >= 1.88 (`zip` 9 needs `1.88`, `zbus` 5 needs `1.87`). Distro Rust packages are frequently older: Ubuntu 24.04 ships `1.75`, Debian 13 ships `1.85`. A too-old `cargo` stops with lockfile errors or `requires rustc 1.88` before anything compiles.
 
-**Fix.** Install an up-to-date toolchain with `rustup`. The one-line installer does this automatically when it detects a `cargo` older than `1.78`, but for a manual build do it yourself:
+**Fix.** Install an up-to-date toolchain with `rustup`. The one-line installer does this automatically when it detects a `cargo` older than `1.88`, but for a manual build do it yourself:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal

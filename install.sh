@@ -728,11 +728,12 @@ clone_repo() {
 
 # ── Build ────────────────────────────────────────────────────────────
 
-# Minimum cargo minor version (1.MIN) able to build the daemon: the committed
-# Cargo.lock is format v4 (needs cargo >= 1.78) and the toml_edit dependency
-# needs rustc >= 1.76. Distro toolchains are frequently older (Ubuntu 24.04
-# ships 1.75), so bootstrap rustup when the active cargo is too old or missing.
-MIN_CARGO_MINOR=78
+# Minimum cargo minor version (1.MIN) able to build the daemon: the highest
+# rust-version among the crates in the committed Cargo.lock (zip 9 needs 1.88,
+# zbus 5 needs 1.87). Distro toolchains are frequently older (Ubuntu 24.04
+# ships 1.75, Debian 13 ships 1.85), so bootstrap rustup when the active cargo
+# is too old or missing.
+MIN_CARGO_MINOR=88
 ensure_rust_toolchain() {
     if command -v cargo &> /dev/null; then
         local ver major minor
