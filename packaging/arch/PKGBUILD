@@ -1,5 +1,4 @@
-# Maintainer: JuhLabs (Julian Hermstad) <juhlabs@example.com>
-# Arch Linux PKGBUILD for JuhRadial MX
+# Maintainer: Julian Hermstad <dev@juhlabs.com>
 
 pkgname=juhradial-mx
 pkgver=0.4.5beta6
@@ -9,10 +8,11 @@ pkgrel=1
 pkgdesc="Beautiful radial menu for Logitech MX Master mice on Linux"
 arch=('x86_64')
 url="https://github.com/JuhLabs/juhradial-mx"
-license=('GPL3')
+license=('GPL-3.0-only')
 depends=(
     'gtk4'
     'gtk4-layer-shell'
+    'libadwaita'
     'python'
     'python-gobject'
     'python-cairo'
@@ -22,43 +22,37 @@ depends=(
     'qt6-declarative'
     'dbus'
 )
-makedepends=(
-    'rust'
-    'cargo'
-    'nodejs'
-    'npm'
-    'git'
-)
+makedepends=('cargo')
 optdepends=(
     'ydotool: for cursor capture on Wayland'
+    'python-zeroconf: Flow, finding linked computers on the network'
+    'python-requests: Flow, talking to linked computers'
 )
-provides=("$pkgname")
 conflicts=("$pkgname-git")
+install="$pkgname.install"
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$_srcver.tar.gz")
+# SKIP only in this in-tree copy: the tag's archive contains this file, so it
+# cannot carry its own checksum. The AUR copy has the real sum (updpkgsums).
 sha256sums=('SKIP')
+
+prepare() {
+    cd "$pkgname-$_srcver"
+    export RUSTUP_TOOLCHAIN=stable
+    # Keep crates/ beside daemon/ for the mx-keypad path dependency.
+    cargo fetch --locked --manifest-path daemon/Cargo.toml
+    cargo fetch --locked --manifest-path crates/mx-keypad/Cargo.toml
+}
 
 build() {
     cd "$pkgname-$_srcver"
-
-    # Keep crates/ beside daemon/ for the mx-keypad path dependency.
-    test -f crates/mx-keypad/Cargo.toml
-    # Build Rust daemon
-    cd daemon
-    cargo build --release --locked
-    cd ..
-
-    # Build KWin script (optional)
-    if [ -d "kwin-script" ]; then
-        cd kwin-script
-        npm ci --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps
-        npm run build 2>/dev/null || true
-        cd ..
-    fi
+    export RUSTUP_TOOLCHAIN=stable
+    cargo build --release --frozen --manifest-path daemon/Cargo.toml
 }
 
 check() {
     cd "$pkgname-$_srcver"
-    cargo test --locked --manifest-path crates/mx-keypad/Cargo.toml
+    export RUSTUP_TOOLCHAIN=stable
+    cargo test --frozen --manifest-path crates/mx-keypad/Cargo.toml
 }
 
 package() {
@@ -119,16 +113,4 @@ package() {
     # Install docs
     install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
     install -Dm644 CONTRIBUTING.md "$pkgdir/usr/share/doc/$pkgname/CONTRIBUTING.md"
-}
-
-post_install() {
-    echo ">>> To start JuhRadial MX:"
-    echo "    systemctl --user enable --now juhradialmx-daemon"
-    echo "    juhradial-mx"
-    echo ""
-    echo ">>> Or find 'JuhRadial MX' in your application menu"
-}
-
-post_upgrade() {
-    post_install
 }
