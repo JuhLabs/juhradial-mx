@@ -2313,26 +2313,46 @@ async fn run_custom_action(
     }
 }
 
-/// Write the effective pointer/scroll state to the mouse. False when a write
-/// failed (the next trigger retries).
+/// Write `state` to `target`, which is on connection `generation`, unless
+/// `expected` names another connection. `None` when skipped (nothing written).
+fn apply_unless_reconnected(
+    target: &mut impl juhradiald::replay::ReplayTarget,
+    generation: u64,
+    state: &juhradiald::replay::DeviceState,
+    expected: Option<u64>,
+) -> Option<(u8, u8)> {
+    if expected.is_some_and(|g| g != generation) {
+        return None;
+    }
+    Some(juhradiald::replay::apply(target, state))
+}
+
+/// Write the effective pointer/scroll state to the mouse. `Some(false)` when
+/// a write failed (the next trigger retries). With `expected_generation`, the
+/// writes happen only while the manager is still on that connection, checked
+/// under the guard that writes; `None` when a reconnect skipped them.
 async fn replay_pointer_state(
     manager: SharedHapticManager,
     ctx: juhradiald::replay::ReplayContext,
     unit_key: Option<String>,
-) -> bool {
+    expected_generation: Option<u64>,
+) -> Option<bool> {
     let result = tokio::task::spawn_blocking(move || {
         let state = ctx.effective(unit_key.as_deref());
         if state == juhradiald::replay::DeviceState::default() {
-            return (0, 0);
+            return Some((0, 0));
         }
         match manager.lock() {
-            Ok(mut m) => juhradiald::replay::apply(&mut *m, &state),
-            Err(_) => (0, 1),
+            Ok(mut m) => {
+                let generation = m.connection_generation();
+                apply_unless_reconnected(&mut *m, generation, &state, expected_generation)
+            }
+            Err(_) => Some((0, 1)),
         }
     })
     .await
-    .unwrap_or((0, 1));
-    let (tried, failed) = result;
+    .unwrap_or(Some((0, 1)));
+    let (tried, failed) = result?;
     if tried > 0 || failed > 0 {
         info!(tried, failed, "Replayed pointer and scroll state");
     }
@@ -2354,7 +2374,7 @@ async fn replay_pointer_state(
             .await;
         }
     }
-    failed == 0
+    Some(failed == 0)
 }
 
 /// Wait before the one retry of a failed post-wake replay: a write sent while
@@ -2362,21 +2382,17 @@ async fn replay_pointer_state(
 /// lands, and without a retry the mouse ran on other values until its next wake.
 const REPLAY_RETRY_DELAY: Duration = Duration::from_secs(3);
 
-/// After `delay`, run `replay` once if the manager is still on connection
-/// `generation`; a reconnect in the meantime runs its own replay. `None` when
-/// skipped, else whether the retry succeeded (it is never retried again).
-async fn retry_replay_once<G, GF, R, RF>(delay: Duration, generation: u64, current_generation: G, replay: R) -> Option<bool>
+/// After `delay`, run `replay` once for connection `generation`; `replay`
+/// writes only while the manager is still on it (a reconnect in the meantime
+/// runs its own replay). `None` when skipped, else whether the retry
+/// succeeded (it is never retried again).
+async fn retry_replay_once<R, RF>(delay: Duration, generation: u64, replay: R) -> Option<bool>
 where
-    G: FnOnce() -> GF,
-    GF: std::future::Future<Output = Option<u64>>,
-    R: FnOnce() -> RF,
-    RF: std::future::Future<Output = bool>,
+    R: FnOnce(u64) -> RF,
+    RF: std::future::Future<Output = Option<bool>>,
 {
     sleep(delay).await;
-    if current_generation().await != Some(generation) {
-        return None;
-    }
-    Some(replay().await)
+    replay(generation).await
 }
 
 async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawStartup, shared: HidrawShared) {
@@ -2538,17 +2554,14 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
                 .read()
                 .ok()
                 .and_then(|c| c.active_unit.clone());
-            if replay_pointer_state(haptic_manager.clone(), replay.clone(), unit_key.clone()).await {
+            if replay_pointer_state(haptic_manager.clone(), replay.clone(), unit_key.clone(), None).await == Some(true) {
                 replay_gate.record_success(Instant::now());
             } else if let Some(generation) = read_manager(&haptic_manager, |m| m.connection_generation()).await {
                 let (manager, ctx) = (haptic_manager.clone(), replay.clone());
                 replay_retry = Some(tokio::spawn(async move {
-                    let retried = retry_replay_once(
-                        REPLAY_RETRY_DELAY,
-                        generation,
-                        || read_manager(&manager, |m| m.connection_generation()),
-                        || replay_pointer_state(manager.clone(), ctx, unit_key),
-                    )
+                    let retried = retry_replay_once(REPLAY_RETRY_DELAY, generation, |generation| {
+                        replay_pointer_state(manager, ctx, unit_key, Some(generation))
+                    })
                     .await;
                     match retried {
                         Some(ok) => info!(ok, "Retried the pointer and scroll replay"),
@@ -3852,32 +3865,67 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_failed_replay_is_retried_once_on_the_same_connection() {
+    async fn a_failed_replay_is_retried_once_on_the_captured_connection() {
         use std::sync::atomic::{AtomicUsize, Ordering};
-        for outcome in [true, false] {
+        for outcome in [Some(true), Some(false), None] {
             let calls = AtomicUsize::new(0);
-            let result = retry_replay_once(Duration::ZERO, 4, || async { Some(4) }, || async {
+            let result = retry_replay_once(Duration::ZERO, 4, |generation| {
                 calls.fetch_add(1, Ordering::SeqCst);
-                outcome
+                assert_eq!(generation, 4, "the retry carries the generation it was armed on");
+                async move { outcome }
             })
             .await;
-            assert_eq!(result, Some(outcome));
+            assert_eq!(result, outcome, "a skip inside the replay is reported as one");
             assert_eq!(calls.load(Ordering::SeqCst), 1, "exactly one retry, even when it fails");
         }
     }
 
-    #[tokio::test]
-    async fn the_replay_retry_is_skipped_after_a_reconnect() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
-        for generation_now in [Some(5), None] {
-            let calls = AtomicUsize::new(0);
-            let result = retry_replay_once(Duration::ZERO, 4, || async { generation_now }, || async {
-                calls.fetch_add(1, Ordering::SeqCst);
-                true
-            })
-            .await;
-            assert_eq!(result, None, "{generation_now:?}");
-            assert_eq!(calls.load(Ordering::SeqCst), 0);
+    #[derive(Default)]
+    struct CountingTarget {
+        writes: usize,
+    }
+
+    impl juhradiald::replay::ReplayTarget for CountingTarget {
+        fn replay_smartshift(&mut self, _: bool, _: u8) -> bool {
+            self.writes += 1;
+            true
+        }
+        fn replay_hires(&mut self, _: bool, _: bool) -> bool {
+            self.writes += 1;
+            true
+        }
+        fn replay_dpi(&mut self, _: u16) -> bool {
+            self.writes += 1;
+            true
+        }
+        fn replay_force(&mut self, _: u8) -> bool {
+            self.writes += 1;
+            true
+        }
+    }
+
+    fn dpi_state() -> juhradiald::replay::DeviceState {
+        juhradiald::replay::DeviceState {
+            dpi: Some(1600),
+            ..Default::default()
+        }
+    }
+
+    /// A reconnect between the retry's arming and its writes must not put the
+    /// old unit's settings on the new connection (possibly another mouse).
+    #[test]
+    fn the_replay_retry_writes_nothing_after_a_reconnect() {
+        let mut target = CountingTarget::default();
+        assert_eq!(apply_unless_reconnected(&mut target, 5, &dpi_state(), Some(4)), None);
+        assert_eq!(target.writes, 0);
+    }
+
+    #[test]
+    fn the_replay_writes_on_the_expected_or_any_connection() {
+        for expected in [Some(4), None] {
+            let mut target = CountingTarget::default();
+            assert_eq!(apply_unless_reconnected(&mut target, 4, &dpi_state(), expected), Some((1, 0)));
+            assert_eq!(target.writes, 1, "{expected:?}");
         }
     }
 

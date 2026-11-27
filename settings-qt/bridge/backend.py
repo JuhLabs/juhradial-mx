@@ -1494,6 +1494,7 @@ class Backend(QObject):
         self._level_pulse.setSingleShot(True)
         self._level_pulse.setInterval(250)
         self._level_pulse.timeout.connect(self._pulse_level)
+        self._level_pick = 0
         self._host_names = []
         self._host_slots = []
         self._ss_supported = False
@@ -4154,7 +4155,14 @@ class Backend(QObject):
         # feel the new strength waits for the reload that puts it on the mouse.
         self._set_path(["haptics", "level"], pct)
         self._save()
-        self.daemon.call_then("ReloadConfig", lambda r: r is not None and self._level_pulse.start())
+        # Only the latest pick's successful reload may arm the pulse: an older
+        # pick's timer or late reply would pulse at a strength already replaced.
+        self._level_pulse.stop()
+        self._level_pick += 1
+        pick = self._level_pick
+        self.daemon.call_then(
+            "ReloadConfig",
+            lambda r: r is not None and pick == self._level_pick and self._level_pulse.start())
         self.configChanged.emit()
         self._hap_dev["levelPct"] = pct
         self.hapticDeviceChanged.emit()

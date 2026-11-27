@@ -84,3 +84,33 @@ def test_no_pulse_when_the_reload_fails(backend):
     backend.setHapticLevel("low")
     assert backend.get("haptics.level") == 50
     assert _pulses(backend) == []
+
+
+def _hold_reloads(backend):
+    """Keep each ReloadConfig callback for the test to answer later."""
+    held = []
+
+    def call_then(m, cb, *a):
+        backend.calls.append((m, *a))
+        held.append(cb)
+    backend.daemon.call_then = call_then
+    return held
+
+
+def test_a_late_success_of_an_earlier_pick_gives_no_second_pulse(backend):
+    held = _hold_reloads(backend)
+    backend.setHapticLevel("low")
+    backend.setHapticLevel("medium")
+    held[1]([])
+    assert len(_pulses(backend)) == 1
+    held[0]([])
+    assert len(_pulses(backend)) == 1
+
+
+def test_a_failed_reload_cancels_the_pulse_an_earlier_pick_armed(backend):
+    held = _hold_reloads(backend)
+    backend.setHapticLevel("low")
+    held[0]([])
+    backend.setHapticLevel("medium")
+    held[1](None)
+    assert _pulses(backend) == []

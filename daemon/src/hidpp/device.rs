@@ -496,7 +496,7 @@ fn is_reply_to(response: &[u8], device_index: u8, feature_index: u8, fn_sw: u8) 
 }
 
 /// HID++ 2.0 error code "busy": the device could not take the request now.
-const HIDPP_ERR_BUSY: u8 = 0x06;
+const HIDPP_ERR_BUSY: u8 = 0x08;
 
 /// Pause before the one retry of a request the device answered Busy.
 const BUSY_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(20);
@@ -1445,14 +1445,15 @@ impl HidppDevice {
                             let error_code = response[5];
                             let error_msg = match error_code {
                                 0x00 => "No error",
-                                0x01 => "Unknown function",
-                                0x02 => "Function not available",
-                                0x03 => "Invalid argument",
-                                0x04 => "Not supported",
-                                0x05 => "Invalid argument/Out of range",
-                                0x06 => "Device busy",
-                                0x07 => "Connection failed",
-                                0x08 => "Invalid address",
+                                0x01 => "Unknown",
+                                0x02 => "Invalid argument",
+                                0x03 => "Out of range",
+                                0x04 => "Hardware error",
+                                0x05 => "Logitech internal (not allowed)",
+                                0x06 => "Invalid feature index",
+                                0x07 => "Invalid function id",
+                                0x08 => "Busy",
+                                0x09 => "Unsupported",
                                 _ => "Unknown error",
                             };
                             tracing::warn!(
@@ -3612,7 +3613,7 @@ mod host_switch_tests {
         assert_eq!((retried, sends), (None, 2), "the retry path sends twice and hides the Busy");
 
         let refused = host_switch_result(Err(Some(HIDPP_ERR_BUSY)), None).unwrap_err();
-        assert!(refused.contains("0x06"), "{refused}");
+        assert!(refused.contains("0x08"), "{refused}");
     }
 
     #[test]
@@ -3726,6 +3727,25 @@ mod request_robustness_tests {
             Err::<Vec<u8>, _>(Some(HIDPP_ERR_BUSY))
         });
         assert_eq!((reply, calls), (None, 2), "busy twice: only one retry");
+    }
+
+    /// HID++ 2.0 numbers Busy 0x08; 0x06 is "invalid feature index", which a
+    /// second send cannot fix.
+    #[test]
+    fn the_wire_code_for_busy_is_0x08_not_0x06() {
+        let mut calls = 0;
+        let reply = retry_once_if_busy(Duration::ZERO, || {
+            calls += 1;
+            if calls == 1 { Err(Some(0x08)) } else { Ok(vec![0x10]) }
+        });
+        assert_eq!((reply, calls), (Some(vec![0x10]), 2), "0x08 is Busy: retried once");
+
+        let mut calls = 0;
+        let reply = retry_once_if_busy(Duration::ZERO, || {
+            calls += 1;
+            if calls == 1 { Err(Some(0x06)) } else { Ok(vec![0x10]) }
+        });
+        assert_eq!((reply, calls), (None, 1), "0x06 is invalid feature index: not retried");
     }
 
     #[test]
