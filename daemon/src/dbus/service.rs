@@ -8,6 +8,7 @@ use crate::gaming::SharedGamingMode;
 use crate::hidpp::SharedHapticManager;
 use crate::macros::{MacroEngine, MacroRecorder, SharedTriggerMap, TriggerMap};
 use crate::profiles::SharedHardwareProfiles;
+use crate::replay::SharedActiveProfile;
 
 /// Shared, live-updatable device name type
 pub type SharedDeviceName = Arc<tokio::sync::RwLock<String>>;
@@ -48,6 +49,9 @@ pub struct JuhRadialService {
     /// profiles.json so UI saves take effect without a daemon restart; the
     /// focus-change consumer reads it on each active-window change.
     pub(crate) hardware_profiles: SharedHardwareProfiles,
+    /// The class whose hardware profile the focus consumer applied, so
+    /// `ReloadConfig` re-applies that profile's thumb-wheel mode.
+    pub(crate) active_profile: SharedActiveProfile,
 }
 
 impl JuhRadialService {
@@ -80,6 +84,7 @@ impl JuhRadialService {
             trigger_map: Arc::new(std::sync::RwLock::new(TriggerMap::default())),
             active_window_tx,
             hardware_profiles: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
+            active_profile: crate::replay::new_shared_active_profile(),
         }
     }
 
@@ -97,6 +102,7 @@ impl JuhRadialService {
         trigger_map: SharedTriggerMap,
         active_window_tx: tokio::sync::mpsc::UnboundedSender<String>,
         hardware_profiles: SharedHardwareProfiles,
+        active_profile: SharedActiveProfile,
     ) -> Self {
         Self {
             current_profile: "default".to_string(),
@@ -112,6 +118,7 @@ impl JuhRadialService {
             trigger_map,
             active_window_tx,
             hardware_profiles,
+            active_profile,
         }
     }
 }
@@ -163,6 +170,7 @@ mod tests {
             trigger_map,
             active_window_tx,
             hardware_profiles,
+            crate::replay::new_shared_active_profile(),
         );
         assert_eq!(service.device_mode, "generic");
         assert_eq!(

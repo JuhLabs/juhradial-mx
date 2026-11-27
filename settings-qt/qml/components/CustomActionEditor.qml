@@ -29,7 +29,8 @@ B.Popup {
 
     modal: true; dim: true; focus: true
     width: 500
-    height: Math.min(implicitHeight, parent ? parent.height - 60 : 560)
+    // Sized against the window, not the key editor Column it is declared in (#206).
+    height: Math.min(implicitHeight, T.Overlay.overlay ? T.Overlay.overlay.height - 60 : 560)
     anchors.centerIn: T.Overlay.overlay
     closePolicy: B.Popup.CloseOnEscape | B.Popup.CloseOnPressOutside
     padding: 22

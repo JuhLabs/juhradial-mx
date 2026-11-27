@@ -362,6 +362,41 @@ Re-plugging the dongle also forces a reconnect on older builds. If `ps -ef | gre
 
 ---
 
+## Cursor stutter
+
+### Problem: the whole cursor freezes for a second or two, only while the daemon runs
+
+**Cause.** To keep the gesture button's fallback code (and any macro-bound button) away from the desktop, the daemon grabs the MX mouse exclusively and re-sends every event through a virtual mouse named `JuhRadial Virtual Mouse`. If that forwarding is held up, the pointer stops until it catches up ([#210](https://github.com/JuhLabs/juhradial-mx/issues/210)).
+
+**Diagnose.** Builds newer than 0.4.5-beta.6 log a warning whenever a movement frame reaches the virtual mouse more than 100 ms late or the write itself takes more than 50 ms (at most one line per second):
+
+```bash
+journalctl --user -u juhradialmx-daemon | grep "Pointer forwarding stalled"
+```
+
+`lag_ms` is how late the frame was, `emit_ms` how long the write took. Two environment switches narrow it down further. Each is read once at startup and logs a warning while it is on:
+
+- `JUHRADIAL_NO_BATTERY_POLL=1` turns off the periodic battery query. If the freezes stop, the HID++ battery round trip is involved. The same poll is also one of the ways the daemon notices that a sleeping Bolt mouse woke up ([#102](https://github.com/JuhLabs/juhradial-mx/issues/102)), so with this switch on the gesture button can stay dead after a sleep. Use it for diagnosis only.
+- `JUHRADIAL_NO_GRAB=1` skips the exclusive grab and the virtual mouse, so the pointer goes straight from the mouse to the desktop. If the freezes stop, the forwarding path is involved. While it is on, the gesture button's fallback code (browser back) may also reach the desktop.
+
+Set one at a time on the service, reproduce, then remove it again:
+
+```bash
+systemctl --user edit juhradialmx-daemon
+# In the editor, add:
+#   [Service]
+#   Environment=JUHRADIAL_NO_BATTERY_POLL=1
+systemctl --user restart juhradialmx-daemon
+
+# When done, drop the override:
+systemctl --user revert juhradialmx-daemon
+systemctl --user restart juhradialmx-daemon
+```
+
+Or try it once in the foreground: `systemctl --user stop juhradialmx-daemon`, then `JUHRADIAL_NO_GRAB=1 /usr/local/bin/juhradiald --verbose`. Include the result and the warning lines in the issue.
+
+---
+
 ## Haptics and battery
 
 ### Problem: no haptic feedback, and battery/DPI/Easy-Switch fields are empty

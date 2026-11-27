@@ -43,6 +43,16 @@ pub const RAW_XY_EVENT: u8 = 0x01;
 /// events, with the sub-id in the byte that 2.0 uses for the feature index.
 pub const RECEIVER_CONNECTION_SUB_ID: u8 = 0x41;
 
+/// Whether a report is a divertedButtonsEvent: function 0 with software id 0
+/// (a notification; a reply to anyone's request carries its sender's id), on
+/// the REPROG_CONTROLS_V4 index when that is known. Without these checks a
+/// function-0 reply on any feature (getCount, another tool's request) was
+/// decoded as a button press from its payload bytes.
+fn is_diverted_button_event(feature_index: u8, function_sw_id: u8, reprog_controls: Option<u8>) -> bool {
+    function_sw_id == DIVERTED_BUTTONS_EVENT << 4
+        && reprog_controls.is_none_or(|index| index == feature_index)
+}
+
 /// Minimum spacing between divert-refresh triggers. A flapping radio link
 /// (mouse at the edge of range) can emit connection notifications in bursts;
 /// re-applying diverts is idempotent but costs HID++ round-trips, so bursts
@@ -64,6 +74,55 @@ pub mod button_cid {
     pub const SMART_SHIFT: u16 = 196;
     /// Haptic feedback button (if present)
     pub const HAPTIC: u16 = 416;
+}
+
+/// A pause longer than this between thumb-wheel reports starts a new gesture.
+/// Slow deliberate rotation reports about every 220 ms, with gaps up to about
+/// 370 ms measured inside one turn, so the limit sits well above that. The
+/// rotation status byte ends a gesture sooner on devices that report it.
+const THUMBWHEEL_IDLE_RESET: std::time::Duration = std::time::Duration::from_millis(1000);
+
+/// Most action repeats one thumb-wheel report may send, however fast the turn.
+const THUMBWHEEL_MAX_REPEATS: u32 = 8;
+
+/// Turns raw thumb-wheel counts into whole steps (issue #204). The wheel
+/// sends 1 count per report when turned slowly and up to 7 when turned fast,
+/// so one action per report made a light brush change the volume and a short
+/// turn sweep it end to end.
+#[derive(Debug, Default)]
+struct ThumbwheelAccumulator {
+    /// Counts not yet spent on a step (signed, |counts| < threshold).
+    counts: i32,
+    last: Option<Instant>,
+    /// Mode the counts were collected for.
+    mode: Option<crate::config::ThumbwheelMode>,
+}
+
+impl ThumbwheelAccumulator {
+    /// Add one report's counts and return the whole steps completed (signed,
+    /// rounded toward zero); the remainder waits for the next report. A
+    /// reversal, a pause or a mode change drops the leftover counts first.
+    fn feed(
+        &mut self,
+        delta: i32,
+        threshold: i32,
+        mode: crate::config::ThumbwheelMode,
+        now: Instant,
+    ) -> i32 {
+        let idle = self
+            .last
+            .is_some_and(|last| now.duration_since(last) > THUMBWHEEL_IDLE_RESET);
+        let reversed = self.counts != 0 && (self.counts < 0) != (delta < 0);
+        if idle || reversed || self.mode != Some(mode) {
+            self.counts = 0;
+        }
+        self.mode = Some(mode);
+        self.last = Some(now);
+        self.counts += delta;
+        let steps = self.counts / threshold;
+        self.counts %= threshold;
+        steps
+    }
 }
 
 /// HID++ hidraw handler for reading diverted button events
@@ -97,6 +156,11 @@ pub struct HidrawHandler {
     /// ThumbWheel feature index (0x2150), used to disambiguate diverted
     /// thumb-wheel rotation notifications from diverted button events.
     thumbwheel_feature_index: Option<u8>,
+    /// Rotation counts collected toward the next thumb-wheel step.
+    thumbwheel_counts: ThumbwheelAccumulator,
+    /// Applied per-app profile and the profile map: its thumb-wheel mode
+    /// overrides the global one while it is in front.
+    profile_source: Option<(crate::replay::SharedActiveProfile, crate::profiles::SharedHardwareProfiles)>,
     /// Feature indices for device-originated hardware notifications (battery,
     /// host, DPI, ratchet), used for live hardware readback.
     notification_indices: crate::hidpp::notifications::NotificationIndices,
@@ -163,6 +227,8 @@ impl HidrawHandler {
             active_button_action: None,
             custom_down: false,
             thumbwheel_feature_index: None,
+            thumbwheel_counts: ThumbwheelAccumulator::default(),
+            profile_source: None,
             notification_indices: Default::default(),
             kwin_available: None,
             divert_refresh_needed: false,
@@ -218,8 +284,21 @@ impl HidrawHandler {
         self.mouse_device_index = index;
     }
 
+    /// Called on every (re)connect, so leftover rotation counts from before
+    /// a disconnect never complete a step afterwards.
     pub fn set_thumbwheel_feature_index(&mut self, index: Option<u8>) {
         self.thumbwheel_feature_index = index;
+        self.thumbwheel_counts = ThumbwheelAccumulator::default();
+    }
+
+    /// Share the applied per-app profile, so rotation uses its thumb-wheel
+    /// mode (the profile diverts the wheel for that mode).
+    pub fn set_profile_source(
+        &mut self,
+        active: crate::replay::SharedActiveProfile,
+        profiles: crate::profiles::SharedHardwareProfiles,
+    ) {
+        self.profile_source = Some((active, profiles));
     }
 
     /// Register the feature indices used to decode device-originated hardware
@@ -548,10 +627,9 @@ impl HidrawHandler {
             }
         }
 
-        // Check for diverted button event (feature 0x1B04, function 0x00)
-        // The feature index varies per device, so we check function_id.
+        // Check for diverted button event (feature 0x1B04, function 0x00).
         // We also validate the CID in handle_button_event to ignore unknown buttons.
-        if function_id == DIVERTED_BUTTONS_EVENT {
+        if is_diverted_button_event(feature_index, function_sw_id, self.notification_indices.reprog_controls) {
             self.handle_button_event(data).await;
         }
     }
@@ -559,32 +637,61 @@ impl HidrawHandler {
     /// Handle a diverted thumb-wheel rotation notification.
     ///
     /// The HID++ ThumbWheel (0x2150) rotation event carries a signed 16-bit
-    /// rotation delta in bytes 4-5 (big endian). The delta is mapped to an
-    /// action (volume / horizontal scroll / zoom) per the `thumbwheel` config
-    /// section.
-    async fn handle_thumbwheel_event(&self, data: &[u8]) {
+    /// rotation delta in bytes 4-5 (big endian) and the rotation status in
+    /// byte 8. Deltas collect into steps of `threshold` counts, and each step
+    /// maps to `speed` repeats of an action (volume / horizontal scroll /
+    /// zoom) per the `thumbwheel` config section.
+    async fn handle_thumbwheel_event(&mut self, data: &[u8]) {
         if data.len() < 6 {
             return;
         }
 
         // Rotation delta: signed 16-bit, big endian.
         let delta = i16::from_be_bytes([data[4], data[5]]);
+        // rotationStatus, as measured on an MX Master 4: 0 inactive, 1 start,
+        // 2 active, 3 stop. Start (it carries the first counts) and a
+        // zero-delta stop or inactive report bound a gesture. Status 0 with
+        // counts is not treated as a boundary, so a device that leaves the
+        // byte at 0 still accumulates (idle and reversal resets still apply).
+        let status = data.get(8).copied();
+        if status == Some(1) || (delta == 0 && matches!(status, Some(0 | 3))) {
+            self.thumbwheel_counts = ThumbwheelAccumulator::default();
+        }
         if delta == 0 {
-            return; // Status-only event (rotation start/stop), no movement.
+            return; // Status-only event (touch, rotation start/stop), no movement.
         }
 
+        let profile_mode = self
+            .profile_source
+            .as_ref()
+            .and_then(|(active, profiles)| crate::profiles::active_thumbwheel_mode(active, profiles));
         let cfg = match self.shared_config.as_ref().and_then(|c| c.read().ok()) {
-            Some(c) => c.thumbwheel.clone(),
+            Some(c) => c.thumbwheel.clone().with_profile_mode(profile_mode),
             None => return,
         };
+        if cfg.mode == crate::config::ThumbwheelMode::Off {
+            return;
+        }
 
-        let output = match cfg.resolve(delta) {
+        // Counts are collected before the software invert; inverting is a
+        // sign flip, so steps and remainders come out the same, and resolve()
+        // still applies the invert to the direction (issue #127).
+        let steps = self.thumbwheel_counts.feed(
+            i32::from(delta),
+            i32::from(cfg.counts_per_step()),
+            cfg.mode,
+            Instant::now(),
+        );
+        if steps == 0 {
+            return; // Below one step: a brush, or a slow turn still building up.
+        }
+        let output = match cfg.resolve(steps.signum() as i16) {
             Some(o) => o,
-            None => return, // Off or zero.
+            None => return,
         };
-        let repeats = cfg.repeats();
+        let repeats = (steps.unsigned_abs() * u32::from(cfg.repeats())).min(THUMBWHEEL_MAX_REPEATS) as u8;
 
-        tracing::debug!(delta, ?output, repeats, "ThumbWheel rotation");
+        tracing::debug!(delta, steps, ?output, repeats, "ThumbWheel rotation");
 
         match output {
             crate::config::ThumbwheelOutput::Button(action) => {
@@ -1194,6 +1301,41 @@ mod tests {
         assert_eq!(custom_edges(&drain(&mut rx)), [true, false]);
     }
 
+    /// A diverted-button event is a notification (software id 0) on the
+    /// REPROG_CONTROLS_V4 index. A reply to a request (non-zero software id)
+    /// or another feature's function-0 event is not a button press; with the
+    /// index not known yet the software id alone decides.
+    #[test]
+    fn diverted_button_gate_needs_software_id_zero_and_the_reprog_index() {
+        assert!(is_diverted_button_event(0x0b, 0x00, Some(0x0b)));
+        assert!(!is_diverted_button_event(0x0b, 0x03, Some(0x0b)), "getCount reply, our sw id 3");
+        assert!(!is_diverted_button_event(0x0b, 0x0B, Some(0x0b)), "another tool's reply (Solaar 0x0B)");
+        assert!(!is_diverted_button_event(0x0c, 0x00, Some(0x0b)), "another feature's event");
+        assert!(!is_diverted_button_event(0x0b, 0x10, Some(0x0b)), "raw XY is function 1");
+        assert!(is_diverted_button_event(0x0c, 0x00, None), "index unknown: as before");
+        assert!(!is_diverted_button_event(0x0c, 0x05, None), "a reply even then");
+    }
+
+    #[tokio::test]
+    async fn only_real_diverted_button_notifications_reach_the_button_handler() {
+        let (mut h, mut rx, _tracker) = directional_handler(false);
+        h.set_notification_indices(crate::hidpp::notifications::NotificationIndices {
+            reprog_controls: Some(0x0b),
+            ..Default::default()
+        });
+        let mut reply = diverted_button_report(button_cid::BACK_BUTTON);
+        reply[3] = 0x03;
+        h.process_hidpp_report(&reply).await;
+        let mut other_feature = diverted_button_report(button_cid::BACK_BUTTON);
+        other_feature[2] = 0x0c;
+        h.process_hidpp_report(&other_feature).await;
+        assert!(drain(&mut rx).is_empty(), "neither is a press");
+
+        h.process_hidpp_report(&diverted_button_report(button_cid::BACK_BUTTON)).await;
+        h.process_hidpp_report(&diverted_button_report(0)).await;
+        assert_eq!(drain(&mut rx).len(), 2, "press and release");
+    }
+
     /// With the feature off (the default and every existing config) the
     /// gesture button dispatches exactly as before.
     #[tokio::test]
@@ -1354,31 +1496,207 @@ mod tests {
         assert!(!h.take_divert_refresh_needed());
     }
 
-    #[tokio::test]
-    async fn thumbwheel_repetitions_are_batched_into_one_event() {
+    /// ThumbWheel (0x2150) event: rotation in bytes 4-5 (big endian),
+    /// rotationStatus in byte 8 (1 start, 2 active, 3 stop).
+    fn thumbwheel_report(delta: i16, status: u8) -> [u8; 20] {
+        let mut report = [0u8; 20];
+        report[0] = HIDPP_LONG;
+        report[1] = 0x02;
+        report[2] = 0x13;
+        report[4..6].copy_from_slice(&delta.to_be_bytes());
+        report[8] = status;
+        report
+    }
+
+    fn thumbwheel_handler(
+        mode: crate::config::ThumbwheelMode,
+        speed: u8,
+        threshold: u8,
+    ) -> (HidrawHandler, mpsc::Receiver<GestureEvent>) {
         let config = crate::config::new_shared_config();
         {
             let mut config = config.write().unwrap();
-            config.thumbwheel.mode = crate::config::ThumbwheelMode::Volume;
-            config.thumbwheel.speed = 8;
+            config.thumbwheel.mode = mode;
+            config.thumbwheel.speed = speed;
+            config.thumbwheel.threshold = threshold;
         }
-        let (tx, mut rx) = mpsc::channel(16);
+        let (tx, rx) = mpsc::channel(16);
         let mut handler = HidrawHandler::new(tx);
         handler.set_shared_config(config);
-        handler
-            .handle_thumbwheel_event(&[HIDPP_LONG, 0, 0, 0, 0, 1])
-            .await;
+        (handler, rx)
+    }
+
+    fn repeats_of(event: &GestureEvent) -> Option<(crate::config::ButtonAction, u8)> {
+        match event {
+            GestureEvent::ButtonActionEvent { action, repeats, pressed: true, source: None } => {
+                Some((*action, *repeats))
+            }
+            _ => None,
+        }
+    }
+
+    // Issue #204: one report sends at most one event, and that event never
+    // carries more than 8 repeats however many steps the report completes.
+    #[tokio::test]
+    async fn thumbwheel_repetitions_are_batched_into_one_event() {
+        use crate::config::{ButtonAction, ThumbwheelMode};
+        let (mut handler, mut rx) = thumbwheel_handler(ThumbwheelMode::Volume, 8, 1);
+        handler.handle_thumbwheel_event(&thumbwheel_report(1, 2)).await;
         let events = drain(&mut rx);
         assert_eq!(events.len(), 1, "one rotation must send one event");
-        assert!(matches!(
-            events[0],
-            GestureEvent::ButtonActionEvent {
-                repeats: 8,
-                action: crate::config::ButtonAction::VolumeUp,
-                pressed: true,
-                source: None,
-                ..
-            }
-        ));
+        assert_eq!(repeats_of(&events[0]), Some((ButtonAction::VolumeUp, 8)));
+
+        handler.handle_thumbwheel_event(&thumbwheel_report(7, 2)).await;
+        let events = drain(&mut rx);
+        assert_eq!(events.len(), 1, "a fast report still sends one event");
+        assert_eq!(repeats_of(&events[0]), Some((ButtonAction::VolumeUp, 8)), "capped at 8");
+    }
+
+    #[tokio::test]
+    async fn thumbwheel_brush_below_threshold_sends_nothing() {
+        let (mut handler, mut rx) = thumbwheel_handler(crate::config::ThumbwheelMode::Volume, 1, 4);
+        handler.handle_thumbwheel_event(&thumbwheel_report(1, 1)).await;
+        assert!(drain(&mut rx).is_empty(), "a light brush is the dead zone");
+    }
+
+    #[tokio::test]
+    async fn thumbwheel_fast_report_carries_its_remainder() {
+        use crate::config::{ButtonAction, ThumbwheelMode};
+        let (mut handler, mut rx) = thumbwheel_handler(ThumbwheelMode::Volume, 2, 4);
+        handler.handle_thumbwheel_event(&thumbwheel_report(-7, 2)).await;
+        let events = drain(&mut rx);
+        assert_eq!(events.len(), 1);
+        assert_eq!(repeats_of(&events[0]), Some((ButtonAction::VolumeDown, 2)), "1 step x speed 2");
+        // 3 counts carried over: one more completes the next step.
+        handler.handle_thumbwheel_event(&thumbwheel_report(-1, 2)).await;
+        assert_eq!(drain(&mut rx).len(), 1);
+    }
+
+    #[tokio::test]
+    async fn thumbwheel_gesture_boundaries_drop_leftover_counts() {
+        let (mut handler, mut rx) = thumbwheel_handler(crate::config::ThumbwheelMode::Volume, 1, 4);
+        handler.handle_thumbwheel_event(&thumbwheel_report(3, 2)).await;
+        // A stop report ends the gesture; the next start begins from zero.
+        handler.handle_thumbwheel_event(&thumbwheel_report(0, 3)).await;
+        handler.handle_thumbwheel_event(&thumbwheel_report(1, 2)).await;
+        assert!(drain(&mut rx).is_empty(), "stop must reset the count");
+
+        handler.handle_thumbwheel_event(&thumbwheel_report(2, 2)).await;
+        handler.handle_thumbwheel_event(&thumbwheel_report(1, 1)).await;
+        assert!(drain(&mut rx).is_empty(), "start must reset the count");
+
+        // A zero-delta report mid-rotation (status active) keeps the count.
+        handler.handle_thumbwheel_event(&thumbwheel_report(2, 2)).await;
+        handler.handle_thumbwheel_event(&thumbwheel_report(0, 2)).await;
+        handler.handle_thumbwheel_event(&thumbwheel_report(1, 2)).await;
+        assert_eq!(drain(&mut rx).len(), 1);
+    }
+
+    #[tokio::test]
+    async fn thumbwheel_reconnect_drops_leftover_counts() {
+        let (mut handler, mut rx) = thumbwheel_handler(crate::config::ThumbwheelMode::Volume, 1, 4);
+        handler.handle_thumbwheel_event(&thumbwheel_report(3, 2)).await;
+        handler.set_thumbwheel_feature_index(Some(0x13));
+        handler.handle_thumbwheel_event(&thumbwheel_report(1, 2)).await;
+        assert!(drain(&mut rx).is_empty());
+    }
+
+    // The per-app profile diverts the wheel for its own mode, so the handler
+    // must resolve with that mode, not the global one.
+    #[tokio::test]
+    async fn thumbwheel_uses_the_active_profile_mode() {
+        use crate::config::{ButtonAction, ThumbwheelMode};
+        let (mut handler, mut rx) = thumbwheel_handler(ThumbwheelMode::Off, 1, 1);
+        let active = crate::replay::new_shared_active_profile();
+        let profiles: crate::profiles::SharedHardwareProfiles = Default::default();
+        profiles.write().unwrap().insert(
+            "firefox".into(),
+            crate::profiles::HardwareProfile { thumbwheel: Some(ThumbwheelMode::Volume), ..Default::default() },
+        );
+        handler.set_profile_source(active.clone(), profiles);
+
+        handler.handle_thumbwheel_event(&thumbwheel_report(1, 2)).await;
+        assert!(drain(&mut rx).is_empty(), "global Off, no profile in front");
+
+        *active.write().unwrap() = Some("firefox".into());
+        handler.handle_thumbwheel_event(&thumbwheel_report(1, 2)).await;
+        let events = drain(&mut rx);
+        assert_eq!(events.len(), 1);
+        assert_eq!(repeats_of(&events[0]), Some((ButtonAction::VolumeUp, 1)));
+    }
+
+    mod accumulator {
+        use super::super::ThumbwheelAccumulator;
+        use crate::config::ThumbwheelMode::{Volume, Zoom};
+        use std::time::{Duration, Instant};
+
+        fn ms(t0: Instant, n: u64) -> Instant {
+            t0 + Duration::from_millis(n)
+        }
+
+        #[test]
+        fn single_brush_is_below_threshold() {
+            let mut acc = ThumbwheelAccumulator::default();
+            assert_eq!(acc.feed(1, 4, Volume, Instant::now()), 0);
+        }
+
+        #[test]
+        fn four_slow_counts_make_one_step() {
+            let mut acc = ThumbwheelAccumulator::default();
+            let t0 = Instant::now();
+            let steps: Vec<i32> = (0..4).map(|i| acc.feed(1, 4, Volume, ms(t0, i * 220))).collect();
+            assert_eq!(steps, [0, 0, 0, 1]);
+        }
+
+        #[test]
+        fn fast_report_keeps_its_remainder() {
+            let mut acc = ThumbwheelAccumulator::default();
+            let t0 = Instant::now();
+            assert_eq!(acc.feed(7, 4, Volume, t0), 1);
+            assert_eq!(acc.counts, 3);
+            assert_eq!(acc.feed(1, 4, Volume, ms(t0, 11)), 1);
+            assert_eq!(acc.counts, 0);
+            assert_eq!(acc.feed(-7, 4, Volume, ms(t0, 22)), -1);
+            assert_eq!(acc.counts, -3);
+        }
+
+        #[test]
+        fn reversal_resets() {
+            let mut acc = ThumbwheelAccumulator::default();
+            let t0 = Instant::now();
+            assert_eq!(acc.feed(3, 4, Volume, t0), 0);
+            assert_eq!(acc.feed(-1, 4, Volume, ms(t0, 11)), 0);
+            assert_eq!(acc.counts, -1, "the +3 must not cancel against the reversal");
+            assert_eq!(acc.feed(-3, 4, Volume, ms(t0, 22)), -1);
+        }
+
+        #[test]
+        fn idle_gap_resets() {
+            let mut acc = ThumbwheelAccumulator::default();
+            let t0 = Instant::now();
+            assert_eq!(acc.feed(3, 4, Volume, t0), 0);
+            assert_eq!(acc.feed(1, 4, Volume, ms(t0, 1001)), 0);
+            assert_eq!(acc.counts, 1);
+            assert_eq!(acc.feed(3, 4, Volume, ms(t0, 2001)), 1, "exactly the limit still continues");
+        }
+
+        #[test]
+        fn mode_change_resets() {
+            let mut acc = ThumbwheelAccumulator::default();
+            let t0 = Instant::now();
+            assert_eq!(acc.feed(3, 4, Volume, t0), 0);
+            assert_eq!(acc.feed(1, 4, Zoom, ms(t0, 11)), 0);
+            assert_eq!(acc.counts, 1);
+        }
+
+        #[test]
+        fn threshold_one_is_one_step_per_count() {
+            let mut acc = ThumbwheelAccumulator::default();
+            let t0 = Instant::now();
+            assert_eq!(acc.feed(1, 1, Volume, t0), 1);
+            assert_eq!(acc.feed(7, 1, Volume, ms(t0, 11)), 7);
+            assert_eq!(acc.feed(-2, 1, Volume, ms(t0, 22)), -2);
+            assert_eq!(acc.counts, 0);
+        }
     }
 }

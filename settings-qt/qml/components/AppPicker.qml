@@ -15,7 +15,9 @@ B.Popup {
     dim: true
     focus: true
     width: 460
-    height: Math.min(600, parent ? parent.height - 80 : 600)
+    // Sized against the window, not `parent`: declared inside a smaller popup
+    // or item, `parent` is that small item and the list came out empty (#206).
+    height: Math.min(600, T.Overlay.overlay ? T.Overlay.overlay.height - 80 : 600)
     anchors.centerIn: T.Overlay.overlay
     closePolicy: B.Popup.CloseOnEscape | B.Popup.CloseOnPressOutside
 
@@ -77,7 +79,7 @@ B.Popup {
         ListView {
             id: list
             width: parent.width
-            height: pop.height - 130
+            height: Math.max(0, pop.availableHeight - y)
             clip: true
             model: pop._shown
             spacing: 4

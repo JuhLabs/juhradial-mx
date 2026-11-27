@@ -81,14 +81,17 @@ Item {
         })
     }
     function resetThumb() {
-        var b = { mode: page.twMode, inv: cfg("thumbwheel.invert", false), sp: cfg("thumbwheel.speed", 1) }
+        var b = { mode: page.twMode, inv: cfg("thumbwheel.invert", false), sp: cfg("thumbwheel.speed", 1),
+                  th: cfg("thumbwheel.threshold", 4) }
         Backend.setThumbwheelInvert(false); invT.checked = false
         Backend.setThumbwheelMode("off")
         Backend.setThumbwheelSpeed(1); twStep.value = 1
+        Backend.setThumbwheelThreshold(4); twThr.value = 4
         Window.window.undoToast(qsTr("Thumb wheel settings reset"), function () {
             Backend.setThumbwheelInvert(b.inv); invT.checked = b.inv
             Backend.setThumbwheelMode(b.mode)
             Backend.setThumbwheelSpeed(b.sp); twStep.value = b.sp
+            Backend.setThumbwheelThreshold(b.th); twThr.value = b.th
         })
     }
 
@@ -497,6 +500,20 @@ Item {
                             from: 1; to: 8; step: 1
                             value: page.cfg("thumbwheel.speed", 1)
                             onCommitted: (v) => Backend.setThumbwheelSpeed(v)
+                        }
+                    }
+                    Divider {}
+                    SettingRow {
+                        label: qsTr("Travel per step")
+                        desc: page.twMode === "off" ? qsTr("Used by Volume and Zoom")
+                                                    : qsTr("Higher means less sensitive to light touches")
+                        Stepper {
+                            id: twThr
+                            enabled: page.twMode !== "off"
+                            opacity: enabled ? 1 : 0.45
+                            from: 1; to: 20; step: 1
+                            value: page.cfg("thumbwheel.threshold", 4)
+                            onCommitted: (v) => Backend.setThumbwheelThreshold(v)
                         }
                     }
                     // Try it: something wide to scroll sideways.

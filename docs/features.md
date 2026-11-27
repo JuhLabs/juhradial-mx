@@ -270,7 +270,8 @@ Wheel** (Logitech only).
 |---|---|
 | **Action** | Off · Volume · Horizontal scroll · Zoom |
 | **Invert Direction** | Reverse which way rotation maps |
-| **Speed** | 1 to 8 (repeats applied per rotation notch) |
+| **Speed** | 1 to 8 (repeats applied per step) |
+| **Travel per step** | 1 to 20 (how far to roll for one Volume or Zoom step; higher ignores light touches) |
 
 - **Volume** and **Zoom** divert the wheel to HID++ notifications and re-inject
   the action. Zoom uses layout-independent keys, so it works on non-US

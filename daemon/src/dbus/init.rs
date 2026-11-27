@@ -8,6 +8,7 @@ use crate::gaming::SharedGamingMode;
 use crate::hidpp::SharedHapticManager;
 use crate::macros::{MacroEngine, MacroRecorder, SharedTriggerMap, TriggerMap};
 use crate::profiles::SharedHardwareProfiles;
+use crate::replay::SharedActiveProfile;
 
 use super::service::{JuhRadialService, SharedDeviceName};
 use super::DBUS_PATH;
@@ -70,6 +71,7 @@ pub async fn init_dbus_service(
         trigger_map,
         active_window_tx,
         hardware_profiles,
+        crate::replay::new_shared_active_profile(),
     )
     .await
 }
@@ -89,6 +91,7 @@ pub async fn init_dbus_service_with_device(
     trigger_map: SharedTriggerMap,
     active_window_tx: tokio::sync::mpsc::UnboundedSender<String>,
     hardware_profiles: SharedHardwareProfiles,
+    active_profile: SharedActiveProfile,
 ) -> zbus::Result<()> {
     let service = JuhRadialService::new_with_device(
         battery_state,
@@ -102,6 +105,7 @@ pub async fn init_dbus_service_with_device(
         trigger_map,
         active_window_tx,
         hardware_profiles,
+        active_profile,
     );
 
     connection.object_server().at(DBUS_PATH, service).await?;

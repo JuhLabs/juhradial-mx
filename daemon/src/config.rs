@@ -656,12 +656,17 @@ pub struct ThumbwheelConfig {
     #[serde(default)]
     pub invert: bool,
 
-    /// Repeats per rotation notification (1..=8). Higher = faster response.
+    /// Repeats per step (1..=8). Higher = faster response.
     #[serde(default = "default_thumbwheel_speed")]
     pub speed: u8,
+
+    /// Rotation counts needed for one step (1..=40). Higher = less sensitive.
+    #[serde(default = "default_thumbwheel_threshold")]
+    pub threshold: u8,
 }
 
 fn default_thumbwheel_speed() -> u8 { 1 }
+fn default_thumbwheel_threshold() -> u8 { 4 }
 
 impl Default for ThumbwheelConfig {
     fn default() -> Self {
@@ -669,6 +674,7 @@ impl Default for ThumbwheelConfig {
             mode: ThumbwheelMode::default(),
             invert: false,
             speed: default_thumbwheel_speed(),
+            threshold: default_thumbwheel_threshold(),
         }
     }
 }
@@ -695,9 +701,23 @@ impl ThumbwheelConfig {
         self.invert && self.mode == ThumbwheelMode::Scroll
     }
 
-    /// Number of times to repeat the action per rotation notification.
+    /// Number of times to repeat the action per step.
     pub fn repeats(&self) -> u8 {
         self.speed.clamp(1, 8)
+    }
+
+    /// Rotation counts that make one step (issue #204).
+    pub fn counts_per_step(&self) -> u8 {
+        self.threshold.clamp(1, 40)
+    }
+
+    /// This config with a per-app profile's mode on top. Profiles override
+    /// only the mode; invert, speed and threshold stay global.
+    pub fn with_profile_mode(mut self, mode: Option<ThumbwheelMode>) -> Self {
+        if let Some(mode) = mode {
+            self.mode = mode;
+        }
+        self
     }
 
     /// Resolve a raw signed thumb-wheel delta into a directional output.
@@ -1823,7 +1843,7 @@ mod tests {
 
     #[test]
     fn test_thumbwheel_invert_flips_direction() {
-        let tw = ThumbwheelConfig { mode: ThumbwheelMode::Volume, invert: true, speed: 1 };
+        let tw = ThumbwheelConfig { mode: ThumbwheelMode::Volume, invert: true, speed: 1, ..Default::default() };
         assert_eq!(tw.resolve(5), Some(ThumbwheelOutput::Button(ButtonAction::VolumeDown)));
         assert_eq!(tw.resolve(-5), Some(ThumbwheelOutput::Button(ButtonAction::VolumeUp)));
     }
@@ -1833,18 +1853,18 @@ mod tests {
         // Issue #127: Scroll is never diverted, so its inversion must be the
         // hardware byte; diverted modes invert in software (resolve()) and
         // must keep the hardware byte 0, or direction would flip twice.
-        let scroll = ThumbwheelConfig { mode: ThumbwheelMode::Scroll, invert: true, speed: 1 };
+        let scroll = ThumbwheelConfig { mode: ThumbwheelMode::Scroll, invert: true, speed: 1, ..Default::default() };
         assert!(scroll.hardware_invert());
         assert!(!scroll.is_diverted());
 
-        let volume = ThumbwheelConfig { mode: ThumbwheelMode::Volume, invert: true, speed: 1 };
+        let volume = ThumbwheelConfig { mode: ThumbwheelMode::Volume, invert: true, speed: 1, ..Default::default() };
         assert!(!volume.hardware_invert());
-        let zoom = ThumbwheelConfig { mode: ThumbwheelMode::Zoom, invert: true, speed: 1 };
+        let zoom = ThumbwheelConfig { mode: ThumbwheelMode::Zoom, invert: true, speed: 1, ..Default::default() };
         assert!(!zoom.hardware_invert());
-        let off = ThumbwheelConfig { mode: ThumbwheelMode::Off, invert: true, speed: 1 };
+        let off = ThumbwheelConfig { mode: ThumbwheelMode::Off, invert: true, speed: 1, ..Default::default() };
         assert!(!off.hardware_invert());
 
-        let not_inverted = ThumbwheelConfig { mode: ThumbwheelMode::Scroll, invert: false, speed: 1 };
+        let not_inverted = ThumbwheelConfig { mode: ThumbwheelMode::Scroll, invert: false, speed: 1, ..Default::default() };
         assert!(!not_inverted.hardware_invert());
     }
 
@@ -1864,6 +1884,28 @@ mod tests {
         assert_eq!(ThumbwheelConfig { speed: 0, ..Default::default() }.repeats(), 1);
         assert_eq!(ThumbwheelConfig { speed: 3, ..Default::default() }.repeats(), 3);
         assert_eq!(ThumbwheelConfig { speed: 99, ..Default::default() }.repeats(), 8);
+    }
+
+    #[test]
+    fn test_thumbwheel_threshold_default_and_clamp() {
+        // Issue #204: a config written before the field existed gets 4.
+        let config: Config = serde_json::from_str(r#"{"thumbwheel": {"mode": "volume", "speed": 2}}"#).unwrap();
+        assert_eq!(config.thumbwheel.threshold, 4);
+        assert_eq!(config.thumbwheel.counts_per_step(), 4);
+        assert_eq!(ThumbwheelConfig::default().threshold, 4);
+        assert_eq!(ThumbwheelConfig { threshold: 0, ..Default::default() }.counts_per_step(), 1);
+        assert_eq!(ThumbwheelConfig { threshold: 12, ..Default::default() }.counts_per_step(), 12);
+        assert_eq!(ThumbwheelConfig { threshold: 200, ..Default::default() }.counts_per_step(), 40);
+    }
+
+    #[test]
+    fn test_thumbwheel_profile_mode_overrides_only_the_mode() {
+        let global = ThumbwheelConfig { mode: ThumbwheelMode::Off, invert: true, speed: 3, threshold: 6 };
+        let effective = global.clone().with_profile_mode(Some(ThumbwheelMode::Volume));
+        assert_eq!(effective.mode, ThumbwheelMode::Volume);
+        assert!(effective.invert);
+        assert_eq!((effective.speed, effective.threshold), (3, 6));
+        assert_eq!(global.with_profile_mode(None).mode, ThumbwheelMode::Off);
     }
 
     #[test]
@@ -1901,16 +1943,18 @@ mod tests {
         let json = r#"{
             "buttons": {"back": "copy", "forward": "paste"},
             "thumbwheel": {"mode": "volume", "speed": 4},
-            "devices": {"0x1234abcd": {"buttons": {"back": "undo"}, "thumbwheel": {"speed": 2}}}
+            "devices": {"0x1234abcd": {"buttons": {"back": "undo"}, "thumbwheel": {"speed": 2, "threshold": 9}}}
         }"#;
         let mut config: Config = serde_json::from_str(json).unwrap();
         assert!(!config.apply_device_overrides("0xDEADBEEF"));
         assert_eq!(config.active_unit.as_deref(), Some("0xDEADBEEF"));
         assert_eq!(config.buttons.back, ButtonAction::Copy);
+        assert_eq!(config.thumbwheel.threshold, 4);
         assert!(config.apply_device_overrides(&Config::unit_key(0x1234ABCD)));
         assert_eq!(config.buttons.back, ButtonAction::Undo);
         assert_eq!(config.buttons.forward, ButtonAction::Paste, "untouched keys keep the base value");
         assert_eq!(config.thumbwheel.speed, 2);
+        assert_eq!(config.thumbwheel.threshold, 9);
         assert_eq!(config.thumbwheel.mode, ThumbwheelMode::Volume);
         assert_eq!(config.devices.len(), 1, "the overrides map survives the merge");
         assert_eq!(Config::unit_key(0xAB), "0x000000AB");

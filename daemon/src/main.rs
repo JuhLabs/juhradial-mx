@@ -896,6 +896,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         trigger_map,
         active_window_tx.clone(),
         hardware_profiles.clone(),
+        replay_ctx.active_profile.clone(),
     )
     .await
     {
@@ -1012,7 +1013,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Spawn battery status updater (shares HidppDevice with haptic via SharedHapticManager)
     let battery_radio_recovered = hotplug_wake.hidpp.clone();
+    // Diagnosis only (issue #210): the poll also detects a Bolt radio wake
+    // (issue #102), so diverts are not re-applied after a sleep without it.
+    let no_battery_poll = switch_enabled(std::env::var("JUHRADIAL_NO_BATTERY_POLL").ok().as_deref());
+    if no_battery_poll {
+        warn!("JUHRADIAL_NO_BATTERY_POLL=1: periodic battery query disabled (troubleshooting only)");
+    }
     let battery_handle = tokio::spawn(async move {
+        if no_battery_poll {
+            // Stay pending: this task ending would end the shutdown select below.
+            return std::future::pending().await;
+        }
         start_battery_updater_shared(
             battery_state,
             haptic_manager_for_battery,
@@ -1221,7 +1232,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Lookup is case-insensitive: keys are lowercased at load, so
                 // lowercase the incoming class (window-tracker sources vary).
-                let hw = {
+                let (hw, left_sets_tw) = {
                     let map = match hw_profiles.read() {
                         Ok(map) => map,
                         Err(e) => {
@@ -1229,35 +1240,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             continue;
                         }
                     };
-                    map.get(&class.to_lowercase()).cloned()
+                    // The profile being left may have gained a wheel mode in a
+                    // Settings save, which ReloadConfig or a wake then applied.
+                    let left_sets_tw = map.get(&active_profile).is_some_and(|h| h.thumbwheel.is_some());
+                    (map.get(&class.to_lowercase()).cloned(), left_sets_tw)
                 };
 
-                // Restore the global thumb-wheel state when leaving profiled
-                // coverage (no profile, or one that doesn't touch the wheel).
-                let profile_sets_tw = hw.as_ref().is_some_and(|h| h.thumbwheel.is_some());
-                if thumbwheel_overridden && !profile_sets_tw {
-                    thumbwheel_overridden = false;
-                    let tw = hw_config
-                        .read()
-                        .map(|c| c.thumbwheel.clone())
-                        .unwrap_or_default();
-                    let mgr_tw = hw_manager.clone();
-                    let _ = tokio::task::spawn_blocking(move || {
-                        if let Ok(mut m) = mgr_tw.lock() {
-                            if m.thumbwheel_supported() {
-                                let _ = m.set_thumbwheel_reporting(
-                                    tw.is_diverted(),
-                                    tw.hardware_invert(),
-                                );
-                            }
-                        }
-                    })
-                    .await;
-                }
-                thumbwheel_overridden = thumbwheel_overridden || profile_sets_tw;
-
                 // ActiveProfileChanged carries the app class whose profile is
-                // now applied, or "" once the focus leaves profiled apps.
+                // now applied, or "" once the focus leaves profiled apps. The
+                // shared cell is written before any device write below, so a
+                // wake re-apply in between never re-diverts for the old app.
                 let now_active = if hw.is_some() { class.to_lowercase() } else { String::new() };
                 let entering = active_profile.is_empty() && !now_active.is_empty();
                 let profile_changed = now_active != active_profile;
@@ -1279,6 +1271,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         warn!(error = %e, "Failed to emit ActiveProfileChanged");
                     }
                 }
+
+                // Restore the global thumb-wheel state when leaving profiled
+                // coverage (no profile, or one that doesn't touch the wheel).
+                let profile_sets_tw = hw.as_ref().is_some_and(|h| h.thumbwheel.is_some());
+                if needs_global_thumbwheel_restore(thumbwheel_overridden, left_sets_tw, profile_sets_tw) {
+                    thumbwheel_overridden = false;
+                    let tw = hw_config
+                        .read()
+                        .map(|c| c.thumbwheel.clone())
+                        .unwrap_or_default();
+                    let mgr_tw = hw_manager.clone();
+                    let _ = tokio::task::spawn_blocking(move || {
+                        if let Ok(mut m) = mgr_tw.lock() {
+                            if m.thumbwheel_supported() {
+                                let _ = m.set_thumbwheel_reporting(
+                                    tw.is_diverted(),
+                                    tw.hardware_invert(),
+                                );
+                            }
+                        }
+                    })
+                    .await;
+                }
+                thumbwheel_overridden = thumbwheel_overridden || profile_sets_tw;
 
                 if !profile_changed {
                     continue;
@@ -1780,15 +1796,36 @@ async fn hidraw_listener_mismatch(
     };
     loop {
         tokio::time::sleep(Duration::from_secs(5)).await;
-        let (manager_path, manager_generation) = haptic_manager
-            .lock()
-            .ok()
+        // try_lock: the battery poll holds this mutex for a whole HID++ round
+        // trip (up to a second), and waiting here would park a tokio worker
+        // the evdev forwarding task may need (issue #210). A busy (or
+        // poisoned) lock skips this tick; the check runs again in 5 s.
+        let Ok((manager_path, manager_generation)) = haptic_manager
+            .try_lock()
             .map(|m| (m.device_path(), m.connection_generation()))
-            .unwrap_or((None, listener_generation));
+        else {
+            continue;
+        };
         if listener_is_stale(&listener_path, listener_generation, manager_path.as_deref(), manager_generation) {
             return;
         }
     }
+}
+
+/// Read the shared HID++ manager on the blocking pool. The battery poll holds
+/// its std mutex for a whole HID++ round trip (up to a second), and waiting
+/// for it on a tokio worker can stall the evdev forwarding task (issue #210).
+/// `None` when the lock is poisoned, like the `lock().ok()` it replaces.
+async fn read_manager<T, F>(haptic_manager: &SharedHapticManager, read: F) -> Option<T>
+where
+    T: Send + 'static,
+    F: FnOnce(&juhradiald::hidpp::HapticManager) -> T + Send + 'static,
+{
+    let manager = haptic_manager.clone();
+    tokio::task::spawn_blocking(move || manager.lock().ok().map(|m| read(&m)))
+        .await
+        .ok()
+        .flatten()
 }
 
 /// Whether `run_hidraw_loop` should retry immediately rather than opening the
@@ -1805,17 +1842,22 @@ fn should_retry_for_late_connect(refreshed: bool, manager_device_path: Option<&s
 /// Like button divert, thumb-wheel reporting (HID++ 0x2150) is volatile and is
 /// reset by Easy-Switch host changes, so it is re-applied on every (re)connect.
 /// The returned feature index lets the hidraw reader disambiguate diverted
-/// rotation notifications from diverted button events.
+/// rotation notifications from diverted button events. A wake keeps the
+/// applied per-app profile's mode instead of falling back to the global one;
+/// it is read under the manager lock, so a focus change's restore or divert
+/// that held the lock first is never undone with a stale profile.
 async fn apply_thumbwheel_reporting(
     haptic_manager: SharedHapticManager,
     shared_config: juhradiald::config::SharedConfig,
+    replay: juhradiald::replay::ReplayContext,
 ) -> Option<u8> {
     match tokio::task::spawn_blocking(move || {
-        let tw = shared_config
-            .read()
-            .map(|c| c.thumbwheel.clone())
-            .unwrap_or_default();
+        let global = shared_config.read().map(|c| c.thumbwheel.clone()).unwrap_or_default();
         let mut manager = haptic_manager.lock().unwrap();
+        let tw = global.with_profile_mode(juhradiald::profiles::active_thumbwheel_mode(
+            &replay.active_profile,
+            &replay.hardware_profiles,
+        ));
         if !manager.thumbwheel_supported() {
             return None;
         }
@@ -1823,11 +1865,16 @@ async fn apply_thumbwheel_reporting(
         // reader; native Horizontal Scroll inverts in hardware, so the invert
         // byte must survive every re-apply (issue #127).
         match manager.set_thumbwheel_reporting(tw.is_diverted(), tw.hardware_invert()) {
-            Ok(()) => info!(
-                diverted = tw.is_diverted(),
-                invert = tw.hardware_invert(),
-                "Thumb-wheel reporting applied"
-            ),
+            Ok(()) => {
+                info!(
+                    diverted = tw.is_diverted(),
+                    invert = tw.hardware_invert(),
+                    "Thumb-wheel reporting applied"
+                );
+                if first_diverted_apply(&THUMBWHEEL_CAPS_LOGGED, tw.is_diverted()) {
+                    let _ = manager.thumbwheel_capabilities();
+                }
+            }
             Err(e) => warn!(error = %e, "Failed to apply thumb-wheel reporting"),
         }
         manager.thumbwheel_feature_index()
@@ -1840,6 +1887,22 @@ async fn apply_thumbwheel_reporting(
             None
         }
     }
+}
+
+/// Whether a focus change must put the global thumb-wheel state back: the
+/// wheel was overridden (by the focus loop, or by a profile that gained a
+/// wheel mode while in front) and the next app's profile sets none.
+fn needs_global_thumbwheel_restore(overridden: bool, left_sets_tw: bool, next_sets_tw: bool) -> bool {
+    (overridden || left_sets_tw) && !next_sets_tw
+}
+
+/// Set once the thumb wheel's counts per revolution have been read this run.
+static THUMBWHEEL_CAPS_LOGGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// True only for the first diverted apply of the run: the resolution log
+/// costs a HID++ request, which a reconnect should not pay again.
+fn first_diverted_apply(logged: &std::sync::atomic::AtomicBool, diverted: bool) -> bool {
+    diverted && !logged.swap(true, std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Read the discovered notification feature indices (battery/host/DPI/ratchet)
@@ -2294,6 +2357,28 @@ async fn replay_pointer_state(
     failed == 0
 }
 
+/// Wait before the one retry of a failed post-wake replay: a write sent while
+/// the mouse is still coming up can fail where the same write a moment later
+/// lands, and without a retry the mouse ran on other values until its next wake.
+const REPLAY_RETRY_DELAY: Duration = Duration::from_secs(3);
+
+/// After `delay`, run `replay` once if the manager is still on connection
+/// `generation`; a reconnect in the meantime runs its own replay. `None` when
+/// skipped, else whether the retry succeeded (it is never retried again).
+async fn retry_replay_once<G, GF, R, RF>(delay: Duration, generation: u64, current_generation: G, replay: R) -> Option<bool>
+where
+    G: FnOnce() -> GF,
+    GF: std::future::Future<Output = Option<u64>>,
+    R: FnOnce() -> RF,
+    RF: std::future::Future<Output = bool>,
+{
+    sleep(delay).await;
+    if current_generation().await != Some(generation) {
+        return None;
+    }
+    Some(replay().await)
+}
+
 async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawStartup, shared: HidrawShared) {
     let HidrawStartup {
         mut preferred_path,
@@ -2310,6 +2395,7 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
         device_name_state,
     } = shared;
     let mut replay_gate = juhradiald::replay::ReplayGate::default();
+    let mut replay_retry: Option<tokio::task::JoinHandle<()>> = None;
     let mut handler = HidrawHandler::new(event_tx);
     let config_for_thumbwheel = shared_config.clone();
     let config_for_divert = shared_config.clone();
@@ -2324,6 +2410,7 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
     handler.set_kwin_scripting(kwin.scripting);
     handler.set_gaming_mode(kwin.gaming);
     handler.set_gesture_tracker(gesture_tracker);
+    handler.set_profile_source(replay.active_profile.clone(), replay.hardware_profiles.clone());
 
     loop {
         // Re-read the reassigned buttons each cycle so a config change is
@@ -2345,10 +2432,11 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
         }
         {
             use juhradiald::link_state::{report, LinkState, Transport};
-            let (transport, index, known) = haptic_manager
-                .lock()
-                .map(|m| (m.connection_type(), m.device_index(), m.device_path().is_some()))
-                .unwrap_or((None, None, false));
+            let (transport, index, known) = read_manager(&haptic_manager, |m| {
+                (m.connection_type(), m.device_index(), m.device_path().is_some())
+            })
+            .await
+            .unwrap_or((None, None, false));
             handler.set_mouse_device_index(index);
             if refreshed {
                 report(LinkState::Connected, transport.map(Transport::from));
@@ -2414,7 +2502,8 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
         // Re-apply thumb-wheel divert (volatile) and refresh the feature index
         // the reader uses to route rotation notifications.
         let tw_index =
-            apply_thumbwheel_reporting(haptic_manager.clone(), config_for_thumbwheel.clone()).await;
+            apply_thumbwheel_reporting(haptic_manager.clone(), config_for_thumbwheel.clone(), replay.clone())
+                .await;
         handler.set_thumbwheel_feature_index(tw_index);
 
         // Refresh notification feature indices for live hardware readback. Like
@@ -2431,7 +2520,7 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
         // stale "not refreshed" view (issue #192). Loop immediately so the
         // next pass re-reads the now-connected manager and divert/replay run
         // against live state.
-        let late_connect_path = haptic_manager.lock().ok().and_then(|m| m.device_path());
+        let late_connect_path = read_manager(&haptic_manager, |m| m.device_path()).await.flatten();
         if should_retry_for_late_connect(refreshed, late_connect_path.as_deref()) {
             debug!("HID++ manager connected since last refresh; retrying hidraw loop immediately");
             continue;
@@ -2441,12 +2530,31 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
         // scroll (they do not survive every wake/host return), once per wake.
         // Runs before the listener opens so replies never interleave with it.
         if refreshed && replay_gate.should_run(Instant::now()) {
+            // This replay supersedes a retry still waiting from the last one.
+            if let Some(pending) = replay_retry.take() {
+                pending.abort();
+            }
             let unit_key = config_for_divert
                 .read()
                 .ok()
                 .and_then(|c| c.active_unit.clone());
-            if replay_pointer_state(haptic_manager.clone(), replay.clone(), unit_key).await {
+            if replay_pointer_state(haptic_manager.clone(), replay.clone(), unit_key.clone()).await {
                 replay_gate.record_success(Instant::now());
+            } else if let Some(generation) = read_manager(&haptic_manager, |m| m.connection_generation()).await {
+                let (manager, ctx) = (haptic_manager.clone(), replay.clone());
+                replay_retry = Some(tokio::spawn(async move {
+                    let retried = retry_replay_once(
+                        REPLAY_RETRY_DELAY,
+                        generation,
+                        || read_manager(&manager, |m| m.connection_generation()),
+                        || replay_pointer_state(manager.clone(), ctx, unit_key),
+                    )
+                    .await;
+                    match retried {
+                        Some(ok) => info!(ok, "Retried the pointer and scroll replay"),
+                        None => debug!("Replay retry skipped: the mouse reconnected"),
+                    }
+                }));
             }
         }
 
@@ -2457,7 +2565,7 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
         // open the other receiver, leaving the listener deaf. The manager
         // may also have been connected by the battery updater even when the
         // refresh above found nothing, so always prefer its live path.
-        if let Some(path) = haptic_manager.lock().ok().and_then(|m| m.device_path()) {
+        if let Some(path) = read_manager(&haptic_manager, |m| m.device_path()).await.flatten() {
             preferred_path = Some(path);
         }
 
@@ -2498,10 +2606,8 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
                 // case no events arrive, so nothing else would ever
                 // re-trigger this loop.
                 let listener_path = handler.device_path();
-                let listener_generation = haptic_manager
-                    .lock()
-                    .ok()
-                    .map(|m| m.connection_generation())
+                let listener_generation = read_manager(&haptic_manager, |m| m.connection_generation())
+                    .await
                     .unwrap_or(0);
                 let start_result = tokio::select! {
                     result = handler.start() => Some(result),
@@ -2598,6 +2704,13 @@ async fn run_evdev_loop(
     handler.set_gaming_mode(kwin.gaming);
     handler.set_gesture_tracker(gesture_tracker);
     handler.set_hotplug(hotplug.clone());
+    if switch_enabled(std::env::var("JUHRADIAL_NO_GRAB").ok().as_deref()) {
+        warn!(
+            "JUHRADIAL_NO_GRAB=1: the MX mouse is not grabbed and no virtual mouse is created \
+             (troubleshooting only); the gesture button's fallback code may reach the desktop"
+        );
+        handler.set_grab_disabled(true);
+    }
 
     let mut logged_waiting = false;
 
@@ -2662,6 +2775,11 @@ async fn run_evdev_loop(
             }
         }
     }
+}
+
+/// Whether a troubleshooting environment switch is on: only the value "1".
+fn switch_enabled(value: Option<&str>) -> bool {
+    value.map(str::trim) == Some("1")
 }
 
 /// Read generic_trigger_button from ~/.config/juhradial/config.json
@@ -3713,6 +3831,57 @@ mod tests {
     }
 
     #[test]
+    fn thumbwheel_caps_are_read_once_on_the_first_diverted_apply() {
+        use std::sync::atomic::AtomicBool;
+        let logged = AtomicBool::new(false);
+        assert!(!first_diverted_apply(&logged, false), "native wheel: nothing to read yet");
+        assert!(first_diverted_apply(&logged, true));
+        assert!(!first_diverted_apply(&logged, true), "not again on a wake");
+    }
+
+    /// A profile that gained a wheel mode in a Settings save while its app
+    /// was in front is diverted by ReloadConfig (or a wake) though the focus
+    /// loop never applied it; leaving that app must still restore the global
+    /// wheel, or it stays diverted under global Off.
+    #[test]
+    fn leaving_a_wheel_profile_restores_the_global_wheel() {
+        assert!(needs_global_thumbwheel_restore(false, true, false), "profile gained a mode on reload");
+        assert!(needs_global_thumbwheel_restore(true, false, false), "the loop applied the override");
+        assert!(!needs_global_thumbwheel_restore(true, true, true), "the next profile sets its own");
+        assert!(!needs_global_thumbwheel_restore(false, false, false), "nothing overrode the wheel");
+    }
+
+    #[tokio::test]
+    async fn a_failed_replay_is_retried_once_on_the_same_connection() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        for outcome in [true, false] {
+            let calls = AtomicUsize::new(0);
+            let result = retry_replay_once(Duration::ZERO, 4, || async { Some(4) }, || async {
+                calls.fetch_add(1, Ordering::SeqCst);
+                outcome
+            })
+            .await;
+            assert_eq!(result, Some(outcome));
+            assert_eq!(calls.load(Ordering::SeqCst), 1, "exactly one retry, even when it fails");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_replay_retry_is_skipped_after_a_reconnect() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        for generation_now in [Some(5), None] {
+            let calls = AtomicUsize::new(0);
+            let result = retry_replay_once(Duration::ZERO, 4, || async { generation_now }, || async {
+                calls.fetch_add(1, Ordering::SeqCst);
+                true
+            })
+            .await;
+            assert_eq!(result, None, "{generation_now:?}");
+            assert_eq!(calls.load(Ordering::SeqCst), 0);
+        }
+    }
+
+    #[test]
     fn listener_is_stale_on_a_different_node() {
         let listener_path = Path::new("/dev/hidraw3");
         assert!(listener_is_stale(listener_path, 1, Some(Path::new("/dev/hidraw5")), 1));
@@ -3740,5 +3909,43 @@ mod tests {
         // mismatch against a currently-connected manager is.
         let listener_path = Path::new("/dev/hidraw3");
         assert!(!listener_is_stale(listener_path, 1, None, 1));
+    }
+
+    #[test]
+    fn troubleshooting_switches_need_exactly_one() {
+        assert!(switch_enabled(Some("1")));
+        assert!(switch_enabled(Some(" 1\n")));
+        assert!(!switch_enabled(None));
+        assert!(!switch_enabled(Some("")));
+        assert!(!switch_enabled(Some("0")));
+        assert!(!switch_enabled(Some("true")));
+    }
+
+    /// While the battery poll holds the HID++ mutex, the hidraw loop's reads
+    /// wait on the blocking pool and the runtime keeps running (issue #210).
+    /// A current-thread runtime makes a parked worker visible: the ticker
+    /// could not finish before the read if the read blocked the thread.
+    #[tokio::test]
+    async fn read_manager_waits_off_the_runtime() {
+        let manager = juhradiald::new_shared_haptic_manager(&Default::default());
+        let held = manager.clone();
+        let (locked_tx, locked_rx) = std::sync::mpsc::channel();
+        let holder = std::thread::spawn(move || {
+            let _guard = held.lock().unwrap();
+            locked_tx.send(()).unwrap();
+            std::thread::sleep(Duration::from_millis(200));
+        });
+        locked_rx.recv().unwrap();
+
+        let ticker = tokio::spawn(async {
+            sleep(Duration::from_millis(20)).await;
+            Instant::now()
+        });
+        let read = read_manager(&manager, |m| m.connection_generation()).await;
+        let read_done = Instant::now();
+
+        assert!(read.is_some());
+        assert!(ticker.await.unwrap() < read_done);
+        holder.join().unwrap();
     }
 }

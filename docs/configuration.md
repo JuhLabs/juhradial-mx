@@ -250,7 +250,8 @@ The gesture button is diverted with HID++ raw XY while directional gestures are 
 "thumbwheel": {
   "mode": "off",
   "invert": false,
-  "speed": 1
+  "speed": 1,
+  "threshold": 4
 }
 ```
 
@@ -258,12 +259,13 @@ The gesture button is diverted with HID++ raw XY while directional gestures are 
 | --- | --- | --- | --- |
 | `mode` | string | `off` | `off`, `volume`, `scroll`, or `zoom` |
 | `invert` | bool | `false` | Reverse rotation direction (applied in software) |
-| `speed` | int | `1` | Action repeats per rotation tick, clamped to `1` to `8` |
+| `speed` | int | `1` | Action repeats per step, clamped to `1` to `8` |
+| `threshold` | int | `4` | Rotation counts that make one step, clamped to `1` to `40` (Settings offers `1` to `20`). Higher is less sensitive: a light brush of the wheel does nothing |
 
 How modes behave:
 
 - `off` and `scroll` use the wheel's native hardware behaviour and are **not** diverted, so horizontal scroll works reliably on every compositor.
-- `volume` and `zoom` are diverted: each rotation tick is re-injected as Volume Up/Down or Ctrl +/- the number of times set by `speed`.
+- `volume` and `zoom` are diverted: every `threshold` rotation counts make one step, and each step is re-injected as Volume Up/Down or Ctrl +/- the number of times set by `speed` (at most 8 per wheel report). Counts left over are dropped when you reverse, pause for about a second or let go of the wheel.
 
 ## Per-device overrides (`devices`)
 

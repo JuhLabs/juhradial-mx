@@ -14,7 +14,8 @@ B.Popup {
     dim: true
     focus: true
     width: 560
-    height: Math.min(640, parent ? parent.height - 80 : 640)
+    // Sized against the window, not the key editor Column it is declared in (#206).
+    height: Math.min(640, T.Overlay.overlay ? T.Overlay.overlay.height - 80 : 640)
     anchors.centerIn: T.Overlay.overlay
     closePolicy: B.Popup.CloseOnEscape | B.Popup.CloseOnPressOutside
 
@@ -93,7 +94,7 @@ B.Popup {
         GridView {
             id: grid
             width: parent.width
-            height: pop.height - 140
+            height: Math.max(0, pop.availableHeight - y)
             clip: true
             model: pop._shown
             cellWidth: Math.floor(width / 5); cellHeight: cellWidth + 22

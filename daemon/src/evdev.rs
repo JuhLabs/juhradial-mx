@@ -16,7 +16,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant, SystemTime};
 use tokio::sync::{mpsc, Notify};
 
 /// Name of the uinput virtual device created for button suppression.
@@ -157,6 +157,46 @@ pub struct EvdevHandler {
     /// virtual mouse through a hotplug of some other device and only ends the
     /// session when the kernel no longer backs the device it holds (issue #150).
     hotplug: Option<Arc<Notify>>,
+    /// A CursorMoved was dropped since the last delivered one, so the release
+    /// re-sends the final position first.
+    cursor_update_dropped: bool,
+    /// JUHRADIAL_NO_GRAB: skip the exclusive grab and the virtual mouse.
+    grab_disabled: bool,
+}
+
+/// Delay between the kernel stamping a frame and the grabbed loop forwarding
+/// it, past which the pointer visibly stalls (issue #210).
+const STALL_LAG: Duration = Duration::from_millis(100);
+/// Time one uinput write may take before it counts as a stall.
+const STALL_EMIT: Duration = Duration::from_millis(50);
+/// At most one stall warning per interval, so a long freeze logs one line.
+const STALL_WARN_INTERVAL: Duration = Duration::from_secs(1);
+
+/// Rate-limited stall warnings for the grabbed forwarding loop (issue #210).
+#[derive(Default)]
+struct StallDetector {
+    last_warning: Option<SystemTime>,
+}
+
+impl StallDetector {
+    /// Whether a frame forwarded `lag` after the kernel stamped it, with a
+    /// uinput write of `emit`, should log a warning at `now`.
+    fn should_warn(&mut self, lag: Duration, emit: Duration, now: SystemTime) -> bool {
+        if lag <= STALL_LAG && emit <= STALL_EMIT {
+            return false;
+        }
+        // A wall clock stepped back reads as "long ago" rather than muting
+        // warnings until it catches up.
+        let warned_recently = self.last_warning.is_some_and(|last| {
+            now.duration_since(last)
+                .is_ok_and(|since| since < STALL_WARN_INTERVAL)
+        });
+        if warned_recently {
+            return false;
+        }
+        self.last_warning = Some(now);
+        true
+    }
 }
 
 /// Whether the kernel still backs the device behind an open handle.
@@ -221,6 +261,8 @@ impl EvdevHandler {
             gaming_mode: None,
             gesture_tracker: None,
             hotplug: None,
+            cursor_update_dropped: false,
+            grab_disabled: false,
         }
     }
 
@@ -249,6 +291,8 @@ impl EvdevHandler {
             gaming_mode: None,
             gesture_tracker: None,
             hotplug: None,
+            cursor_update_dropped: false,
+            grab_disabled: false,
         }
     }
 
@@ -289,6 +333,12 @@ impl EvdevHandler {
     /// events forwarded via a virtual device, minus the suppressed keys.
     pub fn set_suppressed_keys(&mut self, keys: HashSet<u16>) {
         self.suppressed_keys = keys;
+    }
+
+    /// Troubleshooting (JUHRADIAL_NO_GRAB): never grab the device or create
+    /// the virtual mouse, so suppressed buttons reach the desktop too.
+    pub fn set_grab_disabled(&mut self, disabled: bool) {
+        self.grab_disabled = disabled;
     }
 
     pub fn set_live_suppression(&mut self, map: crate::macros::SharedTriggerMap) {
@@ -702,7 +752,7 @@ impl EvdevHandler {
         // This prevents the OS from seeing macro-bound button presses (e.g.,
         // Back button won't trigger browser-back when a macro is assigned).
         let mut virtual_device = None;
-        if !self.suppressed_keys.is_empty() {
+        if !self.grab_disabled && !self.suppressed_keys.is_empty() {
             let vdev_result = (|| -> Result<_, std::io::Error> {
                 // Grab first: if another process already holds the grab
                 // (EBUSY), failing before the vdev exists avoids creating and
@@ -735,7 +785,9 @@ impl EvdevHandler {
                 Ok(vdev) => {
                     tracing::info!(
                         suppressed = ?self.suppressed_keys,
-                        "Device grabbed - macro buttons will be suppressed from OS"
+                        "Device grabbed: all input is re-sent through the virtual mouse except \
+                         the suppressed button codes (the gesture button's evdev fallback on \
+                         the MX path, plus any macro-bound buttons)"
                     );
                     virtual_device = Some(vdev);
                 }
@@ -759,6 +811,7 @@ impl EvdevHandler {
         // cause cursor jitter at high polling rates (1000Hz). Instead, we
         // collect events and emit the full batch when SYN_REPORT arrives.
         let mut event_batch: Vec<evdev::InputEvent> = Vec::with_capacity(8);
+        let mut stall = StallDetector::default();
 
         // Hotplug notifications are taken here instead of by cancelling this
         // future from the outside: cancelling drops the device handle, which
@@ -804,8 +857,24 @@ impl EvdevHandler {
                     if let Some(ref mut vdev) = virtual_device {
                         if event.event_type() == EventType::SYNCHRONIZATION {
                             if !event_batch.is_empty() {
+                                // evdev stamps events with CLOCK_REALTIME unless
+                                // a reader switches it (EVIOCSCLOCKID, never done
+                                // here), so SystemTime is the matching clock.
+                                let before = SystemTime::now();
                                 let _ = vdev.emit(&event_batch);
+                                let after = SystemTime::now();
                                 event_batch.clear();
+                                let lag =
+                                    before.duration_since(event.timestamp()).unwrap_or_default();
+                                let emit = after.duration_since(before).unwrap_or_default();
+                                if stall.should_warn(lag, emit, after) {
+                                    tracing::warn!(
+                                        lag_ms = lag.as_millis() as u64,
+                                        emit_ms = emit.as_millis() as u64,
+                                        "Pointer forwarding stalled: the frame reached the virtual \
+                                         mouse late or the uinput write was slow (issue #210)"
+                                    );
+                                }
                             }
                         } else if !is_suppressed_key {
                             event_batch.push(event);
@@ -910,13 +979,15 @@ impl EvdevHandler {
                 self.cursor_x += self.pending_cursor_dx;
                 self.cursor_y += self.pending_cursor_dy;
                 self.discard_pending_cursor_frame();
-                let _ = self
-                    .event_tx
-                    .send(GestureEvent::CursorMoved {
-                        x: self.cursor_x,
-                        y: self.cursor_y,
-                    })
-                    .await;
+                // Each update carries the full position, so the next frame
+                // supersedes this one: drop it rather than stall the loop on a
+                // full channel (issue #210). The release re-sends a dropped
+                // final position.
+                let moved = GestureEvent::CursorMoved {
+                    x: self.cursor_x,
+                    y: self.cursor_y,
+                };
+                self.cursor_update_dropped = self.event_tx.try_send(moved).is_err();
             }
             _ => {}
         }
@@ -926,6 +997,7 @@ impl EvdevHandler {
         self.menu_active = true;
         self.cursor_x = 0;
         self.cursor_y = 0;
+        self.cursor_update_dropped = false;
         self.discard_pending_cursor_frame();
     }
 
@@ -1048,6 +1120,17 @@ impl EvdevHandler {
                 match active_action {
                     Some(crate::config::ButtonAction::RadialMenu) | None => {
                         tracing::info!(duration_ms, "Gesture button released (radial_menu)");
+                        // The overlay picks the slice under the last known
+                        // position: hand over the final one if it was dropped.
+                        if std::mem::take(&mut self.cursor_update_dropped) {
+                            let _ = self
+                                .event_tx
+                                .send(GestureEvent::CursorMoved {
+                                    x: self.cursor_x,
+                                    y: self.cursor_y,
+                                })
+                                .await;
+                        }
                         let _ = self
                             .event_tx
                             .send(GestureEvent::Released { duration_ms })
@@ -1475,6 +1558,118 @@ mod tests {
             cursor_events(&mut rx),
             vec![GestureEvent::CursorMoved { x: 0, y: 5 }]
         );
+    }
+
+    /// A slow consumer must never stop the grabbed loop from forwarding
+    /// motion (issue #210): a full channel drops the cursor update.
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn full_channel_never_blocks_cursor_frames() {
+        let (tx, mut rx) = mpsc::channel(1);
+        let mut handler = EvdevHandler::new(tx.clone());
+        handler.activate_cursor_tracking();
+        tx.try_send(GestureEvent::ThumbwheelScroll { clicks: 1 })
+            .unwrap();
+
+        let frame = async {
+            handler
+                .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 4))
+                .await;
+            handler
+                .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+                .await;
+        };
+        tokio::time::timeout(std::time::Duration::from_millis(500), frame)
+            .await
+            .expect("a full channel must not stall the forwarding loop");
+        assert_eq!(
+            all_events(&mut rx),
+            vec![GestureEvent::ThumbwheelScroll { clicks: 1 }]
+        );
+    }
+
+    /// Cursor updates dropped on a full channel are made up for on release:
+    /// the final cumulative position goes out right before Released, so the
+    /// overlay selects from where the pointer really ended up.
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn dropped_cursor_update_is_resent_before_release() {
+        let (tx, mut rx) = mpsc::channel(2);
+        let mut handler = EvdevHandler::new(tx.clone());
+        handler.activate_cursor_tracking();
+        tx.try_send(GestureEvent::ThumbwheelScroll { clicks: 1 })
+            .unwrap();
+        tx.try_send(GestureEvent::ThumbwheelScroll { clicks: 2 })
+            .unwrap();
+
+        for dx in [4, 3] {
+            handler
+                .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, dx))
+                .await;
+            handler
+                .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+                .await;
+        }
+        assert_eq!(all_events(&mut rx).len(), 2, "both frames were dropped");
+
+        tokio::time::timeout(
+            std::time::Duration::from_millis(500),
+            handler.handle_gesture_event(0),
+        )
+        .await
+        .expect("release delivered");
+        let events = all_events(&mut rx);
+        assert_eq!(events[0], GestureEvent::CursorMoved { x: 7, y: 0 });
+        assert!(matches!(events[1], GestureEvent::Released { .. }));
+        assert_eq!(events.len(), 2);
+    }
+
+    /// A release after delivered cursor updates sends no extra position.
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn delivered_cursor_update_is_not_resent_on_release() {
+        let (mut handler, mut rx) = active_handler();
+        handler
+            .handle_cursor_input_event(relative_event(RelativeAxisCode::REL_X, 4))
+            .await;
+        handler
+            .handle_cursor_input_event(synchronization_event(SynchronizationCode::SYN_REPORT))
+            .await;
+        handler.handle_gesture_event(0).await;
+
+        let events = all_events(&mut rx);
+        assert_eq!(events[0], GestureEvent::CursorMoved { x: 4, y: 0 });
+        assert!(matches!(events[1], GestureEvent::Released { .. }));
+        assert_eq!(events.len(), 2);
+    }
+
+    #[test]
+    fn stall_detector_ignores_frames_within_budget() {
+        let mut stall = StallDetector::default();
+        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000);
+        assert!(!stall.should_warn(Duration::from_millis(100), Duration::from_millis(50), now));
+        assert!(!stall.should_warn(Duration::ZERO, Duration::ZERO, now));
+    }
+
+    #[test]
+    fn stall_detector_warns_on_lag_or_slow_emit() {
+        let start = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000);
+        let mut stall = StallDetector::default();
+        assert!(stall.should_warn(Duration::from_millis(101), Duration::ZERO, start));
+        let mut stall = StallDetector::default();
+        assert!(stall.should_warn(Duration::ZERO, Duration::from_millis(51), start));
+    }
+
+    #[test]
+    fn stall_detector_logs_at_most_once_per_second() {
+        let start = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000);
+        let lag = Duration::from_millis(900);
+        let mut stall = StallDetector::default();
+        assert!(stall.should_warn(lag, Duration::ZERO, start));
+        assert!(!stall.should_warn(lag, Duration::ZERO, start + Duration::from_millis(999)));
+        assert!(stall.should_warn(lag, Duration::ZERO, start + Duration::from_secs(1)));
+        // A wall clock stepped back must not mute later warnings.
+        assert!(stall.should_warn(lag, Duration::ZERO, start - Duration::from_secs(60)));
     }
 
     #[test]
