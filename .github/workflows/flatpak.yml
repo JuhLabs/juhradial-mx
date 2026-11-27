@@ -1,0 +1,112 @@
+# Builds the Flatpak (packaging/org.juhlabs.JuhRadialMX.yaml) and runs smoke
+# tests inside the built sandbox. Needs no mouse: it checks that the package
+# builds, that the daemon and the Python side start, and that the Settings app's
+# Qt modules load. Hidraw and uinput access are not covered (no hardware).
+name: Flatpak
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'packaging/org.juhlabs.JuhRadialMX.yaml'
+      - 'packaging/cargo-sources.json'
+      - 'packaging/flatpak/**'
+      - 'packaging/udev/**'
+      - 'daemon/Cargo.lock'
+      - '.github/workflows/flatpak.yml'
+  pull_request:
+    paths:
+      - 'packaging/org.juhlabs.JuhRadialMX.yaml'
+      - 'packaging/cargo-sources.json'
+      - 'packaging/flatpak/**'
+      - 'packaging/udev/**'
+      - 'daemon/Cargo.lock'
+      - '.github/workflows/flatpak.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flatpak:
+    name: Build and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check that cargo-sources.json matches daemon/Cargo.lock
+        run: |
+          git clone --depth 1 https://github.com/flatpak/flatpak-builder-tools "$RUNNER_TEMP/fbt"
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet aiohttp tomlkit toml
+          "$RUNNER_TEMP/venv/bin/python" "$RUNNER_TEMP/fbt/cargo/flatpak-cargo-generator.py" \
+            daemon/Cargo.lock -o "$RUNNER_TEMP/cargo-sources.json"
+          diff -q "$RUNNER_TEMP/cargo-sources.json" packaging/cargo-sources.json
+
+      - name: Shell checks
+        run: |
+          shellcheck packaging/flatpak/juhradial-mx.sh packaging/flatpak/host-setup.sh
+          sh -n packaging/flatpak/host-setup.sh
+          packaging/flatpak/host-setup.sh --dry-run
+
+      - name: Install flatpak and flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder appstream desktop-file-utils
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Build
+        run: |
+          flatpak-builder --user --force-clean --install-deps-from=flathub \
+            --disable-rofiles-fuse --repo=repo --install build \
+            packaging/org.juhlabs.JuhRadialMX.yaml
+
+      - name: Validate desktop file and metadata
+        run: |
+          app=~/.local/share/flatpak/app/org.juhlabs.JuhRadialMX/current/active/files
+          desktop-file-validate "$app/share/applications/org.juhlabs.JuhRadialMX.desktop"
+          appstreamcli validate --no-net "$app/share/metainfo/org.juhlabs.JuhRadialMX.metainfo.xml"
+
+      - name: Smoke test inside the sandbox
+        run: |
+          run() { flatpak run --command=sh org.juhlabs.JuhRadialMX -c "$1"; }
+          echo "--- installed layout"
+          run 'ls /app/bin /app/share/juhradial /app/share/juhradial/udev'
+          echo "--- daemon binary and ydotool"
+          run 'juhradiald --help | head -5; ydotool --help 2>&1 | head -3; ydotoold --help 2>&1 | head -3'
+          echo "--- python modules"
+          run 'cd /app/share/juhradial && QT_QPA_PLATFORM=offscreen python3 -c "
+          import PyQt6.QtCore, PyQt6.QtGui, PyQt6.QtSvg, PyQt6.QtDBus, PyQt6.QtQml, PyQt6.QtQuick, PyQt6.QtWidgets
+          from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+          print(\"PyQt6 and cryptography import\")"'
+          echo "--- Settings app Qt report"
+          run 'cd /app/share/juhradial/settings-qt && QT_QPA_PLATFORM=offscreen python3 bridge/compat.py'
+          echo "--- host setup script finds its rules (dry run from the installed copy)"
+          sh "$(flatpak info --user --show-location org.juhlabs.JuhRadialMX)/files/share/juhradial/host-setup.sh" --dry-run
+
+      - name: Start the services without a mouse (informational)
+        # A session bus, no compositor and no device: the daemon should claim its
+        # D-Bus name and wait for a device, the overlay should start on Qt's
+        # offscreen platform. Not a gate, the log is for the reviewer.
+        run: |
+          sudo apt-get install -y dbus-daemon >/dev/null
+          dbus-run-session -- flatpak run --env=QT_QPA_PLATFORM=offscreen \
+            --command=sh org.juhlabs.JuhRadialMX -c '
+              juhradial-mx --background >/tmp/services.log 2>&1 &
+              sleep 12
+              echo "--- processes"; ps -eo pid,args | grep -E "[j]uhradiald|[j]uhradial-overlay|[y]dotoold" || true
+              echo "--- ctl status"; juhradial-mx status 2>&1 | head -20 || true
+              echo "--- services log"; head -40 /tmp/services.log
+            ' || true
+
+      - name: Export bundle
+        run: flatpak build-bundle repo JuhRadialMX.flatpak org.juhlabs.JuhRadialMX
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: JuhRadialMX-flatpak
+          path: JuhRadialMX.flatpak
+          retention-days: 14
