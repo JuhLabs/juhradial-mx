@@ -1,7 +1,7 @@
 # Maintainer: Julian Hermstad <dev@juhlabs.com>
 
 pkgname=juhradial-mx
-pkgver=0.4.5beta6
+pkgver=0.4.5beta7
 # Tag and archive form of pkgver (pkgver cannot hold a hyphen): 0.4.5beta1 -> 0.4.5-beta.1
 _srcver="${pkgver/beta/-beta.}"
 pkgrel=1

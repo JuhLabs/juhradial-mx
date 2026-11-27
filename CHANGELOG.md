@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5-beta.7] - 2026-11-27
+
+### Added
+
+- **Thumb wheel: "Travel per step"** - A new setting (Scroll page, `thumbwheel.threshold`, 1 to 20, default 4) for how far the thumb wheel has to turn for one Volume or Zoom step. Higher is less sensitive. Speed still sets how many repeats one step sends.
+- **A warning in the journal when pointer forwarding stalls, and two troubleshooting switches** - While the daemon holds the mouse, it logs one line when a pointer frame reaches the desktop more than 100 ms late or a write to the virtual mouse takes more than 50 ms. `JUHRADIAL_NO_BATTERY_POLL=1` turns the periodic battery query off and `JUHRADIAL_NO_GRAB=1` leaves the mouse ungrabbed, to narrow down a cursor stutter (see Troubleshooting). Both are for diagnosis only (#210).
+- **A short pulse when you change the haptic strength** - The mouse plays one click at the new strength after the change is saved, so the level can be judged without leaving the page.
+
 ### Fixed
+
+- **The thumb wheel no longer runs volume from 0 to 100 on a short turn** - Every rotation report from the mouse fired one full step, so a light touch changed the volume by 5% and a quarter turn went through the whole range, even at Speed 1. Rotation is now added up and one step fires per "Travel per step" counts; what is left over carries into the next report and is dropped when the wheel reverses, stops or is let go. One report sends at most 8 repeats. Existing Volume and Zoom setups get the new default of 4 and are less sensitive than before; set it to 1 for the old response (#204).
+- **A per-app profile's thumb wheel mode works when the global mode is different** - A profile set to Volume diverted the wheel, but rotation was still handled with the global mode, so with the global mode Off the wheel did nothing in that app. Rotation, a wake, and a Settings save now all use the mode of the profile in front, and leaving the app restores the global one.
+- **The application picker shows its list when opened from the Custom action editor** - Custom action, App, Choose... showed a title and a search field and no applications: the picker took its height from the small editor it was opened in. It, the action picker, the keypad art picker and the Custom action editor now size against the window (#206).
+- **Slow HID++ replies no longer hold up the daemon's other work** - A check that runs every 5 seconds waited for the device lock on one of the daemon's worker threads, so a battery query that took a second parked that thread for a second. It now skips a turn when the lock is busy, the other lock reads in the same loop run off the worker threads, and a full event queue drops a pointer position update (the next one replaces it) instead of making the forwarding loop wait (#210).
+- **Requests to the mouse are sturdier right after a wake** - A write that fails with a broken pipe right after a wake is tried again, a request the mouse answers with "busy" is sent once more, and a settings replay that fails after a wake is retried once three seconds later.
+- **An Easy-Switch the mouse refuses is reported over Bluetooth too** - Over Bluetooth a refused host change was reported as done.
 
 - **An Arch package that is ready for the AUR** - `packaging/arch/PKGBUILD` had a placeholder maintainer address, the old `GPL3` license tag, `post_install` messages that never ran (they need an `.install` file) and Node.js build dependencies for a directory that no longer exists. It also missed `libadwaita`, which the GTK fallback Settings window imports. It now fetches the crates in `prepare()`, builds offline from the committed lockfile, ships `juhradial-mx.install`, and lists `python-zeroconf` and `python-requests` as optional dependencies for Flow. Asked for by [@lucashubner](https://github.com/lucashubner) in [#199](https://github.com/JuhLabs/juhradial-mx/issues/199).
 - **The source build bootstraps Rust when the distro's is too old for the lockfile** - The installer installed rustup only below cargo 1.78, but the crates in the committed `Cargo.lock` need Rust 1.88 (zip 9, zbus 5). With a toolchain in between, Debian 13's 1.85 for one, a build from source stopped at `zip@9.0.5 requires rustc 1.88`. The floor is now 1.88. Installs that use the prebuilt daemon from a release were not affected.

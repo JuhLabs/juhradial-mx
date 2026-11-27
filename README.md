@@ -12,7 +12,7 @@
 
   <p>
     <a href="https://github.com/JuhLabs/juhradial-mx/releases">
-      <img src="https://img.shields.io/badge/version-0.4.5--beta.6-cyan.svg" alt="Version 0.4.5-beta.6">
+      <img src="https://img.shields.io/badge/version-0.4.5--beta.7-cyan.svg" alt="Version 0.4.5-beta.7">
     </a>
     <a href="https://juhlabs.github.io/juhradial-mx/">
       <img src="https://img.shields.io/badge/docs-juhlabs.github.io-4FEFC9.svg" alt="Documentation">
@@ -86,7 +86,7 @@ The `.deb` and `.rpm` install the program, udev rules and user service, but not 
 -->
 
 > [!NOTE]
-> **This is JuhRadial MX 0.4.5 Beta 6 (`0.4.5-beta.6`).** The release is feature complete: a redesigned Settings app, MX Keypad and MX Keys S support, and a long list of fixes. It is marked beta because so much is new, and we want it tested on more hardware and desktops before the stable 0.4.5. If something breaks or feels wrong, please [open an issue](https://github.com/JuhLabs/juhradial-mx/issues/new/choose) with your distro, desktop, device and connection (Bolt, Unifying or Bluetooth). **Devices → Copy diagnostics** in Settings copies the details and the last service log lines for you. Ideas and questions are welcome in [Discussions](https://github.com/JuhLabs/juhradial-mx/discussions).
+> **This is JuhRadial MX 0.4.5 Beta 7 (`0.4.5-beta.7`).** The release is feature complete: a redesigned Settings app, MX Keypad and MX Keys S support, and a long list of fixes. It is marked beta because so much is new, and we want it tested on more hardware and desktops before the stable 0.4.5. If something breaks or feels wrong, please [open an issue](https://github.com/JuhLabs/juhradial-mx/issues/new/choose) with your distro, desktop, device and connection (Bolt, Unifying or Bluetooth). **Devices → Copy diagnostics** in Settings copies the details and the last service log lines for you. Ideas and questions are welcome in [Discussions](https://github.com/JuhLabs/juhradial-mx/discussions).
 
 ## What's new since 0.4.4
 
@@ -98,6 +98,7 @@ The `.deb` and `.rpm` install the program, udev rules and user service, but not 
 - **Directional gestures**: drag the gesture button up, down, left or right for four more actions ([#146](https://github.com/JuhLabs/juhradial-mx/issues/146)).
 - **Deeper MX Master 4 haptics**: four strength levels, the Sense Panel press force and a pattern for each event.
 - **Custom actions on any button**, per-app buttons, macros that record and play back on Wayland, gaming mode, plugins, and a one-zip backup of your whole setup.
+- **Thumb wheel "Travel per step"**: set how far the thumb wheel turns for one volume or zoom step, so a light touch no longer changes the volume ([#204](https://github.com/JuhLabs/juhradial-mx/issues/204)).
 - **More ways to install**: `.deb` and `.rpm` downloads, `install.sh --user` for Bazzite and Fedora Atomic ([#138](https://github.com/JuhLabs/juhradial-mx/issues/138)), a NixOS module ([#9](https://github.com/JuhLabs/juhradial-mx/issues/9)) and a native radial menu on niri ([#22](https://github.com/JuhLabs/juhradial-mx/issues/22)).
 
 **Improved**
@@ -116,6 +117,9 @@ The `.deb` and `.rpm` install the program, udev rules and user service, but not 
 - Middle, Back and Forward remaps send real mouse buttons, and the Copy, Paste and Undo slices work.
 - Haptics, battery and DPI keep working after an Easy-Switch trip, and Bluetooth mice no longer lag.
 - The charging state is read correctly for the mouse and the keyboard.
+- The application picker shows its list when opened from the Custom action editor ([#206](https://github.com/JuhLabs/juhradial-mx/issues/206), found by [@zany130](https://github.com/zany130)).
+- A per-app profile's thumb wheel mode works when the global mode is different.
+- A slow reply from the mouse no longer holds up the daemon's other work, and the journal says when pointer forwarding stalls ([#210](https://github.com/JuhLabs/juhradial-mx/issues/210)).
 
 The full list, with credits and issue links, is in the [changelog](CHANGELOG.md).
 
