@@ -395,6 +395,21 @@ systemctl --user restart juhradialmx-daemon
 
 Or try it once in the foreground: `systemctl --user stop juhradialmx-daemon`, then `JUHRADIAL_NO_GRAB=1 /usr/local/bin/juhradiald --verbose`. Include the result and the warning lines in the issue.
 
+### Problem: the cursor stutters or lags with a Bolt or Unifying receiver, also without the daemon
+
+**Cause.** USB 3.0 interferes with 2.4 GHz wireless. The 5 Gbit/s signal on a USB 3.0 link is scrambled so that its energy spreads over a wide band, and that band reaches up through 2.4 to 2.5 GHz, where Logi Bolt, Unifying, Bluetooth and Wi-Fi all work. The noise leaks from USB 3.0 ports, cables and devices (external drives and hubs are the usual sources). Because it sits inside the band the receiver listens on, it cannot be filtered out: it raises the noise floor at the receiver, packets from the mouse get lost and re-sent, and the pointer stutters or lags. Intel described this in a 2012 white paper, and Logitech's own support pages give the same advice as below.
+
+It has nothing to do with JuhRadial MX and shows on Windows and macOS just the same. Typical signs: it is worse while a USB 3.0 drive or hub next to the receiver is busy, the mouse behaves better close to the receiver, and unplugging and replugging helps for a while and then it comes back.
+
+**Fix.**
+
+1. Plug the receiver into a USB 2.0 port (black, not blue), ideally on the other side of the computer from USB 3.0 devices in use.
+2. No USB 2.0 port: put the receiver on a short USB 2.0 extension cable and place it on the desk, near the mouse and away from USB 3.0 ports, hubs and drives. A few centimetres of distance already helps.
+3. Keep the receiver out of USB 3.0 hubs and docks, and away from a Wi-Fi antenna.
+4. Or pair the mouse over Bluetooth to check: if the stutter is gone there, the receiver's spot was the problem.
+
+To tell this apart from the freeze above: stop the daemon (`systemctl --user stop juhradialmx-daemon`). If the stutter stays, it is the radio link, not the daemon.
+
 ---
 
 ## Haptics and battery
