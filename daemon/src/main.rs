@@ -1277,18 +1277,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let profile_sets_tw = hw.as_ref().is_some_and(|h| h.thumbwheel.is_some());
                 if needs_global_thumbwheel_restore(thumbwheel_overridden, left_sets_tw, profile_sets_tw) {
                     thumbwheel_overridden = false;
-                    let tw = hw_config
-                        .read()
-                        .map(|c| c.thumbwheel.clone())
-                        .unwrap_or_default();
+                    let tw_config = hw_config.clone();
+                    let tw_replay = focus_replay.clone();
                     let mgr_tw = hw_manager.clone();
                     let _ = tokio::task::spawn_blocking(move || {
                         if let Ok(mut m) = mgr_tw.lock() {
                             if m.thumbwheel_supported() {
-                                let _ = m.set_thumbwheel_reporting(
-                                    tw.is_diverted(),
-                                    tw.hardware_invert(),
+                                let (divert, invert) = live_thumbwheel_reporting(
+                                    &tw_config,
+                                    &tw_replay.active_profile,
+                                    &tw_replay.hardware_profiles,
                                 );
+                                let _ = m.set_thumbwheel_reporting(divert, invert);
                             }
                         }
                     })
@@ -1316,10 +1316,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     None => info!("Focus left profiled apps; restoring global pointer and scroll state"),
                 }
                 let mgr = hw_manager.clone();
-                let (thumbwheel_invert, unit_key) = hw_config
-                    .read()
-                    .map(|c| (c.thumbwheel.invert, c.active_unit.clone()))
-                    .unwrap_or((false, None));
+                let unit_key = hw_config.read().map(|c| c.active_unit.clone()).unwrap_or(None);
+                let tw_config = hw_config.clone();
+                let tw_replay = focus_replay.clone();
                 let gaming_dpi = focus_replay.gaming_dpi();
                 let prior = baseline;
                 let captured = tokio::task::spawn_blocking(move || {
@@ -1345,18 +1344,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let state = juhradiald::replay::effective_state(globals, hw.as_ref(), gaming_dpi);
                     let (tried, failed) = juhradiald::replay::apply(&mut *m, &state);
                     debug!(tried, failed, "Profile pointer/scroll state written");
-                    if let Some(hw) = &hw {
-                        // Thumb-wheel override (the global restore is above).
-                        let tw_only = juhradiald::profiles::HardwareProfile {
-                            thumbwheel: hw.thumbwheel,
-                            ..Default::default()
-                        };
-                        juhradiald::profiles::apply_hardware_profile(
-                            &tw_only,
-                            &mut m,
-                            thumbwheel_invert,
-                            globals.natural.unwrap_or(false),
+                    if hw.as_ref().is_some_and(|h| h.thumbwheel.is_some()) {
+                        // Thumb-wheel override (the global restore is above),
+                        // resolved live: a ReloadConfig since the snapshot may
+                        // have changed or dropped the mode.
+                        let (divert, invert) = live_thumbwheel_reporting(
+                            &tw_config,
+                            &tw_replay.active_profile,
+                            &tw_replay.hardware_profiles,
                         );
+                        match m.set_thumbwheel_reporting(divert, invert) {
+                            Ok(()) => info!(divert, invert, "Hardware profile: thumb-wheel applied"),
+                            Err(e) => warn!(error = %e, "Hardware profile: set_thumbwheel_reporting failed"),
+                        }
                     }
                     base
                 })
@@ -1852,26 +1852,16 @@ async fn apply_thumbwheel_reporting(
     replay: juhradiald::replay::ReplayContext,
 ) -> Option<u8> {
     match tokio::task::spawn_blocking(move || {
-        let global = shared_config.read().map(|c| c.thumbwheel.clone()).unwrap_or_default();
         let mut manager = haptic_manager.lock().unwrap();
-        let tw = global.with_profile_mode(juhradiald::profiles::active_thumbwheel_mode(
-            &replay.active_profile,
-            &replay.hardware_profiles,
-        ));
+        let (diverted, invert) =
+            live_thumbwheel_reporting(&shared_config, &replay.active_profile, &replay.hardware_profiles);
         if !manager.thumbwheel_supported() {
             return None;
         }
-        // Diverted modes (Volume/Zoom) invert in software in the hidraw
-        // reader; native Horizontal Scroll inverts in hardware, so the invert
-        // byte must survive every re-apply (issue #127).
-        match manager.set_thumbwheel_reporting(tw.is_diverted(), tw.hardware_invert()) {
+        match manager.set_thumbwheel_reporting(diverted, invert) {
             Ok(()) => {
-                info!(
-                    diverted = tw.is_diverted(),
-                    invert = tw.hardware_invert(),
-                    "Thumb-wheel reporting applied"
-                );
-                if first_diverted_apply(&THUMBWHEEL_CAPS_LOGGED, tw.is_diverted()) {
+                info!(diverted, invert, "Thumb-wheel reporting applied");
+                if first_diverted_apply(&THUMBWHEEL_CAPS_LOGGED, diverted) {
                     let _ = manager.thumbwheel_capabilities();
                 }
             }
@@ -1887,6 +1877,23 @@ async fn apply_thumbwheel_reporting(
             None
         }
     }
+}
+
+/// The thumb-wheel (divert, hardware invert) to write now: the global config
+/// with the applied per-app profile's mode on top. Diverted modes
+/// (Volume/Zoom) invert in software in the hidraw reader; native Horizontal
+/// Scroll inverts in hardware, so the invert byte must survive every write
+/// (issue #127). Call with the manager lock held: ReloadConfig stores config
+/// before, and publishes the map in, that lock, so a live read never undoes
+/// its write with a stale snapshot.
+fn live_thumbwheel_reporting(
+    config: &juhradiald::config::SharedConfig,
+    active: &juhradiald::replay::SharedActiveProfile,
+    profiles: &SharedHardwareProfiles,
+) -> (bool, bool) {
+    let global = config.read().map(|c| c.thumbwheel.clone()).unwrap_or_default();
+    let tw = global.with_profile_mode(juhradiald::profiles::active_thumbwheel_mode(active, profiles));
+    (tw.is_diverted(), tw.hardware_invert())
 }
 
 /// Whether a focus change must put the global thumb-wheel state back: the
@@ -3807,6 +3814,64 @@ mod tests {
         assert!(needs_global_thumbwheel_restore(true, false, false), "the loop applied the override");
         assert!(!needs_global_thumbwheel_restore(true, true, true), "the next profile sets its own");
         assert!(!needs_global_thumbwheel_restore(false, false, false), "nothing overrode the wheel");
+    }
+
+    fn wheel_state(
+        mode: juhradiald::config::ThumbwheelMode,
+        invert: bool,
+        active: Option<&str>,
+    ) -> (juhradiald::config::SharedConfig, juhradiald::replay::SharedActiveProfile, SharedHardwareProfiles) {
+        let config = juhradiald::config::new_shared_config();
+        config.write().unwrap().thumbwheel = juhradiald::config::ThumbwheelConfig { mode, invert, ..Default::default() };
+        let cell = juhradiald::replay::new_shared_active_profile();
+        *cell.write().unwrap() = active.map(String::from);
+        (config, cell, SharedHardwareProfiles::default())
+    }
+
+    fn wheel_profile(mode: juhradiald::config::ThumbwheelMode) -> juhradiald::profiles::HardwareProfile {
+        juhradiald::profiles::HardwareProfile { thumbwheel: Some(mode), ..Default::default() }
+    }
+
+    /// The focus loop snapshots the profile, then a ReloadConfig swaps the
+    /// map before the loop gets the manager lock: the write must follow the
+    /// reloaded map, not the snapshot, or the wheel stays diverted while the
+    /// rotation handler resolves the new mode.
+    #[test]
+    fn focus_wheel_write_follows_a_reload_after_the_snapshot() {
+        use juhradiald::config::ThumbwheelMode::{Off, Volume};
+        let (config, cell, profiles) = wheel_state(Volume, true, Some("firefox"));
+        profiles.write().unwrap().insert("firefox".into(), wheel_profile(Volume));
+        let snapshot = profiles.read().unwrap().get("firefox").cloned();
+        assert_eq!(snapshot.and_then(|h| h.thumbwheel), Some(Volume));
+
+        *profiles.write().unwrap() = HashMap::from([("firefox".to_string(), wheel_profile(Off))]);
+        assert_eq!(live_thumbwheel_reporting(&config, &cell, &profiles), (false, false), "profile now Off");
+
+        profiles.write().unwrap().clear();
+        assert_eq!(live_thumbwheel_reporting(&config, &cell, &profiles), (true, false), "profile removed: global Volume");
+    }
+
+    /// Same bytes as `profiles::apply_hardware_profile` for a profile mode,
+    /// and the global state otherwise: hardware invert only for native
+    /// Scroll, Volume/Zoom invert in software (issue #127).
+    #[test]
+    fn live_wheel_bytes_keep_the_issue_127_invert_contract() {
+        use juhradiald::config::ThumbwheelMode::{Off, Scroll, Volume, Zoom};
+        let (config, cell, profiles) = wheel_state(Scroll, true, None);
+        assert_eq!(live_thumbwheel_reporting(&config, &cell, &profiles), (false, true), "global Scroll keeps hardware invert");
+
+        let (config, cell, profiles) = wheel_state(Volume, true, Some("gimp"));
+        profiles.write().unwrap().insert("gimp".into(), wheel_profile(Scroll));
+        assert_eq!(live_thumbwheel_reporting(&config, &cell, &profiles), (false, true), "profile Scroll: native, global invert");
+
+        for invert in [false, true] {
+            for mode in [Off, Volume, Scroll, Zoom] {
+                let (config, cell, profiles) = wheel_state(Off, invert, Some("app"));
+                profiles.write().unwrap().insert("app".into(), wheel_profile(mode));
+                let expected = (matches!(mode, Volume | Zoom), invert && mode == Scroll);
+                assert_eq!(live_thumbwheel_reporting(&config, &cell, &profiles), expected, "{mode:?} invert={invert}");
+            }
+        }
     }
 
     #[test]
