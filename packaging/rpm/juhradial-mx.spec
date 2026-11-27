@@ -2,7 +2,7 @@
 # Build: rpmbuild -ba juhradial-mx.spec
 
 Name:           juhradial-mx
-Version:        0.4.5~beta.6
+Version:        0.4.5~beta.7
 Release:        1%{?dist}
 Summary:        Beautiful radial menu for Logitech MX Master mice on Linux
 
@@ -146,6 +146,15 @@ install -Dm644 packaging/udev/60-ydotool-uinput.rules %{buildroot}%{_udevrulesdi
 %{_udevrulesdir}/70-juhradialmx-uaccess.rules
 %{_udevrulesdir}/60-ydotool-uinput.rules
 %changelog
+* Fri Nov 27 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.7-1
+- Thumb wheel "Travel per step": one volume or zoom step per set amount
+  of rotation, so a light touch no longer changes the volume
+- The application picker shows its list when opened from the Custom
+  action editor
+- A per-app profile's thumb wheel mode works when the global mode differs
+- A warning in the journal when pointer forwarding stalls, and two
+  troubleshooting switches for cursor stutter
+
 * Tue Oct 20 2026 Julian Hermstad <dev@juhlabs.com> - 0.4.5~beta.6-1
 - Hyprland window rules in the syntax of the config Hyprland loads
   (hyprland.lua on 0.55 and newer, rule blocks on 0.53 and newer)

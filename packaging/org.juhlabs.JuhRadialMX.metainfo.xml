@@ -89,6 +89,17 @@
   </keywords>
 
   <releases>
+    <release version="0.4.5~beta.7" date="2026-11-27" type="development">
+      <description>
+        <p>Seventh beta of 0.4.5: a calmer thumb wheel, the application picker fix and cursor stutter diagnostics</p>
+        <ul>
+          <li>Thumb wheel "Travel per step" sets how far the wheel turns for one volume or zoom step, so a light touch no longer changes the volume</li>
+          <li>The application picker shows its list when opened from the Custom action editor</li>
+          <li>A per-app profile's thumb wheel mode works when the global mode is different</li>
+          <li>The journal says when pointer forwarding stalls, and two switches help narrow down a cursor stutter</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.4.5~beta.6" date="2026-10-20" type="development">
       <description>
         <p>Sixth beta of 0.4.5: Hyprland 0.55 and newer, access without logging out, verified downloads</p>
