@@ -725,6 +725,7 @@ SEARCH_INDEX = [
     ("scroll", "Action", "Thumb wheel", "thumb wheel action mode purpose volume zoom"),
     ("scroll", "Invert direction", "Thumb wheel", "invert direction reverse scroll rotation thumb wheel"),
     ("scroll", "Speed", "Thumb wheel", "thumb wheel speed repeats rotation tick velocity"),
+    ("scroll", "Travel per step", "Thumb wheel", "thumb wheel travel step threshold sensitivity dead zone accidental touch"),
     # Haptics
     ("haptics", "Strength", "Haptic feedback", "intensity strength vibration motor haptic level subtle low medium high"),
     ("haptics", "Style", "Haptic feedback", "haptic style preset quiet balanced expressive default pattern"),
@@ -871,7 +872,7 @@ DEFAULT_CONFIG = {
     },
     "pointer": {"speed": 5, "acceleration": True},
     "scroll": {"speed": 3},
-    "thumbwheel": {"mode": "off", "invert": False, "speed": 1},
+    "thumbwheel": {"mode": "off", "invert": False, "speed": 1, "threshold": 4},
     "buttons": {k: d for (k, _l, d) in BUTTON_SLOTS},
     # Start at Login defaults on (the installer writes the autostart entry).
     "app": {"start_at_login": True, "show_tray_icon": True, "suggest_profiles": True,
@@ -1489,6 +1490,10 @@ class Backend(QObject):
         self._hap_dev = {"levelSupported": False, "levelPct": 0, "forceSupported": False,
                          "tracking": True}
         self._last_preview = 0.0
+        self._level_pulse = QTimer(self)
+        self._level_pulse.setSingleShot(True)
+        self._level_pulse.setInterval(250)
+        self._level_pulse.timeout.connect(self._pulse_level)
         self._host_names = []
         self._host_slots = []
         self._ss_supported = False
@@ -3461,6 +3466,11 @@ class Backend(QObject):
         self.setLocal("thumbwheel.speed", max(1, min(8, int(sp))))
         self.reloadConfig()
 
+    @pyqtSlot(int)
+    def setThumbwheelThreshold(self, th):
+        self.setLocal("thumbwheel.threshold", max(1, min(20, int(th))))
+        self.reloadConfig()
+
     @pyqtSlot(str)
     def setDeviceMode(self, mode):
         """Force device mode (auto/generic); daemon re-evaluates on reload."""
@@ -4140,9 +4150,21 @@ class Backend(QObject):
         pct = dict((i, p) for (i, _n, p) in HAPTIC_LEVELS).get(level_id)
         if pct is None:
             return
-        self.set("haptics.level", pct)
+        # set() without its fire-and-forget reload: the pulse that lets you
+        # feel the new strength waits for the reload that puts it on the mouse.
+        self._set_path(["haptics", "level"], pct)
+        self._save()
+        self.daemon.call_then("ReloadConfig", lambda r: r is not None and self._level_pulse.start())
+        self.configChanged.emit()
         self._hap_dev["levelPct"] = pct
         self.hapticDeviceChanged.emit()
+
+    def _pulse_level(self):
+        """One crisp click at the strength just picked; the timer leaves one
+        after several quick picks."""
+        if not self.get("haptics.enabled", True) or not self._hap_dev.get("levelSupported"):
+            return
+        self.daemon.call_async("TriggerHapticPattern", "sharp_state_change")
 
     @pyqtSlot(result="QVariant")
     def panelForces(self):

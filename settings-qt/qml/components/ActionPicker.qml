@@ -18,7 +18,8 @@ B.Popup {
     dim: true
     focus: true
     width: 480
-    height: Math.min(600, parent ? parent.height - 80 : 600)
+    // Sized against the window, not a smaller parent it is declared in (#206).
+    height: Math.min(600, T.Overlay.overlay ? T.Overlay.overlay.height - 80 : 600)
     anchors.centerIn: T.Overlay.overlay
     closePolicy: B.Popup.CloseOnEscape | B.Popup.CloseOnPressOutside
 
@@ -108,7 +109,7 @@ B.Popup {
         B.ScrollView {
             id: scroller
             width: parent.width
-            height: pop.height - 130
+            height: Math.max(0, pop.availableHeight - y)
             clip: true
             B.ScrollBar.horizontal.policy: B.ScrollBar.AlwaysOff
             onHeightChanged: if (pop.opened && height > 0) pop._revealCursor()

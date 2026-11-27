@@ -517,6 +517,25 @@ class ScrollPage(Gtk.ScrolledWindow):
         self._thumb_speed_row.set_control(self._thumb_speed_scale)
         self._thumb_card.append(self._thumb_speed_row)
 
+        # Travel per step (rotation counts per step, 1..20; issue #204)
+        self._thumb_threshold_row = SettingRow(
+            _("Travel per step"), _("Higher means less sensitive to light touches")
+        )
+        self._thumb_threshold_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 1, 20, 1
+        )
+        self._thumb_threshold_scale.set_value(
+            config.get("thumbwheel", "threshold", default=4)
+        )
+        self._thumb_threshold_scale.set_size_request(200, -1)
+        self._thumb_threshold_scale.set_draw_value(False)
+        self._thumb_threshold_scale.connect(
+            "value-changed", self._on_thumb_threshold_changed
+        )
+        disable_scroll_on_scale(self._thumb_threshold_scale)
+        self._thumb_threshold_row.set_control(self._thumb_threshold_scale)
+        self._thumb_card.append(self._thumb_threshold_row)
+
         # "Off" has no direction/speed to tune
         self._update_thumb_dependents(current_thumb_mode)
 
@@ -812,6 +831,17 @@ None,      Down, Button5, {lines}
             300, self._apply_thumb_speed_debounced
         )
 
+    def _on_thumb_threshold_changed(self, scale):
+        config.set("thumbwheel", "threshold", int(scale.get_value()), auto_save=True)
+        if self._is_generic:
+            return
+        # Same config-only apply as speed, sharing its debounce.
+        if self._thumb_speed_debounce:
+            GLib.source_remove(self._thumb_speed_debounce)
+        self._thumb_speed_debounce = GLib.timeout_add(
+            300, self._apply_thumb_speed_debounced
+        )
+
     def _apply_thumb_speed_debounced(self):
         """Coalesced speed apply: reload config only (no redundant divert)."""
         self._thumb_speed_debounce = 0
@@ -831,6 +861,8 @@ None,      Down, Button5, {lines}
         active = mode != "off"
         self._thumb_invert_row.set_sensitive(active)
         self._thumb_speed_row.set_sensitive(active)
+        # Only the diverted modes count rotation into steps.
+        self._thumb_threshold_row.set_sensitive(mode in ("volume", "zoom"))
 
     def _apply_thumbwheel(self):
         """Push thumb-wheel config to the daemon.

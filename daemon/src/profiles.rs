@@ -592,6 +592,26 @@ pub fn apply_hardware_profile(
     }
 }
 
+/// The thumb-wheel mode of the hardware profile applied right now, if it sets
+/// one. `apply_hardware_profile` diverts the wheel for this mode, so rotation
+/// handling and divert re-applies must use it over the global mode.
+pub fn active_thumbwheel_mode(
+    active: &crate::replay::SharedActiveProfile,
+    profiles: &SharedHardwareProfiles,
+) -> Option<ThumbwheelMode> {
+    thumbwheel_mode_in(active, &*profiles.read().ok()?)
+}
+
+/// [`active_thumbwheel_mode`] against a map in hand (ReloadConfig's freshly
+/// loaded one, before it replaces the shared map).
+pub fn thumbwheel_mode_in(
+    active: &crate::replay::SharedActiveProfile,
+    profiles: &HashMap<String, HardwareProfile>,
+) -> Option<ThumbwheelMode> {
+    let active = active.read().ok()?;
+    profiles.get(active.as_deref()?)?.thumbwheel
+}
+
 /// Re-read profiles.json and return its (lowercased-key) hardware profile map.
 ///
 /// Used by the `ReloadConfig` D-Bus path to refresh the shared hardware map
@@ -705,6 +725,46 @@ mod tests {
         assert_eq!(hw.dpi, Some(1600));
         assert_eq!(hw.thumbwheel, Some(ThumbwheelMode::Zoom));
         assert_eq!(hw.smartshift, Some(SmartshiftSetting { enabled: true, threshold: 40 }));
+    }
+
+    #[test]
+    fn active_thumbwheel_mode_follows_the_applied_profile() {
+        let active = crate::replay::new_shared_active_profile();
+        let profiles: SharedHardwareProfiles = Default::default();
+        profiles.write().unwrap().insert(
+            "firefox".into(),
+            HardwareProfile { thumbwheel: Some(ThumbwheelMode::Volume), ..Default::default() },
+        );
+        profiles.write().unwrap().insert("gimp".into(), HardwareProfile { dpi: Some(800), ..Default::default() });
+        assert_eq!(active_thumbwheel_mode(&active, &profiles), None, "no profile applied");
+        *active.write().unwrap() = Some("firefox".into());
+        assert_eq!(active_thumbwheel_mode(&active, &profiles), Some(ThumbwheelMode::Volume));
+        *active.write().unwrap() = Some("gimp".into());
+        assert_eq!(active_thumbwheel_mode(&active, &profiles), None, "profile without a wheel mode");
+    }
+
+    /// ReloadConfig re-applies the wheel from the map it just read from disk,
+    /// before that map replaces the shared one: a Settings save keeps the
+    /// focused app's divert, and hardware invert stays native-Scroll only.
+    #[test]
+    fn reload_takes_the_wheel_mode_from_the_freshly_loaded_map() {
+        let global = crate::config::ThumbwheelConfig { mode: ThumbwheelMode::Off, invert: true, ..Default::default() };
+        let active = crate::replay::new_shared_active_profile();
+        *active.write().unwrap() = Some("firefox".into());
+        let profile = |mode| HardwareProfile { thumbwheel: Some(mode), ..Default::default() };
+        let fresh = HashMap::from([("firefox".to_string(), profile(ThumbwheelMode::Volume))]);
+
+        let tw = global.clone().with_profile_mode(thumbwheel_mode_in(&active, &fresh));
+        assert!(tw.is_diverted(), "the profile's Volume divert survives the reload");
+        assert!(!tw.hardware_invert(), "diverted modes invert in software");
+
+        let fresh = HashMap::from([("firefox".to_string(), profile(ThumbwheelMode::Scroll))]);
+        let tw = global.clone().with_profile_mode(thumbwheel_mode_in(&active, &fresh));
+        assert!(!tw.is_diverted() && tw.hardware_invert(), "native Scroll inverts in hardware (#127)");
+
+        *active.write().unwrap() = None;
+        let tw = global.with_profile_mode(thumbwheel_mode_in(&active, &fresh));
+        assert!(!tw.is_diverted() && !tw.hardware_invert(), "no profile applied: global Off");
     }
 
     // Task 6.1: Test ProfilesConfig serialization/deserialization

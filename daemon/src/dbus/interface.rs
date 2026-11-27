@@ -425,10 +425,18 @@ impl JuhRadialService {
                         );
 
                         // Re-apply volatile thumb-wheel divert from the new
-                        // config. Diverted modes (Volume/Zoom) invert in
-                        // software (hidraw reader); native Horizontal Scroll
-                        // inverts in hardware, so the invert byte must be
-                        // pushed here too or a reload wipes it (issue #127).
+                        // config, with the applied per-app profile's mode (as
+                        // profiles.json has it now) on top, or a save drops
+                        // the profile's divert until the next focus change.
+                        // Read under the manager lock, ordered against the
+                        // focus consumer's restore. Diverted modes
+                        // (Volume/Zoom) invert in software (hidraw reader);
+                        // native Horizontal Scroll inverts in hardware, so the
+                        // invert byte must be pushed here too or a reload
+                        // wipes it (issue #127).
+                        let thumbwheel_config = thumbwheel_config.with_profile_mode(
+                            crate::profiles::thumbwheel_mode_in(&self.active_profile, &hardware),
+                        );
                         if manager.thumbwheel_supported() {
                             match manager.set_thumbwheel_reporting(
                                 thumbwheel_config.is_diverted(),

@@ -137,10 +137,6 @@ pub struct HidppDevice {
     /// cleared by the next matched reply. 0x04 means the paired device's
     /// radio is parked (idle or on another host): see `link_parked()`.
     last_receiver_error: Option<u8>,
-    /// HID++ 2.0 error code (`0xFF` reply) answering our last request,
-    /// cleared by the next request (set_current_host tells failure from the
-    /// silent success of a switch with it).
-    last_hidpp_error: Option<u8>,
     /// Unit id from DEVICE_INFORMATION (0x0003): unique per physical device,
     /// the key for per-device config overrides (`devices.0xXXXXXXXX`).
     unit_id: Option<u32>,
@@ -392,6 +388,31 @@ impl DpiCaps {
     }
 }
 
+/// getThumbwheelInfo reply (0x2150 fn 0).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ThumbwheelInfo {
+    /// Counts per revolution in native (HID) mode.
+    pub native_resolution: u16,
+    /// Counts per revolution while diverted to HID++ notifications.
+    pub diverted_resolution: u16,
+    pub default_direction: u8,
+    pub capabilities: u8,
+}
+
+impl ThumbwheelInfo {
+    /// From the reply params: nativeResolution (u16 BE), divertedResolution
+    /// (u16 BE), defaultDirection, capabilities.
+    pub fn parse(params: &[u8]) -> Option<Self> {
+        let p = params.get(..6)?;
+        Some(Self {
+            native_resolution: u16::from_be_bytes([p[0], p[1]]),
+            diverted_resolution: u16::from_be_bytes([p[2], p[3]]),
+            default_direction: p[4],
+            capabilities: p[5],
+        })
+    }
+}
+
 /// The Haptic Sense Panel's press force (0x19C0 button 0): raw sensor units,
 /// higher = firmer. `changeable` is capability bit 0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -441,15 +462,82 @@ pub const RECEIVER_ERR_CONNECT_FAIL: u8 = 0x04;
 /// HID++ 1.0 receiver error (`0x8F`) answering one of our requests. The
 /// receiver speaks for a paired device that cannot answer; the code sits at
 /// byte 5 (0x04 connection failed, 0x09 resource error, ...).
-/// The software id for our next request: 2..=13 in turn (0 marks device
-/// notifications, 1 is the kernel's hid-logitech-hidpp driver's, 0x0E our
-/// haptic play's). Requests in flight at the same time on the same device (the
-/// battery poll and a reconnect's feature discovery on another handle, or the
-/// kernel's own) then never take each other's replies: a ROOT getFeature reply
-/// does not say which feature it answers.
+/// The software id for our next request, from [`ROTATING_SOFTWARE_IDS`] in
+/// turn. Requests in flight at the same time on the same device (the battery
+/// poll and a reconnect's feature discovery on another handle, the kernel's
+/// own, or another tool's) then never take each other's replies: a ROOT
+/// getFeature reply does not say which feature it answers.
 fn next_software_id() -> u8 {
     static NEXT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
-    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 12 + 2
+    software_id_for(NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+}
+
+/// 2..=13. Never used: 0 marks device notifications, 1 is the wake ping's
+/// (and the kernel's hid-logitech-hidpp driver's), 0x0E our haptic play's,
+/// 0x0F firmware's. All twelve stay in the rotation on purpose: a getFeature
+/// reply does not say which request it answers, so a reply that arrives late
+/// (a mouse just back from another host) is taken by the next request with
+/// the same id. With eight ids that was close enough to shift the whole
+/// feature table after an Easy-Switch return.
+const ROTATING_SOFTWARE_IDS: [u8; 12] = [0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D];
+
+fn software_id_for(counter: u8) -> u8 {
+    ROTATING_SOFTWARE_IDS[usize::from(counter) % ROTATING_SOFTWARE_IDS.len()]
+}
+
+/// Whether `response` is the reply to our request: a HID++ report from our
+/// device index echoing the feature index and the function/software-id byte.
+fn is_reply_to(response: &[u8], device_index: u8, feature_index: u8, fn_sw: u8) -> bool {
+    response.len() >= 4
+        && (response[0] == report_type::SHORT || response[0] == report_type::LONG)
+        && response[1] == device_index
+        && response[2] == feature_index
+        && response[3] == fn_sw
+}
+
+/// HID++ 2.0 error code "busy": the device could not take the request now.
+const HIDPP_ERR_BUSY: u8 = 0x06;
+
+/// Pause before the one retry of a request the device answered Busy.
+const BUSY_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(20);
+
+/// Run `attempt` once more after `delay` when it failed with HID++ error Busy.
+/// `attempt` yields the reply, or the HID++ 2.0 error code it got (`None` for
+/// a timeout or any other failure).
+fn retry_once_if_busy(
+    delay: std::time::Duration,
+    mut attempt: impl FnMut() -> Result<Vec<u8>, Option<u8>>,
+) -> Option<Vec<u8>> {
+    match attempt() {
+        Err(Some(HIDPP_ERR_BUSY)) => {
+            tracing::debug!("HID++ device busy; retrying the request once");
+            std::thread::sleep(delay);
+            attempt().ok()
+        }
+        result => result.ok(),
+    }
+}
+
+/// Extra tries for a write that fails with EPIPE, which a hidraw write can do
+/// right after a receiver or device wake before the link is fully up.
+const EPIPE_RETRIES: u32 = 3;
+const EPIPE_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(100);
+
+/// Write one HID++ report, trying again up to [`EPIPE_RETRIES`] times with
+/// `delay` in between when the write fails with EPIPE. Other errors, and the
+/// last EPIPE, are returned as they are.
+fn write_report(device: &mut impl Write, report: &[u8], delay: std::time::Duration) -> std::io::Result<()> {
+    let mut retries = 0;
+    loop {
+        match device.write_all(report) {
+            Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe && retries < EPIPE_RETRIES => {
+                retries += 1;
+                tracing::debug!(retries, "HID++ write hit EPIPE; trying again");
+                std::thread::sleep(delay);
+            }
+            result => return result,
+        }
+    }
 }
 
 /// Whether an error report (HID++ 2.0 `0xFF` or receiver `0x8F`) answers the
@@ -817,7 +905,6 @@ impl HidppDevice {
                     thumbwheel_feature_index: None,
                     controls: Vec::new(),
                     last_receiver_error: None,
-                    last_hidpp_error: None,
                     unit_id: None,
                     firmware: None,
                     gesture_button_seen: false,
@@ -1195,7 +1282,6 @@ impl HidppDevice {
                     thumbwheel_feature_index: None,
                     controls: Vec::new(),
                     last_receiver_error: None,
-                    last_hidpp_error: None,
                     unit_id: None,
                     firmware: None,
                     gesture_button_seen: false,
@@ -1283,7 +1369,14 @@ impl HidppDevice {
         if self.connection_type == ConnectionType::Bluetooth {
             return self.hidpp_long_request(feature_index, function, params);
         }
+        retry_once_if_busy(BUSY_RETRY_DELAY, || {
+            self.short_request_once(feature_index, function, params, max_attempts)
+        })
+    }
 
+    /// One short request; `Err` carries the HID++ 2.0 error code the device
+    /// answered with, if it answered with one.
+    fn short_request_once(&mut self, feature_index: u8, function: u8, params: &[u8], max_attempts: u32) -> Result<Vec<u8>, Option<u8>> {
         // Drain any pending data first
         self.drain_buffer();
 
@@ -1307,9 +1400,9 @@ impl HidppDevice {
         );
 
         // Send request
-        if let Err(e) = self.device.write_all(&request) {
+        if let Err(e) = write_report(&mut self.device, &request, EPIPE_RETRY_DELAY) {
             tracing::debug!(error = %e, "Failed to write HID++ message");
-            return None;
+            return Err(None);
         }
 
         // Read response with timeout: wait on poll(2) instead of sleeping in
@@ -1336,14 +1429,10 @@ impl HidppDevice {
                     // Check if this is a response to our request
                     if response[0] == report_type::SHORT || response[0] == report_type::LONG {
                         // Must match: device index, feature index, function, AND software ID
-                        if response[1] == self.device_index
-                            && response[2] == feature_index
-                            && resp_function == function
-                            && resp_sw_id == sw_id
-                        {
+                        if is_reply_to(&response[..len], self.device_index, feature_index, (function << 4) | sw_id) {
                             tracing::debug!("HID++ request matched! Returning response");
                             self.last_receiver_error = None;
-                            return Some(response[..len].to_vec());
+                            return Ok(response[..len].to_vec());
                         }
                         // Check for error response (0xFF feature_index indicates error)
                         // Format: [report_type, device_idx, 0xFF, orig_feature_idx, orig_fn_sw, error_code, ...]
@@ -1373,8 +1462,7 @@ impl HidppDevice {
                                 "HID++ error response: {:02X?}",
                                 &response[..len]
                             );
-                            self.last_hidpp_error = Some(error_code);
-                            return None;
+                            return Err(Some(error_code));
                         }
                         // HID++ 1.0 receiver error (0x8F): the paired device
                         // cannot answer (0x04 = radio parked). Remembered so
@@ -1387,7 +1475,7 @@ impl HidppDevice {
                                 self.last_receiver_error = Some(code);
                             }
                             tracing::debug!("HID++ legacy error response: {:02X?}", &response[..len]);
-                            return None;
+                            return Err(None);
                         }
                         // Log non-matching responses for debugging
                         tracing::debug!(
@@ -1410,20 +1498,20 @@ impl HidppDevice {
                     // No data yet - block until readable or out of budget
                     if !wait_readable(self.device.as_raw_fd(), deadline) {
                         tracing::debug!(feature_index, function, max_attempts, "HID++ request timeout");
-                        return None;
+                        return Err(None);
                     }
                     // Data ready: read it before re-checking the deadline
                     continue;
                 }
                 Err(e) => {
                     tracing::debug!(error = %e, "Error reading HID++ response");
-                    return None;
+                    return Err(None);
                 }
             }
 
             if std::time::Instant::now() >= deadline {
                 tracing::debug!(feature_index, function, max_attempts, "HID++ request timeout");
-                return None;
+                return Err(None);
             }
         }
     }
@@ -1460,6 +1548,12 @@ impl HidppDevice {
     /// Used for commands that need more than 3 parameter bytes
     /// (e.g. setCidReporting which needs 5 bytes).
     fn hidpp_long_request(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Option<Vec<u8>> {
+        retry_once_if_busy(BUSY_RETRY_DELAY, || self.long_request_once(feature_index, function, params))
+    }
+
+    /// One long request; `Err` carries the HID++ 2.0 error code the device
+    /// answered with, if it answered with one.
+    fn long_request_once(&mut self, feature_index: u8, function: u8, params: &[u8]) -> Result<Vec<u8>, Option<u8>> {
         // Drain any pending data first
         self.drain_buffer();
 
@@ -1483,9 +1577,9 @@ impl HidppDevice {
         );
 
         // Send request
-        if let Err(e) = self.device.write_all(&request) {
+        if let Err(e) = write_report(&mut self.device, &request, EPIPE_RETRY_DELAY) {
             tracing::debug!(error = %e, "Failed to write HID++ long message");
-            return None;
+            return Err(None);
         }
 
         // Read response with timeout (same poll(2) approach as hidpp_request,
@@ -1496,19 +1590,11 @@ impl HidppDevice {
         loop {
             match self.device.read(&mut response) {
                 Ok(len) if len >= 7 => {
-                    let resp_function = (response[3] >> 4) & 0x0F;
-                    let resp_sw_id = response[3] & 0x0F;
-
                     // Check for matching response
-                    if (response[0] == report_type::SHORT || response[0] == report_type::LONG)
-                        && response[1] == self.device_index
-                        && response[2] == feature_index
-                        && resp_function == function
-                        && resp_sw_id == sw_id
-                    {
+                    if is_reply_to(&response[..len], self.device_index, feature_index, (function << 4) | sw_id) {
                         tracing::debug!("HID++ long request matched: {:02X?}", &response[..len]);
                         self.last_receiver_error = None;
-                        return Some(response[..len].to_vec());
+                        return Ok(response[..len].to_vec());
                     }
 
                     // Check for error response. Gate on the report type and
@@ -1528,7 +1614,7 @@ impl HidppDevice {
                             "HID++ error response to long request: {:02X?}",
                             &response[..len]
                         );
-                        return None;
+                        return Err(Some(error_code));
                     }
                     // Receiver error (0x8F) for our device: fail now instead
                     // of waiting out the 1 s deadline (a parked mouse made
@@ -1538,7 +1624,7 @@ impl HidppDevice {
                     {
                         self.last_receiver_error = Some(code);
                         tracing::debug!(code, "HID++ receiver error to long request: {:02X?}", &response[..len]);
-                        return None;
+                        return Err(None);
                     }
                 }
                 Ok(_) => {}
@@ -1546,20 +1632,20 @@ impl HidppDevice {
                     // No data yet - block until readable or out of budget
                     if !wait_readable(self.device.as_raw_fd(), deadline) {
                         tracing::debug!(feature_index, function, "HID++ long request timeout");
-                        return None;
+                        return Err(None);
                     }
                     // Data ready: read it before re-checking the deadline
                     continue;
                 }
                 Err(e) => {
                     tracing::debug!(error = %e, "Error reading HID++ long response");
-                    return None;
+                    return Err(None);
                 }
             }
 
             if std::time::Instant::now() >= deadline {
                 tracing::debug!(feature_index, function, "HID++ long request timeout");
-                return None;
+                return Err(None);
             }
         }
     }
@@ -2119,22 +2205,20 @@ impl HidppDevice {
 
     /// Query ThumbWheel capabilities (function 0: getThumbwheelInfo).
     ///
-    /// Returns `(native_resolution, diverted)` where `native_resolution` is the
-    /// reported counts per revolution and `diverted` is the device's current
-    /// divert state. Returns `None` if the feature is unavailable or the query
-    /// fails. READ-ONLY.
-    pub fn get_thumbwheel_capabilities(&mut self) -> Option<(u16, bool)> {
+    /// Returns `None` if the feature is unavailable or the query fails.
+    /// READ-ONLY.
+    pub fn get_thumbwheel_capabilities(&mut self) -> Option<ThumbwheelInfo> {
         let feature_index = self.thumbwheel_feature_index?;
-
-        // Function 0: getThumbwheelInfo() -> nativeRes(2B), diverted(1B), ...
         let resp = self.hidpp_request(feature_index, 0x00, &[])?;
-        if resp.len() < 7 {
-            return None;
-        }
-        let native_res = ((resp[4] as u16) << 8) | (resp[5] as u16);
-        let diverted = resp[6] != 0;
-        tracing::debug!(native_res, diverted, "ThumbWheel capabilities");
-        Some((native_res, diverted))
+        let info = ThumbwheelInfo::parse(resp.get(4..)?)?;
+        tracing::info!(
+            native_resolution = info.native_resolution,
+            diverted_resolution = info.diverted_resolution,
+            default_direction = info.default_direction,
+            capabilities = format!("0x{:02X}", info.capabilities),
+            "ThumbWheel capabilities"
+        );
+        Some(info)
     }
 
     /// Enable or disable thumb-wheel divert (function 1: setThumbwheelReporting).
@@ -3139,18 +3223,30 @@ impl HidppDevice {
             return Ok(());
         }
         tracing::info!(host_index, "Switching to Easy-Switch host slot");
-        self.last_hidpp_error = None;
         self.last_receiver_error = None;
-        // fn1 setCurrentHost(host): one attempt, the silence is the success.
-        let _ = self.hidpp_request_with_timeout(change_host_index, 0x01, &[host_index], 1);
-        if let Some(code) = self.last_hidpp_error {
-            return Err(format!("The device refused the switch (HID++ error 0x{code:02X})"));
-        }
-        if self.last_receiver_error.is_some() {
-            return Err("The device is asleep or away".to_string());
-        }
-        Ok(())
+        // fn1 setCurrentHost(host): one send, the silence is the success. The
+        // single-request functions skip the Busy retry: a switch never goes
+        // out twice, and a Busy answer is the device refusing it.
+        let sent = if self.connection_type == ConnectionType::Bluetooth {
+            self.long_request_once(change_host_index, 0x01, &[host_index])
+        } else {
+            self.short_request_once(change_host_index, 0x01, &[host_index], 1)
+        };
+        host_switch_result(sent, self.last_receiver_error)
     }
+}
+
+/// What the one setCurrentHost send says: the device answers nothing when it
+/// leaves, so only an error answer (HID++ 2.0, or the receiver's for an
+/// asleep or away device) means it stayed.
+fn host_switch_result(sent: Result<Vec<u8>, Option<u8>>, receiver_error: Option<u8>) -> Result<(), String> {
+    if let Err(Some(code)) = sent {
+        return Err(format!("The device refused the switch (HID++ error 0x{code:02X})"));
+    }
+    if receiver_error.is_some() {
+        return Err("The device is asleep or away".to_string());
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -3497,5 +3593,150 @@ mod button_divert_tests {
         assert!(diverted.is_empty());
         assert!(io.short_requests.is_empty());
         assert!(io.long_requests.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod host_switch_tests {
+    use super::*;
+
+    /// "Busy, then silence" read as success once the Busy retry ran: the
+    /// first answer of the single send must decide.
+    #[test]
+    fn a_busy_answer_is_a_refusal_not_a_retried_success() {
+        let mut sends = 0;
+        let retried = retry_once_if_busy(std::time::Duration::ZERO, || {
+            sends += 1;
+            if sends == 1 { Err(Some(HIDPP_ERR_BUSY)) } else { Err(None) }
+        });
+        assert_eq!((retried, sends), (None, 2), "the retry path sends twice and hides the Busy");
+
+        let refused = host_switch_result(Err(Some(HIDPP_ERR_BUSY)), None).unwrap_err();
+        assert!(refused.contains("0x06"), "{refused}");
+    }
+
+    #[test]
+    fn silence_is_the_switch_and_a_receiver_error_means_it_stayed() {
+        assert_eq!(host_switch_result(Err(None), None), Ok(()));
+        assert_eq!(host_switch_result(Ok(vec![0x10, 0x01, 0x05, 0x12, 0, 0, 0]), None), Ok(()));
+        assert!(host_switch_result(Err(None), Some(RECEIVER_ERR_CONNECT_FAIL)).is_err());
+        assert!(host_switch_result(Err(Some(0x02)), None).is_err());
+    }
+}
+
+#[cfg(test)]
+mod thumbwheel_info_tests {
+    use super::ThumbwheelInfo;
+
+    #[test]
+    fn parses_resolutions_as_big_endian_words() {
+        let info = ThumbwheelInfo::parse(&[0x00, 0x12, 0x00, 0x78, 0x01, 0x0F, 0xAA]).unwrap();
+        assert_eq!(info.native_resolution, 18);
+        assert_eq!(info.diverted_resolution, 120);
+        assert_eq!(info.default_direction, 1);
+        assert_eq!(info.capabilities, 0x0F);
+        assert_eq!(ThumbwheelInfo::parse(&[0; 5]), None, "short reply");
+    }
+}
+
+#[cfg(test)]
+mod request_robustness_tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn rotation_skips_reserved_ids() {
+        // 0 notifications, 1 wake ping, 0x0E haptic play, 0x0F firmware.
+        let never = [0x00, 0x01, 0x0E, 0x0F];
+        for counter in 0..=u8::MAX {
+            let id = software_id_for(counter);
+            assert!(!never.contains(&id), "counter {counter} gave reserved id {id:#04x}");
+        }
+        assert!((0..300).map(|_| next_software_id()).all(|id| !never.contains(&id)));
+    }
+
+    #[test]
+    fn reply_matching_holds_across_the_counter_wrap() {
+        let (before, after) = (software_id_for(u8::MAX), software_id_for(0));
+        assert_ne!(before, after, "the requests either side of the wrap differ");
+        let reply_before = [0x11, 0x02, 0x0B, 0x30 | before, 0x00, 0x50, 0x00];
+        assert!(is_reply_to(&reply_before, 0x02, 0x0B, 0x30 | before));
+        assert!(!is_reply_to(&reply_before, 0x02, 0x0B, 0x30 | after));
+        let reply_after = [0x10, 0x02, 0x0B, 0x30 | after, 0x00, 0x00, 0x00];
+        assert!(is_reply_to(&reply_after, 0x02, 0x0B, 0x30 | after));
+        // A mouse-motion report (0x02) is never a reply, whatever its bytes.
+        assert!(!is_reply_to(&[0x02, 0x02, 0x0B, 0x30 | after, 0, 0, 0], 0x02, 0x0B, 0x30 | after));
+    }
+
+    /// Fails its first `broken` writes with `kind`, then accepts everything.
+    struct FlakyWriter {
+        broken: usize,
+        kind: std::io::ErrorKind,
+        writes: usize,
+    }
+
+    impl Write for FlakyWriter {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.writes += 1;
+            if self.writes <= self.broken {
+                return Err(self.kind.into());
+            }
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn flaky(broken: usize, kind: std::io::ErrorKind) -> FlakyWriter {
+        FlakyWriter { broken, kind, writes: 0 }
+    }
+
+    #[test]
+    fn broken_pipe_writes_are_retried_three_times() {
+        let mut w = flaky(3, std::io::ErrorKind::BrokenPipe);
+        assert!(write_report(&mut w, &[0x10; 7], Duration::ZERO).is_ok());
+        assert_eq!(w.writes, 4, "the first try and three retries");
+
+        let mut w = flaky(4, std::io::ErrorKind::BrokenPipe);
+        let err = write_report(&mut w, &[0x10; 7], Duration::ZERO).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::BrokenPipe);
+        assert_eq!(w.writes, 4, "gives up after three retries");
+    }
+
+    #[test]
+    fn other_write_errors_fail_at_once() {
+        let mut w = flaky(1, std::io::ErrorKind::PermissionDenied);
+        assert!(write_report(&mut w, &[0x10; 7], Duration::ZERO).is_err());
+        assert_eq!(w.writes, 1);
+    }
+
+    #[test]
+    fn a_busy_reply_is_retried_once() {
+        let mut calls = 0;
+        let reply = retry_once_if_busy(Duration::ZERO, || {
+            calls += 1;
+            if calls == 1 { Err(Some(HIDPP_ERR_BUSY)) } else { Ok(vec![0x10]) }
+        });
+        assert_eq!((reply, calls), (Some(vec![0x10]), 2));
+
+        let mut calls = 0;
+        let reply = retry_once_if_busy(Duration::ZERO, || {
+            calls += 1;
+            Err::<Vec<u8>, _>(Some(HIDPP_ERR_BUSY))
+        });
+        assert_eq!((reply, calls), (None, 2), "busy twice: only one retry");
+    }
+
+    #[test]
+    fn other_failures_are_not_retried() {
+        for failure in [Some(0x05), Some(0x02), None] {
+            let mut calls = 0;
+            let reply = retry_once_if_busy(Duration::ZERO, || {
+                calls += 1;
+                Err::<Vec<u8>, _>(failure)
+            });
+            assert_eq!((reply, calls), (None, 1), "{failure:?}");
+        }
     }
 }

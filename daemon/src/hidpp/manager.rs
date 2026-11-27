@@ -1047,6 +1047,11 @@ impl HapticManager {
         self.device.as_ref().and_then(|d| d.thumbwheel_feature_index())
     }
 
+    /// Read (and log) the ThumbWheel resolutions; one HID++ request.
+    pub fn thumbwheel_capabilities(&mut self) -> Option<crate::hidpp::device::ThumbwheelInfo> {
+        self.device.as_mut().and_then(|d| d.get_thumbwheel_capabilities())
+    }
+
     /// Feature indices for device-originated notification decoding (live
     /// hardware readback). Returns all-`None` when no device is connected.
     pub fn notification_indices(&self) -> crate::hidpp::notifications::NotificationIndices {
