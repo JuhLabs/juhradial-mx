@@ -406,9 +406,9 @@ It has nothing to do with JuhRadial MX and shows on Windows and macOS just the s
 1. Plug the receiver into a USB 2.0 port (black, not blue), ideally on the other side of the computer from USB 3.0 devices in use.
 2. No USB 2.0 port: put the receiver on a short USB 2.0 extension cable and place it on the desk, near the mouse and away from USB 3.0 ports, hubs and drives. A few centimetres of distance already helps.
 3. Keep the receiver out of USB 3.0 hubs and docks, and away from a Wi-Fi antenna.
-4. Or pair the mouse over Bluetooth to check: if the stutter is gone there, the receiver's spot was the problem.
+4. To narrow it down, pair the mouse over Bluetooth for a while. If the stutter is gone there, the problem is somewhere in the receiver connection (its spot, the port or the receiver itself); moving the receiver as in steps 1 and 2 and trying again tells you whether its spot was the cause.
 
-To tell this apart from the freeze above: stop the daemon (`systemctl --user stop juhradialmx-daemon`). If the stutter stays, it is the radio link, not the daemon.
+To tell this apart from the freeze above: stop the daemon (`systemctl --user stop juhradialmx-daemon`). If the stutter stays, the daemon's forwarding is not the cause. Interference is then one of the things left to check, by moving the receiver; a USB, driver or compositor problem can look the same.
 
 ---
 
