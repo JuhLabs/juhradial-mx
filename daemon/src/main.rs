@@ -2313,46 +2313,26 @@ async fn run_custom_action(
     }
 }
 
-/// Write `state` to `target`, which is on connection `generation`, unless
-/// `expected` names another connection. `None` when skipped (nothing written).
-fn apply_unless_reconnected(
-    target: &mut impl juhradiald::replay::ReplayTarget,
-    generation: u64,
-    state: &juhradiald::replay::DeviceState,
-    expected: Option<u64>,
-) -> Option<(u8, u8)> {
-    if expected.is_some_and(|g| g != generation) {
-        return None;
-    }
-    Some(juhradiald::replay::apply(target, state))
-}
-
-/// Write the effective pointer/scroll state to the mouse. `Some(false)` when
-/// a write failed (the next trigger retries). With `expected_generation`, the
-/// writes happen only while the manager is still on that connection, checked
-/// under the guard that writes; `None` when a reconnect skipped them.
+/// Write the effective pointer/scroll state to the mouse. False when a write
+/// failed (the next trigger retries).
 async fn replay_pointer_state(
     manager: SharedHapticManager,
     ctx: juhradiald::replay::ReplayContext,
     unit_key: Option<String>,
-    expected_generation: Option<u64>,
-) -> Option<bool> {
+) -> bool {
     let result = tokio::task::spawn_blocking(move || {
         let state = ctx.effective(unit_key.as_deref());
         if state == juhradiald::replay::DeviceState::default() {
-            return Some((0, 0));
+            return (0, 0);
         }
         match manager.lock() {
-            Ok(mut m) => {
-                let generation = m.connection_generation();
-                apply_unless_reconnected(&mut *m, generation, &state, expected_generation)
-            }
-            Err(_) => Some((0, 1)),
+            Ok(mut m) => juhradiald::replay::apply(&mut *m, &state),
+            Err(_) => (0, 1),
         }
     })
     .await
-    .unwrap_or(Some((0, 1)));
-    let (tried, failed) = result?;
+    .unwrap_or((0, 1));
+    let (tried, failed) = result;
     if tried > 0 || failed > 0 {
         info!(tried, failed, "Replayed pointer and scroll state");
     }
@@ -2374,25 +2354,7 @@ async fn replay_pointer_state(
             .await;
         }
     }
-    Some(failed == 0)
-}
-
-/// Wait before the one retry of a failed post-wake replay: a write sent while
-/// the mouse is still coming up can fail where the same write a moment later
-/// lands, and without a retry the mouse ran on other values until its next wake.
-const REPLAY_RETRY_DELAY: Duration = Duration::from_secs(3);
-
-/// After `delay`, run `replay` once for connection `generation`; `replay`
-/// writes only while the manager is still on it (a reconnect in the meantime
-/// runs its own replay). `None` when skipped, else whether the retry
-/// succeeded (it is never retried again).
-async fn retry_replay_once<R, RF>(delay: Duration, generation: u64, replay: R) -> Option<bool>
-where
-    R: FnOnce(u64) -> RF,
-    RF: std::future::Future<Output = Option<bool>>,
-{
-    sleep(delay).await;
-    replay(generation).await
+    failed == 0
 }
 
 async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawStartup, shared: HidrawShared) {
@@ -2411,7 +2373,6 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
         device_name_state,
     } = shared;
     let mut replay_gate = juhradiald::replay::ReplayGate::default();
-    let mut replay_retry: Option<tokio::task::JoinHandle<()>> = None;
     let mut handler = HidrawHandler::new(event_tx);
     let config_for_thumbwheel = shared_config.clone();
     let config_for_divert = shared_config.clone();
@@ -2546,28 +2507,12 @@ async fn run_hidraw_loop(event_tx: mpsc::Sender<GestureEvent>, startup: HidrawSt
         // scroll (they do not survive every wake/host return), once per wake.
         // Runs before the listener opens so replies never interleave with it.
         if refreshed && replay_gate.should_run(Instant::now()) {
-            // This replay supersedes a retry still waiting from the last one.
-            if let Some(pending) = replay_retry.take() {
-                pending.abort();
-            }
             let unit_key = config_for_divert
                 .read()
                 .ok()
                 .and_then(|c| c.active_unit.clone());
-            if replay_pointer_state(haptic_manager.clone(), replay.clone(), unit_key.clone(), None).await == Some(true) {
+            if replay_pointer_state(haptic_manager.clone(), replay.clone(), unit_key).await {
                 replay_gate.record_success(Instant::now());
-            } else if let Some(generation) = read_manager(&haptic_manager, |m| m.connection_generation()).await {
-                let (manager, ctx) = (haptic_manager.clone(), replay.clone());
-                replay_retry = Some(tokio::spawn(async move {
-                    let retried = retry_replay_once(REPLAY_RETRY_DELAY, generation, |generation| {
-                        replay_pointer_state(manager, ctx, unit_key, Some(generation))
-                    })
-                    .await;
-                    match retried {
-                        Some(ok) => info!(ok, "Retried the pointer and scroll replay"),
-                        None => debug!("Replay retry skipped: the mouse reconnected"),
-                    }
-                }));
             }
         }
 
@@ -3862,71 +3807,6 @@ mod tests {
         assert!(needs_global_thumbwheel_restore(true, false, false), "the loop applied the override");
         assert!(!needs_global_thumbwheel_restore(true, true, true), "the next profile sets its own");
         assert!(!needs_global_thumbwheel_restore(false, false, false), "nothing overrode the wheel");
-    }
-
-    #[tokio::test]
-    async fn a_failed_replay_is_retried_once_on_the_captured_connection() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
-        for outcome in [Some(true), Some(false), None] {
-            let calls = AtomicUsize::new(0);
-            let result = retry_replay_once(Duration::ZERO, 4, |generation| {
-                calls.fetch_add(1, Ordering::SeqCst);
-                assert_eq!(generation, 4, "the retry carries the generation it was armed on");
-                async move { outcome }
-            })
-            .await;
-            assert_eq!(result, outcome, "a skip inside the replay is reported as one");
-            assert_eq!(calls.load(Ordering::SeqCst), 1, "exactly one retry, even when it fails");
-        }
-    }
-
-    #[derive(Default)]
-    struct CountingTarget {
-        writes: usize,
-    }
-
-    impl juhradiald::replay::ReplayTarget for CountingTarget {
-        fn replay_smartshift(&mut self, _: bool, _: u8) -> bool {
-            self.writes += 1;
-            true
-        }
-        fn replay_hires(&mut self, _: bool, _: bool) -> bool {
-            self.writes += 1;
-            true
-        }
-        fn replay_dpi(&mut self, _: u16) -> bool {
-            self.writes += 1;
-            true
-        }
-        fn replay_force(&mut self, _: u8) -> bool {
-            self.writes += 1;
-            true
-        }
-    }
-
-    fn dpi_state() -> juhradiald::replay::DeviceState {
-        juhradiald::replay::DeviceState {
-            dpi: Some(1600),
-            ..Default::default()
-        }
-    }
-
-    /// A reconnect between the retry's arming and its writes must not put the
-    /// old unit's settings on the new connection (possibly another mouse).
-    #[test]
-    fn the_replay_retry_writes_nothing_after_a_reconnect() {
-        let mut target = CountingTarget::default();
-        assert_eq!(apply_unless_reconnected(&mut target, 5, &dpi_state(), Some(4)), None);
-        assert_eq!(target.writes, 0);
-    }
-
-    #[test]
-    fn the_replay_writes_on_the_expected_or_any_connection() {
-        for expected in [Some(4), None] {
-            let mut target = CountingTarget::default();
-            assert_eq!(apply_unless_reconnected(&mut target, 4, &dpi_state(), expected), Some((1, 0)));
-            assert_eq!(target.writes, 1, "{expected:?}");
-        }
     }
 
     #[test]
