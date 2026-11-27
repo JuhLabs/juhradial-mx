@@ -1157,7 +1157,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // True while the last applied profile overrode the thumb wheel,
             // so leaving its app restores the global divert/invert instead of
             // latching the profile's state everywhere (issue #127 review).
-            let mut thumbwheel_overridden = false;
             // Classes already announced through NewAppSeen during this run.
             let mut seen_apps: HashSet<String> = HashSet::new();
             // Device state before the first profile applied: what leaving
@@ -1232,18 +1231,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Lookup is case-insensitive: keys are lowercased at load, so
                 // lowercase the incoming class (window-tracker sources vary).
-                let (hw, left_sets_tw) = {
-                    let map = match hw_profiles.read() {
-                        Ok(map) => map,
-                        Err(e) => {
-                            error!(error = %e, "Failed to read shared hardware profiles");
-                            continue;
-                        }
-                    };
-                    // The profile being left may have gained a wheel mode in a
-                    // Settings save, which ReloadConfig or a wake then applied.
-                    let left_sets_tw = map.get(&active_profile).is_some_and(|h| h.thumbwheel.is_some());
-                    (map.get(&class.to_lowercase()).cloned(), left_sets_tw)
+                let hw = match hw_profiles.read() {
+                    Ok(map) => map.get(&class.to_lowercase()).cloned(),
+                    Err(e) => {
+                        error!(error = %e, "Failed to read shared hardware profiles");
+                        continue;
+                    }
                 };
 
                 // ActiveProfileChanged carries the app class whose profile is
@@ -1271,30 +1264,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         warn!(error = %e, "Failed to emit ActiveProfileChanged");
                     }
                 }
-
-                // Restore the global thumb-wheel state when leaving profiled
-                // coverage (no profile, or one that doesn't touch the wheel).
-                let profile_sets_tw = hw.as_ref().is_some_and(|h| h.thumbwheel.is_some());
-                if needs_global_thumbwheel_restore(thumbwheel_overridden, left_sets_tw, profile_sets_tw) {
-                    thumbwheel_overridden = false;
-                    let tw_config = hw_config.clone();
-                    let tw_replay = focus_replay.clone();
-                    let mgr_tw = hw_manager.clone();
-                    let _ = tokio::task::spawn_blocking(move || {
-                        if let Ok(mut m) = mgr_tw.lock() {
-                            if m.thumbwheel_supported() {
-                                let (divert, invert) = live_thumbwheel_reporting(
-                                    &tw_config,
-                                    &tw_replay.active_profile,
-                                    &tw_replay.hardware_profiles,
-                                );
-                                let _ = m.set_thumbwheel_reporting(divert, invert);
-                            }
-                        }
-                    })
-                    .await;
-                }
-                thumbwheel_overridden = thumbwheel_overridden || profile_sets_tw;
 
                 if !profile_changed {
                     continue;
@@ -1344,10 +1313,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let state = juhradiald::replay::effective_state(globals, hw.as_ref(), gaming_dpi);
                     let (tried, failed) = juhradiald::replay::apply(&mut *m, &state);
                     debug!(tried, failed, "Profile pointer/scroll state written");
-                    if hw.as_ref().is_some_and(|h| h.thumbwheel.is_some()) {
-                        // Thumb-wheel override (the global restore is above),
-                        // resolved live: a ReloadConfig since the snapshot may
-                        // have changed or dropped the mode.
+                    if m.thumbwheel_supported() {
+                        // The thumb wheel on every profile change, from the
+                        // live profile and not the snapshot above: a
+                        // ReloadConfig since then may have given this app a
+                        // wheel mode, changed it or dropped it. With no mode
+                        // this writes the global state, which is also what
+                        // leaving a profile needs.
                         let (divert, invert) = live_thumbwheel_reporting(
                             &tw_config,
                             &tw_replay.active_profile,
@@ -1894,13 +1866,6 @@ fn live_thumbwheel_reporting(
     let global = config.read().map(|c| c.thumbwheel.clone()).unwrap_or_default();
     let tw = global.with_profile_mode(juhradiald::profiles::active_thumbwheel_mode(active, profiles));
     (tw.is_diverted(), tw.hardware_invert())
-}
-
-/// Whether a focus change must put the global thumb-wheel state back: the
-/// wheel was overridden (by the focus loop, or by a profile that gained a
-/// wheel mode while in front) and the next app's profile sets none.
-fn needs_global_thumbwheel_restore(overridden: bool, left_sets_tw: bool, next_sets_tw: bool) -> bool {
-    (overridden || left_sets_tw) && !next_sets_tw
 }
 
 /// Set once the thumb wheel's counts per revolution have been read this run.
@@ -3804,18 +3769,6 @@ mod tests {
         assert!(!first_diverted_apply(&logged, true), "not again on a wake");
     }
 
-    /// A profile that gained a wheel mode in a Settings save while its app
-    /// was in front is diverted by ReloadConfig (or a wake) though the focus
-    /// loop never applied it; leaving that app must still restore the global
-    /// wheel, or it stays diverted under global Off.
-    #[test]
-    fn leaving_a_wheel_profile_restores_the_global_wheel() {
-        assert!(needs_global_thumbwheel_restore(false, true, false), "profile gained a mode on reload");
-        assert!(needs_global_thumbwheel_restore(true, false, false), "the loop applied the override");
-        assert!(!needs_global_thumbwheel_restore(true, true, true), "the next profile sets its own");
-        assert!(!needs_global_thumbwheel_restore(false, false, false), "nothing overrode the wheel");
-    }
-
     fn wheel_state(
         mode: juhradiald::config::ThumbwheelMode,
         invert: bool,
@@ -3836,6 +3789,25 @@ mod tests {
     /// map before the loop gets the manager lock: the write must follow the
     /// reloaded map, not the snapshot, or the wheel stays diverted while the
     /// rotation handler resolves the new mode.
+    /// Global Off, entering an app whose profile had no wheel mode when the
+    /// focus loop looked it up; a reload then gives it Volume. The write on
+    /// the profile change must divert, though the snapshot said nothing.
+    #[test]
+    fn a_wheel_mode_added_after_the_snapshot_is_applied_on_the_profile_change() {
+        use juhradiald::config::ThumbwheelMode::{Off, Volume};
+        let (config, cell, profiles) = wheel_state(Off, false, Some("kate"));
+        profiles.write().unwrap().insert("kate".into(), juhradiald::profiles::HardwareProfile::default());
+        let snapshot = profiles.read().unwrap().get("kate").cloned();
+        assert_eq!(snapshot.and_then(|h| h.thumbwheel), None, "no wheel mode at lookup");
+
+        *profiles.write().unwrap() = HashMap::from([("kate".to_string(), wheel_profile(Volume))]);
+        assert_eq!(live_thumbwheel_reporting(&config, &cell, &profiles), (true, false), "diverted for Volume");
+
+        // Leaving for an app with no profile: the same write gives global Off.
+        *cell.write().unwrap() = None;
+        assert_eq!(live_thumbwheel_reporting(&config, &cell, &profiles), (false, false));
+    }
+
     #[test]
     fn focus_wheel_write_follows_a_reload_after_the_snapshot() {
         use juhradiald::config::ThumbwheelMode::{Off, Volume};
