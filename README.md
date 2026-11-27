@@ -315,6 +315,7 @@ JuhFlow moves the cursor and clipboard between Linux and macOS over the local ne
 | MX Keypad keys stay black | It has no pages yet. Add them in Settings, or where the GTK window opens, with `juhradial-settings --keypad-template everyday`. |
 | Menu is hidden on Hyprland | Add the rules from the [compositor support guide](https://juhlabs.github.io/juhradial-mx/compositor-support/). |
 | Build fails | Install the development packages for your distro, including `hidapi-devel` and `dbus-devel` on Fedora-family systems. |
+| Cursor stutters or lags with a Bolt or Unifying receiver | Move the receiver to a USB 2.0 port, or onto a short USB 2.0 extension cable away from USB 3.0 ports and devices. USB 3.0 signalling radiates noise in the 2.4 GHz band the receiver listens on. This happens with or without JuhRadial MX, on any operating system; see the [troubleshooting guide](https://juhlabs.github.io/juhradial-mx/troubleshooting/#cursor-stutter). |
 
 **Settings → Settings** has a troubleshooting card with the service and overlay status, a restart button, the log and **Report a bug**. For verbose daemon output:
 
