@@ -1,36 +1,60 @@
 # Flatpak manifest for JuhRadial MX
 # https://github.com/JuhLabs/juhradial-mx
+#
+# Not for Flathub (see packaging/FLATPAK.md). Build from a source checkout:
+#   flatpak-builder --user --install-deps-from=flathub --force-clean \
+#       --install build packaging/org.juhlabs.JuhRadialMX.yaml
+#
+# What runs: the Rust daemon, the PyQt6 overlay (the radial menu) and the Qt
+# Settings app. The GTK Settings fallback and the niri layer-shell host need
+# PyGObject, GTK 4 and libadwaita, which the KDE runtime does not ship, so they
+# are not bundled.
 
 app-id: org.juhlabs.JuhRadialMX
-runtime: org.gnome.Platform
-runtime-version: '47'
-sdk: org.gnome.Sdk
+runtime: org.kde.Platform
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+base: com.riverbankcomputing.PyQt.BaseApp
+base-version: '6.11'
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
 
 command: juhradial-mx
 
+# The PyQt BaseApp installs its own copy of PyQt6 under /app.
+cleanup-commands:
+  - /app/cleanup-BaseApp.sh
+
 finish-args:
-  # Display access
+  # Radial menu overlay and Settings window
   - --share=ipc
   - --socket=wayland
   - --socket=fallback-x11
+  - --device=dri
 
-  # Device access for HID++ communication with Logitech devices
+  # The daemon talks HID++ to the mouse over /dev/hidraw* and reads
+  # /dev/input/event*, and ydotool injects shortcuts through /dev/uinput.
+  # Flatpak has no narrower device permission that covers hidraw, so this is
+  # --device=all. It only opens the nodes: the host must still grant the user
+  # access to them (udev rules, packaging/FLATPAK.md).
   - --device=all
 
-  # D-Bus access for daemon communication
-  - --talk-name=org.kde.juhradialmx.*
+  # The daemon owns org.kde.juhradialmx on the session bus; the overlay and
+  # Settings talk to it there.
+  - --own-name=org.kde.juhradialmx
+  - --own-name=org.kde.juhradialmx.*
+  # KWin scripting for the cursor position and focused window, notifications,
+  # the battery state from UPower, global shortcuts and the tray.
+  - --talk-name=org.kde.KWin
+  - --talk-name=org.kde.kglobalaccel
+  - --talk-name=org.kde.plasmashell
   - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.UPower
+  - --talk-name=org.kde.StatusNotifierWatcher
 
-  # Session bus for KDE integration
-  - --socket=session-bus
-
-  # Config file access
-  - --filesystem=~/.config/juhradial:create
-
-  # GTK4 Layer Shell for overlay
-  - --env=GTK_USE_PORTAL=1
+  # KWin reads the script file the daemon writes, so the daemon's temp
+  # directory has to be a path both sides see (the launcher sets TMPDIR).
+  - --filesystem=xdg-run/juhradial-tmp:create
 
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
@@ -38,80 +62,109 @@ build-options:
     CARGO_HOME: /run/build/juhradiald/cargo
 
 modules:
-  # GTK4 Layer Shell for Wayland overlay support
-  - name: gtk4-layer-shell
-    buildsystem: meson
+  # ydotool: keyboard shortcut and thumb-wheel injection through /dev/uinput.
+  - name: ydotool
+    buildsystem: cmake-ninja
     config-opts:
-      - -Dexamples=false
-      - -Ddocs=false
-      - -Dtests=false
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+      # The checkout has no tag history, so CMake cannot run `git describe`.
+      - -DCMAKE_C_FLAGS=-DVERSION=\"1.0.4\"
     sources:
       - type: git
-        url: https://github.com/wmww/gtk4-layer-shell
-        tag: v1.0.3
-        commit: be85ee0e898bc43b3c6d6e9ed5b4c0aae6d8c22b
+        url: https://github.com/ReimuNotMoe/ydotool.git
+        tag: v1.0.4
+        commit: 57ba7d0af525e82da2de0e275d169477f293b197
+      # The man pages need scdoc and the unit file installs outside /app.
+      - type: shell
+        commands:
+          - sed -i '/add_subdirectory(\(manpage\|Daemon\))/d' CMakeLists.txt
 
-  # Rust daemon
+  # Settings imports cryptography for the Logitech Flow pairing. Prebuilt
+  # wheels, because building it needs a Rust and OpenSSL toolchain of its own.
+  - name: python3-cryptography
+    buildsystem: simple
+    build-commands:
+      - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+        --prefix=${FLATPAK_DEST} --no-build-isolation --no-deps
+        cryptography cffi pycparser
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/b6/ae/315bbeee126a769cbde43cf4908acb4b40408d8bf8bbf334dd7368d8dadf/pycparser-3.12-py3-none-any.whl
+        sha256: a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e
+      - type: file
+        only-arches: [x86_64]
+        url: https://files.pythonhosted.org/packages/95/95/86342356ff5953b3fb06f7ef7c5bee212d45e770abc7218d451b9148313c/cffi-2.1.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+        sha256: a931079504ecc49efed7744c476a5c343a92fabf66dec2db95edb1b2fdc770e2
+      - type: file
+        only-arches: [aarch64]
+        url: https://files.pythonhosted.org/packages/37/6f/3b5ce4c3b2192d250f04908f2bfd91ef34552ec8f7716a5d4abdb8d67bb2/cffi-2.1.1-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl
+        sha256: f16c709686a78c727bbbf059f92b0bf41c6fc60deec706d2dc19f529175a6125
+      - type: file
+        only-arches: [x86_64]
+        url: https://files.pythonhosted.org/packages/1a/f1/b474e930c4d910328780e3940da76f5aa5cbc48ce1fc14e44d239d9ea9db/cryptography-50.0.2-cp311-abi3-manylinux_2_28_x86_64.whl
+        sha256: 4061c0079120205fb760c58acab6443e217307dcf05e3702cf970e0689972856
+      - type: file
+        only-arches: [aarch64]
+        url: https://files.pythonhosted.org/packages/38/6b/61a3f8d8c5e1e49a6cddccafc4015cc1c0021360ab0acb4080e7a423644a/cryptography-50.0.2-cp311-abi3-manylinux_2_28_aarch64.whl
+        sha256: f9f6143a8c75945eb960d9eb98905a441394abfa24afaae239d514ffb2586480
+
+  # Rust daemon. The crates come from packaging/cargo-sources.json, which is
+  # generated from daemon/Cargo.lock (see packaging/FLATPAK.md for the command).
   - name: juhradiald
     buildsystem: simple
-    build-options:
-      env:
-        CARGO_HOME: /run/build/juhradiald/cargo
     build-commands:
-      - cargo --offline fetch --locked --manifest-path daemon/Cargo.toml --verbose
-      - cargo --offline build --locked --manifest-path daemon/Cargo.toml --release --verbose
-      - cargo --offline test --locked --manifest-path crates/mx-keypad/Cargo.toml
+      - cargo --offline build --locked --release --manifest-path daemon/Cargo.toml
       - install -Dm755 daemon/target/release/juhradiald /app/bin/juhradiald
     sources:
-      - type: git
-        url: https://github.com/JuhLabs/juhradial-mx.git
-        branch: master
-        dest: .
-      - packaging/cargo-sources.json
+      # The checkout this manifest sits in, so the build matches the commit.
+      # A release build for a package repo points these at a tag instead.
+      # Only the needed directories: `path: ..` would also pull in the
+      # .flatpak-builder state directory of a build run from the repo root.
+      - type: dir
+        path: ../daemon
+        dest: daemon
+      - type: dir
+        path: ../crates
+        dest: crates
+      - cargo-sources.json
 
-  # Main application with Python overlay
+  # Overlay, Settings and the launcher.
   - name: juhradial-mx
     buildsystem: simple
     build-commands:
-      # Install Python overlay (all modules, flow package, locales)
-      - mkdir -p /app/share/juhradial
-      - install -Dm644 overlay/*.py /app/share/juhradial/
+      # Same layout as the RPM and Arch packages, under /app/share/juhradial.
+      - install -dm755 /app/share/juhradial/assets /app/share/juhradial/settings-qt
+      - install -Dm644 -t /app/share/juhradial overlay/*.py
       - cp -r overlay/flow overlay/locales /app/share/juhradial/
-
-      # Install assets
-      - mkdir -p /app/share/juhradial/assets
       - cp -r assets/* /app/share/juhradial/assets/
-      - install -Dm644 assets/juhradial-mx.svg /app/share/icons/hicolor/scalable/apps/org.juhlabs.JuhRadialMX.svg
-
-      # The overlay draws slice glyphs from settings-qt/assets and resolves
-      # wheel skins under /app/share/juhradial/assets/wheels
-      - mkdir -p /app/share/juhradial/settings-qt
-      - cp -r settings-qt/assets /app/share/juhradial/settings-qt/
+      - install -Dm644 -t /app/share/juhradial/settings-qt settings-qt/main.py settings-qt/VERSION
+      - cp -r settings-qt/bridge settings-qt/qml settings-qt/assets /app/share/juhradial/settings-qt/
       - cp -r settings-qt/assets/wheels /app/share/juhradial/assets/
+      - find /app/share/juhradial -type d -name __pycache__ -prune -exec rm -rf {} +
 
-      # Create launcher script
-      - |
-        cat > /app/bin/juhradial-mx << 'LAUNCHER'
-        #!/bin/bash
-        # Start daemon if not running
-        if ! pgrep -x juhradiald > /dev/null; then
-            /app/bin/juhradiald &
-            sleep 1
-        fi
-        # Start settings dashboard
-        python3 /app/share/juhradial/settings_dashboard.py "$@"
-        LAUNCHER
-      - chmod +x /app/bin/juhradial-mx
+      # Host setup: the udev rules and the script that installs them
+      - install -Dm644 -t /app/share/juhradial/udev packaging/udev/*.rules
+      - install -Dm755 packaging/flatpak/host-setup.sh /app/share/juhradial/host-setup.sh
 
-      # Install desktop file
+      # Launcher
+      - install -Dm755 packaging/flatpak/juhradial-mx.sh /app/bin/juhradial-mx
+
+      # Desktop integration
+      - install -Dm644 assets/juhradial-mx.svg /app/share/icons/hicolor/scalable/apps/org.juhlabs.JuhRadialMX.svg
       - install -Dm644 packaging/juhradial-mx.desktop /app/share/applications/org.juhlabs.JuhRadialMX.desktop
-      - sed -i 's|Exec=.*|Exec=juhradial-mx|g' /app/share/applications/org.juhlabs.JuhRadialMX.desktop
-      - sed -i 's|Icon=.*|Icon=org.juhlabs.JuhRadialMX|g' /app/share/applications/org.juhlabs.JuhRadialMX.desktop
-
-      # Install AppStream metadata
+      - sed -i 's|^Icon=.*|Icon=org.juhlabs.JuhRadialMX|' /app/share/applications/org.juhlabs.JuhRadialMX.desktop
       - install -Dm644 packaging/org.juhlabs.JuhRadialMX.metainfo.xml /app/share/metainfo/org.juhlabs.JuhRadialMX.metainfo.xml
-
     sources:
-      - type: git
-        url: https://github.com/JuhLabs/juhradial-mx.git
-        branch: master
+      - type: dir
+        path: ../overlay
+        dest: overlay
+      - type: dir
+        path: ../assets
+        dest: assets
+      - type: dir
+        path: ../settings-qt
+        dest: settings-qt
+      - type: dir
+        path: ../packaging
+        dest: packaging
