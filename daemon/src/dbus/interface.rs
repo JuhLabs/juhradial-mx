@@ -451,6 +451,23 @@ impl JuhRadialService {
                             }
                         }
 
+                        // Refresh the shared per-app hardware profile map from
+                        // profiles.json so a UI save takes effect without a
+                        // daemon restart. The focus-change consumer reads this
+                        // map directly. Published under the manager lock, in
+                        // the same critical section as the thumb-wheel write
+                        // above, so a wake re-apply (manager lock, then this
+                        // map) never reads the old map and undoes the write.
+                        match self.hardware_profiles.write() {
+                            Ok(mut map) => {
+                                tracing::info!(count = hardware.len(), "Per-app hardware profiles reloaded");
+                                *map = hardware;
+                            }
+                            Err(e) => {
+                                tracing::error!(error = %e, "Failed to lock hardware profiles for reload");
+                            }
+                        }
+
                         // Re-apply non-gesture button diverts so a newly
                         // reassigned button takes effect immediately, and a
                         // button returned to its native default has its divert
@@ -494,19 +511,6 @@ impl JuhRadialService {
                     Err(e) => {
                         tracing::error!(error = %e, "Failed to lock haptic manager for update");
                         return Err(fdo::Error::Failed(format!("Haptic manager lock error: {}", e)));
-                    }
-                }
-
-                // Refresh the shared per-app hardware profile map from
-                // profiles.json so a UI save takes effect without a daemon
-                // restart. The focus-change consumer reads this map directly.
-                match self.hardware_profiles.write() {
-                    Ok(mut map) => {
-                        tracing::info!(count = hardware.len(), "Per-app hardware profiles reloaded");
-                        *map = hardware;
-                    }
-                    Err(e) => {
-                        tracing::error!(error = %e, "Failed to lock hardware profiles for reload");
                     }
                 }
 
