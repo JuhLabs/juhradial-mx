@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **The daemon's unit tests no longer talk to a real mouse** - Tests that build a device manager connected to whatever Logitech device was plugged in and sent it a few hundred HID++ requests. hidraw hands every reply to every program that has the node open, so a daemon running on the same machine, if it was reading the mouse's feature table at that moment (after an Easy-Switch return or a wake), took the tests' replies for its own and ended up with the wrong feature indexes: no diverted buttons until it was restarted. Only people running `cargo test` next to a live daemon were affected. Every device scan now goes through one function, which points unit tests at a directory that does not exist.
+- **A per-app thumb wheel mode is no longer applied stale when a Settings save and a window switch coincide** - The focus change took the app's profile first and wrote the thumb wheel to the mouse later. A Settings save in between could change that profile, and the older mode was then written over it, leaving the wheel in the wrong mode in that app until the next window switch, wake or save. Every thumb wheel write now reads the current mode while it holds the device lock.
 
 ## [0.4.5-beta.7] - 2026-11-27
 
