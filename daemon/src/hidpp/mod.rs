@@ -46,6 +46,22 @@ pub use safety::verify_feature_safety;
 /// Shared haptic manager for thread-safe access from D-Bus handlers
 pub type SharedHapticManager = Arc<Mutex<HapticManager>>;
 
+/// Where the kernel lists hidraw nodes. Every device scan goes through here.
+///
+/// Unit tests get a directory that does not exist, so no test opens a real
+/// device. Tests that build a manager used to connect to the mouse on the
+/// developer's desk and send it hundreds of requests; hidraw hands every
+/// reply to every open handle, so a daemon reading its feature table at that
+/// moment took the test's replies for its own and came out with the wrong
+/// feature indexes (no diverted buttons until a restart).
+pub fn hidraw_class_dir() -> std::path::PathBuf {
+    if cfg!(test) {
+        std::path::PathBuf::from("/nonexistent/juhradial-unit-tests/hidraw")
+    } else {
+        std::path::PathBuf::from("/sys/class/hidraw")
+    }
+}
+
 /// Create a new shared haptic manager from config
 pub fn new_shared_haptic_manager(config: &crate::config::HapticConfig) -> SharedHapticManager {
     Arc::new(Mutex::new(HapticManager::from_config(config)))

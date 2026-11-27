@@ -474,11 +474,10 @@ fn next_software_id() -> u8 {
 
 /// 2..=13. Never used: 0 marks device notifications, 1 is the wake ping's
 /// (and the kernel's hid-logitech-hidpp driver's), 0x0E our haptic play's,
-/// 0x0F firmware's. All twelve stay in the rotation on purpose: a getFeature
-/// reply does not say which request it answers, so a reply that arrives late
-/// (a mouse just back from another host) is taken by the next request with
-/// the same id. With eight ids that was close enough to shift the whole
-/// feature table after an Easy-Switch return.
+/// 0x0F firmware's. A getFeature reply does not say which request it
+/// answers, so a reply that arrives late, or one meant for another program
+/// on the same hidraw node, is taken by the next request with the same id:
+/// the longer the rotation, the smaller that window.
 const ROTATING_SOFTWARE_IDS: [u8; 12] = [0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D];
 
 fn software_id_for(counter: u8) -> u8 {
@@ -704,7 +703,7 @@ impl HidppDevice {
     /// Scans /sys/class/hidraw/ for Logitech devices and returns ALL candidates
     /// for HID++ communication (prefers interface 2).
     fn find_all_devices() -> Vec<(PathBuf, ConnectionType)> {
-        let hidraw_dir = PathBuf::from("/sys/class/hidraw");
+        let hidraw_dir = super::hidraw_class_dir();
         if !hidraw_dir.exists() {
             tracing::debug!("/sys/class/hidraw not found");
             return Vec::new();

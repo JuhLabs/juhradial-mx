@@ -347,7 +347,7 @@ impl HidrawHandler {
     /// - Direct USB connection (046D:B034, etc.)
     pub fn find_device() -> Result<PathBuf, HidrawError> {
         // Scan /sys/class/hidraw/ for Logitech devices
-        let hidraw_dir = PathBuf::from("/sys/class/hidraw");
+        let hidraw_dir = crate::hidpp::hidraw_class_dir();
         if !hidraw_dir.exists() {
             return Err(HidrawError::DeviceNotFound);
         }

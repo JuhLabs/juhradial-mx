@@ -96,7 +96,7 @@ impl BatteryHandler {
     ///
     /// Returns ALL candidates sorted by priority, with interface 2 devices first.
     fn find_all_devices() -> Vec<PathBuf> {
-        let hidraw_dir = PathBuf::from("/sys/class/hidraw");
+        let hidraw_dir = crate::hidpp::hidraw_class_dir();
         if !hidraw_dir.exists() {
             return Vec::new();
         }

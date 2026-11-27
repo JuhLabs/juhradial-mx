@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The daemon's unit tests no longer talk to a real mouse** - Tests that build a device manager connected to whatever Logitech device was plugged in and sent it a few hundred HID++ requests. hidraw hands every reply to every program that has the node open, so a daemon running on the same machine, if it was reading the mouse's feature table at that moment (after an Easy-Switch return or a wake), took the tests' replies for its own and ended up with the wrong feature indexes: no diverted buttons until it was restarted. Only people running `cargo test` next to a live daemon were affected. Every device scan now goes through one function, which points unit tests at a directory that does not exist.
+
 ## [0.4.5-beta.7] - 2026-11-27
 
 ### Added
