@@ -865,17 +865,16 @@ async fn run_grabbed(
 
     let mut device = Device::open(path)?;
 
-    // Build the virtual keyboard mirroring the real device's key set, THEN grab.
-    // The immutable borrow from `supported_keys()` ends before `grab()`.
+    // Build the virtual keyboard mirroring the real device's key set, THEN grab,
+    // once no key is held (a key held across the grab would stay down).
     let mut vdev = {
         let mut builder = VirtualDevice::builder()?.name("JuhRadial Virtual Keyboard");
         if let Some(keys) = device.supported_keys() {
             builder = builder.with_keys(keys)?;
         }
-        let v = builder.build()?;
-        device.grab()?;
-        v
+        builder.build()?
     };
+    device = crate::evdev::grab_when_released(path, &device).await?;
 
     let mut events = device.into_event_stream()?;
     // Batch events between SYN_REPORT frames (emit auto-appends SYN_REPORT),
