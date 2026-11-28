@@ -221,6 +221,111 @@ pub fn device_is_alive(device: &evdev::Device) -> bool {
     }
 }
 
+/// How often a grab that waits for a held key re-reads the key state.
+#[cfg(target_os = "linux")]
+const GRAB_RELEASE_POLL: Duration = Duration::from_millis(20);
+
+/// Longest a grab waits for held keys. Past it the device is grabbed anyway,
+/// so a key that reads held for good cannot keep the session from starting.
+#[cfg(target_os = "linux")]
+const GRAB_RELEASE_MAX_WAIT: Duration = Duration::from_secs(30);
+
+/// Open `path` again and grab it once no key or button on it is held.
+///
+/// A key held across the grab has its press and release split between two
+/// devices: the compositor reads the press from the real node, and the
+/// release reaches only the virtual device, where libinput drops it (that
+/// device never pressed the key). The key then stays down seat-wide, and
+/// mutter ignores every later press and release of it, so a left button held
+/// across the grab leaves every click dead until the real node delivers a
+/// release. Issue #150 stopped hotplugs from re-grabbing; a daemon start, a
+/// re-scan after the node went away and a keyboard remap change still grab a
+/// live device.
+///
+/// `probe`, an open and ungrabbed handle on the same node, is polled until
+/// nothing is held. A fresh handle is then opened and grabbed, so the events
+/// `probe` buffered while waiting are never forwarded a second time. A key
+/// that went down between the check and the grab drops that handle, and with
+/// it the grab, and the wait starts over. The fresh handle must be the same
+/// device as `probe`: a node number freed and reused in between is refused.
+#[cfg(target_os = "linux")]
+pub async fn grab_when_released(
+    path: &std::path::Path,
+    probe: &evdev::Device,
+) -> std::io::Result<evdev::Device> {
+    grab_when_released_with(
+        || any_key_held(probe),
+        || {
+            let mut device = evdev::Device::open(path)?;
+            if !same_device(probe, &device) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "the input node now belongs to another device",
+                ));
+            }
+            device.grab()?;
+            Ok(device)
+        },
+        any_key_held,
+        || tokio::time::sleep(GRAB_RELEASE_POLL),
+        (GRAB_RELEASE_MAX_WAIT.as_millis() / GRAB_RELEASE_POLL.as_millis()) as u32,
+    )
+    .await
+}
+
+#[cfg(target_os = "linux")]
+fn any_key_held(device: &evdev::Device) -> std::io::Result<bool> {
+    Ok(device.get_key_state()?.iter().next().is_some())
+}
+
+#[cfg(target_os = "linux")]
+fn same_device(a: &evdev::Device, b: &evdev::Device) -> bool {
+    a.input_id() == b.input_id() && a.physical_path() == b.physical_path() && a.name() == b.name()
+}
+
+/// [`grab_when_released`] with the device access and the pause injected.
+async fn grab_when_released_with<H, P>(
+    probe_held: impl Fn() -> std::io::Result<bool>,
+    mut open_grabbed: impl FnMut() -> std::io::Result<H>,
+    held: impl Fn(&H) -> std::io::Result<bool>,
+    mut pause: impl FnMut() -> P,
+    max_pauses: u32,
+) -> std::io::Result<H>
+where
+    P: std::future::Future<Output = ()>,
+{
+    let mut pauses = 0u32;
+    loop {
+        let gave_up = pauses >= max_pauses;
+        if !gave_up && probe_held()? {
+            if pauses == 0 {
+                tracing::info!("A key is held: grabbing once it is released");
+            }
+            pauses += 1;
+            pause().await;
+            continue;
+        }
+        let handle = open_grabbed()?;
+        if gave_up {
+            tracing::warn!(
+                "A key stayed held: grabbing anyway, it may stay down until pressed again"
+            );
+            return Ok(handle);
+        }
+        if !held(&handle)? {
+            if pauses > 0 {
+                tracing::info!("Keys released, device grabbed");
+            }
+            return Ok(handle);
+        }
+        // Pressed between the check and the grab: dropping the handle ends
+        // the grab, so the compositor gets this key's release from the node.
+        drop(handle);
+        pauses += 1;
+        pause().await;
+    }
+}
+
 /// The next hotplug notification, subscribed the moment this is called (tokio
 /// delivers `notify_waiters` to a `Notified` from its creation, polled or
 /// not); never resolves without a subscription (generic mouse mode has none).
@@ -753,13 +858,15 @@ impl EvdevHandler {
         // Back button won't trigger browser-back when a macro is assigned).
         let mut virtual_device = None;
         if !self.grab_disabled && !self.suppressed_keys.is_empty() {
-            let vdev_result = (|| -> Result<_, std::io::Error> {
-                // Grab first: if another process already holds the grab
-                // (EBUSY), failing before the vdev exists avoids creating and
-                // immediately destroying a node whose Create/Remove churn the
-                // hotplug watcher would then race to classify by sysfs name
-                // (issues #121/#125).
-                device.grab()?;
+            // Grab first: if another process already holds the grab (EBUSY),
+            // failing before the vdev exists avoids creating and immediately
+            // destroying a node whose Create/Remove churn the hotplug watcher
+            // would then race to classify by sysfs name (issues #121/#125).
+            // The grab waits for held buttons to come up, see
+            // `grab_when_released`.
+            let grabbed = grab_when_released(&device_info.path, &device).await;
+            let vdev_result = grabbed.and_then(|grabbed| {
+                device = grabbed;
                 let built = (|| -> Result<_, std::io::Error> {
                     let mut builder = UinputDevice::builder()?.name(VIRTUAL_DEVICE_NAME);
                     if let Some(keys) = device.supported_keys() {
@@ -779,7 +886,7 @@ impl EvdevHandler {
                         Err(e)
                     }
                 }
-            })();
+            });
 
             match vdev_result {
                 Ok(vdev) => {
@@ -1245,6 +1352,127 @@ mod tests {
             }
         }
         events
+    }
+
+    /// Probe answers in order, then "nothing held" for good.
+    fn script(answers: &[bool]) -> impl Fn() -> std::io::Result<bool> + '_ {
+        let next = std::cell::Cell::new(0);
+        move || {
+            let i = next.get();
+            next.set(i + 1);
+            Ok(answers.get(i).copied().unwrap_or(false))
+        }
+    }
+
+    #[tokio::test]
+    async fn grab_when_released_grabs_at_once_when_nothing_is_held() {
+        let opened = std::cell::Cell::new(0);
+        let paused = std::cell::Cell::new(0);
+        let handle = grab_when_released_with(
+            script(&[]),
+            || {
+                opened.set(opened.get() + 1);
+                Ok(false)
+            },
+            |held: &bool| Ok(*held),
+            || {
+                paused.set(paused.get() + 1);
+                std::future::ready(())
+            },
+            100,
+        )
+        .await;
+        assert!(handle.is_ok());
+        assert_eq!((opened.get(), paused.get()), (1, 0));
+    }
+
+    #[tokio::test]
+    async fn grab_when_released_waits_for_a_held_button_before_grabbing() {
+        let opened = std::cell::Cell::new(0);
+        let paused = std::cell::Cell::new(0);
+        grab_when_released_with(
+            script(&[true, true, true]),
+            || {
+                opened.set(opened.get() + 1);
+                Ok(false)
+            },
+            |held: &bool| Ok(*held),
+            || {
+                paused.set(paused.get() + 1);
+                std::future::ready(())
+            },
+            100,
+        )
+        .await
+        .unwrap();
+        // No grab while the button is down: the compositor gets its release.
+        assert_eq!((opened.get(), paused.get()), (1, 3));
+    }
+
+    #[tokio::test]
+    async fn grab_when_released_lets_go_of_a_press_that_raced_the_grab() {
+        // The probe saw nothing, but the button went down before the grab:
+        // that grab is dropped and the wait starts over.
+        let grabbed_held = [true, false];
+        let opened = std::cell::Cell::new(0);
+        let dropped = std::rc::Rc::new(std::cell::Cell::new(0));
+        struct Handle(bool, std::rc::Rc<std::cell::Cell<u32>>);
+        impl Drop for Handle {
+            fn drop(&mut self) {
+                self.1.set(self.1.get() + 1);
+            }
+        }
+        let handle = grab_when_released_with(
+            script(&[false, true]),
+            || {
+                let i = opened.get();
+                opened.set(i + 1);
+                Ok(Handle(grabbed_held[i], dropped.clone()))
+            },
+            |h: &Handle| Ok(h.0),
+            || std::future::ready(()),
+            100,
+        )
+        .await
+        .unwrap();
+        assert!(!handle.0, "the kept grab has nothing held");
+        assert_eq!(opened.get(), 2);
+        assert_eq!(dropped.get(), 1, "the raced grab was released");
+    }
+
+    #[tokio::test]
+    async fn grab_when_released_grabs_anyway_after_the_longest_wait() {
+        let opened = std::cell::Cell::new(0);
+        let paused = std::cell::Cell::new(0);
+        grab_when_released_with(
+            || Ok(true),
+            || {
+                opened.set(opened.get() + 1);
+                Ok(true)
+            },
+            |held: &bool| Ok(*held),
+            || {
+                paused.set(paused.get() + 1);
+                std::future::ready(())
+            },
+            3,
+        )
+        .await
+        .unwrap();
+        assert_eq!((opened.get(), paused.get()), (1, 3));
+    }
+
+    #[tokio::test]
+    async fn grab_when_released_passes_a_probe_error_on() {
+        let result = grab_when_released_with(
+            || Err::<bool, _>(std::io::Error::from_raw_os_error(libc::ENODEV)),
+            || Ok(()),
+            |_: &()| Ok(false),
+            || std::future::ready(()),
+            100,
+        )
+        .await;
+        assert_eq!(result.unwrap_err().raw_os_error(), Some(libc::ENODEV));
     }
 
     /// The liveness probe behind hotplug handling (issue #150): a grabbed
